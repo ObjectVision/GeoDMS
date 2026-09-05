@@ -31,8 +31,6 @@
 //   std::variant<std::monostate, ErrMsgPtr, SharedStr, const Actor*>).
 // - Clarify CharPtr/WeakStr/SharedStr usage; prefer std::string_view where
 //   ABI permits, to reduce allocations and overload set size.
-// - Consider making interest_count_t atomic if accessed cross-thread, or
-//   document that Actor instances are confined to a thread.
 // - Evaluate whether WasFailed(ProgressState) should be deprecated due to
 //   ambiguity (already flagged by comment "DON'T CALL THIS ONE").
 // - Use enum class for FailType/ProgressState to improve type safety if
@@ -63,6 +61,7 @@
 #include "ptr/InterestHolders.h"
 #include "ptr/PersistentObject.h"
 #include "ptr/SharedStr.h"
+#include <atomic>
 
 struct ActorVisitor;
 struct SupplInterestListPtr;
@@ -242,7 +241,7 @@ public:
 	RTC_CALL void DuplInterestCount() const;
 
 	RTC_CALL garbage_can DecInterestCount() const noexcept;
-	auto GetInterestCount() const noexcept { return m_InterestCount; }
+	interest_count_t GetInterestCount() const noexcept { return m_InterestCount; }
 	// - Returns true if any supplier interest is active.
 	RTC_CALL bool DoesHaveSupplInterest() const noexcept; // exported: many shv TUs need it in Debug links (/OPT:REF strips the references in Release)
 
@@ -290,7 +289,9 @@ public:
 
 protected:
 	// Number of active interests on this actor; see StartInterest/StopInterest hooks.
-	mutable interest_count_t m_InterestCount = 0;
+	// Atomic because DecInterestCount and HasInterest read it from worker threads while the meta
+	// thread changes it; the 0<->1 transitions are still serialised by sg_CountSection.
+	mutable std::atomic<interest_count_t> m_InterestCount = 0;
 private:
 
 	#if defined(MG_DEBUG_DATA)

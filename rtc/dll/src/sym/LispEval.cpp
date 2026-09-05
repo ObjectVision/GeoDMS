@@ -72,6 +72,10 @@ const TokenID T_ProMod= GetTokenID_st("ProMod");
 const TokenID T_Renum = GetTokenID_st("Renum");
 const TokenID T_GetEnv= GetTokenID_st("GetEnv");
 
+// This TU's LispComponent precedes the LispRef globals below: within one TU dynamic initialisation
+// runs in declaration order, so the caches they need exist regardless of link order.
+LispComponent s_LispServiceSubscription;
+
 const LispRef ZeroElem(Number(0));
 const LispRef  OneElem(Number(1));
 
@@ -411,8 +415,6 @@ struct ApplyStepFunc
 	}
 };
 */
-
-LispComponent s_LispServiceSubscription;
 
 /* REMOVE
 UnorderedMapCache<ApplyStepFunc> g_applyCache;

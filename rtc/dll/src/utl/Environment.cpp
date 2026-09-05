@@ -33,6 +33,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <atomic>
 
 //  -----------------------------------------------------------------------
 // Child process output; shared by the MSVC and POSIX implementations of
@@ -408,15 +409,14 @@ RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key)
 		{
 			SharedStr result = regLM.ReadString(key);
 			if (result == "#DELETED#")
-				goto exit;
+				return SharedStr(); // a per-machine tombstone hides the per-user value
 			return result;
 		}
 		RegistryHandleCurrentUserRO regCU;
 		if (regCU.ValueExists(key))
 			return regCU.ReadString(key);
 	}
-	catch(...) {}
-exit:
+	catch(...) {} // a value that cannot be read counts as absent
 	return SharedStr();
 }
 
@@ -439,11 +439,10 @@ RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section)
 {
 	try {
 		RegistryHandleLocalMachineRW regLM(section);
-		auto result = regLM.WriteDWORD(key, dw);
+		return regLM.WriteDWORD(key, dw);
 	}
 	catch (...) {}
-
-	return true;
+	return false; // the value did not stick (typically: no write access to HKLM); the caller decides whether that is worth a report
 }
 
 RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section)
@@ -462,21 +461,20 @@ RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, CharPtr str)
 {
 	try {
 		RegistryHandleLocalMachineRW regLM;
-		regLM.WriteString(key, str);
+		return regLM.WriteString(key, str);
 	}
 	catch (...) {}
-	return true;
+	return false;
 }
 
 RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, const std::vector<SharedStr>& strings)
 {
 	try {
 		RegistryHandleLocalMachineRW regLM;
-		auto result = regLM.WriteMultiString(key, strings);
+		return regLM.WriteMultiString(key, strings);
 	}
 	catch (...) {}
-
-	return true;
+	return false;
 }
 
 SharedStr GetConvertedGeoDmsRegKey(CharPtr key)
@@ -505,7 +503,7 @@ SharedStr GetSourceDataDirImpl()
 {
 	SharedStr sourceDataDir = GetConvertedGeoDmsRegKey("SourceDataDir");
 	if (sourceDataDir.empty())
-		sourceDataDir = "C:\\SourceData";
+		sourceDataDir = "C:/SourceData"; // forward slashes, as the LocalDataDir default and every GeoDms path
 
 	return sourceDataDir;
 }
@@ -516,9 +514,10 @@ SharedStr GetSourceDataDir()
 	return sourceDataDir;
 }
 
-UInt32 g_RegStatusFlags = 0; // status flags as found in the register
-UInt32 g_OvrStatusFlags = 0; // status flags as set from the command line
-UInt32 g_OvrStatusMask  = 0; // mask for status flags as set from the command line
+// Atomic: read by every thread through GetRegStatusFlags, written under RegAccessSection().
+std::atomic<UInt32> g_RegStatusFlags = 0; // status flags as found in the register
+std::atomic<UInt32> g_OvrStatusFlags = 0; // status flags as set from the command line
+std::atomic<UInt32> g_OvrStatusMask  = 0; // mask for status flags as set from the command line
 
 // Order-safe accessor for the registry-access section. This section is reached
 // from DYNAMIC INITIALIZATION: a namespace-scope TokenID initializer (e.g.
@@ -2711,9 +2710,9 @@ SharedStr GetSourceDataDir()
 // Status Flags (same logic, env-var backed on Linux)
 // =====================================================================
 
-UInt32 g_RegStatusFlags = 0;
-UInt32 g_OvrStatusFlags = 0;
-UInt32 g_OvrStatusMask  = 0;
+std::atomic<UInt32> g_RegStatusFlags = 0; // atomic: read by every thread, written under RegAccessSection()
+std::atomic<UInt32> g_OvrStatusFlags = 0;
+std::atomic<UInt32> g_OvrStatusMask  = 0;
 
 // Order-safe accessor for the registry-access section. This section is reached
 // from DYNAMIC INITIALIZATION: a namespace-scope TokenID initializer (e.g.
@@ -2750,8 +2749,8 @@ UInt32 ReadOnceRegisteredStatusFlags()
 		return g_RegStatusFlags;
 
 	g_RegStatusFlags |= RSF_WasRead;
-	DWORD val = GetGeoDmsRegKeyDWord("StatusFlags", 0);
-	if (val)
+	DWORD val = GetGeoDmsRegKeyDWord("StatusFlags", DWORD(-1)); // sentinel: an explicit 0 is a setting, not an absence
+	if (val != DWORD(-1))
 		g_RegStatusFlags |= val;
 	else
 		g_RegStatusFlags |= RSF_Default;

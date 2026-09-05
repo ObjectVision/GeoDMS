@@ -72,7 +72,8 @@ RegistryHandle::RegistryHandle(HKEY key)
 
 RegistryHandle::~RegistryHandle()
 {
-	RegCloseKey(m_Key);
+	if (m_Key) // OpenKey / OpenKeyReadOnly leave it null when the open failed
+		RegCloseKey(m_Key);
 }
 
 bool RegistryHandle::ValueExists(CharPtr name) const
@@ -150,13 +151,13 @@ void RegistryHandle::DeleteValue(CharPtr name) const
 }
 
 
-void RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
+bool RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
 {
 	auto strW = Utf8_2_wchar(str.begin(), static_cast<int>(str.size()));
 	auto nameW = Utf8_2_wchar(name);
 	// REG_SZ data includes the terminating NUL. Without it ReadString, which strips a terminator,
 	// returned every value written here one character short.
-	RegSetValueExW(m_Key, nameW.get(), NULL, REG_SZ, reinterpret_cast<const BYTE*>(strW.get()), (std::wcslen(strW.get()) + 1) * sizeof(wchar_t));
+	return RegSetValueExW(m_Key, nameW.get(), NULL, REG_SZ, reinterpret_cast<const BYTE*>(strW.get()), (std::wcslen(strW.get()) + 1) * sizeof(wchar_t)) == ERROR_SUCCESS;
 }
 
 auto RegistryHandle::ReadMultiString(CharPtr name) const -> std::vector<SharedStr>
@@ -180,11 +181,16 @@ auto RegistryHandle::ReadMultiString(CharPtr name) const -> std::vector<SharedSt
 	for (auto* wcPtr = wcharResult.get(); nr_wchars; ++wcPtr, --nr_wchars)
 	{
 		auto wc = *wcPtr;
-		if (wc==L'\0' && not wcharWord.empty())
+		if (wc == L'\0')
 		{
-			auto word = wchar_2_Utf8Str(wcharWord.c_str(), wcharWord.size());
-			result.emplace_back(std::move(word));
-			wcharWord.clear();
+			// a terminator: emit the word before it; the empty word at the double NUL that ends the
+			// list is not an element (and a NUL is never appended to the next word)
+			if (not wcharWord.empty())
+			{
+				auto word = wchar_2_Utf8Str(wcharWord.c_str(), wcharWord.size());
+				result.emplace_back(std::move(word));
+				wcharWord.clear();
+			}
 			continue;
 		}
 		wcharWord += wc;
@@ -209,8 +215,7 @@ bool RegistryHandle::WriteMultiString(CharPtr name, const std::vector<SharedStr>
 {
 	auto nameW = Utf8_2_wchar(name);
 	auto reg_value = PackVectorStringAsVectorBytes(strings);
-	RegSetValueExW(m_Key, nameW.get(), NULL, REG_MULTI_SZ, reinterpret_cast<BYTE*>(begin_ptr(reg_value)), reg_value.size() * sizeof(wchar_t));
-	return true;
+	return RegSetValueExW(m_Key, nameW.get(), NULL, REG_MULTI_SZ, reinterpret_cast<BYTE*>(begin_ptr(reg_value)), reg_value.size() * sizeof(wchar_t)) == ERROR_SUCCESS;
 }
   
 DWORD RegistryHandle::ReadDWORD(CharPtr name) const
@@ -225,8 +230,7 @@ DWORD RegistryHandle::ReadDWORD(CharPtr name) const
 bool RegistryHandle::WriteDWORD(CharPtr name, DWORD dw) const
 {
 	auto nameW = Utf8_2_wchar(name);
-	RegSetValueExW(m_Key, nameW.get(), NULL, REG_DWORD, (const BYTE*)&dw, sizeof(dw));
-	return true;
+	return RegSetValueExW(m_Key, nameW.get(), NULL, REG_DWORD, (const BYTE*)&dw, sizeof(dw)) == ERROR_SUCCESS;
 }
 
 //  -----------------------------------------------------------------------

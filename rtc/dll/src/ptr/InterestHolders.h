@@ -165,25 +165,30 @@ struct InterestPtr
 		inc_interest();
 	}
 
+	// Every assignment goes through a temporary that takes the OLD interest with it, so that the old
+	// item's interest is dropped when the temporary dies, at the end of the operator. A plain swap
+	// with rhs would hand the old interest to rhs instead, keeping the old item's data computed and
+	// resident for as long as rhs lives: exactly the retention this bookkeeping exists to end.
 	InterestPtr& operator =(InterestPtr&& rhs) noexcept
 	{
-		omni::swap(m_Item, rhs.m_Item);
-		return *this;
+		InterestPtr rhsMoved(std::move(rhs));      // rhs is null afterwards
+		omni::swap(m_Item, rhsMoved.m_Item);       // this line shouldn't throw
+		return *this;                              // rhsMoved decrements the old m_Item
 	}
 
-	void operator =(const InterestPtr& rhs) noexcept
+	InterestPtr& operator =(const InterestPtr& rhs) noexcept
 	{
 		InterestPtr rhsCopy(rhs);
 		omni::swap(m_Item, rhsCopy.m_Item);        // this line shouldn't throw
-		 // fullfill the promise to Decrement old m_Item by destructing temporary rhs
+		return *this;                              // rhsCopy decrements the old m_Item
 	}
 
 	template <typename SrcPtr>
-	void operator =(SrcPtr&& rhs)
+	InterestPtr& operator =(SrcPtr&& rhs)
 	{
 		InterestPtr rhsCopy(std::forward<SrcPtr>(rhs));
 		omni::swap(m_Item, rhsCopy.m_Item);        // this line shouldn't throw
-		 // fullfill the promise to Decrement old m_Item by destructing temporary rhs
+		return *this;                              // rhsCopy decrements the old m_Item
 	}
 	void release() noexcept { m_Item = CPtr(); } // remove responsibility for decrement
 

@@ -246,20 +246,22 @@ void CancelIfOutOfInterest(const TreeItem* item)
 #include "TicInterface.h"
 
 static std::shared_ptr<const TreeItem>      s_SourceItem;
-static std::map<const Actor*, supplier_level> s_SupplierLevels;
+
+// Keyed by raw actor address, and an entry is never erased when its actor dies (a deletion
+// notification can arrive off the meta thread, and after this register's own destruction), so a
+// new item can be allocated at the address of a stale entry. For a TreeItem the entry therefore
+// also records a weak reference to the item it was made for, and an entry whose item does not match
+// counts as absent. Other actors only serve as visited-markers for the traversal in MarkSources and
+// are never looked up by TreeItem_GetSupplierLevel.
+struct supplier_level_entry
+{
+	supplier_level                 level = supplier_level::none;
+	std::weak_ptr<const TreeItem>  item;
+};
+static std::map<const Actor*, supplier_level_entry> s_SupplierLevels;
 
 supplier_level operator & (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) & UInt32(rhs)); }
 supplier_level operator | (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) | UInt32(rhs)); }
-
-static void ProcessDeletion(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
-{
-	return;
-	if (notificationCode == NC_Deleting)
-	{
-		assert(self != s_SourceItem.get()); // s_SourceItem is reference counted
-		s_SupplierLevels.erase(self); // supplier level register is not reference counted.
-	}
-}
 
 bool MarkSources(const Actor* a, supplier_level level)
 {
@@ -269,10 +271,10 @@ bool MarkSources(const Actor* a, supplier_level level)
 		if (!ti || ti->IsCacheItem())
 			return false;
 
-	if (s_SupplierLevels.empty())
-		DMS_RegisterStateChangeNotification(ProcessDeletion, nullptr);
-
-	supplier_level& currLevel = s_SupplierLevels[a];
+	auto& entry = s_SupplierLevels[a];
+	if (ti && entry.item.lock() != ti) // a fresh entry, or one left behind by a deleted item at this address
+		entry = supplier_level_entry{ supplier_level::none, ti };
+	supplier_level& currLevel = entry.level;
 
 	bool hasSource = (a == s_SourceItem.get());
 
@@ -306,14 +308,7 @@ TIC_CALL void TreeItem_SetAnalysisTarget(const TreeItem * ti, bool mustClean)
 {
 	assert(IsMetaThread());
 	if (mustClean)
-	{
-//	TODO: issue: registered suppliers may alredy be destroyed (and locations even be reused !). We need std::weak_ptr here.
-//		for (auto& supplierRecord: dsm->m_SupplierLevels)
-//			if (auto ti = dynamic_cast<const TreeItem*>(supplierRecord.first))
-//				NotifyStateChange(ti, NC2_InterestChange);
-		DMS_ReleaseStateChangeNotification(ProcessDeletion, nullptr);
-		s_SupplierLevels.clear();
-	}
+		s_SupplierLevels.clear(); // no refresh of the items marked before: they may be gone (the entries hold weak references only)
 	if (!ti)
 		return;
 	MarkSources(ti, supplier_level::calc);
@@ -333,8 +328,8 @@ TIC_CALL supplier_level TreeItem_GetSupplierLevel(const TreeItem * ti)
 {
 	assert(IsMetaThread());
 	auto iter = s_SupplierLevels.find(ti);
-	if (iter != s_SupplierLevels.end())
-		return iter->second;
+	if (iter != s_SupplierLevels.end() && iter->second.item.lock().get() == ti)
+		return iter->second.level;
 	return supplier_level::none;
 }
 

@@ -1004,7 +1004,6 @@ FreeListAllocator& GetFreeListAllocator(alloc_index_t i)
 
 constexpr alloc_index_t BlockListIndex(SizeT sz)
 {
-	SizeT org_sz = sz;
 	assert(sz);
 //	assert(sz <= ALLOC_OBJSSIZE_MAX);
 
@@ -1036,7 +1035,7 @@ bool SpecialSize(SizeT sz) { return true;  }
 
 #endif //defined(MG_CACHE_ALLOC_ONLY_SPECIALSIZE)
 
-#endif defined(MG_CACHE_ALLOC)
+#endif // defined(MG_CACHE_ALLOC)
 
 //----------------------------------------------------------------------
 // implement interface

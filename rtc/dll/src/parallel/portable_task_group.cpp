@@ -68,20 +68,24 @@ portable_task_group::portable_task_group(unsigned concurrency)
 	}
 }
 
-void portable_task_group::run(std::function<void()> f)
+bool portable_task_group::run(std::function<void()> f)
 {
 	{
 		std::lock_guard lock(m_mutex);
 		if (m_stop || m_canceling)
-			return;
+			return false; // dropped: the caller undoes whatever bookkeeping assumed the task would run
 		m_tasks.push(std::move(f));
 	}
 	m_cv.notify_one();
+	return true;
 }
 
 void portable_task_group::cancel()
 {
-	m_canceling.store(true, std::memory_order_relaxed);
+	{
+		std::lock_guard lock(m_mutex); // pairs with the workers' predicate wait: no missed wake-up
+		m_canceling.store(true, std::memory_order_relaxed);
+	}
 	m_cv.notify_all();
 }
 
@@ -109,7 +113,7 @@ static portable_task_group* s_thePortableTaskGroup = nullptr;
 
 portable_task_group& GetPortableTaskGroup()
 {
-	assert(s_thePortableTaskGroup);
+	MG_CHECK(s_thePortableTaskGroup); // before InitPortableTaskGroup or after DestroyPortableTaskGroup
 	return *s_thePortableTaskGroup;
 }
 

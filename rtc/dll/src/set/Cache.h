@@ -15,6 +15,7 @@
 #include <functional>
 #include <atomic>
 #include <optional>
+#include <thread>
 
 /****************** struct Cache                  *******************/
 
@@ -83,7 +84,7 @@ struct UnorderedSetCache
 	{
 		while (true)
 		{
-			auto cacheLock = std::lock_guard(mx_MapLock);
+			auto cacheLock = std::unique_lock(mx_MapLock);
 
 			MG_DEBUGCODE(md_NrCalls++; )
 				dms_check_not_debugonly;
@@ -93,6 +94,8 @@ struct UnorderedSetCache
 				auto sharedRef = LispRef(LispPtr(*i), no_zombies{});
 				if (sharedRef)
 					return sharedRef;
+				cacheLock.unlock();
+				std::this_thread::yield(); // ~ListObj removes the entry under this lock; let it run rather than spin on the mutex
 				continue; // retry if the reference is zombie
 			}
 			result_type res = m_Func(arg);
@@ -199,8 +202,7 @@ struct UnorderedMapCache
 
 		auto i = m_UMap.find(arg);
 		assert(i != m_UMap.end());
-		assert(!(*i)->IsOwned());
-		assert(m_EqComp(arg, *i));
+		assert(m_EqComp(arg, i->first));
 		m_UMap.erase(i);
 	}
 

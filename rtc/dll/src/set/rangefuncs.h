@@ -199,7 +199,6 @@ fast_move_backward(Iter first, Iter last, Iter targetEnd)
 	typedef typename std::iterator_traits< Iter>::value_type  T;
 
 	static_assert(!is_bitvalue_v< T>);
-	static_assert(!std::is_trivially_move_assignable_v< T, T>);
 #endif
 
 	assert((targetEnd <= first) || (last <= targetEnd)); // BEWARE OF OVERLAPPING RANGES

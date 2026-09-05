@@ -455,7 +455,7 @@ struct LispCaches {
 			assert(len); // zero-sized strings are separately provided by StrnObj::Empty()
 			char* b = new char[len + 1],
 				* e = b + len;
-			strncpy(b, v.first, len);
+			memcpy(b, v.first, len); // not strncpy: the range may contain NUL, and the key must be the whole range
 			*e = 0;
 			return new StrnObj(b, e);
 		}
@@ -598,7 +598,7 @@ LispCaches* GetLispCachesPtr()
 
 LispCaches* GetLispCaches()
 {
-	assert(s_LispComponentCount);
+	MG_CHECK(s_LispComponentCount); // a LispRef made before the first LispComponent would use uninitialised cache storage
 	return GetLispCachesPtr();
 }
 
@@ -772,7 +772,10 @@ ListObj::~ListObj()
 	if (s_LispObjStackActive)
 		return;
 
-	s_LispObjStackActive = true;
+	// RAII rather than a trailing reset: the flag gates every later ~ListObj on this thread, and a
+	// flag left set would leave dangling cache entries behind (this destructor is noexcept, so a
+	// throw from nodes.push terminates anyway; the guard covers any other early exit).
+	struct StackActiveGuard { StackActiveGuard() { s_LispObjStackActive = true; } ~StackActiveGuard() { s_LispObjStackActive = false; } } stackActiveGuard;
 	zombie_destroyer_stack nodes;
 
 	// No need to reset since release already nullifies the unique_ptrs
@@ -791,7 +794,6 @@ ListObj::~ListObj()
 		ref_mover(nodes,currentLispObj->m_Right);
 		// delete current
 	}
-	s_LispObjStackActive = false;
 }
 
 /****************** ListObj Serialization and rtti *******************/

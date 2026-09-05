@@ -1591,7 +1591,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 					}
 					else
 						for (LispPtr e = fa; !e.EndP(); e = e.Right())
-							if (e.Left().IsSymb() && e.Left().GetSymbID() != GetTokenID_st("_"))
+							if (e.Left().IsSymb() && e.Left().GetSymbID() != GetTokenID_mt("_")) // _mt: run time, workers may be registering tokens
 								if (auto it = FindOrVisitItem(substBuff, e.Left().GetSymbID()))
 									registerSupplier(substBuff, it.get());
 				}

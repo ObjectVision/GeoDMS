@@ -93,7 +93,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 			// user definitions shadow prelude names by the normal nearest-scope rules.
 			if (res)
 			{
-				static TokenID t_Prelude = GetTokenID_st("prelude");
+				static TokenID t_Prelude = GetTokenID_mt("prelude"); // _mt: run time, workers may be registering tokens
 				SharedStr preludePath = DelimitedConcat(GetExeDir().c_str(), "prelude.dms");
 				// raw child scan: the updating GetConstSubTreeItemByID would call
 				// UpdateMetaInfo, forbidden inside this MG_LOCKER_NO_UPDATEMETAINFO scope

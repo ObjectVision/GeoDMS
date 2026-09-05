@@ -449,12 +449,13 @@ inline __m128i fold_ascii_uppercase(chunk_t chunk) noexcept {
 	// Set up constants
 	const __m128i A = _mm_set1_epi8('A'); // 0x41
 	const __m128i Z = _mm_set1_epi8('Z'); // 0x5A
-	const __m128i AZ_range = _mm_set1_epi8('Z' - 'A' + 1); // 26
 	const __m128i lowercase_bit = _mm_set1_epi8(0x20);     // bit 5
 
-	// Compute: mask = (chunk - 'A') < 26
+	// Compute: mask = (chunk - 'A') < 26, as an UNSIGNED compare: min(shifted, 25) == shifted. The
+	// signed _mm_cmplt_epi8 that preceded it was also true for shifted >= 0x80, so bytes 0xC1..0xFF
+	// (Latin-1 or invalid input) were folded as well.
 	__m128i shifted = _mm_subs_epu8(chunk, A);              // saturate at 0
-	__m128i is_upper = _mm_cmplt_epi8(shifted, AZ_range);   // signed < 26
+	__m128i is_upper = _mm_cmpeq_epi8(_mm_min_epu8(shifted, _mm_set1_epi8(25)), shifted);
 
 	// Apply lowercase folding where mask is set
 	return _mm_or_si128(chunk, _mm_and_si128(is_upper, lowercase_bit));
@@ -538,20 +539,25 @@ static std::size_t avalanche(std::size_t h) noexcept {
 	return h;
 }
 
+// Mixes a 16-byte chunk into the running hash. The multiply after each xor makes the result depend
+// on chunk ORDER; a plain xor of the halves let permuted chunks, and any pair of identical chunks,
+// collide (they cancelled to the empty-string hash). Every user is an unordered container with full
+// key equality, so that was a bucket-quality problem for structured keys of 32+ bytes, not a
+// correctness one. Nothing persists these values.
 void hash_in(std::size_t& hash, __m128i v)
 {
+	constexpr std::size_t prime = 0x100000001b3; // the FNV prime
 	std::uint64_t low = static_cast<std::uint64_t>(_mm_extract_epi64(v, 0));
 	std::uint64_t high = static_cast<std::uint64_t>(_mm_extract_epi64(v, 1));
-	hash ^= low;
-	hash ^= high;
+	hash = (hash ^ low) * prime;
+	hash = (hash ^ high) * prime;
 }
 
 std::size_t GenericHasher::operator()(CharPtrRange str) const noexcept {
 	const char* ptr = str.first;
 	const char* end = str.second;
 
-	std::size_t hash = 0; // 0xcbf29ce484222325; // FNV-1a offset basis
-//	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
+	std::size_t hash = 0;
 
 	// Process full word chunks
 	while (std::size_t(end - ptr) >= sizeof(chunk_t)) {
@@ -573,8 +579,7 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 	const char* ptr = str.first;
 	const char* end = str.second;
 
-	std::size_t hash = 0; // 0xcbf29ce484222325; // FNV-1a offset basis
-	//	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
+	std::size_t hash = 0;
 
 		// Process full word chunks
 	while (std::size_t(end - ptr) >= sizeof(chunk_t)) {

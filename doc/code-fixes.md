@@ -340,7 +340,20 @@ files plus the items above).
 
 ---
 
-## Phase 2 — Runtime-core robustness (rtc: act, ptr, set, sym, mem, utl, parallel, tic internals)
+$1
+**Status 2026-09-05:** implemented, built (Release x64) and committed, with these deviations. RTC-36: the
+objects are now relocated by their move constructor (a per-bin `relocate` function used on growth and in
+`merge_from`) rather than whitelisted as trivially relocatable, which would not have covered the lambda
+payloads. RTC-70: the mitigation now reports once per process at warning level, and `m_InterestCount` is
+`std::atomic`; the §9 split is still the follow-up. RTC-43: `~ListObj` is implicitly noexcept, so a throw
+from `nodes.push` terminates rather than leaving the flag set; the RAII guard is kept for the early-return
+paths. TIC-03: instead of weak keys the entries record a weak reference to their TreeItem and an entry
+whose item does not match counts as absent; non-TreeItem actors stay as visited-markers, `ProcessDeletion`
+is gone. RTC-58: the three `SetGeoDmsRegKey*` wrappers and `RegistryHandle::Write*` now return the real
+status (the callers ignore it); no report is added, since HKLM writes fail routinely for non-admin users.
+RTC-31 affects only invalid UTF-8 / Latin-1 input. RTC-16: the four run-time sites use `_mt`, and both
+`st` entry points assert `NoOtherThreadsStarted()`. Left alone: the unused `m_Hasher` members (referenced
+by an /analyze suppression comment) and `UnorderedMapCache::remove`, which is fixed rather than deleted.
 
 All S effort / low fix-risk unless stated. Suggested commits: (i) token registry + interest holders,
 (ii) fail-reason bookkeeping, (iii) hygiene.
@@ -732,7 +745,7 @@ as its own commit) → R3 (slotted around the g8 lock-handle rename) → C4 → 
 |---|---|---|---|---|---|
 | 0 | Confirmed defects, small fixes | 15 implemented 2026-09-05, 1 refuted (STG-14) | S each, ~1–2 days total | low | build + battery pending |
 | 1 | Storage-reader validation + assert policy | implemented 2026-09-05 (1a, 1b incl. STG-N03, 1c incl. GEO-32, 1d); STG-15 deferred, STG-24 mostly refuted | M | low, except GEO-32 (med) | build + battery pending |
-| 2 | Runtime-core robustness | ~20 groups | S–M | low; RTC-70 follow-up split L/med | none |
+| 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries) | S–M | low; RTC-70 follow-up split L/med | build green; battery after Phase 5 |
 | 3 | Viewer and GUI | 16 groups | S, two M | low; SHV-53 / CLC-27 med | none |
 | 4 | Dead code and comments | ~560 lines deleted, ~95 comment lines translated, 12 stale comments | S–M | none | `AbstrCalculator.cpp` micro-commit first |
 | 5 | Renames and contracts | R1 ~120 sites, R1b 13, R2 ~75, R3 ~135, R4 doc, C4 12 comments | S–M | low (T3 for XMLOut) | R3 not concurrent with the g8 lock-handle rename |

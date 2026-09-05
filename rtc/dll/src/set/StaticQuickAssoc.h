@@ -85,7 +85,7 @@ private:
 	std::map<K, V, Pred>& GetAssoc()
 	{
 		if (this->is_null())
-			this->assign(new std::map<K, V>);
+			this->assign(new std::map<K, V, Pred>);
 		return *(this->get_ptr());
 	}
 };

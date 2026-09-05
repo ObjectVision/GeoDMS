@@ -103,7 +103,8 @@ struct SharedPtr
 
 	SharedPtr<T>& operator =(SharedPtr<T>&& rhs) noexcept
 	{
-		this->swap(rhs);
+		auto tmp = SharedPtr<T>(std::move(rhs)); // rhs is null afterwards; a swap with rhs would keep the old pointee alive in it
+		this->swap(tmp);
 		return *this;
 	}
 

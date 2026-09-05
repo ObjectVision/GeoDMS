@@ -36,6 +36,9 @@ struct XmlElement {
 	AttrValuesConstIterator GetAttrValuesEnd() const;
 
 	TokenID                m_NameID;
+	// A raw pointer into the parent's m_SubElements, which reallocates as siblings are added: only
+	// valid while the parent is still open on the parser's stack (XmlTreeParser::ReadEncl), which is
+	// the only time it is used. Not a general back link.
 	XmlElement*            m_Parent;
 	TextType               m_EnclText;
 	TextType               m_TailText;

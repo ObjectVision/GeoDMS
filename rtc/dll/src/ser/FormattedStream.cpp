@@ -65,11 +65,12 @@ FormattedInpStream::FormattedInpStream(InpStreamBuff* inp, reader_flags rf)
 	:	m_InpStreamBuff(inp)
 	,	m_NextChar(0)
 	,	m_LineNr(1)
-	,	m_LineStartPos(inp->CurrPos())
+	,	m_LineStartPos(0) // set below, after the precondition on inp
 	,	m_AtEnd(false)
 	,	m_Flags(rf)
 {
 	MG_PRECONDITION(inp);
+	m_LineStartPos = inp->CurrPos();
 	ReadChar();
 }
 

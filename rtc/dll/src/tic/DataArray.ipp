@@ -95,7 +95,7 @@ std::size_t DataArrayBase<V>::GetNrTileBytesNow(tile_id t, bool calcStreamSize) 
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());
 	auto tile = GetTile(t);
 	if (tile.size() == 0)
-		return std::size_t(-1); // can be anything
+		return 0; // an empty tile occupies nothing; the SizeT(-1) it used to return poisoned every sum over tiles
 	return NrBytesOf(tile, calcStreamSize);
 }
 

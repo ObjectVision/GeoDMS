@@ -1578,10 +1578,18 @@ static void MemoryLedger_ConsiderSample(CharPtr event)
 //
 // The remaining bound is a correctness guard, not a tuning constant: a booking claiming more memory
 // than physically exists is wrong whatever produced it, and nothing can occupy more than that.
+// TotalAllowedPhysicalMemory throws when the OS query fails (GlobalMemoryStatusEx); the two noexcept
+// helpers below would turn that into std::terminate. No cap in that case.
+static SizeT TotalAllowedPhysicalMemoryOrNoCap() noexcept
+{
+	try { return TotalAllowedPhysicalMemory(); }
+	catch (...) { return SizeT(-1); }
+}
+
 static SizeT RetainedBytesOf(const AbstrDataItem* item, const AbstrDataObject* obj
 	, const PerformanceEstimationData& est) noexcept
 {
-	auto cap = TotalAllowedPhysicalMemory();
+	auto cap = TotalAllowedPhysicalMemoryOrNoCap();
 	if (obj)
 		try {
 			if (auto n = obj->GetNrFeaturesNow())
@@ -1597,7 +1605,7 @@ static SizeT RetainedBytesOf(const AbstrDataItem* item, const AbstrDataObject* o
 // size), which is what a mapped tile costs.
 static SizeT SpilledResidentBytes(const PerformanceEstimationData& est, tile_id nrResidentTiles) noexcept
 {
-	auto cap = TotalAllowedPhysicalMemory();
+	auto cap = TotalAllowedPhysicalMemoryOrNoCap();
 	auto perTile = est.choreMemory ? est.choreMemory : est.residentMemory;
 	if (!perTile || !nrResidentTiles)
 		return 0;

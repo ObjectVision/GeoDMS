@@ -45,7 +45,7 @@ struct static_ptr: geodms::rtc::noncopyable
 		m_Ptr = nullptr;
 	}
 protected:
-	pointer m_Ptr;
+	pointer m_Ptr = nullptr; // explicit: a static_ptr is not always at static scope (zero-initialised)
 };
 
 //  -----------------------------------------------------------------------

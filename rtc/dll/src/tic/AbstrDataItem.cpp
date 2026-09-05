@@ -1491,9 +1491,8 @@ void AbstrDataItem::SetEstimatedBytesPerElement(SizeT bytesPerElement) const noe
 }
 
 // One shared implementation for the two residency-guaranteed call sites (post-read in
-// StorageReadHandle::Read, post-commit in DataWriteLock::Commit). GetNrTileBytesNow yields
-// SizeT(-1) for an empty tile, wrapping the sum downward by one per empty tile; the credibility
-// window below rejects a wrapped or absurd average rather than publish it.
+// StorageReadHandle::Read, post-commit in DataWriteLock::Commit). The credibility window below
+// rejects an absurd average rather than publish it.
 void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept
 {
 	try {
@@ -1523,7 +1522,7 @@ void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept
 			return;
 		auto bytes = obj->GetNrBytesNow(false);
 		auto avg = bytes / rows;
-		if (avg && avg <= (SizeT(1) << 20)) // > 1 MiB/row says the sum wrapped, not that rows are huge
+		if (avg && avg <= (SizeT(1) << 20)) // > 1 MiB/row is not a credible element width
 			adi->SetEstimatedBytesPerElement(avg);
 	}
 	catch (...) {}

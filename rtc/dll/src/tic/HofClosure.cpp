@@ -88,7 +88,7 @@ StaticTokenID t_Dot(".");
 	// strict function scopes, which do not see the root's namespace usage.
 	SharedTreeItem FindPreludeFunction(TokenID nameID)
 	{
-		static TokenID t_PreludeContainer = GetTokenID_st("prelude");
+		static TokenID t_PreludeContainer = GetTokenID_mt("prelude"); // _mt: run time, workers may be registering tokens
 		auto sd = SessionData::Curr();
 		if (!sd)
 			return {};

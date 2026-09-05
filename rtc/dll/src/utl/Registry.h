@@ -39,7 +39,7 @@ public:
 	UInt32      GetDataW(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType)  const;
 //	RTC_CALL UInt32      GetData(CharPtr name, std::vector<BYTE>& buffer, DWORD bufSize, RegDataType& regDataType) const;
 	RTC_CALL SharedStr   ReadString(CharPtr name) const;
-	RTC_CALL void        WriteString(CharPtr name, CharPtrRange str) const;
+	RTC_CALL bool        WriteString(CharPtr name, CharPtrRange str) const; // false: RegSetValueEx failed
 	RTC_CALL void        DeleteValue(CharPtr name) const;
 	auto        ReadMultiString(CharPtr name) const->std::vector<SharedStr>;
 	bool        WriteMultiString(CharPtr name, const std::vector<SharedStr>& strings) const;

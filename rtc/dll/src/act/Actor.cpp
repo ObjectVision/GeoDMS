@@ -34,6 +34,7 @@
 #include "xct/DmsException.h"
 
 #include "RtcInterface.h"
+#include "DbgInterface.h" // DBG_ReportBoundaryException
 #include "LockLevels.h"
 
 #include <set>
@@ -159,10 +160,12 @@ THREAD_LOCAL SupplInterestListElem* sc_RetainContextBuffer = nullptr;
 THREAD_LOCAL UInt32                 sc_RetainContextCount  = 0;
 
 
-// Accessor cast that overlays raw TLS storage with a strongly-typed Ptr.
+// Accessor cast that overlays raw TLS storage with a strongly-typed Ptr: a thread_local of a type
+// with a destructor would register a TLS destructor per thread, so the raw pointer is the TLS object
+// and the Ptr is a view of it. That is only sound while the Ptr is exactly one raw pointer.
+static_assert(sizeof(SupplInterestListElem*) == sizeof(SupplInterestListPtr), "SupplInterestListPtr must be a single pointer to overlay sc_RetainContextBuffer");
 SupplInterestListPtr& GetRetainContext()
 {
-    dms_assert(sizeof(SupplInterestListElem*) == sizeof(SupplInterestListPtr));
     return reinterpret_cast<SupplInterestListPtr&>(sc_RetainContextBuffer);
 }
 
@@ -944,9 +947,10 @@ void Actor::ClearFail() const
     {
         leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
 
-        auto errMsgPtr = s_ActorFailReasonAssoc.GetExisting(this);
-
-        s_ActorFailReasonAssoc.eraseExisting(this);
+        // erase, not GetExisting + eraseExisting: those assert the entry's presence, which is an
+        // optimizer assumption in Release, and a failed state without a recorded reason (see the
+        // check in DoFail) must clear cleanly rather than dereference a missing entry.
+        s_ActorFailReasonAssoc.erase(this);
         m_State.ClearFailed();
     }
 }
@@ -991,7 +995,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 
 #endif
 
-    assert(msg);
+    MG_CHECK(msg); // assoc(this, nullptr) would ERASE the reason while SetFailure still ran, and TellWhere would dereference it
     assert(ft != FailType::None);
     SupplInterestListPtr supplInterestWaste;
     {
@@ -1085,7 +1089,7 @@ void Actor::ThrowFail(CharPtr str, FailType ft) const
 
 void Actor::ThrowFail(const Actor* src, FailType ft) const
 {
-    DoFailCaller(src->GetFailReason(), ft); 
+    Fail(src, ft); // substitutes a reason when src has none recorded 
     ThrowFail();
 }
 
@@ -1122,7 +1126,8 @@ void Actor::Fail(const Actor* src, FailType failType) const
 {
     assert(failType != FailType::None);
     auto failReason = src->GetFailReason();
-    assert(failReason);
+    if (!failReason) // flagged as failed, but the reason was never recorded or has been cleared since
+        failReason = std::make_shared<ErrMsg>("a supplier failed without a recorded reason", dynamic_cast<const PersistentObject*>(src));
     DoFailCaller(failReason, failType);
 }
 
@@ -1224,7 +1229,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 
 // Helpers to decrement counts atomically under global lock,
 // distinguishing the last-decrement path.
-bool DecCount(interest_count_t* interestCount)
+bool DecCount(std::atomic<interest_count_t>* interestCount)
 {
 	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
     // only one thread gets the change to decrease to zero, but other thread might have increased it again.
@@ -1232,7 +1237,7 @@ bool DecCount(interest_count_t* interestCount)
     return -- * interestCount;
 }
 
-bool DecCountIfAboveZero(interest_count_t* interestCount)
+bool DecCountIfAboveZero(std::atomic<interest_count_t>* interestCount)
 {
 	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
     // only one thread gets the change to decrease to zero, but other thread might have increased it again.
@@ -1258,8 +1263,18 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
 
     assert(m_InterestCount);
 
-    if (!m_InterestCount) 
-        return {}; // DEBUG, MITIGATION OF ISSUE
+    if (!m_InterestCount)
+    {
+        // A decrement without a matching increment: a holder that outlived the count reset in the
+        // destructors of AbstrDataItem and TreeItem (consumers may still hold interest then), or a
+        // genuine double decrement. Tolerated as before, but no longer silently: an imbalance that
+        // stays invisible in Release is how the underlying defect survived. Reported once per process.
+        static std::atomic<bool> s_Reported = false;
+        if (!s_Reported.exchange(true))
+            try { reportD_without_cancellation_check(SeverityTypeID::ST_Warning, "DecInterestCount: no interest to release; an interest holder outlived the interest count of its item"); }
+            catch (...) {}
+        return {};
+    }
 
     if (DecCountIfAboveZero(&m_InterestCount))
         return {};
@@ -1270,6 +1285,7 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
 #endif
 
     garbage_can garbage;
+    try
     {
         actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
         if (DecCount(&m_InterestCount))
@@ -1285,6 +1301,13 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
         garbage = StopInterest();
 
         dbg_assert(m_InterestCount == 0);
+    }
+    catch (...)
+    {
+        // noexcept: the per-actor lock map allocates its node on first use and DecCount takes a
+        // mutex, either of which can throw in theory. Nothing was decremented in that case (the
+        // calls after the decrement are noexcept themselves), so the interest merely stays.
+        DBG_ReportBoundaryException("Actor::DecInterestCount");
     }
     return garbage;
 }
@@ -1320,8 +1343,8 @@ garbage_can Actor::StopInterest() const noexcept
 #if defined(MG_DEBUG_INTERESTSOURCE)
     DemandManagement::ReleaseTempTarget(dynamic_cast<const SharedActor*>(this));
 #endif
-    if (SuspendTrigger::DidSuspend() && DoesHaveSupplInterest()) // suspension shouldn't cause loosing interest
-        ReportSuspension();
+    if (SuspendTrigger::DidSuspend() && DoesHaveSupplInterest()) // suspension shouldn't cause losing interest
+        try { ReportSuspension(); } catch (...) {} // noexcept: reportD's cancellation check throws task_canceled during teardown
 
     dms_assert(m_InterestCount == 0); // only stop on critical state change
     auto garbageCan = StopSupplInterest(); // remove interestcount from suppliers
@@ -1379,19 +1402,19 @@ void Actor::StartSupplInterest() const
     if (!s_SupplTreeInterest)
         s_SupplTreeInterest.assign ( new SupplTreeInterestType );
 
+    if (WasFailed(FailType::Data))
+        return; // a Data failure raised inside GetSupplInterest: nothing to register, and no map entry either (nothing would ever erase it)
+
     SupplInterestListPtr& supplInterestListRef = (*s_SupplTreeInterest)[this]; // can insert new and throw bad_alloc
     assert(!supplInterestListRef);
 
     assert(!DoesHaveSupplInterest()); // POSTCONDITION
 
     // nothrow from here
-    if (!WasFailed(FailType::Data))
-    {
-        supplInterestListRef.init(supplInterestListPtr.release());
-        m_State.Set(actor_flag_set::AF_SupplInterest);
-        undoTargetCount.release();
-        assert(DoesHaveSupplInterest()); // POSTCONDITION
-    }
+    supplInterestListRef.init(supplInterestListPtr.release());
+    m_State.Set(actor_flag_set::AF_SupplInterest);
+    undoTargetCount.release();
+    assert(DoesHaveSupplInterest()); // POSTCONDITION
 }
 
 // Rebuild supplier interest if it exists, swapping out old for new list.

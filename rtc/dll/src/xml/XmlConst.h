@@ -14,6 +14,9 @@
 // against a run of text after an unterminated '&'.
 const UInt32 MAX_TOKEN_LEN = 32;
 
+// Orders entity names that are terminated by ';' OR by NUL: the keys in XmlConstMap are plain names,
+// while SymbolGetChar may receive a ';'-terminated slice of a longer text. Anything else, such as a
+// name followed by other characters, compares as if truncated at the first ';'.
 struct CompCharPtr
 {
 	bool operator ()(CharPtr a, CharPtr b) const

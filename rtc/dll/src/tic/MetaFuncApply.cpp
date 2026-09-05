@@ -227,7 +227,7 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 	// APPLICATION of one leaving exactly one '_' hole for the mapped element, e.g.
 	// map(Scale(k, _), src) -> Scale(k, child). Partial-application fixed arguments must be item
 	// references or literals here (a nested sub-expression argument is not supported).
-	const TokenID t_Hole = GetTokenID_st("_");
+	const TokenID t_Hole = GetTokenID_mt("_"); // _mt: run time, workers may be registering tokens
 	LispPtr fHead = fExpr;
 	std::vector<CallArg> fixedArgs; // resolved fixed args, in order; the hole slot is a placeholder
 	SizeT holePos = SizeT(-1);

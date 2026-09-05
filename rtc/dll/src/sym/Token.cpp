@@ -120,7 +120,7 @@ TokenID::TokenID(CharPtr first, CharPtr last, mt_tag*)
 
 TokenID::TokenID(CharPtr first, CharPtr last, st_tag*)
 {
-	dms_assert(IsMetaThread());
+	dms_assert(NoOtherThreadsStarted()); // as the CharPtr overload: the st path mutates the registry without its lock
 #if defined(MG_DEBUG)
 	SizeT c = s_TokenListPtr->size();
 #endif

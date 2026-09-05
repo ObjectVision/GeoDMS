@@ -759,7 +759,10 @@ std::shared_ptr<const TreeItem> GetATask()
 	DMS_ENTERS(ord_level_type::ActiveProducerSet, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(s_ActiveProducerSetMutex);
 	if (s_ActiveProducerSet.empty())
+	{
+		s_RunTaskActive = false; // lowered under the mutex, before any RunTask can insert: no lost wake-up (see RunTasks)
 		return {};
+	}
 	auto task = *s_ActiveProducerSet.begin();
 	s_ActiveProducerSet.erase(s_ActiveProducerSet.begin());
 	return  task;
@@ -772,12 +775,19 @@ void RunTasks() {
 	// cleared on every path. An exception escaping PrepareData used to leave it true forever, after
 	// which no producer task was ever started again -- on top of terminating the process, this being a
 	// task_group task with nothing above it to catch (#1191).
-	auto clearRunTaskActive = make_scoped_exit([]() { s_RunTaskActive = false; });
+	// The normal exit lowers the flag inside GetATask, under the producer-set mutex, so that a
+	// RunTask inserting right after sees it down and starts a new RunTasks. This scoped exit covers
+	// the other exits only: on the normal one it must not clobber a RunTasks started since.
+	bool drained = false;
+	auto clearRunTaskActive = make_scoped_exit([&drained]() { if (!drained) s_RunTaskActive = false; });
 
 	while (true) {
 		auto nextTask = GetATask();
 		if (!nextTask)
+		{
+			drained = true;
 			break;
+		}
 		if (!nextTask->HasInterest())
 			continue;
 		try {
@@ -818,11 +828,8 @@ bool RunTask(const TreeItem* item)
 			if (!s_RunTaskActive)
 			{
 				s_RunTaskActive = true;
-GetPortableTaskGroup().run(RunTasks);
-
-
-
-
+				if (!GetPortableTaskGroup().run(RunTasks))
+					s_RunTaskActive = false; // dropped: the group is shutting down; leave the gate open rather than closed forever
 			}
 		}
 //		else

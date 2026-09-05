@@ -268,7 +268,6 @@ struct cs_lock_map
 #if defined(MG_DEBUG_LOCKLEVEL)
 		std::optional<level_entry> m_LevelEntry;
 #endif
-		assoc_ptr m_A2;
 		std::optional<assoc_ptr> m_AssocPtr;
 		WeakPtr<cs_lock_map>     m_Map;
 	};

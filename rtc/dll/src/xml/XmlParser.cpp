@@ -33,7 +33,7 @@ XmlElement::XmlElement(XmlElement&& src) noexcept
 	,	m_SubElements(std::move(src.m_SubElements))
 	,	m_ElementType(src.m_ElementType)
 	,	m_ClientData(src.m_ClientData)
-	,	m_AttrValues(src.m_AttrValues)
+	,	m_AttrValues(std::move(src.m_AttrValues))
 {}
 
 XmlElement::~XmlElement()
@@ -246,7 +246,9 @@ bool XmlParser::ReadElem(XmlElement& element)
 	return false;
 }
 
-void HtmlDecode(SharedStr& token)
+// In place, over the five entities of XmlConstMap only; unrelated to the exported HtmlDecode(WeakStr)
+// of utl/Encodes.h, which has its own table.
+static void HtmlDecodeInPlace(SharedStr& token)
 {
 	SharedCharArray* sca = token.GetAsMutableCharArray();
 	if (!sca)
@@ -304,7 +306,7 @@ void XmlParser::ReadAttr(XmlElement& element)
 			return;
 		// Transform nextToken
 
-		HtmlDecode(nextToken);
+		HtmlDecodeInPlace(nextToken);
 
 		TokenID nextTokenID = GetTokenID_mt(nextToken.c_str());
 		(*this) >> "=" >> element.GetAttrValueRef(nextTokenID);
@@ -347,6 +349,7 @@ RegisterConst amp('&', "amp");
 RegisterConst apos('\'', "apos");
 RegisterConst quot('"',"quot");
 
-// etc.
+// Any further entity must fit MAX_TOKEN_LEN (xml/XmlConst.h) and must not contain ';': CompCharPtr
+// treats ';' as the end of a key.
 
 } // namespace

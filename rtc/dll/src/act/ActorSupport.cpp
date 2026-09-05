@@ -39,14 +39,14 @@ void garbage_can::merge_from(garbage_can&& other)
         bin.ensure_capacity(bin.count + other_bin.count);
 
         std::byte* src = reinterpret_cast<std::byte*>(other_bin.storage.data());
-        std::byte* dst = reinterpret_cast<std::byte*>(bin.storage.data());
+        std::byte* dst = reinterpret_cast<std::byte*>(bin.storage.data()) + bin.count * bin.stride;
 
-        std::size_t dst_offset = bin.count * bin.stride;
-        std::size_t src_bytes = other_bin.count * other_bin.stride;
-
-        std::memmove(dst + dst_offset, src, src_bytes);
+        // by move constructor, not memmove: see garbage_can::TypeBin::relocate
+        assert(bin.relocate);
+        bin.relocate(src, dst, other_bin.count);
 
         bin.count += other_bin.count;
+        other_bin.count = 0;
     }
 
     other.bins.clear();

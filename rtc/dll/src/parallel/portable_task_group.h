@@ -37,7 +37,7 @@ class portable_task_group {
 
 public:
 	explicit portable_task_group(unsigned concurrency);
-	void run(std::function<void()> f);
+	bool run(std::function<void()> f); // false: the group is stopping or cancelling and the task was dropped
 	void cancel();
 	void wait();
 	bool is_canceling() const { return m_canceling.load(std::memory_order_relaxed); }

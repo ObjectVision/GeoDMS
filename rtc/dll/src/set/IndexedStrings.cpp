@@ -10,6 +10,7 @@
 #endif //defined(_MSC_VER)
 
 #include "set/IndexedStrings.h"
+#include "act/MainThread.h"
 #include "sym/Token.h"
 #include "utl/Environment.h"
 #include "utl/Registry.h"
@@ -32,7 +33,7 @@ CharPtrRange StringIndexer::GetPtrs(index_type x) const noexcept
 //  -----------------------------------------------------------------------
 
 static UInt32 scc_GetOrCreateID = 0;
-Byte cs_GetOrCreateID[sizeof(IndexedString_critical_section)];
+alignas(IndexedString_critical_section) static Byte cs_GetOrCreateID[sizeof(IndexedString_critical_section)];
 
 IndexedString_critical_section& GetCS()
 {
@@ -197,6 +198,7 @@ template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRa
 IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_st(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
 {
+	dms_assert(NoOtherThreadsStarted()); // the unlocked path: only before any other thread exists (static initialisation)
 	return GetOrCreateID_impl(keyFirst, keyLast);
 }
 

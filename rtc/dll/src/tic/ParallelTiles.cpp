@@ -208,7 +208,13 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 
 	// Launch workers outside of lock.
 	while (nrThreadsToCommission-- > 0)
-		GetPortableTaskGroup().run([] { DoThisOrThatAndDecommission(); });
+		if (!GetPortableTaskGroup().run([] { DoThisOrThatAndDecommission(); }))
+		{
+			// dropped (the group is shutting down): give the slot back, as the worker would have
+			auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+			if (s_NrRunningTileTaskThreads > 0)
+				--s_NrRunningTileTaskThreads;
+		}
 
 
 
