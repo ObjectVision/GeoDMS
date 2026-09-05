@@ -1,0 +1,14 @@
+// The other half of domain_ancestor.dms (issue #1244): an attribute without a domain whose
+// ancestors are all containers is refused, with an error that names what was searched.
+// Expected: exit nonzero on /checks ("Cannot find Domain unit ." on /grp/orphan).
+container domain_ancestor_neg
+{
+	container grp
+	{
+		attribute<int32> orphan := const(1i, void);
+	}
+	container checks
+	{
+		parameter<int32> s := sum(grp/orphan), IntegrityCheck = "s == 1i";
+	}
+}

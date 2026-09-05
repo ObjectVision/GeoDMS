@@ -1,0 +1,26 @@
+// The read half of the grouping-container MMD case (issue #1244); stor_mmd_group_1_write.dms
+// writes the store and carries the description of what is being pinned. run_testcases.ps1 walks
+// the configs sorted by file name, so `_1_write` runs before this one; on its own this config
+// fails because the store does not exist yet.
+//
+// The reader declares nothing but the storage: the group and its attributes come from the
+// dictionary, where they carry the dotted domain '(.)'. The combined sum is the check that the
+// group binds to the store's own domain: with a domain of its own it fails with a domain mismatch.
+container stor_mmd_group_2_read
+{
+	unit<uint32> store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_group.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n_store  := #store,                          IntegrityCheck = "n_store == 3";
+		parameter<int32>  s_a      := sum(store/a),                    IntegrityCheck = "s_a == 6i";
+		parameter<int32>  s_twice  := sum(store/meta/twice),           IntegrityCheck = "s_twice == 12i";
+		parameter<int32>  s_thrice := sum(store/meta/deeper/thrice),   IntegrityCheck = "s_thrice == 18i";
+		parameter<int32>  s_dots   := sum(store/spelled/dots),         IntegrityCheck = "s_dots == 24i";
+		parameter<int32>  s_comb   := sum(store/a + store/meta/twice + store/meta/deeper/thrice + store/spelled/dots), IntegrityCheck = "s_comb == 60i";
+	}
+}

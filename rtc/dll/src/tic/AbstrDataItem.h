@@ -173,7 +173,7 @@ private:
 	// Whether an expired/unset weak unit member may be (re)resolved by name right now; see the comment
 	// at its definition for each of the four conditions.
 	bool CanResolveUnitByName(TokenID) const;
-	const AbstrUnit* FindUnit(TokenID, CharPtr role, ValueComposition* vcPtr) const;
+	const AbstrUnit* FindUnit(TokenID, bool isDomainRole, ValueComposition* vcPtr) const; // isDomainRole: the '.' token takes the nearest ancestor unit (#1244)
 	void InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic);
 	garbage_can CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept;
 	void GetRawCheckModeImpl() const; // DataCheckMode that always works for the value type of the data object

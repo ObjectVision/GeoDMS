@@ -1,0 +1,37 @@
+// A grouping container below an MMD store holder (issue #1244). Its attributes share the holder
+// as domain and, since GeoDMS 21, need no domain specification for that: the dictionary writes
+// every attribute whose domain is its nearest ancestor unit with the dotted domain '(.)', and
+// the reader binds '.' to that same unit below any depth of containers. Before, such a group had
+// to spell '(..)' on every attribute (the resolved form the dictionary wrote back), or carry a unit
+// of its own, which made the reader bind the group to a domain unrelated to the store, so that any
+// expression combining the two failed with a domain mismatch (the ObjectVision/BAG-Tools shape).
+//
+// This config only WRITES the store; stor_mmd_group_2_read.dms reads it back and checks it. THE TWO
+// BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file name,
+// and the `_1_write` / `_2_read` in the names is what orders them.
+container stor_mmd_group_1_write
+{
+	unit<uint32> obj : nrofrows = 3
+	{
+		attribute<int32> a : [1, 2, 3];
+	}
+
+	unit<uint32> store := obj
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_group.mmd"
+	{
+		attribute<int32> a := obj/a;
+
+		container meta                                    // a grouping container: domain store
+		{
+			attribute<int32> twice := obj/a * 2i;
+			container deeper
+			{
+				attribute<int32> thrice := obj/a * 3i;
+			}
+		}
+		container spelled
+		{
+			attribute<int32> dots (..) := obj/a * 4i;     // the spelling that was needed before
+		}
+	}
+}

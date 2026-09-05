@@ -151,7 +151,7 @@ bool AbstrDataItem::CanResolveUnitByName(TokenID t) const
 auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 {
 	if (m_DomainUnit.expired() && CanResolveUnitByName(m_tDomainUnit))
-		m_DomainUnit = make_shared_tree(FindUnit(m_tDomainUnit, "Domain", nullptr), existing_obj{});
+		m_DomainUnit = make_shared_tree(FindUnit(m_tDomainUnit, true, nullptr), existing_obj{});
 	return m_DomainUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
 }
 
@@ -160,7 +160,7 @@ auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 	if (m_ValuesUnit.expired() && CanResolveUnitByName(m_tValuesUnit))
 	{
 		ValueComposition vc = GetValueComposition();
-		m_ValuesUnit = make_shared_tree(FindUnit(m_tValuesUnit, "Values", &vc), existing_obj{});
+		m_ValuesUnit = make_shared_tree(FindUnit(m_tValuesUnit, false, &vc), existing_obj{});
 	}
 	return m_ValuesUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
 }
@@ -654,7 +654,40 @@ failResultMsg:
 	return false;
 }
 
-const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueComposition* vcPtr) const
+static StaticTokenID t_DotDomain("."); // the domain token of an attribute declared without one (ConfigProd::RetrieveEntity)
+
+// The domain of an attribute declared without one (#1244). The parser stores the token '.' for such an
+// attribute (ConfigProd::RetrieveEntity), and '.' names the parent, so the attribute took its parent as
+// domain and failed with "Cannot find Domain unit ." when that parent was a container. A container
+// inside a unit is the normal way to group attributes that share the unit as their domain, and every
+// attribute in such a group had to spell the domain, '(..)', or the group had to carry a unit of its
+// own. Now the search continues upward and the first ancestor that is a unit is the domain; for a
+// direct child of a unit that is still the parent, so an existing configuration binds as before.
+//
+// The walk stops at a template or function root (a function body is a template body, SetIsFunction):
+// a body item then keeps its '.' unresolved, as an in-template item with a missing domain always did,
+// and each instantiation resolves it against its own ancestors (CopyProps copies the token as is when
+// the source did not resolve), instead of every instance being bound to whatever unit the template
+// definition happens to sit under. A unit inside the template is found before that root and copies as
+// a relative name, as before.
+//
+// The same walk decides how a configuration dump spells such a domain: DomainUnitPropDef::GetRawValue.
+// Returns null when no unit was found; then *lastSearched names the topmost item that was searched.
+static const AbstrUnit* FindNearestAncestorUnit(const TreeItem* parent, const TreeItem** lastSearched = nullptr)
+{
+	for (auto curr = parent; curr; curr = curr->GetTreeParent().get())
+	{
+		if (auto au = AsDynamicUnit(curr))
+			return au;
+		if (lastSearched)
+			*lastSearched = curr;
+		if (curr->IsTemplate())
+			break;
+	}
+	return nullptr;
+}
+
+const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, bool isDomainRole, ValueComposition* vcPtr) const
 {
 	// A context to resolve the name against is a precondition, guaranteed by CanResolveUnitByName at both
 	// call sites -- but not merely ASSERTED here: DmsRelease.props defines NDEBUG, so in a Release build
@@ -666,8 +699,29 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 	if (!context)
 		return nullptr;
 
+	CharPtr role = isDomainRole ? "Domain" : "Values";
 	if (t == TokenID::GetUndefinedID())
 		ThrowFail(mySSPrintF("Undefined {} unit", role), FailType::MetaInfo);
+
+	if (isDomainRole && t == t_DotDomain)
+	{
+		// no domain specification: the nearest ancestor unit (#1244, see FindNearestAncestorUnit)
+		const TreeItem* lastSearched = nullptr;
+		const AbstrUnit* result = FindNearestAncestorUnit(context.get(), &lastSearched);
+		if (!result && !InTemplate())
+		{
+			if (!lastSearched)
+				lastSearched = context.get();
+			auto nameOf = [](const TreeItem* ti) { auto n = ti->GetFullName(); return n.empty() ? SharedStr("the configuration root") : n; };
+			auto msg = mySSPrintF("Cannot find Domain unit .: an attribute without a domain specification takes the nearest ancestor unit as its domain, "
+				"but none of its ancestors is a unit (searched from {} up to {}{})"
+				, nameOf(context.get()), nameOf(lastSearched)
+				, lastSearched->IsTemplate() ? ", the template root that ends the search" : "");
+			ThrowFail(msg, FailType::MetaInfo);
+		}
+		return result;
+	}
+
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(context.get(), t, vcPtr);
 	if (!result && !InTemplate())
 	{
@@ -1072,6 +1126,17 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// property semantics are different questions, so they now use different hooks.
 	auto GetRawValue(const AbstrDataItem* item) const -> SharedStr override
 	{
+		// #1244: an attribute whose domain is its nearest ancestor unit is written with the dotted
+		// domain '(.)', whatever it was configured with. That is how a direct child of its domain has
+		// always been written, and since '.' binds to the nearest ancestor unit on reading, it re-binds
+		// the same way below any depth of grouping containers, where the '(..)' of the resolved path
+		// is only right at the depth it was written at. In a dictionary this holds for a unit inside
+		// the dictionary only: a unit outside it keeps its absolute path, which is the one spelling a
+		// reader that merges the dictionary elsewhere can resolve, and which the #1154 restrictions
+		// are keyed on (Mmd_AddUnitRestriction skips a '.').
+		if (auto adu = item->GetAbstrDomainUnit())
+			if (adu == FindNearestAncestorUnit(item->GetTreeParent().get()) && (!t_MmdDictionaryRoot || t_MmdDictionaryRoot->DoesContain(adu)))
+				return SharedStr(TokenID(t_DotDomain));
 		return UnitRefDumpValue(item->m_tDomainUnit, GetValue(item));
 	}
 	bool HasNonDefaultValue(const Object* self) const override

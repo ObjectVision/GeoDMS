@@ -1,0 +1,71 @@
+// An attribute declared without a domain takes the nearest ancestor that is a unit (issue #1244).
+// The parser stores '.' for such an attribute, which names the parent; the search used to stop
+// there, so an attribute in a grouping container inside a unit failed with "Cannot find Domain
+// unit ." unless it spelled the domain, '(obj)' or '(..)', or the group carried a unit of its own.
+// Since GeoDMS 21 the search continues upward: the parent when that is a unit, as before, else
+// the first unit above the containers. A template body keeps '.' unresolved, and each instance
+// resolves it where it is instantiated. domain_ancestor_neg.dms pins the refusal when no
+// ancestor is a unit at all.
+container domain_ancestor
+{
+	unit<uint32> obj : nrofrows = 3
+	{
+		attribute<int32> a : [1, 2, 3];
+		attribute<int32> direct := a * 2i;                    // parent is the unit: as before
+
+		container c
+		{
+			attribute<int32> viaContainer := obj/a * 3i;      // one container up
+			parameter<int32> p := 11i;                        // a parameter keeps its void domain
+			container deeper
+			{
+				attribute<int32> viaTwo := obj/a * 5i;        // two containers up
+			}
+		}
+		container c2
+		{
+			attribute<int32> explicit (obj) := obj/a * 4i;    // an explicit domain is not affected
+			attribute<int32> dots     (..)  := obj/a * 6i;    // nor is the spelling that was needed before
+		}
+
+		// instantiated inside the unit: the instance's items find obj above the instance
+		container inst := T(7i);
+	}
+
+	template T
+	{
+		parameter<int32> f;
+		container c
+		{
+			attribute<int32> b := obj/a * f;                  // '.' stays unresolved in the template body
+		}
+	}
+
+	// the unit is inside the template: the copy binds to the copied unit
+	template U
+	{
+		parameter<int32> k;
+		unit<uint32> v : nrofrows = 2
+		{
+			container g
+			{
+				attribute<int32> x := const(k, v);
+			}
+		}
+	}
+	container inst2 := U(9i);
+
+	container checks
+	{
+		parameter<int32> s_direct := sum(obj/direct),          IntegrityCheck = "s_direct == 12i";
+		parameter<int32> s_via    := sum(obj/c/viaContainer),  IntegrityCheck = "s_via == 18i";
+		parameter<int32> s_two    := sum(obj/c/deeper/viaTwo), IntegrityCheck = "s_two == 30i";
+		parameter<int32> s_expl   := sum(obj/c2/explicit),     IntegrityCheck = "s_expl == 24i";
+		parameter<int32> s_dots   := sum(obj/c2/dots),         IntegrityCheck = "s_dots == 36i";
+		parameter<int32> s_inst   := sum(obj/inst/c/b),        IntegrityCheck = "s_inst == 42i";
+		parameter<int32> s_inst2  := sum(inst2/v/g/x),         IntegrityCheck = "s_inst2 == 18i";
+		parameter<int32> v_p      := obj/c/p,                  IntegrityCheck = "v_p == 11i";
+		// the group's attributes share obj as domain: combining them needs no domain conversion
+		parameter<int32> s_comb   := sum(obj/direct + obj/c/viaContainer + obj/c/deeper/viaTwo), IntegrityCheck = "s_comb == 60i";
+	}
+}
