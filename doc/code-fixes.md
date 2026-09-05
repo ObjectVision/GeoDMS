@@ -47,10 +47,9 @@ in `doc/issues.md`. The Stage-0 format-string bugs of the boost-format migration
 
 $1
 **Status 2026-09-05:** every item below except STG-14 is implemented, built (Release x64) and
-committed as 3d0db896 on 2026-09-05; the battery runs after Phase 5. STG-14 was refuted while implementing: see its entry. The
+committed as 3d0db896 on 2026-09-05; the battery ran after Phase 5 (262/262). STG-14 was refuted while implementing: see its entry. The
 regression configs `testcases/combine_uint8_empty.dms`, `dyna_point_dist.dms`,
-`dyna_point_zero_dist_neg.dms`, `indirect_cycle_neg.dms` and `diversity_circle.dms` were written but
-have not been run either. No TIFF, registry or XML fixture was added: those need binary or
+`dyna_point_zero_dist_neg.dms`, `indirect_cycle_neg.dms` and `diversity_circle.dms` were written; they ran after Phase 5 and pass, after two authoring fixes (commit "Fix the LispComponent placement"): `dyna_point_dist` used `max_elem` for the aggregate `max`, and `diversity_circle` needed a values unit with an explicit range (the operator ignores values at or above the cardinality of the values unit, as it does nulls) and check expressions that are not the bare item name. It now verifies the GEO-27 kernel in every cell for radius 4 and 6. No TIFF, registry or XML fixture was added: those need binary or
 machine-state inputs.
 
 Overview (details follow; all S effort, low fix-risk):
