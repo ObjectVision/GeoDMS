@@ -155,7 +155,7 @@ FileResult GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bor
 
 	AbstrDataItem* adi = smi->CurrWD();
 
-	if (adi->GetNameID() == PALETTE_DATA_ID)
+	if (smi->CurrRD()->GetNameID() == PALETTE_DATA_ID) // the configured item names what is read; adi may be a nameless cache item (#587)
 		return FileResult::require(ReadPalette(borrowedReadResultHolder), "Error reading PaletetData");
 
 	if (HasGridDomain(adi))

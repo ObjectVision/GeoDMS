@@ -1,0 +1,17 @@
+// #587 S2: write half of the FSS round trip; stor_fss_2_read.dms reads it back through
+// storage_read_table (the unit) and its members. Run item: /store (fnrun_itemmap.txt).
+container stor_fss_1_write
+{
+	unit<uint32> obj : nrofrows = 3
+	{
+		attribute<int32>  a : [1, 2, 3];
+		attribute<string> s : ['x', 'y', 'z'];
+	}
+	unit<uint32> store := obj
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_fss_rt.fss"
+	,	StorageType = "FSS"
+	{
+		attribute<int32>  a := obj/a;
+		attribute<string> s := obj/s;
+	}
+}

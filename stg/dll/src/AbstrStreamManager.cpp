@@ -119,8 +119,9 @@ bool AbstrStreamManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	auto f = OpenInpStream(smi, ::GetRelativeName(&smi).c_str() );
 	if ( !f )
 		return false;
-	assert(smi.CurrRI().get() == smi.CurrRI()->GetCurrUltimateItem().get());
-	const_cast<TreeItem*>(smi.CurrRI().get())->LoadBlobStream( f.get() );
+	auto target = smi.CurrWI(); // #587: the cache root of a storage_read_table, else the described unit itself
+	assert(target == target->GetCurrUltimateItem().get());
+	target->LoadBlobStream( f.get() );
 	return true;
 }
 

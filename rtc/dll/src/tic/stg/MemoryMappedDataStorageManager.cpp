@@ -318,6 +318,16 @@ void MmdStorageManager::UpdateDictionary(const TreeItem* storageHolder)
 	DoWriteTree(storageHolder);
 }
 
+// #587: an attribute of the store is read by mapping its file (storage_read_attr / storage_read_value,
+// the mapping arm of StorageReadOperators.cpp); the units keep the ranges the dictionary gave them and
+// are not read.
+ReadCallSpec MmdStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
+{
+	if (!IsDataItem(item))
+		return {};
+	return DescribeAttrRead(storageHolder, AsDataItem(item));
+}
+
 bool IsInMMD(const AbstrDataItem* cacheItem)
 {
 	auto configItem = (!cacheItem->m_BackRef.expired() && IsDataItem(cacheItem->m_BackRef.lock().get())) ? AsDataItem(cacheItem->m_BackRef.lock().get()) : cacheItem;

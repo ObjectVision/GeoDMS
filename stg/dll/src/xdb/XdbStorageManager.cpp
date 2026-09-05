@@ -56,7 +56,7 @@ FileResult XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObje
 	auto nr_cells = imp.NrOfRows();
 	MG_CHECK(nr_cells == ado->GetNrFeaturesNow());
 
-	auto colName = adi->GetRelativeName(smi->StorageHolder());
+	auto colName = smi->CurrRD()->GetRelativeName(smi->StorageHolder()); // the configured column, also when the data goes to a cache member (#587)
 	auto colIndex = imp.ColIndex(colName.c_str());
 	if (colIndex == UInt32(-1))
 		adi->throwItemErrorF("no column '{}' in {}", colName, GetNameStr());

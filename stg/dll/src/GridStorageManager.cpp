@@ -190,6 +190,17 @@ StorageMetaInfoPtr AbstrGridStorageManager::GetMetaInfo(const TreeItem* storageH
 	return std::make_unique<GridStorageMetaInfo>(storageHolder, curr, sa);
 }
 
+// #587: the grid domain keeps the range and projection that DoUpdateTree read from the file and is
+// not read as a table; the grid data and the palette are read as attributes over their configured
+// domains, with the lazy tile functor that AbstrDataItem::DoReadItem installs for a random-access
+// storage.
+ReadCallSpec AbstrGridStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
+{
+	if (!IsDataItem(item))
+		return {};
+	return DescribeAttrRead(storageHolder, AsDataItem(item));
+}
+
 bool AbstrGridStorageManager::DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const
 {
 	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());

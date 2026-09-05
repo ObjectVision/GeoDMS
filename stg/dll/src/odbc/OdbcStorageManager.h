@@ -29,6 +29,8 @@ class ODBCStorageManager : public NonmappableStorageManager
 public:
 	ODBCStorageManager();
 
+	bool SupportsReadOperator() const override { return true; } // #587: a table, as gdal.vect; the sql string enters the spec
+
 	//	implement AbstrStorageManager interface
 	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override;
 	bool DoCheckWritability() const override;

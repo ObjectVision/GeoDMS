@@ -23,6 +23,8 @@ class XdbStorageManager : public NonmappableStorageManager
 public:
 	XdbStorageManager(CharPtr datExtension);
 
+	bool SupportsReadOperator() const override { return true; } // #587: a table, as gdal.vect
+
 //	implement AbstrStorageManager interface
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;

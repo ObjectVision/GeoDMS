@@ -28,6 +28,8 @@ class AbstrStreamManager : public NonmappableStorageManager
 public:
 	AbstrStreamManager();
 
+	bool SupportsReadOperator() const override { return true; } // #587: a stored unit is read as storage_read_table, an attribute as storage_read_attr, a parameter as storage_read_value
+
 	std::unique_ptr<OutStreamBuff> OpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t);
 	std::unique_ptr<InpStreamBuff> OpenInpStream(const StorageMetaInfo& smi, CharPtr path) const;
 

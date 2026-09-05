@@ -95,6 +95,8 @@ public:
 	AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder) override;
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction) const override;
+	bool SupportsReadOperator() const override { return true; } // #587: grid data and palette as storage_read_attr over their configured domains
+	ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const override;
 	bool AllowRandomTileAccess() const override { return true;  }
 	bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const override;
 	bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const override;

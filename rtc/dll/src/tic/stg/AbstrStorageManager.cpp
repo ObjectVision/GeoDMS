@@ -834,10 +834,14 @@ namespace { // #587 helpers for NonmappableStorageManager::DescribeReadCall
 	{
 		if (!IsDataItem(x) || x->InTemplate() || x->IsDisabledStorage())
 			return false;
+		if (x->HasStorageManager())
+			return false; // a storage of its own (the shapefile geometry beside a dbf table): read from that, on its own
 		return !x->GetCalculatorMember() && x->GetExprMember().empty();
 	}
 
 	struct member_spec { SharedStr m_Name; LispRef m_ValuesKey; };
+
+	LispRef UnitKey(const AbstrUnit* unit);
 
 	// the stored attributes of table, through its containers (meta/status); a nested unit is a table
 	// of its own and its attributes have that unit as domain, which the domain test excludes
@@ -851,21 +855,123 @@ namespace { // #587 helpers for NonmappableStorageManager::DescribeReadCall
 				if (adi->GetAbstrDomainUnit() != table)
 					continue;
 				auto vu = adi->GetAbstrValuesUnit();
-				if (!vu || vu == table) // a relation to the table itself: its key would be the key being built; S1 leaves it on the item-writer path
+				if (!vu || vu == table) // a relation to the table itself: its key would be the key being built; it stays on the item-writer path
 					continue;
 				auto vc = adi->GetValueComposition();
 				auto name = adi->GetRelativeName(table);
 				if (vc != ValueComposition::Single)
 					name = mySSPrintF("{}:{}", name, GetValueCompositionID(vc)); // decision 9: ':poly', ':arc', ':multipoint'
 				nameExpr = WrapExplicitSuppliers(adi, nameExpr);
-				members.emplace_back(std::move(name), vu->GetCheckedKeyExpr());
+				members.emplace_back(std::move(name), UnitKey(vu));
 			}
 			if (!IsUnit(sub))
 				CollectStoredMembers(table, sub, nameExpr, members);
 		}
 	}
 
+	// the key of a unit that enters a read as an argument. A unit stored in the same storage that has
+	// not had its UpdateMetaInfo yet (a sibling of the item being described) would answer with its
+	// passive source description; updated first it answers with its own read, and the argument is
+	// then the same DataController the unit itself calculates through.
+	LispRef UnitKey(const AbstrUnit* unit)
+	{
+		unit->UpdateMetaInfo();
+		return unit->GetCheckedKeyExpr();
+	}
+
+	// the storage spec, union_data(uint2, do(ES..., storageName), storageType, sqlString, tableName):
+	// one string attribute over the four-element domain, decision 2 of the plan. The name is the
+	// expanded storage name, so that two holders naming the same file read the same table.
+	LispRef BuildStorageSpec(const AbstrStorageManager* sm, LispRef nameExpr, const SharedStr& sqlString, const SharedStr& tableName)
+	{
+		return ExprList(token::union_data
+			, ExprList(token::UInt2)
+			, nameExpr
+			, StrLit(sm->GetDynamicClass()->GetNameID().AsSharedStr())
+			, StrLit(sqlString)
+			, StrLit(tableName)
+		);
+	}
+
+	// the arguments every form starts with: the spec, and the transitional full name of the configured
+	// item, through which the operator finds its storage holder and meta info until S4 makes the spec
+	// self-contained (section 3.1 of the plan)
+	LispRef ReadArgs(LispRef spec, const TreeItem* item, LispRef tail)
+	{
+		return LispRef(spec, LispRef(StrLit(item->GetFullName()), tail));
+	}
+
+	// Is du a table that this storage reads, so that an attribute over it is a member of that read
+	// (cache-root merge) rather than a read of its own? Raw members only: du may not be updated yet.
+	bool IsTableReadFromStorage(const AbstrUnit* du, const TreeItem* storageHolder)
+	{
+		if (du->GetStorageParent(false).get() != storageHolder)
+			return false; // another storage (a dbf table whose geometry comes from a shapefile), or none
+		if (du->IsReadFromStorage())
+			return true;
+		return !du->InTemplate() && !du->GetCalculatorMember() && du->GetExprMember().empty() && !du->GetTSF(USF_HasConfigRange);
+	}
+
 } // anonymous namespace
+
+ReadCallSpec AbstrStorageManager::DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table) const
+{
+	assert(IsMetaThread());
+	assert(storageHolder);
+	assert(table);
+
+	LispRef nameExpr = WrapExplicitSuppliers(table, StrLit(GetNameStr()));
+
+	std::vector<member_spec> members;
+	CollectStoredMembers(table, table, nameExpr, members);
+
+	LispRef tail;
+	for (auto m = members.rbegin(), e = members.rend(); m != e; ++m)
+		tail = LispRef(StrLit(m->m_Name), LispRef(m->m_ValuesKey, tail));
+	tail = LispRef(ExprList(table->GetValueType()->GetNameID()), tail); // the domain's value type, as a unit argument (decision 3)
+
+	ReadCallSpec result;
+	result.operName = token::storage_read_table;
+	result.args = ReadArgs(BuildStorageSpec(this, nameExpr, FindSqlString(table, storageHolder), table->GetName()), table, tail);
+	return result;
+}
+
+ReadCallSpec AbstrStorageManager::DescribeAttrRead(const TreeItem* storageHolder, const AbstrDataItem* item) const
+{
+	assert(IsMetaThread());
+	assert(storageHolder);
+	assert(item);
+
+	auto adu = item->GetAbstrDomainUnit();
+	auto avu = item->GetAbstrValuesUnit();
+	if (!adu || !avu)
+		return {};
+
+	LispRef nameExpr = WrapExplicitSuppliers(item, StrLit(GetNameStr()));
+	SharedStr sqlString = FindSqlString(item, storageHolder);
+
+	ReadCallSpec result;
+	if (adu->GetValueType() == ValueWrap<Void>::GetStaticClass())
+	{
+		// a parameter, read whole
+		result.operName = token::storage_read_value;
+		result.args = ReadArgs(BuildStorageSpec(this, nameExpr, sqlString, SharedStr()), item, LispRef(UnitKey(avu), LispRef()));
+		return result;
+	}
+
+	// one attribute over its own domain: storage_read_attr(spec, name, domain, 'attr[:vc]', vu, extras...)
+	SharedStr memberSpec = item->GetName();
+	auto vc = item->GetValueComposition();
+	if (vc != ValueComposition::Single)
+		memberSpec = mySSPrintF("{}:{}", memberSpec, GetValueCompositionID(vc));
+	auto parent = item->GetTreeParent();
+	SharedStr tableName = parent ? parent->GetName() : SharedStr(); // the table element of the spec: the container the attribute is found in, as the gdal.vect meta info names its layer
+
+	LispRef tail = LispRef(UnitKey(adu), LispRef(StrLit(memberSpec), LispRef(UnitKey(avu), LispRef())));
+	result.operName = token::storage_read_attr;
+	result.args = ReadArgs(BuildStorageSpec(this, nameExpr, sqlString, tableName), item, tail);
+	return result;
+}
 
 ReadCallSpec NonmappableStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
 {
@@ -873,56 +979,19 @@ ReadCallSpec NonmappableStorageManager::DescribeReadCall(const TreeItem* storage
 	assert(storageHolder);
 	assert(item);
 
-	if (!IsUnit(item) && !IsDataItem(item))
+	if (IsUnit(item))
+		return DescribeTableRead(storageHolder, AsUnit(item));
+	if (!IsDataItem(item))
 		return {};
 
-	// the storage spec, union_data(uint2, do(ES..., storageName), storageType, sqlString, tableName):
-	// one string attribute over the four-element domain, decision 2 of the plan. The name is the
-	// expanded storage name, so that two holders naming the same file read the same table.
-	LispRef nameExpr = WrapExplicitSuppliers(item, StrLit(GetNameStr()));
-	SharedStr typeName = GetDynamicClass()->GetNameID().AsSharedStr();
-	SharedStr sqlString = FindSqlString(item, storageHolder);
-	SharedStr tableName;
-
-	ReadCallSpec result;
-	LispRef tail;
-	if (IsUnit(item))
-	{
-		auto table = AsUnit(item);
-		tableName = item->GetName();
-
-		std::vector<member_spec> members;
-		CollectStoredMembers(table, item, nameExpr, members);
-
-		for (auto m = members.rbegin(), e = members.rend(); m != e; ++m)
-			tail = LispRef(StrLit(m->m_Name), LispRef(m->m_ValuesKey, tail));
-		tail = LispRef(ExprList(table->GetValueType()->GetNameID()), tail); // the domain's value type, as a unit argument (decision 3)
-		result.operName = token::storage_read_table;
-	}
-	else
-	{
-		auto adi = AsDataItem(item);
-		auto adu = adi->GetAbstrDomainUnit();
-		if (!adu || adu->GetValueType() != ValueWrap<Void>::GetStaticClass())
-			return {}; // an attribute is read with its table; a table-less attribute stays on the item-writer path in S1
-		auto avu = adi->GetAbstrValuesUnit();
-		if (!avu)
-			return {};
-		tail = LispRef(avu->GetCheckedKeyExpr(), LispRef());
-		result.operName = token::storage_read_value;
-	}
-
-	LispRef spec = ExprList(token::union_data
-		, ExprList(token::UInt2)
-		, nameExpr
-		, StrLit(typeName)
-		, StrLit(sqlString)
-		, StrLit(tableName)
-	);
-	// the transitional second argument names the configured item, so that the operator finds its
-	// storage holder and meta info until S4 makes the spec self-contained (section 3.1 of the plan)
-	result.args = LispRef(spec, LispRef(StrLit(item->GetFullName()), tail));
-	return result;
+	auto adi = AsDataItem(item);
+	auto adu = adi->GetAbstrDomainUnit();
+	if (!adu)
+		return {};
+	if (adu->GetValueType() != ValueWrap<Void>::GetStaticClass() && IsTableReadFromStorage(adu, storageHolder) && adu->DoesContain(adi))
+		return {}; // a member of its table's read: the cache-root merge gives it subitem(<table key>, name)
+	// an attribute over a table it is not below (shp puts PointData beside its ShapeID) reads on its own
+	return DescribeAttrRead(storageHolder, adi);
 }
 
 // ===========================================================================

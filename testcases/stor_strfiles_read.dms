@@ -1,0 +1,17 @@
+// #587 S2: a strfiles attribute is read as storage_read_attr with its FileName attribute as an extra
+// argument, so that the file list is calculated before the read and is part of the read's identity.
+container stor_strfiles_read
+{
+	unit<uint32> files : nrofrows = 2
+	{
+		attribute<string> FileName : ['one.txt', 'two.txt'];
+		attribute<string> content
+		:	StorageName     = "%currDir%/data/strfiles"
+		,	StorageType     = "strfiles"
+		,	StorageReadOnly = "True";
+	}
+	container checks
+	{
+		parameter<string> c := asList(files/content, ';'), IntegrityCheck = "c == 'one;two'";
+	}
+}

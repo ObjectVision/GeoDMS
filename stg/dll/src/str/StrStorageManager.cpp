@@ -28,6 +28,7 @@
 #include "AbstrDataItem.h"
 #include "DataArray.h"
 #include "DataLocks.h"
+#include "LispTreeType.h" // token::storage_read_attr (#587)
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -43,7 +44,7 @@ FileResult StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObj
 	AbstrDataObject::data_write_begin_handle dataBeginHolder;
 	void* dataBegin;
 	const TreeItem* storageHolder = smi->StorageHolder();
-	AbstrDataItem* adi = smi->CurrWD();
+	const AbstrDataItem* adi = smi->CurrRD().get(); // the described item: file names and composition come from the configuration; the data goes into ado (#587)
 	assert(adi);
 	AbstrDataObject* ado = borrowedReadResultHolder;
 	MG_CHECK(ado);
@@ -198,6 +199,26 @@ SizeT StrFilesStorageManager::GetNrFiles (const TreeItem* storageHolder, const T
 // operation. The former override only synchronously PrepareDataUsage'd FileName, which is now redundant (and
 // asserted when FileName's transient SupplInterest had been dropped before a re-read). base_type::GetMetaInfo
 // (NonmappableStorageManager) merely builds the StorageMetaInfo and needs nothing from FileName.
+
+// #587: the FileName attribute is an argument of the read, so that it is calculated before the read
+// and is part of the read's identity: storage_read_attr(spec, name, domain, 'attr', vu, <FileName key>)
+static LispRef AppendArg(LispRef args, LispRef arg)
+{
+	if (args.EndP())
+		return LispRef(arg, LispRef());
+	return LispRef(args.Left(), AppendArg(args.Right(), arg));
+}
+
+ReadCallSpec StrFilesStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
+{
+	auto result = base_type::DescribeReadCall(storageHolder, item);
+	if (!result.operName || result.operName != token::storage_read_attr)
+		return result;
+	auto fileNameAttr = GetFileNameAttr(storageHolder, storageHolder);
+	fileNameAttr->UpdateMetaInfo();
+	result.args = AppendArg(result.args, fileNameAttr->GetCheckedKeyExpr());
+	return result;
+}
 
 FileResult StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {

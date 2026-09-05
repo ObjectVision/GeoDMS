@@ -31,6 +31,10 @@ public:
 
 	SharedStr GetFullFileName(CharPtr name) const;
 
+	// #587: an attribute of the store is read by mapping its file, as storage_read_attr / storage_read_value
+	bool SupportsReadOperator() const override { return true; }
+	ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const override;
+
 	// #1155: re-emit the dictionary once a var-range unit's range has become available;
 	// the dictionary written at OpenForWrite time lacks the Range of units not calculated yet
 	void UpdateDictionary(const TreeItem* storageHolder);

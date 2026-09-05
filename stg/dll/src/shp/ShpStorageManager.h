@@ -22,6 +22,7 @@ class ShpStorageManager : public NonmappableStorageManager
 
 public:
 //	implement AbstrStorageManager interface
+	bool SupportsReadOperator() const override { return true; } // #587: the shape unit and its geometry as storage_read_table
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 

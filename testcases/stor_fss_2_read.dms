@@ -1,0 +1,19 @@
+// #587 S2: read half of the FSS round trip written by stor_fss_1_write.dms. The unit's range comes
+// through storage_read_table, its attributes are members of that read.
+container stor_fss_2_read
+{
+	unit<uint32> store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_fss_rt.fss"
+	,	StorageType     = "FSS"
+	,	StorageReadOnly = "True"
+	{
+		attribute<int32>  a;
+		attribute<string> s;
+	}
+	container checks
+	{
+		parameter<uint32> n  := #store,              IntegrityCheck = "n == 3";
+		parameter<int32>  sa := sum(store/a),        IntegrityCheck = "sa == 6i";
+		parameter<string> ss := asList(store/s, ''), IntegrityCheck = "ss == 'xyz'";
+	}
+}

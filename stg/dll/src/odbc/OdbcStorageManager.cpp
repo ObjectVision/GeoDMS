@@ -741,7 +741,7 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
-	std::shared_ptr<TreeItem> tableHolder = make_shared_tree(const_cast<TreeItem*>(adi->GetTreeParent().get()), existing_obj{});
+	std::shared_ptr<TreeItem> tableHolder = make_shared_tree(const_cast<TreeItem*>(smi->CurrRD()->GetTreeParent().get()), existing_obj{}); // the configured table, also when the data goes to a cache member (#587)
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder.get(), adi->GetName().c_str(), adi);
@@ -767,7 +767,7 @@ bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
 	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
-	UInt32 count = const_cast<ODBCStorageManager*>(this)->GetRecordSet(smi.StorageHolder(), smi.CurrWU(), debug_cast<const OdbcMetaInfo*>(&smi)->m_SqlString)->RecordCount();
+	UInt32 count = const_cast<ODBCStorageManager*>(this)->GetRecordSet(smi.StorageHolder(), const_cast<TreeItem*>(smi.CurrRI().get()), debug_cast<const OdbcMetaInfo*>(&smi)->m_SqlString)->RecordCount(); // keyed by the configured table (#587)
 	smi.CurrWU()->SetCount(count);
 	return true;
 }

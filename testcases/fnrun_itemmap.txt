@@ -64,3 +64,5 @@ stor_mmd_disablestorage_neg2.dms /store
 stor_mmd_empty_1_write.dms /store
 stor_shp_ringclose_1_write.dms /export
 stor_mmd_group_1_write.dms /store
+stor_fss_1_write.dms /store
+stor_dbf_1_write.dms /export

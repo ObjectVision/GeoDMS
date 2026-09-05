@@ -158,7 +158,7 @@ FileResult TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowe
 	assert(IsOpen());
 	assert(m_pImp->IsOpen());
 
-	if (adi->GetNameID() == PALETTE_DATA_ID)
+	if (smi->CurrRD()->GetNameID() == PALETTE_DATA_ID) // the configured item names what is read; adi may be a nameless cache item (#587)
 		return FileResult::require(ReadPalette(borrowedReadResultHolder), "failed to Read Palette data");
 
 	// Collect zoom info

@@ -531,7 +531,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				return false;
 			}
 		}
-		if (!IsCacheItem())
+		if (!IsCacheItem() && !IsReadFromStorage()) // #587: an item read through its calculator maps its file in storage_read_attr, below through PrepareDataCalc
 		{
 			if (auto sp = GetCurrStorageParent(false))
 			{
@@ -539,8 +539,8 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				assert(sm);
 				if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 				{
-					bool mustWrite = HasCalculator() && !GetCalculator()->IsDataBlock();
-					bool mustSkip = HasCalculator() && GetCalculator()->IsDataBlock();
+					bool mustWrite = HasConfiguredCalcRule() && !GetCalculator()->IsDataBlock();
+					bool mustSkip = HasConfiguredCalcRule() && GetCalculator()->IsDataBlock();
 					if ((!mustSkip && !mmd->IsOpen()) || (mustWrite && !mmd->IsOpenForWrite()))
 					{
 						auto parent = GetStorageParent(mustWrite);

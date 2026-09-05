@@ -26,6 +26,9 @@ struct TNameSet;
 // storagemanager for 'Dbf-grids'
 class DbfStorageManager : public NonmappableStorageManager
 {
+public:
+	bool SupportsReadOperator() const override { return true; } // #587: a table, as gdal.vect
+private:
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 	void DoWriteTree  (const TreeItem* storageHolder) override;

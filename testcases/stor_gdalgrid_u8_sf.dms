@@ -1,0 +1,12 @@
+// #587 S2: a grid read through gdal.grid takes the storage_read_attr route: the grid data is an
+// attribute over its configured domain, read with the lazy tile functor of a random-access storage.
+// Same file and sum as stor_tif_u8_sf.
+container stor_gdalgrid_u8_sf
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<uint8> img (dom): StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "gdal.grid";
+	container checks
+	{
+		parameter<uint32> s := sum(uint32(img)), IntegrityCheck = "s == 496";
+	}
+}

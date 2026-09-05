@@ -907,6 +907,32 @@ unit of 3.1, and the lazy tile functor. Exit: every storage manager, `MMD` inclu
 `SupportsReadOperator()`; `batch\TestShippedContent.bat` and the `tst` storage
 regression configurations (user-run) green.
 
+*Status 2026-09-05: implemented, Debug battery green (the S1 cases plus `stor_gdalgrid_u8_sf`,
+`stor_fss_1_write`/`_2_read`, `stor_dbf_1_write`/`_2_read`, `stor_strfiles_read`), committed.
+Every manager reports `SupportsReadOperator()`, `odbc` and `xyz` untested here (no data source,
+no fixture); `gdalwrite.*` are write-only and never reached. Departures from the list above:
+the grid domain is not read through a carrier unit form but stays the configured unit whose
+range and projection `DoUpdateTree` sets from the file, and enters `storage_read_attr` as the
+domain argument (`AbstrGridStorageManager::DescribeReadCall` describes data items only); the
+`GDAL_*` option items are still resolved by `GdalMetaInfo` from the configured item (S4). MMD
+attributes are mapped by the operator (`MapMember`), the units keep the dictionary's ranges;
+the legacy MMD block of `PrepareDataUsageImpl` is skipped for an item with a read calculator
+and asks `HasConfiguredCalcRule` for its write-through decision. `storage_read_attrs`
+(several attributes over one foreign domain in one scan) is not implemented: every such
+attribute reads on its own through `storage_read_attr`, which is also what the shapefile
+geometry beside its `ShapeID` unit and an FSS attribute over a unit defined elsewhere do; the
+dispatch (`NonmappableStorageManager::DescribeReadCall`) leaves an attribute to its table's
+merge only when the table is read from the same storage holder and contains the attribute.
+`StorageMetaInfo` grew the described-item / data-target split (`CurrRD` vs `CurrWD`,
+`SetDataTarget`), and the managers that read names, relative paths or table keys from the
+target were pointed at the described item (str, odbc, xyz, tif/gdal.grid palette test,
+stream `ReadUnitRange` loads into the target). Found on the way: a request left in
+`m_ReadAssets` by a failed read kept interest, and thereby keys and their string literals,
+alive up to the token registry's teardown (`StrnObjCache.empty()` assertion at exit of the
+`_neg` cases); the request is now released on every exit of `CalcResult`, under the storage
+section so that the meta infos may close the storage. Not done: `TestShippedContent.bat` and
+the `tst` storage regressions (S5 runs the unit suite and full.py).*
+
 ### S3. The cleanup
 
 The deletions of 3.9; `IsDataReadable` deleted, with the read half of the mmd branch of

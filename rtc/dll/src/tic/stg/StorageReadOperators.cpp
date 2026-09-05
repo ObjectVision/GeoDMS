@@ -39,6 +39,9 @@
 #include "dbg/SeverityType.h"
 #include "mci/ValueComposition.h"
 #include "mci/ValueWrap.h"
+#include "utl/FileSystem.h" // IsFileOrDirAccessible: the mapping arm
+#include "utl/scoped_exit.h"
+#include "utl/splitPath.h"  // DelimitedConcat
 #include "utl/StrFormat.h"
 #include "xct/DmsException.h"
 
@@ -83,9 +86,10 @@ struct storage_read_member
 // keeps its phase_resource; TSF_ReadAssetsInterestScoped releases it when the read is abandoned.
 struct storage_read_request
 {
-	SharedTreeItem                       m_ConfigItem; // the configured table unit or parameter
+	SharedTreeItem                       m_ConfigItem; // the configured table unit, attribute or parameter
 	SharedTreeItem                       m_Holder;     // its storage holder
-	SharedPtr<NonmappableStorageManager> m_SM;
+	SharedPtr<AbstrStorageManager>       m_SM;
+	SharedPtr<NonmappableStorageManager> m_NSM;        // m_SM when it reads through StorageReadHandle; null for a memory-mapped store, whose members are mapped
 	std::vector<storage_read_member>     m_Pending;    // in read order: the root first when it is to be read
 
 	bool IsPending(const TreeItem* cacheItem) const
@@ -135,9 +139,10 @@ storage_read_request& GetOrCreateRequest(TreeItem* root, const ArgRefs& args)
 		req.m_Holder = req.m_ConfigItem->GetStorageParent(false);
 		if (!req.m_Holder)
 			req.m_ConfigItem->throwItemError("storage read: the item has no storage to read from");
-		auto sm = dynamic_cast<NonmappableStorageManager*>(req.m_Holder->GetStorageManager());
+		auto sm = req.m_Holder->GetStorageManager();
 		MG_CHECK(sm);
 		req.m_SM = sm;
+		req.m_NSM = dynamic_cast<NonmappableStorageManager*>(sm);
 	}
 	return req;
 }
@@ -152,9 +157,13 @@ void CollectMember(storage_read_request& req, TreeItem* cacheItem, const TreeIte
 	if (IsDataReady(cacheItem) || req.IsPending(cacheItem))
 		return;
 	MG_CHECK(configItem);
-	auto smi = req.m_SM->GetMetaInfo(req.m_Holder.get(), const_cast<TreeItem*>(configItem), StorageAction::read);
-	MG_CHECK(smi);
-	smi->SetDataTarget(cacheItem);
+	StorageMetaInfoPtr smi;
+	if (req.m_NSM) // a memory-mapped store needs none: MapMember names the file by the described item
+	{
+		smi = req.m_NSM->GetMetaInfo(req.m_Holder.get(), const_cast<TreeItem*>(configItem), StorageAction::read);
+		MG_CHECK(smi);
+		smi->SetDataTarget(cacheItem);
+	}
 	req.m_Pending.emplace_back(storage_read_member{ std::move(keep), cacheItem, make_shared_tree(configItem, existing_obj{}), std::move(smi) });
 }
 
@@ -181,16 +190,80 @@ const TreeItem* FindConfigMember(const TreeItem* configRoot, const TreeItem* cac
 	return curr;
 }
 
-// CalcResult of both operators: read the pending members, one storage handle each, under the storage
+// The read of a member of a memory-mapped store (MMD): its file is mapped and becomes the member's data
+// object, as PrepareDataUsageImpl did for the configured item before #587. No storage handle: the
+// manager has no ReadDataItem; opening the store once establishes its existence and its lock file.
+void MapMember(storage_read_request& req, storage_read_member& m)
+{
+	auto sm = req.m_SM.get();
+	MG_CHECK(IsDataItem(m.m_CacheItem));
+	auto cacheItem = AsDataItem(m.m_CacheItem);
+
+	auto relName = m.m_ConfigItem->GetRelativeName(req.m_Holder.get());
+	if (relName.empty())
+		relName = SharedStr("@main");
+	auto fileName = DelimitedConcat(sm->GetNameStr().AsRange(), relName.AsRange());
+	if (!IsFileOrDirAccessible(fileName))
+	{
+		cacheItem->Fail("Data not found in .MMD storage folder", FailType::Data);
+		return;
+	}
+	if (!sm->IsOpen())
+	{
+		// open and close under the section, as the configured item's read did: the meta info's
+		// destructor closes the store, and CloseStorage requires the section to be held
+		AbstrStorageManager::lock_t lock(sm->m_CriticalSection);
+		if (!sm->IsOpen())
+		{
+			StorageMetaInfo smi(req.m_Holder.get(), m.m_ConfigItem.get());
+			sm->OpenForRead(smi);
+		}
+	}
+	auto avu = AbstrValuesUnit(cacheItem);
+	auto fh = OpenFileData(cacheItem, avu ? avu->GetTiledRangeData().get() : nullptr, fileName);
+	if (!fh)
+	{
+		cacheItem->Fail("Cannot open data in .MMD storage folder", FailType::Data);
+		return;
+	}
+	cacheItem->m_DataObject.reset(fh.release());
+}
+
+// CalcResult of the operators: read the pending members, one storage handle each, under the storage
 // manager's critical section, which the scheduling gate acquired when this operation named the manager
-// through GetRequiredStorageManager (#933) and which is taken here otherwise.
+// through GetRequiredStorageManager (#933) and which is taken here otherwise. A memory-mapped store
+// has no handle and no gate: its members are mapped.
 bool ReadPendingMembers(TreeItem* root)
 {
 	MG_CHECK(root->m_ReadAssets.is_a<storage_read_request>());
 	auto& req = root->m_ReadAssets.Get<storage_read_request>();
-	auto sm = req.m_SM;
-	MG_CHECK(sm);
+	MG_CHECK(req.m_SM);
 
+	// The request goes with this pass, whichever way it ends: it holds interest in the members and
+	// their meta info, which a failed read must not keep alive (a dangling interest keeps the keys,
+	// and their string literals, alive up to the teardown of the token registry).
+	auto releaseRequest = [root, &req]() noexcept
+	{
+		req.m_Pending.clear(); // meta infos first, while the storage section below is still held
+		root->m_ReadAssets.Clear();
+		root->ClearTSF(TSF_ReadAssetsInterestScoped);
+	};
+
+	if (!req.m_NSM)
+	{
+		auto release = make_scoped_exit([&releaseRequest] { releaseRequest(); });
+		for (auto& m : req.m_Pending)
+		{
+			if (m.m_CacheItem == root && req.m_Pending.size() > 1)
+				root->throwItemError("storage read: a memory-mapped store maps attributes and parameters, not tables");
+			auto progressMsg = mySSPrintF("Map {} from {}", m.m_ConfigItem->GetFullName(), req.m_SM->GetNameStr());
+			reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, progressMsg.c_str());
+			MapMember(req, m);
+		}
+		return true;
+	}
+
+	auto sm = req.m_NSM;
 	std::optional<AbstrStorageManager::lock_t> csLock;
 	if (auto oc = CancelableFrame::CurrActive(); oc && oc->m_StorageLockHeld && oc->m_RequiredStorageManager.get() == sm.get())
 	{
@@ -199,6 +272,8 @@ bool ReadPendingMembers(TreeItem* root)
 	}
 	else
 		csLock.emplace(sm->m_CriticalSection);
+
+	auto release = make_scoped_exit([&releaseRequest] { releaseRequest(); }); // after csLock: destroyed before it, so the meta infos close the storage under the section
 
 	auto storageName = sm->GetNameStr();
 	for (auto& m : req.m_Pending)
@@ -232,9 +307,6 @@ bool ReadPendingMembers(TreeItem* root)
 				cacheItem->DoFailCaller(x.AsErrMsg(), FailType::Data); // this member fails; the others are still read
 		}
 	}
-	req.m_Pending.clear();
-	root->m_ReadAssets.Clear();
-	root->ClearTSF(TSF_ReadAssetsInterestScoped);
 	return true;
 }
 
@@ -242,7 +314,7 @@ SharedPtr<NonmappableStorageManager> RequiredStorageManager(const TreeItemDualRe
 {
 	auto root = resultHolder.GetNew();
 	if (root && root->m_ReadAssets.is_a<storage_read_request>())
-		return root->m_ReadAssets.Get<storage_read_request>().m_SM;
+		return root->m_ReadAssets.Get<storage_read_request>().m_NSM; // null for a memory-mapped store: mapping needs no gate
 	return {};
 }
 
@@ -385,10 +457,71 @@ struct StorageReadValueOperator : TernaryOperator
 };
 
 // *****************************************************************************
+// storage_read_attr(spec, configName, domain, memberSpec, valuesUnit, extras...) -> attribute
+//
+// One stored attribute over a domain that is not read with it: a grid, a stream item (FSS, cfs), a
+// strfiles attribute, an attribute of a memory-mapped store. The extras are further arguments the
+// storage manager wants calculated before the read (strfiles: its FileName attribute).
+// *****************************************************************************
+
+CommonOperGroup cog_storage_read_attr("storage_read_attr", oper_policy::allow_extra_args | oper_policy::dynamic_result_class);
+
+struct StorageReadAttrOperator : QuinaryOperator
+{
+	StorageReadAttrOperator(AbstrOperGroup& og)
+		: QuinaryOperator(&og, AbstrDataItem::GetStaticClass()
+			, DataArray<SharedStr>::GetStaticClass() // spec
+			, DataArray<SharedStr>::GetStaticClass() // the configured attribute's full name
+			, AbstrUnit::GetStaticClass()            // its domain
+			, DataArray<SharedStr>::GetStaticClass() // 'name[:composition]'
+			, AbstrUnit::GetStaticClass()            // its values unit
+		)
+	{}
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
+	{
+		if (resultHolder && !resultHolder.IsTmp())
+			return;
+		MG_CHECK(IsMetaThread());
+		MG_CHECK(args.size() >= 5);
+
+		auto domain = AsUnit(GetItem(args[2]));
+		MG_CHECK(domain);
+		auto [name, vc] = SplitCompositionSuffix(ArgString(args, 3));
+		auto vu = AsUnit(GetItem(args[4]));
+		MG_CHECK(vu);
+		resultHolder = SharedMutableTreeItem(CreateCacheDataItem(domain, vu, vc));
+	}
+
+	bool PreCalcUpdate(TreeItemDualRef& resultHolder, ArgRefs& args) const override
+	{
+		MG_CHECK(IsMetaThread());
+		auto root = resultHolder.GetNew();
+		MG_CHECK(root);
+		auto& req = GetOrCreateRequest(root, args);
+		CollectMember(req, root, req.m_ConfigItem.get());
+		return true;
+	}
+
+	auto GetRequiredStorageManager(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> SharedPtr<NonmappableStorageManager> override
+	{
+		return RequiredStorageManager(resultHolder);
+	}
+
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	{
+		auto root = resultHolder.GetNew();
+		MG_CHECK(root);
+		return ReadPendingMembers(root);
+	}
+};
+
+// *****************************************************************************
 // instantiation
 // *****************************************************************************
 
 StorageReadTableOperator sro_table(cog_storage_read_table);
 StorageReadValueOperator sro_value(cog_storage_read_value);
+StorageReadAttrOperator  sro_attr (cog_storage_read_attr);
 
 } // anonymous namespace

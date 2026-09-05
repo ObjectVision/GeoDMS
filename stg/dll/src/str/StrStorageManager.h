@@ -38,7 +38,8 @@ class StrFilesStorageManager : public StrStorageManager
 {
 	typedef StrStorageManager base_type;
 public:
-	bool SupportsReadOperator() const override { return false; } // #587: S2, the FileName argument
+	bool SupportsReadOperator() const override { return true; } // #587: storage_read_attr with the FileName attribute as an argument
+	ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const override;
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;

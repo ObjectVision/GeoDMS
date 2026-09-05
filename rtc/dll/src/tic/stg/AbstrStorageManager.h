@@ -146,25 +146,30 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	TIC_CALL virtual void OnOpenForRead(StorageReadHandle*);
 	TIC_CALL virtual void OnClose(StorageCloseHandle*);
 
+	// the described item: names, properties, domain and values units are read from it
 	TIC_CALL auto CurrRI() const -> std::shared_ptr<const TreeItem> { return m_Curr; }
 	TIC_CALL auto CurrRD() const -> std::shared_ptr<const AbstrDataItem>;
 	TIC_CALL auto CurrRU() const -> std::shared_ptr<const AbstrUnit>;
-	AbstrDataItem* CurrWD() const { return const_cast<AbstrDataItem*>(CurrRD().get()); }
-	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU().get()); }
-	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI().get()); }
+	// the item that receives what is read: the data target when one was set (#587), else the described item
+	const TreeItem* DataTargetRI() const { return m_DataTarget ? m_DataTarget.get() : m_Curr.get(); }
+	AbstrDataItem* CurrWD() const { return const_cast<AbstrDataItem*>(AsDataItem(DataTargetRI())); }
+	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(AsUnit(DataTargetRI())); }
+	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(DataTargetRI()); }
 
 	AbstrStorageManager* StorageManager() const { return m_StorageManager.get(); }
 	const TreeItem* StorageHolder() const { return m_StorageHolder.get(); }
 
-	// #587: redirect the read to another item than the one this meta info describes: the cache
-	// member that receives the data, while m_RelativeName and the manager-specific members (layer,
-	// sql string, field) keep describing the configured item. The target is owned by its cache root,
-	// which the reading operation keeps alive.
-	void SetDataTarget(const TreeItem* target) { m_Curr = make_shared_tree(target, existing_obj{}); }
+	// #587: direct what is read to another item than the one this meta info describes: the cache item
+	// that receives the data (CurrWD, CurrWU, CurrWI and the handle's FocusItem), while the described
+	// item (CurrRD, CurrRU, CurrRI), m_RelativeName and the manager-specific members (layer, sql
+	// string, field) stay the configured item. The target is owned by its cache root, which the
+	// reading operation keeps alive.
+	void SetDataTarget(const TreeItem* target) { m_DataTarget = make_shared_tree(target, existing_obj{}); }
 
 protected:
 	SharedPtr<AbstrStorageManager> m_StorageManager;
 	std::shared_ptr<const TreeItem> m_StorageHolder, m_Curr;
+	std::shared_ptr<const TreeItem> m_DataTarget; // #587, see SetDataTarget; null: m_Curr receives the data
 public:
 	SharedStr m_RelativeName;
 	bool      m_MustRememberFailure :1 = true;
@@ -287,6 +292,12 @@ public:
 	// an item this manager cannot describe (yet). Called on the meta thread right after UpdateTree.
 	TIC_CALL virtual ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const;
 
+protected:
+	// #587: the generic descriptions, for DescribeReadCall overrides to pick from
+	TIC_CALL ReadCallSpec DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table) const;  // a unit and its stored attributes: storage_read_table
+	TIC_CALL ReadCallSpec DescribeAttrRead (const TreeItem* storageHolder, const AbstrDataItem* item) const; // one attribute over its own domain: storage_read_attr; a parameter: storage_read_value
+
+public:
 	TIC_CALL virtual bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const { return true; }
 	TIC_CALL virtual bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const { return true; }
 
@@ -427,7 +438,7 @@ struct StorageCloseHandle
 
 	NonmappableStorageManager* StorageManager() const { return m_StorageManager.get(); }
 
-	TreeItem* FocusItem() const { return const_cast<TreeItem*>(MetaInfo()->CurrRI().get()); }
+	TreeItem* FocusItem() const { return MetaInfo()->CurrWI(); } // the item that receives the data (#587: the data target when set)
 
 protected:
 	SharedPtr<NonmappableStorageManager> m_StorageManager;
