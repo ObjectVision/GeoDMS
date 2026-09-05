@@ -45,7 +45,8 @@ in `doc/issues.md`. The Stage-0 format-string bugs of the boost-format migration
 
 ---
 
-$1
+## Phase 0 — Confirmed defects with small, low-risk fixes (do first)
+
 **Status 2026-09-05:** every item below except STG-14 is implemented, built (Release x64) and
 committed as 3d0db896 on 2026-09-05; the battery ran after Phase 5 (262/262). STG-14 was refuted while implementing: see its entry. The
 regression configs `testcases/combine_uint8_empty.dms`, `dyna_point_dist.dms`,
@@ -174,12 +175,15 @@ rtc+shv+qt).
 
 ---
 
-$1
+## Phase 1 — Storage-reader input validation and the assert policy
+
 **Status 2026-09-05:** implemented, built (Release x64, no warnings in the touched files) and committed on 2026-09-05, with these deviations. STG-24 is mostly refuted:
 `StrFilesStorageManager::DoUpdateTree` already unifies the two domains (`StrStorageManager.cpp:237`); the
-two `dms_assert`s became `MG_CHECK`s. STG-15 (`GetTileByteWidth` return type) is deferred: it is mirrored
-by `GDalGridImp` and its callers store the value in a `UInt32` anyway. The unreachable-marker assert at
-`act/ActorSupport.cpp:271` was left alone: it follows a `reportD` of an intransitive supplier order and
+two `dms_assert`s became `MG_CHECK`s. STG-15 (`GetTileByteWidth` return type) was deferred at first and
+done later the same day (05ce9fef: `SizeT` in `TifImp` and `GDalGridImp`, `ThrowingConvert<UInt32>` at the
+one consumer that needs a row width, the unused copy in `WriteTiles` removed). The unreachable-marker
+assert at `act/ActorSupport.cpp:271` was left alone at first and became an `MG_CHECK2` later the same day
+(f24cf91a); before that it followed a `reportD` of an intransitive supplier order and
 the code continues past it, so turning it into a check would change behaviour. `dbfImp.cpp:657` is a
 tautology (`UInt8 < 256`) and was left too. Added during implementation: STG-N03 below, a real write bug
 in the compound storage manager. Null shape records in polygon shapefiles, which used to be read as if
@@ -258,7 +262,8 @@ input); on these per-file/per-record paths the cost is nil.
 - **Where:** `stg/dll/src/cfs/CompoundStorageManager.cpp:127-141` `CompoundStorageOutStreamBuff::WriteBytes`.
 - **Defect:** the loop that was meant to write in 1 GB chunks handed the whole `size` to every `IStream::Write` and never advanced `data`: a block between 1 GB and 4 GB was written twice or more, and the `dms_assert(chunkSize <= size)` next to it was a tautology.
 - **Fix:** write `chunkSize` bytes per iteration, advance `data`, check the result before the bookkeeping. Implemented.
-$1
+
+### 1c. Operators and parser: validate user-supplied numbers
 
 #### GEO-32 · LIKELY / High · M / med — Dense OD with `endPoint(…, DstZone_rel)` uses the wrong zone
 - **Where:** `geo/dll/src/Dijkstra.cpp:513-530` (`Res2EndPoint`, `Res2DstZone`); consumers :940-951, :983-984, :1028; regime :351, :381-384, :394-397.
@@ -339,19 +344,24 @@ files plus the items above).
 
 ---
 
-$1
+## Phase 2 — Runtime-core robustness (rtc: act, ptr, set, sym, mem, utl, parallel, tic internals)
+
 **Status 2026-09-05:** implemented, built (Release x64) and committed, with these deviations. RTC-36: the
 objects are now relocated by their move constructor (a per-bin `relocate` function used on growth and in
 `merge_from`) rather than whitelisted as trivially relocatable, which would not have covered the lambda
 payloads. RTC-70: the mitigation now reports once per process at warning level, and `m_InterestCount` is
-`std::atomic`; the §9 split is still the follow-up. RTC-43: `~ListObj` is implicitly noexcept, so a throw
+`std::atomic`; the §9 split is still the follow-up, and the audit of the remaining `SharedActor` casts
+(the storage-manager interest holders, `WasInFailed`, the schema views) is filed as issue #1249. RTC-43: `~ListObj` is implicitly noexcept, so a throw
 from `nodes.push` terminates rather than leaving the flag set; the RAII guard is kept for the early-return
 paths. TIC-03: instead of weak keys the entries record a weak reference to their TreeItem and an entry
 whose item does not match counts as absent; non-TreeItem actors stay as visited-markers, `ProcessDeletion`
 is gone. RTC-58: the three `SetGeoDmsRegKey*` wrappers and `RegistryHandle::Write*` now return the real
 status (the callers ignore it); no report is added, since HKLM writes fail routinely for non-admin users.
 RTC-31 affects only invalid UTF-8 / Latin-1 input. RTC-16: the four run-time sites use `_mt`, and both
-$1
+`st` entry points assert `NoOtherThreadsStarted()`. Left alone at first: the unused `m_Hasher` members
+(referenced by an /analyze suppression comment; removed later that day, f24cf91a) and
+`UnorderedMapCache::remove`, which is fixed rather than deleted.
+
 **Correction (same day, found by the battery):** the RTC-27 implementation moved the `LispComponent` of
 `LispEval.cpp` to the top of the file, which put it INSIDE the `#if defined(MG_USE_LISPFUNCS)` block that
 is not compiled; the TU then had no component at all, `s_LispComponentCount` hit zero at exit while
@@ -488,13 +498,16 @@ GDAL config for RTC-16; a Debug run to process exit for the RTC-07/RTC-08 map em
 
 ---
 
-$1
+## Phase 3 — Viewer and GUI (shv, qtgui) plus one operator hack
+
 **Status 2026-09-05:** implemented, built (Release x64) and committed, with these deviations. SHV-43 became
 an `MG_CHECK2` rather than an early return (the caller asserts the invariant; a violation is now a clean
 error instead of undefined behaviour). SHV-46/73: the bounds keep `<=` (the end pointer stays a valid
 result) but are `MG_CHECK`s, as is the freshness precondition. SHV-53: the empty handle is gone; the task
-is still detached (the TODO stays). CLC-27: the interest holder is kept under the name `adiInterest`
-with the analysis as its comment; removing it needs a Debug run of the unit-metric configurations.
+is still detached (the TODO stays); the analysis of a suspendible or stepwise preparation is in its entry
+below. CLC-27: the interest holder was first kept under the name `adiInterest` and removed later the same
+day (f24cf91a) after a Debug run of derived units, including a calculated factor, passed the interest
+assertions.
 QT-60: the two `remove(0)` calls are guarded; the three meta-info policies of the tree enumeration are
 left as they are (a behaviour choice, not hygiene). Also in this commit: `act/Actor.h` forward-declared
 `garbage_can` as a `struct` (C4099 in every TU); it is a `class`.
@@ -518,6 +531,11 @@ left as they are (a behaviour choice, not hygiene). Also in this commit: `act/Ac
 - **Where:** `shv/dll/src/GraphicObject.cpp:372` (`dms_task updater = dms_task(prepareDataTask); // XXX, TODO: WaitForReadyOrSuspend …`); `rtc/dll/src/parallel/dms_task.h:21-24`.
 - **Defect:** `dms_task` detaches its `std::thread` in the constructor, so `updater` is an empty handle and the task runs unsupervised; the lambda locks weak pointers before use (no dangling access), but suspend/cancel are indeed not handled.
 - **Fix:** track the task in the owner and cancel/join on destruction; at least remove the misleading local.
+- **Analysis 2026-09-05 — can the preparation be made suspendible, or an iteration of steps that checks a cancellation token or a teardown cancel?** What the detached task does (`GraphicObject.cpp:333-370`): it is spawned only after the GUI thread ran `PrepareDataUsageImpl(DrlType::Suspendible)` (`:322`), which schedules the producing `OperationContext` and returns; the task then blocks in `ItemReadLock` → `cs_lock::ReadLockInit` → `cs_lock::ReadLock` (`ItemLocks.cpp:404-411`, `:288-300`): `AwaitAncestorWrites` plus `treeitem_production_task::lock_shared(item)`, a shared lock the producer holds exclusively until the operation commits. Nothing in that wait polls anything: no timeout; no `SuspendTrigger` (which has meaning on the meta thread only: `WaitForReadyOrSuspendTrigger` at `ItemLocks.cpp:885` pumps `MustSuspend()` every 500 ms, but a worker goes to `WaitReady`); no `CancelableFrame` (`OperationContext.cpp:1086-1099`: the thread-local "current context" that `CurrActiveCanceled()` and the operators' `task_canceled` checks consult is null on a thread that is not running an operation). The `DataReadLock` that follows (`DataLocks.cpp:184`) does not wait at all; it asserts readiness. So "cancelling the task" can only mean giving up the wait; the producer itself is cancelled by the existing interest path (`CurrActiveCancelIfNoInterestOrForced`, `OperationContext.cpp:1161`) once the task's `itemHolder` is released. Three shapes:
+  1. *Own the thread, join in the destructor.* A join on the GUI thread blocks it for the remaining production, and a production that needs the GUI thread (`ProcessMainThreadOpers`, a phase container, a `Join` from the meta thread) then deadlocks. Not acceptable on its own.
+  2. *Make the wait interruptible.* Replace the blocking `lock_shared` in the task by a loop over the non-blocking `cs_lock::TryReadLock` (`ItemLocks.cpp:303-316`, exposed as `ItemReadLock(…, try_token_t)` at `:430`) with a ~100 ms sleep and a `std::stop_token` (a `std::jthread` owned by the `GraphicObject`, or by the `DataView`, which outlives its objects); the destructor calls `request_stop()` and joins, which then takes at most one poll. The exception paths already go through `catchAndReportException`. One polling thread per pending (object, item) pair, as today. Effort S.
+  3. *No thread: a stepwise driver on the GUI thread.* (a) `PrepareDataUsageImpl(Suspendible)` as now; (b) register the (object, item) pair (`RegisterNew`, `s_UpdateActionSet`, `:275`) and return; (c) on each GUI idle tick (`ProcessSuspendibleTasks`, `MainThread.cpp:479`, which the meta thread already pumps from `DoWorkWhileWaiting`, or the `DataView` timer) walk the set and try `ItemReadLock(…, try_token_t)` per pair: on failure leave the pair for the next tick, on success take the `DataReadLock` and post `InvalidateView/UpdateView` exactly as the lambda does; (d) a destroyed object removes its pairs (`PairRemover`), so teardown is a no-op cancel, and the producer loses interest through the dropped holder. Between ticks the GUI is responsive by construction, there is no thread to suspend or join, and the `IsMultiThreaded2()` split disappears. Latency: one tick. Risks: the tick must come from a timer, not from paint, or a hidden view never completes; `ItemReadLock` of a failed item throws (`ItemLocks.cpp:414-419`), so the tick loop needs the same catch. Effort M, shv only.
+  Recommendation: 3, with 2 as the fallback where a tick source is missing. Not implemented in this pass; the task is still detached.
 
 ### SHV-54 · SMELL · S / low — `SuspendTrigger::Resume(); // REMOVE` is load-bearing in Release
 - **Where:** `shv/dll/src/ShvDllInterface.cpp:173-174`.
@@ -579,7 +597,8 @@ dialog, close during calculation), a Debug run under `QAbstractItemModelTester` 
 
 ---
 
-$1
+## Phase 4 — Dead code and comments (C1, C2)
+
 **Status 2026-09-05:** implemented, built (Release x64) and committed. C1: every enumerated item is gone
 (`LoadBlobBuffer`, `GetThisCurrTileID`, `s_IsDetectingIncInterest` with its externs and checks, the
 `SetWritability` husk, the `REMOVE` blocks, the one-line leftovers, `MAX_NR_TILES`/`MAX_TILE_SIZE`, the
@@ -588,11 +607,13 @@ and the retired `.xdb` column path: `XdbImp` now only opens and reads, `XdbStora
 throws the message that `XdbImp::Open` used to throw, `SyncItem` is gone). C2: the design essay lives in
 `DataController.cpp` in English, the located Dutch comments are translated, the stale `REMOVE`/`OBSOLETE`
 markers on live code say what the code is instead, and the listed stale comments are rewritten
-(`Dijkstra.h` gets its include guard fixed rather than discussed). Not done: the general sweep of 347
-commented-out statements in 161 files stays a policy, not a batch; `TifImp::GetValueClassFromTiffDataTypeTag`
-is documented rather than changed and raises an open question, STG-N04: a TIFF without a SampleFormat
-tag yields `VT_Unknown`, which `TifStorageManager` reports as an error rather than taking the
-specification default (unsigned integer); needs a test with such a file before changing.
+(`Dijkstra.h` gets its include guard fixed rather than discussed). Done later the same day: the general
+sweep of commented-out statements (352 lines in 126 files, every commented statement without a stated
+reason; the ones annotated with a reason, such as "REMOVE IF ASSERT IS PROVEN", "BEWARE OF OVERLAPPING
+RANGES", "MUTATING", the ODBCTIME block and the design sketch in `TraceBack.cpp`, stay), together with
+the dead `prioritize`/`PopActiveSuppliers` family of `OperationContext.cpp` and the `/* REMOVE */` block
+in `Join` that was its only caller. STG-N04 (`TifImp::GetValueClassFromTiffDataTypeTag`) was resolved in
+05ce9fef: an absent SampleFormat tag takes the category of the configured type; see the Phase 1 entry.
 
 ### C1 — delete dead code (all evidence = grep at HEAD)
 
@@ -673,7 +694,8 @@ T2. Effort S–M (~560 lines deleted, ~95 comment lines translated).
 
 ---
 
-$1
+## Phase 5 — Renames and contract comments (R1–R4, C4)
+
 **Status 2026-09-05:** implemented, built (Release x64) and committed as two commits: R1b (the user-visible
 text) on its own, then R1/R2/R3/R4/C4 together. R1: every listed identifier and the comment typos; the
 `.ui` widget names changed with the generated members. R2: `DecCountIfAboveOne`, `DecCountLeavesInterest`,
@@ -785,16 +807,71 @@ as its own commit) → R3 (slotted around the g8 lock-handle rename) → C4 → 
 
 | Phase | Title | Items | Effort | Fix-risk | Prerequisite |
 |---|---|---|---|---|---|
-| 0 | Confirmed defects, small fixes | 15 implemented 2026-09-05, 1 refuted (STG-14) | S each, ~1–2 days total | low | build + battery pending |
-| 1 | Storage-reader validation + assert policy | implemented 2026-09-05 (1a, 1b incl. STG-N03, 1c incl. GEO-32, 1d); STG-15 deferred, STG-24 mostly refuted | M | low, except GEO-32 (med) | build + battery pending |
-| 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries) | S–M | low; RTC-70 follow-up split L/med | build green; battery 262/262 |
-| 3 | Viewer and GUI | implemented 2026-09-05 (all groups; CLC-27 renamed, not removed) | S, two M | low; SHV-53 / CLC-27 med | build green; T4 GUI smoke pending |
-| 4 | Dead code and comments | implemented 2026-09-05 (~1200 lines deleted incl. the .xdb path; STG-N04 opened) | S–M | none | build green |
-$1
+| 0 | Confirmed defects, small fixes | 15 implemented 2026-09-05, 1 refuted (STG-14) | S each, ~1–2 days total | low | build green; battery 262/262, then 276/276 with the fixtures of face9d39 |
+| 1 | Storage-reader validation + assert policy | implemented 2026-09-05 (1a, 1b incl. STG-N03, 1c incl. GEO-32, 1d); STG-15 done later that day (05ce9fef), STG-24 mostly refuted | M | low, except GEO-32 (med) | build green; battery 276/276; fixtures face9d39 |
+| 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries); RTC-70 audit filed as #1249 | S–M | low; RTC-70 follow-up split L/med | build green; battery 276/276; Debug unit suite green after 8a13b158 |
+| 3 | Viewer and GUI | implemented 2026-09-05 (all groups; CLC-27 removed later that day, f24cf91a; SHV-53 analysed) | S, two M | low; SHV-53 med | build green; T4 GUI smoke done (below) |
+| 4 | Dead code and comments | implemented 2026-09-05 (~1200 lines deleted incl. the .xdb path); the sweep of commented statements landed later that day (2d1e8ec5, 451 lines); STG-N04 resolved (05ce9fef) | S–M | none | build green; battery 276/276 |
+| 5 | Renames and contracts | implemented 2026-09-05 (R1b c71de0e8, the rest 4734cb20; R4's `GetUlt` → `GetCurrUlt` 91994c4a) | S–M | low (T3 for XMLOut: the dumps of six configurations by the installed 20.19.3 engine and by this build differ only in the version banner) | build green; battery 276/276 |
+
+## Afternoon of 2026-09-05: Debug unit findings, follow-ups and the verification tiers
+
+The Debug unit suite (`batch\TestDebugUnit.bat`, aggregate `vD64.on_05-09-2026_13-42-35.00.txt`) had
+three FAILED lines (`csv_with_euro`, `Write_tiff_pal`, the `storage_gdal` regression) and the Debug
+battery one assertion (`fn_test_connect_matrix`); a Debug build of a14d3e2f showed that all four
+predate the phases. Fixed in 8a13b158: `OperationContext::collectTaskImpl` released the previous result
+keeper under `cs_ThreadMessing` (it now goes into the caller's `garbage_can`), `Gdal_DoOpenStorage`
+read the option items under the GDALComponent section (the reads now precede the `DMS_ENTERS`), and
+`connect_matrix` asked `write_only_mustzero` after `write_only_all` locks (the #1169 guard; now
+`write_only_all`, since the loop writes every element). After the fix, the suite of 15:39
+(`vD64.on_05-09-2026_15-45-18.24.txt`) lists no FAILED line and its Debug battery passes.
+
+Follow-ups decided and done the same afternoon: STG-N04 and STG-15 in 05ce9fef; CLC-27, the
+ActorSupport marker assert and the `m_Hasher` members in f24cf91a (the Debug probe
+`scratch/probe_units.dms` of derived units, including a calculated factor, passes the interest
+assertions); R4's `GetUlt` → `GetCurrUlt` in 91994c4a; the sweep of commented-out statements and the
+dead `prioritize` family in 2d1e8ec5; RTC-70's audit of the remaining `SharedActor` casts filed as
+#1249; SHV-53 analysed in its entry (recommendation: a stepwise driver on the GUI thread over the
+try-lock variant of `ItemReadLock`).
+
+Verification tiers on the final tree (HEAD face9d39 plus this document): T0 Release x64 of `all22.sln`,
+no warnings; T1 the Debug unit suite above; T2 `testcases\run_testcases.bat` 276 of 276 as expected
+(262 plus the 14 fixture cases of face9d39: TIFF tags STG-13/STG-14/STG-N02/STG-N04, stale `.shx`
+STG-N01, XML entities RTC-01/RTC-04; `testcases/data/make_fixtures.py` writes the fixtures byte for
+byte); T4 `GeoDmsGuiQt.exe /L /T` over `fn_test_connect_matrix.dms` (table view, detail pages General
+and Statistics saved, ExpandAll, a second view): no `[E]` line, clean exit. The Debug binaries were
+rebuilt on the final tree afterwards (16:11) and the Debug battery on them ran 276 of 276 as expected.
+
+T3, the serializer round trip (`@dumpconfig` of every battery configuration, then `@dumpconfig` of that
+dump; `scratch/t3_roundtrip.ps1`): 250 of 276 byte-identical. The 26 others are 8 negatives that do
+not load or dump (expected) and four defects of the dumper, none of them new to this day's work (the
+same 24 cases differ with the 12:36 build):
+- multi-line expressions gain a `\r` per round trip (`\r\r\n`): 9 cases (`fn_test_da_pi64`,
+  `fn_test_od_*`, `fn_test_odmembers`, `fn_test_opsigK13`, `shipped_example_function`,
+  `shipped_library_grid2poly`, `issue_298`) differ in nothing else;
+- a `range` property is dumped with digit grouping (`xy(0; 300,000)`), which the PointStream reader
+  rejects (`range_spelling`);
+- a function parameter typed by a signature reference (`f: unary_fn`) is dumped as `f: ../unary_fn`,
+  which on reload becomes a plain `container f` (`fn_test_sig`, `fn_test_encl`);
+- items that came from `prelude.dms` or an included library are dumped in place and clash with the
+  include on reload ("SubItem 'sqr' is already defined": `fn_test_prelude`, `shipped_library_basedata_nl`).
+Plus two negatives whose first dump records "ERROR dumping" comments (`domain_ancestor_neg`,
+`fn_test_byexample2`). Not fixed here; candidates for issues.
+
+New finding, XML configuration fragments: an included `.xml` fragment that loads completely leaks its
+context container and its items at exit in a Debug build (`MemoryLeak of 3 TreeItems`: `/xmlpart`
+with 3 owners, an unnamed item, `/xmlpart/xb`); a fragment whose parse fails does not. Repro:
+`container xmlpart { #include <../data/f.xml> }` with `f.xml` holding `<? xml version = "1.0" ? >`,
+`< TreeItem name = "xb" >`, `< Descr > a &amp; b < / Descr >`, `< / TreeItem >`. The grammar is
+whitespace-tokenised (`FormattedInpStream::NextWord`: spaces around `=`, `/`, `?`, `>`) and decodes
+entities in element text only; an error inside an included fragment is reported, not fatal. Not
+investigated further; the XML positives are therefore not battery cases.
+
 **Battery, 2026-09-05, after Phase 5 and the RTC-27 correction:** `testcases\run_testcases.bat` on the
 Release x64 build: 262 of 262 cases as expected (BAD=0). The two runs before the
 correction had BAD=132 (every positive case, all crashing at exit); that is how the RTC-27 mistake was
-found. T2 (`batch\Test*Unit.bat`), T3 and T4 were not run in this session.
+found. T2 (`batch\Test*Unit.bat`), T3 and T4 were not run at that point; the afternoon section above
+records their runs.
 
 ---
 
