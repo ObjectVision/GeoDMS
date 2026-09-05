@@ -31,6 +31,7 @@
 #include "utl/IncrementalLock.h"
 #include "utl/swapper.h"
 #include "xct/DmsException.h"
+#include "sym/Token.h" // IsTokenRegistryHeldExclusivelyByThisThread
 
 #include <vector>
 #include <ctime>
@@ -499,6 +500,26 @@ namespace { // local defs
 		const int bufSize = 66+1-29 + 23;
 		char buf[bufSize];
 		snprintf(buf, bufSize, "Memory Allocation failed for %llu bytes", (unsigned long long)size);
+
+		if (IsTokenRegistryHeldExclusivelyByThisThread())
+		{
+			// The failing allocation is the registry's own append (IndexedStrings::GetOrCreateID_impl),
+			// so this thread holds the registry exclusively. reportD would name the item being
+			// calculated, which resolves a token through a shared usage of that registry, and
+			// counted_mutex::lock_shared() then parks this thread on itself: the BAG import hang of
+			// ObjectVision/BAG-Tools#2 (parse_xml at a 64 GB commit limit, the main thread in
+			// TokenID::GetStrLen under this handler, every worker idle). Write the line bare, skip
+			// CoalesceHeap, whose context collection describes the same handles, and fail the
+			// allocation: the unwinding releases the registry, and the operator that catches the
+			// error names the item then. The ErrMsg built here gets no context for the same reason
+			// (GenerateContext).
+			if (g_DebugStream)
+			{
+				DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_Warning);
+				*g_DebugStream << buf << " (while registering a name; item not named)";
+			}
+			throwErrorF("Memory", "allocation failed for {} bytes and no heap cleanup possible.", (UInt64)size);
+		}
 
 		reportD(SeverityTypeID::ST_Warning, buf);
 		if (!CoalesceHeap(size, g_MyNewExceptionHandlerCount-1))

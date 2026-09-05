@@ -12,6 +12,7 @@
 #include "DbgInterface.h" // DBG_WriteFatalLine, DBG_FlushLogs
 
 #include "xct/DmsException.h"
+#include "sym/Token.h" // IsTokenRegistryHeldExclusivelyByThisThread
 
 #include "act/ActorEnums.h"
 #include "dbg/debug.h"
@@ -50,6 +51,15 @@ const UInt32 g_MaxNrContexts = 10;
 
 SharedStr GenerateContext()
 {
+	// A thread that holds the token registry exclusively is inside IndexedStrings::GetOrCreateID_mt,
+	// and every Describe below resolves tokens through a shared usage of that same registry, on
+	// which counted_mutex::lock_shared() would park this thread on itself. That is the state an
+	// allocation failure inside the registry's own append leaves the new handler in
+	// (ObjectVision/BAG-Tools#2), so the message being built gets no context rather than no delivery;
+	// the operator that catches it names the item, after the unwinding has released the registry.
+	if (IsTokenRegistryHeldExclusivelyByThisThread())
+		return SharedStr("\nContext: not described, the token registry is held exclusively by this thread.");
+
 	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
 
 	VectorOutStreamBuff osb;
@@ -248,7 +258,9 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg)
 
 RTC_CALL auto GetReportingItemName() -> SharedStr
 {
-	if (!g_IsTerminating)
+	// Naming the item resolves a token; see GenerateContext for why that must not be attempted while
+	// this thread holds the registry exclusively.
+	if (!g_IsTerminating && !IsTokenRegistryHeldExclusivelyByThisThread())
 		for (auto ch = ContextHandle::GetLast(); ch; ch = ch->GetPrev())
 			if (ch->HasItemContext())
 				return ch->ItemAsStr();

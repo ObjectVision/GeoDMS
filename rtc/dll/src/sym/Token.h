@@ -46,12 +46,29 @@ using IndexedString_critical_section = leveled_counted_section;
 RTC_CALL void IncTokenRegistrySharedUsage() noexcept;
 RTC_CALL void DecTokenRegistrySharedUsage() noexcept;
 
+// The exclusive side of the same self-deadlock, in the other direction. Registering a name
+// (IndexedStrings::GetOrCreateID_mt) holds the registry exclusively while it appends the string,
+// and appending allocates. When that allocation fails, the new handler wants to report it with the
+// name of the item being calculated, and every path that names an item -- reportD's context,
+// ErrMsg::GenerateContext, TokenID::GetStrLen() -- asks for a SHARED usage of the registry:
+// counted_mutex::lock_shared() then waits, without a deadline, for the exclusive holder, which is
+// this very thread. Met on 2026-09-05 with the BAG import (ObjectVision/BAG-Tools#2): parse_xml at
+// a 64 GB commit limit, the main thread parked in TokenID::GetStrLen under MyNewExceptionHandler,
+// every worker idle. The count is exact, like the shared one, and is read in three places: the
+// shared-lock constructor refuses the acquire that could only park, and the two message paths
+// leave the item unnamed instead of asking for its name (see set/IndexedStrings.cpp).
+RTC_CALL void IncTokenRegistryExclusiveUsage() noexcept;
+RTC_CALL void DecTokenRegistryExclusiveUsage() noexcept;
+RTC_CALL bool IsTokenRegistryHeldExclusivelyByThisThread() noexcept;
+// Returns cs unchanged, or throws when this thread holds the registry exclusively.
+RTC_CALL IndexedString_critical_section& RefuseSharedUsageUnderOwnExclusiveHold(IndexedString_critical_section& cs);
+
 struct IndexedString_shared_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::shared_lock
 {
 	using base_type = leveled_counted_section::shared_lock;
 
 	IndexedString_shared_lock() = default;
-	explicit IndexedString_shared_lock(IndexedString_critical_section& cs) : base_type(cs) { CountAcquired(); }
+	explicit IndexedString_shared_lock(IndexedString_critical_section& cs) : base_type(RefuseSharedUsageUnderOwnExclusiveHold(cs)) { CountAcquired(); }
 
 	IndexedString_shared_lock(const IndexedString_shared_lock& src)
 		: RequestMainThreadOperProcessingBlocker(src), base_type(src) // base_type's copy takes a usage of its own
@@ -88,7 +105,20 @@ private:
 	void CountReleased() { if (HoldsUsage()) DecTokenRegistrySharedUsage(); }
 };
 
-struct IndexedString_scoped_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::scoped_lock { using leveled_counted_section::scoped_lock::scoped_lock; };
+// The exclusive acquire, taken by IndexedStrings::GetOrCreateID_mt only. Counted per thread so that
+// a shared usage requested by the same thread can be refused rather than parked on (see above).
+struct IndexedString_scoped_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::scoped_lock
+{
+	explicit IndexedString_scoped_lock(IndexedString_critical_section& cs)
+		: leveled_counted_section::scoped_lock(cs)
+	{
+		IncTokenRegistryExclusiveUsage();
+	}
+	~IndexedString_scoped_lock() { DecTokenRegistryExclusiveUsage(); }
+
+	IndexedString_scoped_lock(const IndexedString_scoped_lock&) = delete;
+	IndexedString_scoped_lock& operator =(const IndexedString_scoped_lock&) = delete;
+};
 
 
 struct TokenStr

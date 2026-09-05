@@ -74,6 +74,18 @@ IndexedStringsComponent::~IndexedStringsComponent()
 //  So that a fourth case reports itself rather than being diagnosed by hand, count the usages each
 //  thread holds and refuse the acquire that provably cannot succeed.
 //
+//  The fourth case came anyway, from the other direction (2026-09-05, ObjectVision/BAG-Tools#2):
+//  GetOrCreateID_impl appends the new string while the registry is held exclusively, and the
+//  append allocates. At a 64 GB commit limit that allocation failed inside parse_xml, on the main
+//  thread; MyNewExceptionHandler then reported the failure, and reporting names the item being
+//  calculated, which resolves a token through a SHARED usage of the same registry. lock_shared()
+//  waited for the exclusive holder, this thread, with every worker idle: the same 0% CPU and no
+//  message, at fs_45 of the BAG import. The exclusive hold is therefore counted per thread as
+//  well, and read in three places: IndexedString_shared_lock refuses the acquire (below), and
+//  GenerateContext / GetReportingItemName (xct/DmsException.cpp) and MyNewExceptionHandler
+//  (dbg/MsgDispatch.cpp) leave the item unnamed instead of asking for its name, so the memory
+//  error itself still gets out and unwinds through GetOrCreateID_mt, which releases the registry.
+//
 //  This is deliberately NOT a timeout. A deadline detects nothing: it cannot distinguish a
 //  self-deadlock from a loaded machine, its constant is arbitrary, and it would report the one case
 //  that is certain no faster than the cases that are not. The count is exact -- a usage held by
@@ -101,6 +113,7 @@ IndexedStringsComponent::~IndexedStringsComponent()
 namespace {
 
 	THREAD_LOCAL UInt32 td_TokenRegistrySharedUsages = 0;
+	THREAD_LOCAL UInt32 td_TokenRegistryExclusiveUsages = 0; // 0 or 1: GetOrCreateID_mt does not nest
 
 	// Set while the self-deadlock diagnostic is being built. Generating an error message walks the
 	// context handles (ErrMsg -> GenerateContext -> AbstrContextHandle::Describe), which may want to
@@ -141,7 +154,49 @@ namespace {
 		);
 	}
 
+	[[noreturn]] void throwTokenRegistrySharedUnderOwnExclusiveHold()
+	{
+		// Nested as above: kept although GenerateContext no longer walks the context handles while
+		// the registry is held exclusively, so that a future caller of the walk still fails fast.
+		if (td_ReportingTokenRegistrySelfDeadlock)
+			throwErrorF("TOKEN", "cannot read the token registry while reporting a token registry self-deadlock");
+
+		SelfDeadlockReportScope reportScope;
+
+		throwErrorF("TOKEN"
+			, "cannot take a shared usage of the token registry: this thread holds the registry exclusively,"
+			  " it is registering a name, and would have to wait for itself to release it.\n"
+			  "Nothing that runs inside IndexedStrings::GetOrCreateID_mt may resolve a token: not a report"
+			  " that names an item, not an ErrMsg with context, not TokenID::GetStrLen(). An allocation that"
+			  " fails under that lock is reported through the registry-free path of MyNewExceptionHandler."
+			  " See ObjectVision/BAG-Tools#2."
+		);
+	}
+
 }	// end anonymous namespace
+
+RTC_CALL void IncTokenRegistryExclusiveUsage() noexcept
+{
+	++td_TokenRegistryExclusiveUsages;
+}
+
+RTC_CALL void DecTokenRegistryExclusiveUsage() noexcept
+{
+	assert(td_TokenRegistryExclusiveUsages);
+	--td_TokenRegistryExclusiveUsages;
+}
+
+RTC_CALL bool IsTokenRegistryHeldExclusivelyByThisThread() noexcept
+{
+	return td_TokenRegistryExclusiveUsages != 0;
+}
+
+RTC_CALL IndexedString_critical_section& RefuseSharedUsageUnderOwnExclusiveHold(IndexedString_critical_section& cs)
+{
+	if (td_TokenRegistryExclusiveUsages)
+		throwTokenRegistrySharedUnderOwnExclusiveHold();
+	return cs;
+}
 
 RTC_CALL void IncTokenRegistrySharedUsage() noexcept
 {
