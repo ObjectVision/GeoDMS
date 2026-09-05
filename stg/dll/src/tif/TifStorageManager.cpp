@@ -401,11 +401,11 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	if (storageHolder != curr)
 		return;
 	auto curr_is_storable = curr->IsStorable();
-	auto curr_has_calculator = curr->HasCalculator();
-	if (curr_is_storable && curr->HasCalculator())
+	auto curr_has_calculator = curr->HasConfiguredCalcRule(); // #587: the read the engine installs is not a rule
+	if (curr_is_storable && curr_has_calculator)
 		return;
 	const AbstrDataItem* configGridData = GetGridData(storageHolder).get();
-	if (configGridData && configGridData->HasCalculator())
+	if (configGridData && configGridData->HasConfiguredCalcRule())
 		return;
 
 	UpdateMarker::ChangeSourceLock changeStamp( storageHolder, "DoUpdateTree");
@@ -422,7 +422,7 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
 	
-	if (gridData && gridData->HasCalculatorImpl())
+	if (gridData && gridData->HasConfiguredCalcRule()) // #587
 		return;
 
 	auto smi = this->GetMetaInfo(storageHolder, curr, StorageAction::read);

@@ -1,0 +1,23 @@
+// #587 S1 (decision 11): a table with multi-level attributes. The spec names the relative path
+// 'meta/status', the result skeleton mirrors the container, and the cache-root merge installs the
+// attribute's calculator through it. The storage manager finds the column by the leaf name.
+container stor_read_nested_attr
+{
+	unit<uint32> pand
+	:	StorageName     = "%currDir%/read_table.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<uint32> oppervlak;
+		container meta
+		{
+			attribute<string> status;
+		}
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := sum(pand/oppervlak) == 150,                                     IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := asList(pand/meta/status, ';') == 'active;inactive;active;inactive;active', IntegrityCheck = "c2 == true";
+	}
+}

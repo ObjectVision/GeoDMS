@@ -147,6 +147,12 @@ public:
 	// the item's own DetermineState is doing at that moment. Set during substitution.
 	bool RefersToHolderBySource() const { return m_RefersToHolderBySource; }
 
+	// #587: this calculator is the read of a stored item, the operator application the engine installs
+	// (TreeItem_InstallStorageReadCalculator, or the cache-root merge for the members of a table), not a
+	// configured calculation rule. TreeItem::HasConfiguredCalcRule and TreeItem::IsReadFromStorage read it.
+	bool IsStorageRead() const { return m_IsStorageRead; }
+	void SetIsStorageRead() const { m_IsStorageRead = true; }
+
 	bool            HasTemplSource() const;
 	const TreeItem* GetTemplSource() const;
 
@@ -180,7 +186,8 @@ public:
 		m_HasParsed      : 1 = false,
 		m_HasSubstituted : 1 = false,
 		m_HasCollectedNamedSuppliers: 1 = false,
-		m_RefersToHolderBySource: 1 = false; // see RefersToHolderBySource
+		m_RefersToHolderBySource: 1 = false, // see RefersToHolderBySource
+		m_IsStorageRead: 1 = false;          // see IsStorageRead
 
 	CalcRole m_CalcRole : 3 = CalcRole::Calculator;
 

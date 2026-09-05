@@ -497,7 +497,7 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 			}
 			else
 			{
-				if (item->HasCalculator()) g_LastViewStyleFlags |= vsfExprEdit;
+				if (item->HasConfiguredCalcRule()) g_LastViewStyleFlags |= vsfExprEdit; // #587: no rule to edit on an item read from a storage
 			}
 
 			g_LastQueriedItem = item;

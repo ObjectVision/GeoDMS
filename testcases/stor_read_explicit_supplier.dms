@@ -1,0 +1,28 @@
+// #587 S1 (decision 4): an ExplicitSupplier of a stored item enters the read key as
+// do(supplier, storageName) inside the spec, so the read waits for the supplier and the identity
+// of the result records what it waited for. The supplier here is a plain calculation; the battery
+// pins that the read still delivers, the /SP log that the supplier is calculated before the read.
+container stor_read_explicit_supplier
+{
+	parameter<uint32> prep := 1 + 1;
+
+	parameter<string> x
+	:	StorageType       = "str"
+	,	StorageName       = "%currDir%/icheck_payload.txt"
+	,	ExplicitSuppliers = "prep";
+
+	unit<uint32> tab
+	:	StorageName       = "%currDir%/read_table.csv"
+	,	StorageType       = "gdal.vect"
+	,	StorageReadOnly   = "True"
+	,	ExplicitSuppliers = "prep"
+	{
+		attribute<string> name;
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := x == 'payload-42',                                  IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := asList(tab/name, ';') == 'one;two;three;four;five', IntegrityCheck = "c2 == true";
+	}
+}

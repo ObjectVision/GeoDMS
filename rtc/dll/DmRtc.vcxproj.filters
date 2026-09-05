@@ -1334,6 +1334,9 @@
     <ClCompile Include="src\tic\stg\StorageSupport.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
+    <ClCompile Include="src\tic\stg\StorageReadOperators.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
     <ClCompile Include="src\tic\AbstrUnit.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>

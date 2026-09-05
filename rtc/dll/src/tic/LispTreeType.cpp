@@ -215,6 +215,14 @@ namespace token {
 	TIC_CALL StaticTokenID direct_index("direct_index");
 	TIC_CALL StaticTokenID index("index");
 	TIC_CALL StaticTokenID subindex("subindex");
+
+	// #587: lower case on purpose, like the sign markers below (#1161)
+	TIC_CALL StaticTokenID storage_read_table("storage_read_table");
+	TIC_CALL StaticTokenID storage_read_attrs("storage_read_attrs");
+	TIC_CALL StaticTokenID storage_read_attr("storage_read_attr");
+	TIC_CALL StaticTokenID storage_read_value("storage_read_value");
+	TIC_CALL StaticTokenID do_("do");
+	StaticTokenID UInt2("uint2");
 }
 
 LispRef CreateStorageSpec(const TreeItem* src)

@@ -968,6 +968,30 @@ bool TreeItem::HasCalculator() const noexcept
 	return HasCalculatorImpl();
 }
 
+// #587: HasCalculator without the read the engine installs on a stored item (AbstrCalculator::IsStorageRead)
+bool TreeItem::HasConfiguredCalcRule() const noexcept
+{
+	dms_check_not_debugonly;
+
+	if (!IsPassor())
+		if (auto parent = m_Parent.lock(); parent && !parent->Was(ProgressState::MetaInfo))
+			parent->UpdateMetaInfo();
+
+	if (auto& calc = GetCalculatorMember())
+		return !calc->IsStorageRead();
+	if (InTemplate())
+		return false;
+	if (!GetExprMember().empty())
+		return true;
+	return IsUnit(this) && GetTSF(USF_HasConfigRange);
+}
+
+bool TreeItem::IsReadFromStorage() const noexcept
+{
+	auto& calc = GetCalculatorMember();
+	return calc && calc->IsStorageRead();
+}
+
 bool TreeItem::CanSubstituteByCalcSpec() const noexcept // TODO G8: Substitute away
 {
 	if (HasCalculator())
@@ -1040,6 +1064,8 @@ void TreeItem::AssertDataChangeRights(CharPtr changeWhat) const
 
 	dms_assert(!IsCacheItem()); // PRECONDITION
 
+	if (IsReadFromStorage()) // #587: its authentic value is in the storage; a change there is a source change, not an edit
+		throwItemErrorF("Illegal attempt to change the {} of an item read from a storage", changeWhat);
 	if (!HasConfigData())
 		throwItemErrorF("Illegal attempt to change the {} of a calculatable item", changeWhat);
 	if (IsStorable())
@@ -2331,6 +2357,22 @@ void TreeItem_RemoveDC(const TreeItem* self)
 	}
 }
 
+// #587: drop the read calculators of every stored member below a table that is being invalidated,
+// through the containers of the table (raw links: no UpdateMetaInfo during an invalidation)
+static void TreeItem_ResetStorageReadMembers(const TreeItem* self)
+{
+	for (auto subItem = self->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+	{
+		if (subItem->IsReadFromStorage())
+		{
+			subItem->ResetCalculatorMember();
+			TreeItem_RemoveDC(subItem);
+		}
+		if (!IsUnit(subItem)) // a nested unit is a table of its own
+			TreeItem_ResetStorageReadMembers(subItem);
+	}
+}
+
 void TreeItem::DoInvalidate() const
 {
 	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
@@ -2357,7 +2399,7 @@ void TreeItem::DoInvalidate() const
 		m_ConfigProperties->mc_CheckGuardians.reset();
 
 	TreeItem_RemoveDC(this);
-	if (!GetExprMember().empty())
+	if (!GetExprMember().empty() || IsReadFromStorage())
 	{
 		ResetCalculatorMember();
 		for (auto subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -2368,6 +2410,10 @@ void TreeItem::DoInvalidate() const
 				TreeItem_RemoveDC(subItem);
 			}
 		}
+		// #587: the members of a table read can sit below a container of the table (meta/status);
+		// their keys name this item's read, so they go with it and are re-installed by the merge
+		// that follows the next UpdateTree
+		TreeItem_ResetStorageReadMembers(this);
 	}
 
 	Actor::DoInvalidate(); // StartSupplInterest, which might recollect mc_Calculator, mc_IntegrityChecker, mc_RefItem, ClearFail
@@ -2418,7 +2464,7 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 		lastChangeTS = Actor::DetermineLastSupplierChange(failReason, ft);
 
 	// Track changes in authentic sources
-	if ((ft == FailType::None) && IsDataReadable() && !WasFailed(FailType::Determine))
+	if ((ft == FailType::None) && (IsDataReadable() || IsReadFromStorage()) && !WasFailed(FailType::Determine))
 	{
 		try {
 			assert(!IsCacheItem());

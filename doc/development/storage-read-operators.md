@@ -1,6 +1,6 @@
 # Storage reads as key-expression operators (#587)
 
-*Status: implementation plan, no code changes yet. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers; re-pin once more when S0 starts.*
+*Status: S0 and S1 implemented and committed (2026-09-05, see the status notes under section 4); S2 next. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers.*
 *Scope: `rtc/dll/src/tic` (key expressions, DataControllers, `PrepareDataUsage`, `OperationContext`), `rtc/dll/src/tic/stg` and `stg/dll/src` (storage managers), `clc` only for the PhaseContainer analogue and the `do` operator.*
 
 ---
@@ -866,6 +866,34 @@ attribute is demanded in the same run; `fn_test_icheck_storage*` pass through th
 `UpdateDC` fold (verify with the Debug `IntegrityCheck(...)` trace, as #1218 did); a
 writable dbf read through the new route is not written back (mtime unchanged); GUI smoke
 on the detail page, the tree icons and F2 of a stored item.
+
+*Status 2026-09-05: implemented, Debug battery 293/0 (the 286 cases plus the seven
+`stor_read_*` cases of section 7), committed. Where the implementation departs from the
+list above: (4) one file, `StorageReadOperators.cpp`, with the two groups S1 needs,
+`storage_read_table` and `storage_read_value`; `storage_read_attrs`/`_attr` have their
+tokens and their Explain leaf handling but no operator yet (S2); no `EstimatePerformance`
+override (the default estimate; a read's size is known only after the table's range is
+read, which is what the first pass does). (5) the spec carries the storage name, the
+storage class name (`GetDynamicClass()->GetNameID()`), the sql string and the table name;
+the `GDAL_*` option items are not arguments yet, they are still resolved by
+`GdalMetaInfo` from the configured item (S4 with the spec-only meta info). (6) no new
+`StorageMetaInfo` constructor: the meta info is still built for the configured item and
+`SetDataTarget` redirects the read to the cache member, so `m_RelativeName` and the
+manager-specific members (layer, sql string, field) stay as they were; the table's range is
+read through `ReadUnitRange` directly, because `AbstrUnit::DoReadItem` asserts that storage
+is not disabled and every result unit has it disabled. (7) `AssertDataChangeRights` refuses
+an item with a read calculator explicitly ("an item read from a storage"), before the
+config-data test. Not in the list: an attribute whose values unit is the table itself is
+not a member of the table's read (its key would be the key under construction) and stays on
+the item-writer path; `TreeItem_InstallStorageReadCalculator` gives a member that lost its
+calculator through `DoInvalidate` the `subitem(...)` key back when the table still has its
+read. Exit criteria: battery green, Debug assert-free, the selective probe is the
+`stor_read_table_selective` case (`[storage read]` lines for `name` and `oppervlak` only,
+`id` and `status` untouched; both members were collected in one pass because both checks
+had interest before the read ran), `fn_test_icheck_storage*` fold as
+`IntegrityCheck(storage_read_value(...), ...)`, a writable `gdal.vect` CSV read through the
+new route keeps its mtime (`scratch/issue587/probe_writable.dms`; dbf is S2). Not done: the
+GUI smoke.*
 
 ### S2. The remaining managers
 

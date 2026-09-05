@@ -1,0 +1,24 @@
+// #587 S1: the members of a table read are read on demand. The two checks demand two of the four
+// stored attributes, one after the other, so the second demand re-enters the read operator for
+// the member that gained interest after the first read completed (the PhaseContainer re-entry of
+// #1167). Which members were read is visible in the /SP log ([storage read] lines); the battery
+// pins that both demands deliver the right values.
+container stor_read_table_selective
+{
+	unit<uint32> tab
+	:	StorageName     = "%currDir%/read_table.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<uint32> id;
+		attribute<string> name;
+		attribute<string> status;
+		attribute<uint32> oppervlak;
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := asList(tab/name, ';') == 'one;two;three;four;five', IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := sum(tab/oppervlak) == 150,                        IntegrityCheck = "c2 == true";
+	}
+}

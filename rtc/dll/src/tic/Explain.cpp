@@ -612,6 +612,8 @@ namespace Explain { // local defs
 	{
 		if (!lispExprOrg.IsRealList() || !lispExprOrg.Left().IsSymb() || lispExprOrg.Left().GetSymbID() == token::sourceDescr)
 			return;
+		if (IsStorageReadHead(lispExprOrg.Left().GetSymbID())) // #587: a read is a source, not a calculation to explain further
+			return;
 		if (m_KnownExpr.contains(lispExprOrg))
 			return;
 

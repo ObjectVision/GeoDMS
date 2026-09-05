@@ -1,0 +1,23 @@
+// #587 S1: a gdal.vect table read as one operator application per table. The layer unit gets the
+// calculator storage_read_table(...), every stored attribute under it subitem(...) of that key
+// (installed by the cache-root merge), and the checks demand all three attributes and the count.
+container stor_read_table_all
+{
+	unit<uint32> tab
+	:	StorageName     = "%currDir%/read_table.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<uint32> id;
+		attribute<string> name;
+		attribute<string> status;
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := #tab == 5,                                        IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := asList(tab/name, ';') == 'one;two;three;four;five', IntegrityCheck = "c2 == true";
+		parameter<bool> c3 := sum(tab/id) == 15,                                IntegrityCheck = "c3 == true";
+		parameter<bool> c4 := asList(tab/status, ';') == 'active;inactive;active;inactive;active', IntegrityCheck = "c4 == true";
+	}
+}

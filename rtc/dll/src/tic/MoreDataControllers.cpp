@@ -1045,7 +1045,9 @@ static bool DataController_SuppliesWholeResultTree(const DataController* argDC)
 	auto argFuncDC = dynamic_cast<const FuncDC*>(argDC);
 	if (!argFuncDC)
 		return true;
-	return argFuncDC->m_OperatorGroup->GetNameID() != token::PhaseContainer;
+	// oper_policy::members_on_demand: PhaseContainer, and since #587 the storage_read_* operators,
+	// whose members are read when demanded and must not all be read because one of them is named
+	return !argFuncDC->m_OperatorGroup->HasMembersOnDemand();
 }
 
 // Supply the shape of a phase result without supplying its values: forward every member except the

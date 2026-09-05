@@ -34,6 +34,8 @@
 #include "AbstrUnit.h"
 #include "DataLocks.h"
 #include "DataArray.h"
+#include "LispTreeType.h" // #587: DescribeReadCall builds key expressions
+#include "SupplCache.h"   // #587: ExplicitSuppliers enter the read key
 #include "TreeItem.h"
 #include "PerfMeasurement.h"
 #include "TreeItemContextHandle.h"
@@ -768,8 +770,159 @@ void AbstrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* 
 
 	if (IsDataItem(curr))
 		if (!curr->IsStorable())
-			if (curr->HasCalculator())
+			if (curr->HasConfiguredCalcRule()) // #587: the read the engine installs is not a rule
 				curr->Fail("Item has both a Calculation Rule and a read-only storage spec", FailType::MetaInfo);
+}
+
+// ===========================================================================
+// Section:     #587 the read of a stored item as an operator application
+// ===========================================================================
+
+ReadCallSpec AbstrStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
+{
+	return {}; // no read operator: the item stays on the item-writer read path
+}
+
+namespace { // #587 helpers for NonmappableStorageManager::DescribeReadCall
+
+	LispRef StrLit(const SharedStr& s)
+	{
+		auto r = s.AsRange();
+		return LispRef(r.first, r.second);
+	}
+
+	// the key of an ExplicitSupplier as an argument of do(supplier, expr): the same choice as
+	// slSupplierExprImpl (AbstrCalculator.cpp) makes for a supplier in a calculation rule
+	LispRef SupplierKey(const TreeItem* supplier)
+	{
+		if (supplier->IsPassor() || (!supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier)))
+			return CreateLispTree(supplier, false);
+		return supplier->GetCheckedKeyExpr();
+	}
+
+	// do(ES1, do(ES2, expr)): the ExplicitSuppliers of item are calculated before the read that
+	// receives expr, and the identity of the read records what it waited for (decision 4 of the plan)
+	LispRef WrapExplicitSuppliers(const TreeItem* item, LispRef expr)
+	{
+		if (!item->HasSupplCache())
+			return expr;
+		auto sc = item->GetSupplCache();
+		for (auto p = sc->begin(item), e = sc->end(item); p != e; ++p)
+			if (*p)
+				expr = ExprList(token::do_, SupplierKey(p->get()), expr);
+		return expr;
+	}
+
+	// the SqlString that applies to item: its own, else the nearest one up to the storage holder
+	// (the rule GdalVectlMetaInfo applies)
+	SharedStr FindSqlString(const TreeItem* item, const TreeItem* storageHolder)
+	{
+		for (auto curr = item; curr; curr = curr->GetTreeParent().get())
+		{
+			if (sqlStringPropDefPtr->HasNonDefaultValue(curr))
+				return TreeItemPropertyValue(curr, sqlStringPropDefPtr);
+			if (curr == storageHolder)
+				break;
+		}
+		return {};
+	}
+
+	// A stored member of the table being described: a data item without a configured rule that is not
+	// kept out of the storage. Raw members only: the table's sub-items have not had their own
+	// UpdateMetaInfo yet, and must not get it here.
+	bool IsStoredMemberCandidate(const TreeItem* x)
+	{
+		if (!IsDataItem(x) || x->InTemplate() || x->IsDisabledStorage())
+			return false;
+		return !x->GetCalculatorMember() && x->GetExprMember().empty();
+	}
+
+	struct member_spec { SharedStr m_Name; LispRef m_ValuesKey; };
+
+	// the stored attributes of table, through its containers (meta/status); a nested unit is a table
+	// of its own and its attributes have that unit as domain, which the domain test excludes
+	void CollectStoredMembers(const AbstrUnit* table, const TreeItem* container, LispRef& nameExpr, std::vector<member_spec>& members)
+	{
+		for (auto sub = container->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+		{
+			if (IsStoredMemberCandidate(sub))
+			{
+				auto adi = AsDataItem(sub);
+				if (adi->GetAbstrDomainUnit() != table)
+					continue;
+				auto vu = adi->GetAbstrValuesUnit();
+				if (!vu || vu == table) // a relation to the table itself: its key would be the key being built; S1 leaves it on the item-writer path
+					continue;
+				auto vc = adi->GetValueComposition();
+				auto name = adi->GetRelativeName(table);
+				if (vc != ValueComposition::Single)
+					name = mySSPrintF("{}:{}", name, GetValueCompositionID(vc)); // decision 9: ':poly', ':arc', ':multipoint'
+				nameExpr = WrapExplicitSuppliers(adi, nameExpr);
+				members.emplace_back(std::move(name), vu->GetCheckedKeyExpr());
+			}
+			if (!IsUnit(sub))
+				CollectStoredMembers(table, sub, nameExpr, members);
+		}
+	}
+
+} // anonymous namespace
+
+ReadCallSpec NonmappableStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
+{
+	assert(IsMetaThread());
+	assert(storageHolder);
+	assert(item);
+
+	if (!IsUnit(item) && !IsDataItem(item))
+		return {};
+
+	// the storage spec, union_data(uint2, do(ES..., storageName), storageType, sqlString, tableName):
+	// one string attribute over the four-element domain, decision 2 of the plan. The name is the
+	// expanded storage name, so that two holders naming the same file read the same table.
+	LispRef nameExpr = WrapExplicitSuppliers(item, StrLit(GetNameStr()));
+	SharedStr typeName = GetDynamicClass()->GetNameID().AsSharedStr();
+	SharedStr sqlString = FindSqlString(item, storageHolder);
+	SharedStr tableName;
+
+	ReadCallSpec result;
+	LispRef tail;
+	if (IsUnit(item))
+	{
+		auto table = AsUnit(item);
+		tableName = item->GetName();
+
+		std::vector<member_spec> members;
+		CollectStoredMembers(table, item, nameExpr, members);
+
+		for (auto m = members.rbegin(), e = members.rend(); m != e; ++m)
+			tail = LispRef(StrLit(m->m_Name), LispRef(m->m_ValuesKey, tail));
+		tail = LispRef(ExprList(table->GetValueType()->GetNameID()), tail); // the domain's value type, as a unit argument (decision 3)
+		result.operName = token::storage_read_table;
+	}
+	else
+	{
+		auto adi = AsDataItem(item);
+		auto adu = adi->GetAbstrDomainUnit();
+		if (!adu || adu->GetValueType() != ValueWrap<Void>::GetStaticClass())
+			return {}; // an attribute is read with its table; a table-less attribute stays on the item-writer path in S1
+		auto avu = adi->GetAbstrValuesUnit();
+		if (!avu)
+			return {};
+		tail = LispRef(avu->GetCheckedKeyExpr(), LispRef());
+		result.operName = token::storage_read_value;
+	}
+
+	LispRef spec = ExprList(token::union_data
+		, ExprList(token::UInt2)
+		, nameExpr
+		, StrLit(typeName)
+		, StrLit(sqlString)
+		, StrLit(tableName)
+	);
+	// the transitional second argument names the configured item, so that the operator finds its
+	// storage holder and meta info until S4 makes the spec self-contained (section 3.1 of the plan)
+	result.args = LispRef(spec, LispRef(StrLit(item->GetFullName()), tail));
+	return result;
 }
 
 // ===========================================================================
@@ -821,7 +974,7 @@ bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 
 ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
 {
-	if (Test(svf, SupplierVisitFlag::ExportInfo) && self->IsStorable() && (self->HasCalculator() || self->HasConfigData()))
+	if (Test(svf, SupplierVisitFlag::ExportInfo) && self->IsStorable() && (self->HasConfiguredCalcRule() || self->HasConfigData())) // #587: an item read from a storage is not exported to it
 	{
 		const TreeItem* metaInfo = GetExportMetaInfo(self);
 		if (metaInfo)
@@ -1003,6 +1156,15 @@ StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager
 	, m_MetaInfo(std::move(smi))
 {}
 
+// #587: the critical section is held by the calling storage_read_* CalcResult for all its handles.
+StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, no_storage_lock_t)
+	: m_StorageManager(storageManager)
+	, m_StorageLock(storageManager->m_CriticalSection, no_storage_lock)
+	, m_MetaInfo(std::move(smi))
+{
+	assert(!storageManager->m_CriticalSection.try_acquire()); // held by the caller, as promised
+}
+
 StorageCloseHandle::~StorageCloseHandle()
 {
 	assert(StorageManager());
@@ -1027,6 +1189,13 @@ StorageReadHandle::StorageReadHandle(NonmappableStorageManager* storageManager, 
 
 // #933: adopt CS already held by the OperationContext run-gate.
 StorageReadHandle::StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t tag)
+: StorageCloseHandle(storageManager, std::move(smi), tag)
+{
+	Init();
+}
+
+// #587: CS held by the calling storage_read_* CalcResult.
+StorageReadHandle::StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, no_storage_lock_t tag)
 : StorageCloseHandle(storageManager, std::move(smi), tag)
 {
 	Init();

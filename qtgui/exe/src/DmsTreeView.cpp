@@ -551,9 +551,9 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			assert(!ti->IsDisabledStorage());
 
 			is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
-			if (is_read_only && ti->HasCalculator())
+			if (is_read_only && ti->HasConfiguredCalcRule()) // #587: an item read from a storage shows as stored, whatever calculator the engine gave it
 				storageHolder = nullptr;
-			if (!ti->HasCalculator())
+			if (!ti->HasConfiguredCalcRule())
 				is_read_only = true;
 		}
 		bool show_validation_icon = ti->m_State.Get(actor_flag_set::AF_IntegrityChecked) && !ti->WasFailed(FailType::Data);

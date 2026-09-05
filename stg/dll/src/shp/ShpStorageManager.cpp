@@ -429,7 +429,7 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	dms_assert(storageHolder);
 	if (storageHolder != curr)
 		return;
-	if (curr->IsStorable() && curr->HasCalculator())
+	if (curr->IsStorable() && curr->HasConfiguredCalcRule()) // #587
 		return;
 
 	StorageReadHandle storageHandle(const_cast<ShpStorageManager*>(this), storageHolder, curr, StorageAction::updatetree);

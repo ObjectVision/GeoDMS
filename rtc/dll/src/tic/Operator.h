@@ -23,6 +23,7 @@ template <typename V> class Unit;
 #include "ItemLocks.h"
 
 namespace Explain { struct Context; }  // was: "Explain.h"; only Explain::Context* is used here
+class NonmappableStorageManager;       // GetRequiredStorageManager (#587)
 
 // *****************************************************************************
 // Section:     enums
@@ -102,6 +103,12 @@ public:
 	}
 
 	virtual bool PreCalcUpdate(TreeItemDualRef& resultHolder, ArgRefs& args) const { return true; };
+
+	// #587: the storage manager whose critical section this operation needs, if any; consulted by
+	// OperationContext::ScheduleCalcResult after PreCalcUpdate, so that getUniqueLicenseToRun gates
+	// the task on that section instead of a worker blocking on it (#933). Null for every operator
+	// but the storage_read_* ones.
+	TIC_CALL virtual auto GetRequiredStorageManager(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> SharedPtr<NonmappableStorageManager>; // defined in Operator.cpp, where the manager type is complete
 
 	virtual bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const
 	{

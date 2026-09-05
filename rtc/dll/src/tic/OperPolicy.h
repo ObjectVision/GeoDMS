@@ -42,6 +42,9 @@ enum class oper_policy
 	can_be_rewritten       = 0x8000, // operator-name appears as pattern-head in rewrite list, therefore: try rewriting, NYI, WIP.
 	has_annotation        = 0x10000, // operator has an annotation
 	better_not_in_meta_scripting = 0x20000, // operator is not suitable for processing meta-scripting
+	members_on_demand      = 0x40000, // the data members of the result are calculated when demanded, each on its own
+	                                  // (PhaseContainer, storage_read_table): a reference to one member supplies the
+	                                  // result's shape, not every member's value; see DataController_SuppliesWholeResultTree (#1167, #587)
 };
 
 inline bool  operator & (oper_policy a, oper_policy b) { return int(a) & int(b); }

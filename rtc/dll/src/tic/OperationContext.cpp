@@ -2532,6 +2532,11 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 		if (IsPerformanceLogging())
 			m_Estimate = std::make_unique<PerformanceEstimationData>(EstimateOperPerformance(GetOperator(), resultHolder, argRefs));
 
+		// #587: a storage read serialises on its manager's critical section; the operator names it
+		// here, after PreCalcUpdate resolved it, so that getUniqueLicenseToRun gates this task the
+		// way it gated the item-writer read (#933) and no worker blocks on the section.
+		m_RequiredStorageManager = GetOperator()->GetRequiredStorageManager(resultHolder, argRefs);
+
 		auto func = OC_CalcResultFunc{ std::move(argRefs), allArgInterests }; // TOD: move in, but keep view of ArgInterests array
 
 		m_TaskFunc = std::move(func);

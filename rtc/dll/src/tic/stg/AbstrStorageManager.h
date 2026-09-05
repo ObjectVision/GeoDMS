@@ -60,6 +60,7 @@ Issues
 #include <semaphore>
 
 #include "TicBase.h"
+#include "LispRef.h" // ReadCallSpec (#587)
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
 #include "FileResult.h"
@@ -155,6 +156,12 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	AbstrStorageManager* StorageManager() const { return m_StorageManager.get(); }
 	const TreeItem* StorageHolder() const { return m_StorageHolder.get(); }
 
+	// #587: redirect the read to another item than the one this meta info describes: the cache
+	// member that receives the data, while m_RelativeName and the manager-specific members (layer,
+	// sql string, field) keep describing the configured item. The target is owned by its cache root,
+	// which the reading operation keeps alive.
+	void SetDataTarget(const TreeItem* target) { m_Curr = make_shared_tree(target, existing_obj{}); }
+
 protected:
 	SharedPtr<AbstrStorageManager> m_StorageManager;
 	std::shared_ptr<const TreeItem> m_StorageHolder, m_Curr;
@@ -188,6 +195,22 @@ struct GdalMetaInfo :StorageMetaInfo
 // OperationContext::getUniqueLicenseToRun) instead of acquiring it again.
 struct adopt_storage_lock_t { explicit adopt_storage_lock_t() = default; };
 inline constexpr adopt_storage_lock_t adopt_storage_lock{};
+
+// #587: tag for a lock_t / StorageCloseHandle that takes NO lock: the caller holds
+// m_CriticalSection for the whole of a storage_read_* CalcResult, which reads the members it was
+// asked for through as many handles, one after the other.
+struct no_storage_lock_t { explicit no_storage_lock_t() = default; };
+inline constexpr no_storage_lock_t no_storage_lock{};
+
+// #587: the read of a stored item as an operator application: the operator name and its argument
+// list, ready to be consed into a key expression (TreeItem_InstallStorageReadCalculator). An empty
+// operName says that the storage manager has no read operator for this item, which leaves the item
+// on the item-writer read path of PrepareDataRead. See doc/development/storage-read-operators.md.
+struct ReadCallSpec
+{
+	TokenID operName;
+	LispRef args;
+};
 
 // Reduce a native on-disk file-block dimension to an internal grid-tile dimension that fits the
 // UInt16 blockSize params of SetRangeAsIPoint (so a tile/strip dim > 65535 cannot wrap to a bogus
@@ -256,6 +279,14 @@ public:
 	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
 	TIC_CALL virtual bool CanWriteTiles() const { return false;  }
 	TIC_CALL virtual bool IsWriteOnlyStorage() const { return false; }
+
+	// #587: whether this manager describes the read of its items as an operator application, see
+	// DescribeReadCall. False keeps the item-writer read path of PrepareDataRead for its items.
+	TIC_CALL virtual bool SupportsReadOperator() const { return false; }
+	// The read of item, held under storageHolder, as an operator application; an empty operName for
+	// an item this manager cannot describe (yet). Called on the meta thread right after UpdateTree.
+	TIC_CALL virtual ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const;
+
 	TIC_CALL virtual bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const { return true; }
 	TIC_CALL virtual bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const { return true; }
 
@@ -299,6 +330,7 @@ public:
 	struct lock_t {
 		lock_t(mutex_t& m) : m_Mutex(&m) { m_Mutex->acquire(); }
 		lock_t(mutex_t& m, adopt_storage_lock_t) noexcept : m_Mutex(&m) {} // #933: already held; release on dtor, do not acquire
+		lock_t(mutex_t&, no_storage_lock_t) noexcept : m_Mutex(nullptr) {} // #587: held by the caller for longer than this; neither acquire nor release
 		lock_t(lock_t&& rhs) noexcept : m_Mutex(rhs.m_Mutex) { rhs.m_Mutex = nullptr; }
 		lock_t& operator=(lock_t&&) = delete;
 		~lock_t() { if (m_Mutex) m_Mutex->release(); }
@@ -349,6 +381,11 @@ public:
 //	Abstact interface
 	TIC_CALL virtual StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const;
 
+	// #587: the generic description: a unit and its stored attributes as one storage_read_table, a
+	// parameter as a storage_read_value; other shapes are left to S2. Effective only for managers
+	// whose SupportsReadOperator() says so.
+	TIC_CALL ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const override;
+
 	TIC_CALL virtual void StartInterest(const TreeItem* storageHolder, const TreeItem* self) const;
 	TIC_CALL virtual void StopInterest (const TreeItem* storageHolder, const TreeItem* self) const noexcept;
 
@@ -379,6 +416,7 @@ struct StorageCloseHandle
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa);
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi);
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t); // #933: adopt CS acquired at the scheduling gate
+	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, no_storage_lock_t);    // #587: CS held by the caller
 
 	TIC_CALL virtual ~StorageCloseHandle();
 
@@ -410,6 +448,7 @@ struct StorageReadHandle : StorageCloseHandle
 	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRegisterFailure = true);
 	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi);
 	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t); // #933
+	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, no_storage_lock_t);    // #587
 
 	bool Read() const;
 

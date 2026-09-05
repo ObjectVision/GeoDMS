@@ -20,6 +20,9 @@ class StrStorageManager : public NonmappableStorageManager
 {
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
+public:
+	bool SupportsReadOperator() const override { return true; } // #587: a parameter is read as storage_read_value(...)
+
 protected:
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
@@ -35,6 +38,7 @@ class StrFilesStorageManager : public StrStorageManager
 {
 	typedef StrStorageManager base_type;
 public:
+	bool SupportsReadOperator() const override { return false; } // #587: S2, the FileName argument
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;

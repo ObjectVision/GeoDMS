@@ -18,6 +18,7 @@
 // for its regime and tiling, so the complete type is needed here (§8.1.16).
 #include "AbstrDataObject.h"
 #include "TiledRangeData.h"
+#include "stg/AbstrStorageManager.h" // GetRequiredStorageManager (#587)
 
 // *****************************************************************************
 // Section:     Operator
@@ -207,6 +208,14 @@ static void InheritEstimatedElementWidth(const AbstrDataItem* adi, const ArgRefs
 		adi->SetEstimatedBytesPerElement(widest);
 	}
 	catch (...) {} // an unresolvable values unit just means: keep the generic guess
+}
+
+// #587: no operator but the storage_read_* ones serialises on a storage manager's critical section.
+// Out of line: the intrusive SharedPtr's destructor needs the complete NonmappableStorageManager,
+// which Operator.h only declares.
+TIC_CALL auto Operator::GetRequiredStorageManager(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> SharedPtr<NonmappableStorageManager>
+{
+	return {};
 }
 
 TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData

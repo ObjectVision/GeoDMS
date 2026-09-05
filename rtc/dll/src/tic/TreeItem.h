@@ -317,6 +317,11 @@ public:
 	// Calculator presence; Impl may check a deeper condition than HasCalculator.
 	TIC_CALL bool HasCalculator()   const noexcept;
 	TIC_CALL bool HasCalculatorImpl() const noexcept;
+	// #587: a stored item carries a calculator too, the read as an operator application. Where "has a
+	// calculation rule" decides what is written to a storage, synced from it, edited, or presented as
+	// calculated, ask for the CONFIGURED rule; IsReadFromStorage tells the read apart.
+	TIC_CALL bool HasConfiguredCalcRule() const noexcept;
+	TIC_CALL bool IsReadFromStorage() const noexcept;
 
 	// Capability flags given current state and configuration.
 	TIC_CALL bool IsLoadable()      const;

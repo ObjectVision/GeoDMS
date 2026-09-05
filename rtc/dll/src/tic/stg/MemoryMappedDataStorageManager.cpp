@@ -201,7 +201,7 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 {
 	if (curr != storageHolder) // only update the root item
 		return;
-	if (curr->HasCalculator()) // don't read schema info if the item has a calculator; this is the production case
+	if (curr->HasConfiguredCalcRule()) // don't read schema info if the item has a calculation rule; this is the production case (#587: a read installed by the engine is not one)
 		return;
 
 	if (storageReadOnlyPropDefPtr->GetValue(storageHolder))

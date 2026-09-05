@@ -1,0 +1,17 @@
+// #587 S1: demanding only the count of a table unit reads the range and no attribute.
+container stor_read_domain_only
+{
+	unit<uint32> tab
+	:	StorageName     = "%currDir%/read_table.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<uint32> id;
+		attribute<string> name;
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := #tab == 5, IntegrityCheck = "c1 == true";
+	}
+}

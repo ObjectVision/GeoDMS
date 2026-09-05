@@ -1,0 +1,24 @@
+// #587 S1 (decision 9): a polygon geometry carries the composition suffix ':poly' in the table's
+// attribute spec; a plain attribute carries none. Two unit squares, total area 2.
+container stor_read_composition
+{
+	unit<float32> m  := BaseUnit('m', float32);
+	unit<float32> m2 := m * m;
+	unit<fpoint>  point_m := BaseUnit('m', fpoint);
+
+	unit<uint32> polys
+	:	StorageName     = "%currDir%/read_polygons.geojson"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<point_m> geometry (poly);
+		attribute<string>  name;
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := #polys == 2,                                          IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := asList(polys/name, ',') == 'a,b',                      IntegrityCheck = "c2 == true";
+		parameter<bool> c3 := sum(float32(area(polys/geometry, m2))) == 2f,          IntegrityCheck = "c3 == true";
+	}
+}

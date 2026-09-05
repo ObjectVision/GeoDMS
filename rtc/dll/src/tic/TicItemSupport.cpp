@@ -514,7 +514,7 @@ item_origin GetItemOrigin(const TreeItem* ti)
 	// rule, and a calculation rule prevails over the storage of an enclosing container.
 	if (ti->InTemplate())
 		return item_origin::template_def;
-	if (ti->HasCalculator())
+	if (ti->HasConfiguredCalcRule()) // #587: an item read from a storage is exogenic, whatever calculator the engine gave it
 		return item_origin::calculated;
 	if (ti->GetStorageParent(false))
 		return item_origin::exogenic;

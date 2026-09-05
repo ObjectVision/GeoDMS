@@ -203,7 +203,7 @@ bool IsValidGeometry(const TreeItem* geometry_item, bool isReadonly)
 		return false;
 	if (geometry_item->IsDisabledStorage())
 		return false;
-	if (geometry_item->HasCalculator() && isReadonly)
+	if (geometry_item->HasConfiguredCalcRule() && isReadonly) // #587: the read the engine installs is not a rule
 		return false;
 	return true;
 }
@@ -3027,7 +3027,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 	if (IsUnit(curr))
 	{
-		if (curr->HasCalculator())
+		if (curr->HasConfiguredCalcRule()) // #587: not the read the engine installs after this UpdateTree
 		{
 			if (!IsReadOnly())
 				return;
@@ -3051,7 +3051,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		return;
 	}
 
-	if (curr->HasCalculator())
+	if (curr->HasConfiguredCalcRule()) // #587
 		return;
 
 	if (curr != storageHolder || sm != SyncMode::AllTables)

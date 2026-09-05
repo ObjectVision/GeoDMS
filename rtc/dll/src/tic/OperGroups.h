@@ -81,6 +81,7 @@ struct AbstrOperGroup
 	bool HasAnnotation        () const { return m_Policy & oper_policy::has_annotation; }
 	bool IsBetterNotInMetaScripting() const { return m_Policy & oper_policy::better_not_in_meta_scripting; }
 	bool AllowsAsFunctionResult() const { return m_Policy & oper_policy::allow_as_function_result; }
+	bool HasMembersOnDemand   () const { return m_Policy & oper_policy::members_on_demand; }
 
 	auto GetCalcFactor        () const { return m_CalcFactor; }
 

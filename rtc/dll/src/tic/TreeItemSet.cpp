@@ -117,7 +117,7 @@ static bool isSimilarItem(const TreeItem* searchLoc, const TreeItem* pattern, CS
 			)
 			return false;
 	}
-	if ((flags & CSS_NoCaseParams) && searchLoc->HasCalculator() && searchLoc->GetCalculator() && searchLoc->GetCalculator()->IsDcPtr())
+	if ((flags & CSS_NoCaseParams) && searchLoc->HasCalculator() && searchLoc->GetCalculator() && searchLoc->GetCalculator()->IsDcPtr() && !searchLoc->GetCalculator()->IsStorageRead()) // #587: a stored item's read is a DC_Ptr too, but not a case parameter
 		return false;
 
 	return true;

@@ -31,7 +31,7 @@
 
 oper_arg_policy oap_Phase[2] = { oper_arg_policy::calc_never,  oper_arg_policy::calc_as_result };
 
-SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting | oper_policy::members_on_demand);
 
 using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
 using fence_work_data = std::vector<fence_member_pair>;

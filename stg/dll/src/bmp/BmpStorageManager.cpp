@@ -398,7 +398,7 @@ void BmpPalStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem*
 	dms_assert(storageHolder);
 	if (storageHolder != curr)
 		return;
-	if (curr->IsStorable() && curr->HasCalculator())
+	if (curr->IsStorable() && curr->HasConfiguredCalcRule()) // #587
 		return;
 	if (!DoesExist(storageHolder))
 		return;

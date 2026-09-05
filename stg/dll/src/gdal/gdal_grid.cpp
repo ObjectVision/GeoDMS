@@ -655,7 +655,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	assert(storageHolder);
 	if (storageHolder != curr)
 		return;
-	if (curr->IsStorable() && curr->HasCalculator())
+	if (curr->IsStorable() && curr->HasConfiguredCalcRule()) // #587
 		return;
 
 	UpdateMarker::ChangeSourceLock changeStamp( storageHolder, "DoUpdateTree");

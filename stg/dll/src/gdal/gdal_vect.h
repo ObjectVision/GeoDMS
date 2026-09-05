@@ -59,6 +59,7 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 #endif
 	~GdalVectSM() override;
 	virtual bool IsWritableGDAL() const { return false;  }
+	bool SupportsReadOperator() const override { return true; } // #587: a table is read as storage_read_table(...), its attributes as members of it
 
     // Implement AbstrStorageManager interface
 	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override;
@@ -114,6 +115,7 @@ struct GdalWritableVectSM : GdalVectSM
 {
 	bool IsWritableGDAL() const override { return true; }
 	bool IsWriteOnlyStorage() const override { return true; }
+	bool SupportsReadOperator() const override { return false; } // #587: nothing is read from a write-only storage
 
 	DECL_RTTI(, StorageClass)
 };

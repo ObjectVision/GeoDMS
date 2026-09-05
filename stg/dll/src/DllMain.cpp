@@ -74,7 +74,7 @@ const ValueClass* GetStreamType(const AbstrDataItem* adi)
 const AbstrDataItem* TreeItem_AsColumnItem(const TreeItem* ti, bool allowVoid, bool readOnly)
 {
 	const AbstrDataItem* adi = AsDynamicDataItem(ti);
-	if (!adi ||  adi->IsDisabledStorage() || (readOnly && adi->HasCalculator()))
+	if (!adi ||  adi->IsDisabledStorage() || (readOnly && adi->HasConfiguredCalcRule())) // #587: a column read through the engine's read calculator is still a column
 		return nullptr;
 	if (!allowVoid && adi->GetAbstrDomainUnit()->GetValueType() == ValueWrap<Void>::GetStaticClass())
 		return nullptr;

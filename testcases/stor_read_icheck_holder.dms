@@ -1,0 +1,21 @@
+// #587 S1: IntegrityChecks on the table unit and on a stored attribute that refer to the item they
+// guard (the #587 shape) now fold into the read key like any calculated item's check, and a check
+// on the unit guards every attribute read from it.
+container stor_read_icheck_holder
+{
+	unit<uint32> tab
+	:	StorageName     = "%currDir%/read_table.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	,	IntegrityCheck  = "#tab == 5"
+	{
+		attribute<uint32> id: IntegrityCheck = "all(id > 0)";
+		attribute<string> name;
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := sum(tab/id) == 15,                                IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := asList(tab/name, ';') == 'one;two;three;four;five', IntegrityCheck = "c2 == true";
+	}
+}

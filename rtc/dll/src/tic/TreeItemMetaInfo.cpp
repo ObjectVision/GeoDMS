@@ -89,6 +89,149 @@ void TreeItem::SetMetaInfoReady() const
 
 const bool MG_DEBUG_UPDATEMETAINFO = true;
 
+// The result of this item's calculation is a cache root with members: keep the root's data retention
+// in step with this item's, and merge the root's members onto this item's sub-items, which gives every
+// existing sub-item without a calculator the key subitem(<this item's checked key>, <relative path>)
+// (TreeItem::Copy with MergeProps -> CreateCalculatorForTreeItem) and creates an endogenous shadow for
+// every member no configuration declared (#1245). Called from UpdateMetaInfoImpl, and again when a
+// storage-read calculator is installed (#587), which happens after UpdateTree, later than
+// UpdateMetaInfoImpl.
+static void TreeItem_MergeReferredCacheRoot(const TreeItem* self)
+{
+	auto refItem = self->mc_RefItem.lock();
+	if (!refItem)
+		return;
+	refItem->UpdateMetaInfo();
+	if (!refItem->IsCacheRoot())
+		return;
+	if (self->mc_DC && self->mc_DC->IsNew())
+	{
+		if (!refItem->GetTSF(TSF_HasPseudonym)) // can have another pseudonym
+		{
+			refItem->SetTSF(TSF_HasPseudonym);
+#if defined(MG_DEBUG_DATA)
+			refItem->md_FullName = self->md_FullName;
+#endif
+		}
+		if (!self->GetFreeDataState() && !self->mc_DC->IsTransient())
+			const_cast<TreeItem*>(refItem.get())->SetFreeDataState(false);
+	}
+	if (!self->IsCacheItem())
+	{
+		if (HasVisibleSubItems(refItem.get()))
+			CopyTreeContext(const_cast<TreeItem*>(self), refItem.get(), "", DataCopyMode::NoRoot | DataCopyMode::MakeEndogenous | DataCopyMode::SetInheritFlag | DataCopyMode::MergeProps).Apply();
+	}
+}
+
+// the sub-item of root at relPath, through raw links only: no UpdateMetaInfo on the way, which the
+// callers below cannot afford for the sub-items of an item whose own UpdateMetaInfo is in progress
+static const TreeItem* TreeItem_FindRawSubItem(const TreeItem* root, CharPtrRange relPath)
+{
+	auto curr = root;
+	while (curr && !relPath.empty())
+	{
+		auto sep = std::find(relPath.first, relPath.second, '/');
+		TokenID id = GetTokenID_mt(relPath.first, sep);
+		const TreeItem* found = nullptr;
+		for (auto sub = curr->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+			if (sub->GetNameID() == id)
+			{
+				found = sub;
+				break;
+			}
+		curr = found;
+		relPath.first = (sep == relPath.second) ? sep : sep + 1;
+	}
+	return curr;
+}
+
+// #587: the merge gave the stored members of a table calculators, DC_Ptr of a subitem call each; mark
+// them as storage reads, so that HasConfiguredCalcRule() and IsReadFromStorage() tell them from configured
+// rules. The members are found from the cache root, so that a sub-item of the table that is not read with
+// it (a rule of its own, a shadow of some other cache root) is left alone.
+static void TreeItem_MarkStorageReadMembers(const TreeItem* self)
+{
+	auto root = self->mc_RefItem.lock();
+	if (!root || !root->IsCacheRoot())
+		return;
+	for (auto member = root->WalkConstSubTree(root.get()); member; member = root->WalkConstSubTree(member))
+	{
+		if (!IsDataItem(member))
+			continue;
+		auto configMember = TreeItem_FindRawSubItem(self, member->GetRelativeName(root.get()).AsRange());
+		if (!configMember || configMember->IsDisabledStorage() || !configMember->GetExprMember().empty())
+			continue;
+		if (auto& calc = configMember->GetCalculatorMember(); calc && calc->IsDcPtr())
+			calc->SetIsStorageRead();
+	}
+}
+
+// #587: an item read from a storage gets a calculator, the read as an operator application in its key
+// expression, so that it has a raw key like a calculated item (a check on it may then refer to it, the
+// filed #587), a DataController and a cache result, and is scheduled like any calculation. Installed
+// after the storage manager's UpdateTree, because a table's key enumerates its stored attributes and
+// SyncMode may only just have added them; the item is MetaInfo-ready by then, so its sub-items may be
+// visited. The calculator marks itself as a storage read (AbstrCalculator::IsStorageRead), which is what
+// HasConfiguredCalcRule() and IsReadFromStorage() read. The members of a table need no key of their own:
+// the cache-root merge gives them subitem(<table key>, <relative path>). See
+// doc/development/storage-read-operators.md.
+static void TreeItem_InstallStorageReadCalculator(const TreeItem* self, const TreeItem* storageParent, AbstrStorageManager* sm)
+{
+	assert(IsMetaThread());
+	if (!sm->SupportsReadOperator())
+		return;
+	if (self->InTemplate() || self->HasCalculatorImpl() || self->HasConfigData() || self->IsDisabledStorage())
+		return;
+	if (!self->IsCurrLoadable())
+		return;
+
+	LispRef key;
+
+	// A member of a table that has its read while the member lost its share of it: DoInvalidate reset
+	// the member's calculator and kept the table's (an edit of the member alone). The table's cache
+	// root still names the member, so its read is subitem(<table key>, <relative path>), the key the
+	// merge gave it before.
+	if (IsDataItem(self))
+		for (auto table = self->GetTreeParent(); table; table = table->GetTreeParent())
+		{
+			if (IsUnit(table.get()))
+			{
+				if (table->IsReadFromStorage() && table->mc_DC)
+					if (auto root = table->mc_RefItem.lock())
+					{
+						auto relName = self->GetRelativeName(table.get());
+						if (TreeItem_FindRawSubItem(root.get(), relName.AsRange()))
+							key = slSubItemCall(table->mc_DC->GetLispRef(), relName.AsRange());
+					}
+				break; // the nearest unit is the table; a unit above it is another table
+			}
+			if (table.get() == storageParent)
+				break;
+		}
+
+	if (key.EndP())
+	{
+		auto call = sm->DescribeReadCall(storageParent, self);
+		if (!call.operName)
+			return; // a shape the generic route does not serve yet: the item stays on the item-writer read path
+		key = LispRef(LispRef(call.operName), call.args);
+	}
+
+	auto calc = AbstrCalculator::ConstructFromLispRef(self, key, CalcRole::Calculator);
+	calc->SetIsStorageRead();
+	self->SetCalculator(calc);
+
+	// The item's own check was substituted while the item had no raw key (DetermineState visits it
+	// before UpdateTree) and then refers to the item by its source description; substituted again it
+	// refers to the read, as a check on a calculated item refers to that item's expression.
+	if (self->HasIntegrityChecker())
+		self->ResetIntegrityCheckerMember();
+
+	self->UpdateDC();
+	TreeItem_MergeReferredCacheRoot(self);
+	TreeItem_MarkStorageReadMembers(self);
+}
+
 void TreeItem::UpdateMetaInfoImpl() const
 {
 	assert(!WasFailed(FailType::MetaInfo));
@@ -160,30 +303,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 	if (HasConfigData() && GetCalculatorMember() && GetCalculatorMember()->IsDataBlock())
 		return;
 
-	if (auto refItem = mc_RefItem.lock())
-	{
-		refItem->UpdateMetaInfo();
-		if (refItem->IsCacheRoot())
-		{
-			if (mc_DC && mc_DC->IsNew())
-			{
-				if (!refItem->GetTSF(TSF_HasPseudonym)) // can have another pseudonym
-				{
-					refItem->SetTSF(TSF_HasPseudonym);
-#if defined(MG_DEBUG_DATA)
-					refItem->md_FullName = md_FullName;
-#endif
-				}
-				if (!GetFreeDataState() && !mc_DC->IsTransient())
-					const_cast<TreeItem*>(refItem.get())->SetFreeDataState(false);
-			}
-			if (!this->IsCacheItem())
-			{
-				if (HasVisibleSubItems(refItem.get()))
-					CopyTreeContext(const_cast<TreeItem*>(this), refItem.get(), "", DataCopyMode::NoRoot | DataCopyMode::MakeEndogenous | DataCopyMode::SetInheritFlag | DataCopyMode::MergeProps).Apply();
-			}
-		}
-	}
+	TreeItem_MergeReferredCacheRoot(this);
 
 	if (IsCacheItem() || !IsDataReadable())
 		return;
@@ -807,6 +927,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 			{
 				auto sm = storageParent->GetStorageManager();
 				sm->UpdateTree(storageParent.get(), const_cast<TreeItem*>(this));
+				TreeItem_InstallStorageReadCalculator(this, storageParent.get(), sm); // #587
 			}
 			// validate units with refObject if it wasn't copied by the parent
 		}

@@ -485,7 +485,7 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 		}
 		return ti->GetSourceItem();
 	}
-	if (!ti->HasCalculator())
+	if (!ti->HasConfiguredCalcRule()) // #587: a stored item carries a read calculator; its source is still the storage
 	{
 		auto storageParent = ti->GetStorageParent(false);
 		if (storageParent && (IsUnit(ti) || IsDataItem(ti)))
@@ -760,14 +760,14 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		// always reads from it, also when HasCalculator() reports a calculation: an .mmd holder
 		// obtains its range from the storage dictionary, which sets USF_HasConfigRange and thus
 		// made the whole storage description disappear from its detail page (issue #1143).
-		if (!readOnly || !self->HasCalculator() || sp.get() == self)
+		if (!readOnly || !self->HasConfiguredCalcRule() || sp.get() == self) // #587: HasConfiguredCalcRule leaves out the read the engine installs
 		{
 			xmlTable.EmptyRow();
 			{
 				XML_Table::Row row(xmlTable);
 				xmlOutStrPtr->WriteAttr("bgcolor", CLR_HROW);
 				row.ValueCell(IsUnit(self) || IsDataItem(self)
-					? (self->HasCalculator() && !readOnly) // a read-only storage can only be a source
+					? (self->HasConfiguredCalcRule() && !readOnly) // a read-only storage can only be a source
 					? "DataTarget"
 					: "DataSource"
 					: "Storage");

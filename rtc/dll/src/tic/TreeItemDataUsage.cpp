@@ -846,6 +846,8 @@ bool TreeItem::CommitDataChanges() const
 		return true;
 	if (IsDataReadable())
 		return true;
+	if (IsReadFromStorage()) // #587: an item read from a storage is never written back to it, whatever its calculator says
+		return true;
 	if (IsFailed())
 		return false;
 
