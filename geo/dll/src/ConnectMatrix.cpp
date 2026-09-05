@@ -416,7 +416,12 @@ public:
 		OwningPtrSizedArray<UInt32> pointRelData(nrMatches, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ConnectMatrix: point_rel"));
 		OwningPtrSizedArray<UInt32> arcRelData(nrMatches, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ConnectMatrix: arc_rel"));
 
-		auto distData = mutable_array_cast<SqrtDistType>(distLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		// write_only_all, consistently with the locks above: the loop below writes every one of the
+		// nrMatches elements of every member (w == nrMatches is asserted), so nothing needs zeroing.
+		// Asking write_only_mustzero here after a write_only_all lock was the #1169 contradiction that
+		// the Debug guard in HeapSingleArray::GetWritableTile flags; for an untiled result the lock
+		// has already allocated, so the later request could not have zeroed anything anyway.
+		auto distData = mutable_array_cast<SqrtDistType>(distLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		auto d = distData.begin();
 
 		typename DataArray<PointType>::locked_seq_t cutPointData; typename DataArray<PointType>::iterator cp;
@@ -425,10 +430,10 @@ public:
 		typename DataArray<UInt32>::locked_seq_t segmIDData; typename DataArray<UInt32>::iterator sg;
 		if constexpr (!OnlyDistResult)
 		{
-			cutPointData = mutable_array_cast<PointType>(cutPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); cp = cutPointData.begin();
-			inArcData = mutable_array_cast<Bool>(inArcLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); ia = inArcData.begin();
-			inSegmData = mutable_array_cast<Bool>(inSegmLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); is = inSegmData.begin();
-			segmIDData = mutable_array_cast<UInt32>(segmIDLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); sg = segmIDData.begin();
+			cutPointData = mutable_array_cast<PointType>(cutPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); cp = cutPointData.begin();
+			inArcData = mutable_array_cast<Bool>(inArcLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); ia = inArcData.begin();
+			inSegmData = mutable_array_cast<Bool>(inSegmLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); is = inSegmData.begin();
+			segmIDData = mutable_array_cast<UInt32>(segmIDLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); sg = segmIDData.begin();
 		}
 
 		SizeT w = 0;

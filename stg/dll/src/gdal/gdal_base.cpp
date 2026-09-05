@@ -1681,7 +1681,6 @@ bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringLis
 
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite)
 {
-	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	assert(rwMode != dms_rw_mode::unspecified);
 	if (rwMode == dms_rw_mode::read_write)
 		rwMode = dms_rw_mode::write_only_all;
@@ -1694,10 +1693,13 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
 
-	int nXSize = 0, nYSize = 0, nBands = 0;
-	GDALDataType eType = GDT_Unknown;
+	// The option arrays come from configuration items: GetOptionArray reads them through a
+	// DataReadLock, which takes interest at the per-item ItemRegister level. That must happen BEFORE
+	// the GDALComponent section below, whose ordinal is higher (lock ceilings, doc/deadlocks.md);
+	// read under it, the Debug checker refused every GDAL vector open (2026-09-05).
 	auto option_array = GetOptionArray(gmi.m_OptionsItem);
 	auto driver_array = GetOptionArray(gmi.m_DriverItem);
+	auto configuration_option_array = GetOptionArray(gmi.m_ConfigurationOptions);
 
 	if (!gmi.m_Options.empty())
 		option_array.AddString(gmi.m_Options.c_str());
@@ -1705,8 +1707,13 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!gmi.m_Driver.empty())
 		driver_array.AddString(gmi.m_Driver.c_str());
 
+	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
+
+	int nXSize = 0, nYSize = 0, nBands = 0;
+	GDALDataType eType = GDT_Unknown;
+
 	GDAL_ErrorFrame gdal_error_frame; // catches errors and properly throws
-	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
+	GDAL_ConfigurationOptionsFrame config_frame(configuration_option_array);
 
 	auto valuesTypeID = ValueClassID::VT_Unknown;
 	auto value_composition = ValueComposition::Unknown;

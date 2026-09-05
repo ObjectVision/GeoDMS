@@ -233,7 +233,7 @@ public:
 
 	// collectTaskImpl
 	// Prepare the task for execution: resolve locks, connect args, and ready the runnable.
-	bool collectTaskImpl();
+	bool collectTaskImpl(garbage_can& garbage); // the previous m_ResKeeper goes into garbage: its release runs outside cs_ThreadMessing
 
 	// releaseRunCount
 	// Release execution license and update status upon completion.

@@ -692,7 +692,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 				assert(operContext->m_TaskFunc);
 
 				// activate and collect task
-				if (operContext->collectTaskImpl())
+				if (operContext->collectTaskImpl(cancelGarbage))
 					results.emplace_back(operContext);
 				assert(s_NrActivatedOrRunningOperations[nextPhaseNumber] >= 0);
 			}
@@ -1178,7 +1178,7 @@ task_status OperationContext::GetStatus() const
 
 // Try to collect task payload and transition to 'activated'.
 // Adds to s_RadioActives for potential inline/stealing.
-bool OperationContext::collectTaskImpl()
+bool OperationContext::collectTaskImpl(garbage_can& garbage)
 {
 	assert(!cs_ThreadMessing.try_lock());
 
@@ -1202,6 +1202,11 @@ bool OperationContext::collectTaskImpl()
 
 	OperationContex_setActivated(this);
 
+	// The previous keeper, if any, must not die here: dropping an interest can run StopInterest,
+	// which takes per-item ItemRegister locks, and this runs under the global cs_ThreadMessing
+	// (the Debug lock-level checker refused exactly that, csv_with_euro and Write_tiff_pal, 2026-09-05).
+	if (m_ResKeeper)
+		garbage |= std::move(m_ResKeeper);
 	m_ResKeeper = std::move(resKeeper);
 
 	std::weak_ptr<OperationContext> selfWptr = shared_from_this();
@@ -2714,6 +2719,7 @@ struct prioritize_results
 	WaiterSet waitingAndScheduledContexts;
 	SupplierSet activatedContexts;
 	context_array collectedActivations;
+	garbage_can garbage; // NB: released with these results, still under cs_ThreadMessing; this prioritize path has no live caller (see the REMOVE block in Join)
 };
 
 // DFS-like traversal to collect activated suppliers and collectable tasks
@@ -2737,7 +2743,7 @@ void prioritize_impl(prioritize_results& results, OperationContextSPtr self)
 	}
 
 	if (status == task_status::scheduled)
-		if (self->collectTaskImpl())
+		if (self->collectTaskImpl(results.garbage))
 		{
 			auto& vec = s_ScheduledContextsMap[self->m_PhaseNumber];
 			auto it = std::find_if(vec.begin(), vec.end(), [&](const OperationContextWPtr& wptr) { return !wptr.expired() && wptr.lock() == self; });
