@@ -27,9 +27,14 @@ void heap_sequence_provider<V>::reserve(alloc_t& seq, SizeT newSize MG_DEBUG_ALL
 	assert(seq.m_Capacity >= seq.size());
 	if (newSize > seq.m_Capacity)
 	{
-		auto oldSeq = std::move(seq);
-		seq = managed_alloc_data<V>(oldSeq.begin(), oldSeq.end(), newSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		free(oldSeq); // oldSeq is now copied, so we can safely clear it
+		// Allocate and copy first, then swap, as Shrink does: the swap hands the old buffer, with its
+		// capacity, to newSeq, whose destructor frees it. The previous form moved seq out before
+		// allocating; alloc_data's move leaves the source with its pointers and capacity 0, so an
+		// allocation that threw (memory exhausted, ObjectVision/BAG-Tools#2) left seq with size above
+		// capacity: an assert in Debug, and in Release a buffer that the next successful reserve
+		// leaked, since free() skips a capacity of 0.
+		managed_alloc_data<V> newSeq(seq.begin(), seq.end(), newSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		seq.swap(newSeq);
 	}
 }
 
