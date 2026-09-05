@@ -1012,6 +1012,11 @@ ReadCallSpec AbstrStorageManager::DescribeAttrRead(const TreeItem* storageHolder
 	return result;
 }
 
+void NonmappableStorageManager::ReadDataItemsAtOnce(std::vector<ReadTarget>& targets)
+{
+	// nothing at once: the caller reads every target on its own
+}
+
 ReadCallSpec NonmappableStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
 {
 	assert(IsMetaThread());

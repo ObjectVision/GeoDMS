@@ -40,12 +40,17 @@
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
 #include "DataArray.h"
+#include "DataLocks.h"       // DataWriteLock: ReadDataItemsAtOnce (#587 S4)
 #include "NameSet.h"
 #include "PropFuncs.h"
 #include "LispTreeType.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
 #include "UnitClass.h"
+#include "utl/Instantiate.h" // INSTANTIATE_NUM_ORG: the writers of ReadDataItemsAtOnce
+
+#include <algorithm>
+#include <functional>
 
 #include "Projection.h"
 
@@ -1812,6 +1817,239 @@ OGRLayer* GdalVectSM::Layer(const GdalVectlMetaInfo* br) const
 	if (!m_Layer)
 		throwErrorF("gdal.vect","cannot open layer {}{}", br->m_NameID, (m_hDS->GetLayerCount() == 1) ? "" : ", multiple layers available");
 	return m_Layer;
+}
+
+// *****************************************************************************
+// #587 S4: several attributes of one layer in one pass over its features
+// *****************************************************************************
+
+namespace {
+
+	using feature_ptr = gdalVectImpl::FeaturePtr;
+
+	// the field of a configured attribute: its item name against the field names as item names, the
+	// match LayerFieldEnable makes
+	SizeT FindLayerField(OGRFeatureDefn* featureDefn, const SharedStr& itemName)
+	{
+		for (SizeT fieldID = 0, n = featureDefn->GetFieldCount(); fieldID != n; ++fieldID)
+		{
+			CharPtr columnName = featureDefn->GetFieldDefn(fieldID)->GetNameRef();
+			auto columnNameAsItemName = as_item_name(columnName, columnName + StrLen(columnName));
+			if (!stricmp(itemName.c_str(), columnNameAsItemName.c_str()))
+				return fieldID;
+		}
+		return SizeT(-1);
+	}
+
+	// what one feature contributes to one attribute: the element assignments of ReadInt32AttrData,
+	// ReadInt64AttrData, ReadDoubleAttrData and ReadStrAttrData, each without its own loop
+	template <typename T>
+	void AssignIntegerField(typename DataArray<T>::reference ref, const feature_ptr& feat, SizeT fieldIndex, bool wide)
+	{
+		if (!feat) // the layer yielded fewer features than its count: undefined, as the single-attribute readers do
+		{
+			Assign(ref, Undefined());
+			return;
+		}
+		if (wide)
+		{
+			auto v = feat->GetFieldAsInteger64(fieldIndex);
+			if (GDALFieldHasGenuineIntegerValue(feat, fieldIndex, v))
+				ref = v;
+			else
+				Assign(ref, Undefined());
+		}
+		else
+		{
+			auto v = feat->GetFieldAsInteger(fieldIndex);
+			if (GDALFieldHasGenuineIntegerValue(feat, fieldIndex, v))
+				ref = v;
+			else
+				Assign(ref, Undefined());
+		}
+	}
+
+	template <typename T>
+	void AssignDoubleField(typename DataArray<T>::reference ref, const feature_ptr& feat, SizeT fieldIndex)
+	{
+		if (!feat)
+		{
+			Assign(ref, Undefined());
+			return;
+		}
+		auto v = feat->GetFieldAsDouble(fieldIndex);
+		if (GDALFieldHasGenuineDoubleValue(feat, fieldIndex, v))
+			ref = v;
+		else
+			Assign(ref, Undefined());
+	}
+
+	void AssignStringField(DataArray<SharedStr>::reference ref, const feature_ptr& feat, SizeT fieldIndex)
+	{
+		if (feat && !feat->IsFieldNull(fieldIndex) && feat->IsFieldSet(fieldIndex))
+		{
+			CharPtr fieldAsString = feat->GetFieldAsString(fieldIndex);
+			ref.assign(fieldAsString, fieldAsString + StrLen(fieldAsString) MG_DEBUG_ALLOCATOR_SRC("gdal.vect.ReadDataItemsAtOnce"));
+		}
+		else
+			Assign(ref, Undefined());
+	}
+
+	enum class field_kind { integer32, integer64, floating };
+	using field_writer = std::function<void(const feature_ptr&, SizeT)>;
+
+	template <typename T>
+	field_writer MakeNumericWriter(AbstrDataObject* ado, tile_id t, SizeT fieldIndex, field_kind kind)
+	{
+		auto tile = mutable_array_cast<T>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all).get_view();
+		switch (kind)
+		{
+		case field_kind::integer32: return [tile, fieldIndex](const feature_ptr& f, SizeT i) mutable { AssignIntegerField<T>(tile[i], f, fieldIndex, false); };
+		case field_kind::integer64: return [tile, fieldIndex](const feature_ptr& f, SizeT i) mutable { AssignIntegerField<T>(tile[i], f, fieldIndex, true ); };
+		default:                    return [tile, fieldIndex](const feature_ptr& f, SizeT i) mutable { AssignDoubleField <T>(tile[i], f, fieldIndex); };
+		}
+	}
+
+	// the matrix of ReadAttrData: the field's OGR type says how a feature's value is taken, the target's
+	// value type where it goes; the same combinations are admitted
+	field_writer MakeFieldWriter(AbstrDataObject* ado, tile_id t, SizeT fieldIndex, ValueClassID fieldType, ValueClassID targetType)
+	{
+		field_kind kind = field_kind::integer64;
+		switch (fieldType)
+		{
+		case ValueClassID::VT_Unknown:
+		case ValueClassID::VT_SharedStr:
+			if (targetType == ValueClassID::VT_SharedStr)
+			{
+				auto tile = mutable_array_cast<SharedStr>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all).get_view();
+				return [tile, fieldIndex](const feature_ptr& f, SizeT i) mutable { AssignStringField(tile[i], f, fieldIndex); };
+			}
+			kind = (targetType == ValueClassID::VT_Float32 || targetType == ValueClassID::VT_Float64) ? field_kind::floating : field_kind::integer64;
+			break;
+		case ValueClassID::VT_Int64:
+			kind = field_kind::integer64;
+			break;
+		case ValueClassID::VT_Bool:
+		case ValueClassID::VT_UInt16:
+		case ValueClassID::VT_Int16:
+		case ValueClassID::VT_Int32:
+			kind = field_kind::integer32;
+			break;
+		case ValueClassID::VT_Float32:
+		case ValueClassID::VT_Float64:
+			kind = field_kind::floating;
+			switch (targetType)
+			{
+			case ValueClassID::VT_Bool: case ValueClassID::VT_UInt2: case ValueClassID::VT_UInt4: case ValueClassID::VT_Int64: case ValueClassID::VT_UInt64:
+				goto typeConflict; // as ReadAttrData: a floating field does not go into these
+			default:
+				break;
+			}
+			break;
+		default:
+			goto typeConflict;
+		}
+		switch (targetType)
+		{
+#define INSTANTIATE(T) case ValueClassID::VT_##T: return MakeNumericWriter<T>(ado, t, fieldIndex, kind);
+			INSTANTIATE_NUM_ORG
+#undef INSTANTIATE
+		default:
+			break;
+		}
+	typeConflict:
+		throwErrorF("gdal.vect", "Cannot read attribute data of type {} into attribute of type {}", int(fieldType), int(targetType));
+	}
+
+} // anonymous namespace
+
+void GdalVectSM::ReadDataItemsAtOnce(std::vector<ReadTarget>& targets)
+{
+	assert(IsOpen());
+	OGRLayer* layer = m_Layer;
+	MG_CHECK(layer);
+	OGRFeatureDefn* featureDefn = layer->GetLayerDefn();
+	MG_CHECK(featureDefn);
+
+	struct column
+	{
+		ReadTarget*  m_Target;
+		SizeT        m_FieldIndex;
+		ValueClassID m_FieldType, m_TargetType;
+		std::unique_ptr<DataWriteLock> m_Lock;
+	};
+	std::vector<column> columns;
+	for (auto& target : targets)
+	{
+		auto br = debug_cast<const GdalVectlMetaInfo*>(target.m_MetaInfo.get());
+		auto cfg = br->CurrRD(); // the configured attribute: its name and values type name the column
+		MG_CHECK(cfg);
+		auto nameID = cfg->GetNameID();
+		if (nameID == token::geometry || nameID == token::geometry_z || nameID == token::geometry_m || cfg->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+			continue; // a geometry has a pass of its own (ReadGeometry); left not done
+		auto fieldIndex = FindLayerField(featureDefn, cfg->GetName());
+		if (fieldIndex == SizeT(-1))
+		{
+			target.m_Item->Fail(mySSPrintF("No column '{}' available in datasource", br->m_RelativeName).c_str(), FailType::Data);
+			target.m_Done = true;
+			continue;
+		}
+		auto fieldDefn = featureDefn->GetFieldDefn(fieldIndex);
+		auto fieldType = fieldDefn ? gdalVectImpl::OGR2ValueType(fieldDefn->GetType(), fieldDefn->GetSubType()) : ValueClassID::VT_Unknown;
+		auto targetType = target.m_Item->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		columns.push_back(column{ &target, fieldIndex, fieldType, targetType, nullptr });
+	}
+	if (columns.empty())
+		return;
+
+	// exactly these fields, no geometry
+	featureDefn->SetGeometryIgnored(true);
+	for (SizeT i = 0, n = featureDefn->GetFieldCount(); i != n; ++i)
+	{
+		bool wanted = std::any_of(columns.begin(), columns.end(), [i](const column& c) { return c.m_FieldIndex == i; });
+		featureDefn->GetFieldDefn(i)->SetIgnored(!wanted);
+	}
+	m_CurrFieldIndex = SizeT(-1); // a single-attribute read that follows selects its field anew
+
+	for (auto& c : columns)
+		c.m_Lock = std::make_unique<DataWriteLock>(c.m_Target->m_Item, dms_rw_mode::write_only_mustzero);
+
+	auto trd = columns.front().m_Lock->get_ptr()->GetTiledRangeData();
+	MG_CHECK(trd);
+	GDALDataset* hDS = m_hDS;
+	bool interleaved = hDS->TestCapability(ODsCRandomLayerRead);
+	layer->ResetReading();
+	m_CurrFeatureIndex = 0;
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+	{
+		SizeT firstIndex = trd->GetFirstRowIndex(t);
+		SizeT size = trd->GetTileSize(t);
+		if (!size)
+			continue;
+		SetCurrFeatureIndex(firstIndex);
+
+		std::vector<field_writer> writers;
+		writers.reserve(columns.size());
+		for (auto& c : columns)
+			writers.push_back(MakeFieldWriter(c.m_Lock->get_ptr(), t, c.m_FieldIndex, c.m_FieldType, c.m_TargetType));
+
+		for (SizeT i = 0; i != size; ++i)
+		{
+			if (!(i & 0xfff))
+				ASyncContinueCheck();
+			feature_ptr feat = interleaved ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+			for (auto& w : writers)
+				w(feat, i);
+		}
+		m_CurrFeatureIndex += size;
+	}
+	for (auto& c : columns)
+	{
+		c.m_Lock->Commit();
+		c.m_Target->m_Done = true;
+	}
+	layer->ResetReading();
+	m_CurrFeatureIndex = 0;
 }
 
 

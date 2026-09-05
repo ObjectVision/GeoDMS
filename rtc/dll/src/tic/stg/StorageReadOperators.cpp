@@ -411,6 +411,70 @@ void MapMember(storage_read_request& req, storage_read_member& m)
 	cacheItem->m_DataObject.reset(fh.release());
 }
 
+// The attributes of one table in one pass (#587 S4): one handle opens the storage for all of them, the
+// manager reads what it can at once, and what it leaves (a geometry) is read on its own while the
+// storage is still open. One performance line for the pass, against the sum of the members' estimates.
+void ReadMembersAtOnce(NonmappableStorageManager* sm, TreeItem* root, const std::vector<storage_read_member*>& members, const SharedStr& storageName)
+{
+	std::vector<NonmappableStorageManager::ReadTarget> targets;
+	targets.reserve(members.size());
+	for (auto m : members)
+	{
+		auto progressMsg = mySSPrintF("Read {} from {}", m->m_ConfigItem->GetFullName(), storageName);
+		reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, progressMsg.c_str());
+		targets.push_back(NonmappableStorageManager::ReadTarget{ m->m_MetaInfo, AsDataItem(m->m_CacheItem), false });
+	}
+
+	bool measure = IsPerformanceLogging();
+	PerformanceEstimationData estimate;
+	if (measure)
+		for (auto& t : targets)
+		{
+			auto e = EstimateReadResources(t.m_Item);
+			estimate.residentMemory      += e.residentMemory;
+			estimate.choreMemory         += e.choreMemory;
+			estimate.resultingNrElements += e.resultingNrElements;
+			if (e.nrChores > estimate.nrChores)
+				estimate.nrChores = e.nrChores;
+		}
+	PerfTimer timer(measure);
+
+	try {
+		StorageReadHandle srh(sm, StorageMetaInfoPtr(targets.front().m_MetaInfo), no_storage_lock); // opens the table's layer, for all of them
+		if (!sm->IsOpen())
+			throwDmsErrF("Reading from {} failed", storageName);
+		sm->ReadDataItemsAtOnce(targets);
+		for (auto& t : targets)
+			if (!t.m_Done && !t.m_Item->WasFailed(FailType::Data))
+			{
+				try {
+					if (!ReadDataItemInto(sm, t.m_MetaInfo, t.m_Item))
+						t.m_Item->Fail(mySSPrintF("Reading from {} failed", storageName).c_str(), FailType::Data);
+				}
+				catch (const DmsException& x)
+				{
+					if (!t.m_Item->WasFailed(FailType::Data))
+						t.m_Item->DoFailCaller(x.AsErrMsg(), FailType::Data);
+				}
+				t.m_Done = true;
+			}
+	}
+	catch (const DmsException& x)
+	{
+		for (auto& t : targets) // the pass as a whole failed: every member still to be served fails with it
+			if (!t.m_Done && !t.m_Item->WasFailed(FailType::Data))
+				t.m_Item->DoFailCaller(x.AsErrMsg(), FailType::Data);
+	}
+
+	for (auto& t : targets)
+		if (!t.m_Item->WasFailed(FailType::Data))
+			PublishMeasuredElementWidth(t.m_Item);
+	if (measure)
+		ReportReadPerformance(root, estimate, timer.ElapsedMSec());
+	for (auto m : members)
+		m->m_MetaInfo.reset(); // while the section is held: a meta info closes the storage when it dies
+}
+
 // CalcResult of the operators: read the pending members, one storage handle each, under the storage
 // manager's critical section, which the scheduling gate acquired when this operation named the manager
 // through GetRequiredStorageManager (#933) and which is taken here otherwise. A memory-mapped store
@@ -454,9 +518,20 @@ bool ReadPendingMembers(TreeItem* root)
 	auto release = make_scoped_exit([&releaseRequest] { releaseRequest(); }); // after csLock: destroyed before it, so the meta infos close the storage under the section
 
 	auto storageName = sm->GetNameStr();
+
+	// The table's range goes first and on its own, as does every member of a manager that reads one
+	// attribute at a time; the attributes of a manager that can read them at once go in one pass over
+	// the storage's records (gdal.vect), the pass leaving what it does not serve (a geometry) to a read
+	// of its own with the storage still open.
+	std::vector<storage_read_member*> atOnce;
 	for (auto& m : req.m_Pending)
 	{
 		auto cacheItem = m.m_CacheItem;
+		if (cacheItem != root && IsDataItem(cacheItem) && sm->CanReadDataItemsAtOnce())
+		{
+			atOnce.push_back(&m);
+			continue;
+		}
 		auto progressMsg = mySSPrintF("Read {} from {}", m.m_ConfigItem->GetFullName(), storageName);
 		reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, progressMsg.c_str());
 		try {
@@ -495,6 +570,8 @@ bool ReadPendingMembers(TreeItem* root)
 				cacheItem->DoFailCaller(x.AsErrMsg(), FailType::Data); // this member fails; the others are still read
 		}
 	}
+	if (!atOnce.empty())
+		ReadMembersAtOnce(sm.get(), root, atOnce, storageName);
 	return true;
 }
 

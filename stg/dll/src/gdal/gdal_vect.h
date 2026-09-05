@@ -75,6 +75,8 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool CanReadDataItemsAtOnce() const override { return true; } // #587 S4: the attributes of a layer in one pass over its features
+	void ReadDataItemsAtOnce(std::vector<ReadTarget>& targets) override;
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 	void WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi);
 	void PrepareLayerFieldsForWriting(const TreeItem* layerHolder, TokenID layer_id, const AbstrDataItem* self) const;

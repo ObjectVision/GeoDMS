@@ -990,11 +990,20 @@ overridden by the gdal managers), the table element is the relative path. The na
 of the three operators went, and `CreateStorageSpec` with the `read`/`readSql` elements of the
 `sourceDescr` tree. Verified by `stor_read_shared_table` (two units reading the same file,
 `sum(a/tab/id + b/tab/id)` unifies and the log reads each attribute once) and by
-`fn_test_icheck_storage_self`, whose two parameters now share one read. Still to do in S4: the
-one-scan `ReadDataItems` for `gdal.vect`, `dbf` and `odbc` (every attribute still opens the
-storage and scans on its own), and the spec-only meta infos, which are no longer needed for
-identity but would let a read run without a configured item (a modeller-written
-`storage_read_*` call); the measurement on a real geopackage and a large CSV.*
+`fn_test_icheck_storage_self`, whose two parameters now share one read.*
+
+*Status 2026-09-05, second part (one scan): `NonmappableStorageManager::ReadDataItemsAtOnce`
+reads several attributes of one table in one pass over its records; the default serves none,
+`gdal.vect` implements it (one writer per requested column, the element assignments of the four
+single-field readers factored out, one loop over the layer's features per tile, a geometry left
+to its own pass), and the operator's `CalcResult` sends a table's data members to it under one
+storage handle, reads what the pass leaves on its own while the storage is still open, and
+reports one `[performance]read` line for the pass. Measured on a 200k-row, 6-column CSV with the
+Debug build (`scratch/issue587/perf`): see the figures recorded in the S4 commit. Not done:
+`dbf` and `odbc` at once (their implementations read a column per call to the file or record
+set; a follow-up), the spec-only meta infos (not needed for identity; they would let a
+modeller-written `storage_read_*` call run without a configured item), and the measurement on a
+real geopackage.*
 
 ---
 

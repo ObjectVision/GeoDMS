@@ -213,10 +213,11 @@ knowledge available to a planner:
 - **Strategy bits**: `AllowRandomTileAccess()` / `EasyRereadTiles()`
   (`AbstrStorageManager.h`) decide fan-out over cloned readers vs serial loop
   (`ReadDataItemInto` in `StorageReadOperators.cpp`).
-- **Measured**: a `[performance]read` line per member (`ReportReadPerformance`) and the measured
-  element width (`PublishMeasuredElementWidth`) follow each member's read; the operator's own
-  `RunOperator` line covers the pass. The default `EstimatePerformance` serves the read operators:
-  a read's size is known once the table's range is read, which is what the first pass does.
+- **Measured**: a `[performance]read` line (`ReportReadPerformance`) and the measured element width
+  (`PublishMeasuredElementWidth`) follow each read -- per member, or once for the pass that reads
+  a gdal.vect table's attributes at once (`ReadDataItemsAtOnce`); the operator's own `RunOperator`
+  line covers the whole. The default `EstimatePerformance` serves the read operators: a read's
+  size is known once the table's range is read, which is what the first pass does.
 
 ---
 

@@ -404,6 +404,20 @@ public:
 	// whose SupportsReadOperator() says so.
 	TIC_CALL ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const override;
 
+	// #587 S4: several attributes of one table in one pass over its records. The caller has opened
+	// the storage through a StorageReadHandle on one of the meta infos (all describe attributes of the
+	// same table) and holds the manager's section. A target the pass does not serve (a geometry) is
+	// left not done, for the caller to read on its own; one whose column is missing is failed and
+	// marked done. The default serves none: every attribute is then read on its own.
+	struct ReadTarget
+	{
+		StorageMetaInfoPtr m_MetaInfo;
+		AbstrDataItem*     m_Item = nullptr; // the cache member that receives the data
+		bool               m_Done = false;
+	};
+	TIC_CALL virtual bool CanReadDataItemsAtOnce() const { return false; }
+	TIC_CALL virtual void ReadDataItemsAtOnce(std::vector<ReadTarget>& targets);
+
 	TIC_CALL virtual void DropStream(const TreeItem* item, CharPtr path);
 
 	// public interface funcs wrap derived StorageManagers virtual funcs
