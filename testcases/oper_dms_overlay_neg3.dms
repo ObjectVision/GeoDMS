@@ -1,0 +1,21 @@
+// #1214 negative: the grid size is one number for the whole attribute, a parameter; an attribute
+// with a grid per element is refused, since neighbours would then snap a shared boundary differently.
+// Expected: nonzero exit.
+container oper_dms_overlay_neg3
+{
+	unit<uint32> Pair : nrofrows = 2;
+	unit<uint32> TPt : nrofrows = 10;
+	attribute<int32>  x    (TPt) : [ 0,   0, 100, 100, 0,   200, 200, 300, 300, 200 ];
+	attribute<int32>  y    (TPt) : [ 0, 100, 100,   0, 0,   200, 300, 300, 200, 200 ];
+	attribute<Pair>    tseq (TPt) : [ 0, 0, 0, 0, 0,  1, 1, 1, 1, 1 ];
+	attribute<uint32> tord (TPt) : [ 0, 1, 2, 3, 4,  0, 1, 2, 3, 4 ];
+	attribute<ipoint> sq (Pair, polygon) := points2polygon(point_xy(x, y, ipoint), tseq, tord);
+	attribute<float64> grid_per_element (Pair) : [ 1.0, 10.0 ];
+
+	container checks
+	{
+		attribute<ipoint> bad (Pair, polygon) := dms_union(sq, sq, grid_per_element);
+		parameter<float64> a := sum(float64(area(bad)));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
+	}
+}

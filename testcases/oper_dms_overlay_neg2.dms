@@ -1,0 +1,19 @@
+// #1214 negative: on integer coordinates the grid size must be a whole number; 2.5 is refused.
+// Expected: nonzero exit.
+container oper_dms_overlay_neg2
+{
+	unit<uint32> Solo : nrofrows = 1;
+	unit<uint32> RPt  : nrofrows = 5;
+	attribute<int32>  x    (RPt) : [ 0,   0, 100, 100, 0 ];
+	attribute<int32>  y    (RPt) : [ 0, 100, 100,   0, 0 ];
+	attribute<Solo>   rseq (RPt) : [ 0, 0, 0, 0, 0 ];
+	attribute<uint32> rord (RPt) : [ 0, 1, 2, 3, 4 ];
+	attribute<ipoint> sq (Solo, polygon) := points2polygon(point_xy(x, y, ipoint), rseq, rord);
+
+	container checks
+	{
+		attribute<ipoint> bad (Solo, polygon) := dms_intersect(sq, sq, 2.5);
+		parameter<float64> a := sum(float64(area(bad)));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
+	}
+}

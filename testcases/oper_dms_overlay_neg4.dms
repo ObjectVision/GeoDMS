@@ -1,0 +1,21 @@
+// #1214 negative: a grid too fine for the operands. The internal coordinates are budgeted at 2^36
+// cells in either direction, so an extent of 1000000 at a grid of 0.000001, 10^12 cells, is refused
+// with a message that names the budget and asks for a coarser grid.
+// Expected: nonzero exit.
+container oper_dms_overlay_neg4
+{
+	unit<uint32> Solo : nrofrows = 1;
+	unit<uint32> RPt  : nrofrows = 5;
+	attribute<float64> x    (RPt) : [ 0.0,       0.0, 1000000.0, 1000000.0, 0.0 ];
+	attribute<float64> y    (RPt) : [ 0.0, 1000000.0, 1000000.0,       0.0, 0.0 ];
+	attribute<Solo>    rseq (RPt) : [ 0, 0, 0, 0, 0 ];
+	attribute<uint32>  rord (RPt) : [ 0, 1, 2, 3, 4 ];
+	attribute<dpoint>  sq (Solo, polygon) := points2polygon(point_xy(x, y, dpoint), rseq, rord);
+
+	container checks
+	{
+		attribute<dpoint> bad (Solo, polygon) := dms_union(sq, sq, 0.000001);
+		parameter<float64> a := sum(area(bad));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
+	}
+}

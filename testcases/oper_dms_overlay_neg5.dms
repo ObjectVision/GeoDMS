@@ -1,0 +1,24 @@
+// #1214 negative: the two operands must have the same values unit, as for every polygon overlay;
+// a square in one coordinate system against a square in another is refused.
+// Expected: nonzero exit.
+container oper_dms_overlay_neg5
+{
+	unit<ipoint> rd  : SpatialReference = "EPSG:28992";
+	unit<ipoint> web : SpatialReference = "EPSG:3857";
+
+	unit<uint32> Solo : nrofrows = 1;
+	unit<uint32> RPt  : nrofrows = 5;
+	attribute<int32>  x    (RPt) : [ 0,   0, 100, 100, 0 ];
+	attribute<int32>  y    (RPt) : [ 0, 100, 100,   0, 0 ];
+	attribute<Solo>   rseq (RPt) : [ 0, 0, 0, 0, 0 ];
+	attribute<uint32> rord (RPt) : [ 0, 1, 2, 3, 4 ];
+	attribute<rd>  sq_rd  (Solo, polygon) := points2polygon(point_xy(x, y, rd), rseq, rord);
+	attribute<web> sq_web (Solo, polygon) := points2polygon(point_xy(x, y, web), rseq, rord);
+
+	container checks
+	{
+		attribute<rd> bad (Solo, polygon) := dms_intersect(sq_rd, sq_web);
+		parameter<float64> a := sum(float64(area(bad)));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
+	}
+}

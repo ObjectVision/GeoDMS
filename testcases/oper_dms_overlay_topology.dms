@@ -1,0 +1,135 @@
+// #1214: the topology the dms_ overlay must get right beyond the areas of oper_dms_overlay: the
+// multi-polygon layout of a result with two shells, a hole that the operation creates, an island in
+// a lake (a shell inside a hole), rings that touch along an edge or at a corner, a ring walked twice
+// (even-odd: nothing), a shell given counter-clockwise (read the same, written clockwise), a hole
+// given clockwise, and an operand that is a parameter. The element counts pin the sequence layout:
+// a closed ring of n corners is n + 1 points, each hole adds its ring plus one point back to the
+// shell's start, and each further polygon adds its rings plus one point back to the previous start.
+container oper_dms_overlay_topology
+{
+	unit<uint32> Solo : nrofrows = 1;
+	unit<uint32> Pair  : nrofrows = 2;
+	unit<uint32> RPt  : nrofrows = 5;
+	attribute<Solo>   rseq (RPt) : [ 0, 0, 0, 0, 0 ];
+	attribute<uint32> rord (RPt) : [ 0, 1, 2, 3, 4 ];
+
+	// the square [0,100]^2, clockwise
+	attribute<int32>  sq0x (RPt) : [ 0,   0, 100, 100, 0 ];
+	attribute<int32>  sq0y (RPt) : [ 0, 100, 100,   0, 0 ];
+	attribute<ipoint> sq0  (Solo, polygon) := points2polygon(point_xy(sq0x, sq0y, ipoint), rseq, rord);
+	parameter<ipoint> sq0p (polygon) := sq0[0];
+
+	// the same square counter-clockwise: area() reads it as -10000
+	attribute<int32>  ccwx (RPt) : [ 0, 100, 100,   0, 0 ];
+	attribute<int32>  ccwy (RPt) : [ 0,   0, 100, 100, 0 ];
+	attribute<ipoint> sq0ccw (Solo, polygon) := points2polygon(point_xy(ccwx, ccwy, ipoint), rseq, rord);
+
+	// a disjoint square [200,300]^2
+	attribute<int32>  sq2x (RPt) : [ 200, 200, 300, 300, 200 ];
+	attribute<int32>  sq2y (RPt) : [ 200, 300, 300, 200, 200 ];
+	attribute<ipoint> sq2  (Solo, polygon) := points2polygon(point_xy(sq2x, sq2y, ipoint), rseq, rord);
+
+	// an inner square [20,60]^2 and an island [30,50]^2 inside it
+	attribute<int32>  inx (RPt) : [ 20, 20, 60, 60, 20 ];
+	attribute<int32>  iny (RPt) : [ 20, 60, 60, 20, 20 ];
+	attribute<ipoint> inner (Solo, polygon) := points2polygon(point_xy(inx, iny, ipoint), rseq, rord);
+	attribute<int32>  isx (RPt) : [ 30, 30, 50, 50, 30 ];
+	attribute<int32>  isy (RPt) : [ 30, 50, 50, 30, 30 ];
+	attribute<ipoint> island (Solo, polygon) := points2polygon(point_xy(isx, isy, ipoint), rseq, rord);
+
+	// a square adjacent along the right edge, and one touching only at the corner (100, 100)
+	attribute<int32>  adx (RPt) : [ 100, 100, 200, 200, 100 ];
+	attribute<int32>  ady (RPt) : [   0, 100, 100,   0,   0 ];
+	attribute<ipoint> adjacent (Solo, polygon) := points2polygon(point_xy(adx, ady, ipoint), rseq, rord);
+	attribute<int32>  cox (RPt) : [ 100, 100, 200, 200, 100 ];
+	attribute<int32>  coy (RPt) : [ 100, 200, 200, 100, 100 ];
+	attribute<ipoint> corner (Solo, polygon) := points2polygon(point_xy(cox, coy, ipoint), rseq, rord);
+
+	// a band [40,80] x [0,100] through the inner square
+	attribute<int32>  bdx (RPt) : [ 40,  40,  80, 80, 40 ];
+	attribute<int32>  bdy (RPt) : [  0, 100, 100,  0,  0 ];
+	attribute<ipoint> band (Solo, polygon) := points2polygon(point_xy(bdx, bdy, ipoint), rseq, rord);
+	parameter<ipoint> bandp (polygon) := band[0];
+
+	// the square walked twice in one ring: every point is covered twice, so even-odd it is empty
+	unit<uint32> DPt : nrofrows = 9;
+	attribute<int32>  dwx  (DPt) : [ 0,   0, 100, 100, 0,   0, 100, 100, 0 ];
+	attribute<int32>  dwy  (DPt) : [ 0, 100, 100,   0, 0, 100, 100,   0, 0 ];
+	attribute<Solo>   dseq (DPt) : [ 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
+	attribute<uint32> dord (DPt) : [ 0, 1, 2, 3, 4, 5, 6, 7, 8 ];
+	attribute<ipoint> twice (Solo, polygon) := points2polygon(point_xy(dwx, dwy, ipoint), dseq, dord);
+
+	// the square with the inner square as a hole, the hole ring CLOCKWISE, against the convention
+	unit<uint32> HPt : nrofrows = 11;
+	attribute<int32>  hx   (HPt) : [ 0,   0, 100, 100, 0,   20, 20, 60, 60, 20,   0 ];
+	attribute<int32>  hy   (HPt) : [ 0, 100, 100,   0, 0,   20, 60, 60, 20, 20,   0 ];
+	attribute<Solo>   hseq (HPt) : [ 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0 ];
+	attribute<uint32> hord (HPt) : [ 0, 1, 2, 3, 4,  5, 6, 7, 8, 9, 10 ];
+	attribute<ipoint> holed_cw (Solo, polygon) := points2polygon(point_xy(hx, hy, ipoint), hseq, hord);
+
+	// a two-element attribute: the square and the inner square
+	unit<uint32> TPt : nrofrows = 10;
+	attribute<int32>  tx   (TPt) : [ 0,   0, 100, 100, 0,   20, 20, 60, 60, 20 ];
+	attribute<int32>  ty   (TPt) : [ 0, 100, 100,   0, 0,   20, 60, 60, 20, 20 ];
+	attribute<Pair>    tseq (TPt) : [ 0, 0, 0, 0, 0,  1, 1, 1, 1, 1 ];
+	attribute<uint32> tord (TPt) : [ 0, 1, 2, 3, 4,  0, 1, 2, 3, 4 ];
+	attribute<ipoint> duo (Pair, polygon) := points2polygon(point_xy(tx, ty, ipoint), tseq, tord);
+
+	container checks
+	{
+		// two disjoint squares: two shells, 5 + 5 + 1 points
+		attribute<ipoint> disjoint (Solo, polygon) := dms_union(sq0, sq2);
+		parameter<bool> disjoint_ok := sum(float64(area(disjoint))) == 20000.0 && sequence_element_count(disjoint)[0] == 11, IntegrityCheck = "disjoint_ok == true";
+
+		// the difference creates a hole: shell 5, hole 5, back to the shell 1
+		attribute<ipoint> holed (Solo, polygon) := dms_difference(sq0, inner);
+		parameter<bool> holed_ok := sum(float64(area(holed))) == 8400.0 && sequence_element_count(holed)[0] == 11, IntegrityCheck = "holed_ok == true";
+
+		// an island in the lake: the holed square plus the island, 11 + 5 + 1
+		attribute<ipoint> lake (Solo, polygon) := dms_union(holed, island);
+		parameter<bool> lake_ok := sum(float64(area(lake))) == 8800.0 && sequence_element_count(lake)[0] == 17, IntegrityCheck = "lake_ok == true";
+		// and taking the island out again restores the holed square exactly
+		parameter<bool> lake_back_ok := sum(float64(area(dms_xor(dms_difference(lake, island), holed)))) == 0.0, IntegrityCheck = "lake_back_ok == true";
+
+		// adjacent along an edge: one rectangle, the shared edge and its collinear corners gone
+		attribute<ipoint> merged (Solo, polygon) := dms_union(sq0, adjacent);
+		parameter<bool> merged_ok := sum(float64(area(merged))) == 20000.0 && sequence_element_count(merged)[0] == 5, IntegrityCheck = "merged_ok == true";
+		// adjacent along an edge, intersected: nothing (a shared edge has no area)
+		parameter<bool> adjacent_isect_ok := sequence_element_count(dms_intersect(sq0, adjacent))[0] == 0, IntegrityCheck = "adjacent_isect_ok == true";
+
+		// touching at one corner: two shells, not one pinched ring
+		attribute<ipoint> pinched (Solo, polygon) := dms_union(sq0, corner);
+		parameter<bool> pinched_ok := sum(float64(area(pinched))) == 20000.0 && sequence_element_count(pinched)[0] == 11, IntegrityCheck = "pinched_ok == true";
+
+		// the band through the holed square: a U of 8 corners, 4000 - 800
+		attribute<ipoint> u_shape (Solo, polygon) := dms_intersect(holed, band);
+		parameter<bool> u_shape_ok := sum(float64(area(u_shape))) == 3200.0 && sequence_element_count(u_shape)[0] == 9, IntegrityCheck = "u_shape_ok == true";
+
+		// the ring walked twice is empty under even-odd, and adds nothing to a union
+		parameter<bool> twice_ok := sequence_element_count(dms_union(twice, twice))[0] == 0
+			&& sequence_element_count(dms_intersect(sq0, twice))[0] == 0
+			&& sum(float64(area(dms_union(sq0, twice)))) == 10000.0
+			, IntegrityCheck = "twice_ok == true";
+
+		// the counter-clockwise square is read as the square and written clockwise
+		parameter<bool> ccw_in_ok := sum(float64(area(sq0ccw))) == -10000.0, IntegrityCheck = "ccw_in_ok == true";
+		parameter<bool> ccw_out_ok := sum(float64(area(dms_union(sq0ccw, sq0ccw)))) == 10000.0
+			&& sum(float64(area(dms_intersect(sq0ccw, sq0)))) == 10000.0
+			, IntegrityCheck = "ccw_out_ok == true";
+
+		// the hole given clockwise is still a hole, and the result matches the difference exactly
+		parameter<bool> hole_cw_ok := sum(float64(area(dms_union(holed_cw, holed_cw)))) == 8400.0
+			&& sum(float64(area(dms_xor(dms_union(holed_cw, holed_cw), holed)))) == 0.0
+			, IntegrityCheck = "hole_cw_ok == true";
+
+		// a parameter operand on either side: the band against the square (4000) and the inner square (800)
+		attribute<ipoint> ap (Pair, polygon) := dms_intersect(duo, bandp);
+		attribute<ipoint> pa (Pair, polygon) := dms_intersect(bandp, duo);
+		parameter<bool> param_ok := sum(float64(area(ap))) == 4800.0 && sum(float64(area(pa))) == 4800.0
+			&& float64(area(ap)[1]) == 800.0
+			, IntegrityCheck = "param_ok == true";
+		// and a parameter result from two parameters
+		parameter<ipoint> pp (polygon) := dms_intersect(sq0p, bandp);
+		parameter<bool> pp_ok := float64(area(pp)) == 4000.0, IntegrityCheck = "pp_ok == true";
+	}
+}

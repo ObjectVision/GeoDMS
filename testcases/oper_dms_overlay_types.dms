@@ -1,0 +1,99 @@
+// #1214: the dms_ overlay on the five point types that oper_dms_overlay does not cover, against
+// the numbers it pins for ipoint. spoint, wpoint and upoint take the integer path, each with its
+// own coordinate range and origin alignment; fpoint and dpoint take the derived power-of-two grid,
+// which must keep integer-valued input exact and quarter-valued input exact too.
+//
+// The shapes are the square [0,100]^2 and the L, each against its own copy shifted by (50, 50):
+// intersection 2500 (the L's are disjoint), union 17500 + 4000 = 21500.
+container oper_dms_overlay_types
+{
+	unit<uint32> G   : nrofrows = 2;
+	unit<uint32> GPt : nrofrows = 10;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100,   0,  0, 20, 20, 60, 60 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0,   0, 60, 60, 20, 20,  0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0,       1,  1,  1,  1,  1,  1 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3,       0,  1,  2,  3,  4,  5 ];
+	attribute<int32>  sx   (GPt) := gx + int32(50);
+	attribute<int32>  sy   (GPt) := gy + int32(50);
+
+	attribute<spoint> geom_s    (G, polygon) := points2polygon(point_xy(int16(gx), int16(gy), spoint), gseq, gord);
+	attribute<spoint> shifted_s (G, polygon) := points2polygon(point_xy(int16(sx), int16(sy), spoint), gseq, gord);
+
+	attribute<wpoint> geom_w    (G, polygon) := points2polygon(point_xy(uint16(gx), uint16(gy), wpoint), gseq, gord);
+	attribute<wpoint> shifted_w (G, polygon) := points2polygon(point_xy(uint16(sx), uint16(sy), wpoint), gseq, gord);
+
+	attribute<upoint> geom_u    (G, polygon) := points2polygon(point_xy(uint32(gx), uint32(gy), upoint), gseq, gord);
+	attribute<upoint> shifted_u (G, polygon) := points2polygon(point_xy(uint32(sx), uint32(sy), upoint), gseq, gord);
+
+	attribute<fpoint> geom_f    (G, polygon) := points2polygon(point_xy(float32(gx), float32(gy), fpoint), gseq, gord);
+	attribute<fpoint> shifted_f (G, polygon) := points2polygon(point_xy(float32(sx), float32(sy), fpoint), gseq, gord);
+
+	// negative coordinates: the square moved to [-100,0]^2 against [-50,50]^2, overlap [-50,0]^2 = 2500
+	unit<uint32> Solo : nrofrows = 1;
+	unit<uint32> NPt  : nrofrows = 5;
+	attribute<int32>  nx   (NPt) : [ -100, -100,    0,    0, -100 ];
+	attribute<int32>  ny   (NPt) : [ -100,    0,    0, -100, -100 ];
+	attribute<int32>  mx   (NPt) : [  -50,  -50,   50,   50,  -50 ];
+	attribute<int32>  my   (NPt) : [  -50,   50,   50,  -50,  -50 ];
+	attribute<Solo>   nseq (NPt) : [ 0, 0, 0, 0, 0 ];
+	attribute<uint32> nord (NPt) : [ 0, 1, 2, 3, 4 ];
+	attribute<spoint> neg_s  (Solo, polygon) := points2polygon(point_xy(int16(nx), int16(ny), spoint), nseq, nord);
+	attribute<spoint> negm_s (Solo, polygon) := points2polygon(point_xy(int16(mx), int16(my), spoint), nseq, nord);
+	attribute<ipoint> neg_i  (Solo, polygon) := points2polygon(point_xy(nx, ny, ipoint), nseq, nord);
+	attribute<ipoint> negm_i (Solo, polygon) := points2polygon(point_xy(mx, my, ipoint), nseq, nord);
+
+	// quarter-valued float coordinates: [0.5,100.5]^2 against [50.25,150.25]^2, overlap 50.25^2 = 2525.0625;
+	// all of these are exact in float32 and float64, and so is the answer
+	attribute<float32> qx  (NPt) : [   0.5,   0.5, 100.5, 100.5,   0.5 ];
+	attribute<float32> qy  (NPt) : [   0.5, 100.5, 100.5,   0.5,   0.5 ];
+	attribute<float32> rx  (NPt) : [  50.25,  50.25, 150.25, 150.25,  50.25 ];
+	attribute<float32> ry  (NPt) : [  50.25, 150.25, 150.25,  50.25,  50.25 ];
+	attribute<fpoint>  q_f (Solo, polygon) := points2polygon(point_xy(qx, qy, fpoint), nseq, nord);
+	attribute<fpoint>  r_f (Solo, polygon) := points2polygon(point_xy(rx, ry, fpoint), nseq, nord);
+	attribute<dpoint>  q_d (Solo, polygon) := points2polygon(point_xy(float64(qx), float64(qy), dpoint), nseq, nord);
+	attribute<dpoint>  r_d (Solo, polygon) := points2polygon(point_xy(float64(rx), float64(ry), dpoint), nseq, nord);
+
+	container checks
+	{
+		parameter<float64> isect_s := sum(float64(area(dms_intersect(geom_s, shifted_s))));
+		parameter<bool> isect_s_ok := isect_s == 2500.0, IntegrityCheck = "isect_s_ok == true";
+		parameter<float64> union_s := sum(float64(area(dms_union(geom_s, shifted_s))));
+		parameter<bool> union_s_ok := union_s == 21500.0, IntegrityCheck = "union_s_ok == true";
+
+		parameter<float64> isect_w := sum(float64(area(dms_intersect(geom_w, shifted_w))));
+		parameter<bool> isect_w_ok := isect_w == 2500.0, IntegrityCheck = "isect_w_ok == true";
+		parameter<float64> union_w := sum(float64(area(dms_union(geom_w, shifted_w))));
+		parameter<bool> union_w_ok := union_w == 21500.0, IntegrityCheck = "union_w_ok == true";
+
+		parameter<float64> isect_u := sum(float64(area(dms_intersect(geom_u, shifted_u))));
+		parameter<bool> isect_u_ok := isect_u == 2500.0, IntegrityCheck = "isect_u_ok == true";
+		parameter<float64> union_u := sum(float64(area(dms_union(geom_u, shifted_u))));
+		parameter<bool> union_u_ok := union_u == 21500.0, IntegrityCheck = "union_u_ok == true";
+
+		parameter<float64> isect_f := sum(float64(area(dms_intersect(geom_f, shifted_f))));
+		parameter<bool> isect_f_ok := isect_f == 2500.0, IntegrityCheck = "isect_f_ok == true";
+		parameter<float64> union_f := sum(float64(area(dms_union(geom_f, shifted_f))));
+		parameter<bool> union_f_ok := union_f == 21500.0, IntegrityCheck = "union_f_ok == true";
+		parameter<float64> xor_f := sum(float64(area(dms_xor(geom_f, shifted_f))));
+		parameter<bool> xor_f_ok := xor_f == 19000.0, IntegrityCheck = "xor_f_ok == true";
+		parameter<float64> diff_f := sum(float64(area(dms_difference(geom_f, shifted_f))));
+		parameter<bool> diff_f_ok := diff_f == 9500.0, IntegrityCheck = "diff_f_ok == true";
+
+		// negative coordinates
+		parameter<float64> neg_s_a := sum(float64(area(dms_intersect(neg_s, negm_s))));
+		parameter<bool> neg_s_ok := neg_s_a == 2500.0, IntegrityCheck = "neg_s_ok == true";
+		parameter<float64> neg_i_a := sum(float64(area(dms_intersect(neg_i, negm_i))));
+		parameter<bool> neg_i_ok := neg_i_a == 2500.0, IntegrityCheck = "neg_i_ok == true";
+		parameter<float64> neg_i_u := sum(float64(area(dms_union(neg_i, negm_i))));
+		parameter<bool> neg_i_union_ok := neg_i_u == 17500.0, IntegrityCheck = "neg_i_union_ok == true";
+
+		// quarter-valued float coordinates through the derived grid
+		parameter<float64> q_f_a := sum(float64(area(dms_intersect(q_f, r_f))));
+		parameter<bool> q_f_ok := abs(q_f_a - 2525.0625) < 0.000001, IntegrityCheck = "q_f_ok == true";
+		parameter<float64> q_d_a := sum(area(dms_intersect(q_d, r_d)));
+		parameter<bool> q_d_ok := abs(q_d_a - 2525.0625) < 0.000000001, IntegrityCheck = "q_d_ok == true";
+		parameter<float64> q_d_u := sum(area(dms_union(q_d, r_d)));
+		parameter<bool> q_d_union_ok := abs(q_d_u - (20000.0 - 2525.0625)) < 0.000000001, IntegrityCheck = "q_d_union_ok == true";
+	}
+}
