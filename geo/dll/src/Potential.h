@@ -206,7 +206,6 @@ MDL_CALL kernel_info PrepareConvolutionKernel(AnalysisType at, TileCRef weightSh
 {
 	DBG_START("PrepareConvolutionKernel", "Fftw", MG_DEBUG_POTENTIAL);
 
-	//	dms_assert(dataOrg.GetSize() == outputOrg.GetSize());
 	kernel_info result;
 	result.maxDataSize = maxDataTileSize;
 	result.orgWeightSize = weightOrg.GetSize();

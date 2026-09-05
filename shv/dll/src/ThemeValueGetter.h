@@ -130,7 +130,6 @@ struct ConstValueGetter : AbstrThemeValueGetter
 
 	entity_id GetClassIndex(entity_id entityIndex) const override
 	{
-//		dms_assert(entityIndex < GetCount());
 		return Convert<entity_id>(m_Value);
 	}
 	SizeT GetCount() const override

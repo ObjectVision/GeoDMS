@@ -852,7 +852,6 @@ RTC_CALL void InitCrashDumpSupport()
 
 int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandException)
 {
-//	if ((u == DMS_SE_CPP) || (u == EXCEPTION_BORLAND_ERROR))
 	if (passBorlandException && u == EXCEPTION_BORLAND_ERROR)
 			return EXCEPTION_CONTINUE_SEARCH;
 	g_StructuredExceptionCode = u;

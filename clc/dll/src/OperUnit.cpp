@@ -185,7 +185,6 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		);
 		groupSize = cycleSize;
 	}
-//	dms_assert(groupSize == productSize);
 
 	return true;
 }

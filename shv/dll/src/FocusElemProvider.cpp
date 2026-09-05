@@ -81,7 +81,6 @@ void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUn
 
 	entity = GetUltimateSourceItem(entity);
 	TreeItem* selectionParent = CreateDesktopContainer(desktopItem, entity);
-//	dms_assert(selectionParent && !selectionParent->GetSubTreeItemByID(GetAspectNameID(AN_Selections)));
 
 	AbstrUnit* userValuesUnit = Unit<SelectionID>::GetStaticClass()->CreateUnit(desktopItem, valuesUnitID).get();
 

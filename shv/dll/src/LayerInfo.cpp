@@ -143,8 +143,6 @@ bool IsEqualUnit(const AbstrUnit* a, const AbstrUnit* b)
 	ti->UpdateMetaInfo();
 
 	const TreeItem* si = const_cast<TreeItem*>(ti)->GetSubTreeItemByID(token::geometry);
-//	if (!si) 
-//		si = ti->GetConstSubTreeItemByID(geoTokenID); // can call UpdateMetaInfo to retrieve stuff from a StorageManager
 	if (!IsDataItem(si))
 		return nullptr;
 	auto gi = AsDataItem(si);

@@ -50,7 +50,6 @@ UnitClass::UnitClass(Constructor cFunc, TokenID typeID, const ValueClass* valueT
 
 UnitClass::~UnitClass()
 {
-//	dms_assert(!m_DefaultUnit);
 	DropDefault();
 	g_UnitClassRegister.Unregister(this);
 	m_ValueType->m_UnitClass = nullptr;
@@ -104,7 +103,6 @@ const AbstrUnit* UnitClass::CreateDefault() const
 {
 	if (!m_DefaultUnit)
 	{
-//		auto lock = std::scoped_lock(cs_DefaultUnit);
 
 		if (!m_DefaultUnit)
 		{

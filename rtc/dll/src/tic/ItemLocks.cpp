@@ -42,7 +42,6 @@ bool MG_DEBUG_TPT_LOCKS(const TreeItem* self)
 
 namespace treeitem_production_task
 {
-	// const bool MG_DEBUG_TPT_LOCKS = MG_DEBUG_LOCKS;
 	leveled_critical_section cs_lockCounterUpdate(item_level_type(0), ord_level_type::ItemCounter, "LockCounter");
 	std::condition_variable cv_lockrelease;
 
@@ -291,10 +290,6 @@ namespace cs_lock {
 		DBG_START("cs_lock", "ReadLock", MG_DEBUG_LOCKS);
 		DBG_TRACE(("key={}", AsString(item).c_str()));
 
-//		std::optional < ItemReadLock > lockDomain;
-//		if (IsDataItem(item))
-//			lockDomain.emplace(AsDataItem(item)->GetAbstrDomainUnit()->GetCurrRangeItem());
-
 		// await (don't lock) any in-progress production on a cache ancestor, then read-lock ONLY this item
 		AwaitAncestorWrites(item);
 		treeitem_production_task::lock_shared(item);
@@ -304,10 +299,6 @@ namespace cs_lock {
 	{
 		DBG_START("cs_lock", "ReadLock", MG_DEBUG_LOCKS);
 		DBG_TRACE(("key={}", AsString(item).c_str()));
-
-		//		std::optional < ItemReadLock > lockDomain;
-		//		if (IsDataItem(item))
-		//			lockDomain.emplace(AsDataItem(item)->GetAbstrDomainUnit()->GetCurrRangeItem());
 
 		// refuse if a cache ancestor is being produced, then try to read-lock ONLY this item
 		if (!TryAwaitAncestorWrites(item))
@@ -838,8 +829,6 @@ bool CheckCalculatingOrReady(const TreeItem* item)
 	assert(item);
 	assert(item == item->GetCurrRangeItem().get());
 
-//	if (item->DataAllocated())
-//		return true;
 
 	if (IsCalculating(item))
 		return true;
@@ -850,8 +839,6 @@ bool CheckCalculatingOrReady(const TreeItem* item)
 
 bool IsCalculatingOrReady(const DataController* dc, const TreeItem* cacheRoot, const TreeItem* cacheItem)
 {
-//	if (cacheItem->GetTSF(TSF_DSM_SdKnown | TSF_DataInMem))
-//		return true;
 	if (IsDataReady(cacheItem))
 		return true;
 	return CheckCalculatingOrReady(cacheItem);

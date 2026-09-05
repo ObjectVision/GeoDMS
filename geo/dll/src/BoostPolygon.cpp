@@ -206,7 +206,6 @@ protected:
 				ResourceHandle polyInfoHandle;
 				CreatePolyHandle(arg2A, u, polyInfoHandle);
 
-// 				for (tile_id t=0, te = domainUnit->GetNrTiles(); t != te; ++t)
 				leveled_critical_section resInsertSection(item_level_type(0), ord_level_type::SpecificOperatorGroup, "PolygonOverlay.InsertSection");
 
 				parallel_tileloop(domain1Unit->GetNrTiles(), [this, &resInsertSection, arg1A, arg2A, u, &pointBoxDataHandle, &polyInfoHandle, &resData, &intersectCount](tile_id t)->void

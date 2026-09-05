@@ -949,7 +949,6 @@ void MakeDirsForFile(WeakStr fullFileName)
 	dms_assert(!HasDosDelimiters(fullFileName.c_str()));
 	dms_assert(IsAbsolutePath(fullFileName.c_str()));
 
-//	SharedStr pathStr = ConvertDosFileName(fullFileName);
 
 //	MakeDirsForFileImpl(pathStr.c_str());
 	MakeDirsForFileImpl(fullFileName);

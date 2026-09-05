@@ -1046,7 +1046,6 @@ public:
 									if (pointID != polyIDsPtr[streetIndex])
 										return true;
 								}
-								//						return ((CT == compare_type::eq) == (pointID == polyIDsPtr[streetIndex])) || !IsDefined(pointID);
 								return !IsDefined(pointID);
 							}
 						};

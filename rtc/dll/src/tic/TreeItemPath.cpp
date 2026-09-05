@@ -218,8 +218,6 @@ SharedTreeItem TreeItem::ResolveItemPath(CharPtrRange subItemNames) const
 	if (!parent)
 		return {};
 	parent->UpdateMetaInfoIfNotAlready();
-//	if (parent->WasFailed(FailType::MetaInfo))
-//		parent->ThrowFail();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
 }
 
@@ -589,8 +587,6 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 
 auto TreeItem_SearchItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr, bool findNextMode = false) -> SharedTreeItem
 {
-//	if (searchLoc->GetNameID() == id)
-//		return searchLoc;
 	if (TreeItem_IsTemplateInstantiaton(searchLoc))
 	{
 		if (auto templateSource = TreeItem_GetTemplateSource(searchLoc))

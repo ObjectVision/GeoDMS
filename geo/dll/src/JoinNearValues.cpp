@@ -97,7 +97,6 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		MG_CHECK(B->IsOrdinalAndZeroBased());
 		auto nr_A = A->GetCount();
 		auto nr_B = B->GetCount();
-		//		auto nr_X = X->GetCount();
 		auto dist = GetTheCurrValue<DistType>(distRef);
 		auto sqrDist = CheckedMul<DistType>(dist, dist, false);
 		auto distVect = ArgValuesElement(dist, dist);

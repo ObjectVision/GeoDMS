@@ -77,7 +77,6 @@ struct LispListPtrWrap : LispPtrWrap<PtrBase>
 		return true;
 	}
 
-//	auto AsLispPtr() const -> LispPtr { return LispPtr(this->get_ptr()); }
 };
 
 template <class T>
@@ -214,7 +213,6 @@ bool IsExprList(LispPtr e);
 template <typename... Args>
 auto ExprList(TokenID t, Args&&... args)
 {
-//	dms_assert(IsExpr(args) && ...);
 
 	return List(LispRef(t), std::forward<Args>(args)...);
 }

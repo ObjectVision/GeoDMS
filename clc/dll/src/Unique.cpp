@@ -59,9 +59,6 @@ my_elem_vec_t<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq,
 				static_assert(!(UNDEFINED_VALUE(V) == UNDEFINED_VALUE(V)));
 
 				// areEqual returns true iff a and b are "the same" (i.e., not different)
-				//				auto areEqual = [&cmp](auto const& a, auto const& b) {
-				//					return a == b || (!IsDefined(a) && !IsDefined(b)); // a and b are "equal" if NOT (a != b), i.e. NOT (cmp(a,b) || cmp(b,a)).
-				//				};
 
 				auto areEqual = [](auto const& a, auto const& b) {  return a == b || (!IsDefined(a) && !IsDefined(b)); };
 				bufferCursor = std::unique_copy(i, e, buffer, areEqual);

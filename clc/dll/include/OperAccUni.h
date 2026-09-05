@@ -103,7 +103,6 @@ struct AbstrOperAccTotUni: UnaryOperator
 		assert(arg1A);
 
 		bool dontRecalc = res->m_DataObject;
-//		assert(dontRecalc || !context);
 		if (!dontRecalc)
 		{
 			DataReadLock arg1Lock(arg1A);
@@ -340,7 +339,6 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 		args.clear();
 		readLocks.clear();
 
-//		if (IsMultiThreaded3())
 		ProcessData(mutable_array_cast<R>(res), pdi);
 	}
 	virtual void ProcessData(ResultType* result, ProcessDataInfo& pdi) const = 0;

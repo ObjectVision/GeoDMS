@@ -564,7 +564,6 @@ public:
 	virtual void StoreBlobStream(      OutStreamBuff*) const;
 
 	bool CheckBlobBuffer(const BlobBuffer& rs) const;
-//	bool LoadBlobIfAny() const;
 
 	// data members
 	// Global counters/locks used to defer notifications during batch operations.

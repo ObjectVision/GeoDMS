@@ -1243,7 +1243,6 @@ public:
 
 //		PointType* ri1 = resData1.begin();
 		SizeT nrOrgEntity = 0, currPointIndex = 0;
-//		UInt32 ri3 = 0;
 
 		// Note: carry is not reset when isFirstPoint starts a new polyline, so without withEnds the
 		// sampling phase continues across polylines; the counting pass above does the same, so the
@@ -1486,12 +1485,8 @@ protected:
 			}
 
 			OwningPtrSizedArray<UInt32> polyTileCounters(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
-//			fast_zero(polyTileCounters.begin(), polyTileCounters.begin()+te);
 
-//			for (tile_id u=0, ue = valuesUnit->GetNrTiles(); u != ue; ++u) // each polygon tile
-//			{
 				auto u = no_tile;
-//				ReadableTileLock readPolyLock (arg2A->GetCurrRefObj(), u);
 				ResourceHandle spIndexHandle, polyTileHandle;
 				CreatePolyHandle(arg2A, u, spIndexHandle, polyTileHandle);
 
@@ -1504,7 +1499,6 @@ protected:
 						}
 					}
 				);
-//			}
 			for (tile_id t=0; t != te; ++t)
 			{
 				if (!polyTileCounters[t])
@@ -1804,12 +1798,8 @@ protected:
 			}
 
 			OwningPtrSizedArray<UInt32> polyTileCounters(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
-//			fast_zero(polyTileCounters.begin(), polyTileCounters.begin() + te);
 
-			//			for (tile_id u=0, ue = valuesUnit->GetNrTiles(); u != ue; ++u) // each polygon tile
-			//			{
 			auto u = no_tile;
-			//				ReadableTileLock readPolyLock (arg2A->GetCurrRefObj(), u);
 			ResourceHandle spIndexHandle, polyTileHandle;
 			CreatePolyHandle(arg2A, u, spIndexHandle, polyTileHandle);
 
@@ -1822,7 +1812,6 @@ protected:
 					}
 				}
 			);
-			//			}
 			for (tile_id t = 0; t != te; ++t)
 			{
 				if (!polyTileCounters[t])
@@ -2040,7 +2029,6 @@ protected:
 				ResourceHandle polyInfoHandle;
 				CreatePolyHandle(arg2A, u, polyInfoHandle);
 
-				// 				for (tile_id t=0, te = domainUnit->GetNrTiles(); t != te; ++t)
 				leveled_critical_section resInsertSection(item_level_type(0), ord_level_type::SpecificOperatorGroup, "PointInAllPolygons.InsertSection");
 
 

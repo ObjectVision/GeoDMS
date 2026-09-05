@@ -75,7 +75,6 @@ enum CSS_FLAGS
 };
 
 static bool isSimilarItem(const TreeItem* searchLoc, const TreeItem* pattern, CSS_FLAGS flags)
-//	bool mustMatchDomainUnit, bool mustMatchValuesUnit, bool noCaseParameters, bool expandMetaInfo)
 {
 	MG_SIGNAL_ON_UPDATEMETAINFO
 

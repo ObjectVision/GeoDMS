@@ -334,7 +334,6 @@ bool CounterStacks::HasBreakingStackSize() const
 
 			// m_DrawRegion must be a strict reverse ordered sequence, first m_DrawRegion must be largest
 			dms_assert( stackPtr[-1].m_DrawRegion.IsIncluding(stackPtr[0].m_DrawRegion) );
-//			dms_assert( stackPtr[ 0].m_DrawRegion != stackPtr[-1].m_DrawRegion );
 
 			// m_Counters must be a strict reverse ordered sequence, first m_Counters must be most advanced
 			if	(stackPtr + 1 != stackEnd)
@@ -406,7 +405,6 @@ void CounterStacks::CloseCounter(const ResumableCounter* prevCounter)
 {
 	dms_assert(!Empty());
 	dms_assert(NrActiveCounters() > 0);
-//	dms_assert(NoSuspendedCounters());
 
 	--m_NrActiveCounters;
 	EraseSuspended();

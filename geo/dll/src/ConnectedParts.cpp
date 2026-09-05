@@ -347,8 +347,6 @@ auto stronglyConnectedComponentsIterative(NodeType nrV, LinkType nrE, const Data
 		link1(nrV, UNDEFINED_VALUE(LinkType)),
 		nextLink1(nrE, UNDEFINED_VALUE(LinkType));
 	{
-//		auto node1Data = arg1->GetDataRead();
-//		assert(node1Data.size() == nrE);
 		InvertIntoLinkedList<NodeType, LinkType>(nrE, nrV, tile_read_channel(arg1), begin_ptr(link1), begin_ptr(nextLink1));
 	}
 	return stronglyConnectedComponentsIterativeWithInvertedLinks<NodeType, LinkType, PartType, PartLinkType>(nrV, nrE, begin_ptr(link1), begin_ptr(nextLink1), node2Data, resSubData);

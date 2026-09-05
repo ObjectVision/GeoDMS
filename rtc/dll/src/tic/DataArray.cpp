@@ -700,10 +700,7 @@ DataCheckMode DataArrayBase<V>::DoGetCheckMode() const
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;
 	else
 	{
-//		auto valuesRange = GetValueRangeData()->GetRange();
-//		if (IsIncluding(valuesRange, UNDEFINED_VALUE(field_of_t<V>)))
 		return DCM_CheckBoth;
-//		return DCM_CheckRange;
 	}
 }
 

@@ -73,7 +73,6 @@ struct CopyTreeContext
 
 	SharedMutableTreeItem Apply()
 	{
-//		dms_assert(m_DstContext);
 
 		if (MustMakeEndogenous()) {
 			StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;

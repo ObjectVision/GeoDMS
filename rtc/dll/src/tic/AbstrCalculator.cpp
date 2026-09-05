@@ -135,8 +135,6 @@ LispRef GetLispRefForTreeItem(const TreeItem* sourceObject, const CopyTreeContex
 
 	MG_CHECK(copyContext.m_DstRoot);
 	MG_CHECK(copyContext.m_DstRoot->mc_DC);
-	//	auto dstRootItem = debug_valcast<TreeItem*>(copyContext.m_DstRoot);
-//	auto keyExpr = dstRootItem->GetBaseKeyExpr();
 	auto keyExpr = copyContext.m_DstRoot->mc_DC->GetLispRef();
 	assert(!keyExpr.EndP());
 
@@ -197,7 +195,6 @@ auto MakeResult(const AbstrCalculator* calculator)->make_result_t
 {
 	auto dc = GetDC(calculator);
 	dc->MakeResult();
-	//	auto resFuture = dc->CallCalcResult();
 
 	return dc; // return owner of potential future.
 }
@@ -1682,7 +1679,6 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 		MG_SIGNAL_ON_UPDATEMETAINFO
 
 
-//		auto lispRefOrg = GetLispExprOrg();
 		if (IsSourceRef())
 		{
 			auto sourceItem = GetSourceItem();

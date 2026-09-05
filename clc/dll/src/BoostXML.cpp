@@ -395,7 +395,6 @@ struct RapidXmlOperator : public BinaryOperator
 				assert(entityDomain->GetNameID() != GetTokens().valuesTableID);
 				assert(entityDomain->GetNameID() != GetTokens().entityTableID);
 
-//				assert(!entityDomain->GetTreeParent() || entityDomain->GetTreeParent()->DataInMem());
 				SharedStr relativeName = entityDomain->GetFullName();
 				const Entity* entity = dynamic_cast<const Entity*>(pc.m_KnownEntities[TokenID(relativeName)]);
 				if (!entity)

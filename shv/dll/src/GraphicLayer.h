@@ -115,7 +115,6 @@ public:
 	bool HasClassIdAttr() const;
 
 	const IndexCollector*  GetIndexCollector() const;
-//	const IndexCollector*  GetFeatureIndexCollector() const;
 
 	bool SelectEntityIndex  (AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID);
 	bool SetFocusEntityIndex(SizeT focussedIndex, bool showDetails);

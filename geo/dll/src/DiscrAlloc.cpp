@@ -1685,7 +1685,6 @@ void CreateResultingItems(
 {
 	// init elementary data members
 	htpMeta.m_MapDomain = make_weak_tree(allocUnit);
-	//	dms_assert(atomicRegionUnit);
 	assert(minClaimSet);
 	assert(maxClaimSet);
 	assert(suitabilitySet);
@@ -3052,7 +3051,6 @@ void DiscrAllocCells(htp_info_t<S, P, AR, AT>& htpInfo, UInt32 currI, UInt32 nex
 		assert(htpInfo.m_CurrPI < htpInfo.m_N);
 		auto ar = htpInfo.GetAtomicRegionID( htpInfo.m_CurrPI );
 		assert(ar < htpInfo.GetNrAtomicRegions()); // guaranteed by IncrementAtomicRegionCount
-//		assert(!IsDefined(htpInfo.m_ResultArray[htpInfo.m_CurrPI]));
 
 		UInt32 highestBidder = UNDEFINED_VALUE(UInt32);
 		shadow_price<S, P> highestBid = MinValue<shadow_price<S, P> >();

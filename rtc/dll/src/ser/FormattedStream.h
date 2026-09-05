@@ -77,7 +77,6 @@ struct FormattedInpStream
 	RTC_CALL char  ReadChar();
 
 //	input iterator semantics
-//	const char& operator * () const { return NextChar(); }
 //	void       operator ++() { ReadChar(); }
 
 	std::pair<FormattedInpStream::TokenType, CharPtrRange> NextToken();

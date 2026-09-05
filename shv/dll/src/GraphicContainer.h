@@ -45,7 +45,6 @@ public:
 //	override GraphicObject interface for composition of GraphicObjects (composition pattern)
 	gr_elem_index NrEntries() const override  { return m_Array.size(); }
 	ElemType* GetEntry(gr_elem_index i) { dms_assert(i < NrEntries()); return m_Array[i].get(); }
-//	const ElemType* GetConstEntry(gr_elem_index i) const { dms_assert(i < NrEntries()); return m_Array[i]; }
 	void SetDisconnected() override;
 
 	virtual void ProcessCollectionChange();

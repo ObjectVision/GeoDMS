@@ -123,8 +123,6 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 
 	if (og->IsTransient())
 		m_State.Set(DCF_CanChange);
-//	if (og->HasTemplArg())
-//		m_State.Set(DCF_IsTmp);
 
 	// for each subexpr in keyExpr do add arg
 	std::unique_ptr<DcRefListElem>* nextArgPtr = &m_Args;
@@ -359,7 +357,6 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	FutureData thisFutureResult = this;
 
 	// precondition if doCalc: Interest, SupplInterest, Not FailType::MetaInfo, nor Args; FailType::Data may occur in worker threads, but then re-Make is futile.
-//	dms_assert(m_InterestCount);
 
 	static UInt32 debug_counter = 0;
 	DBG_TRACE(("{} m_Data {} m_OperContext {} context {} ", debug_counter++, bool(m_Data), bool(m_OperContext), bool(context)));
@@ -1184,8 +1181,6 @@ SymbDC::SymbDC(LispPtr keyExpr, const TokenID fullNameID)
 	:	DataController(keyExpr) 
 	,	m_FullNameID(fullNameID)
 {
-//	dms_assert(keyExpr.GetSymbID() && keyExpr.GetSymbStr()[0]=='/'); // Only full names in substituted exprs
-//	const TreeItem* root = m_Key.second;
 }
 
 SharedTreeItem SymbDC::MakeResult() const
@@ -1260,8 +1255,6 @@ auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	auto curr = GetCurr(); // owning snapshot; null if the config item expired
 	if (!curr)
 		return nullptr;
-	//		if (m_Data->m_State.GetTransState() < actor_flag_set::AF_Validating)
-	//			m_Data->SuspendibleUpdate();
 	bool suspended = !curr->PrepareDataUsage(DrlType::Suspendible);
 
 	if (curr->WasFailed())

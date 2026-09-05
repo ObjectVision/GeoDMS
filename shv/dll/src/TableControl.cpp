@@ -351,7 +351,6 @@ SizeT TableControl::GetActiveRow() const
 
 gr_elem_index TableControl::GetActiveCol() const
 {
-//	dms_assert(IsDefined(m_Cols.m_Curr));
 	return m_Cols.m_Curr;
 }
 
@@ -1329,8 +1328,6 @@ void TableControl::CreateTableGroupBy(bool activate)
 
 	auto oldGroupByEntity = std::move(m_GroupByEntity); m_GroupByEntity = nullptr;
 	auto oldGroupByRel    = std::move(m_GroupByRel);    m_GroupByRel= nullptr;
-//	if (auto valuesItem = const_cast<AbstrUnit*>(oldGroupByEntity.get_ptr())->GetSubTreeItemByID(GetTokenID_mt("Values")))
-//		valuesItem->RemoveFromConfig();
 	if (oldGroupByEntity) oldGroupByEntity->RemoveFromConfig();
 	if (oldGroupByRel) oldGroupByRel->RemoveFromConfig();
 	oldGroupByEntity = nullptr;
@@ -1467,9 +1464,6 @@ ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 		||	(visitor.Visit(m_LabelAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		)
 		return AVS_SuspendedOrFailed;
-//	if (m_FocusElemProvider)
-//		if (visitor.Visit(m_FocusElemProvider->GetIndexParam()) == AVS_SuspendedOrFailed)
-//			return AVS_SuspendedOrFailed;
 
 	return base_type::VisitSuppliers(svf, visitor);
 }

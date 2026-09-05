@@ -152,7 +152,6 @@ struct CheckOperator : public BinaryOperator
 		assert(args.size() == 2);
 		const TreeItem* arg1 = args[0];
 		assert(arg1);
-//		dms_assert(arg1->IsCacheItem());
 		if (!resultHolder) {
 			assert(!mustCalc);
 			resultHolder = arg1;

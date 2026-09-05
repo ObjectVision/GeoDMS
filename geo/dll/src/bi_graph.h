@@ -593,8 +593,6 @@ void directed_dijkstra<DIRECTED_GRAPH>::fix_link(
 {
 	dms_assert( m_Graph.CheckLink(link) );
 
-//	UInt32 srcNode = m_Graph.GetDstNode(link);
-//	dms_assert(! is_flagged(srcNode) )
 	fix_node(m_Graph.GetDstNode(link, dirTag), link, travelCost, dirTag);
 }
 

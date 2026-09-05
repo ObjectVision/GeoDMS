@@ -76,7 +76,6 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	case Qt::DisplayRole:
 	{
 		SharedStr msgTxt = item_data.m_Txt;
-		//auto dms_reg_status_flags = GetRegStatusFlags();
 		
 		if (((cached_reg_flags & RSF_EventLog_ShowAnyExtra) == 0) && !item_data.m_IsFollowup)
 			return QString(msgTxt.c_str());
@@ -554,7 +553,6 @@ void DmsEventLog::keyPressEvent(QKeyEvent* event)
 {
 	if (event->matches(QKeySequence::Copy))
 	{
-		//return QWidget::keyPressEvent(event);
 		copySelectedEventlogLinesToClipboard();
 		event->accept();
 		return;

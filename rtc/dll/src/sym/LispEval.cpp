@@ -242,7 +242,6 @@ LispRef ApplySubstList(LispPtr expr, AssocListPtr substList)
 
 			DBG_TRACE(("result = {}", AsString(result.AsLispPtr()).c_str()));
 
-//	 		dms_assert(!HasAnyVar(result));
 			return result;
 		}
 		substList = substList.Tail();

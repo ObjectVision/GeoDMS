@@ -256,7 +256,6 @@ public:
 							fast_fill(resSubArray.begin(), resSubArray.end(), UNDEFINED_OR_ZERO(E));
 					}
 
-					//				for (tile_id rt = 0; rt!=rt_n; ++rt)  // iterate over tiles of V
 					parallel_tileloop(rt_n, [arg1A, rt_n, &valueRange, &resultObj, &resSubArray, &arg1Data, arg1TileRange, dcm2, at](tile_id rt)->void
 						{
 							auto resultTileRange = const_array_cast<T>(arg1A)->GetValueRangeData()->GetTileRange(rt);

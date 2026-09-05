@@ -95,8 +95,6 @@ SizeT UrlDecodeSize(WeakStr urlStr)
 			if (++chPtr == chEnd || !isHex(*chPtr) || ++chPtr == chEnd || !isHex(*chPtr))
 				throwErrorD("UrlDecode", "invalid escape code");
 		}
-	//		else if (!url::IsSafeChar(*chPtr))
-	//			throwErrorF("UrlDecode", "invalid character '{}'", *chPtr);
 	assert(3 * c <= urlStr.ssize());
 	return urlStr.ssize() - 2 * c;
 }

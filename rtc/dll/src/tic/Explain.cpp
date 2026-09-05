@@ -624,8 +624,6 @@ namespace Explain { // local defs
 			AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject.get(), lispExprOrg, CalcRole::Calculator); // lispExpr already substitited ?
 			auto metaInfo = calc->GetMetaInfo();
 
-			//				if (metaInfo.index() == 2)
-			//					AddLispExplanation(std::get<2>(metaInfo)->GetKeyExpr(CalcRole::Other), level, parent, seqNr);
 
 			if (metaInfo.index() != 1)
 				return;
@@ -657,8 +655,6 @@ namespace Explain { // local defs
 			// check if already covered by visible supplying data item
 			for (const auto& oldExpl : m_Expl)
 			{
-				//					if (oldExpl->MatchesExtraInfo(m_ExprRelPath) <= match_status::partial)
-				//						continue;
 				const AbstrDataItem* adi = oldExpl->m_DataItem;
 				if (adi && !adi->IsCacheItem() && adi->HasCalculator())
 					if (adi->GetCheckedKeyExpr() == dc->GetLispRef())
@@ -703,8 +699,6 @@ namespace Explain { // local defs
 
 		if (m_StudyObject->HasCalculator())
 		{
-			//				auto keyExpr = m_StudyObject->GetCalculator()->GetLispExprOrg();
-			//				AddLispExplanation(keyExpr, 0, nullptr, ++m_ExprSeqNr);
 			auto metaInfo = m_StudyObject->GetCurrMetaInfo({});
 			if (metaInfo.index() == 2)
 				AddExplanation(AsDataItem(std::get<SharedTreeItem>(metaInfo).get()));
@@ -1360,7 +1354,6 @@ namespace Explain
 		DMS_ENTERS(ord_level_type::ExplainAccess, dms_exclusive_v);
 		assert(explImpl);
 		assert(domain);
-		//	dms_assert(explImpl == &Explain::g_CalcExplImpl); // single threading singleton hack.
 		explImpl->AddQueueEntry(domain, index);
 	}
 

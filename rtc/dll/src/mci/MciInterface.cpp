@@ -465,8 +465,6 @@ SharedStr PersistentObject::GetFindableName(const PersistentObject* subItem) con
 		self = self->GetParent();
 		assert(self);
 	}
-//	if (!self->GetParent())
-//		return subItem->GetFullName();
 
 	SharedStr result = subItem->GetRelativeName(self); // returns volatile pointer within GetFullName token str
 	if (upCount)

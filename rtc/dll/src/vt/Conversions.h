@@ -267,12 +267,6 @@ ConvertNonNull4(const T& val, const U* /*dummy*/, const ExceptFunc*, const Conve
 	return NumericNonnullConverter<T, U, typename check_min_mf<T, U>::type, typename check_max_mf<T, U>::type, ExceptFunc, ConvertFunc>()(val);
 }
 
-//template <bit_size_t N, typename Block, typename U>
-//U Convert2(const bit_reference<N, Block>& ref, const U* dummy, const ExceptFunc* dummyFunc)
-//{
-//	return Convert<U>(bit_value<N>(ref) );
-//}
-
 template <typename Dst, bit_size_t N, typename Block, typename ExceptFunc, typename ConvertFunc>
 Dst Convert4(const bit_reference<N, Block>& ref, const Dst* /*dummy*/, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
 {

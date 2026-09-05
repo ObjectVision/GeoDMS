@@ -375,7 +375,6 @@ struct SpatialIndex
 			//go as deep as possible as far as it fits
 			while (true)
 			{
-//				dms_assert(IsTouching(nodePtr->m_BoundingBox, m_SearchObj));
 				if (!nodePtr->IsSplit())
 					return nodePtr;
 				nodePtr += nodePtr->GetQuadrantOffset(SpatialIndexImpl::_FirstElem( m_SearchObj ) );

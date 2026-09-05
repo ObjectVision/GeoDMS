@@ -909,7 +909,6 @@ void SaveBitmap(WeakStr filename, HBITMAP hBitmap)
 	bmpInfo.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);
 	GetDIBits(hdc,hBitmap,0,0,nullptr,&bmpInfo,DIB_RGB_COLORS); 
 	bmpInfo.bmiHeader.biBitCount = 3*8;
-//	if(bmpInfo.bmiHeader.biSizeImage<=0)
 		bmpInfo.bmiHeader.biSizeImage
 			=	abs(bmpInfo.bmiHeader.biHeight) * ((bmpInfo.bmiHeader.biWidth * (bmpInfo.bmiHeader.biBitCount+7)/8 + 0x03) & ~0x03);
 

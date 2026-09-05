@@ -206,12 +206,10 @@ public:
   public:
 	template <typename V> void SetValue(row_id index, param_type_t<typename sequence_traits<V>::value_type> value)
 	{
-//		dms_assert(m_DataLockCount <= 0);
 		mutable_array_checkedcast<V>(this)->SetIndexedValue(index, value);
 	}
 	template <typename V> V GetValue(row_id index) const
 	{
-//		dms_assert(m_DataLockCount > 0);
 		return const_array_checked_cast<V>(this)->GetIndexedValue(index);
 	}
 

@@ -506,7 +506,6 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
                     if (suppl->IsPassor())
                         return false;
 
-//                    assert(suppl->m_State.GetProgress() >= ProgressState::MetaInfo);
 
                     if (suppl->WasFailed(FailType::Committed))
                         this->Fail(suppl);
@@ -1608,8 +1607,6 @@ void AssignPhaseNumber(const Actor* item) noexcept
     try {
         auto visitResult = VisitSupplBoolImpl(item, SupplierVisitFlag::FenceNumberScan, [&candidate](const Actor* suppl) -> bool
             {
-//              assert(suppl->m_State.GetProgress() >= ProgressState::ProgressState::MetaInfo);
-//              suppl->UpdateMetaInfo();
                 MakeMax<phase_number>(candidate, suppl->GetPhaseNumber());
                 return candidate != failed_phase_number;
             }
@@ -1626,7 +1623,6 @@ void AssignPhaseNumber(const Actor* item) noexcept
 auto Actor::GetPhaseNumber() const -> phase_number
 {
     assert(IsMetaThread());
-//  assert(m_State.GetProgress() >= ProgressState::ProgressState::MetaInfo);
     AssignPhaseNumber(this);
     return m_PhaseNumber;
 }

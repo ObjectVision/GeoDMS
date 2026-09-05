@@ -269,8 +269,6 @@ DataView::DataView(TreeItem* viewContext)
 			CombineRGB(118,  76,  26)  // lichter bruin
 		}
 {
-//	for (int i = 0; i != nrPaletteColors; ++i)
-//		m_ColorPalette[i] = DmsColor2COLORREF(i + 1);
 
 	assert(viewContext);
 
@@ -1097,8 +1095,6 @@ GraphVisitState DataView::UpdateView()
 {
 	if (m_State.Get(DVF_InUpdateView))
 		return GVS_Continue;
-//	if (SuspendTrigger::MustSuspend())
-//		return GVS_Break;
 
 	SuspendibleUpdate();
 	if (SuspendTrigger::DidSuspend())
@@ -1190,7 +1186,6 @@ GraphVisitState DataView::UpdateView()
 					{
 						if (!m_DoneGraphics.HasMultipleStacks() && !m_SelCaret.Empty())
 							drawContext.InvertRegion(m_SelCaret);
-//						dms_assert(m_DoneGraphics.NoSuspendedCounters());
 						m_DoneGraphics.PopBack();
 						SuspendTrigger::MarkProgress();
 					}
@@ -2106,8 +2101,6 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 		.contextItem = GetViewContext(),
 		.caption = caption,
 	};
-//	if (m_Contents)
-//		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize(), GetScaleFactors()));
 
 	NotifyStateChange(reinterpret_cast<const TreeItem*>(&createStruct), CC_CreateMdiChild);
 #ifdef _WIN32

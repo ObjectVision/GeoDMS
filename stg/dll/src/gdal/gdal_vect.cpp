@@ -186,8 +186,6 @@ namespace gdalVectImpl {
 
 gdalVectComponent::gdalVectComponent()
 {
-	//if (!gdalVectImpl::s_ComponentCount)
-	//	OGRRegisterAll(); // can throw
 
 	++gdalVectImpl::s_ComponentCount;
 }
@@ -195,8 +193,6 @@ gdalVectComponent::gdalVectComponent()
 gdalVectComponent::~gdalVectComponent()
 {
 	--gdalVectImpl::s_ComponentCount;
-//	if (!--gdalVectImpl::s_ComponentCount)
-//		;
 }
 
 bool IsValidGeometry(const TreeItem* geometry_item, bool isReadonly)
@@ -312,7 +308,6 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 
 	assert(gdv);
 	assert(gdv->m_hDS);
-//	assert(gdv->m_CurrFeatureIndex == 0);
 
 	SizeT layerCount = 1;
 	if (!m_SqlString.empty())
@@ -1825,7 +1820,6 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 	OGRLayer* layer = Layer(br);
 	if (layer && t==0 && firstIndex == 0 && size)
 		layer->ResetReading();
-//	dms_assert(br->m_CurrFieldIndex != -1); 
 	// TODO G8: REMOVE following if, as it should have been set by the GdalVectlMetaInfo provider
 	if (m_CurrFieldIndex==SizeT(-1)) {
 		// TODO: Lock.
@@ -2523,11 +2517,6 @@ void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatus
 	assert(IsMetaThread());
 
 	const TreeItem* storage_holder = smi.StorageHolder();
-//	const TreeItem* unit_item = nullptr;
-//	const AbstrUnit* layer_domain = nullptr;
-//	SharedStr layer_name = {};
-//	SharedStr field_name = {};
-//	SharedStr datasource_name = smi.StorageManager()->GetNameStr();
 
 	GDAL_ErrorFrame error_frame;
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
@@ -2543,7 +2532,6 @@ void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatus
 
 		auto layer_container = GetLayerHolderFromDataItem(storage_holder, sub_item);//sub_item->GetTreeParent();
 		auto layer_domain = adi->GetAbstrDomainUnit();
-		//auto layer_name = layer_container->GetRelativeName(storage_holder);
 		auto layerID = layer_container->GetNameID();// GetTokenID_mt(layer_name.begin(), layer_name.send());
 //			unit_item->GetName().c_str();
 

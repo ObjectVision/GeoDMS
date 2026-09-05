@@ -57,7 +57,6 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
 	assert(IsMetaThread());
 
-	//auto current_dir = GetCurrentDir();
 	SharedMutableTreeItem res; // owns the config root until SessionData::Open takes over
 	try {
 		CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);

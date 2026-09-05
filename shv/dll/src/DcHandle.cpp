@@ -272,7 +272,6 @@ DcTextColorSelector::DcTextColorSelector(HDC hdc, DmsColor selColor)
 	:	m_hDC(hdc)
 	,	m_oldTextColor(hdc ? SetTextColor(hdc, DmsColor2COLORREF(selColor)) : CLR_INVALID)
 {
-//	dms_assert(hdc);
 	dms_assert(selColor != CLR_INVALID || !hdc);
 	if (hdc && m_oldTextColor == CLR_INVALID)
 		throwLastSystemError("DcTextColorSelector::ctor");

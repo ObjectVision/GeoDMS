@@ -51,7 +51,6 @@ RangeFromSequence_SkipUndefined(ConstIter first, ConstIter last)
 	return result;
 //	The following code only works if elements are one-dimensional and LowerBound provides a complete ordening
 //	std::pair<ConstIter, ConstIter> result = minmax_element(first, last);
-//	return Range<typename boost::pointee<ConstIter>::type>(*result.first, *result.second);
 }
 
 template <typename ConstIter>
@@ -64,7 +63,6 @@ RangeFromSequence(ConstIter first, ConstIter last)
 	return result;
 //	The following code only works if elements are one-dimensional and LowerBound provides a complete ordening
 //	std::pair<ConstIter, ConstIter> result = minmax_element(first, last);
-//	return Range<typename boost::pointee<ConstIter>::type>(*result.first, *result.second);
 }
 
 

@@ -206,14 +206,12 @@ const AbstrUnit* Theme::GetPaletteDomain() const
 
 bool Theme::IsAspectParameter() const
 {
-//	dms_assert(GetAspectNr() != AN_Feature);
 	const AbstrDataItem* activeAttr = GetActiveAttr();
 	return (activeAttr && activeAttr->HasVoidDomainGuarantee()) || (m_ValueGetterPtr && m_ValueGetterPtr->IsParameterGetter());
 }
 
 bool Theme::IsAspectAttr() const
 {
-	//	dms_assert(GetAspectNr() != AN_Feature);
 	const AbstrDataItem* activeAttr = GetActiveAttr();
 	return activeAttr && !activeAttr->HasVoidDomainGuarantee();
 }

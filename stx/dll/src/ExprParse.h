@@ -340,7 +340,6 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 					>> assert_d("member value expression expected after ':'")[expression]
 					)[([&](...) { cp.ProdContainerMember(); })];
 
-//			if (mustScanScope)
 				scopeCall 
 					= P_SCOPE 
 					>> LPAREN >> identifier[([&](...) { cp.RefocusAfterScope(); })]

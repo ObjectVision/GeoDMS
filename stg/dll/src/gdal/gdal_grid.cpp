@@ -449,18 +449,7 @@ void GDalGridImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsP
 
 void GDalGridImp::SetDataMode(UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat)
 {
-//		TIFFSetField(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, UInt16(bitsPerSample));
-//		TIFFSetField(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, samplesPerPixel);
 		MG_CHECK(bitsPerSample * samplesPerPixel == GetNrBitsPerPixel());
-//		MG_CHECK(sampleFormat.m_Value == gdalDataType(m_ValueClassID))
-//		TIFFSetField(m_TiffHandle, TIFFTAG_PHOTOMETRIC, hasPalette ? PHOTOMETRIC_PALETTE : PHOTOMETRIC_RGB);
-//		TIFFSetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, sampleFormat.m_Value);
-
-//		if (samplesPerPixel > 3)
-//		{
-//			unsigned short s = EXTRASAMPLE_ASSOCALPHA;
-//			TIFFSetField(m_TiffHandle, TIFFTAG_EXTRASAMPLES, 1, &s); // RGB and Alpha
-//		}
 }
 
 void GDalGridImp::SetWidth(auto width)

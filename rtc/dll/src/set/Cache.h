@@ -105,7 +105,6 @@ struct UnorderedSetCache
 		}
 	}
 
-	//	SizeT size () const { return m_Map.size (); }
 	bool  empty() const { return m_USet.empty(); }
 
 	void remove(argument_reftype arg)
@@ -192,7 +191,6 @@ struct UnorderedMapCache
 		MG_DEBUGCODE(md_NrMisses++; )
 	}
 
-	//	SizeT size () const { return m_Map.size (); }
 	bool  empty() const { return m_UMap.empty(); }
 
 	void remove(argument_reftype arg)

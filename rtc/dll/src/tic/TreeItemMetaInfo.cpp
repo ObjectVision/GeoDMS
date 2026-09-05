@@ -185,8 +185,6 @@ void TreeItem::UpdateMetaInfoImpl() const
 		}
 	}
 
-//		if (GetStoreDataState() && refItem->IsCacheItem())
-//			const_cast<TreeItem*>(refItem)->SetStoreDataState(true);
 	if (IsCacheItem() || !IsDataReadable())
 		return;
 
@@ -211,7 +209,6 @@ namespace diagnostic_tests {
 MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 {
 	// suppliers have been scanned, thus mc_Calculator and m_SupplCache have been determined.
-//	assert(diagnostic_tests::DetermineStateWasCalled(this));
 	assert(IsMetaThread());
 
 	if (m_State.Get(ASF_GetCalcMetaInfo))
@@ -223,11 +220,9 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 
 	if (HasCalculatorImpl())
 	{
-		//		if (IsCacheItem() && (!HasSupplCache() || GetSupplCache()->GetNrConfigured(this) == 0) )
 		const AbstrCalculator* calc = GetCalculatorMember().get();
 		if (!calc)
 		{
-//			dms_assert(IsUnit(this)); // follows from CanSubstituteByCalcSpec()
 			return LispRef{}; // let Unit::GetMetaInfo finish this
 		}
 
@@ -244,8 +239,6 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, true) }; // should this result in a SymcDC to itself ? No, present this tree only in GetKeyExpr
 
 	if (IsCurrLoadable())
-		//		return CreateLispTree(this, false); // will result in a SymbDC
-		//	if (IsUnit(this) || IsDerivable())
 		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, false) };
 
 	return MetaFuncCurry{}; // not as variant 2, as that would create an infinite recursion from GetOrgDC
@@ -269,9 +262,6 @@ LispRef TreeItem::GetBaseKeyExpr() const
 			return sourceItem->GetCheckedKeyExpr();
 		}
 	}
-	//	if (metaInfo.index() == 0 && IsUnit(this) && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
-	//		return ExprList(AsUnit(this)->GetValueType()->GetNameID());
-//	dms_assert(metaInfo.index() != 0);
 	if (metaInfo.index() == 0)
 		return {};
 	return std::get<LispRef>(metaInfo);
@@ -726,7 +716,6 @@ bool TreeItem::CheckMetaInfoReadyOrPassor() const
 
 auto TreeItem::GetBackRef() const -> SharedTreeItem
 {
-//	dms_assert(IsMetaThread());
 	return m_BackRef.lock();
 }
 
@@ -761,7 +750,6 @@ void TreeItem::UpdateMetaInfoImpl2() const
 				"Suggestion: check context for ApplyMetaFunc calls that may scan a range of sub-items"
 			);
 		}
-	//	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
 
 		FencedInterestRetainContext retainLocalInterestUntilThisDies("UpdateMetaInfo");
 

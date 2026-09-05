@@ -351,7 +351,6 @@ template <typename T> struct pointer_traits<SharedPtr<T>  >
 	using ptr_type = T*;
 	using ref_type = T&;
 	static T* get_ptr(const SharedPtr<T>& ptr) { return ptr.get(); }
-	//	const T* get_ptr(const T* ptr) { return ptr; }
 };
 
 template <typename T> struct pointer_traits<OwningPtr<T>  > : pointer_traits_helper<T> 

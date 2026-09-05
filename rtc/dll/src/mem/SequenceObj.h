@@ -195,7 +195,6 @@ public:
 		m_Provider = provider;
 	}
 
-//	bool IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }
 	bool CanWrite  () const { return m_Provider && m_Provider->CanWrite(); }
 	bool IsAssigned() const { return m_Provider; }
 	bool IsHeapAllocated() const { return m_Provider && m_Provider->IsHeapAllocated(); }

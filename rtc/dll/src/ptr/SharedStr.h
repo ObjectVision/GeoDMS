@@ -327,12 +327,6 @@ struct SharedCharArrayPtrWrap : protected BasePtr
 		return std::string(ptr->begin(), ptr->size() - 1);
 	}
 
-//	template <typename OthBasePtr>
-//	SharedStr operator +(const SharedCharArrayPtrWrap<OthBasePtr>& b) const
-//	{
-//		return this->AsRange() + b.AsRange();
-//	}
-
 	SharedStr operator +(const CharPtrRange& b) const;
 	SharedStr operator +(CharPtr b) const;
 
@@ -371,7 +365,6 @@ private:
 
 public:
 	RTC_CALL SharedStr() noexcept;
-//	SharedStr(CharPtr begin, CharPtr end MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin, end MG_DEBUG_ALLOCATOR_SRC_PARAM) ){}
 	SharedStr(WeakStr str) : base_type(str.get_ptr(), existing_obj{}) { assert(get_ptr() || !str.get_ptr()); }
 	SharedStr(SharedStr&& str) noexcept  : base_type(std::move(str)) {}
 

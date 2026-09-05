@@ -41,7 +41,6 @@ public:
  		Check(seq); 
 		auto mappedFile = m_FileView.GetMappedFile();
 		MG_CHECK(mappedFile);
-//		if (m_FileView.m_TileID != no_tile)
 		auto lock = std::scoped_lock(mappedFile->m_ResizeMutex);
 
 		auto oldViewSpec = m_FileView.m_ViewSpec;

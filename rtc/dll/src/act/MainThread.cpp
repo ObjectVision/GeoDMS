@@ -192,8 +192,6 @@ RTC_CALL void ConfirmMainThreadOperProcessing()
 
 	assert(!SuspendTrigger::DidSuspend());
 
-//	MSG msg;
-//	auto peekResult = PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE); // create a message queue for the main thread.
 }
 
 bool IsMainThreadOperProcessingRequestPending()

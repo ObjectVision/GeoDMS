@@ -30,13 +30,11 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 		, m_Value(value)
 	{}
 
-//	auto GetWritableTile(tile_id t, dms_rw_mode rwMode)->locked_seq_t override;
 
 	// One weakly held buffer shared by all tile ids: dropped at the last release, refilled on the
 	// next request. Cheap to redo, but it is a recalculating object, not a retaining one.
 	materialization GetMaterialization() const override { return materialization::streaming; }
 
-	//	auto GetWritableTile(tile_id t, dms_rw_mode rwMode) ->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override
 	{
 		assert(t < this->GetTiledRangeData()->GetNrTiles());

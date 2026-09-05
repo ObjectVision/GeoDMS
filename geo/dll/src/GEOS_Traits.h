@@ -42,7 +42,6 @@ inline auto geos_factory() -> const geos::geom::GeometryFactory*
 	// Create a GeometryFactory with the precision model
 //	static auto pm = std::make_unique<geos::geom::PrecisionModel>(1024.0);
 //	static auto geometryFactory = geos::geom::GeometryFactory::create(pm.get());
-//	return geometryFactory.get();
 	return geos::geom::GeometryFactory::getDefaultInstance();
 }
 
@@ -271,11 +270,6 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 
 	if (resPolygons.empty())
 		return {};
-
-//	geos::operation::polygonize::Polygonizer polygonizer;
-//	for (const auto& p : resPolygons)
-//		polygonizer.add(p.get());
-//	resPolygons = polygonizer.getPolygons();
 
 	if (resPolygons.size() == 1)
 	{
@@ -697,8 +691,6 @@ inline void cleanupPolygons(std::unique_ptr<geos::geom::Geometry>& r)
 	if (!r)
 		return;
 	r->normalize();
-//	if (auto gc = dynamic_cast<geos::geom::GeometryCollection*>(r.get()))
-//		r.reset(getPolygonsFromGeometryCollection(gc).release());
 }
 
 template <typename E>

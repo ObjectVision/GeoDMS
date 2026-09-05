@@ -372,7 +372,6 @@ private:
 
 	// odbc version 2.0
 //	SQLINTEGER    ColumnDisplaySize(SQLUSMALLINT col) { return ColumnAttrValueNumeric2(col, SQL_COLUMN_DISPLAY_SIZE); }
-//	SharedStr     ColumnLabel      (SQLUSMALLINT col) { return ColumnAttrValueCharacter2(col, SQL_COLUMN_LABEL); } 
 	SQLINTEGER    ColumnLength     (SQLUSMALLINT col) { return ColumnAttrValueNumeric(col, SQL_COLUMN_LENGTH); }
 	SharedStr     ColumnName       (SQLUSMALLINT col) { return ColumnAttrValueString(col, SQL_COLUMN_NAME); } 
 	bool          ColumnNullable   (SQLUSMALLINT col) { SQLLEN res = ColumnAttrValueNumeric(col, SQL_COLUMN_NULLABLE); return res != SQL_NOT_DEFINED && res; }

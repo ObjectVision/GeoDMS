@@ -241,16 +241,12 @@ void GDAL_ErrorFrame::RegisterError(CPLErr eErrClass, int err_no, const char* ms
 pj_ctx* GDAL_ErrorFrame::GetProjectionContext()
 {
 
-	//	return reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
-	//	return OSRGetProjTLSContext();
 	return m_ctx;
 }
 
 int GDAL_ErrorFrame::GetProjectionContextErrNo()
 {
 	auto pjCtx = GetProjectionContext();
-	//	if (!pjCtx)
-	//		return 0;
 	return proj_context_errno(pjCtx);
 }
 
@@ -357,8 +353,6 @@ void GDALDatasetHandle::UpdateBaseProjection(const TreeItem* treeitem, const Abs
 		if (projName == nullptr)
 			projName = dsh_->GetProjectionRef();
 
-		//		if (!uBase->IsCacheItem() && uBase->GetDescr().empty())
-		//			const_cast<AbstrUnit*>(uBase)->SetDescr(SharedStr(projName));
 	}
 
 	std::optional<OGRSpatialReference> ogrSR;

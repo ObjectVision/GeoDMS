@@ -624,10 +624,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 				else if (valid)
 				{
 					color = QColor(0x2E, 0x7D, 0x32);
-//					if (ti->m_State.Get(actor_flag_set::AF_IntegrityChecked))
 						validationIcon = thisValidated ? thisSucceededIcon : upstreamSucceededIcon;
-//					else
-//						validationIcon = nonfalsifiable;
 				}
 				else
 				{

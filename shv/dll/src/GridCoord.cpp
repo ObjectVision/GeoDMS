@@ -442,8 +442,6 @@ IPoint GridCoord::GetGridCoord(const GPoint& deviceRelPoint) const
 IPoint GridCoord::GetExtGridCoord(GPoint deviceRelPoint) const
 {
 	dms_assert(!IsDirty()); 
-//	if (Empty())
-//		return Undefined();
 
 	if (!IsIncluding(m_ClippedRelDeviceRect, deviceRelPoint))
 	{

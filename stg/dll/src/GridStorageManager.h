@@ -165,7 +165,6 @@ namespace Grid {
 			stripBuff = rawBuffer.begin();
 		}
 		
-//		assert(tyr.t_min>=-1);
 
 		MG_DEBUGCODE(auto bufCopy = buf); // DEBUG
 		for (UInt32 ty = 0; ty<tyr.t_cnt; ++ty) // loop through all tiles/strips that intersect with [y, y+dy)

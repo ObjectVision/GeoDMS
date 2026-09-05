@@ -445,7 +445,6 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 }
 
 inline auto GetDomain(const AbstrDataItem* adi)  { return adi->GetAbstrDomainUnit(); }
-//auto GetDomain(Couple<const AbstrDataItem*> adis) { return adis.first->GetAbstrDomainUnit(); }
 
 template<typename V>
 struct WallCountsAsArrayInfo

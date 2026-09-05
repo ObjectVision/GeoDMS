@@ -216,12 +216,6 @@ static how_to_proceed PrepareDataCalc(std::shared_ptr<const TreeItem> self, cons
 //				FutureData dc = GetDC(GetCalculator());
 //	self->UpdateDC();
 	FutureData dc = self->GetCheckedDC();
-//	dms_assert(dc || self->GetCurrRefItem());
-//	if (!dc) dc = GetDC(self->GetCalculator()); // TODO G8: unwind recursion
-//	dms_assert(dc);
-	//				const AbstrCalculator* apr = GetCalculator();
-	//				dms_assert(apr); // guaranteed by HasCalculator
-	//				dms_assert(!SuspendTrigger::DidSuspend()); // Postcondition when CreateResultingTreeItem returns a result
 	dms_check(self->HasInterest());
 
 	if (dc)
@@ -629,7 +623,6 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				default: MG_CHECK2(false, "unexpected how_to_proceed"); // an assert here was __assume(false) in Release
 				}
 
-//			dms_assert(!refItem->DataAllocated());
 			dms_assert(!SuspendTrigger::DidSuspend());
 
 			if (refItem->IsDataReadable()) // could be this (no calculator)
@@ -945,7 +938,6 @@ garbage_can TreeItem::TryCleanupMem() const
 	if (IsCacheItem() && !IsCacheRoot())
 		return {};
 
-//	return {}; // DEBUG
 
 	leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
 

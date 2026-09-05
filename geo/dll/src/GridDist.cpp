@@ -358,7 +358,6 @@ public:
 			{
 				auto latitude = gridSet2BaseTr.Apply(shp2dms_order<Float64>(0, y)).Y();
 				auto latitudeInRadians = latitude * (std::numbers::pi_v<Float64> / 180.0);
-				//auto factor   = std::cos(latitudeInRadians);
 
 					// Call proj_factors for specific locations
 					PJ_COORD crd = {0, latitudeInRadians, 0, 0};

@@ -1009,14 +1009,12 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	assert(m_Status == task_status::none || context);
 
 	assert(IsMetaThread());
-	//	dms_assert(!m_TaskFunc);
 	assert(m_Status == task_status::none || context);
 	assert(m_TaskFunc);
 	assert(runDirect || !context); // runDirect must be set when a result collecting context is given.
 	if (item)
 	{
 		auto itemFN = item->GetPhaseNumber();
-//		assert(!m_PhaseNumber || m_PhaseNumber == itemFN);
 		MakeMax(m_PhaseNumber, itemFN);
 		item->m_PhaseNumber = m_PhaseNumber; // set the phase number of the item to the phase number of this operation context
 
@@ -2706,88 +2704,6 @@ void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 }
 
 // *****************************************************************************
-// Section:     PopActiveSupplierss
-// *****************************************************************************
-//
-// Utilities to prioritize and collect suppliers for inline execution, mainly
-// intended for GUI-thread joins to reduce latency by running prerequisites.
-//
-// *****************************************************************************
-
-struct prioritize_results
-{
-	WaiterSet waitingAndScheduledContexts;
-	SupplierSet activatedContexts;
-	context_array collectedActivations;
-	garbage_can garbage; // NB: released with these results, still under cs_ThreadMessing; this prioritize path has no live caller (see the REMOVE block in Join)
-};
-
-// DFS-like traversal to collect activated suppliers and collectable tasks
-// while avoiding revisiting nodes.
-void prioritize_impl(prioritize_results& results, OperationContextSPtr self)
-{
-	assert(!cs_ThreadMessing.try_lock());
-	assert(self);
-	assert(self->m_PhaseNumber == s_CurrActivePhaseNumber); // else we wouldn't be here.
-
-	auto status = self->getStatus();
-	assert(status != task_status::none);
-
-	if (status >= task_status::running)
-		return; // no more running of this task than already is or was going on.
-
-	if (status == task_status::activated)
-	{
-		results.activatedContexts.insert(self);
-		return;
-	}
-
-	if (status == task_status::scheduled)
-		if (self->collectTaskImpl(results.garbage))
-		{
-			auto& vec = s_ScheduledContextsMap[self->m_PhaseNumber];
-			auto it = std::find_if(vec.begin(), vec.end(), [&](const OperationContextWPtr& wptr) { return !wptr.expired() && wptr.lock() == self; });
-			if (it != vec.end())
-				vec.erase(it);
-			status = self->getStatus();
-			results.collectedActivations.emplace_back(self);
-			return;
-		}
-
-	assert(status == task_status::waiting_for_suppliers || status == task_status::scheduled);
-
-	auto [_, wasInserted] = results.waitingAndScheduledContexts.insert(self);
-	if (!wasInserted)
-		return;   // self was already visited and in this set.
-
-	for (auto& s : self->m_Suppliers)
-		prioritize_impl(results, s);
-}
-
-// Convenience wrapper to compute sets for prioritization.
-auto prioritize(OperationContextSPtr waiter) -> std::pair<SupplierSet, context_array>
-{
-	// Build the two sets once per Join:
-	prioritize_results results;
-	prioritize_impl(results, waiter);
-	return { std::move(results.activatedContexts), std::move(results.collectedActivations) };
-}
-
-// Pop currently activated suppliers or collect them if possible.
-auto PopActiveSuppliers(OperationContextSPtr waiter) -> std::pair<SupplierSet, context_array>
-{
-	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-	auto status = waiter->getStatus();
-	if (status == task_status::running)
-	{
-		SupplierSet result; result.insert(std::move(waiter));
-		return { result, {} };
-	}
-
-	return prioritize(waiter);
-}
-
-// *****************************************************************************
 // Section:     StealOneTask
 // *****************************************************************************
 //
@@ -2894,7 +2810,6 @@ task_status OperationContext::Join()
 	
 	OperationContext_ScheduleThis(this, false, nullptr);
 
-	//MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
 
 	std::weak_ptr<OperationContext> firstSupplier;
 
@@ -2924,23 +2839,6 @@ task_status OperationContext::Join()
 			if (SuspendTrigger::DidSuspend())
 				return task_status::suspended;
 		}
-/* REMOVE
-		if (IsMetaThread() && m_PhaseNumber <= s_CurrActivePhaseNumber)
-			while (true)
-			{
-				auto [activatedContexts, collectedTasksToRun] = PopActiveSuppliers(shared_from_this());
-				if (activatedContexts.empty() && collectedTasksToRun.empty())
-					break;
-				StartCollectedOperationContexts(std::move(collectedTasksToRun));
-				// run as much as possible and needed for this Join before giving up on task collection effort
-				for (const auto& inlineTaskCandidate : activatedContexts)
-					inlineTaskCandidate->TryRunningTaskInline();  
-				for (const auto& inlineTaskCandidateWPtr : collectedTasksToRun)
-					if (auto inlineTaskCandidate = inlineTaskCandidateWPtr.lock())
-						inlineTaskCandidate->TryRunningTaskInline();  // already running elsewhere. go for something else before giving up on task collection effort
-			}
-		else			
-*/
 		StaticMtIncrementalLock<s_NrWaitingJoins> increaseTheNumberOfWaitingJoinsToAvoidWaitingForNothing;
 
 		auto currentFinishCount = GetCurrFinishedCount();
@@ -2966,7 +2864,6 @@ task_status OperationContext::Join()
 		if (m_Status == task_status::scheduled)
 		{
 			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of s_IsInLowRamMode
-//			assert(IsDefined(getScheduledContextsPos(this->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
 		}
 		if (m_Status == task_status::waiting_for_suppliers)
 		{
@@ -3023,8 +2920,6 @@ void DoWorkWhileWaiting()
 
 	if (IsMetaThread())
 	{
-		//			if (SuspendTrigger::MustSuspend())
-		//				return false;
 		ProcessMainThreadOpers();
 		ProcessSuspendibleTasks();
 		SuspendTrigger::MarkProgress();
@@ -3079,8 +2974,6 @@ void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 	{
 		if (IsMetaThread())
 		{
-//			if (SuspendTrigger::MustSuspend())
-//				return false;
 			ProcessMainThreadOpers();
 			ProcessSuspendibleTasks();
 			SuspendTrigger::MarkProgress();
@@ -3226,7 +3119,6 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			const TreeItem* ri = resultHolder.IsOld() ? resultHolder->GetCurrUltimateItem().get() : resultHolder.GetNew();
 			assert(ri);
 			assert(ri->GetIsInstantiated() || CheckCalculatingOrReady(ri) || resultHolder->WasFailed(FailType::Data));
-//			assert(CheckDataReady(ri) || resultHolder->WasFailed(FailType::Data));
 
 			assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 #endif

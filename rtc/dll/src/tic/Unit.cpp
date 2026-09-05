@@ -100,7 +100,6 @@ LispRef Unit<V>::GetKeyExprImpl() const
 	if (result.EndP() && (!IsLoadable() || GetTSF(USF_HasConfigRange)))
 	{
 		result = ExprList(GetValueType()->GetNameID());
-		//	if constexpr (is_integral_v<V> && has_var_range_v<V>) // could be domain or projection base; enforce [expr(x) == expr(y)] => [fullname(x) == fullname(y)];
 		if constexpr (has_var_range_v<V>) // could be domain or projection base; enforce [expr(x) == expr(y)] => [fullname(x) == fullname(y)];
 		{
 			if (!IsDefaultUnit())
@@ -786,9 +785,6 @@ void Unit<V>::SetRange(const range_t& range) requires ranged_unit_v<V>
 		if (this->IsCacheItem())
 			return;
 
-	//	if (!UpdateMetaInfoDetectionLock::IsLocked())
-	//		this->DoInvalidate();
-	//	this->SetDC(nullptr);
 	//	this->SetReferredItem(nullptr);
 
 		if (oldRangeDataPtr)
@@ -826,9 +822,6 @@ void Unit<V>::SetRange(const range_t& range, extent_t blockSize) requires ranged
 		if (this->IsCacheItem())
 			return;
 
-		//	if (!UpdateMetaInfoDetectionLock::IsLocked())
-		//		this->DoInvalidate();
-		//	this->SetDC(nullptr);
 		//	this->SetReferredItem(nullptr);
 
 		if (oldRangeDataPtr)
@@ -1176,7 +1169,6 @@ auto Unit<V>::GetCurrSegmInfo() const -> const range_data_t* requires (ranged_un
 		dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
 		dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
 
-	//	dms_assert(this->PartOfInterestOrKeep() || ultimateCU->DataInMem());
 		WaitReady(ultimateCU);
 		if (ultimateCU->WasFailed(FailType::Data))
 			ultimateCU->ThrowFail();

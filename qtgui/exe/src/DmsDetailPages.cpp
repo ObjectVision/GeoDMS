@@ -255,7 +255,6 @@ bool DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase
 
     auto storage_parent = studyObject->GetStorageParent(false);
     auto storage_manager = storage_parent->GetStorageManager();
-    //bool is_read_only = storage_manager->IsReadOnly();
     prop_tables dataset_properties = {};
     try
     {

@@ -278,7 +278,6 @@ TreeItemAdmLock::~TreeItemAdmLock()
 	if (!g_IsTerminating)
 		Report();
 
-//	assert(!s_TreeItems->size());
 	s_TreeItems.reset();
 }
 
@@ -1088,8 +1087,6 @@ void TreeItem::MakeCalculator() const noexcept
 	dms_assert(m_Parent.expired() || (m_Parent.lock()->m_State.GetProgress() >= ProgressState::MetaInfo) || m_Parent.lock()->WasFailed(FailType::MetaInfo));
 
 	//	may only be called after HasCalculator (would) return(ed) true
-//	dms_assert(!InTemplate() || (mc_Calculator && mc_Calculator->DelayDataControllerAccess()));
-//	dms_assert(mc_Calculator || !mc_Expr.empty()); 
 	if (mc_DC || GetIsInstantiated() || GetCalculatorMember())
 		return;
 
@@ -1223,7 +1220,6 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 auto TreeItem::GetCurrRefItem() const noexcept -> std::shared_ptr<const TreeItem>
 {
-//	assert(Was(ProgressState::MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
 	return mc_RefItem.lock();
 }
 
@@ -1936,9 +1932,6 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 			AnchestorStackGuard guard(copyContext, result, make_shared_tree(this, existing_obj{}));
 
 			const TreeItem* refItem = GetCurrRefItem().get();
-//			copyContext.m_Dcm = DataCopyMode(copyContext.GetDCM() | DataCopyMode::DontUpdateMetaInfo);
-			//		if (refItem)
-			//			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::NoRoot) ).Apply();
 
 			while (refItem)
 			{
@@ -2283,7 +2276,6 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				if (dc->WasFailed(FailType::MetaInfo))
 				{
 					Fail(dc.get());
-		//			return AVS_SuspendedOrFailed;
 				}
 				if (visitor.Visit(dc.get()) != AVS_Ready)
 					return AVS_SuspendedOrFailed;
@@ -2442,7 +2434,6 @@ SharedStr TreeItem::GetSourceName() const
 {
 	SharedStr inhSN = base_type::GetSourceName();
 
-//	if (!GetConfigFileLineNr())
 	return inhSN;
 /*
 	return mySSPrintF("{}({},{}): {}"
@@ -2698,8 +2689,6 @@ SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrCancel() const
 
 void TreeItem::CheckFlagInvariants() const
 {
-//	dms_assert( IsDcKnown() || !IsKnown() );
-//	dms_assert( IsDataItem(this) || !IsFnKnown());
 }
 
 #endif

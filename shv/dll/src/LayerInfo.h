@@ -71,7 +71,6 @@ private:
 // section : ViewType classificaiton funcs
 //----------------------------------------------------------------------
 
-//const TreeItem* GetMappingItem(const TreeItem* ti);
 const AbstrDataItem* FindAspectAttr(AspectNr aNr, const TreeItem* context, const AbstrUnit* adu, const LayerClass* layerClass);
 
 LayerInfo GetLayerInfo (const AbstrDataItem* adi);

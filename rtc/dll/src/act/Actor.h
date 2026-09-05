@@ -154,7 +154,6 @@ struct Actor: PersistentObject
 	RTC_CALL bool WasFailed() const { return m_State.IsFailed(); }
 	RTC_CALL bool WasFailed(FailType fr) const;
 	// WARNING: ambiguous semantics; prefer WasFailed(FailType). See improvement notes.
-//	bool WasFailed(ProgressState ps) const; // DON'T CALL THIS ONE
     bool WasFailed(bool doCalc) const { return WasFailed(doCalc ? FailType::Data : FailType::MetaInfo); }
     bool WasValid (ProgressState ps = ProgressState::Committed) const { return m_State.GetProgress() >= ps && !m_State.IsFailed();  }
 

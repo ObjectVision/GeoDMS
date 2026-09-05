@@ -298,10 +298,6 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 					&& round_bracked_close_pos < illegal_symbol_pos
 					)
 				{
-					//			auto filename = lineView.substr(0, round_bracked_open_pos);
-					//			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
-					//			auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
-
 					auto currEnd = currPos + round_bracked_close_pos + 1;
 					auto ecfRef = CharPtrRange(data + currPos, data + currEnd);
 					auto ecsURL = mySSPrintF("editConfigSource:{}", ecfRef);

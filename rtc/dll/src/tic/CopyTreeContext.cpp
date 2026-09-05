@@ -50,8 +50,6 @@ TokenID CopyTreeContext::GetAbsOrRelUnitID(const AbstrUnit* sourceUnit, const Ab
 			currUnit = AsUnit(backHolder.get());
 			if (!currUnit)
 			{
-//				if (isDomain)
-//					dstADI->throwItemErrorF("Cannot create a findable name for domain unit");
 				break;
 			}
 		}
@@ -160,7 +158,6 @@ void TreeItem::AddPropAssoc(AbstrPropDef* propDef) const
 
 	assert(!g_RemoveRequestMutex.try_lock()); // must have been locked already
 
-//	assert(!IsCacheItem());
 	if (!g_RemoveRequestSet) 
 		g_RemoveRequestSet.assign( new RemoveRequestSet );
 	g_RemoveRequestSet->insert(RemoveRequestSet::value_type(this, propDef));

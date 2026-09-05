@@ -489,9 +489,6 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 		return FALSE;
 	}
 
-	//while (rowNumber >= m_InternRowNumber)
-	//   if (!GetCodedRle8Row(buf))
-	//        return FALSE;
 
 	if (!GetCodedRle8Row(buf))
 		return FALSE;
@@ -1255,7 +1252,6 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 			for (SizeT cnt = 0; cnt != SizeT(m_InfoHeader->biWidth); ++cnt)
 			{
 				auto bit_cnt = cnt / 2;
-//				UInt32 shift_cnt = (4 - 4 * (cnt & 0x01));
 				if (cnt & 0x01)
 					out_buf[bit_cnt] |= (buf[cnt] & 0x0F);
 				else

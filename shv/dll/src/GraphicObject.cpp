@@ -428,7 +428,6 @@ void GraphicObject::ClearDrawFlag()
 	if (!IsDrawn())
 		return;
 
-//	dms_assert(AllVisible());
 
 	SizeT n = NrEntries();
 	while (n)
@@ -443,7 +442,6 @@ void GraphicObject::ClearDrawFlag()
 
 void GraphicObject::SetIsDrawn()
 {
-//	dms_assert(IsUpdated()); 
 	dms_assert(AllVisible());
 	m_State.Set(GOF_IsDrawn); 
 #if defined(MG_DEBUG)
@@ -576,7 +574,6 @@ void GraphicObject::ResizeDrawnRect(CrdRect clipRect, GPoint delta, GPoint invar
 			{
 				if (!IsLowerBound(CrdPoint2GPoint(subObj->m_DrawnFullAbsRect.second), invariantLimit))
 				{
-//					assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.first, GPoint2CrdPoint(invariantLimit)));
 					subObj->TranslateDrawnRect(clipRect, delta);
 				}
 				else

@@ -119,8 +119,6 @@ ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, c
 		{
 			assert(!self->DoesContain(gridData.get())); // gridData is storageHolder or direct subItem thereof
 // FIX: The following lines caused reading big GridData 
-//			if (visitor(gridData) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData
-//				return AVS_SuspendedOrFailed;
 		}
 		const AbstrUnit* gridDomain = GetGridDataDomainRO(storageHolder);
 		if (gridDomain && visitor(gridDomain) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData

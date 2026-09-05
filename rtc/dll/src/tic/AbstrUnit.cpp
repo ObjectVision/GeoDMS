@@ -190,7 +190,6 @@ void AbstrUnit::DelDataItemOut(const AbstrDataItem* item) const
 {
 	DMS_ENTERS(ord_level_type::DataRefContainer, dms_exclusive_v);
 	DataItemRefContainer* rc = m_DataItemsAssocPtr.get();
-//	dms_assert(rc); // once added, it must have an assoc
 	if (rc)
 		rc->Del(item);
 }

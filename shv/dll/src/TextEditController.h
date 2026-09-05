@@ -63,9 +63,6 @@ public:
 	SizeT   GetCurrRec ()     const { return m_CurrRec; }
 
 	const SelRange& GetCurrSelRange() const { return m_SelRange; }
-//	UInt32  GetCurrSelBegin() const { return m_SelRange.m_Begin; }
-//	UInt32  GetCurrSel()      const { return m_SelRange.m_Curr;  }
-//	UInt32  GetCurrSelEnd()   const { return m_SelRange.m_End;   }
 
 #if defined(MG_DEBUG)
 	void CheckCurrTec(AbstrTextEditControl* currTec) { dms_assert(!IsEditing() || currTec == m_CurrTextControl); }

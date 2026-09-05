@@ -198,7 +198,6 @@ struct FileViewHandle
 	dms::filesize_t GetViewSize    () const { return m_ViewSpec.size; }
 	dms::filesize_t GetViewCapacity() const { return m_ViewSpec.capacity; }
 
-//	auto GetFileName() const -> SharedStr { return m_MappedFile->GetFileName(); }
 	auto GetMappedFile() const { return m_MappedFile; }
 
 	std::shared_ptr<mapped_file_type> m_MappedFile;

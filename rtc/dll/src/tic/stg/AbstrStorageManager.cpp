@@ -60,7 +60,6 @@ StorageMetaInfo::~StorageMetaInfo()
 {
 	if (m_StorageManager)
 	{
-//		MG_CHECK(! m_StorageManager->IsOpen());
 		m_StorageManager->CloseStorage();
 	}
 }
@@ -1080,7 +1079,6 @@ StorageWriteHandle::StorageWriteHandle(NonmappableStorageManager* storageManager
 	assert(MetaInfo());
 	assert(!StorageManager()->IsOpen());
 
-	//	dms_assert(storageHolder);
 	StorageManager()->OpenForWrite(*MetaInfo());
 }
 

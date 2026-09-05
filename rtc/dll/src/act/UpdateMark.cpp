@@ -103,7 +103,6 @@ namespace UpdateMarker {
 	{
 		MakeMax(ts, tsBereshit);
 		CheckActivation(ts, contextDescr);
-//		dms_assert(ts <= impl::tsActive || impl::tsActive == 0);
 		impl::tsActive = ts;
 		g_CurrChangedContext = contextDescr;
 		g_CurrChangedActor   = nullptr;
@@ -112,7 +111,6 @@ namespace UpdateMarker {
 	ChangeSourceLock::ChangeSourceLock(const Actor* actor, CharPtr contextDescr)
 		: ChangeSourceLock(GetLastChangeTS(actor), contextDescr)
 	{
-//		dms_assert(IsMetaThread());
 		g_CurrChangedActor = actor;
 	}
 

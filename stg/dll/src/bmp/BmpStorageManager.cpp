@@ -248,7 +248,6 @@ namespace Bmp
 	void PaletteDataHandler::ReadData (BmpPalStorageManager* self, const BmpImp& imp, AbstrDataObject* ado)
 	{
 		dms_assert(ado);
-//		const AbstrUnit* indexUnit = di->GetAbstrDomainUnit();
 
 		UInt32 nrColors = imp.GetClrImportant();
 		MakeMin(nrColors, UInt32(255));
@@ -327,7 +326,6 @@ FileResult BmpPalStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataO
 		throwItemError("cannot open file for reading");
 
 //	OwningPtr<Bmp::AbstrDataHandler>  f(Bmp::AbstrDataHandler::Create(adi));
-//	dms_assert(f);
 //	f->ReadData(this, &imp, adi);
 	AbstrDataItem* adi = smi->CurrWD();
 	auto nrDims = adi->GetAbstrDomainUnit()->GetValueType()->GetNrDims();

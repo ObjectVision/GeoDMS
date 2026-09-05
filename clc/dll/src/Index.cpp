@@ -196,7 +196,6 @@ public:
 		visit<typelists::ulongs>(resultValuesUnit, [result, &argData]<typename I>(const Unit<I>* values)
 		{
 			auto resObj = mutable_array_cast<I>(result);
-//			auto resData = resObj->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 			// TODO, OPTIMIZE: try to avoid zero-initialisation of resData
 			my_vec_t<I> resData(resObj->GetTiledRangeData()->GetElemCount());

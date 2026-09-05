@@ -56,7 +56,6 @@ PaletteControl::PaletteControl(MovableObject* owner, GraphicLayer* layer, bool h
 	}
 	if (!m_ThemeAttr)
 		m_ThemeAttr = m_PaletteAttr;
-//	dms_assert(m_ThemeAttr);
 }
 
 PaletteControl::PaletteControl(MovableObject* owner, AbstrDataItem* classAttr, const AbstrDataItem* themeAttr, const AbstrUnit* themeUnit, DataView* dv)
@@ -229,7 +228,6 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 		if (!labelTxt.empty())
 			column->SetTheme(Theme::CreateValue(AN_LabelText, labelTxt).get(), nullptr);
 	}
-//	dms_assert(!column->GetTheme(AN_LabelText));
 	if (!column->GetTheme(AN_SymbolIndex))
 		column->SetElemBorder(true);
 

@@ -52,7 +52,6 @@ struct SharedPtr
 	constexpr SharedPtr(U* rhs, newly_obj = newly_obj{}) noexcept
 		: m_Ptr(rhs)
 	{
-//		assert(!rhs || !rhs->IsOwned());
 		if (rhs) 
 			rhs->AdoptRef();
 	}

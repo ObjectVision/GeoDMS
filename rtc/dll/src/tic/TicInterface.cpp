@@ -907,7 +907,6 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSource(const TreeItem* x)
 
 
 		auto p = x->GetTreeParent();
-//		dms_assert(!p || !p->HasCalculator() || !p->GetCalculator() && p->GetCalculator()->IsForEachTemplHolder());
 
 		if (p)
 			DMS_TreeItem_GetTemplSource(p.get());

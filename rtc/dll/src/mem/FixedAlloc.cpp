@@ -1005,7 +1005,6 @@ FreeListAllocator& GetFreeListAllocator(alloc_index_t i)
 constexpr alloc_index_t BlockListIndex(SizeT sz)
 {
 	assert(sz);
-//	assert(sz <= ALLOC_OBJSSIZE_MAX);
 
 	--sz;
 	sz >>= ALLOC_OBJSSIZE_MIN_BITS;
@@ -1025,7 +1024,6 @@ bool IsIntegralPowerOf2OrZero(SizeT sz)
 
 bool SpecialSize(SizeT sz)
 {
-//	return sz >= (1 << log2_default_segment_size) / 8 && IsIntegralPowerOf2OrZero(sz) && sz <= (1 << log2_default_segment_size) * sizeof(Float64) * 2;
 	return sz >= (1 << log2_default_segment_size) / 8 && sz <= (1 << log2_default_segment_size) * sizeof(Float64) * 2;
 }
 

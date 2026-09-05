@@ -21,7 +21,6 @@ enum ActiveDetailPage
 	NONE
 };
 
-//auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage;
 
 class DmsDetailPages : public QUpdatableBrowser
 {

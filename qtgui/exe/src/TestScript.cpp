@@ -192,7 +192,6 @@ int PassMsg(int argc, char* argv[])
 			myCDS.dwData = ULONG_PTR(CommandCode::DefaultView);
 			myCDS.cbData = 0;
 			myCDS.lpData = nullptr;
-//			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
 		}
 		else if (std::strcmp(argv[i], "GOTO") == 0 || std::strcmp(argv[i], "ActivateItem") == 0)
 		{

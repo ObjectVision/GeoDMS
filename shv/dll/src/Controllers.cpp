@@ -379,7 +379,6 @@ ZoomInController::ZoomInController(DataView* owner, ViewPort* target
 // override DualPointCaretController callback
 bool ZoomInController::Exec(EventInfo& eventInfo)
 {
-//	auto dv = GetOwner().lock(); if (!dv) return;
 	auto to = GetTargetObject().lock(); if (!to) return true;
 
 	ViewPort* view = debug_cast<ViewPort*>(to.get());
@@ -449,7 +448,6 @@ ZoomOutController::ZoomOutController(DataView* owner, ViewPort* target, const Cr
 // override DualPointCaretController callback
 bool ZoomOutController::Exec(EventInfo& eventInfo)
 {
-	//	auto dv = GetOwner().lock(); if (!dv) return;
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	ViewPort* view = debug_cast<ViewPort*>(to.get()); 
 	dms_assert(view);

@@ -117,9 +117,6 @@ public:
 
 	TIC_CALL bool HasVoidDomainGuarantee() const;
 
-	// TODO G8: REMOVE
-//	bool IsTiled() const { return GetAbstrDomainUnit()->IsTiled(); } 
-//	bool IsCurrTiled() const { return GetAbstrDomainUnit()->IsTiled(); } 
 
 	void OnDomainUnitRangeChange(const DomainChangeInfo* info);
 	// Three lock counts: Obj = this item's own m_DataLockCount (-1 one writer, > 0 readers); Ref = the

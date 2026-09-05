@@ -801,7 +801,6 @@ MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize 
 	if (!isFloat64Backend && !isFloat32Backend)
 		return; // PotentialSlow and Proximity don't convolve; they need neither weight buffer nor kernel FFT.
 
-	//	dms_assert(dataOrg.GetSize() == outputOrg.GetSize());
 	const UGrid<const T>& weightOrg = *std::any_cast<UGrid<const T>>(&self.orgWeightGrid);
 
 	// Initialize the reversed weight buffer, then the kernel FFT that reads it

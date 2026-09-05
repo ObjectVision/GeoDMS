@@ -488,9 +488,6 @@ Iter raw_move(CIter first, CIter last, Iter target)
 	requires (raw_movable_v<typename std::iterator_traits<Iter>::value_type>)
 {
 	return raw_copy(first, last, target);
-	//	UInt32 n = (last - first);
-	//	memmove(target, first, n * sizeof(typename std::iterator_traits<Iter>::value_type));
-	//	return target + n;
 }
 
 template <typename Iter, typename CIter> inline
@@ -522,10 +519,6 @@ Iter raw_move_backward(CIter first, CIter last, Iter targetEnd)
 	requires(raw_movable_v<typename std::iterator_traits<Iter>::value_type>)
 {
 	return fast_move_backward(first, last, targetEnd);
-	//	UInt32 n = (last - first);
-	//	Iter target = targetEnd - n;
-	//	memmove(target, first, n * sizeof(typename std::iterator_traits<Iter>::value_type));
-	//	return target;
 }
 
 

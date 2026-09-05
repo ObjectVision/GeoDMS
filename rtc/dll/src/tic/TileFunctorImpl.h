@@ -193,7 +193,6 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 		assert(resultAdi);
 	}
 
-//	auto CreateFutureTile(tile_id t) const->TileRef override;
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode)->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override;
 	// Tiles are held weakly ("don't keep it !"): freed at the last consumer release, recomputed on
@@ -228,7 +227,6 @@ auto LazyTileFunctor<V, MustZero, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_
 {
 	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-//	auto lock = std::scoped_lock(m_ActiveTiles[t].m_Mutex);
 
 	auto tileSPtr = m_ActiveTiles[t].m_TileFutureWPtr.lock();
 	assert(tileSPtr); // called only from within m_Func

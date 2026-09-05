@@ -818,8 +818,6 @@ GraphVisitState GraphUpdater::DoObject(GraphicObject* go)
 
 	ActorVisitState ready = go->SuspendibleUpdate(); // returns true if didn't suspend (success or failure, keep going anyway)
 	assert((ready == AVS_SuspendedOrFailed) == (SuspendTrigger::DidSuspend() || go->WasFailed(FailType::Committed)) );
-//	if (ready)
-//		go->SuspendibleUpdate();
 	return GVS_BreakOnSuspended();
 }
 

@@ -147,7 +147,6 @@ auto throttled_async(Functor&& f) -> func_task_result_sptr<Functor>
 
 	if (IsMultiThreaded1() && !IsLowOnFreeRAM())
 	{
-		//		return std::async(std::launch::async, [fn = std::forward<Functor>(f)]
 		return std::make_shared<func_task_result<Functor>>(f);
 	}
 	if constexpr (std::is_void_v<R>)

@@ -414,7 +414,6 @@ void sequence_array<T>::Lock(dms_rw_mode rwMode) const  // thread safe operation
 	MG_DEBUGCODE( checkActualDataSize(); )
 	MG_DEBUGCODE( checkConsecutiveness(); )
 
-//	assert(!IsDirty()); // last unlock should have packed sequences
 }
 
 template <typename T>
@@ -469,7 +468,6 @@ void sequence_array<T>::reset(size_type nrSeqs, typename data_vector_t::size_typ
 	m_Values.clear();
 	data_reserve(expectedDataSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	  
-//	assert(m_Indices.size() == 0); // when else would this be called
 	m_Indices.clear();
 	assert(m_Indices.size() == 0); // now we're certain
 	m_Indices.resizeSO(nrSeqs, true MG_DEBUG_ALLOCATOR_SRC_PARAM);
@@ -520,7 +518,6 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	assert(oldData.empty());
 	assert(oldData.IsAssigned());
 	assert(oldData.IsHeapAllocated());
-//	assert(m_Values.IsAssigned());
 	MGD_CHECKDATA(oldData.IsLocked());
 	MGD_CHECKDATA(m_Values.IsLocked());
 
@@ -583,7 +580,6 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	MG_DEBUGCODE( checkActualDataSize(); )
 	MG_DEBUGCODE( checkConsecutiveness(); )
 
-//	assert(!IsDirty());
 	assert(m_Values.size() +expectedGrowth == m_Values.capacity());
 	return true;
 }

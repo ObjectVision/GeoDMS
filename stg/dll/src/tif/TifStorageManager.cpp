@@ -420,8 +420,6 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists || !pixel_to_world_transform.empty()).get();
 	const AbstrDataItem* paletteData = GetPaletteData(storageHolder).get();
 
-	//if (!gridData || !paletteData)
-	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item {}.", storageHolder->GetFullName().c_str());
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
 	
 	if (gridData && gridData->HasCalculatorImpl())

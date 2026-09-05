@@ -584,7 +584,6 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 						?	CentroidOrMid<ScalarType,typename p_traits::PointType>(*i, calcResource)
 						: Center(*ri)
 					;
-	//				dms_assert(IsIncluding(*ri, centroid));
 
 					auto entityIndex = trd->GetRowIndex(t, i - b);
 					entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);

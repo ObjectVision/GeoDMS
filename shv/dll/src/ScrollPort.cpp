@@ -523,7 +523,6 @@ bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 	}
 	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && med.m_FoundObject.get() == this)
 	{
-//		bool isColOriented = tc->IsColOriented();
 		switch (GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(true), true))
 		{
 		case RG_LEFT:

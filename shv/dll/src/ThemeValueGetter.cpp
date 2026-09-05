@@ -311,7 +311,6 @@ struct LazyGetter : public AbstrThemeValueGetter
 
 	V GetThemeValue(entity_id entityID) const
 	{
-//		dms_assert(m_ThemeData);
 
 		tile_loc tl = m_UltimateDomain->GetTiledRangeData()->GetTiledLocation(entityID, m_PrevTileID);
 		if (!IsDefined(tl.first))

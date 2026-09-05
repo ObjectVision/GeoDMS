@@ -1946,7 +1946,6 @@ auto Realm(const auto& x) -> CharPtrRange {
 
 auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber) -> link_info {
     std::string html_error_message = "";
-    //auto error_message_text = std::string(error_message->Why().c_str());
     std::size_t currPos = 0, currLineNumber = 0;
     link_info lastFoundLink;
     while (currPos < error_message.size()) {

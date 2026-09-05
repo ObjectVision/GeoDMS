@@ -47,7 +47,6 @@ struct AssocPtrWrap : LispPtrWrap<BasePtr>
 		return this->IsList(); 
 	}
 
-//	auto AsLispPtr() const -> LispPtr { return LispPtr(this->get_ptr()); }
 
 //	AssocPtr(AssocPtr&& rhs) : LispPtr(std::move(rhs)) {}
 //	AssocPtr(const AssocPtr& rhs) : AssocPtr(rhs.get_ptr()) {}

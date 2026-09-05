@@ -68,10 +68,6 @@
 
 static UInt32 GetDefaultColumnWidth(const AbstrDataItem* adi)
 {
-//	if (adi && adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric())
-//	{
-//		return DEF_TEXT_PIX_WIDTH / 2;
-//	}
 	return DEF_TEXT_PIX_WIDTH / 2;
 }
 
@@ -1066,7 +1062,6 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 
 // TODO: Set scaled Font size, Set TextAlignMode
 //	CrdPoint base = d.GetTransformation().GetOffset();
-//	dms_assert(base == d.GetTransformation().Apply(CrdPoint(0, 0) ) );
 
 //	GRect elemExtents = absElemRect; //TRect( d.GetClientLogicalAbsPos(), d.GetClientLogicalAbsPos() + TPoint(elemSize) );
 
@@ -1175,9 +1170,6 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 
 COLORREF DataItemColumn::GetBkColor() const
 {
-//	auto bckTheme = GetTheme(AN_LabelBackColor);
-//	if (bckTheme)
-//		return bckTheme->GetColorAspectValue();
 
 	bool isSymbol = GetEnabledTheme(AN_SymbolIndex).get();
 	switch (m_GroupByIndex) {

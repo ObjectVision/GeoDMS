@@ -450,9 +450,6 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 			debug_newValuesUnitStr = valuesUnit.GetStrLock().c_str();
 #endif
 
-//	assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
-//	assert((m_tValuesUnit == valuesUnit) || !IsDefined(m_tValuesUnit) || !valuesUnit); // only called once?
-//	assert(!m_DataObject || (!valuesUnit && !domainUnit));             // and before it resulted in further construction
 
 	m_tDomainUnit = domainUnit;
 	m_tValuesUnit = valuesUnit;
@@ -573,11 +570,9 @@ void AbstrDataItem::SetValueComposition(ValueComposition vc)
 void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 {
 	
-//	assert(IsMetaThread());
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo || IsPassor());
 	assert(GetCurrDataObj());
 	assert(!m_DataLockCount);
-//	assert(IsSdKnown());
 
 	const AbstrUnit* adu = GetAbstrDomainUnit();
 	assert(adu && adu->GetInterestCount());
@@ -988,7 +983,6 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 		return true;
 
 	bool hasSource = !HasCurrConfigData();
-//	assert(!hasSource || IsCacheItem() || GetCurrStorageParent(false) || mc_Calculator)
 	garbageCan |= const_cast<AbstrDataItem*>(this)->CleanupMem(hasSource, KEEPMEM_MAX_NR_BYTES+1);
 
 	// copied from TreeItem::TryCleanupMemImpl, TODO G8: Reorder logic and avoid double code
@@ -1682,7 +1676,6 @@ struct InterestReporter : DebugReporter
 		const TreeItem* ti = dynamic_cast<const TreeItem*>(focusItem);
 		if (!ti)
 			return;
-//		if (ti->IsCacheItem())
 		ReduceInterest(interestRoots, ti->GetTreeParent().get());
 		ReduceInterest(interestRoots, ti->mc_RefItem.lock().get());
 		ReduceInterest(interestRoots, ti->mc_DC.get());

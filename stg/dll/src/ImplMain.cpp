@@ -41,7 +41,6 @@ SAMPLEFORMAT::SAMPLEFORMAT(bool isSigned, bool isFloat, bool isComplex)
 SAMPLEFORMAT::SAMPLEFORMAT(const ValueClass* vc)
 	: m_Value(SAMPLEFORMAT(vc->IsSigned(), !vc->IsIntegral(), vc->GetNrDims() == 2).m_Value)
 {
-	//	dms_assert(!vc->IsSequence());
 }
 
 // ============================= FilePtrHandle

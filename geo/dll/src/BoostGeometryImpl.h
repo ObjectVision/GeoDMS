@@ -1347,7 +1347,6 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 			for (; ri != re; ++ri)
 			{
 				assert((*ri).begin() != (*ri).end()); // non-empty ring, must be guaranteed by boost::polygon::SA_ConstRingIterator
-//				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 				currRing.assign((*ri).begin(), (*ri).end());
 				if ((*ri).begin()[0] != (*ri).end()[-1])
@@ -1507,7 +1506,6 @@ protected:
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
 		const AbstrUnit* domain3Unit = arg3A->GetAbstrDomainUnit(); bool e3IsVoid = domain3Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
-//		const AbstrUnit* values3Unit = arg3A->GetAbstrValuesUnit();
 
 		domain1Unit->UnifyDomain(domain2Unit, "e1", "e2", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		domain1Unit->UnifyDomain(domain3Unit, "e1", "e3", UnifyMode(UM_Throw | UM_AllowVoidRight));

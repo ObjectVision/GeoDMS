@@ -102,7 +102,6 @@ namespace wms {
 		image_status m_Status = image_status::undefined;
 		SharedStr m_FileName;
 		~image_info() {
-//			dms_assert(m_Status != image_status::loading);
 		}
 	};
 
@@ -204,7 +203,6 @@ namespace wms {
 				{ 
 					auto owner = self->m_Owner.lock();
 					if (owner) self->on_connect(ec);  
-				//	if (owner) self->on_handshake(ec);
 				}
 			);
 
@@ -331,7 +329,6 @@ namespace wms {
 			for (auto t: m_ImageStack)
 			{
 				auto& status = m_ImageMap[t].m_Status;
-//				dms_assert(status == image_status::loading);
 				status = image_status::undefined;
 			}
 #endif
@@ -557,7 +554,6 @@ namespace wms {
 		{
 			leveled_critical_section::scoped_lock lock(TileCache::s_ImageAccess);
 			image_status& curr = owner->m_TileCache->m_ImageMap[m_Key].m_Status;
-//			dms_assert(curr != image_status::undefined);
 			if (curr != image_status::loading)
 				return;
 			if (!IsFileOrDirAccessible(m_FileName))
@@ -570,7 +566,6 @@ namespace wms {
 			curr = image_status::ready;
 		}
 
-		//	if (owner->GetScale() == m_Scale)
 		auto dv = owner->GetDataView().lock();
 		if (dv)
 			dv->PostGuiOper([key = m_Key, owner_wptr = m_Owner]() {

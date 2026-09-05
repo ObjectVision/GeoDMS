@@ -421,9 +421,6 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 			if (!MustCacheResult())
 				while (nrSpecifiedArgs > nrArgs && GetArgPolicy(nrSpecifiedArgs - 1, nullptr) == oper_arg_policy::calc_as_result)
 					--nrSpecifiedArgs;
-//			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
-//				continue;
-//			nrSpecifiedArgs = nrArgs;
 		}
 
 		const ClassCPtr* requiredTypePtr = b->m_ArgClassesBegin;

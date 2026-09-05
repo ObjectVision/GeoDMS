@@ -116,8 +116,6 @@ struct dms_fallback_parser
 
 		catch (const DmsException& x)
 		{
-//			if (x.m_Why.contains(") at\n"))
-//				throw;
 			throw parser_error_t(scan.first, x.AsErrMsg()->m_Why);
 		}
 	}
@@ -201,8 +199,6 @@ SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd, CharPtr pro
 extern const boost::spirit::uint_parser<UInt64>  uint64_p;
 extern const boost::spirit::uint_parser<UInt64, 16> hex64_p;
 
-//auto const uint64_p = boost::spirit::uint_parser<UInt64>();
-//auto const hex64_p = boost::spirit::uint_parser<UInt64, 16>();
 
 void CheckInfo(const parse_info_t& info);
 

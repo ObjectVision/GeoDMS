@@ -210,7 +210,6 @@ auto cgal_circle(double radius, int pointsPerCircle) -> CGAL_Traits::Ring
 	if (pointsPerCircle < 3)
 		pointsPerCircle = 3;
 	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
-	//	auto points = create_circle_points<CoordType>(radius, pointsPerCircle);
 
 	CGAL_Traits::Ring points;
 	points.resize(pointsPerCircle);
