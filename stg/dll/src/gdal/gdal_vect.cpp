@@ -1659,7 +1659,7 @@ bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& cu
 		return false;
 	if (field_as_double != 0)
 		return true;
-	auto fieldAsCharPtr = feat->GetFieldAsString(currFieldIndex); // who owns this ? lifetime ?
+	auto fieldAsCharPtr = feat->GetFieldAsString(currFieldIndex); // OGR owns it: a per-feature scratch buffer, valid until the next GetFieldAsString on this feature; consumed right below
 	if (!fieldAsCharPtr || !*fieldAsCharPtr)
 		return false;
 	Float64 fieldAsFloat64 = 0;
@@ -1686,6 +1686,11 @@ void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 			typename DataArray<T>::reference dataElemRef = data[i];
 
 			gdalVectImpl::FeaturePtr feat =  GetNextFeatureInterleaved(layer, hDS);
+			if (!feat) // the layer yielded fewer features than its count: undefined, as ReadStrAttrData does
+			{
+				Assign(dataElemRef, Undefined());
+				continue;
+			}
 
 			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
 			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
@@ -1699,7 +1704,12 @@ void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 			typename DataArray<T>::reference dataElemRef = data[i];
 
 			gdalVectImpl::FeaturePtr feat = layer->GetNextFeature();
-		
+			if (!feat)
+			{
+				Assign(dataElemRef, Undefined());
+				continue;
+			}
+
 			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
 			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
 				dataElemRef = field_as_int;
@@ -1722,6 +1732,11 @@ void ReadInt64AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 			typename DataArray<T>::reference dataElemRef = data[i];
 
 			gdalVectImpl::FeaturePtr feat = GetNextFeatureInterleaved(layer, hDS);
+			if (!feat)
+			{
+				Assign(dataElemRef, Undefined());
+				continue;
+			}
 
 			auto field_as_int = feat->GetFieldAsInteger64(currFieldIndex);
 			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
@@ -1734,6 +1749,11 @@ void ReadInt64AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 		{
 			typename DataArray<T>::reference dataElemRef = data[i];
 			gdalVectImpl::FeaturePtr feat = layer->GetNextFeature();
+			if (!feat)
+			{
+				Assign(dataElemRef, Undefined());
+				continue;
+			}
 
 			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
 			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
@@ -1758,6 +1778,11 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 			typename DataArray<T>::reference dataElemRef = data[i];
 
 			gdalVectImpl::FeaturePtr feat = GetNextFeatureInterleaved(layer, hDS);
+			if (!feat)
+			{
+				Assign(dataElemRef, Undefined());
+				continue;
+			}
 			auto field_as_double = feat->GetFieldAsDouble(currFieldIndex);
 			if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex, field_as_double))
 				dataElemRef = field_as_double;
@@ -1770,6 +1795,11 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 			typename DataArray<T>::reference dataElemRef = data[i];
 
 			gdalVectImpl::FeaturePtr feat = layer->GetNextFeature();
+			if (!feat)
+			{
+				Assign(dataElemRef, Undefined());
+				continue;
+			}
 			auto field_as_double = feat->GetFieldAsDouble(currFieldIndex);
 			if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex, field_as_double))
 				dataElemRef = field_as_double;
@@ -1807,7 +1837,7 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 	assert(m_CurrFieldIndex != SizeT(-1));
 
 	OGRFeatureDefn* layerDefn = layer->GetLayerDefn();
-	dms_assert(layerDefn);
+	MG_CHECK(layerDefn);
 	OGRFieldDefn* fieldDefn = layerDefn->GetFieldDefn(m_CurrFieldIndex);
 	
 	ValueClassID ft = fieldDefn ? gdalVectImpl::OGR2ValueType(fieldDefn->GetType(), fieldDefn->GetSubType()) : ValueClassID::VT_Unknown;
@@ -2076,7 +2106,7 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 				case ValueComposition::Single: {
 					auto darray = const_array_cast<value_type>(adi)->GetDataRead(t); // GetDataRead(t) can also accept tile t
 					auto b = darray.begin(), e = darray.end();
-					dms_assert(tileFeatureIndex < SizeT(e - b));
+					MG_CHECK(tileFeatureIndex < SizeT(e - b));
 
 					SetPointGeometryForFeature(feature, *(b+tileFeatureIndex), vc);
 
@@ -2088,7 +2118,7 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 
 					auto darray = debug_valcast<const DataArray<sequence_type>*>(ado)->GetDataRead(t);
 					auto b = darray.begin(), e = darray.end();
-					dms_assert(tileFeatureIndex < SizeT(e - b));
+					MG_CHECK(tileFeatureIndex < SizeT(e - b));
 
 					SetArcGeometryForFeature(feature, b[tileFeatureIndex], vc);
 
@@ -2187,7 +2217,7 @@ bool GdalVectSM::WriteFieldElement(const AbstrDataItem* adi, int field_index, OG
 			auto darray = const_array_cast<field_type>(adi)->GetDataRead(t); // GetDataRead(t) can also accept tile t
 
 			auto b = darray.begin(), e = darray.end();
-			dms_assert(tileFeatureIndex < SizeT(e - b));
+			MG_CHECK(tileFeatureIndex < SizeT(e - b));
 
 			SetField(feature, field_index, *(b+tileFeatureIndex) );
 		}
@@ -2236,11 +2266,21 @@ SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 
 	const bool bRandomLayerReading = CPL_TO_BOOL(m_hDS->TestCapability(ODsCRandomLayerRead));
 
-	if (count == SizeT(-1) && bRandomLayerReading)
+	if (count == SizeT(-1)) // the driver refused to count, even when forced
 	{
-		count = ReadUnitRangeInterleaved(layer, m_hDS);
+		if (bRandomLayerReading)
+			count = ReadUnitRangeInterleaved(layer, m_hDS);
+		else
+		{
+			// count by iteration; SizeT(-1) used to become the domain count
+			layer->ResetReading();
+			count = 0;
+			while (gdalVectImpl::FeaturePtr feat = layer->GetNextFeature())
+				++count;
+			layer->ResetReading();
+		}
+		gdal_error_frame.ThrowUpWhateverCameUp();
 	}
-
 
 	return count;
 }
@@ -2368,10 +2408,13 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 				auto fieldName = fieldNameID.AsSharedStr();
 				OGRFieldDefn    fieldDefn(fieldName.c_str(), type);     error_frame.ThrowUpWhateverCameUp();
 				fieldDefn.SetSubType(subtype);                 error_frame.ThrowUpWhateverCameUp();
-				[[maybe_unused]] OGRErr createFieldErr = layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
+				OGRErr createFieldErr = layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
+				if (createFieldErr != OGRERR_NONE) // a failure the driver did not report through CPLError
+					throwErrorF("gdalwrite.vect", "cannot add field {} to layer {}: OGR error {}", fieldName, layerID.AsStdString(), int(createFieldErr));
 			}
 			// check for laundered fieldname
 			gdalVectImpl::FeaturePtr feat = OGRFeature::CreateFeature(layerHandle->GetLayerDefn());
+			MG_CHECK(!!feat && feat->GetFieldCount() > 0); // CreateField succeeded, so the field just added is the last one
 
 			auto currentFieldNameID = GetTokenID_mt(feat->GetFieldDefnRef(feat->GetFieldCount() - 1)->GetNameRef());
 			if (fieldNameID != currentFieldNameID) // fieldname is laundered
@@ -2583,7 +2626,8 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 
 					auto fieldname_n = writableField.second.nameID;
 					writableField.second.field_index = protoFeature->GetFieldIndex(SharedStr(fieldname_n).c_str()); // materialized (#1233 P2)
-					assert(writableField.second.field_index >= 0);
+					if (writableField.second.field_index < 0) // OGR would reject the -1 with an "Invalid index" that names nothing
+						throwErrorF("gdalwrite.vect", "field {} not found in the layer definition", SharedStr(fieldname_n));
 				}
 			}
 			// destroy protoFeature
@@ -2626,10 +2670,10 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 					WriteGeometryElement(orphan_geometry_adi, curFeature, t, tileFeatureIndex);
 			}
 
-			if (not updateExistingFeature)
-				{ [[maybe_unused]] OGRErr createFeatureErr = layer_handle->CreateFeature(curFeature); }
-			else
-				{ [[maybe_unused]] OGRErr setFeatureErr = layer_handle->SetFeature(curFeature); }
+			OGRErr writeErr = updateExistingFeature ? layer_handle->SetFeature(curFeature) : layer_handle->CreateFeature(curFeature);
+			gdal_error_frame.ThrowUpWhateverCameUp();
+			if (writeErr != OGRERR_NONE) // a failure the driver did not report through CPLError: the row would be silently missing
+				throwErrorF("gdalwrite.vect", "{} of feature {} failed with OGR error {}", updateExistingFeature ? "SetFeature" : "CreateFeature", featureIndex, int(writeErr));
 		}
 	}
 	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layer_id);

@@ -46,8 +46,8 @@ in `doc/issues.md`. The Stage-0 format-string bugs of the boost-format migration
 ---
 
 $1
-**Status 2026-09-05:** every item below except STG-14 is implemented in the working tree (uncommitted;
-not yet built, the battery not yet run). STG-14 was refuted while implementing: see its entry. The
+**Status 2026-09-05:** every item below except STG-14 is implemented, built (Release x64) and
+committed as 3d0db896 on 2026-09-05; the battery runs after Phase 5. STG-14 was refuted while implementing: see its entry. The
 regression configs `testcases/combine_uint8_empty.dms`, `dyna_point_dist.dms`,
 `dyna_point_zero_dist_neg.dms`, `indirect_cycle_neg.dms` and `diversity_circle.dms` were written but
 have not been run either. No TIFF, registry or XML fixture was added: those need binary or
@@ -175,7 +175,16 @@ rtc+shv+qt).
 
 ---
 
-## Phase 1 — Storage-reader input validation and the assert policy
+$1
+**Status 2026-09-05:** implemented, built (Release x64, no warnings in the touched files) and committed on 2026-09-05, with these deviations. STG-24 is mostly refuted:
+`StrFilesStorageManager::DoUpdateTree` already unifies the two domains (`StrStorageManager.cpp:237`); the
+two `dms_assert`s became `MG_CHECK`s. STG-15 (`GetTileByteWidth` return type) is deferred: it is mirrored
+by `GDalGridImp` and its callers store the value in a `UInt32` anyway. The unreachable-marker assert at
+`act/ActorSupport.cpp:271` was left alone: it follows a `reportD` of an intransitive supplier order and
+the code continues past it, so turning it into a check would change behaviour. `dbfImp.cpp:657` is a
+tautology (`UInt8 < 256`) and was left too. Added during implementation: STG-N03 below, a real write bug
+in the compound storage manager. Null shape records in polygon shapefiles, which used to be read as if
+they had a box and counts, now read as empty polygons.
 
 Theme: bytes from a file, GDAL, TIFF, DBF, SHP or config text are trusted through `dms_assert`/`assert`
 only. Fix by making the checks real (`MG_CHECK` for internal contracts, `MG_USERCHECK2` for user-fixable
@@ -246,7 +255,11 @@ input); on these per-file/per-record paths the cost is nil.
 - **STG-21** `stg/dll/src/gdal/gdal_base.cpp:711-729`: the `return;` before `if (!--s_ComponentCount)` is intentional (GDAL is initialised once per process; `gdalFinalCleanup` tears down), but :724-728 are dead and `isActive()` reads as a live-component test → delete the dead lines, replace the counter with `bool s_Initialised`, drop the unused `gdalCleanup` call site.
 - **STG-20** `stg/dll/src/gdal/gdal_vect.cpp:1662`: `GetFieldAsString` returns the feature-owned scratch buffer, valid until the next call on that feature; here it is consumed immediately → replace `// who owns this ? lifetime ?` with that statement.
 
-### 1c. Operators and parser: validate user-supplied numbers
+#### STG-N03 · CONFIRMED / High · S / low — Compound storage wrote a block above 1 GB once per chunk
+- **Where:** `stg/dll/src/cfs/CompoundStorageManager.cpp:127-141` `CompoundStorageOutStreamBuff::WriteBytes`.
+- **Defect:** the loop that was meant to write in 1 GB chunks handed the whole `size` to every `IStream::Write` and never advanced `data`: a block between 1 GB and 4 GB was written twice or more, and the `dms_assert(chunkSize <= size)` next to it was a tautology.
+- **Fix:** write `chunkSize` bytes per iteration, advance `data`, check the result before the bookkeeping. Implemented.
+$1
 
 #### GEO-32 · LIKELY / High · M / med — Dense OD with `endPoint(…, DstZone_rel)` uses the wrong zone
 - **Where:** `geo/dll/src/Dijkstra.cpp:513-530` (`Res2EndPoint`, `Res2DstZone`); consumers :940-951, :983-984, :1028; regime :351, :381-384, :394-397.
@@ -718,7 +731,7 @@ as its own commit) → R3 (slotted around the g8 lock-handle rename) → C4 → 
 | Phase | Title | Items | Effort | Fix-risk | Prerequisite |
 |---|---|---|---|---|---|
 | 0 | Confirmed defects, small fixes | 15 implemented 2026-09-05, 1 refuted (STG-14) | S each, ~1–2 days total | low | build + battery pending |
-| 1 | Storage-reader validation + assert policy | 1a shapefile (4), 1b other readers (8), 1c operators/parser (11), 1d ~45 assert sites / 12 files | M | low, except GEO-32 (med) | none; GEO-32 needs its regression pair |
+| 1 | Storage-reader validation + assert policy | implemented 2026-09-05 (1a, 1b incl. STG-N03, 1c incl. GEO-32, 1d); STG-15 deferred, STG-24 mostly refuted | M | low, except GEO-32 (med) | build + battery pending |
 | 2 | Runtime-core robustness | ~20 groups | S–M | low; RTC-70 follow-up split L/med | none |
 | 3 | Viewer and GUI | 16 groups | S, two M | low; SHV-53 / CLC-27 med | none |
 | 4 | Dead code and comments | ~560 lines deleted, ~95 comment lines translated, 12 stale comments | S–M | none | `AbstrCalculator.cpp` micro-commit first |

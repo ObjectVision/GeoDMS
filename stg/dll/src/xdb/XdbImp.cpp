@@ -212,6 +212,8 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 			fast_zero(tbuf, tbuf+stripped);
 			break;
 		}
+		default:
+			return false; // any other column type left the buffer untouched and reported success
 	}
 
 	return true;

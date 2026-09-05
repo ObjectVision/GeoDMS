@@ -466,13 +466,13 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 				,	comment_skipper()
 				);
 		CheckInfo(info);
-		dms_assert(!s_AuthErrorDisplayLockCatchCount); // should have resulted in throw, thus catch below
+		MG_CHECK(!s_AuthErrorDisplayLockCatchCount); // a caught parse error rethrows below, so the count is 0 here (as an assert it was __assume, which let the compiler drop a later test)
 	}
 	catch (const parser_error_t& problem)
 	{
 		++s_AuthErrorDisplayLockCatchCount;
 
-		SharedStr strAtProblemLoc = problemlocAsString(configString, configStringEnd, &*problem.where);
+		SharedStr strAtProblemLoc = problemlocAsString(configString, configStringEnd, problem.where.base()); // base(), not &*: at end of input the iterator dereferences one past the buffer
 
 		position_t  problemLoc = problem.where.get_position();
 		auto fullDescr = mySSPrintF("{}\n{}({},{}) at\n{}"
@@ -483,8 +483,6 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 		DmsException::throwMsgD(fullDescr);
 	}
 	dbg_assert(CurrentIsTop());
-	if (s_AuthErrorDisplayLockCatchCount)
-		return nullptr;
 	m_ResultCommitted = true;
 	return m_pCurrent.get();
 }
@@ -540,13 +538,13 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 				,	comment_skipper()
 				);
 		CheckInfo(info);
-		dms_assert(!s_AuthErrorDisplayLockCatchCount); // should have resulted in throw, thus catch below
+		MG_CHECK(!s_AuthErrorDisplayLockCatchCount); // a caught parse error rethrows below, so the count is 0 here (as an assert it was __assume, which let the compiler drop a later test)
 	}
 	catch (const parser_error_t& problem)
 	{
 		++s_AuthErrorDisplayLockCatchCount;
 
-		SharedStr strAtProblemLoc = problemlocAsString(fv.DataBegin(), fv.DataEnd(), &*problem.where);
+		SharedStr strAtProblemLoc = problemlocAsString(fv.DataBegin(), fv.DataEnd(), problem.where.base()); // base(), not &*: a syntax error at the end of a mapped file dereferenced past the mapping
 
 //		fv.CloseMCFMH(); // enable user to change and save the file from error display and the press Reload
 
@@ -559,8 +557,6 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 		DmsException::throwMsgD(fullDescr);
 	}
 	dbg_assert(CurrentIsTop());
-	if (s_AuthErrorDisplayLockCatchCount)
-		return nullptr;
 	m_ResultCommitted = true;
 	return m_pCurrent.get();
 }

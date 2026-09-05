@@ -315,7 +315,7 @@ void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const Abst
 
 	dms_assert(adi);
 
-	dms_assert( imp.GetNrBitsPerPixel() <= MAX_BITS_PAL );
+	MG_USERCHECK2(imp.GetNrBitsPerPixel() <= MAX_BITS_PAL, "TIFF palette: the file has more bits per pixel than a palette supports");
 	if (! imp.IsPalettedImage())
 		adi->throwItemError("Tiff file was not opened as PalettedImage");
 
@@ -342,8 +342,8 @@ void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const Abst
 		blue [i] = GetBlue (*data)*257;
 	}
 
-	dms_assert(i <= nrColorsRepr);
-	dms_assert(nrColorsRepr <= CI_NRCOLORS);
+	MG_CHECK(i <= nrColorsRepr);
+	MG_CHECK(nrColorsRepr <= CI_NRCOLORS);
 	MakeMin(nrColorsRepr, CI_NRCOLORS-1);
 	if (i < nrColorsRepr)
 		for (; i != nrColorsRepr; ++i)
@@ -354,7 +354,7 @@ void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const Abst
 			blue [i] = GetBlue (clr)*257;
 		}
 
-	dms_assert(i <= MAX_COLORS_PAL);
+	MG_CHECK(i <= MAX_COLORS_PAL); // the arrays above are MAX_COLORS_PAL wide
 	for (; i != MAX_COLORS_PAL; ++i)
 	{
 		red  [i] = 0; 

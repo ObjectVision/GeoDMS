@@ -25,7 +25,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 std::atomic<UInt32>  s_AuthErrorDisplayLockRecursionCount = 0;
-UInt32  s_AuthErrorDisplayLockCatchCount = 0;
+std::atomic<UInt32>  s_AuthErrorDisplayLockCatchCount = 0; // atomic like its sibling: parse errors are also caught on worker threads
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -101,11 +101,11 @@ SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd, CharPtr pro
 	if (!problemLoc)
 		return SharedStr();
 
-	dms_assert(bufferBegin <= problemLoc);
-	dms_assert(problemLoc  <= bufferEnd );
+	MG_CHECK(bufferBegin <= problemLoc);
+	MG_CHECK(problemLoc  <= bufferEnd );
 
 	CharPtr lineBegin =  bufferBegin + bolpos(bufferBegin, problemLoc);
-	CharPtr lineEnd   =  problemLoc  + eolpos(problemLoc,  Min<CharPtr>(problemLoc+80, bufferEnd));
+	CharPtr lineEnd   =  problemLoc  + eolpos(problemLoc,  problemLoc + Min<SizeT>(80, bufferEnd - problemLoc)); // clamp the distance, not a pointer past the end
 
 	std::vector<char> untabbedLine( untabbed_size(lineBegin, lineEnd, 4), ' ');
 
@@ -206,7 +206,7 @@ static void WarnOnUnknownEscapeCode(CharPtr first, CharPtr last, char quoteChar,
 
 void StringProd::ProdStringLiteral1(CharPtr first, CharPtr last, const text_position* pos)
 {
-	dms_assert(last);
+	MG_CHECK(last);
 	if (*last != '\'')
 		throwErrorD("ParseString", "single quoted string terminator expected");
 	WarnOnUnknownEscapeCode(first, last, '\'', pos);
@@ -215,7 +215,7 @@ void StringProd::ProdStringLiteral1(CharPtr first, CharPtr last, const text_posi
 
 void StringProd::ProdStringLiteral2(CharPtr first, CharPtr last, const text_position* pos)
 {
-	dms_assert(last);
+	MG_CHECK(last);
 	if (*last != '\"')
 		throwErrorD("ParseString", "double quoted string terminator expected");
 	WarnOnUnknownEscapeCode(first, last, '\"', pos);

@@ -131,12 +131,14 @@ public:
 		// write the data in chunks of 1GB:
 		while (size)
 		{
-			ULONG chunkSize = size > 0x40000000 ? 0x40000000 : size;
-			HRESULT result = (*m_IStream.get())->Write(data, size, nullptr);
-			dms_assert(chunkSize <= size);
+			// chunkSize, not size: the whole block used to be handed to every iteration, so a block
+			// above 1 GB was written once per chunk, and the data pointer never advanced
+			ULONG chunkSize = size > 0x40000000 ? 0x40000000 : ULONG(size);
+			HRESULT result = (*m_IStream.get())->Write(data, chunkSize, nullptr);
+			m_CSM->CheckResult(result, "WriteBytes", m_NameStrPtr);
+			data += chunkSize;
 			size -= chunkSize;
 			m_CurrPos += chunkSize;
-			m_CSM->CheckResult(result, "WriteBytes", m_NameStrPtr);
 		}
 	}
 
@@ -278,7 +280,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 	// create new Compound storage file
 	SharedPtr<cfsptr<IStream> > stream(GetStream(path, true));
 
-	dms_assert(stream);
+	MG_CHECK(stream);
 
 	return std::make_unique<CompoundStorageOutStreamBuff>(stream.get(), this, path);
 }
@@ -359,7 +361,7 @@ void CompoundStorageManager::CreateNewFile(WeakStr workingFileName)
 
 cfsptr<IStream>* CompoundStorageManager::GetStream(CharPtr path, bool mayCreate)
 {
-	dms_assert(path);
+	MG_CHECK(path);
 
 	SharedPtr< cfsptr<IStorage> > subStorage = new cfsptr<IStorage>(0, m_Root);
 	m_Root->AddRef();

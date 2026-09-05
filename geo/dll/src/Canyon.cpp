@@ -173,7 +173,7 @@ public:
 			auto arg2Data = arg2->GetDataRead();
 
 			dms_assert(nrCalcPoints == arg1Data.size());
-			dms_assert(nrCalcPoints == arg2->GetDataRead().size());
+			dms_assert(nrCalcPoints == arg2Data.size()); // on the locked view: an assert must not take a lock of its own
 			dms_assert(nrBuildings  == arg6->GetDataRead().size());
 			dms_assert(nrBuildings  == arg7->GetDataRead().size());
 

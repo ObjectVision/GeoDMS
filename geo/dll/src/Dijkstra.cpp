@@ -510,22 +510,27 @@ struct NodeZoneConnector
 		return IsDefined(m_ResImpPerDstZone[zoneID]);
 	}
 
-	// CAUTION: both of these assume the SPARSE regime, where m_FoundYPerRes maps a result index to
-	// the end point that claimed it. In the DENSE regime m_FoundYPerRes is empty, LookupOrSame
-	// falls through to the identity, and the result index -- which is a DST ZONE there -- is then
-	// handed to Zone_rel as if it were an end point. That is harmless while the endpoints have no
-	// zone_rel (dst zone == end point, so both mappings are the identity), which is why the
-	// regression configs have not caught it, but it is wrong for dense + endPoint(..,DstZone_rel).
-	// The dense-correct forms are Res2DstZone(r) == r and Res2EndPoint(r) == DstZone2EndPoint(r).
+	// In the SPARSE regime m_FoundYPerRes maps a result index to the end point that claimed it,
+	// and Zone_rel maps that end point to its dst zone. In the DENSE regime the result index IS
+	// the dst zone and m_FoundYPerRes is empty. Until 2026-09 both mappings applied the sparse
+	// forms in the dense regime as well, so with endPoint(.., DstZone_rel) a dst zone index was
+	// handed to Zone_rel as if it were an end point: the impedances, minimum impedances and
+	// masses of the wrong zone went into every potential (doc/code-fixes.md GEO-32). Without a
+	// Zone_rel the two coincide, which is why the regression configs never caught it.
 	ZoneType Res2EndPoint(ZoneType resIndex) const
 	{
 		assert(resIndex < ZonalResCount());
+		if (IsDense())
+			return DstZone2EndPoint(resIndex); // undefined for an unreached zone
 		return LookupOrSame(begin_ptr(m_FoundYPerRes), resIndex);
 	}
 
 	ZoneType Res2DstZone(ZoneType resIndex) const
 	{
-		ZoneType y = Res2EndPoint(resIndex);
+		assert(resIndex < ZonalResCount());
+		if (IsDense())
+			return resIndex;
+		ZoneType y = LookupOrSame(begin_ptr(m_FoundYPerRes), resIndex);
 		return LookupOrSame(m_NetworkInfoPtr->endPoints.Zone_rel, y);
 	}
 	ZoneType DstZone2EndPoint(ZoneType dstZone) const
@@ -2597,6 +2602,11 @@ public:
 			auto tgDistLogitB          = argDistLogitBetaParam  ? argDistLogitBetaParam ->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
 			auto tgDistLogitC          = argDistLogitGammaParam ? argDistLogitGammaParam->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
 			auto tgOrgAlpha            = argOrgAlpha            ? argOrgAlpha           ->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
+
+			// a negative destination mass makes the summed potential negative and its log NaN
+			for (auto dstMass : tgDstMass)
+				if (dstMass < 0)
+					throwErrorD("dijkstra", "the destination mass argument contains a negative value");
 
 			NetworkInfo<NodeType, ZoneType, ImpType> networkInfo(
 				v->GetCount(), e->GetCount()

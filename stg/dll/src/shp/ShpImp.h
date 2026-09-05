@@ -160,7 +160,7 @@ struct ShpPolygon
 	{}
 
 	STGIMPL_CALL void Assign(const ShpPolygon& src);
-	STGIMPL_CALL std::size_t Read (FILE * fp);
+	STGIMPL_CALL std::size_t Read (FILE * fp, std::size_t contentBytes); // contentBytes: the record header's content length in bytes
 	STGIMPL_CALL std::size_t Write(FILE * fp) const;
 
 	bool CalcBox();
@@ -180,7 +180,7 @@ struct ShpPolygon
 
 	UInt32 GetPartStart(UInt32 partNr) const
 	{
-		dms_assert(partNr < NrParts());
+		MG_CHECK(partNr < NrParts());
 		return (*m_Parts)[partNr];
 	}
 
@@ -203,7 +203,7 @@ struct ShpPolygon
 	void AddRing(InIter first, InIter last);
 
 private:
-	bool Check() const;
+	void CheckInvariants() const; // throws on a record that violates the ESRI layout rules
 };
 
 typedef ShpPoints::reference::const_iterator ConstPointIter;
@@ -266,12 +266,12 @@ public:
 	FILE*      GetFP        () const { return m_FH.GetFP();  }
 	const ShpPolygon& GetPolygon(UInt32 recNr) const
 	{
-		dms_assert(recNr < m_Polygons.size());
+		MG_CHECK(recNr < m_Polygons.size());
 		return m_Polygons[recNr];
 	}
 	ShpPolygon& GetPolygon(UInt32 recNr)
 	{
-		dms_assert(recNr < m_Polygons.size());
+		MG_CHECK(recNr < m_Polygons.size());
 		return m_Polygons[recNr];
 	}
 

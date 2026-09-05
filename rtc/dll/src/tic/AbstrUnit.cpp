@@ -965,8 +965,8 @@ I64Rect AbstrUnit::GetTileSizeAsI64Rect(tile_id t) const // asssume 1D; Unit<V> 
 		sz = (t == no_tile) ? GetCount() : GetTiledRangeData()->GetTileSize(t);
 	if (!sz)
 	{
-		dms_assert(!t || t == no_tile);
-		dms_assert(fi == 0 || !IsDefined(fi));
+		MG_CHECK(!t || t == no_tile); // only the first tile of a unit may be empty (TiledUnit validates its tiles)
+		assert(fi == 0 || !IsDefined(fi));
 		fi = 0;
 	}
 	return AsI64Rect(Range<SizeT>(fi, fi + sz));

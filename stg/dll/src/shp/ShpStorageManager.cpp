@@ -474,7 +474,19 @@ bool ShpStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	AbstrUnit* au = smi.CurrWU();
 	dms_assert(au);
 	if (au->GetValueType()->IsIntegral())
-		au->SetCount( impl.NrRecs() );
+	{
+		UInt32 nrRecs = impl.NrRecs();
+		if (nrRecs == UInt32(-1))
+		{
+			// no .shx: the header cannot say how many records there are, so read them; the count
+			// used to be the UInt32(-1) sentinel itself
+			ShpImp counter;
+			if (!counter.Read(GetNameStr()))
+				return false;
+			nrRecs = counter.NrRecs();
+		}
+		au->SetCount(nrRecs);
+	}
 	else
 	{
 		const ShpBox& box = impl.GetBoundingBox();

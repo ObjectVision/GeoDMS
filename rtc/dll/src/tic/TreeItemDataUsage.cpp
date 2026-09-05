@@ -626,7 +626,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 					assert(SuspendTrigger::DidSuspend());
 					goto suspended;
 				case how_to_proceed::suspended_or_failed: goto suspended_or_failed;
-				default: dms_assert(false);
+				default: MG_CHECK2(false, "unexpected how_to_proceed"); // an assert here was __assume(false) in Release
 				}
 
 //			dms_assert(!refItem->DataAllocated());
@@ -641,7 +641,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				case how_to_proceed::suspended: 
 					assert(SuspendTrigger::DidSuspend());
 					goto suspended;
-				default: dms_assert(false);
+				default: MG_CHECK2(false, "unexpected how_to_proceed"); // an assert here was __assume(false) in Release
 				}
 
 			//* REMOVE, DEBUG, SOLVES: for_each(xx[SubItem(Combine(...), 'Nr_1')] )

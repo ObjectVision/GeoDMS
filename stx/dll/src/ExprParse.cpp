@@ -32,7 +32,7 @@
 
 LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 {
-	dms_assert(IsMetaThread());
+	MG_CHECK(IsMetaThread()); // the grammar and its production state are meta-thread objects
 #if defined(MG_DEBUG)
 	dms_assert(sd_ParseExprReentrantCheck == 0);
 	StaticMtIncrementalLock<sd_ParseExprReentrantCheck> reentrantLock;
@@ -61,7 +61,7 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 	}
 	catch (const parser_error_t& problem)
 	{
-		SharedStr strAtProblemLoc = problemlocAsString(exprBegin, exprEnd, &*problem.where);
+		SharedStr strAtProblemLoc = problemlocAsString(exprBegin, exprEnd, problem.where.base()); // base(), not &*: at end of input the iterator dereferences past the buffer
 
 		position_t  problemLoc = problem.where.get_position();
 		ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);

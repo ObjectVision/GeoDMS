@@ -342,7 +342,7 @@ Boolean BmpImp::Close()
 		// change palettecolors
 		PALETTE_SIZE nrColors = GetColorTableSize();
 
-		dms_assert(nrColors == m_RgbQuads.size());
+		MG_CHECK(nrColors == m_RgbQuads.size());
 
 		SetFilePointer(m_FH, m_ColorsOffset, NULL, FILE_BEGIN);
 		if (! WriteFile(m_FH, reinterpret_cast<CharPtr>(&*m_RgbQuads.begin()), sizeof(RGBQUAD)*nrColors))
@@ -472,7 +472,7 @@ Boolean BmpImp::GetCodedRow(row_t rowNumber, UByte *buf) const
 Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 {
 	dms_assert(m_BmpFileMode == BMP_READ); // pFileRowOffsets was initialized before SetFalseColor was called
-	dms_assert(rowNumber < m_FileRowOffsets.size());
+	MG_CHECK(rowNumber < m_FileRowOffsets.size());
     // See if this row have been read already...
 	m_InternRowNumber = rowNumber;
 	if (m_InternRowNumber == 0)
@@ -588,7 +588,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 						cur_pos--;
 					}
 
-					dms_assert(m_InfoHeader->biWidth >= 0);
+					MG_CHECK(m_InfoHeader->biWidth >= 0); // a header field of the file
 					if (index + cnt > UInt32(m_InfoHeader->biWidth) )
 						return FALSE;
 
@@ -610,7 +610,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 
 			cur_pos++;
 			bytesRead++;
-			dms_assert(m_InfoHeader->biWidth >= 0);
+			MG_CHECK(m_InfoHeader->biWidth >= 0); // a header field of the file
 			if (cnt+index > UInt32(m_InfoHeader->biWidth) )
 				return FALSE;
 
@@ -704,7 +704,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 						cur_pos--;
 					}
 
-					dms_assert(m_InfoHeader->biWidth >= 0);
+					MG_CHECK(m_InfoHeader->biWidth >= 0); // a header field of the file
                     if (index + cnt > UInt32(m_InfoHeader->biWidth))
 						return FALSE;
 
@@ -731,7 +731,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 			cur_pos++;
             bytesRead++;
 
-			dms_assert(m_InfoHeader->biWidth >= 0);
+			MG_CHECK(m_InfoHeader->biWidth >= 0); // a header field of the file
             if (cnt+index > UInt32(m_InfoHeader->biWidth))
 				return FALSE;
 
@@ -799,7 +799,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 //
 Boolean BmpImp::GetRow(row_t rowNumber, UByte *in_buf) const
 {
-	dms_assert(rowNumber < GetHeight());
+	MG_CHECK(rowNumber < GetHeight());
 
 	// Convert the row
 	switch(m_InfoHeader->biBitCount)
@@ -894,7 +894,7 @@ PALETTE_SIZE BmpImp::GetColorTableSize() const    // actual nr in the color tabl
 void BmpImp::GetColorFromFile(PALETTE_SIZE index, UByte &r, UByte &g, UByte &b) const
 {
 	dms_assert(m_IsFileOpen);
-	dms_assert(index < GetColorTableSize());
+	MG_CHECK(index < GetColorTableSize());
 
 	Long filepointer = m_ColorsOffset;
 
@@ -1229,10 +1229,10 @@ Boolean BmpImp::SetCodedRow(row_t rowNumber, UByte* buf)
 //
 Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 {
-	dms_assert(rowNumber < GetHeight());
+	MG_CHECK(rowNumber < GetHeight());
 
 	// Convert the row
-	dms_assert(m_InfoHeader->biWidth >= 0);
+	MG_CHECK(m_InfoHeader->biWidth >= 0); // a header field of the file
 	switch(m_InfoHeader->biBitCount)
 	{
 		case 1:
@@ -1346,7 +1346,7 @@ Boolean BmpImp :: SetFalseColorImage(UShort colors)
 Boolean BmpImp :: SetClrImportant(PALETTE_SIZE colors)
 {
 	dms_assert(!m_IsFileOpen || m_BmpFileMode != BMP_READ || colors == m_InfoHeader->biClrImportant);
-	dms_assert(colors <= m_InfoHeader->biClrUsed);
+	MG_CHECK(colors <= m_InfoHeader->biClrUsed);
 	m_InfoHeader->biClrImportant = colors;
 	return TRUE;
 }
@@ -1373,7 +1373,7 @@ Boolean BmpImp :: SetColor (UShort index, UByte r, UByte g, UByte b)
 {
 	dms_assert(!m_IsFileOpen || m_BmpFileMode != BMP_READ);
 
-	dms_assert(index < GetColorTableSize());
+	MG_CHECK(index < GetColorTableSize());
 
 	m_RgbQuads[index].rgbRed      = r;
 	m_RgbQuads[index].rgbGreen    = g;
@@ -1387,7 +1387,7 @@ Boolean BmpImp :: SetColorWithAlpha(UShort index, UByte r, UByte g, UByte b, UBy
 {
 	dms_assert(!m_IsFileOpen || m_BmpFileMode != BMP_READ);
 
-	dms_assert(index < GetColorTableSize());
+	MG_CHECK(index < GetColorTableSize());
 
 	m_RgbQuads[index].rgbRed      = r;
 	m_RgbQuads[index].rgbGreen    = g;

@@ -453,6 +453,8 @@ inline auto geos_minkowski_difference(const geos::geom::Geometry* a, const Prepa
 inline auto cgal_make_kernel_polygon(const MinkowskiRing& kernelRing) -> CGAL_Traits::Ring
 {
 	CGAL_Traits::Ring result;
+	if (kernelRing.size() < 2)
+		return result; // size() - 1 would wrap for an empty ring; cgal_minkowski_sum rejects a kernel below 3 points
 	for (SizeT i = 0, n = kernelRing.size() - 1; i != n; ++i)
 		result.push_back(CGAL_Traits::Point(kernelRing[i].X(), kernelRing[i].Y()));
 	if (result.orientation() == CGAL::CLOCKWISE)

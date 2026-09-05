@@ -207,7 +207,7 @@ struct Type1DConversionFunctor
 			if (!(srcUnit->GetCurrMetric()->m_BaseUnits == resUnit->GetCurrMetric()->m_BaseUnits))
 			{
 				srcUnit->UnifyValues(resUnit, "Base Units of first argument", "Base Units of cast target as specified by the second argument", UM_Throw);
-				dms_assert(0);
+				MG_CHECK2(false, "UnifyValues with UM_Throw should have thrown"); // an assert here was __assume(false) in Release
 			}
 			m_Factor = srcUnit->GetCurrMetric()->m_Factor / resUnit->GetCurrMetric()->m_Factor;
 		};

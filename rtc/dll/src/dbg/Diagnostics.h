@@ -87,6 +87,15 @@ private:
 
 #else
 
+// Release semantics of the check family (doc/code-fixes.md, Phase 1d):
+//   dms_assert(E)                                   CC_ASSUME(E): an optimizer promise; a false E is undefined behaviour
+//   dbg_assert, lfs_assert, MG_DEBUGCODE, MGD_*     nothing
+//   assert(E)                                       nothing (NDEBUG)
+//   dms_check, MG_CHECK*, MG_USERCHECK*, MG_PRECONDITION*, FileResult::require   active: they throw
+//   MG_ASSERT                                       active: abort()
+// So a condition over bytes from a file, the registry, configuration text or an external library
+// belongs in an MG_CHECK (internal contract) or an MG_USERCHECK2 (user-fixable input), never in a
+// dms_assert, and a dms_assert(false) "unreachable" marker must be MG_CHECK2(false, ...).
 #define dms_check_not_debugonly { }
 #define dms_assert_without_debugonly_lock(EXPR) CC_ASSUME(bool(EXPR))
 #define dms_assert(EXPR) dms_assert_without_debugonly_lock(EXPR)

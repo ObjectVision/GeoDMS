@@ -57,11 +57,24 @@ FileResult XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObje
 	auto nr_cells = imp.NrOfRows();
 	MG_CHECK(nr_cells == ado->GetNrFeaturesNow());
 
+	auto colName = adi->GetRelativeName(smi->StorageHolder());
+	auto colIndex = imp.ColIndex(colName.c_str());
+	if (colIndex == UInt32(-1))
+		adi->throwItemErrorF("no column '{}' in {}", colName, GetNameStr());
+
+	// ReadColumn stores 4 or 8 bytes per row according to the COLUMN type into the ITEM's buffer;
+	// an attribute of a narrower type (a uint8 on an xyz column) was a heap overflow.
+	const ValueClass* colClass = ValueClass::FindByValueClassID(imp.ColType(colIndex));
+	bool compatible = colClass && colClass->IsNumeric() && vc->IsNumeric()
+		&& colClass->GetSize() == vc->GetSize() && colClass->IsIntegral() == vc->IsIntegral();
+	if (!compatible)
+		adi->throwItemErrorF("column '{}' of {} has type {}, which cannot be read into an attribute of type {}", colName, GetNameStr(), colClass ? colClass->GetNameID() : TokenID::GetEmptyID(), vc->GetNameID());
+
 	return FileResult::require(
 		imp.ReadColumn(
 			reinterpret_cast<void *>(ado->GetDataWriteBegin(no_tile, dms_rw_mode::write_only_mustzero).get_ptr()),
-			nr_cells, 
-			imp.ColIndex(adi->GetRelativeName(smi->StorageHolder()).c_str())
+			nr_cells,
+			colIndex
 		)
 		, "failed to xdb.ReadColumn"
 	);

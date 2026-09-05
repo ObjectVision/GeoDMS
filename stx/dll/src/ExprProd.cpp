@@ -229,7 +229,7 @@ ValueClassID GetValueType(TokenID suffix)
 void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 {
 	// (n tail) -> ((cast n) tail) or ((value n unit) tail);
-	dms_assert(first != last);
+	MG_CHECK(first != last);
 	dms_assert(m_Result.back().IsNumb() || m_Result.back().IsUI64());
 
 	TokenID suffixToken = GetTokenID_mt(&*first, &*last);
@@ -244,13 +244,14 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 			return;
 
 		vc = ValueClass::FindByValueClassID(vt);
-		dms_assert(vc);
+		MG_CHECK(vc);
 		suffixToken = vc->GetNameID();
 	}
 	else
 	{
 		vc = ValueClass::FindByScriptName(suffixToken);
-		dms_assert(!vc || suffixToken == vc->GetNameID());
+		if (vc)
+			suffixToken = vc->GetNameID(); // the registered name, whatever key the lookup accepted
 	}
 
 	if (vc)

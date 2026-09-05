@@ -1205,7 +1205,15 @@ struct TiledUnitOper: AbstrTiledUnitOper
 
 		while (lbi != lbe)
 		{
-			segmInfo.emplace_back(*lbi++, *ubi++);
+			Range<D> tileRange(*lbi++, *ubi++);
+			// The tiles come from user data. An empty tile used to reach an assert-only guard in
+			// AbstrUnit::GetTileSizeAsI64Rect, and the 1-D lookups assume sorted, disjoint tiles.
+			if (!IsDefined(tileRange.first) || !IsDefined(tileRange.second) || tileRange.empty())
+				GetGroup()->throwOperErrorF("TiledUnit: tile {} has an empty or undefined range", segmInfo.size());
+			if constexpr (is_numeric_v<D>)
+				if (!segmInfo.empty() && tileRange.first < segmInfo.back().second)
+					GetGroup()->throwOperErrorF("TiledUnit: tile {} starts before the end of tile {}; tiles must be sorted and disjoint", segmInfo.size(), segmInfo.size() - 1);
+			segmInfo.push_back(tileRange);
 		}
 
 		resUnit->SetIrregularTileRange(move(segmInfo));

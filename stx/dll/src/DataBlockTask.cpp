@@ -95,9 +95,9 @@ struct DataArrayOperator : TernaryOperator
 		}
 		catch (const parser_error_t& problem)
 		{
-			++s_AuthErrorDisplayLockCatchCount;
+			// no ++s_AuthErrorDisplayLockCatchCount here: this runs on worker threads and nothing reads the count for a data block
 
-			SharedStr strAtProblemLoc = problemlocAsString(dataBlock.begin(), dataBlock.end(), &*problem.where);
+			SharedStr strAtProblemLoc = problemlocAsString(dataBlock.begin(), dataBlock.end(), problem.where.base()); // base(), not &*: a syntax error at the end of the block dereferenced past it
 
 			ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);
 			dms_assert(descr);

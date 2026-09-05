@@ -150,7 +150,8 @@ FileResult ShpImp::Open(WeakStr name, bool alsoWrite, bool writePrj)
 	}
 
 	assert(m_FH.IsOpen());
-	assert(m_FHX.IsOpen());
+	// no assert on m_FHX: for reading, a missing .shx is tolerated (see above) and Read() then
+	// takes the record count from the records themselves
 
 	return {}; // success, even if .shx and .prj files could not be created as we will read from whatever was found
 }
@@ -185,18 +186,33 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name)
 //	m_BoundingBox.first.second  = head.m_Ymin;
 //	m_BoundingBox.second.first  = head.m_Max;
 //	m_BoundingBox.second.second = head.m_Ymax;
-	assert(head.m_FileLength >= 0);
-	m_FileLength = head.m_FileLength * 2;
+	// The header fields come from the file. These checks used to be asserts, i.e. nothing in
+	// Release, and a corrupt or truncated file then reached the record loop with a wrapped
+	// length or a record count near 4e9 (doc/code-fixes.md STG-01..STG-05).
+	constexpr Int32 headerWords = Int32(sizeof(ShpHeader) / 2); // lengths are counted in 16-bit words
+	if (postFileHeaderPos != sizeof(ShpHeader))
+		throwErrorF("Shp", "ShapeFile '{}' is shorter than its {}-byte header", name.c_str(), sizeof(ShpHeader));
+	if (head.m_FileLength < headerWords)
+		throwErrorF("Shp", "ShapeFile '{}' declares a length of {} words, less than its header", name.c_str(), head.m_FileLength);
+	m_FileLength = UInt32(head.m_FileLength) * 2u;
+	auto actualFileLength = m_FH.GetFileSize();
+	if (m_FileLength > actualFileLength)
+		throwErrorF("Shp", "ShapeFile '{}' declares {} bytes but holds only {}", name.c_str(), m_FileLength, actualFileLength);
 
 	// Read SHX header to derive nrRecs
 	if (m_FHX)
 	{
-		head.Read(m_FHX);
-		assert(head.m_FileLength >= 50);
-		m_NrRecs = (head.m_FileLength - 50) / 4;
+		if (head.Read(m_FHX) != sizeof(ShpHeader))
+			throwErrorF("Shp", "the index file of ShapeFile '{}' is shorter than its header", name.c_str());
+		if (head.m_FileLength < headerWords || (head.m_FileLength - headerWords) % 4 != 0)
+			throwErrorF("Shp", "the index file of ShapeFile '{}' declares an invalid length of {} words", name.c_str(), head.m_FileLength);
+		m_NrRecs = (head.m_FileLength - headerWords) / 4;
+		// every record takes at least a record header and a shape type in the .shp
+		if (SizeT(m_NrRecs) * (sizeof(ShpRecordHeader) + sizeof(Int32)) > SizeT(m_FileLength) - sizeof(ShpHeader))
+			throwErrorF("Shp", "the index file of ShapeFile '{}' declares {} records, more than the {} bytes of the .shp can hold", name.c_str(), m_NrRecs, m_FileLength - sizeof(ShpHeader));
 	}
 	else
-		m_NrRecs = -1;
+		m_NrRecs = -1; // no .shx: Read() takes the count from the records themselves
 	return postFileHeaderPos;
 }
 
@@ -246,6 +262,10 @@ bool ShpImp::Read(WeakStr name)
 				pos += ::Read(m_Points.back(), m_FH);
 			}
 		}
+		if (m_NrRecs == UInt32(-1))
+			m_NrRecs = m_Points.size(); // no .shx
+		else if (m_Points.size() != m_NrRecs)
+			throwErrorF("Shp", "ShapeFile '{}' holds {} point records while its index file declares {}", name.c_str(), m_Points.size(), m_NrRecs);
 	}
 	else
 	{
@@ -269,11 +289,12 @@ bool ShpImp::Read(WeakStr name)
 			MG_CHECK( SizeT(rhead.RecordNumber) == m_Polygons.size() );
 			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
-			pos += m_Polygons.back().Read(m_FH);
+			pos += m_Polygons.back().Read(m_FH, 2 * SizeT(rhead.ContentLength));
 		}
-		if (!m_NrRecs)
+		if (!m_NrRecs) // no .shx: PrepareDataStore(0, 0) left the count to the records themselves
 			m_NrRecs = m_Polygons.size();
-		assert(m_Polygons .size() == m_NrRecs);
+		else if (m_Polygons.size() != m_NrRecs) // a stale .shx made ReadSequences index past m_Polygons
+			throwErrorF("Shp", "ShapeFile '{}' holds {} records while its index file declares {}", name.c_str(), m_Polygons.size(), m_NrRecs);
 		assert(m_SeqPoints.size() == m_NrRecs);
 		assert(m_SeqParts .size() == m_NrRecs);
 	}
@@ -611,8 +632,16 @@ std::size_t ShpPolygonHeader::Read(FILE * fp)
 	DBG_START("ShpPolygonHeader", "Read", false);
 
 	// Little endian
-	std::size_t pos = 
+	std::size_t pos =
 		   fread(&m_ShapeType, 1, sizeof(m_ShapeType), fp); ConvertLittleEndian(m_ShapeType);
+	if (m_ShapeType == Int32(ShapeTypes::ST_None))
+	{
+		// a null shape record has no box, parts or points; it used to be read as if it had them,
+		// taking the following record's bytes for its box and counts
+		m_NumParts  = 0;
+		m_NumPoints = 0;
+		return pos;
+	}
 	pos += fread(&m_Box,       1, sizeof(m_Box      ), fp); ConvertLittleEndian(m_Box );
 	if (HasParts())
 	{
@@ -778,16 +807,29 @@ void ShpPolygon::Assign(const ShpPolygon& src)
 	m_Header = src.m_Header;
 	m_Parts.Assign(src.m_Parts);
 	m_Points.Assign(src.m_Points);
-	assert(Check());
+	CheckInvariants();
 }
 
 
 // Read a complete polygon record
-std::size_t ShpPolygon::Read(FILE* fp)
+std::size_t ShpPolygon::Read(FILE* fp, std::size_t contentBytes)
 {
 	DBG_START("ShpPolygon", "Read", false);
-	
+
 	std::size_t pos = m_Header.Read(fp);
+
+	// The counts come from the file and size the part and point arrays, so they are checked
+	// against the record's declared content length before anything is allocated or read: a
+	// count larger than the record left the tail of those arrays uninitialised, and the garbage
+	// part offsets were then used as indices.
+	if (m_Header.m_NumParts < 0 || m_Header.m_NumPoints < 0)
+		throwErrorF("Shp", "a shapefile record declares a negative number of parts ({}) or points ({})", m_Header.m_NumParts, m_Header.m_NumPoints);
+	std::size_t expectedBytes = pos
+		+ (m_Header.HasParts() ? std::size_t(m_Header.m_NumParts) * sizeof(ShpPointIndex) : 0)
+		+ std::size_t(m_Header.m_NumPoints) * sizeof(ShpPoint);
+	if (expectedBytes != contentBytes)
+		throwErrorF("Shp", "a shapefile record with {} parts and {} points needs {} bytes of content, but its header declares {}", m_Header.m_NumParts, m_Header.m_NumPoints, expectedBytes, contentBytes);
+
 	if (m_Header.HasParts())
 		pos += m_Parts .Read(fp, m_Header.m_NumParts);
 	else
@@ -796,8 +838,10 @@ std::size_t ShpPolygon::Read(FILE* fp)
 		m_Parts.get_ptr()->front() = 0;
 	}
 	pos += m_Points.Read(fp, m_Header.m_NumPoints);
+	if (pos != contentBytes)
+		throwErrorF("Shp", "a shapefile record is truncated: {} of its {} content bytes could be read", pos, contentBytes);
 
-	assert(Check());
+	CheckInvariants();
 
 	return pos;
 }
@@ -810,7 +854,7 @@ std::size_t ShpPolygon::Write(FILE * fp) const
 	
 	std::size_t pos = m_Header.Write(fp);
 
-	assert(Check());
+	CheckInvariants();
 
 	if (m_Header.HasParts())
 		pos += m_Parts.Write(fp);
@@ -819,19 +863,22 @@ std::size_t ShpPolygon::Write(FILE * fp) const
 	return pos;
 }
 
-bool ShpPolygon::Check() const
+// The invariants of a record as the ESRI specification states them, checked in Release too: the
+// parts and points come from a file, and every accessor indexes by them. This used to be a
+// bool Check() whose body was all asserts, i.e. unconditionally true in Release.
+void ShpPolygon::CheckInvariants() const
 {
-	assert(((*m_Points).size() > 0) == ((*m_Parts ).size() > 0));
-	assert(((*m_Parts ).size() == 0) || (*m_Parts)[0] == 0);
-	assert(SizeT(m_Header.m_NumParts)  == (*m_Parts ).size());
-	assert(SizeT(m_Header.m_NumPoints) == (*m_Points).size());
+	SizeT nrParts  = (*m_Parts ).size();
+	SizeT nrPoints = (*m_Points).size();
+	MG_USERCHECK2((nrPoints > 0) == (nrParts > 0), "shapefile record: parts without points, or points without parts");
+	MG_USERCHECK2(SizeT(m_Header.m_NumParts) == nrParts && SizeT(m_Header.m_NumPoints) == nrPoints, "shapefile record: the header counts disagree with the part and point arrays");
 	assert(m_Parts.m_Index == m_Points.m_Index);
-	for (UInt32 i = 1, n = (*m_Parts).size(); i < n; ++i)
-	{
-		assert((*m_Parts)[i] > (*m_Parts)[i-1]);
-	}
-	assert(((*m_Parts ).size() == 0) || (*m_Parts).back() < ShpPointIndex((*m_Points).size()));
-	return true;
+	if (!nrParts)
+		return;
+	MG_USERCHECK2((*m_Parts)[0] == 0, "shapefile record: the first part does not start at point 0");
+	for (SizeT i = 1; i < nrParts; ++i)
+		MG_USERCHECK2((*m_Parts)[i] > (*m_Parts)[i-1], "shapefile record: the parts are not in ascending order");
+	MG_USERCHECK2((*m_Parts).back() < ShpPointIndex(nrPoints), "shapefile record: a part starts beyond the last point");
 }
 // Record size in 16bit words (as in ESRI recordheader)
 Int32 ShpPolygon::CalcNrWordsInRecord() const

@@ -162,7 +162,7 @@ syntaxError(ErrorArgT errMsg)
 ///////////////////////////////////////////////////////////////////////////////
 
 extern std::atomic<UInt32> s_AuthErrorDisplayLockRecursionCount;
-extern UInt32 s_AuthErrorDisplayLockCatchCount;
+extern std::atomic<UInt32> s_AuthErrorDisplayLockCatchCount;
 
 struct AuthErrorDisplayLock : StaticMtIncrementalLock<s_AuthErrorDisplayLockRecursionCount>
 {

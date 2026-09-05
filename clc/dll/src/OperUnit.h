@@ -11,6 +11,8 @@
 
 #include "dbg/DmsCatch.h"
 
+#include <cmath> // std::round, std::abs in UnitPowerOperator
+
 #include "Unit.h"
 #include "UnitGroup.h"
 #include "UnitClass.h"
@@ -187,11 +189,17 @@ public:
 		InterestPtr<const TreeItem*> hackToFixFuncDcMakeResultDueToUnderspecifiedOperatorgroup(adi); // REMOVE, FIX
 		DataReadLock lck(adi);
 
+		// The factor scales the metric, and UnitPowerOperator takes its log: zero, negative and
+		// null used to pass through into a metric that no display path can handle.
+		Float64 factor = adi->GetCurrRefObj()->GetValueAsFloat64(0);
+		if (!IsDefined(factor) || !(factor > 0.0))
+			GetGroup()->throwOperErrorF("the unit factor must be a defined positive value, not {}", factor);
+
 		result->SetMetric(
 			m_MetricFunctor(
 				adi->GetAbstrValuesUnit()->GetMetric()
 			,	arg2A->GetMetric()
-			,	adi->GetCurrRefObj()->GetValueAsFloat64(0)
+			,	factor
 			)
 		);
 		resultHolder = result;
@@ -304,7 +312,15 @@ public:
 				b1 = metric->m_BaseUnits.begin(),
 				e1 = metric->m_BaseUnits.end();
 			for (; b1 != e1; ++b1)
-				(*b1).second = Int32((*b1).second * power);
+			{
+				// pow(meter, 0.5) used to truncate the exponent to 0, dropping the base unit while
+				// the factor was still raised; UnitSqrtOperator refuses the same case
+				Float64 exponent = (*b1).second * power;
+				Float64 rounded  = std::round(exponent);
+				if (std::abs(exponent - rounded) > 1e-9)
+					GetGroup()->throwOperErrorF("argument {} has a metric that cannot be raised to the power {}: a base unit exponent of {} would become {}", arg1A->GetFullName().c_str(), power, (*b1).second, exponent);
+				(*b1).second = Int32(rounded);
+			}
 			result->SetMetric(metric.release());
 		}
 		return true;

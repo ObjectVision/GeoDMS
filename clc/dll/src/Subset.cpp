@@ -337,7 +337,7 @@ private:
 			case context_dependency_state::independent: return { false, true };
 			case context_dependency_state::visiting:    return { false, false };
 			}
-			dms_assert(false);
+			MG_CHECK2(false, "unexpected context_dependency_state"); // an assert here was __assume(false) in Release
 			return { false, false };
 		}
 

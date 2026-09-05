@@ -180,7 +180,7 @@ void XmlParser::ReadEncl(XmlElement& rootEnclElement)
 	{
 		XmlElement& parent = *openStack.back();
 
-		dms_assert(NextChar() == '<');
+		MG_USERCHECK2(NextChar() == '<', "XML: '<' expected"); // external input, so a check rather than an assert
 		parent.m_SubElements.emplace_back(&parent);
 		XmlElement& subElement = parent.m_SubElements.back();
 

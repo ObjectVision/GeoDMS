@@ -333,6 +333,8 @@ inline auto MinkowskiConvexParts(const MinkowskiRing& closedRing) -> std::vector
 inline auto MinkowskiEdgeCell(DPoint p, DPoint q, const MinkowskiRing& convexPart, std::vector<DPoint>& scratch) -> MinkowskiRing
 {
 	scratch.clear();
+	if (convexPart.size() < 2)
+		return MinkowskiRing(); // nothing to sweep; size() - 1 would wrap for an empty ring
 	scratch.reserve(2 * convexPart.size());
 	for (SizeT i = 0, n = convexPart.size() - 1; i != n; ++i) // skip the closing duplicate
 	{

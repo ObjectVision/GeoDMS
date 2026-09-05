@@ -317,7 +317,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 			if (m_FuncStates.empty() || !m_FuncStates.back().inParamList || !IsTopLevelFunctionParam())
 				throwSemanticError("an 'item' (meta-reference) declaration is only supported as a function parameter");
 			break;
-		default: dms_assert(0); // syntax only produces CreateItem with valid signature types
+		default: MG_CHECK2(false, "CreateItem: the grammar produced an unknown signature type"); // an assert here was __assume(false) in Release
 	}
 
 setLocation:

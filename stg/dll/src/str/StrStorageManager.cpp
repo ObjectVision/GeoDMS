@@ -59,7 +59,7 @@ FileResult StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObj
 		if (sdo)
 		{
 			auto sdoData = sdo->GetWritableTile(t, dms_rw_mode::read_write);
-			dms_assert(sdoData.size() == n);
+			MG_CHECK(sdoData.size() == n); // n is the count of the FileName attribute's domain; sdoData[i] below is written for i < n
 
 			sdoData[i].resize_uninitialized(fileSize MG_DEBUG_ALLOCATOR_SRC("StrStorageManager::ReadDataItem"));
 			dataBegin = sdoData[i].begin();
@@ -93,7 +93,7 @@ FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	{
 		auto sdData = sda->GetDataRead();
 		auto n = GetNrFiles(smi->StorageHolder(), adi);
-		dms_assert(sdData.size() == n);
+		MG_CHECK(sdData.size() == n);
 		for (SizeT i = 0; i != n; ++i)
 		{
 

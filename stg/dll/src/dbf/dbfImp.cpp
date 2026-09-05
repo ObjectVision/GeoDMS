@@ -419,7 +419,7 @@ void DbfImpl::ColumnDescriptionAppend(CharPtr columnName, TDbfType dbftype, UInt
 
 void DbfImpl::ColumnDescriptionReplace(UInt32 columnindex, TDbfType dbftype, UInt8 len, UInt8 deccount)
 {
-	dms_assert(columnindex < m_ColumnDescriptions.size());
+	MG_CHECK(columnindex < m_ColumnDescriptions.size());
 	std::vector<DbfColDescription>::iterator
 		colDescrPtr = m_ColumnDescriptions.begin() + columnindex,
 		colDescrEnd = m_ColumnDescriptions.end();
@@ -696,9 +696,9 @@ void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex
 
 bool DbfImpl::WriteDataElement(const void *data, UInt32 recordindex, UInt32 columnindex, ValueClassID vc, CharPtr formatspec, UInt8 len)
 {
-	dms_assert(GetFP() != NULL );
-	dms_assert(RecordIndexDefined(recordindex) );
-	dms_assert(ColumnIndexDefined(columnindex) );
+	MG_CHECK(GetFP() != NULL );
+	MG_CHECK(RecordIndexDefined(recordindex) ); // the indices derive from the file's header
+	MG_CHECK(ColumnIndexDefined(columnindex) );
 
 	const SizeT BUFFER_SIZE = 64;
 	char buff[BUFFER_SIZE];
@@ -768,7 +768,7 @@ template<class T> FileResult DbfImplStub<T>::ReadData(VecType vec, CharPtr colum
 	 // END TODO, OPT: Move to caller(s)
 
 	UInt32 nrRecs = vec.size();
-	dms_assert(nrRecs == m_DbfImpl->RecordCount()); 
+	MG_CHECK(nrRecs == m_DbfImpl->RecordCount()); // the file's record count versus the data written 
 
 	for (UInt32 recordindex = 0; recordindex != nrRecs; ++recordindex)
 	{
@@ -794,7 +794,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataOverwrite(WeakStr filename
 	 // END TODO, OPT: Move to caller(s)
 	
 	UInt32 nrRecs = vec.size();
-	dms_assert(nrRecs == m_DbfImpl->RecordCount()); 
+	MG_CHECK(nrRecs == m_DbfImpl->RecordCount()); // the file's record count versus the data written 
 
 	for (UInt32 recordindex = 0; recordindex != nrRecs; ++recordindex)
 	{
@@ -845,7 +845,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataReplace(WeakStr filename, 
 	FormatSpecification(vc, len, deccount, false, formatspec);
 	CharPtr formatspecCharPtr = formatspec.c_str();
 
-	fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0), 0);
+	MG_CHECK(fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0), 0) == 0);
 
 	MakeMin(nrRecs, vec.size());
 	UInt32 recordindex = 0;
@@ -908,7 +908,9 @@ template<class T> FileResult DbfImplStub<T>::WriteDataAppend(WeakStr filename, C
 	UInt32 nrRecs = 0;
 	if (m_DbfImpl->IsOpen())
 	{
-		fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0, 0) - 1, 0);
+		// ActualPosition(0): the start of record 0, which is its deletion flag; the same seek was
+		// spelled ActualPosition(0, 0) - 1 here, the position of column 0 minus that flag byte
+		MG_CHECK(fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0), 0) == 0);
 		nrRecs = m_DbfImpl->RecordCount();
 	}
 

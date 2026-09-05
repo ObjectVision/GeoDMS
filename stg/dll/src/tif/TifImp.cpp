@@ -320,7 +320,7 @@ ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 void TifImp::GetColor(PALETTE_SIZE index, UByte &r, UByte &g, UByte &b) const
 {
 	dms_assert(HasColorTable());
-	dms_assert(index < GetClrImportant());
+	MG_CHECK(index < GetClrImportant()); // index and palette size both come from the file
 
 	//TIFFDirectory *td = &m_TiffHandle->tif_dir;
 	dms_assert(m_TiffHandle);
@@ -341,7 +341,7 @@ void TifImp::GetColor(PALETTE_SIZE index, UByte &r, UByte &g, UByte &b) const
 DmsColor TifImp::GetColor(PALETTE_SIZE index) const
 {
 	dms_assert(HasColorTable());
-	dms_assert(index < GetClrImportant());
+	MG_CHECK(index < GetClrImportant()); // index and palette size both come from the file
 
 	//TIFFDirectory *td = &m_TiffHandle->tif_dir;
 	dms_assert(m_TiffHandle);
@@ -647,7 +647,7 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 	{
 		currNrProcesedBytes *= 2;
 
-		dms_assert(nrBytesPerRow * 2 >= tw);
+		MG_CHECK(nrBytesPerRow * 2 >= tw); // strip geometry from the file's tags
 
 		while (th)
 		{
@@ -658,8 +658,8 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 			UInt8* byteDataEnd = byteDataBegin + tw;
 			if (tw % 2)
 				*--byteDataEnd = ((*--pixelDataEnd) & 0xF0) >> 4;
-			dms_assert(byteDataBegin >= pixelDataBegin);
-			dms_assert((byteDataEnd - byteDataBegin) % 2 == 0);
+			MG_CHECK(byteDataBegin >= pixelDataBegin);
+			MG_CHECK((byteDataEnd - byteDataBegin) % 2 == 0);
 
 			UInt16* bytePairBegin = reinterpret_cast<UInt16*>(byteDataBegin);
 			UInt16* bytePairEnd = reinterpret_cast<UInt16*>(byteDataEnd);

@@ -353,9 +353,9 @@ CPLErr GDalGridImp::ReadInterleavedMultiBandTile(void* stripBuff, UInt32 tile_x,
 
 SizeT GDalGridImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 strip_y, SizeT tileByteSize) const
 {
-	dms_assert(tile_x < GetWidth()); UInt32 sx = Min<UInt32>(GetTileSize().X(), GetWidth() - tile_x);
-	dms_assert(tile_y < GetHeight()); UInt32 sy = Min<UInt32>(GetTileSize().Y(), GetHeight() - tile_y);
-	dms_assert(GetTileByteSize() <= tileByteSize);
+	MG_CHECK(tile_x < GetWidth()); UInt32 sx = Min<UInt32>(GetTileSize().X(), GetWidth() - tile_x);
+	MG_CHECK(tile_y < GetHeight()); UInt32 sy = Min<UInt32>(GetTileSize().Y(), GetHeight() - tile_y);
+	MG_CHECK(GetTileByteSize() <= tileByteSize);
 
 	UPoint tileSize = GetTileSize();
 	auto resultCode = CE_None;
@@ -367,17 +367,17 @@ SizeT GDalGridImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt3
 	else // single band
 		resultCode = ReadSingleBandTile(stripBuff, tile_x, tile_y, sx, sy, m_RasterBand);
 
-	dms_assert(resultCode == CE_None);
+	if (resultCode != CE_None) // used to be an assert, i.e. a silently garbage tile in Release
+		throwErrorF("gdal.grid", "reading tile ({}, {}) failed: {}", tile_x, tile_y, CPLGetLastErrorMsg());
 	return GetTileByteSize();
 }
 
 Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // REMOVE, UInt32 strip_y, SizeT tileByteSize) const
 {
-	dms_assert(tile_x < GetWidth()); UInt32 sx = Min<UInt32>(GetTileSize().X(), GetWidth() - tile_x);
-	dms_assert(tile_y < GetHeight()); UInt32 sy = Min<UInt32>(GetTileSize().Y(), GetHeight() - tile_y);
+	MG_CHECK(tile_x < GetWidth()); UInt32 sx = Min<UInt32>(GetTileSize().X(), GetWidth() - tile_x);
+	MG_CHECK(tile_y < GetHeight()); UInt32 sy = Min<UInt32>(GetTileSize().Y(), GetHeight() - tile_y);
 
 	auto tileByteSize = GetTileByteSize();
-	dms_assert(GetTileByteSize() <= tileByteSize);
 
 	GDAL_ErrorFrame x;
 	auto resultCode = m_RasterBand->RasterIO(GF_Write,
@@ -389,7 +389,8 @@ Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // R
 		0, //nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
-	dms_assert(resultCode == CE_None);
+	if (resultCode != CE_None)
+		throwErrorF("gdal.grid", "writing tile ({}, {}) failed: {}", tile_x, tile_y, CPLGetLastErrorMsg());
 	return tileByteSize;
 }
 
@@ -817,7 +818,8 @@ void ReadBand(GDALRasterBand* m_RasterBand, GDAL_SimpleReader::band_data& buffer
 		0, //nPixelSpace,
 		0 //nLineSpace
 	);
-	dms_assert(resultCode == CE_None);
+	if (resultCode != CE_None)
+		throwErrorF("gdal.grid", "reading a band failed: {}", CPLGetLastErrorMsg());
 }
 
 struct SimpleGridDriverNames : CPLStringList

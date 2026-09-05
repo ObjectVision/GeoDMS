@@ -720,12 +720,9 @@ gdalComponent::~gdalComponent()
 {
 	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
-	return; // no per-component cleanup: cleanup + later re-init crashed (issue 169); gdalFinalCleanup now runs once at process shutdown
-	if (!--gdalComponentImpl::s_ComponentCount)
-	{
-		//		proj_context_set_file_finder(nullptr, nullptr, nullptr);
-		gdalCleanup();
-	}
+	// no per-component cleanup: cleanup + later re-init crashed (issue 169); gdalFinalCleanup runs
+	// once at process shutdown, and s_ComponentCount never decrements, so isActive() means
+	// "GDAL was initialised". The decrement-and-cleanup that used to follow here was dead code.
 }
 
 // Register every GDAL driver, at most once per process and never from two threads at the same time.
