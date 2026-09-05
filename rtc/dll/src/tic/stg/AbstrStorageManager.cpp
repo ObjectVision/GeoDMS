@@ -953,6 +953,13 @@ LispRef StorageRead_SupplierKey(const TreeItem* supplier)
 	return SupplierKey(supplier);
 }
 
+LispRef StorageRead_AppendArg(LispRef args, LispRef arg)
+{
+	if (args.EndP())
+		return LispRef(arg, LispRef());
+	return LispRef(args.Left(), StorageRead_AppendArg(args.Right(), arg));
+}
+
 // the GDAL option items GdalMetaInfo resolves for a read (GDAL_Options, GDAL_Driver,
 // GDAL_ConfigurationOptions; GDAL_LayerCreationOptions serves writing only) wrap the storage name
 LispRef GdalMetaInfo_WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr)

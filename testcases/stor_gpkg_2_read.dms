@@ -1,0 +1,29 @@
+// #587 S5: read half of the geopackage round trip written by stor_gpkg_1_write.dms. The geometry and
+// the name are demanded in one request, so the name goes through the one-pass field read and the
+// geometry through its own pass under the same open dataset. The second pass must see the geometry
+// column again (the driver composes its statement from the ignore flags at ResetReading) and start
+// at the first feature (the dataset-level cursor of a random-layer-read dataset). Before the fix the
+// geometries came back empty: 0 points instead of 8. The bool column covers the bool target of the
+// one-pass field read, which the numeric instantiation set leaves out.
+container stor_gpkg_2_read
+{
+	unit<fpoint> point_rd := baseunit('m', fpoint);
+
+	unit<uint32> tab
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_gpkg_rt.gpkg"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<point_rd> geometry (arc);
+		attribute<string>   name;
+		attribute<bool>     flag;
+	}
+
+	container checks
+	{
+		parameter<uint32> n  := #tab,                              IntegrityCheck = "n == 2";
+		parameter<uint32> np := #Sequence2Points(tab/geometry),    IntegrityCheck = "np == 8";
+		parameter<string> s  := asList(tab/name, ','),             IntegrityCheck = "s == 'left,right'";
+		parameter<uint32> f  := sum(uint32(tab/flag)),             IntegrityCheck = "f == 1";
+	}
+}

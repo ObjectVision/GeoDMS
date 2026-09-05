@@ -199,14 +199,7 @@ SizeT StrFilesStorageManager::GetNrFiles (const TreeItem* storageHolder, const T
 // the write reaches FileName through the ExportInfo visit.
 
 // #587: the FileName attribute is an argument of the read, so that it is calculated before the read
-// and is part of the read's identity: storage_read_attr(spec, name, domain, 'attr', vu, <FileName key>)
-static LispRef AppendArg(LispRef args, LispRef arg)
-{
-	if (args.EndP())
-		return LispRef(arg, LispRef());
-	return LispRef(args.Left(), AppendArg(args.Right(), arg));
-}
-
+// and is part of the read's identity: storage_read_attr(spec, domain, 'attr', vu, <FileName key>)
 ReadCallSpec StrFilesStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
 {
 	auto result = base_type::DescribeReadCall(storageHolder, item);
@@ -214,7 +207,7 @@ ReadCallSpec StrFilesStorageManager::DescribeReadCall(const TreeItem* storageHol
 		return result;
 	auto fileNameAttr = GetFileNameAttr(storageHolder, storageHolder);
 	fileNameAttr->UpdateMetaInfo();
-	result.args = AppendArg(result.args, fileNameAttr->GetCheckedKeyExpr());
+	result.args = StorageRead_AppendArg(result.args, fileNameAttr->GetCheckedKeyExpr());
 	return result;
 }
 

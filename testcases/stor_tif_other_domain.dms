@@ -1,0 +1,17 @@
+// #587 S5: grid data under a tif unit, read over another domain (the unit test's isWeg_grid/ReadData
+// over a TiledUnit): the storage's grid domain decides which cells are mapped, so it is an argument
+// of that read, calculated (here: read from the file) before it. Same file and sum as stor_tif_u8_sf.
+container stor_tif_other_domain
+{
+	unit<spoint> dom : StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "tif"
+	{
+		attribute<uint8> GridData;
+		attribute<uint8> ReadData (tiled);
+	}
+	unit<spoint> tiled := TiledUnit(point_yx(2s, 2s, dom));
+
+	container checks
+	{
+		parameter<uint32> s := sum(uint32(dom/ReadData)), IntegrityCheck = "s == 496";
+	}
+}

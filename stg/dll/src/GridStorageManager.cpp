@@ -12,6 +12,7 @@
 // managers -- grid-data domain creation and grid data helpers.
 
 #include "GridStorageManager.h"
+#include "LispTreeType.h"
 #include "TreeItemProps.h"
 #include "AbstrDataItem.h"
 
@@ -169,7 +170,20 @@ ReadCallSpec AbstrGridStorageManager::DescribeReadCall(const TreeItem* storageHo
 		return DescribeTableRead(storageHolder, AsUnit(item), false);
 	if (!IsDataItem(item))
 		return {};
-	return DescribeAttrRead(storageHolder, AsDataItem(item));
+	auto adi = AsDataItem(item);
+	auto result = DescribeAttrRead(storageHolder, adi);
+
+	// Grid data over another domain than the storage's grid domain (ReadData (m5grid) under a tif
+	// unit): that grid domain decides which cells the viewport maps, so its key is an argument of
+	// the read, calculated before it and part of its identity. The item-writer read had it as a
+	// supplier through VisitSuppliers; a read without it hits ViewPortInfoEx with a range-less unit.
+	auto gridDomain = GetGridDataDomainRO(storageHolder);
+	if (result.operName == token::storage_read_attr && gridDomain && gridDomain != adi->GetAbstrDomainUnit() && HasGridDomain(adi))
+	{
+		gridDomain->UpdateMetaInfo();
+		result.args = StorageRead_AppendArg(result.args, gridDomain->GetCheckedKeyExpr());
+	}
+	return result;
 }
 
 bool AbstrGridStorageManager::DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const

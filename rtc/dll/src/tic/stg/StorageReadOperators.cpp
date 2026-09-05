@@ -363,6 +363,21 @@ bool UnitsReadyOrSuspend(const AbstrDataItem* adi)
 	return true;
 }
 
+// The unit arguments of a read (its domain and values units, the extras a manager adds such as a
+// grid's own domain) must have their ranges before the read maps and allocates: wait, or suspend.
+bool UnitArgsReadyOrSuspend(const ArgRefs& args)
+{
+	for (const auto& arg : args)
+	{
+		auto item = GetItem(arg);
+		if (!IsUnit(item))
+			continue;
+		if (auto rangeItem = AsUnit(item)->GetCurrRangeItem(); rangeItem && !WaitForReadyOrSuspendTrigger(rangeItem.get()))
+			return false;
+	}
+	return true;
+}
+
 // the request goes, with the interest it holds
 void ReleaseRequest(TreeItem* root)
 {
@@ -659,6 +674,8 @@ struct StorageReadTableOperator : BinaryOperator
 		MG_CHECK(IsMetaThread());
 		auto root = resultHolder.GetNew();
 		MG_CHECK(root);
+		if (!UnitArgsReadyOrSuspend(args))
+			return false;
 		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); }); // a request left behind holds interest
 		auto& req = GetOrCreateRequest(root, resultHolder);
 
@@ -723,7 +740,7 @@ struct StorageReadValueOperator : BinaryOperator
 		MG_CHECK(IsMetaThread());
 		auto root = resultHolder.GetNew();
 		MG_CHECK(root);
-		if (!UnitsReadyOrSuspend(AsDataItem(root)))
+		if (!UnitsReadyOrSuspend(AsDataItem(root)) || !UnitArgsReadyOrSuspend(args))
 			return false;
 		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); });
 		auto& req = GetOrCreateRequest(root, resultHolder);
@@ -786,7 +803,7 @@ struct StorageReadAttrOperator : QuaternaryOperator
 		MG_CHECK(IsMetaThread());
 		auto root = resultHolder.GetNew();
 		MG_CHECK(root);
-		if (!UnitsReadyOrSuspend(AsDataItem(root)))
+		if (!UnitsReadyOrSuspend(AsDataItem(root)) || !UnitArgsReadyOrSuspend(args))
 			return false;
 		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); });
 		auto& req = GetOrCreateRequest(root, resultHolder);

@@ -1,6 +1,6 @@
 # Storage reads as key-expression operators (#587)
 
-*Status: S0 and S1 implemented and committed (2026-09-05, see the status notes under section 4); S2 next. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers.*
+*Status: S0 to S4 implemented and committed (2026-09-05, see the status notes under section 4); S5 (the unit suite, the Release build) in progress, see the S5 note. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers.*
 *Scope: `rtc/dll/src/tic` (key expressions, DataControllers, `PrepareDataUsage`, `OperationContext`), `rtc/dll/src/tic/stg` and `stg/dll/src` (storage managers), `clc` only for the PhaseContainer analogue and the `do` operator.*
 
 ---
@@ -1004,6 +1004,34 @@ Debug build (`scratch/issue587/perf`): see the figures recorded in the S4 commit
 set; a follow-up), the spec-only meta infos (not needed for identity; they would let a
 modeller-written `storage_read_*` call run without a configured item), and the measurement on a
 real geopackage.*
+
+---
+
+### S5. The suites
+
+*Status 2026-09-05: `batch\TestDebugUnit.bat` on the S4 tree failed four of its tests; three were
+defects of the read operators, one a norm. (1) `gdal.vect` took the column name from the data
+target, a cache item since S1; the configured attribute names it (`write_gdal_csv` `reRead_*`,
+`storage_gdal` `dbf/read/src`: attributes under a container holder over a domain defined elsewhere,
+the `storage_read_attr` path, which no battery case had exercised for `gdal.vect`). (2) Grid data over
+another domain than the storage's grid domain (`isWeg_grid/ReadData (m5grid)` in `operator.dms`)
+hit `MG_CHECK(m_RangeDataPtr)` in `ViewPortInfoEx`: the item-writer read had the grid domain as a
+supplier through `VisitSuppliers`, deleted in S3, and nothing read it first. The grid domain's key is
+now an extra argument of the read (`AbstrGridStorageManager::DescribeReadCall`, through the shared
+`StorageRead_AppendArg` that `strfiles` already used for its FileName), and the operators wait for
+the range of every unit argument (`UnitArgsReadyOrSuspend`). (3) A geopackage geometry demanded
+together with a field came back empty: the one-pass field read ignores the geometry column, the
+geopackage driver composes its statement from the ignore flags at `ResetReading`, and the dataset-
+level cursor of a random-layer-read dataset is not the layer's; the pass now enables every column
+again and resets both cursors before the geometry pass; behind it, the one-pass field read admitted only
+the `INSTANTIATE_NUM_ORG` targets, so a boolean column into a `bool` attribute was a type conflict
+(`bool`, `uint2`, `uint4` are admitted now, from integer and string fields, as `ReadAttrData` does).
+(4) The General detail page of a stored
+`str` parameter shows `ParseResult`/`CalcExpr` with `storage_read_value(...)` and, in debug mode, the
+ProgressState of the referred cache item; the GeoDMS-Test norm `DPGeneral_missing_file_error.txt`
+follows. New cases: `stor_read_container_attr`, `stor_tif_other_domain`, `stor_gpkg_1_write` /
+`stor_gpkg_2_read`. The polygon overlay failures of `operator.dms` belong to #1214 (another session).
+Not done in this session at the maintainer's request: `full.py`.*
 
 ---
 

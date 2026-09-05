@@ -500,6 +500,7 @@ struct StorageWriteHandle : StorageCloseHandle
 // #587 S4: the key of an item a read depends on, as an argument of do(item, expr); and the wrapping
 // and storage type element the GDAL managers use (GdalMetaInfo resolves the same items and properties)
 TIC_CALL LispRef   StorageRead_SupplierKey(const TreeItem* supplier);
+TIC_CALL LispRef   StorageRead_AppendArg(LispRef args, LispRef arg); // args with arg appended: an extra argument of a read (strfiles: its FileName; a grid: the storage's grid domain)
 TIC_CALL LispRef   GdalMetaInfo_WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr);
 TIC_CALL SharedStr GdalMetaInfo_DescribeStorageType(const TreeItem* storageHolder, SharedStr className);
 

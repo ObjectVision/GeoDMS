@@ -1,0 +1,19 @@
+// #587 S5: attributes of a gdal.vect storage held by a container, over a domain defined elsewhere
+// (the unit test's write_gdal_csv reRead_* containers): each is read on its own as storage_read_attr,
+// and the column it reads is named by the configured attribute, not by its cache item.
+container stor_read_container_attr
+{
+	unit<uint32> D : nrofrows = 5;
+
+	container src : StorageName = "%currDir%/read_table.csv", StorageType = "gdal.vect", StorageReadOnly = "True"
+	{
+		attribute<uint32> oppervlak (D);
+		attribute<string> name      (D);
+	}
+
+	container checks
+	{
+		parameter<uint32> s := sum(src/oppervlak),    IntegrityCheck = "s == 150";
+		parameter<string> n := asList(src/name, ','), IntegrityCheck = "n == 'one,two,three,four,five'";
+	}
+}

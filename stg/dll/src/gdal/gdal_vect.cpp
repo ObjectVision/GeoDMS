@@ -1953,6 +1953,8 @@ namespace {
 		{
 #define INSTANTIATE(T) case ValueClassID::VT_##T: return MakeNumericWriter<T>(ado, t, fieldIndex, kind);
 			INSTANTIATE_NUM_ORG
+			INSTANTIATE_UINTS_NEW // uint4, uint2: from integer and string fields, as ReadAttrData admits
+			INSTANTIATE_BOOL      // bool, the OGR boolean subtype
 #undef INSTANTIATE
 		default:
 			break;
@@ -2018,7 +2020,12 @@ void GdalVectSM::ReadDataItemsAtOnce(std::vector<ReadTarget>& targets)
 	MG_CHECK(trd);
 	GDALDataset* hDS = m_hDS;
 	bool interleaved = hDS->TestCapability(ODsCRandomLayerRead);
+	// A pass starts at the first feature. GetNextFeatureInterleaved advances the dataset-level cursor
+	// of a random-layer-read dataset (geopackage), which the layer's ResetReading leaves where it is;
+	// the geometry pass that follows this one under the same handle starts from that cursor.
 	layer->ResetReading();
+	if (interleaved)
+		hDS->ResetReading();
 	m_CurrFeatureIndex = 0;
 	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 	{
@@ -2048,7 +2055,16 @@ void GdalVectSM::ReadDataItemsAtOnce(std::vector<ReadTarget>& targets)
 		c.m_Lock->Commit();
 		c.m_Target->m_Done = true;
 	}
+	// The geometry pass that follows under the same handle reads the features again. A driver may
+	// compose its statement at ResetReading from the ignore flags of that moment (geopackage does),
+	// so every column is enabled again before the cursors are reset; the pass ignores what it does
+	// not need, as a read of its own does after opening the dataset.
+	featureDefn->SetGeometryIgnored(false);
+	for (SizeT i = 0, n = featureDefn->GetFieldCount(); i != n; ++i)
+		featureDefn->GetFieldDefn(i)->SetIgnored(false);
 	layer->ResetReading();
+	if (interleaved)
+		hDS->ResetReading();
 	m_CurrFeatureIndex = 0;
 }
 
@@ -2061,8 +2077,8 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 	// TODO G8: REMOVE following if, as it should have been set by the GdalVectlMetaInfo provider
 	if (m_CurrFieldIndex==SizeT(-1)) {
 		// TODO: Lock.
-		auto adi = br->CurrWD();
-		m_CurrFieldIndex = LayerFieldEnable(layer, adi->GetName().c_str(), adi); // only set once
+		auto adi = br->CurrRD(); // the configured attribute names the column; the data target is a cache item
+		m_CurrFieldIndex = LayerFieldEnable(layer, adi->GetName().c_str(), adi.get()); // only set once
 		if (m_CurrFieldIndex == SizeT(-1))
 			throwErrorF("GdalVectSM::ReadAttrData", "No column '{}' available in datasource", br->m_RelativeName);
 	}
