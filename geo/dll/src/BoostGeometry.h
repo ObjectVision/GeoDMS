@@ -696,7 +696,7 @@ inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDat
 
 	auto argName = argA->GetFullName();
 	reportF(SeverityTypeID::ST_Warning
-		, "{}: Depreciated: the geometry argument{}{} has ValueComposition '{}' but {} is meant for '{}' geometry.\n"
+		, "{}: Deprecated: the geometry argument{}{} has ValueComposition '{}' but {} is meant for '{}' geometry.\n"
 		  "Configure the argument with the matching composition "
 		  "(points2sequence for arc, points2polygon for poly and points2multi_point for multipoint). "
 		  "This will become an error in GeoDms 21."

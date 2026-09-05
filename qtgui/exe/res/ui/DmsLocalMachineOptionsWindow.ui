@@ -265,7 +265,7 @@
            </font>
           </property>
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;F: Free-store drainage&lt;/span&gt; (command line /SF, /CF; registry MemoryDrainage)&lt;/p&gt;&lt;p&gt;Hands freed memory blocks back to the operating system once RAM use passes the memory flushing treshold, instead of keeping them in the free store for re-use. Lowers the committed memory of a long calculation at the cost of some allocation work.&lt;/p&gt;&lt;p&gt;On by default.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;F: Free-store drainage&lt;/span&gt; (command line /SF, /CF; registry MemoryDrainage)&lt;/p&gt;&lt;p&gt;Hands freed memory blocks back to the operating system once RAM use passes the memory flushing threshold, instead of keeping them in the free store for re-use. Lowers the committed memory of a long calculation at the cost of some allocation work.&lt;/p&gt;&lt;p&gt;On by default.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="text">
            <string>F: Free-store drainage</string>
@@ -301,7 +301,7 @@
            </font>
           </property>
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Q: Resource-aware scheduling, enforce mode&lt;/span&gt; (command line /SQ; registry ResourceAwareScheduling = 2)&lt;/p&gt;&lt;p&gt;Defers an operation whose predicted footprint does not fit the remaining budget until memory comes free. The budget is the memory flushing treshold percentage of the allowed RAM.&lt;/p&gt;&lt;p&gt;Mutually exclusive with shadow mode.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Q: Resource-aware scheduling, enforce mode&lt;/span&gt; (command line /SQ; registry ResourceAwareScheduling = 2)&lt;/p&gt;&lt;p&gt;Defers an operation whose predicted footprint does not fit the remaining budget until memory comes free. The budget is the memory flushing threshold percentage of the allowed RAM.&lt;/p&gt;&lt;p&gt;Mutually exclusive with shadow mode.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="text">
            <string>Q: Resource-aware scheduling (enforce)</string>
@@ -702,7 +702,7 @@ For Notepad ++ the advised default parameters are:
         <number>0</number>
        </property>
        <property name="text">
-        <string>Treshold for memory flushing wait procedure</string>
+        <string>Threshold for memory flushing wait procedure</string>
        </property>
       </widget>
      </item>
@@ -722,7 +722,7 @@ For Notepad ++ the advised default parameters are:
 
 If your machine is using (almost) all it's memory, it becomes less responsive.
 &lt;BR&gt;&lt;BR&gt;
-With this treshold you can set a percentage of the total memory used at which the GeoDMS starts flushing the memory to stay responsive.
+With this threshold you can set a percentage of the total memory used at which the GeoDMS starts flushing the memory to stay responsive.
 &lt;BR&gt;&lt;BR&gt;
 In general if you increase the value, the GeoDMS calculates faster, but becomes less responsive for calculations with large datasets. 
 &lt;BR&gt;&lt;BR&gt;

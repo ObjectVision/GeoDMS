@@ -540,7 +540,7 @@ public:
 		catch (const DmsException& x)
 		{
 			constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), false);
-			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: {}"
+			reportF(SeverityTypeID::ST_Warning, "Deprecated usage of Union_data: {}"
 				, x.AsErrMsg()->Why().c_str()
 			);
 			hadToTryWithoutCategoricalCheck = true;

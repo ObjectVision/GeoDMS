@@ -1299,7 +1299,7 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 				{
 					if (Bool(*boolPtr))
 					{
-						MG_USERCHECK2(!valueReader.AtEnd(), "recollect_by_cond: number of trues in cond is greater than the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
+						MG_USERCHECK2(!valueReader.AtEnd(), "recollect_by_cond: number of trues in cond is greater than the number of values in the 2nd argument. Attributes on select_by_cond with this condition are expected to match the number of elements.");
 						*resPtr = *valueReader;
 						++valueReader;
 					}
@@ -1315,7 +1315,7 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 				{
 					if (Bool(*boolPtr))
 					{
-						MG_USERCHECK2(!valueReader.AtEnd(), "recollect_by_cond: number of trues in cond is greater than the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
+						MG_USERCHECK2(!valueReader.AtEnd(), "recollect_by_cond: number of trues in cond is greater than the number of values in the 2nd argument. Attributes on select_by_cond with this condition are expected to match the number of elements.");
 						*resPtr = *valueReader;
 						++valueReader;
 					}
@@ -1325,7 +1325,7 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 
 			}
 		}
-		MG_USERCHECK2(valueReader.AtEnd(), "recollect_by_cond: number of trues in cond is less than the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
+		MG_USERCHECK2(valueReader.AtEnd(), "recollect_by_cond: number of trues in cond is less than the number of values in the 2nd argument. Attributes on select_by_cond with this condition are expected to match the number of elements.");
 	}
 };
 

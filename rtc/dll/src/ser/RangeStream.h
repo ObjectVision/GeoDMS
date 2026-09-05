@@ -67,7 +67,7 @@ FormattedInpStream& operator >> (FormattedInpStream& is, Range<T>& r)
 	point_stream::ReadChar(is, ')');
 	if (legacyPointNotation)
 		reportF(SeverityTypeID::ST_Warning
-			, "Depreciated point notation {{row, col}} in a range; write it as \"[xy(x1; y1), xy(x2; y2))\", see wiki topic XY-order");
+			, "Deprecated point notation {{row, col}} in a range; write it as \"[xy(x1; y1), xy(x2; y2))\", see wiki topic XY-order");
 	return is;
 }
 

@@ -111,7 +111,7 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 					{
 						ViewPortInfoEx<Int64> arg2AllProj(res, argDU_range, u, e1_range, t);
 						if (!arg2AllProj.IsNonScaling())
-							res->throwItemErrorF("RasterMerge: Scale or projection of argument {} incompatible with the {}, which determined teh domain of the resulting attribute"
+							res->throwItemErrorF("RasterMerge: Scale or projection of argument {} incompatible with the {}, which determined the domain of the resulting attribute"
 								, a
 								, m_IsIndexed ? "Domain of the first attribute" : "First argument"
 							);

@@ -113,7 +113,7 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	DBG_TRACE(("keyExpr = {}", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	if (og->IsDepreciated())
-		reportF(SeverityTypeID::ST_Warning, "depreciated operator {} used: {}.", og->GetNameID(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Warning, "deprecated operator {} used: {}.", og->GetNameID(), og->GetObsoleteMsg());
 
 	if (og->IsObsolete())
 		throwErrorF("FuncDC", "obsolete operator {} used: {}.", og->GetNameID(), og->GetObsoleteMsg());

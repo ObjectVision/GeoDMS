@@ -89,7 +89,7 @@ void UnifyValueComposition(ValueComposition& vc, ValueComposition rhs, CharPtr o
 	auto legacyVC = vc;
 	Unify(legacyVC, rhs); // what a mixture has always resolved to: polygon wins
 	reportF(SeverityTypeID::ST_Warning
-	,	"{}: Depreciated: the value arguments have different ValueCompositions, {} and {}."
+	,	"{}: Deprecated: the value arguments have different ValueCompositions, {} and {}."
 		" No ValueComposition describes their combination; {} is used, as before."
 		" Make the arguments agree: points2sequence for arc, points2polygon for poly, points2multi_point for multipoint."
 		" This will become an error in GeoDms 21."

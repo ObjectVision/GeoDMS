@@ -44,7 +44,7 @@ namespace {
 				resultHolder = CreateCacheDataItem(Unit<Void>::GetStaticClass()->CreateDefault(), Unit<ERRORLEVEL>::GetStaticClass()->CreateDefault());
 			else
 			{
-				reportD(SeverityTypeID::ST_Warning, "Depreciated function called, use EXEC_EC instead that return an errorcode as parameter<UInt32>");
+				reportD(SeverityTypeID::ST_Warning, "Deprecated function called, use EXEC_EC instead that return an errorcode as parameter<UInt32>");
 				resultHolder = TreeItem::CreateCacheRoot();
 			}
 		}

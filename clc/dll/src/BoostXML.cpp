@@ -123,7 +123,7 @@ struct Attribute : Element
 		assert(parentID.second == entityCount - 1);
 
 		if (currCount >= entityCount)
-			m_Attr->throwItemErrorF("Too many occurences of attribute {} in entity {} #{}", GetNameStr(), m_Parent->GetNameStr(), UInt64(entityCount));
+			m_Attr->throwItemErrorF("Too many occurrences of attribute {} in entity {} #{}", GetNameStr(), m_Parent->GetNameStr(), UInt64(entityCount));
 		for (SizeT i= entityCount - currCount - 1; i;--i)
 			m_Data.push_back(Undefined() MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddUndefined"));
 		m_Data.push_back_seq(begin, end MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddValue"));

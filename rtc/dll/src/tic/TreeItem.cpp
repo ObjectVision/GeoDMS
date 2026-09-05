@@ -1158,7 +1158,7 @@ static void ReportResultCompositionDeprecation(const TreeItem* self, const Abstr
 	const auto& expr = self->GetExprMember();
 
 	auto msg = mySSPrintF(
-		"{}: Depreciated: the declared ValueComposition '{}' differs from the '{}' of the calculation result{}{}.\n"
+		"{}: Deprecated: the declared ValueComposition '{}' differs from the '{}' of the calculation result{}{}.\n"
 		"Make the configuration explicit about the intended composition "
 		"(use points2sequence for arc, points2polygon for poly and points2multi_point for multipoint). "
 		"This will become an error in GeoDms 21."
