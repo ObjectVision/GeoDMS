@@ -1405,7 +1405,7 @@ SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const
 
 	DataReadLock readHandle(GetActiveTextAttr()); if (!readHandle) return {};
 
-	assert(GetActiveTextAttr() && GetActiveTextAttr()->GetCurrUltimateItem()->m_ItemCount > 0);
+	assert(GetActiveTextAttr() && GetActiveTextAttr()->GetCurrUltimateItem()->m_ItemLockCount > 0);
 
 	return readHandle->AsString(recNo, lock, FormattingFlags::None);
 }
@@ -1927,7 +1927,7 @@ bool DataItemColumn::OnKeyDown(UInt32 virtKey)
 {
 	auto dv = GetDataView().lock(); if (!dv) return true;
 	auto at = GetActiveTextAttr();
-	if (!at || at->m_ItemCount < 0)
+	if (!at || at->m_ItemLockCount < 0)
 		return false;
 
 	if (dv->m_TextEditController.OnKeyDown(this, GetActiveRow(), virtKey))

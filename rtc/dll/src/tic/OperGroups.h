@@ -76,7 +76,7 @@ struct AbstrOperGroup
 	bool AllowExtraArgs       () const { return m_Policy & oper_policy::allow_extra_args; }
 	bool CanExplainValue      () const { return m_Policy & oper_policy::can_explain_value; }
 	bool HasDynamicArgPolicies() const { return m_Policy & oper_policy::dynamic_argument_policies; }
-	bool IsDepreciated        () const { return m_Policy & oper_policy::depreciated; }
+	bool IsDeprecated        () const { return m_Policy & oper_policy::deprecated; }
 	bool IsObsolete           () const { return m_Policy & oper_policy::obsolete; }
 	bool HasAnnotation        () const { return m_Policy & oper_policy::has_annotation; }
 	bool IsBetterNotInMetaScripting() const { return m_Policy & oper_policy::better_not_in_meta_scripting; }
@@ -216,7 +216,7 @@ struct Obsolete : OperGroupType {
 		: OperGroupType(std::forward<OtherArgs>(args)...)
 		, m_ObsMsg(obsMsg)
 	{
-		MG_CHECK(this->IsDepreciated() || this->IsObsolete());
+		MG_CHECK(this->IsDeprecated() || this->IsObsolete());
 	}
 	virtual CharPtr GetObsoleteMsg() const override
 	{

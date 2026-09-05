@@ -105,7 +105,7 @@ enum RegStatusFlags
 	RSF_TreeView_FollowOSLayout  = 0x100000,
 	RSF_EventLog_ShowMinorTrace  = 0x200000,
 	RSF_EventLog_HideMajorTrace  = 0x400000,
-	RSF_EventLog_HideDepreciated = 0x800000,
+	RSF_EventLog_HideDeprecated = 0x800000,
 	RSF_EventLog_HideWarning     = 0x1000000,
 	RSF_EventLog_HideError       = 0x2000000,
 	RSF_EventLog_HideStorageRead = 0x4000000,
@@ -133,7 +133,7 @@ RTC_CALL UInt32 GetCachedStatusMask();
 void SetRegStatusFlags(UInt32 newSF);
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal);
 RTC_CALL bool ShowThousandSeparator();
-bool EventLog_HideDepreciatedCaseMixupWarnings();
+bool EventLog_HideDeprecatedCaseMixupWarnings();
 RTC_CALL bool IsInDebugMode();
 
 //  -----------------------------------------------------------------------

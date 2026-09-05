@@ -59,11 +59,11 @@ public:
 	virtual void clear(alloc_t& seq) = 0; // make sequence empty
 	virtual void free(alloc_t& seq) = 0; // discard reserved space
 
-	void grow(alloc_t& seq, SizeT n, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) // grow sequence, reserve extra space if neccesary; maintain old sequence is maintained.
+	void grow(alloc_t& seq, SizeT n, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) // grow sequence, reserve extra space if necessary; maintain old sequence is maintained.
 	{
 		resizeSP(seq, seq.size() + n, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	} 
-	void reallocSP(alloc_t& seq, SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) // reallocate sequence, discard old sequence if neccesary
+	void reallocSP(alloc_t& seq, SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) // reallocate sequence, discard old sequence if necessary
 	{
 		if (newSize > seq.capacity())
 			free(seq);

@@ -160,7 +160,7 @@ void InsertThemeActivationMenu(MenuData& menuData, const Theme* theme, GraphicOb
 	UInt32 nrSubMenus = UInt32(theme->GetThemeAttr()!=0) + UInt32(theme->GetClassification()!=0) + UInt32(theme->GetPaletteAttr()!=0);
 
 	dms_assert(nrSubMenus); // invariant of theme
-	if (!nrSubMenus) // REMOVE if previous assert can be poven
+	if (!nrSubMenus) // REMOVE if previous assert can be proven
 		return;
 
 	SubMenu subMenu(menuData, SharedStr(theme->GetAspectName()));

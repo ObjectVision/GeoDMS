@@ -140,7 +140,7 @@ TreeItem
 
 Thread-safety:
 - Some fields are mutable to support lazy evaluation in const context.
-- m_ItemCount (atomic) and m_Producer (weak_ptr) are used for production/update tasks.
+- m_ItemLockCount (atomic) and m_Producer (weak_ptr) are used for production/update tasks.
 - Public methods marked noexcept should avoid throwing; many methods may suspend via Actor APIs.
 
 Lifetime:
@@ -155,8 +155,9 @@ struct TreeItem : Actor, std::enable_shared_from_this<TreeItem>
 	friend Object* CreateFunc<TreeItem>();
 
 	// BEGIN integrated members of impl::treeitem_production_task
-	// Counts in-flight or queued production/update (negiative) or usage(positive) tasks for this item.
-	mutable std::atomic<LONG> m_ItemCount = 0;
+	// The item lock count: < 0 while one production or update task holds the item for writing,
+	// > 0 the number of usage (read) tasks. AbstrDataItem::m_DataLockCount is the separate DATA counter.
+	mutable std::atomic<LONG> m_ItemLockCount = 0;
 	// Weak backref to the OperationContext that is producing this item.
 	mutable std::weak_ptr<OperationContext> m_Producer;
 	// END   integrated members of impl::treeitem_production_task
@@ -405,6 +406,8 @@ public:
 //	TIC_CALL LispRef GetOrgKeyExpr() const;
 	virtual LispRef GetKeyExprImpl() const;
 	auto GetOrgDC() const->std::pair<DataControllerRef, SharedTreeItem>;
+	// "Checked" = integrity-check-guarded (#1180/#1209): folds the IntegrityChecks of the item and its
+	// ancestors; calls UpdateDC and may BUILD mc_DC; meta thread only.
 	TIC_CALL LispRef GetCheckedKeyExpr() const;
 	TIC_CALL auto GetCheckedDC() const -> DataControllerRef;
 	TIC_CALL void UpdateDC() const;
@@ -424,7 +427,7 @@ public:
 		m_StatusFlags.Clear(sf); 
 		CHECK_FLAG_INVARIANTS;
 	}
-	void SetTSF(TreeItemStatusFlags sf, bool value) const 
+	void AssignTSF(TreeItemStatusFlags sf, bool value) const // set or clear; the one-argument SetTSF only sets
 	{ 
 		m_StatusFlags.Set(sf, value); 
 		CHECK_FLAG_INVARIANTS;

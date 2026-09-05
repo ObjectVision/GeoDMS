@@ -928,10 +928,10 @@ public:
 			resSub2->SetTSF(TSF_Categorical);
 			if constexpr (!Reversed) // ArcID is the legacy name of arc_rel; point_rel never had one
 			{
-				auto resNrOrg_depreciated = CreateDataItem(resultHolder.GetNew(), s_ArcID, resEntity, relEntity);
-				resNrOrg_depreciated->SetTSF(TSF_Categorical);
-				resNrOrg_depreciated->SetTSF(TSF_Depreciated);
-				resNrOrg_depreciated->SetReferredItem(resSub2);
+				auto resNrOrg_deprecated = CreateDataItem(resultHolder.GetNew(), s_ArcID, resEntity, relEntity);
+				resNrOrg_deprecated->SetTSF(TSF_Categorical);
+				resNrOrg_deprecated->SetTSF(TSF_Deprecated);
+				resNrOrg_deprecated->SetReferredItem(resSub2);
 			}
 		}
 		if (mustCalc)
@@ -1535,7 +1535,7 @@ public:
 
 			// Calculate tile offsets for global point indexing
 			for (tile_id t = 0; t < nrTiles; ++t)
-				tileOffsets[t + 1] = tileOffsets[t] + arg2A->GetAbstrDomainUnit()->GetTileCount(t);
+				tileOffsets[t + 1] = tileOffsets[t] + arg2A->GetAbstrDomainUnit()->GetTileSize(t);
 
 			parallel_tileloop(nrTiles, [&, isPossiblyMultiPolygon, this](tile_id t)
 			{
@@ -1644,7 +1644,7 @@ public:
 				std::vector<my_vec_t<CutInfoType>> perTileCutInfos(nrArcTiles);
 				std::vector<SizeT> tileOffsets(nrArcTiles + 1, 0);
 				for (tile_id t = 0; t < nrArcTiles; ++t)
-					tileOffsets[t + 1] = tileOffsets[t] + arg1A->GetAbstrDomainUnit()->GetTileCount(t);
+					tileOffsets[t + 1] = tileOffsets[t] + arg1A->GetAbstrDomainUnit()->GetTileSize(t);
 
 				parallel_tileloop(nrArcTiles, [&, isPossiblyMultiPolygon, this](tile_id t)
 				{

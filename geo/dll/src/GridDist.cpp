@@ -159,7 +159,7 @@ class GridDistOperator : public Operator
 			}
 			m_IndexData.push_back(index MG_DEBUG_ALLOCATOR_SRC("GridDistOperator.IndexData"));
 			m_EdgeData .push_back(src   MG_DEBUG_ALLOCATOR_SRC("GridDistOperator.EdgeData"));
-			++m_NumBorderCases;
+			++m_NrBorderCases;
 			return true;
 		}
 
@@ -169,7 +169,7 @@ class GridDistOperator : public Operator
 		typename sequence_traits<LinkType>::container_type m_EdgeData;
 
 		bool                 m_IsDone = false;
-		SizeT                m_NumBorderCases = 0;
+		SizeT                m_NrBorderCases = 0;
 	};
 
 	using intertile_map = std::vector<intertile_data>;
@@ -643,12 +643,12 @@ public:
 				}	// next t2
 			}	// next t1
 
-			SizeT numBorderCases = 0;
+			SizeT nrBorderCases = 0;
 			for (auto i=itMap.begin(), e=itMap.end(); i!=e; ++i)
-				numBorderCases += i->m_NumBorderCases;
+				nrBorderCases += i->m_NrBorderCases;
 
-			reportF(SeverityTypeID::ST_MajorTrace, "{}GridDist completed iteration {}; {} of the {} tiles need reprocessing for {} border cases ({} extra)", itemRef.c_str(), ++nrIterations, nrTilesRemaining, tn, numBorderCases, numBorderCases - nrPrevBorderCases);
-			nrPrevBorderCases = numBorderCases;
+			reportF(SeverityTypeID::ST_MajorTrace, "{}GridDist completed iteration {}; {} of the {} tiles need reprocessing for {} border cases ({} extra)", itemRef.c_str(), ++nrIterations, nrTilesRemaining, tn, nrBorderCases, nrBorderCases - nrPrevBorderCases);
+			nrPrevBorderCases = nrBorderCases;
 		}	// next iteration 
 		resLock.Commit();
 		tbLock.Commit();

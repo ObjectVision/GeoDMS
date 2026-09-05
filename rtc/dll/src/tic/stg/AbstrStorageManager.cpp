@@ -113,7 +113,7 @@ const TreeItem* GetExportMetaInfo(const TreeItem* curr)
 }
 
 // *****************************************************************************
-// Section:     AbstractStorageManager counted wrapper
+// Section:     AbstrStorageManager counted wrapper
 // *****************************************************************************
 
 AbstrStorageManager::AbstrStorageManager()
@@ -629,7 +629,7 @@ static StaticTokenID s_gdalWriteGridToken("gdalwrite.grid");
 
 AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, TokenID typeID, StorageReadOnlySetting readOnlySetting, bool throwOnFailure)
 {
-	CDebugContextHandle dc("AbstractStorageManager::Construct", storageName, false);
+	CDebugContextHandle dc("AbstrStorageManager::Construct", storageName, false);
 
 	if (!typeID)
 	{

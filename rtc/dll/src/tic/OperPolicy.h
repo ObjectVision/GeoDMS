@@ -37,7 +37,7 @@ enum class oper_policy
 	allow_as_function_result = 0x0800, // a generating meta-call may survive beta reduction only as the whole result of a function application.
 
 	can_explain_value      = 0x1000, // Calc can be called to epxlain value
-	depreciated            = 0x2000, // warn when used; mention preferred alternative
+	deprecated            = 0x2000, // warn when used; mention preferred alternative
 	obsolete               = 0x4000, // error when used; instruct preferred alternative
 	can_be_rewritten       = 0x8000, // operator-name appears as pattern-head in rewrite list, therefore: try rewriting, NYI, WIP.
 	has_annotation        = 0x10000, // operator has an annotation

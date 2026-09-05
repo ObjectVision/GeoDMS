@@ -112,7 +112,7 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	DBG_START("FuncDC", "ctor", false);
 	DBG_TRACE(("keyExpr = {}", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
-	if (og->IsDepreciated())
+	if (og->IsDeprecated())
 		reportF(SeverityTypeID::ST_Warning, "deprecated operator {} used: {}.", og->GetNameID(), og->GetObsoleteMsg());
 
 	if (og->IsObsolete())
@@ -163,7 +163,7 @@ std::shared_ptr<OperationContext> FuncDC::GetOperContext() const
 
 std::shared_ptr<OperationContext> FuncDC::resetOperContextImpl() const
 {
-	assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.IsHeldByAnyThread());
 	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 
 	assert(

@@ -58,7 +58,7 @@ class QComboBox;
 
 
 
-void SetDrawingSizeTresholdValue(Float32 drawing_size);
+void SetDrawingSizeThresholdValue(Float32 drawing_size);
 Float32 GetDrawingSizeInPixels();
 class DmsGuiOptionsWindow : public QDialog, Ui::DmsGuiOptionsWindow
 {
@@ -96,7 +96,7 @@ public:
     DmsLocalMachineOptionsWindow(QWidget* parent = nullptr);
 
 private slots:
-    void onFlushTresholdValueChange(int value);
+    void onFlushThresholdValueChange(int value);
     void restoreOptions();
     void ok();
     void cancel();
@@ -112,7 +112,7 @@ private:
     void setInitialLocalDataDirValue();
     void setInitialSourceDatDirValue();
     void setInitialEditorValue();
-    void setInitialMemoryFlushTresholdValue();
+    void setInitialMemoryFlushThresholdValue();
     // The F / q / Q boxes: registry DWORDs of their own rather than StatusFlags bits, so they need
     // their own read-back. Shared by the constructor and restoreOptions.
     void setSchedulingCheckboxes();

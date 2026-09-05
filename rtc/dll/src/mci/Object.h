@@ -168,6 +168,16 @@ public:
 	// most non-trivial calls can reach) is a self-deadlock: see sym/Token.h and issue #1227.
 	// Use ...Lock only where the string is consumed immediately and the call cannot tokenize, or
 	// where a CharPtr into the registry must outlive the expression (the DMS_* C interface).
+	//
+	// The name-accessor family, for the whole hierarchy:
+	//   GetNameID()      TokenID, pure and cheap; the canonical format argument ({} prints the name)
+	//   GetName()        the name as a materialised SharedStr (allocates)
+	//   GetNameLock()    TokenStr: a shared lock on the token registry for its lifetime (see above)
+	//   GetFullName()    the path from the root (TreeItem)
+	//   GetFullCfgName() the configuration path through the back-reference of a cache root (TreeItem)
+	//   GetSourceName()  diagnostic text: where the item was declared (TreeItem)
+	//   GetDisplayName() the GUI label (TreeItem)
+	// AbstrOperGroup::GetName() returns its stored SharedStr (a refcount bump, no allocation).
 	[[nodiscard]] RTC_CALL SharedStr GetName() const;
 	[[nodiscard]] RTC_CALL TokenStr  GetNameLock() const;
 	[[nodiscard]] RTC_CALL bool    IsKindOf(const Class* cls) const;

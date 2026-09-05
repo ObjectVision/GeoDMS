@@ -254,7 +254,7 @@ int DmsModel::columnCount(const QModelIndex& /*parent*/) const {
 	return 1;
 }
 
-bool DmsModel::updateChachedDisplayFlags() {
+bool DmsModel::updateCachedDisplayFlags() {
 	bool was_updated = false;
 	auto dms_reg_status_flags = GetRegStatusFlags();
 

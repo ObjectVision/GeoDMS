@@ -61,7 +61,7 @@ struct InterestPtr
 		src.m_Item = CPtr();
 	}
 
-	InterestPtr(const InterestPtr& src) noexcept
+	InterestPtr(const InterestPtr& src) noexcept // copying a non-null holder increments a count that is already >= 1: the non-throwing path
 		: m_Item(src.m_Item)
 	{
 		inc_interest();
@@ -190,7 +190,7 @@ struct InterestPtr
 		omni::swap(m_Item, rhsCopy.m_Item);        // this line shouldn't throw
 		return *this;                              // rhsCopy decrements the old m_Item
 	}
-	void release() noexcept { m_Item = CPtr(); } // remove responsibility for decrement
+	void dismiss() noexcept { m_Item = CPtr(); } // drop the responsibility to decrement; the interest stays incremented (not unique_ptr::release)
 
 	~InterestPtr() noexcept
 	{

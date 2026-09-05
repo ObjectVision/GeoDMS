@@ -436,7 +436,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 
 	m_eventlog_filter->m_minor_trace_filter->setChecked(GetRegStatusFlags() & RSF_EventLog_ShowMinorTrace);
 	m_eventlog_filter->m_major_trace_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideMajorTrace));
-	m_eventlog_filter->m_case_mixup_warning_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideDepreciated));
+	m_eventlog_filter->m_case_mixup_warning_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideDeprecated));
 	m_eventlog_filter->m_warning_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideWarning));
 	m_eventlog_filter->m_error_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideError));
 	m_eventlog_filter->m_read_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideStorageRead));
@@ -444,7 +444,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 
 	connect(m_eventlog_filter->m_minor_trace_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_ShowMinorTrace, checkedState); eventlog_model_ptr->refilter(); });
 	connect(m_eventlog_filter->m_major_trace_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideMajorTrace, !checkedState); eventlog_model_ptr->refilter(); });
-	connect(m_eventlog_filter->m_case_mixup_warning_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideDepreciated, !checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter->m_case_mixup_warning_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideDeprecated, !checkedState); eventlog_model_ptr->refilter(); });
 	connect(m_eventlog_filter->m_warning_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideWarning, !checkedState); eventlog_model_ptr->refilter(); });
 	connect(m_eventlog_filter->m_error_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideError, !checkedState); eventlog_model_ptr->refilter(); });
 	connect(m_eventlog_filter->m_read_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideStorageRead, !checkedState); eventlog_model_ptr->refilter(); });

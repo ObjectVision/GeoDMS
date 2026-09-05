@@ -56,7 +56,7 @@ public:
 	bool hasChildren(const QModelIndex& parent = QModelIndex()) const override;
 	auto flags(const QModelIndex& index) const -> Qt::ItemFlags override;
 	QVariant getTreeItemIcon(const QModelIndex& index) const;
-	bool updateChachedDisplayFlags();
+	bool updateCachedDisplayFlags();
 
 private:
 	QVariant getTreeItemTextColor(const QModelIndex& index) const;

@@ -125,8 +125,8 @@ public:
 	row_id GetCount() const override;
 	row_id GetDataCount() const override;
 	row_id GetPreparedCount(bool throwOnUndefined = true) const override;
-	tile_offset GetPreparedTileCount(tile_id t) const override;
-	tile_offset GetTileCount(tile_id t) const override;
+	tile_offset GetPreparedTileSize(tile_id t) const override;
+	tile_offset GetTileSize(tile_id t) const override;
 	void SetCount(SizeT) override;
 
 	row_id GetDimSize(DimType dimNr) const override;

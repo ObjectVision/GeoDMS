@@ -151,7 +151,7 @@ struct ArgMinMaxOper : UnaryOperator
 			parallel_tileloop(e1->GetNrTiles(),
 				[=, &resLock](tile_id t)
 				{
-					auto n = e1->GetTileCount(t);
+					auto n = e1->GetTileSize(t);
 					auto arg1 = AsDataItem(args[0]);
 
 					auto valueSoFarContainer = typename sequence_traits<ArgValue>::container_type();

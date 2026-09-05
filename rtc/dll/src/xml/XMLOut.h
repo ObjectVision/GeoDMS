@@ -212,8 +212,8 @@ struct XML_OutElement
 	void SetHasSubItems();
 	RTC_CALL ~XML_OutElement();
 
-	inline bool IncAttrCount()    { return m_AttrCount++; } 
-	inline bool AttrCount() const { return m_AttrCount;   } 
+	inline void IncAttrCount()      { ++m_AttrCount; }
+	inline bool HasAttrs()    const { return m_AttrCount != 0; } // any attribute written so far: decides the delimiter 
 	inline bool IsPaired()  const { return m_ClosePolicy != ClosePolicy::nonPairedElement;    }
 	inline OutStreamBase& OutStream() { return m_XmlStream; }
 	inline const OutStreamBase& OutStream() const { return m_XmlStream; }

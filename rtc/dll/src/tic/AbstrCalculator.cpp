@@ -976,7 +976,7 @@ void registerSupplier(SubstitutionBuffer& substBuff, const TreeItem* supplier)
 	if (!substBuff.m_CollectSuppliers)
 		return;
 
-	// register an sequential ordinal for each first occurence of a supplier
+	// register an sequential ordinal for each first occurrence of a supplier
 	auto& countref = substBuff.m_SupplierSet[supplier];
 	if (!countref)
 		countref = substBuff.m_SupplierSet.size();

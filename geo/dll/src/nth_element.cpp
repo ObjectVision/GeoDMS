@@ -397,7 +397,7 @@ struct NthElementPart: AbstrPthElementPart<I>
 		// Total raw slots (not all defined)
 		SizeT N = 0;
 		for (tile_id t=0, te=valuesDomain->GetNrTiles(); t!=te; ++t)
-			N += valuesDomain->GetTileCount(t);
+			N += valuesDomain->GetTileSize(t);
 
 		SizeT nrP = argPA->GetAbstrValuesUnit()->GetCount();
 		auto arg2Data = arg2->GetDataRead();
@@ -613,7 +613,7 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 		const AbstrUnit* valuesDomain = argVA->GetAbstrDomainUnit();
 		SizeT N = 0;
 		for (tile_id t=0, te=valuesDomain->GetNrTiles(); t!=te; ++t)
-			N += valuesDomain->GetTileCount(t);
+			N += valuesDomain->GetTileSize(t);
 
 		SizeT nrP = argPA->GetAbstrValuesUnit()->GetCount();
 		auto arg2Data = arg2->GetDataRead(); // non-tiled cumulative target(s)
@@ -770,7 +770,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		const AbstrUnit* valuesDomain = argVA->GetAbstrDomainUnit();
 		SizeT N = 0;
 		for (tile_id t=0, te=valuesDomain->GetNrTiles(); t!=te; ++t)
-			N += valuesDomain->GetTileCount(t);
+			N += valuesDomain->GetTileSize(t);
 
 		SizeT nrP = argPA->GetAbstrValuesUnit()->GetCount();
 		auto arg2Data = arg2->GetDataRead();

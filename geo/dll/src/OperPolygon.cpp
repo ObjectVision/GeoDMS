@@ -727,7 +727,7 @@ public:
 			else
 			{
 				thisTileHasPoly = true;
-				nrPointsPerSeq[0] += arg1A->GetAbstrDomainUnit()->GetTileCount(ta);
+				nrPointsPerSeq[0] += arg1A->GetAbstrDomainUnit()->GetTileSize(ta);
 			}
 
 			hasPoly[ta] = thisTileHasPoly; // flag each input-tile on incidence with the current sequence range.

@@ -1405,7 +1405,7 @@ bool GridLayer::Draw(GraphDrawer& d) const
 
 				OptionalIndexCollectorAray indexCollector(GetIndexCollector(), t);
 
-				for (tile_offset minFE = 0, maxFE = geoCrdUnit->GetTileCount(t); minFE!=maxFE; ++minFE)
+				for (tile_offset minFE = 0, maxFE = geoCrdUnit->GetTileSize(t); minFE!=maxFE; ++minFE)
 					if (indexCollector.GetEntityIndex(minFE) == fe)
 					{
 						CrdRect focusWorldRect = GetWorldExtentsInTile(tileRect, proj, minFE);

@@ -45,7 +45,7 @@ struct CharPtrRange;
 #define reminder(MSG)       message( __FILE__ "(" $MakeString( $Stringize, __LINE__ ) ") : Reminder: " MSG )
 
 //----------------------------------------------------------------------
-// fix assertion problem by safe implementation of dms_assert if neccesary
+// fix assertion problem by safe implementation of dms_assert if necessary
 //----------------------------------------------------------------------
 
 void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line);

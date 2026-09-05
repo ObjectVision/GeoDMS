@@ -370,15 +370,15 @@ returnEOF:
 
 /********** FormattedOutStream Interface **********/
 
-int process_uint(char* charBuf, char* decPtr, UInt32 bufLen, int numCount)
+int process_uint(char* charBuf, char* decPtr, UInt32 bufLen, int nrDigits)
 {
 	auto decPos = decPtr - charBuf;
 	auto nrSeparators = (decPos - 1) / 3;
 	if (nrSeparators) {
-		dms_assert(numCount + nrSeparators <= bufLen);
+		dms_assert(nrDigits + nrSeparators <= bufLen);
 		auto ptrSrc = decPtr - 3;
 		auto ptrBeg = decPtr - 3 * nrSeparators; dms_assert(ptrBeg > charBuf);
-		auto ptrDst = std::copy_backward(ptrSrc, charBuf + numCount, charBuf + numCount + nrSeparators);
+		auto ptrDst = std::copy_backward(ptrSrc, charBuf + nrDigits, charBuf + nrDigits + nrSeparators);
 		dms_assert(ptrDst >= ptrBeg); *--ptrDst = ',';
 		while (ptrSrc != ptrBeg) {
 			dms_assert(ptrDst > ptrSrc); dms_assert(ptrSrc > ptrBeg); *--ptrDst = *--ptrSrc;

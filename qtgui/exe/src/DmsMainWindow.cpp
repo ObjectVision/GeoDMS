@@ -257,7 +257,7 @@ MainWindow::MainWindow() {
     setupDmsCallbacks();
 
     m_dms_model = std::make_unique<DmsModel>();
-    m_dms_model->updateChachedDisplayFlags();
+    m_dms_model->updateCachedDisplayFlags();
 
     m_treeview->setModel(m_dms_model.get());
 
@@ -310,7 +310,7 @@ MainWindow::MainWindow() {
 
     // set drawing size in pixels for polygons and arcs
     Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
-    SetDrawingSizeTresholdValue(drawing_size_in_pixels);
+    SetDrawingSizeThresholdValue(drawing_size_in_pixels);
 
     setStyleSheet(dms_params::stylesheet_main_window);
     setFont(QApplication::font());
@@ -1649,7 +1649,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
             // function then builds the tree with the flag this configuration asked for already in
             // place, instead of building it twice.
             ApplyConfiguredShowHiddenItems(m_root.get(), s_CmdLineStatusFlagMask);
-            m_dms_model->updateChachedDisplayFlags();
+            m_dms_model->updateCachedDisplayFlags();
 
             m_treeview->setItemDelegate(new TreeItemDelegate(m_treeview));
             m_treeview->setModel(m_dms_model.get());

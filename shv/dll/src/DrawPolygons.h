@@ -35,7 +35,7 @@
 // exported: qtgui DmsOptions.cpp writes it; defined in FeatureLayer.cpp. Before the
 // SHV_CALL dllimport fix this was a decorated DEFINITION in this header, so qtgui
 // compiled its own private copy and the GUI option never reached the shv drawing code.
-extern SHV_CALL Float64 s_DrawingSizeTresholdInPixels;
+extern SHV_CALL Float64 s_DrawingSizeThresholdInPixels;
 
 using pointBuffer_t = std::vector<GPoint>;
 
@@ -212,7 +212,7 @@ bool DrawPolygonInterior(
 	}
 	const double horizonWEps = 0.01;
 
-	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
+	ScalarType minWorldWidth  = s_DrawingSizeThresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
 	auto* drawContext = d.GetDrawContext();
@@ -362,7 +362,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 	CrdType zoomLevel = d.GetWorldZoomLevel();
 	assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
-	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
+	ScalarType minWorldWidth  = s_DrawingSizeThresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
 	typename p_traits::RangeType clipRect = Convert<typename p_traits::RangeType>( layer->GetWorldClipRect(d) );

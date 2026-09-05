@@ -100,13 +100,13 @@ static bool coords_using_more_than_25_bits(const Rect& rect)
 	return coords_using_more_than_25_bits(boost::polygon::ll(rect)) || coords_using_more_than_25_bits(boost::polygon::ur(rect));
 }
 
-oper_policy GetGeosNonDPointDepreciationFlag()
+oper_policy GetGeosNonDPointDeprecationFlag()
 {
 	if (DMS_GetMajorVersionNumber() > 20)
 		throwDmsErrD("Remove the instantiation of non-DPoint versions of geos-code");
 	if (DMS_GetMajorVersionNumber() >= 20)
 		return oper_policy::obsolete;
-	return oper_policy::depreciated;
+	return oper_policy::deprecated;
 }
 
 // *****************************************************************************
@@ -284,7 +284,7 @@ public:
 	{
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<ScalarType> || sizeof(ScalarType) < 8))
 		{
-			GetGeosNonDPointDepreciationFlag(); // throw when version > 20
+			GetGeosNonDPointDeprecationFlag(); // throw when version > 20
 		}
 	}
 
@@ -324,7 +324,7 @@ public:
 	{
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8))
 		{
-			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
+			if (GetGeosNonDPointDeprecationFlag() == oper_policy::obsolete)
 				throwDmsErrF("PolygonOverlayOperator", "GEOS-based polygon operation {} are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation {} are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
@@ -893,7 +893,7 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
-					Calculate(r, resDomain->GetTileCount(t), argPoly, argPart, t, processTimer, itemRefPtr);
+					Calculate(r, resDomain->GetTileSize(t), argPoly, argPart, t, processTimer, itemRefPtr);
 					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, processTimer, itemRefPtr);
 				});
 				resGeometryHandle.Commit();
@@ -1512,7 +1512,7 @@ public:
 	{
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof( scalar_of_t<P> ) < 8)
 		{
-			GetGeosNonDPointDepreciationFlag(); // throw when version > 20
+			GetGeosNonDPointDeprecationFlag(); // throw when version > 20
 		}
 	}
 
@@ -1520,7 +1520,7 @@ public:
 	{
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
-			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
+			if (GetGeosNonDPointDeprecationFlag() == oper_policy::obsolete)
 				throwErrorF("GEOS_PolygonOperator", "GEOS-based polygon operation {} is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation {} is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
@@ -1972,7 +1972,7 @@ namespace
 		{
 			SetBetterNotInMetaScripting();
 			if (!m_ObsMsg.empty())
-				m_Policy |= oper_policy::depreciated;
+				m_Policy |= oper_policy::deprecated;
 		}
 
 		CharPtr GetObsoleteMsg() const override { return m_ObsMsg.c_str(); }
@@ -2110,8 +2110,8 @@ namespace
 		SharedStr m_ObsMsg; // declared first: simple and split are initialised from it
 		BpPolyOperatorGroups simple, split;
 
-		BpPolyOperatorGroupss(CharPtr suffix, PolygonFlags flags, bool isDepreciatedKernelSuffix = false)
-			: m_ObsMsg(isDepreciatedKernelSuffix ? BpKernelSuffixObsMsg(suffix) : SharedStr())
+		BpPolyOperatorGroupss(CharPtr suffix, PolygonFlags flags, bool isDeprecatedKernelSuffix = false)
+			: m_ObsMsg(isDeprecatedKernelSuffix ? BpKernelSuffixObsMsg(suffix) : SharedStr())
 			, simple( BpPolyOperatorGroups(SharedStr("bp_{}polygon")+ suffix, flags, m_ObsMsg) )
 			, split( BpPolyOperatorGroups(SharedStr("bp_split_{}polygon") + suffix, flags | PolygonFlags::F_DoSplit, m_ObsMsg) )
 		{}

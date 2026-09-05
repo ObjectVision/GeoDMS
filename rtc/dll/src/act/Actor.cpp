@@ -1007,7 +1007,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 
         assert(msg->Why().IsDefined() && !msg->Why().empty());
 
-        s_ActorFailReasonAssoc.assoc(this, msg);
+        s_ActorFailReasonAssoc.assocOrErase(this, msg);
         m_State.SetFailure(ft);
         try {
             msg->TellWhere(dynamic_cast<const SharedActor*>(this));
@@ -1228,7 +1228,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 
 // Helpers to decrement counts atomically under global lock,
 // distinguishing the last-decrement path.
-bool DecCount(std::atomic<interest_count_t>* interestCount)
+bool DecCountLeavesInterest(std::atomic<interest_count_t>* interestCount)
 {
 	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
     // only one thread gets the change to decrease to zero, but other thread might have increased it again.
@@ -1236,7 +1236,7 @@ bool DecCount(std::atomic<interest_count_t>* interestCount)
     return -- * interestCount;
 }
 
-bool DecCountIfAboveZero(std::atomic<interest_count_t>* interestCount)
+bool DecCountIfAboveOne(std::atomic<interest_count_t>* interestCount)
 {
 	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
     // only one thread gets the change to decrease to zero, but other thread might have increased it again.
@@ -1275,7 +1275,7 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
         return {};
     }
 
-    if (DecCountIfAboveZero(&m_InterestCount))
+    if (DecCountIfAboveOne(&m_InterestCount))
         return {};
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
@@ -1287,8 +1287,8 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
     try
     {
         actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
-        if (DecCount(&m_InterestCount))
-            return {}; // another thread did take interest after DecCountIfAboveZero
+        if (DecCountLeavesInterest(&m_InterestCount))
+            return {}; // another thread did take interest after DecCountIfAboveOne
 
         // change 1-> 0 is a local critical section
 
@@ -1302,7 +1302,7 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
     }
     catch (...)
     {
-        // noexcept: the per-actor lock map allocates its node on first use and DecCount takes a
+        // noexcept: the per-actor lock map allocates its node on first use and DecCountLeavesInterest takes a
         // mutex, either of which can throw in theory. Nothing was decremented in that case (the
         // calls after the decrement are noexcept themselves), so the interest merely stays.
         DBG_ReportBoundaryException("Actor::DecInterestCount");

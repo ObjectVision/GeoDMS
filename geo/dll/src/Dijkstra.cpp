@@ -1235,7 +1235,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 ,	SizeT* resCount
 ,	ResultInfo<ZoneType, ImpType, MassType>&& res
-,   tile_id numResultTiles
+,   tile_id nrResultTiles
 ,	CharPtr   actionMsg
 )
 {
@@ -2861,9 +2861,9 @@ namespace
 	oper_policy OldDijstraOperatorFlags()
 	{
 		// Dijkstra operator is renamed to impedance_table/matrix, but we want to keep the old name working for a while with a warning,
-		// so we mark it as depreciated in v19, obsolete in v20 and this code should be removed in v21.
+		// so we mark it as deprecated in v19, obsolete in v20 and this code should be removed in v21.
 		if (DMS_GetMajorVersionNumber() < 20)
-			return oper_policy::depreciated;
+			return oper_policy::deprecated;
 		if (DMS_GetMajorVersionNumber() == 20)
 			return oper_policy::obsolete;
 

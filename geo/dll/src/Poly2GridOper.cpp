@@ -584,7 +584,7 @@ namespace poly2grid
 				assert(sg);
 				sg->OpenTile(polyData, tp);
 
-				for (tile_offset i = 0, e = abstrPolyDomain->GetTileCount(tp); i != e; ++i)
+				for (tile_offset i = 0, e = abstrPolyDomain->GetTileSize(tp); i != e; ++i)
 				{
 					try
 					{
@@ -671,7 +671,7 @@ namespace poly2grid
 			assert(sg);
 			sg->OpenTile(polyData, tp);
 
-			tile_offset i=0, te = abstrPolyDomain->GetTileCount(tp);
+			tile_offset i=0, te = abstrPolyDomain->GetTileSize(tp);
 			auto result = RLE_polygon_tileset<scalar_of_t<RT>>(te);
 
 			try

@@ -76,7 +76,7 @@ using bit_block_t = UInt32 ;
 template <bit_size_t N> struct bit_value;
 template <bit_size_t N, typename Block> struct bit_reference;
 
-using Bool = bit_value<1>;
+using Bool = bit_value<1>; // the packed element type of boolean attributes: converts to and from bool, but is not bool; never a return or predicate type
 using UInt2 = bit_value<2>;
 using UInt4 = bit_value<4>;
 

@@ -849,9 +849,9 @@ SizeT AbstrUnit::GetDataCount() const  // Returns 0 if non-countable unit
 	return GetCount();
 }
 
-tile_offset AbstrUnit::GetPreparedTileCount(tile_id t) const  // Returns 0 if non-countable unit
+tile_offset AbstrUnit::GetPreparedTileSize(tile_id t) const  // Returns 0 if non-countable unit
 {
-	return GetTileCount(t);
+	return GetTileSize(t);
 }
 
 row_id AbstrUnit::GetBase() const  // Returns 0 if non-countable unit
@@ -995,7 +995,7 @@ tile_id AbstrUnit::GetNrTiles() const
 	return si->GetNrTiles();
 }
 
-tile_offset AbstrUnit::GetTileCount(tile_id t) const
+tile_offset AbstrUnit::GetTileSize(tile_id t) const
 {
 	assert(t != no_tile);
 
@@ -1024,7 +1024,7 @@ Range<row_id> AbstrUnit::GetTileIndexRange(tile_id t) const
 {
 	MG_CHECK(GetNrDimensions() == 1);
 	row_id firstIndex = GetTileFirstIndex(t);
-	return { firstIndex, firstIndex + GetTileCount(t) };
+	return { firstIndex, firstIndex + GetTileSize(t) };
 }
 
 void CheckNrTiles(SizeT nrTiles)

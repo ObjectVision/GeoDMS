@@ -235,7 +235,7 @@ bool UnionUnit_impl(TreeItemDualRef& resultHolder, AbstrUnit* result, const ArgS
 				throwErrorF(cog_unionUnit.GetNameID(), "argument {} is not a Unit", i+1);
 			for (tile_id t = 0, tn = adu->GetNrTiles(); t != tn; ++t)
 			{
-				auto tileCount = adu->GetTileCount(t);
+				auto tileCount = adu->GetTileSize(t);
 				row_id newCount = count + tileCount;
 				MG_CHECK2(newCount >= count,
 					"Error in union_unit operator: the cumulation of the cardinalities of the arguments exceeds Max(SizeT)");
@@ -654,7 +654,7 @@ public:
 		{
 			const AbstrUnit* adu = AsDataItem(args[i])->GetAbstrDomainUnit();
 			for (tile_id t = 0, tn= adu->GetNrTiles(); t!=tn; ++t)
-				count += adu->GetTileCount(t);
+				count += adu->GetTileSize(t);
 		}
 
 		resultDomain->ValidateCount(count);

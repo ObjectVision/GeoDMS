@@ -126,7 +126,7 @@ bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName)
 TIC_CALL void TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrParams, TokenID resultName)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
-	s_FunctionSpecAssoc.assoc(functionItem, FunctionSpecData{ nrParams, resultName, {} });
+	s_FunctionSpecAssoc.assocOrErase(functionItem, FunctionSpecData{ nrParams, resultName, {} });
 }
 
 TIC_CALL void TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs)
@@ -430,7 +430,7 @@ void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* 
 	assert(dstFunctionItem && dstFunctionItem->IsFunctionItem());
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(srcFunctionItem);
 	if (specPtr)
-		s_FunctionSpecAssoc.assoc(dstFunctionItem, *specPtr);
+		s_FunctionSpecAssoc.assocOrErase(dstFunctionItem, *specPtr);
 }
 
 void TreeItem_EraseFunctionSpec(const TreeItem* functionItem)

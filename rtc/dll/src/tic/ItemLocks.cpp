@@ -61,12 +61,12 @@ namespace treeitem_production_task
 #endif defined(MG_DEBUG)
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
-		while (self->m_ItemCount > 0)
+		while (self->m_ItemLockCount > 0)
 			WaitForTaskNotification(cv_lockrelease, lock.m_BaseLock);
 
-//		assert(!self->m_ItemCount); // TODO: Check that earlier lock_unique is from the same thread
-		--self->m_ItemCount;
-		DBG_TRACE(("count={}", self->m_ItemCount));
+//		assert(!self->m_ItemLockCount); // TODO: Check that earlier lock_unique is from the same thread
+		--self->m_ItemLockCount;
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
 		self->m_Producer = oc;
 	}
 
@@ -75,15 +75,15 @@ namespace treeitem_production_task
 		// a production wait (#1233 P2), as above
 		DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
-		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemLockCount, self->m_Producer.lock() ? "available" : "null"));
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
-		while (self->m_ItemCount != 0)
+		while (self->m_ItemLockCount != 0)
 			WaitForTaskNotification(cv_lockrelease, lock.m_BaseLock);
 
 		assert(self->m_Producer.expired()); // was cleaned up by producers task
-		--self->m_ItemCount;
-		DBG_TRACE(("count={}", self->m_ItemCount));
+		--self->m_ItemLockCount;
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
 	}
 
 	void lock_shared(const TreeItem* self)
@@ -91,9 +91,9 @@ namespace treeitem_production_task
 		// a production wait (#1233 P2): may Join the producer; the item counter (98) is taken inside
 		DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "lock_shared", MG_DEBUG_TPT_LOCKS(self));
-		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemLockCount, self->m_Producer.lock() ? "available" : "null"));
 
-		if (self->m_ItemCount < 0)
+		if (self->m_ItemLockCount < 0)
 		{
 			std::shared_ptr<OperationContext> producer;
 			{
@@ -110,7 +110,7 @@ namespace treeitem_production_task
 		}
 
 		// Wait for the write lock to be released. There is deliberately no instantaneous deadlock
-		// test here: a held write lock (m_ItemCount < 0) may be released by an OperationContext, by
+		// test here: a held write lock (m_ItemLockCount < 0) may be released by an OperationContext, by
 		// a main-thread-posted action, or by an ItemWriteLock destructor on another thread -- none of
 		// which are visible in a single (running-operations / lock-count) snapshot, so any such test
 		// only produces false positives (#1126). unlock_unique always notifies cv_lockrelease on
@@ -118,17 +118,17 @@ namespace treeitem_production_task
 		// SuspendTrigger / progress watchdog, not from a snapshot here.
 	retry:
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
-		if (self->m_ItemCount < 0)
+		if (self->m_ItemLockCount < 0)
 		{
 			WaitForTaskNotification(cv_lockrelease, lock.m_BaseLock);
-			if (self->m_ItemCount < 0)
+			if (self->m_ItemLockCount < 0)
 				goto retry;
 		}
 
 		assert(self->m_Producer.expired()); // was cleaned up by producers task
-		assert(self->m_ItemCount >= 0);
-		++self->m_ItemCount;
-		DBG_TRACE(("count={}", self->m_ItemCount));
+		assert(self->m_ItemLockCount >= 0);
+		++self->m_ItemLockCount;
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
 	}
 
 	bool try_lock_unique(const TreeItem* self)
@@ -138,14 +138,14 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemLockCount, self->m_Producer.lock() ? "available" : "null"));
 
-		if (self->m_ItemCount != 0)
+		if (self->m_ItemLockCount != 0)
 			return false;
 
-		--self->m_ItemCount;
-		assert(self->m_ItemCount == -1);
-		DBG_TRACE(("count={}", self->m_ItemCount));
+		--self->m_ItemLockCount;
+		assert(self->m_ItemLockCount == -1);
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
 		return true;
 	}
 	bool try_lock_shared(const TreeItem* self)
@@ -155,12 +155,12 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count={}", self->m_ItemCount));
-		if (self->m_ItemCount < 0)
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
+		if (self->m_ItemLockCount < 0)
 			return false;
 
-		++self->m_ItemCount;
-		DBG_TRACE(("count={}", self->m_ItemCount));
+		++self->m_ItemLockCount;
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
 		return true;
 	}
 
@@ -171,11 +171,11 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemLockCount, self->m_Producer.lock() ? "available" : "null"));
 
-		assert(self->m_ItemCount < 0);
-		auto newCount = ++self->m_ItemCount;
-		DBG_TRACE(("count={}", self->m_ItemCount));
+		assert(self->m_ItemLockCount < 0);
+		auto newCount = ++self->m_ItemLockCount;
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
 		if (newCount < 0)
 			return;
 
@@ -191,22 +191,22 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemLockCount, self->m_Producer.lock() ? "available" : "null"));
 
-		assert(self->m_ItemCount > 0);
+		assert(self->m_ItemLockCount > 0);
 		assert(self->m_Producer.expired());
-		if (!--self->m_ItemCount)
+		if (!--self->m_ItemLockCount)
 		{
 			cv_lockrelease.notify_all();
 			WakeUpMainThreadWaiter();
 		}
-		DBG_TRACE(("count={}", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemLockCount));
 	}
 /*  REMOVE
 	void unlock(const TreeItem* self) noexcept
 	{
-		assert(self->m_ItemCount != 0); // assume this thread did lock one way or the other
-		if (self->m_ItemCount > 0)
+		assert(self->m_ItemLockCount != 0); // assume this thread did lock one way or the other
+		if (self->m_ItemLockCount > 0)
 			unlock_shared(self);
 		else
 			unlock_unique(self);
@@ -225,9 +225,9 @@ namespace cs_lock {
 	// Approach A: a read on a cache item must not proceed while a cache ANCESTOR is being (re)produced (an
 	// ItemWriteLock on an ancestor rebuilds its whole subtree). Instead of read-LOCKING the ancestor chain (the
 	// old design, which relied on the now-reversed rule that subItems own their parents, and otherwise leaves an
-	// m_ItemCount on an unowned parent that then trips ~AbstrDataItem/ClearDataObject), we AWAIT any such write
+	// m_ItemLockCount on an unowned parent that then trips ~AbstrDataItem/ClearDataObject), we AWAIT any such write
 	// without locking: walk up via GetTreeParent (owning per step) and, for any write-locked ancestor (its
-	// m_ItemCount < 0), join its producer to drive it to completion, then re-scan. This is lifetime-safe: a
+	// m_ItemLockCount < 0), join its producer to drive it to completion, then re-scan. This is lifetime-safe: a
 	// write-locked ancestor is kept alive by its own ItemWriteLock, which owns the chain downward. New reads thus
 	// wait for ancestor production to finish; a read item's ancestors stay stable meanwhile via its interest.
 	void AwaitAncestorWrites(const TreeItem* key)
@@ -240,7 +240,7 @@ namespace cs_lock {
 	restart:
 		for (auto ancestor = key->GetTreeParent(); ancestor && ancestor->IsCacheItem(); ancestor = ancestor->GetTreeParent())
 		{
-			if (ancestor->m_ItemCount >= 0)
+			if (ancestor->m_ItemLockCount >= 0)
 				continue; // not being produced
 			std::shared_ptr<OperationContext> producer;
 			{
@@ -267,7 +267,7 @@ namespace cs_lock {
 		assert(key);
 		if (key->IsCacheItem())
 			for (auto ancestor = key->GetTreeParent(); ancestor && ancestor->IsCacheItem(); ancestor = ancestor->GetTreeParent())
-				if (ancestor->m_ItemCount < 0)
+				if (ancestor->m_ItemLockCount < 0)
 					return false;
 		return true;
 	}
@@ -378,7 +378,7 @@ namespace cs_lock {
 
 	Int32 GetItemLockCount(const TreeItem* key)
 	{
-		return key->m_ItemCount;
+		return key->m_ItemLockCount;
 	}
 } // namespace cs_lock
 
@@ -612,7 +612,7 @@ bool IsDataCurrReady(const TreeItem* item)
 	if (!IsDataCurrCompleted(item))
 		return false;
 
-	if (item->m_ItemCount < 0) // still being processed ?
+	if (item->m_ItemLockCount < 0) // still being processed ?
 		return false;
 
 	return true;
@@ -638,7 +638,7 @@ bool IsDataCurrStandby(const TreeItem* item)
 	else // just a container that may have been populated by template instantiation or for_each or other MetaCurryApplicator
 		return item->GetIsInstantiated();
 
-	if (item->m_ItemCount < 0) // still being processed ?
+	if (item->m_ItemLockCount < 0) // still being processed ?
 		return false;
 
 	return true;

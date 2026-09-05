@@ -247,7 +247,7 @@ auto AbstrDataItem::CreateAbstrValue  () const -> std::unique_ptr<AbstrValue>
 void AbstrDataItem::ClearDataObject(garbage_can& garbage) const
 {
 	MG_CHECK(GetDataObjLockCount() == 0);
-	MG_CHECK(m_ItemCount == 0);
+	MG_CHECK(m_ItemLockCount == 0);
 
 	// NOT unbooked here any more. This item is dropping its reference, but the object itself can
 	// live on -- read-only shared-owned by active operations, or by tile futures produced by
@@ -772,9 +772,9 @@ void AbstrDataItem::StartInterest() const
 
 	TreeItem::StartInterest();
 
-	// nothrow from here, release the InterestHolder without releaseing the interest
-	domainHolder.release();
-	valuesHolder.release();
+	// nothrow from here: dismiss the holders without releasing the interest
+	domainHolder.dismiss();
+	valuesHolder.dismiss();
 }
 
 garbage_can AbstrDataItem::StopInterest() const noexcept
@@ -970,7 +970,7 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 	if (PartOfInterestOrKeep())
 		return false;
 
-	if (m_ItemCount < 0)
+	if (m_ItemLockCount < 0)
 		return false;
 
 	assert(!GetDataObjLockCount());
@@ -1528,7 +1528,7 @@ void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept
 	catch (...) {}
 }
 
-SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements)
+SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElems)
 {
 	if (adi->HasVoidDomainGuarantee())
 		return 0;
@@ -1543,7 +1543,7 @@ SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements)
 		// consumes it. Without it, ASSUMED_SEQ_LENGTH over-stated t405's GTFS link geometries 8.25x,
 		// which was 37 G of the 38 G total over-charge in the run-4 calibration (§8.1.17).
 		if (auto bytesPerElement = adi->GetEstimatedBytesPerElement())
-			return CappedDataBytes(SaturatingMul(nrElements, bytesPerElement));
+			return CappedDataBytes(SaturatingMul(nrElems, bytesPerElement));
 	}
 
 	if (!bitSize)
@@ -1552,14 +1552,14 @@ SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements)
 		// width times an assumed length rather than falling back to the string guess.
 		if (isSequence)
 			if (auto scalarBits = FixedWidthInBits(valuesType->GetScalarClass()))
-				return CappedDataBytes(SaturatingMul(nrElements, ((scalarBits * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT)));
+				return CappedDataBytes(SaturatingMul(nrElems, ((scalarBits * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT)));
 		// chars plus a sequence index entry
-		return CappedDataBytes(SaturatingMul(nrElements, ASSUMED_STRING_BYTES + sizeof(SizeT)));
+		return CappedDataBytes(SaturatingMul(nrElems, ASSUMED_STRING_BYTES + sizeof(SizeT)));
 	}
 	if (isSequence)
-		return CappedDataBytes(SaturatingMul(nrElements, ((bitSize * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT)));
+		return CappedDataBytes(SaturatingMul(nrElems, ((bitSize * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT)));
 
-	auto bits = SaturatingMul(nrElements, bitSize); // sub-byte elements are bit-packed
+	auto bits = SaturatingMul(nrElems, bitSize); // sub-byte elements are bit-packed
 	return CappedDataBytes(bits == SIZET_MAX ? bits : (bits + 7) >> 3);
 }
 

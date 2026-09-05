@@ -1362,7 +1362,7 @@ namespace {
 	oper_policy ObsoleteOperatorsFlag()
 	{
 		if (DMS_GetMajorVersionNumber() < 20)
-			return oper_policy::depreciated;
+			return oper_policy::deprecated;
 		if (DMS_GetMajorVersionNumber() <= 20)
 			return oper_policy::obsolete;
 

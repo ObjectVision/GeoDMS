@@ -283,7 +283,7 @@ public:
 		std::vector<my_vec_t<MatchType>> perTileMatches(nrFeatTiles);
 		std::vector<SizeT> tileOffsets(nrFeatTiles + 1, 0);
 		for (tile_id t = 0; t != nrFeatTiles; ++t)
-			tileOffsets[t + 1] = tileOffsets[t] + featEntity->GetTileCount(t);
+			tileOffsets[t + 1] = tileOffsets[t] + featEntity->GetTileSize(t);
 
 		std::atomic<SizeT> nrProcessedFeatures = 0;
 

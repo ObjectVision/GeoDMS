@@ -22,6 +22,10 @@
 #include <algorithm>
 
 // ---------------------------------------------------------------------- garbage_can
+// Deferred destruction: objects are placement-constructed into per-type bins and destroyed at clear()
+// or at the can's end of life. On growth and on merge_from the objects are MOVED (move constructor,
+// then destructor of the source), so T must be move constructible and must not register its own
+// address anywhere: a moved object lives at a new address.
 
 class garbage_can {
     struct alignas(16) Block {

@@ -522,7 +522,7 @@ std::atomic<UInt32> g_OvrStatusMask  = 0; // mask for status flags as set from t
 // Order-safe accessor for the registry-access section. This section is reached
 // from DYNAMIC INITIALIZATION: a namespace-scope TokenID initializer (e.g.
 // token::UInt32 in tic/LispTreeType.cpp) creates a token, IndexedStrings then
-// calls EventLog_HideDepreciatedCaseMixupWarnings, which reads the registry
+// calls EventLog_HideDeprecatedCaseMixupWarnings, which reads the registry
 // status flags. A namespace-scope section would then be used before this TU's
 // own initializers have run -- on GCC that order is link-order dependent, and
 // the Linux Debug build aborted at startup on EnterLevel's level != 0 assert
@@ -675,9 +675,9 @@ RTC_CALL bool ShowThousandSeparator()
 	return GetRegStatusFlags() & RSF_ShowThousandSeparator;
 }
 
-bool EventLog_HideDepreciatedCaseMixupWarnings()
+bool EventLog_HideDeprecatedCaseMixupWarnings()
 {
-	return GetRegStatusFlags() & RSF_EventLog_HideDepreciated;
+	return GetRegStatusFlags() & RSF_EventLog_HideDeprecated;
 }
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
@@ -715,7 +715,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		// MemoryFlushThreshold; /SF restores the default. 'F' as in Free-store: 'D' is DetailsVisible.
 		case 'F': RTC_SetCachedDWord(RegDWordEnum::MemoryDrainage, newValue ? 1 : 0);
 		          SetFreeStackDrainageEnabled(newValue); break;
-		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
+		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDeprecated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}; for the available status flags see https://github.com/ObjectVision/GeoDMS/wiki/Command-line-options",  (newValue ? "Set" : "Clear"), param);
 			return true;
@@ -2458,7 +2458,7 @@ using IniData = std::map<std::string, std::map<std::string, std::string>>;
 
 // Function-local, NOT namespace-scope. std::map is dynamically initialised, and this cache is
 // read during static initialisation of other translation units -- every static GetTokenID_st()
-// goes through EventLog_HideDepreciatedCaseMixupWarnings() -> GetRegStatusFlags() -> IniGet(),
+// goes through EventLog_HideDeprecatedCaseMixupWarnings() -> GetRegStatusFlags() -> IniGet(),
 // and the allocator reaches it too. Static init order ACROSS translation units is unspecified,
 // so a namespace-scope std::map here was routinely used before its constructor had run: the
 // red-black tree walk dereferenced garbage and SIGSEGV'd. That killed every GeoDmsRun and
@@ -2717,7 +2717,7 @@ std::atomic<UInt32> g_OvrStatusMask  = 0;
 // Order-safe accessor for the registry-access section. This section is reached
 // from DYNAMIC INITIALIZATION: a namespace-scope TokenID initializer (e.g.
 // token::UInt32 in tic/LispTreeType.cpp) creates a token, IndexedStrings then
-// calls EventLog_HideDepreciatedCaseMixupWarnings, which reads the registry
+// calls EventLog_HideDeprecatedCaseMixupWarnings, which reads the registry
 // status flags. A namespace-scope section would then be used before this TU's
 // own initializers have run -- on GCC that order is link-order dependent, and
 // the Linux Debug build aborted at startup on EnterLevel's level != 0 assert
@@ -2817,7 +2817,7 @@ RTC_CALL bool IsMultiThreaded2()    { return GetRegStatusFlags() & RSF_MultiThre
 RTC_CALL bool IsMultiThreaded3()    { return GetRegStatusFlags() & RSF_MultiThreading3; }
 bool IsMultiThreaded1or2() { return GetRegStatusFlags() & (RSF_MultiThreading1 | RSF_MultiThreading2); }
 RTC_CALL bool ShowThousandSeparator() { return GetRegStatusFlags() & RSF_ShowThousandSeparator; }
-bool EventLog_HideDepreciatedCaseMixupWarnings() { return GetRegStatusFlags() & RSF_EventLog_HideDepreciated; }
+bool EventLog_HideDeprecatedCaseMixupWarnings() { return GetRegStatusFlags() & RSF_EventLog_HideDeprecated; }
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
@@ -2847,7 +2847,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		// MemoryFlushThreshold; /SF restores the default. 'F' as in Free-store: 'D' is DetailsVisible.
 		case 'F': RTC_SetCachedDWord(RegDWordEnum::MemoryDrainage, newValue ? 1 : 0);
 		          SetFreeStackDrainageEnabled(newValue); break;
-		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break;
+		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDeprecated, !newValue); break;
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}; for the available status flags see https://github.com/ObjectVision/GeoDMS/wiki/Command-line-options", (newValue ? "Set" : "Clear"), param);
 			return true;

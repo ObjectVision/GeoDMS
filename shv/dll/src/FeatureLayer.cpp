@@ -158,7 +158,7 @@ Int32 FeatureLayer::GetMaxLabelStrLen() const
 				{
 					auto labelTileLock = ReadableTileLock(abstrLabelArray.get(), t);
 					SizeT i = labelPalette->GetAbstrDomainUnit()->GetTileFirstIndex(t);
-					SizeT n = i + labelPalette->GetAbstrDomainUnit()->GetTileCount(t);
+					SizeT n = i + labelPalette->GetAbstrDomainUnit()->GetTileSize(t);
 					for (;i!=n;++i)
 						MakeMax(result, abstrLabelArray->AsString(i, lock, FormattingFlags::ThousandSeparator).ssize() );
 				}
@@ -2279,7 +2279,7 @@ void GraphicArcLayer::InvalidateFeature(SizeT featureIndex)
 }
 
 
-SHV_CALL Float64 s_DrawingSizeTresholdInPixels = 0.0; // declared extern in DrawPolygons.h; written by qtgui DmsOptions.cpp
+SHV_CALL Float64 s_DrawingSizeThresholdInPixels = 0.0; // declared extern in DrawPolygons.h; written by qtgui DmsOptions.cpp
 
 // TODO: SelectedColor and selectedOnly
 template <typename ScalarType>
@@ -2304,7 +2304,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 	CrdType zoomLevel = d.GetWorldZoomLevel();
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
-	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
+	ScalarType minWorldWidth  = s_DrawingSizeThresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
 	// Projective (tilted) view: horizon-clip arc polylines so an arc whose far vertices fall beyond the

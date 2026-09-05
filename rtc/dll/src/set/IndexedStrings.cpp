@@ -231,7 +231,7 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 						s_AlreadyReportedBitmap.resize(newSize);
 					}
 					s_AlreadyReportedBitmap[foundIndex] = true;
-					if (!EventLog_HideDepreciatedCaseMixupWarnings())
+					if (!EventLog_HideDeprecatedCaseMixupWarnings())
 					{
 						auto warningStr = mgFormat2string("Deprecated mix-up of cases, tokenized '{}' as token {} and then seen '{}'", foundValue, foundIndex, keyValue);
 						PostMainThreadOper([warningStr] {

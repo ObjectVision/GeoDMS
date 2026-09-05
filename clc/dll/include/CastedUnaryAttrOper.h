@@ -412,8 +412,8 @@ public:
 		auto arg1Data = arg1->GetTile(t);
 		auto resData = result->GetWritableTile(t);
 
-		MG_DEBUGCODE(dms_assert(arg1Data.size() == arg1A->GetAbstrDomainUnit()->GetTileCount(t)); )
-		MG_DEBUGCODE(dms_assert(resData.size() == arg1A->GetAbstrDomainUnit()->GetTileCount(t)); )
+		MG_DEBUGCODE(dms_assert(arg1Data.size() == arg1A->GetAbstrDomainUnit()->GetTileSize(t)); )
+		MG_DEBUGCODE(dms_assert(resData.size() == arg1A->GetAbstrDomainUnit()->GetTileSize(t)); )
 
 		auto oper = TUniOper();
 		std::transform(arg1Data.begin(), arg1Data.end(), resData.begin(), oper);

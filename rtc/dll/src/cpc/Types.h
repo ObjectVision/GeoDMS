@@ -201,7 +201,7 @@ namespace dms {
 // Memory model
 //----------------------------------------------------------------------
 
-using SizeT = UInt64;
+using SizeT = UInt64; // on every platform, unlike size_t: the streamed and persisted size type
 using DiffT = Int64;
 using TokenT = UInt32;
 

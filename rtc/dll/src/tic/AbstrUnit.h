@@ -173,12 +173,12 @@ public:
 
 // Support for countables
 	virtual row_id GetPreparedCount(bool throwOnUndefined = true) const;  // Returns 0 if non-countable unit
-	virtual tile_offset GetPreparedTileCount(tile_id t) const;  // Returns 0 if non-countable unit
+	virtual tile_offset GetPreparedTileSize(tile_id t) const;  // Returns 0 if non-countable unit
 	TIC_CALL void ValidateCount(row_id) const;
 
-	virtual row_id  GetCount() const;
+	virtual row_id  GetCount() const;      // rows
 	virtual row_id  GetDataCount() const;
-	virtual tile_offset GetTileCount(tile_id t) const;
+	virtual tile_offset GetTileSize(tile_id t) const; // rows IN tile t; GetNrTiles() is the number of tiles
 	virtual row_id GetBase () const;
 	TIC_CALL bool IsOrdinalAndZeroBased() const;
 	row_id GetEstimatedCount() const; // == EstimateCount().expected
@@ -216,7 +216,7 @@ public:
 	virtual void SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  rowEnd, Float64  colEnd);
 
 	virtual IRect GetRangeAsIRect() const;
-	virtual I64Rect GetTileSizeAsI64Rect(tile_id t) const; // asssume 1D; Unit<V> overrules this for all 2D domains
+	virtual I64Rect GetTileSizeAsI64Rect(tile_id t) const; // assume 1D; Unit<V> overrules this for all 2D domains
 	virtual IRect GetTileRangeAsIRect(tile_id t) const;
 	TIC_CALL void SetRangeAsDRect(const DRect& rect);
 

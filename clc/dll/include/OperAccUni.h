@@ -431,7 +431,7 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 		}
 		auto resultShadowTile = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		this->m_Acc1Func.AssignOutput(resultShadowTile, resBuffer);
-		resBuffer = res_buffer_type(); // clean-up before mutable shadow tile contents is copied to actual tiles, wich may require additional memory
+		resBuffer = res_buffer_type(); // clean-up before mutable shadow tile contents is copied to actual tiles, which may require additional memory
 	}
 };
 

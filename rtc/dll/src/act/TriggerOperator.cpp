@@ -60,7 +60,7 @@ void ProcessLastMsg()
 
 void ProgressNotifyMsg(CharPtr msg)
 {
-	assert(sc_NotifyTargetCount.isLocked());
+	assert(sc_NotifyTargetCount.IsHeldByAnyThread());
 	if (IsMetaThread() && !g_DispatchLockCount)
 	{
 		g_LastMsg = nullptr;

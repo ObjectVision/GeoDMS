@@ -1637,7 +1637,7 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 	}
 }
 
-bool GDALFieldCanBeInterpretedAsInteger(const gdalVectImpl::FeaturePtr &feat, SizeT currFieldIndex, GIntBig field_as_int)
+bool GDALFieldHasGenuineIntegerValue(const gdalVectImpl::FeaturePtr &feat, SizeT currFieldIndex, GIntBig field_as_int)
 {
 	if (!feat)
 		return false;
@@ -1651,7 +1651,7 @@ bool GDALFieldCanBeInterpretedAsInteger(const gdalVectImpl::FeaturePtr &feat, Si
 	return true;
 }
 
-bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& currFieldIndex, Float64 field_as_double)
+bool GDALFieldHasGenuineDoubleValue(const gdalVectImpl::FeaturePtr& feat, SizeT currFieldIndex, Float64 field_as_double)
 {
 	if (!feat)
 		return false;
@@ -1693,7 +1693,7 @@ void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 			}
 
 			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
-			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+			if (GDALFieldHasGenuineIntegerValue(feat, currFieldIndex, field_as_int))
 				dataElemRef = field_as_int;
 			else
 				Assign(dataElemRef, Undefined()); // throw error if value ie 1.23254
@@ -1711,7 +1711,7 @@ void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 			}
 
 			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
-			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+			if (GDALFieldHasGenuineIntegerValue(feat, currFieldIndex, field_as_int))
 				dataElemRef = field_as_int;
 			else
 				Assign( dataElemRef, Undefined() ); // throw error if value ie 1.23254
@@ -1739,7 +1739,7 @@ void ReadInt64AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 			}
 
 			auto field_as_int = feat->GetFieldAsInteger64(currFieldIndex);
-			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+			if (GDALFieldHasGenuineIntegerValue(feat, currFieldIndex, field_as_int))
 				dataElemRef = field_as_int;
 			else
 				Assign(dataElemRef, Undefined());
@@ -1756,7 +1756,7 @@ void ReadInt64AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 			}
 
 			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
-			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+			if (GDALFieldHasGenuineIntegerValue(feat, currFieldIndex, field_as_int))
 				dataElemRef = feat->GetFieldAsInteger64(currFieldIndex);
 			else
 				Assign(dataElemRef, Undefined());
@@ -1784,7 +1784,7 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 				continue;
 			}
 			auto field_as_double = feat->GetFieldAsDouble(currFieldIndex);
-			if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex, field_as_double))
+			if (GDALFieldHasGenuineDoubleValue(feat, currFieldIndex, field_as_double))
 				dataElemRef = field_as_double;
 			else
 				Assign(dataElemRef, Undefined());
@@ -1801,7 +1801,7 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 				continue;
 			}
 			auto field_as_double = feat->GetFieldAsDouble(currFieldIndex);
-			if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex, field_as_double))
+			if (GDALFieldHasGenuineDoubleValue(feat, currFieldIndex, field_as_double))
 				dataElemRef = field_as_double;
 			else
 				Assign(dataElemRef, Undefined());
@@ -2605,7 +2605,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 		GDAL_TransactionFrame transaction_frame(this->m_hDS);
 		auto tileReadLocks = ReadableTileHandles(dataReadLocks, t);
 
-		SizeT numExistingFeaturesInTile = adu->GetTileCount(t);
+		SizeT numExistingFeaturesInTile = adu->GetTileSize(t);
 		tileFeatureIndex = 0;
 
 		auto& fieldIDMapping = m_DataItemsStatusInfo.m_LayerAndFieldIDMapping[layer_id]; // log(#layers) loopup outside row-loop

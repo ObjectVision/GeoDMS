@@ -390,7 +390,7 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 			for (tile_id t=0, tn=themeDomain->GetNrTiles(); t!=tn; ++t)
 			{
 				SizeT tileFirstIndex= themeDomain->GetTileFirstIndex(t);
-				GetValueGetter(colorTheme)->GridFillDispatch(this, t, Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(t)), t+1==tn);
+				GetValueGetter(colorTheme)->GridFillDispatch(this, t, Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileSize(t)), t+1==tn);
 			}
 		}
 		else
@@ -404,7 +404,7 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 		if (m_EntityIndex)
 		{
 			SizeT tileFirstIndex = themeDomain->GetTileFirstIndex(0);
-			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(0));
+			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileSize(0));
 		}
 
 		if (m_ColorPalette->HasLargePalette())

@@ -417,7 +417,7 @@ namespace {
 using DataControllerMap = std::map<DataController::DataControllerKey, const DataController*>;
 
 static DataControllerMap s_DcMap;
-static std::mutex sd_DataControllerMapCriticalSeciton;
+static std::mutex sd_DataControllerMapCriticalSection;
 static std::condition_variable sd_DataControllerMapCriticalSectionWasRevisited;
 
 // *****************************************************************************
@@ -458,7 +458,7 @@ DataController::~DataController()
 
 	DestructionScope markThisKey(m_Key);
 
-	std::lock_guard dcLock(sd_DataControllerMapCriticalSeciton);
+	std::lock_guard dcLock(sd_DataControllerMapCriticalSection);
 
 	s_DcMap.erase(m_Key);
 
@@ -475,7 +475,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 
 	DataControllerMap::iterator dcPtrLoc;
 	{
-		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSeciton);
+		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSection);
 
 		while (true) {
 			dcPtrLoc = s_DcMap.lower_bound(keyExpr);
@@ -523,7 +523,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	auto dcRef = CreateDC(keyExpr);
 	assert(dcRef->GetLispRef() == keyExpr);
 
-	std::lock_guard scopedcLock(sd_DataControllerMapCriticalSeciton);
+	std::lock_guard scopedcLock(sd_DataControllerMapCriticalSection);
 	s_DcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef.get()));
 	return dcRef;
 }

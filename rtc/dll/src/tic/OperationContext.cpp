@@ -571,7 +571,7 @@ garbage_can OperationContext::disconnect_waiters()
 	DBG_START("OperationContextPtr", "disconnect_waiters", MG_DEBUGCONNECTIONS);
 	DBG_TRACE(("this = {}", AsText(this)))
 
-	assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.IsHeldByAnyThread());
 
 #if defined(MG_DEBUG)
 	assert( sd_ManagedContexts.find(this) != sd_ManagedContexts.end() || !m_FuncDC);
@@ -604,7 +604,7 @@ garbage_can OperationContext::disconnect_waiters()
 ///  collectOperations that must be set to GetOperGroup() outside the cs_ThreadMessing lock by the caller
 /// </summary>
 /// <returns>
-/// a pair of context_array that contains the collected operations and garbage that must be destructed before calling GetOperGroup, but after teh cs_ThreadMessing lock.
+/// a pair of context_array that contains the collected operations and garbage that must be destructed before calling GetOperGroup, but after the cs_ThreadMessing lock.
 /// </returns>
 //
 // Collect and activate OperationContexts in the current phase until RAM pressure
@@ -1972,7 +1972,7 @@ void OperationContext::releaseRunCount(task_status status)
 {
 	assert(!IsActiveOrRunning(status));
 
-	assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.IsHeldByAnyThread());
 
 	assert(m_Status <= task_status::running);
 	if (IsActiveOrRunning(m_Status))
@@ -2012,7 +2012,7 @@ void OperationContext::releaseRunCount(task_status status)
 // locks, and FuncDC references. Schedules more contexts after release.
 garbage_can OperationContext::separateResources(task_status status)
 {
-	assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.IsHeldByAnyThread());
 
 	assert(status >= task_status::cancelled); // new status must be a final status
 	if (m_Status >= task_status::cancelled) // don't change an already established final status
@@ -2258,7 +2258,7 @@ auto OperationContext::SetReadLocks(const FutureSuppliers& allInterests) -> std:
 // Connect to all argument suppliers by establishing waiter/supplier links.
 bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 {
-	assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.IsHeldByAnyThread());
 
 	DBG_START("OperationContext", "connectArgs", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: {}", m_FuncDC ? m_FuncDC->md_sKeyExpr : SharedStr()));
@@ -2995,7 +2995,7 @@ task_status OperationContext::Join()
 exit:
 	auto status = GetStatus();
 	assert(status > task_status::running);
-	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem().get()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount() || !m_FuncDC);
+	dbg_assert((m_Result->m_ItemLockCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem().get()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount() || !m_FuncDC);
 	return status;
 }
 

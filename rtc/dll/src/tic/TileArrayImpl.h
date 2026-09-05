@@ -336,8 +336,8 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 SizeT NrAllocTableMemPages(const AbstrTileRangeData* trd)
 {
 	auto nrTiles = trd->GetNrTiles();
-	auto tileFileChuncSize = safe_size_n<nrbits_of_v<FileChunkSpec>>(nrTiles);
-	return NrMemPages(tileFileChuncSize);
+	auto tileFileChunkSize = safe_size_n<nrbits_of_v<FileChunkSpec>>(nrTiles);
+	return NrMemPages(tileFileChunkSize);
 }
 
 // the .dat file size (not the sequence file) has mappable tile data, 

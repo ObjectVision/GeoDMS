@@ -122,6 +122,8 @@ public:
 //	bool IsCurrTiled() const { return GetAbstrDomainUnit()->IsTiled(); } 
 
 	void OnDomainUnitRangeChange(const DomainChangeInfo* info);
+	// Three lock counts: Obj = this item's own m_DataLockCount (-1 one writer, > 0 readers); Ref = the
+	// same counter of the ultimate (referred) item; GetItemLockCount (ItemLocks.h) = TreeItem::m_ItemLockCount.
 	Int32 GetDataObjLockCount() const { return m_DataLockCount; }
 	TIC_CALL Int32 GetDataRefLockCount() const; // exported: stg storage managers reference it in Debug links (/OPT:REF strips the reference in Release)
 
@@ -229,11 +231,11 @@ extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
 UInt32 ElementWeight(const AbstrDataItem* adi);
 
-// Bytes a data block of nrElements elements of adi's value type occupies, sub-byte packing
+// Bytes a data block of nrElems elements of adi's value type occupies, sub-byte packing
 // included. For variable-width elements (strings, non-Single value compositions) the per-row
 // volume is a guess; a declared SizeUpperbound is what will replace that guess.
 // See doc/development/schedule-with-lookahead.md §4.
-TIC_CALL SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements);
+TIC_CALL SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElems);
 
 // If adi is variable-width (a sequence, a string) and its data object is complete AND resident,
 // measure bytes-per-row and publish it via SetEstimatedBytesPerElement, so EstimateDataBytes stops

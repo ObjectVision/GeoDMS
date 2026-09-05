@@ -26,7 +26,7 @@ When working with vector-based sequence arrays (as above),
 the memory management strategy is not efficient
 due to the many allocations/deallocations of the individual sequences.
 Especially the destruction of such vector based sequence arrays
-often takes unneccesary and annoying amount of time.
+often takes unnecessary and annoying amount of time.
 
 The memory allocation of sequences by sequence_array<T> 
 offers two advantages above using a vector of vectors:

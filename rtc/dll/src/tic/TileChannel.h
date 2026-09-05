@@ -107,17 +107,17 @@ struct abstr_tile_write_channel
 			GetNextTile();
 	}
 
-	void FillWithUInt32Values(SizeT numElems, UInt32 value)
+	void FillWithUInt32Values(SizeT nrElems, UInt32 value)
 	{
 		while (true)
 		{
-			SizeT numWritable = NrFreeInTile();
-			SizeT numWrite = Min<SizeT>(numWritable, numElems);
-			GetTileFunctor()->FillWithUInt32Values(m_Cursor, numWrite, value);
-			numElems -= numWrite;
-			if (!numElems)
+			SizeT nrWritable = NrFreeInTile();
+			SizeT nrToWrite = Min<SizeT>(nrWritable, nrElems);
+			GetTileFunctor()->FillWithUInt32Values(m_Cursor, nrToWrite, value);
+			nrElems -= nrToWrite;
+			if (!nrElems)
 			{
-				m_Cursor.second += numWrite;
+				m_Cursor.second += nrToWrite;
 				return;
 			}
 			GetNextTile();
@@ -244,18 +244,18 @@ struct tile_write_channel
 	template <std::random_access_iterator CIter>
 	void Write(CIter first, CIter last)
 	{
-		SizeT numElems = last - first; // std::distance(first, last)
+		SizeT nrElems = last - first; // std::distance(first, last)
 		while (true)
 		{
-			SizeT numWritable = NrFreeInTile();
-			SizeT numWrite = Min<SizeT>(numWritable, numElems);
+			SizeT nrWritable = NrFreeInTile();
+			SizeT nrToWrite = Min<SizeT>(nrWritable, nrElems);
 			CIter oldFirst = first;
-			first += numWrite; // std::advance(first, numWrite);
+			first += nrToWrite; // std::advance(first, nrToWrite);
 			fast_copy(oldFirst, first, Curr());
-			numElems -= numWrite;
-			if (!numElems)
+			nrElems -= nrToWrite;
+			if (!nrElems)
 			{
-				m_Cursor.second += numWrite;
+				m_Cursor.second += nrToWrite;
 				return;
 			}
 			GetNextTile();
@@ -289,9 +289,9 @@ struct tile_write_channel
 	}
 
 	template <typename CIter>
-	void Write(CIter first, SizeT numElems)
+	void Write(CIter first, SizeT nrElems)
 	{
-		Write(first, first + numElems);
+		Write(first, first + nrElems);
 	}
 
 	template<typename V>
@@ -318,34 +318,34 @@ struct tile_write_channel
 			m_Cursor.second += m;
 		}
 	}
-	void WriteZeroes( SizeT numElems)
+	void WriteZeroes( SizeT nrElems)
 	{
 		while (true)
 		{
-			SizeT numWritable = NrFreeInTile();
-			SizeT numWrite = Min<SizeT>(numWritable, numElems);
-			fast_zero(Curr(), Curr()+numWrite);
-			numElems -= numWrite;
-			if (!numElems)
+			SizeT nrWritable = NrFreeInTile();
+			SizeT nrToWrite = Min<SizeT>(nrWritable, nrElems);
+			fast_zero(Curr(), Curr()+nrToWrite);
+			nrElems -= nrToWrite;
+			if (!nrElems)
 			{
-				m_Cursor.second += numWrite;
+				m_Cursor.second += nrToWrite;
 				return;
 			}
 			GetNextTile();
 		}
 	}
 
-	void WriteConst(T value, SizeT numElems)
+	void WriteConst(T value, SizeT nrElems)
 	{
 		while (true)
 		{
-			SizeT numWritable = NrFreeInTile();
-			SizeT numWrite = Min<SizeT>(numWritable, numElems);
-			fast_fill(Curr(), Curr() + numWrite, value);
-			numElems -= numWrite;
-			if (!numElems)
+			SizeT nrWritable = NrFreeInTile();
+			SizeT nrToWrite = Min<SizeT>(nrWritable, nrElems);
+			fast_fill(Curr(), Curr() + nrToWrite, value);
+			nrElems -= nrToWrite;
+			if (!nrElems)
 			{
-				m_Cursor.second += numWrite;
+				m_Cursor.second += nrToWrite;
 				return;
 			}
 			GetNextTile();

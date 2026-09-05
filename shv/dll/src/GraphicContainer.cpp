@@ -244,7 +244,7 @@ void GraphicContainer<ElemType>::SaveOrder()
 			oi = orderBuffer.begin(),
 			oe = orderBuffer.end();
 
-		// reorder based on order of occurence of Context in m_Array
+		// reorder based on order of occurrence of Context in m_Array
 		for (auto ai = m_Array.begin(), ae = m_Array.end(); ai != ae; ++ai, ++oi)
 		{
 			const TreeItem* subItemContext = (*ai)->GetContext();

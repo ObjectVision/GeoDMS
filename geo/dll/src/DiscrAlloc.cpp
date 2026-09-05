@@ -122,7 +122,7 @@ results in:
 	and (S_ij(epsilon) - S_ik(epsilon)) - (S_hj(epsilon) - S_hk(epsilon))
 	== epsilon * [(ij - ik) - (hj - hk)]
 	== epsilon * [(i-h)(j-k)],
-	which fullfills requirement (R1).
+	which fulfils requirement (R1).
 
 	The sufficiency of (R1) and thus the fact that degeneracies such as S_ij == S_hk for i<>h AND j<>k doesn't matter
 	follows from close analysis of the used operators:
@@ -4370,7 +4370,7 @@ namespace
 	oper_policy ClaimOperatorsFlag()
 	{
 		if (DMS_GetMajorVersionNumber() < 20)
-			return oper_policy::depreciated;
+			return oper_policy::deprecated;
 		if (DMS_GetMajorVersionNumber() <= 20)
 			return oper_policy::obsolete;
 

@@ -986,15 +986,15 @@ protected:
 	{
 		auto result = TernaryOperator::EstimatePerformance(resultHolder, args);
 
-		auto nrElements = result.resultingNrElements;
-		if (!nrElements || !result.inputSize)
+		auto nrElems = result.resultingNrElements;
+		if (!nrElems || !result.inputSize)
 			return result;
 
 		// A Minkowski sum multiplies vertices at every corner, like a rounded buffer does, and the
 		// cell union holds them all at once before it collapses.
 		static constexpr SizeT GEOM_INFLATION = 8;
 
-		auto avgElementBytes = result.inputSize / nrElements;
+		auto avgElementBytes = result.inputSize / nrElems;
 		auto inflight = Min<SizeT>(result.nrChores ? result.nrChores : 1, MaxConcurrentTreads());
 		result.workingMemorySizePerChore = avgElementBytes * GEOM_INFLATION;
 		result.workingMemorySize = result.workingMemorySizePerChore * inflight;
@@ -1472,15 +1472,15 @@ protected:
 
 		// The result domain IS the first argument's domain (UnifyDomain below), so the element count
 		// is the result's own; inputSize is dominated by arg1, args 2-3 being void or scalar.
-		auto nrElements = result.resultingNrElements;
-		if (!nrElements || !result.inputSize)
+		auto nrElems = result.resultingNrElements;
+		if (!nrElems || !result.inputSize)
 			return result;
 
 		// Covers the library's node-per-coordinate representation against the packed DMS point
 		// sequence, plus the vertex multiplication a rounded buffer applies at every corner.
 		static constexpr SizeT GEOM_INFLATION = 8;
 
-		auto avgElementBytes = result.inputSize / nrElements;
+		auto avgElementBytes = result.inputSize / nrElems;
 		auto inflight = Min<SizeT>(result.nrChores ? result.nrChores : 1, MaxConcurrentTreads());
 		result.workingMemorySizePerChore = avgElementBytes * GEOM_INFLATION;
 		result.workingMemorySize = result.workingMemorySizePerChore * inflight;

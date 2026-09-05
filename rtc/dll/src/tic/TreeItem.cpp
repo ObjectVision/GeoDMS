@@ -222,7 +222,7 @@ static void ReportDataItem(const AbstrDataItem* di)
 	auto ado = di->GetDataObj();
 	assert(ado);
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt={}; InterestCnt={}; KE={}; #DataLocks={}, Name={}",
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCount={}; InterestCount={}; KE={}; #DataLocks={}, Name={}",
 		di->weak_from_this().use_count(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
@@ -1388,7 +1388,7 @@ retry:
 			if (refItem && !newRefItemCounter) // situation had changed anyway
 				goto retry;
 			// point of certain return, prepare settlement upon destruction
-			newRefItemCounter.release();
+			newRefItemCounter.dismiss();
 			oldRefItemCounter = mc_RefItem.lock(); // owning snapshot of the old ref; decrement interest count upon destruction
 		}
 		else
@@ -1415,7 +1415,7 @@ retry:
 	if (GetLazyCalculatedState())
 		const_cast<TreeItem*>(newRefItem.get())->SetLazyCalculatedState(true); // NB: the state is not removed from the previous refItem (there may be other keepers)
 
-	const UInt32 inheritedFlags = TSF_Depreciated | TSF_Categorical;
+	const UInt32 inheritedFlags = TSF_Deprecated | TSF_Categorical;
 	m_StatusFlags.SetBits(inheritedFlags, newRefItem->m_StatusFlags.GetBits(inheritedFlags));
 }
 
@@ -1430,7 +1430,7 @@ void TreeItem::SetInHidden(bool value)
 { 
 	if (GetTSF(TSF_InHidden) != value)
 	{
-		SetTSF(TSF_InHidden, value);
+		AssignTSF(TSF_InHidden, value);
 		for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			subItem->SetInHidden(value || subItem->GetTSF(TSF_IsHidden));
 	}
@@ -1439,7 +1439,7 @@ void TreeItem::SetIsHidden(bool value)
 {
 	if (GetTSF(TSF_IsHidden) != value)
 	{
-		SetTSF(TSF_IsHidden, value);
+		AssignTSF(TSF_IsHidden, value);
 		SetInHidden(
 				value 
 			|| (GetTreeParent() && GetTreeParent()->GetTSF(TSF_InHidden)));
@@ -1485,7 +1485,7 @@ void TreeItem::SetKeepDataState(bool value)
 	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	if (GetTSF(TSF_KeepData) != value)
 	{
-		SetTSF(TSF_KeepData, value);
+		AssignTSF(TSF_KeepData, value);
 		for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			subItem->SetKeepDataState(value);
 		if (!value)
@@ -1508,7 +1508,7 @@ void TreeItem::SetLazyCalculatedState(bool value)
 {
 	if (GetTSF(TSF_LazyCalculated) != value)
 	{
-		SetTSF(TSF_LazyCalculated, value);
+		AssignTSF(TSF_LazyCalculated, value);
 		for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			subItem->SetLazyCalculatedState(value);
 	}
@@ -1521,7 +1521,7 @@ void TreeItem::SetStoreDataState(bool value)
 { 
 	if (GetStoreDataState() != value)
 	{
-		SetTSF(TSF_StoreData, value);
+		AssignTSF(TSF_StoreData, value);
 
 		for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			subItem->SetStoreDataState(value);
@@ -1532,7 +1532,7 @@ void TreeItem::SetFreeDataState(bool value)
 { 
 	if (GetFreeDataState() != value)
 	{
-		SetTSF(TSF_FreeData, value);
+		AssignTSF(TSF_FreeData, value);
 
 		for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			subItem->SetFreeDataState(value);
@@ -1972,7 +1972,7 @@ void TreeItem::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) c
 	if (copyContext.InFenceOperator())
 		return;
 
-	result->SetTSF(TSF_HasConfigData, HasConfigData() );
+	result->AssignTSF(TSF_HasConfigData, HasConfigData() );
 }
 
 SharedStr TreeItem::GetSignature() const
@@ -2628,9 +2628,9 @@ void TreeItem::StartInterest() const
 	undoActorInterest.release();
 
 	// nothrow from here, avoid rollbacks and release the InterestHolders without releasing the interest
-	parentHolder.release();
-	refItemHolder.release();
-	calcHolder.release();
+	parentHolder.dismiss();
+	refItemHolder.dismiss();
+	calcHolder.dismiss();
 	unlockSessionUsageCounter.release();
 #if defined(MG_DEBUG_DATASTORELOCK)
 	++sd_ItemInterestCounter;

@@ -203,7 +203,7 @@ struct cs_lock_map
 		return GetItemLockProp(key,
 			[](lock_value& lv)
 			{
-				return lv.m_Lock.isLocked();
+				return lv.m_Lock.IsHeldByAnyThread();
 			}
 			, false
 		);

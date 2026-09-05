@@ -211,7 +211,7 @@ DataReadLock& DataReadLock::operator =(DataReadLock&& rhs) noexcept
 	{
 		// Release what we currently hold BEFORE overwriting (a defaulted reset-move would leak the read-lock
 		// members). Release the count-bearing members first -- m_DRLA (m_DataLockCount) and m_RefPtrLock
-		// (m_ItemCount + s_SessionUsageCounter share) -- and only then drop the m_KeepItemAlive owner, so the
+		// (m_ItemLockCount + s_SessionUsageCounter share) -- and only then drop the m_KeepItemAlive owner, so the
 		// item is never freed while a count is still held (the counts-before-owner order of ~DataReadLock; see
 		// the member-ordering note in DataLocks.h). Each of these member assignments is itself release-first.
 		m_DRLA          = DataReadLockAtom();

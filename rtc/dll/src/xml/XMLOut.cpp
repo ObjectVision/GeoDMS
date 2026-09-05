@@ -407,8 +407,9 @@ void OutStream_XmlBase::CloseTag(CharPtr tagName, ClosePolicy cp)
 void OutStream_XmlBase::AttrDelim()
 {
 	dms_assert(m_CurrElem);
-	if (m_CurrElem->IncAttrCount() )
+	if (m_CurrElem->HasAttrs())
 		NewLine();
+	m_CurrElem->IncAttrCount();
 }
 
 void OutStream_XmlBase::CloseAttrList()
@@ -573,10 +574,11 @@ void OutStream_DMS::CloseTag(CharPtr tagName, ClosePolicy cp)
 void OutStream_DMS::AttrDelim()
 {
 	dms_assert(m_CurrElem);
-	if (!m_CurrElem->IncAttrCount())
+	if (!m_CurrElem->HasAttrs())
 		m_OutStream << "(";
 	else
 		m_OutStream << ",";
+	m_CurrElem->IncAttrCount();
 }
 
 void OutStream_DMS::CloseAttrList()
@@ -584,7 +586,7 @@ void OutStream_DMS::CloseAttrList()
 	if (!m_CurrElem) 
 		return; // already Closed or never opened.
 
-	if (m_CurrElem->AttrCount())
+	if (m_CurrElem->HasAttrs())
 		m_OutStream << ")";
 
 	m_CurrElem = nullptr;

@@ -20,7 +20,8 @@ struct static_quick_assoc : private static_ptr<std::map<K, V, Pred> >
 	typedef typename param_type<V>::type val_param_type;
 	typedef V&                           val_ref_type;
 
-	bool assoc(key_param_type key, val_param_type value)
+	// Associates value with key, or ERASES the key when value is the default value (and returns false).
+	bool assocOrErase(key_param_type key, val_param_type value)
 	{
 		if (IsDefaultValue(value))
 		{

@@ -51,7 +51,7 @@ namespace {
 	TreeItemStatusFlags PartNrTSF()
 	{
 		if (DMS_GetMajorVersionNumber() <= 20)
-			return TSF_Depreciated;
+			return TSF_Deprecated;
 
 		throwErrorD("GeoDMS", "This code should be removed in v21");
 	}
@@ -106,10 +106,10 @@ public:
 
 		if (!mustCalc)
 		{
-			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
-			resSub_depreciated->SetReferredItem(resSub);
-			resSub_depreciated->SetTSF(TSF_Categorical);
-			resSub_depreciated->SetTSF(PartNrTSF());
+			AbstrDataItem* resSub_deprecated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
+			resSub_deprecated->SetReferredItem(resSub);
+			resSub_deprecated->SetTSF(TSF_Categorical);
+			resSub_deprecated->SetTSF(PartNrTSF());
 		}
 		MG_CHECK(resSub);
 
@@ -399,10 +399,10 @@ public:
 
 		if (!mustCalc)
 		{
-			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
-			resSub_depreciated->SetReferredItem(resSub);
-			resSub_depreciated->SetTSF(TSF_Categorical);
-			resSub_depreciated->SetTSF(PartNrTSF());
+			AbstrDataItem* resSub_deprecated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
+			resSub_deprecated->SetReferredItem(resSub);
+			resSub_deprecated->SetTSF(TSF_Categorical);
+			resSub_deprecated->SetTSF(PartNrTSF());
 		}
 
 		MG_CHECK(resSub);

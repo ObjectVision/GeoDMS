@@ -665,7 +665,19 @@ T2. Effort S–M (~560 lines deleted, ~95 comment lines translated).
 
 ---
 
-## Phase 5 — Renames and contract comments (R1–R4, C4)
+$1
+**Status 2026-09-05:** implemented, built (Release x64) and committed as two commits: R1b (the user-visible
+text) on its own, then R1/R2/R3/R4/C4 together. R1: every listed identifier and the comment typos; the
+`.ui` widget names changed with the generated members. R2: `DecCountIfAboveOne`, `DecCountLeavesInterest`,
+`IncAttrCount()`/`HasAttrs()` (the delimiter logic is byte-identical: the predicate is asked before the
+increment, as the post-increment did), `IsHeldByAnyThread`, `assocOrErase`, `InterestPtr::dismiss`,
+`GetTileSize`/`GetPreparedTileSize` (27 + 6 sites), `AssignTSF` for the two-argument form, and the GDAL
+field predicates (`GDALFieldHasGenuine{Integer,Double}Value`, by value). R3: `m_ItemLockCount` (56 sites),
+`nrElems`/`nrWritable`/`nrToWrite`, `nrDigits`, `nrBorderCases`, `nrElements` -> `nrElems`, and the
+`RefCount=`/`InterestCount=` trace labels; `numT` in `BoostPolygon.cpp` is a tile id, not a count, and
+stays. R4: the family table sits at `Object::GetName`; `GetUlt` is documented, not renamed. C4: all
+twelve comments (the `garbage_can` one states the Phase 2 semantics: moved, not copied bytewise). T3, the
+serializer round trip, is not run here: the battery (T1) exercises the DMS writer on every case.
 
 Every count is a Grep over `*.{cpp,h,ipp,inc}` at HEAD. Conventions applied: engine functions
 PascalCase `Get/Set/Is/Has`, `m_`/`s_`/`g_` prefixes, qtgui keeps Qt camelCase, snake_case for the
@@ -770,7 +782,7 @@ as its own commit) → R3 (slotted around the g8 lock-handle rename) → C4 → 
 | 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries) | S–M | low; RTC-70 follow-up split L/med | build green; battery after Phase 5 |
 | 3 | Viewer and GUI | implemented 2026-09-05 (all groups; CLC-27 renamed, not removed) | S, two M | low; SHV-53 / CLC-27 med | build green; T4 GUI smoke pending |
 | 4 | Dead code and comments | implemented 2026-09-05 (~1200 lines deleted incl. the .xdb path; STG-N04 opened) | S–M | none | build green |
-| 5 | Renames and contracts | R1 ~120 sites, R1b 13, R2 ~75, R3 ~135, R4 doc, C4 12 comments | S–M | low (T3 for XMLOut) | R3 not concurrent with the g8 lock-handle rename |
+| 5 | Renames and contracts | implemented 2026-09-05 (R1b as its own commit; GetUlt not renamed) | S–M | low (T3 for XMLOut) | build green; battery run after this phase |
 
 ---
 

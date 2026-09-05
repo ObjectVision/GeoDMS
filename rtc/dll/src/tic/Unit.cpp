@@ -1304,21 +1304,21 @@ SizeT Unit<V>::GetDataCount() const
 
 
 template <typename V>
-tile_offset Unit<V>::GetPreparedTileCount(tile_id t) const
+tile_offset Unit<V>::GetPreparedTileSize(tile_id t) const
 {
 	if constexpr (countable_unit_v<V>)
 		return CheckedCardinality(this, this->GetSegmInfo()->GetTileRange(t), false);
 	else
-		return AbstrUnit::GetPreparedTileCount(t);
+		return AbstrUnit::GetPreparedTileSize(t);
 }
 
 template <typename V>
-tile_offset Unit<V>::GetTileCount(tile_id t) const
+tile_offset Unit<V>::GetTileSize(tile_id t) const
 {
 	if constexpr (countable_unit_v<V>)
 		return CheckedCardinality(this, this->GetCurrSegmInfo()->GetTileRange(t), false);
 	else
-		return AbstrUnit::GetTileCount(t);
+		return AbstrUnit::GetTileSize(t);
 }
 
 

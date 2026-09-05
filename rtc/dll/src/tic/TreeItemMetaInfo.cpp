@@ -105,10 +105,10 @@ void TreeItem::UpdateMetaInfoImpl() const
 		{
 			auto foundItem = dynamic_cast<const TreeItem*>(supplier);
 			assert(foundItem);
-			if (foundItem->GetTSF(TSF_Depreciated))
+			if (foundItem->GetTSF(TSF_Deprecated))
 			{
 				SharedTreeItem prevItem = make_shared_tree(foundItem, existing_obj{}), refItem(prevItem->GetCurrRefItem());
-				MG_CHECK(refItem); // follows from TSF_Depreciated
+				MG_CHECK(refItem); // follows from TSF_Deprecated
 				SharedTreeItem refRefItem(refItem->GetCurrRefItem());
 				while (refRefItem) {
 					prevItem = refItem;

@@ -47,7 +47,7 @@ private:
 public:
 
 	// Approach A (matches the reversed parent<-child ownership): a read lock locks ONLY the item to be read
-	// (so it never bumps m_ItemCount on an ancestor that this lock does not own). To still honor "do not read a
+	// (so it never bumps m_ItemLockCount on an ancestor that this lock does not own). To still honor "do not read a
 	// descendant of an item being (re)produced", cs_lock::ReadLock AWAITS any in-progress write lock on a cache
 	// ancestor (joining its producer) without locking it -- a write-locked ancestor is kept alive by its own
 	// ItemWriteLock and owns the chain downward, so the await-walk is lifetime-safe.
@@ -63,7 +63,7 @@ struct ItemWriteLock // held by creator to manage its unreadyness to prevent oth
 
 	ItemWriteLock(ItemWriteLock&& rhs) = default;
 	// NOT '= default': the write-lock release (treeitem_production_task::unlock_unique) lives in ~ItemWriteLock,
-	// so a defaulted move-assignment would only overwrite m_ItemPtr and LEAK the lock it replaces (m_ItemCount
+	// so a defaulted move-assignment would only overwrite m_ItemPtr and LEAK the lock it replaces (m_ItemLockCount
 	// stays < 0). Callers rely on `lock = ItemWriteLock()` / `lock = std::move(other)` to RELEASE the prior lock
 	// (e.g. ShvUtils CreateNonzeroJenksFisherBreakAttr releasing the palette-domain write lock). Release first.
 	TIC_CALL ItemWriteLock& operator = (ItemWriteLock&& rhs) noexcept;
@@ -90,7 +90,7 @@ private:
 	std::shared_ptr<const TreeItem> m_ItemPtr;
 };
 
-Int32 GetItemLockCount(const TreeItem* item);
+Int32 GetItemLockCount(const TreeItem* item); // TreeItem::m_ItemLockCount; the DATA counters are AbstrDataItem::GetDataObj/RefLockCount
 bool IsReadLocked(const TreeItem* item);
 bool IsCalculating(const TreeItem* item);
 bool IsDataCurrCompleted(const TreeItem* item);

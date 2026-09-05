@@ -61,7 +61,7 @@ SharedStr myVSSPrintF(CharPtr format, va_list argList)
 // inline function to split name to new_path based on delim = DELIMITER_CHAR
 // Arguments:
 //   (I) full_path : search in this file name that possibly includes 
-//   (O) new_path:   rest of full_path after first occurence of delim, or ptr to string terminator (0) of full_path if not found
+//   (O) new_path:   rest of full_path after first occurrence of delim, or ptr to string terminator (0) of full_path if not found
 //   (I) delim:      delimiter char
 // ReturnValue: SharedStr
 //////////////////////////////////////////////////////////////////////

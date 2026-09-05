@@ -201,7 +201,10 @@ struct leveled_section : base_type
 #endif
 	}
 
-	bool isLocked()
+	// A try_lock probe: tells whether SOME thread holds the section. It cannot tell whether the
+	// calling thread does, which is what its callers assert; a try_lock by the owner is formally
+	// undefined, so this is a Debug aid, not a guarantee.
+	bool IsHeldByAnyThread()
 	{
 		if (!this->try_lock())
 			return true;

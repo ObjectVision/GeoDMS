@@ -244,9 +244,9 @@ void DmsGuiOptionsWindow::setChanged(bool isChanged)
     m_undo->setEnabled(isChanged);
 }
 
-void SetDrawingSizeTresholdValue(Float32 drawing_size)
+void SetDrawingSizeThresholdValue(Float32 drawing_size)
 {
-    s_DrawingSizeTresholdInPixels = drawing_size;
+    s_DrawingSizeThresholdInPixels = drawing_size;
 }
 
 void DmsGuiOptionsWindow::apply()
@@ -279,12 +279,12 @@ try {
 
     // hidden items and state colors
     main_window->m_eventlog_model->cached_reg_flags = GetRegStatusFlags();
-    if (main_window->m_dms_model->updateChachedDisplayFlags())
+    if (main_window->m_dms_model->updateCachedDisplayFlags())
         main_window->m_dms_model->reset();
 
     // drawing size in pixels
     Float32 drawing_size_in_pixels = m_drawing_size->value();
-    SetDrawingSizeTresholdValue(drawing_size_in_pixels);
+    SetDrawingSizeThresholdValue(drawing_size_in_pixels);
     UInt32  drawing_size_dword = std::bit_cast<UInt32>(drawing_size_in_pixels); // Float32 stored as UInt32(DWORD) in registry
     SetGeoDmsRegKeyDWord("DrawingSizeInPixels", drawing_size_dword);
 
@@ -391,9 +391,9 @@ DmsLocalMachineOptionsWindow::DmsLocalMachineOptionsWindow(QWidget* parent)
     connect(m_ppQs, &QCheckBox::toggled, this, [this](bool on) { if (on) m_ppQe->setChecked(false); });
     connect(m_ppQe, &QCheckBox::toggled, this, [this](bool on) { if (on) m_ppQs->setChecked(false); });
 
-    // flush treshold
-    m_flush_treshold->setTickPosition(QSlider::TickPosition::TicksBelow);
-    connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsLocalMachineOptionsWindow::onFlushTresholdValueChange);
+    // flush threshold
+    m_flush_threshold->setTickPosition(QSlider::TickPosition::TicksBelow);
+    connect(m_flush_threshold, &QSlider::valueChanged, this, &DmsLocalMachineOptionsWindow::onFlushThresholdValueChange);
     connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
 
     // ok/apply/cancel buttons
@@ -405,7 +405,7 @@ DmsLocalMachineOptionsWindow::DmsLocalMachineOptionsWindow(QWidget* parent)
     connect(m_undo, &QPushButton::released, this, &DmsLocalMachineOptionsWindow::restoreOptions);
 
     restoreOptions();
-    onFlushTresholdValueChange(m_flush_treshold->value());
+    onFlushThresholdValueChange(m_flush_threshold->value());
     setWindowModality(Qt::ApplicationModal);
     setAttribute(Qt::WA_DeleteOnClose);
     setChanged(false);
@@ -475,10 +475,10 @@ void DmsLocalMachineOptionsWindow::setInitialEditorValue()
     }
 }
 
-void DmsLocalMachineOptionsWindow::setInitialMemoryFlushTresholdValue()
+void DmsLocalMachineOptionsWindow::setInitialMemoryFlushThresholdValue()
 {
-    auto flush_treshold = RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold);
-    m_flush_treshold->setValue(flush_treshold);
+    auto flush_threshold = RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold);
+    m_flush_threshold->setValue(flush_threshold);
 }
 
 // Unlike parallel-processing 0..3, free-store drainage and resource-aware scheduling are not bits in
@@ -503,7 +503,7 @@ void DmsLocalMachineOptionsWindow::restoreOptions()
         const QSignalBlocker blocker2(m_sd_input);
         const QSignalBlocker blocker3(m_editor_input);
         const QSignalBlocker blocker3b(m_editor_parameters_input);
-        const QSignalBlocker blocker4(m_flush_treshold);
+        const QSignalBlocker blocker4(m_flush_threshold);
         const QSignalBlocker blocker5(m_pp0);
         const QSignalBlocker blocker6(m_pp1);
         const QSignalBlocker blocker7(m_pp2);
@@ -516,7 +516,7 @@ void DmsLocalMachineOptionsWindow::restoreOptions()
         setInitialLocalDataDirValue();
         setInitialSourceDatDirValue();
         setInitialEditorValue();
-        setInitialMemoryFlushTresholdValue();
+        setInitialMemoryFlushThresholdValue();
         m_pp0->setChecked(IsMultiThreaded0());
         m_pp1->setChecked(IsMultiThreaded1());
         m_pp2->setChecked(IsMultiThreaded2());
@@ -565,8 +565,8 @@ void DmsLocalMachineOptionsWindow::apply()
 
     MainWindow::TheOne()->updateTracelogHandle();
 
-    // flush treshold
-    auto flushThreshold = m_flush_treshold->value();
+    // flush threshold
+    auto flushThreshold = m_flush_threshold->value();
     SetGeoDmsRegKeyDWord("MemoryFlushThreshold", flushThreshold);
     RTC_SetCachedDWord(RegDWordEnum::MemoryFlushThreshold, flushThreshold);
 
@@ -645,9 +645,9 @@ void DmsLocalMachineOptionsWindow::showEditorDefaultsMenu()
     menu.exec(m_set_editor_parameters->mapToGlobal(QPoint(0, m_set_editor_parameters->height())));
 }
 
-void DmsLocalMachineOptionsWindow::onFlushTresholdValueChange(int value)
+void DmsLocalMachineOptionsWindow::onFlushThresholdValueChange(int value)
 {
-    m_flush_treshold_text->setText(QString::number(value).rightJustified(3, ' ') + "%");
+    m_flush_threshold_text->setText(QString::number(value).rightJustified(3, ' ') + "%");
     setChanged(true);
 }
 //======== END ADVANCED OPTIONS WINDOW ========

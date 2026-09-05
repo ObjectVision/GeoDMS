@@ -232,9 +232,9 @@ void ReportReadPerformance(const TreeItem* focusItem, const PerformanceEstimatio
 	assert(IsPerformanceLogging());
 
 	auto itemName = ItemLabel(focusItem);
-	auto nrElements = ResolvedNrElements(focusItem);
+	auto nrElems = ResolvedNrElements(focusItem);
 
-	if (!IsDefined(nrElements))
+	if (!IsDefined(nrElems))
 	{
 		reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
 			, "read {}: {:.1f}ms n=? est B={} {}"
@@ -242,11 +242,11 @@ void ReportReadPerformance(const TreeItem* focusItem, const PerformanceEstimatio
 		return;
 	}
 
-	auto nrBytes = EstimateDataBytes(AsDataItem(focusItem), nrElements);
+	auto nrBytes = EstimateDataBytes(AsDataItem(focusItem), nrElems);
 	reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
 		, "read {}: {:.1f}ms n={} ({:.2f}x {}) B={} ({:.2f}x) {:.1f}MB/s {} chores"
 		, itemName, elapsedMSec
-		, nrElements, Residual(nrElements, estimate.resultingNrElements), AsString(estimate.confidence)
+		, nrElems, Residual(nrElems, estimate.resultingNrElements), AsString(estimate.confidence)
 		, Bytes(nrBytes), Residual(nrBytes, estimate.ioBytes)
 		, elapsedMSec > 0.0 ? (Float64(nrBytes) / (1024.0 * 1024.0)) / (elapsedMSec / 1000.0) : 0.0
 		, estimate.nrChores

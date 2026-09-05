@@ -85,7 +85,7 @@ to the level discipline in both directions. The ones that matter for ordering (h
 non-trivial calls, or paired with a condition variable):
 
 - `sd_SessionDataCriticalSection` + `s_IsSessionTearingDown` (tic/SessionData.cpp) — see rule R3.
-- `sd_DataControllerMapCriticalSeciton` + `...WasRevisited` cv (tic/DataController.cpp) — finding P4.
+- `sd_DataControllerMapCriticalSection` + `...WasRevisited` cv (tic/DataController.cpp) — finding P4.
 - `s_TileTaskGroupsMutex` + `m_TileTasksDone` cv (tic/ParallelTiles) — finding P9.
 - `FileMapHandle::m_ResizeMutex` (shared) + `tiledata.h cs_file` — not analyzed to completion (§6).
 - `gdal_vect.h m_xSectionDataItemsStatusInfo` (recursive) — held across per-layer bookkeeping.

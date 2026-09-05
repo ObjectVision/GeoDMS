@@ -57,7 +57,7 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	{
 		u->SetRange(val);
 		u->SetTSF(USF_HasConfigRange);
-		u->SetTSF(TSF_Categorical, m_IsCategorical);
+		u->AssignTSF(TSF_Categorical, m_IsCategorical);
 	}
 	bool HasNonDefaultValue(const Object* self) const
 	{

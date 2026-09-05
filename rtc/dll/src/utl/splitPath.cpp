@@ -59,7 +59,7 @@ SharedStr splitPathBase(CharPtr full_path, CharPtr* new_path_ptr)
 	else
 	{
 		// delimiter found: sub item name is the left of the delimter and rest is 
-		// new path (starting after delim) to be recursively parsed (it may contain more occurences of delim)
+		// new path (starting after delim) to be recursively parsed (it may contain more occurrences of delim)
 		++*new_path_ptr;
 		return SharedStr(CharPtrRange(full_path, new_path));
 	}

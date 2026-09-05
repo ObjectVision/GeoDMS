@@ -78,7 +78,7 @@ struct DataReadLock : SharedPtr<const AbstrDataObject>
 	TIC_CALL DataReadLock(const AbstrDataItem* item);  // prepare only true when called from PreparedDataLock
 
 	// NOT '= default': a defaulted memberwise reset-move (a) leaks the count-bearing members' locks
-	// (m_RefPtrLock -> m_ItemCount + s_SessionUsageCounter share; the read-lock members were swap-based
+	// (m_RefPtrLock -> m_ItemLockCount + s_SessionUsageCounter share; the read-lock members were swap-based
 	// pre-migration) AND (b) would reset m_KeepItemAlive FIRST (declaration order), possibly freeing the
 	// item while m_RefPtrLock / m_DRLA counts are still held. Release counts-before-owner (matching the
 	// member-ordering note below and ~DataReadLock), then adopt rhs. See ItemReadLock for the shared-lock leak.
@@ -97,10 +97,10 @@ struct DataReadLock : SharedPtr<const AbstrDataObject>
 private:
 	// Owns the locked item and is declared FIRST, so it is destructed LAST (after m_RefPtrLock and m_DRLA).
 	// This guarantees neither count-bearing lock is ever the item's last owner: m_DRLA (m_DataLockCount) and
-	// m_RefPtrLock (m_ItemCount) release their counts AND drop their owning refs first, and only then does this
+	// m_RefPtrLock (m_ItemLockCount) release their counts AND drop their owning refs first, and only then does this
 	// plain owner drop the final ref -- so when ~AbstrDataItem/ClearDataObject runs, both counts are already 0.
 	// Needed because ownership is now downward (parent->child): without this, a lock's count-holder could be the
-	// last owner and destroy the item while its own count was still held (tripping MG_CHECK(m_ItemCount==0)).
+	// last owner and destroy the item while its own count was still held (tripping MG_CHECK(m_ItemLockCount==0)).
 	std::shared_ptr<const AbstrDataItem> m_KeepItemAlive;
 	ItemReadLock                       m_RefPtrLock; // TODO G8: REMOVE
 	DataReadLockAtom                   m_DRLA;

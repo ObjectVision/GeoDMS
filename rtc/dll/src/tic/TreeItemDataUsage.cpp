@@ -766,7 +766,7 @@ bool TreeItem::TryPrepareDataUsage() const
 
 TIC_CALL void TreeItem::DisableStorage(bool disabledStorage) // does not call UpdateMetaInfo
 {
-	SetTSF(TSF_DisabledStorage, disabledStorage);
+	AssignTSF(TSF_DisabledStorage, disabledStorage);
 	if (m_StorageManager && disabledStorage)
 	{
 		m_StorageManager->DoNotCommitOnClose();
@@ -959,7 +959,7 @@ bool TreeItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 	if (PartOfInterestOrKeep())
 		return false;
 
-	if (m_ItemCount < 0)
+	if (m_ItemLockCount < 0)
 		return false;
 
 	if (IsDataItem(this))

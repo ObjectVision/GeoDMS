@@ -819,7 +819,7 @@ TIMESTAMP_STRUCT ODBCStorageManager::AccessTableLastUpdate(const TreeItem* stora
 //	else
 //	{
 //		updateinfo.Close();
-		// 1. create copy of relevant MSYSOBJECTS data (neccesary because MSYSOBJECTS data can't be retrieved via ODBC)
+		// 1. create copy of relevant MSYSOBJECTS data (necessary because MSYSOBJECTS data can't be retrieved via ODBC)
 //		if (!m_HasAccessSysObjectsCopy) // prevent making copy too often.
 //		{
 			// 3. drop MSYSOBJECTS_COPY

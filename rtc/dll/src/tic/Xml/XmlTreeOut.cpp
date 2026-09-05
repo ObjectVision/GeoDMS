@@ -141,7 +141,7 @@ SharedStr GetTileStrCount(const AbstrUnit* unit, tile_id t)
 	try {
 		if (!CheckDataReady(unit->GetCurrRangeItem().get()))
 			return SharedStr("Not Calculated");
-		return AsString(unit->GetPreparedTileCount(t));
+		return AsString(unit->GetPreparedTileSize(t));
 	}
 	catch (const DmsException& x)
 	{

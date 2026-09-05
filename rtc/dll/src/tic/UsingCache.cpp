@@ -181,7 +181,7 @@ void UsingCache::CheckSearchSpace(const TreeItem* nameSpace) const
 	if (nameSpace == m_Context)
 		m_Context->throwItemError("AddUsing would result in a circular reference");
 
-	// don't trigger unneccesary UpdateCache
+	// don't trigger unnecessary UpdateCache
 
 	const TreeItemCPtrArray& nameSpaceUsings = nameSpace->GetUsingCache()->m_Usings;
 	TreeItemCPtrArray::const_iterator i = nameSpaceUsings.end();
