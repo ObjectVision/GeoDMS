@@ -1,0 +1,9 @@
+// RTC-01: an entity reference longer than the token buffer (46 characters, in element text) overflowed the stack; it must be a clean error, after which the element that follows it does not exist
+container xml_entity_long_neg
+{
+	container xmlpart { #include <../data/xml_entity_long.xml> }
+	container checks
+	{
+		parameter<string> n := PropValue(xmlpart/xe, 'name'), IntegrityCheck = "n == 'xe'";
+	}
+}

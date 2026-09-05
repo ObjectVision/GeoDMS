@@ -1,0 +1,10 @@
+// control for the stale-index case: a polyline shapefile with 2 records and a matching .shx (data/shp_arc2.shp, lengths 10 and 20)
+container stor_shp_arc2
+{
+	unit<uint32> shapes: StorageName = "%currDir%/data/shp_arc2.shp", StorageType = "shp", StorageReadOnly = "True";
+	container checks
+	{
+		parameter<uint32>  n  := #shapes,                                  IntegrityCheck = "n == 2";
+		parameter<float64> sl := sum(arc_length(shapes/PolyData, float64)), IntegrityCheck = "sl > 29.99 && sl < 30.01";
+	}
+}

@@ -1,0 +1,10 @@
+// STG-13: a 1-bit TIFF without a BitsPerSample tag (the TIFF default is 1) and without SampleFormat (data/tif_1bit_nobps.tif, 16x4, 32 bits set)
+container stor_tif_1bit_nobps
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 16s));
+	attribute<bool> img (dom): StorageName = "%currDir%/data/tif_1bit_nobps.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<uint32> s := sum(uint32(img)), IntegrityCheck = "s == 32";
+	}
+}

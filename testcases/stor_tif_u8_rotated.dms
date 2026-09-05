@@ -1,0 +1,10 @@
+// STG-N02: a GeoTIFF whose georeference is a ModelTransformation tag (34264, 16 doubles, a 30 degree rotation); reading it went through a wrong TIFFGetField signature (data/tif_u8_rotated.tif)
+container stor_tif_u8_rotated
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<uint8> img (dom): StorageName = "%currDir%/data/tif_u8_rotated.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<uint32> s := sum(uint32(img)), IntegrityCheck = "s == 496";
+	}
+}

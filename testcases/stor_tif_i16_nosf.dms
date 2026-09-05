@@ -1,0 +1,10 @@
+// STG-N04: a 16-bit TIFF without SampleFormat read as int16: the configured type supplies the signed category (data/tif_i16_nosf.tif, values -16..15)
+container stor_tif_i16_nosf
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<int16> img (dom): StorageName = "%currDir%/data/tif_i16_nosf.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<int32> s := sum(int32(img)), IntegrityCheck = "s == -16";
+	}
+}

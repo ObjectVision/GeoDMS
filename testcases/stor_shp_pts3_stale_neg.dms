@@ -1,0 +1,9 @@
+// STG-N01: a point shapefile with 3 records whose .shx declares 5 (data/shp_pts3_stale.shp); reading the points must be an error, not a read past the record vector
+container stor_shp_pts3_stale_neg
+{
+	unit<uint32> shapes: StorageName = "%currDir%/data/shp_pts3_stale.shp", StorageType = "shp", StorageReadOnly = "True";
+	container checks
+	{
+		parameter<float64> sx := sum(pointcol(shapes/PointData)), IntegrityCheck = "IsDefined(sx)";
+	}
+}

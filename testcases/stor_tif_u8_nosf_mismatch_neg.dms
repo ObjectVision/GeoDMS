@@ -1,0 +1,10 @@
+// STG-N04: a uint16 attribute on an 8-bit TIFF without SampleFormat: the bit depth of the file and of the configured type differ, which must be an error of the read, not a crash
+container stor_tif_u8_nosf_mismatch_neg
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<uint16> img (dom): StorageName = "%currDir%/data/tif_u8_nosf_norps.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<uint32> s := sum(uint32(img)), IntegrityCheck = "IsDefined(s)";
+	}
+}

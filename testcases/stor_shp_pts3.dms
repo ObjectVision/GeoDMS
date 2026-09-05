@@ -1,0 +1,11 @@
+// control for the stale-index case: a point shapefile with 3 records and a matching .shx (data/shp_pts3.shp)
+container stor_shp_pts3
+{
+	unit<uint32> shapes: StorageName = "%currDir%/data/shp_pts3.shp", StorageType = "shp", StorageReadOnly = "True";
+	container checks
+	{
+		parameter<uint32>  n  := #shapes,                          IntegrityCheck = "n == 3";
+		parameter<float64> sx := sum(pointcol(shapes/PointData)), IntegrityCheck = "sx > 8.99 && sx < 9.01";
+		parameter<float64> sy := sum(pointrow(shapes/PointData)), IntegrityCheck = "sy > 11.99 && sy < 12.01";
+	}
+}

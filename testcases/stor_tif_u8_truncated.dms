@@ -1,0 +1,10 @@
+// STG-14: a TIFF whose strip is shorter than StripByteCounts declares (data/tif_u8_truncated.tif, 12 bytes short): libtiff reports a read error, and the whole tile is the undefined default rather than the bytes of a previous strip
+container stor_tif_u8_truncated
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<uint8> img (dom): StorageName = "%currDir%/data/tif_u8_truncated.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<uint32> ndef := sum(uint32(IsDefined(img))), IntegrityCheck = "ndef == 0";
+	}
+}

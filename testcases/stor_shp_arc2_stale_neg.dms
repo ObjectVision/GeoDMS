@@ -1,0 +1,9 @@
+// STG-N01: a polyline shapefile with 2 records whose .shx declares 4 (data/shp_arc2_stale.shp); reading the arcs must be an error
+container stor_shp_arc2_stale_neg
+{
+	unit<uint32> shapes: StorageName = "%currDir%/data/shp_arc2_stale.shp", StorageType = "shp", StorageReadOnly = "True";
+	container checks
+	{
+		parameter<float64> sl := sum(arc_length(shapes/PolyData, float64)), IntegrityCheck = "IsDefined(sl)";
+	}
+}

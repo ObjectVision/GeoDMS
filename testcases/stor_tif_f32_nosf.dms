@@ -1,0 +1,10 @@
+// STG-N04: a 32-bit TIFF without SampleFormat read as float32: the configured type supplies the floating-point category (data/tif_f32_nosf.tif, values 0, 0.5, .. 15.5)
+container stor_tif_f32_nosf
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<float32> img (dom): StorageName = "%currDir%/data/tif_f32_nosf.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<float32> s := sum(img), IntegrityCheck = "s == 248f";
+	}
+}

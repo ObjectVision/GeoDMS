@@ -1,0 +1,9 @@
+// RTC-04: an entity that runs into the end of the file (&amp without ';') looped on a missing EOF sentinel; it must be a clean error, after which the Descr it sat in is never set
+container xml_entity_eof_neg
+{
+	container xmlpart { #include <../data/xml_entity_eof.xml> }
+	container checks
+	{
+		parameter<string> d := PropValue(xmlpart/xd, 'descr'), IntegrityCheck = "d != ''";
+	}
+}
