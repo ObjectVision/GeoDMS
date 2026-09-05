@@ -7,7 +7,10 @@ description: Reproducing and diagnosing GeoDMS engine and GUI behaviour from the
 
 The binaries are `C:\dev\GeoDMS_2026\bin\Release\x64` and `bin\Debug\x64` (see geodms-build
 for making them current). Everything below assumes the tree is quiet; a probe that runs
-during someone else's link reports nonsense.
+during someone else's link reports nonsense. It also assumes the user has agreed to the run:
+ask before a build, a `cdb` session or a test run, because the machine may be carrying
+processing work of other sessions that the process list does not show (geodms-build has
+the rule; a single headless probe on current binaries is the exception).
 
 ## A headless run
 

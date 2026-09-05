@@ -24,7 +24,18 @@ So when the edits are in a worktree and they need compiling, do not build; carry
 `C:\dev\GeoDMS_2026` first (`git diff > patch` + `git apply`, or merge the branch), after checking
 the tree is quiet as below. Say so rather than building where you stand.
 
-## Before you build: is the tree quiet
+## Before you build: ask, then check that the tree is quiet
+
+**Ask the user before a build, a debug session or a test run.** The process list only shows
+what is running now; it does not show that another session is between two steps of a longer
+piece of processing work, that a `tst` round is about to be started, or that the user is
+about to hit F5 in Visual Studio, and a build that relinks `bin\Release\x64` under such work,
+or a test run that keeps the DLLs busy while it wants to link, spoils that work without
+telling anybody. So say what you intend to run and why, and wait for the go-ahead. That
+holds for the first build of a session, for every build after a change to another module's
+header, for `cdb` sessions, for the `testcases` battery and for anything in `batch\`; a
+single headless probe on binaries that are already current is the one thing that needs no
+separate ask. A go-ahead covers the round it was given for, not the rest of the session.
 
 There is no lock. A second build interleaves writes into the same output folder, and a
 running `GeoDmsRun` or `GeoDmsGuiQt` from `bin\Release\x64` holds a `Dm*.dll`, which turns
@@ -131,7 +142,7 @@ If the build cannot be run exactly this way, stop and ask.
 
 Rules per tier:
 
-- Tier 1 runs from a normal tool call. Its logs land in `testcases\_out\`; per-case item
+- Tier 1 runs from a normal tool call, after the ask above. Its logs land in `testcases\_out\`; per-case item
   overrides live in `testcases\fnrun_itemmap.txt`, default item `/checks`.
 - Tier 2 must run in a visible console, never piped headless: the suite ends by launching
   Notepad++ on the result file and pausing, which hangs without a console. Register an
