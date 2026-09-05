@@ -93,9 +93,11 @@ class AbstrGridStorageManager : public NonmappableStorageManager
 	typedef AbstrStorageManager base_type;
 public:
 	AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder) override;
-	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction) const override;
-	bool SupportsReadOperator() const override { return true; } // #587: grid data and palette as storage_read_attr over their configured domains
+	// #587: a grid domain is read as storage_read_table without members (its range from the file, the
+	// projection DoUpdateTree gave the configured unit), grid data and palette as storage_read_attr
+	// over their configured domains, with the lazy tile functor of a random-access storage
+	bool SupportsReadOperator() const override { return true; }
 	ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const override;
 	bool AllowRandomTileAccess() const override { return true;  }
 	bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const override;
@@ -109,7 +111,6 @@ struct GridStorageMetaInfo : GdalMetaInfo
 	GridStorageMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction);
 	std::optional<ViewPortInfoProvider> m_VPIP;
 	SharedStr                           m_SqlString;
-	void PrepareReadDataOrSuspend() override; // #933 (formerly OnPreLock)
 };
 
 

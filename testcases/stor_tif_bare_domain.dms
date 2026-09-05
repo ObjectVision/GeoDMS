@@ -1,0 +1,15 @@
+// #587 S3: a grid domain without a calculation rule is read as storage_read_table, its GridData as
+// a member of that read; the range comes from the file through ReadUnitRange, as the item-writer
+// read of the unit did before. Same file and sum as stor_tif_u8_sf.
+container stor_tif_bare_domain
+{
+	unit<spoint> dom : StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "tif"
+	{
+		attribute<uint8> GridData;
+	}
+	container checks
+	{
+		parameter<uint32> n := #dom,                    IntegrityCheck = "n == 32";
+		parameter<uint32> s := sum(uint32(dom/GridData)), IntegrityCheck = "s == 496";
+	}
+}

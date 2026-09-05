@@ -943,6 +943,31 @@ before and after (the class-break writer keeps some). Docs:
 `doc/IntegrityCheck.md` (#1209 section superseded), `tile-data-retainment.md`
 creation-channel table.
 
+*Status 2026-09-05: implemented, Debug battery green, committed. Deleted as listed:
+`PrepareDataRead` with its branch in `PrepareDataUsageImpl`, `IsDataReadable`,
+`TreeItem::ReadItem`, the `DoReadItem` virtuals (the data item's body is `ReadDataItemInto`
+in `StorageReadOperators.cpp`, with the reader clone farm and the per-member performance
+line and element-width publication that `StorageReadHandle::Read` did), `StorageReadHandle::Read`,
+`StorageMetaInfo::PrepareReadDataOrSuspend` and its grid override (its waits are
+`UnitsReadyOrSuspend` in the attr/value operators' `PreCalcUpdate`: the meta info of a grid
+read wants the domain's range, and a `PreCalcUpdate` may suspend), `NonmappableStorageManager::
+StartInterest/StopInterest` with the `TreeItem` hooks, the grid and strfiles `VisitSuppliers`
+overrides, `SupplierVisitFlag::CalcAndExplicitSuppliers`, the #1209 exit of `GetCheckedDC`
+and the loadable arm of `GetCurrMetaInfo`, the mapping half of the MMD block of
+`PrepareDataUsageImpl`. Two shapes needed a read form first: a grid domain without a rule
+is a `storage_read_table` without members (`AbstrGridStorageManager::DescribeReadCall`; its
+grid data reads on its own, with the domain as an argument, because `GridStorageMetaInfo`
+wants the domain's range, which a member read would still be producing), and its result
+gets the projection and spatial reference `DoUpdateTree` gave the configured unit, copied at
+result creation on the meta thread (asking the configured unit from a worker updates it);
+a relation to its own table is a member spelled `name@`, its values unit the read's result.
+The read calculator is installed for every loadable stored item (`IsLoadable`, not
+`IsCurrLoadable`), so a missing file fails inside the read with the storage's name. A
+request left in `m_ReadAssets` by a throwing `PreCalcUpdate` is released too. Not done: the
+`m_FuncDC` branch count of `OperationContext.cpp`; `doc/IntegrityCheck.md` has no #1209
+section to supersede (its `sourceDescr` mentions describe leaf DCs, still true). Testcases:
+`stor_tif_bare_domain`, `stor_read_self_relation` (fixture `read_relation.csv`).*
+
 ### S4. One scan per table, identity by value
 
 `ReadDataItems` with single-pass implementations for `gdal.vect` (enable all requested

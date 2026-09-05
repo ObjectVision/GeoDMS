@@ -142,7 +142,6 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	{
 	}
 	TIC_CALL virtual ~StorageMetaInfo();
-	TIC_CALL virtual void PrepareReadDataOrSuspend(); // #933: resolve supplier prerequisites for the read (may suspend); formerly OnPreLock
 	TIC_CALL virtual void OnOpenForRead(StorageReadHandle*);
 	TIC_CALL virtual void OnClose(StorageCloseHandle*);
 
@@ -286,7 +285,7 @@ public:
 	TIC_CALL virtual bool IsWriteOnlyStorage() const { return false; }
 
 	// #587: whether this manager describes the read of its items as an operator application, see
-	// DescribeReadCall. False keeps the item-writer read path of PrepareDataRead for its items.
+	// DescribeReadCall. Every manager does since S2; false would leave its stored items without a read.
 	TIC_CALL virtual bool SupportsReadOperator() const { return false; }
 	// The read of item, held under storageHolder, as an operator application; an empty operName for
 	// an item this manager cannot describe (yet). Called on the meta thread right after UpdateTree.
@@ -294,7 +293,7 @@ public:
 
 protected:
 	// #587: the generic descriptions, for DescribeReadCall overrides to pick from
-	TIC_CALL ReadCallSpec DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table) const;  // a unit and its stored attributes: storage_read_table
+	TIC_CALL ReadCallSpec DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table, bool withMembers = true) const; // a unit and (withMembers) its stored attributes: storage_read_table
 	TIC_CALL ReadCallSpec DescribeAttrRead (const TreeItem* storageHolder, const AbstrDataItem* item) const; // one attribute over its own domain: storage_read_attr; a parameter: storage_read_value
 
 public:
@@ -397,20 +396,12 @@ public:
 	// whose SupportsReadOperator() says so.
 	TIC_CALL ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const override;
 
-	TIC_CALL virtual void StartInterest(const TreeItem* storageHolder, const TreeItem* self) const;
-	TIC_CALL virtual void StopInterest (const TreeItem* storageHolder, const TreeItem* self) const noexcept;
-
 	TIC_CALL virtual void DropStream(const TreeItem* item, CharPtr path);
 
 	// public interface funcs wrap derived StorageManagers virtual funcs
 	TIC_CALL virtual AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder);
 
 private:
-	using interest_holders_container = std::vector<SharedActorInterestPtr>;
-	using interest_holders_key = Point<SharedTreeItem>;
-	using interest_holders_map = std::map<interest_holders_key, interest_holders_container>;
-	mutable interest_holders_map m_InterestHolders;
-
 	DECL_ABSTR(, Class)
 };
 
@@ -461,7 +452,9 @@ struct StorageReadHandle : StorageCloseHandle
 	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t); // #933
 	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, no_storage_lock_t);    // #587
 
-	bool Read() const;
+	// #587: a handle opens the storage for reading (and closes it when it dies); what is read through
+	// it is decided by its user: ReadUnitRange, ReadDataItem per tile (StorageReadOperators.cpp), or
+	// a manager's own header reads in DoUpdateTree.
 
 private:
 	void Init();

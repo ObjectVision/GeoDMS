@@ -110,29 +110,6 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 }
 
 
-ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
-{
-	if (self != storageHolder && IsDataItem(self) && HasGridDomain(AsDataItem(self)))
-	{
-		auto gridData = GetGridData(storageHolder);
-		if (gridData && gridData.get() != self && gridData.get() != storageHolder)
-		{
-			assert(!self->DoesContain(gridData.get())); // gridData is storageHolder or direct subItem thereof
-// FIX: The following lines caused reading big GridData 
-		}
-		const AbstrUnit* gridDomain = GetGridDataDomainRO(storageHolder);
-		if (gridDomain && visitor(gridDomain) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData
-			return AVS_SuspendedOrFailed;
-		if (auto selfAsDi = AsDynamicDataItem(self))
-		{
-			auto currDomain = CheckedGridDomain(selfAsDi);
-			if (currDomain && visitor(currDomain.get()) == AVS_SuspendedOrFailed)
-				return AVS_SuspendedOrFailed;
-		}
-	}
-	return NonmappableStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
-}
-
 //  --CLASSES------------------------------------------------------------------
 namespace Grid {
 
@@ -178,24 +155,18 @@ GridStorageMetaInfo::GridStorageMetaInfo(const TreeItem* storageHolder, TreeItem
 	m_VPIP.emplace(storageHolder, adi, true, true);
 }
 
-void GridStorageMetaInfo::PrepareReadDataOrSuspend()
-{
-	StorageMetaInfo::PrepareReadDataOrSuspend();
-	if (m_VPIP)
-		m_VPIP->m_GridDomain->GetCount();
-}
-
 StorageMetaInfoPtr AbstrGridStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const
 {
 	return std::make_unique<GridStorageMetaInfo>(storageHolder, curr, sa);
 }
 
-// #587: the grid domain keeps the range and projection that DoUpdateTree read from the file and is
-// not read as a table; the grid data and the palette are read as attributes over their configured
-// domains, with the lazy tile functor that AbstrDataItem::DoReadItem installs for a random-access
-// storage.
+// #587: the grid data is not a member of its domain's read: its meta info (GridStorageMetaInfo, the
+// viewport) needs the domain's range, which that read produces. As a read of its own it has the domain
+// as an argument, calculated before it.
 ReadCallSpec AbstrGridStorageManager::DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const
 {
+	if (IsUnit(item))
+		return DescribeTableRead(storageHolder, AsUnit(item), false);
 	if (!IsDataItem(item))
 		return {};
 	return DescribeAttrRead(storageHolder, AsDataItem(item));

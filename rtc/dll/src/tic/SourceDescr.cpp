@@ -111,7 +111,7 @@ namespace { // local defs
 				{
 					// cheap ancestor walk first; only then ask whether ti is read from or written to it
 					storageParent = ti->GetStorageParent(false);
-					if (storageParent && (ti->IsDataReadable() || ti->IsReadFromStorage() || ti->IsStorable()))
+					if (storageParent && (ti->IsReadFromStorage() || ti->IsStorable()))
 						storageHolder = storageParent.get();
 				}
 				// StorageReadOnly is not inherited, so ask the item that carries the storage.

@@ -799,17 +799,6 @@ auto AbstrUnit::GetScriptName(const TreeItem* context) const -> SharedStr
 	return base_type::GetScriptName(context);
 }
 
-bool AbstrUnit::DoReadItem(StorageMetaInfoPtr smi)
-{
-	dms_assert(!IsDisabledStorage());
-	dms_assert(IsInWriteLock(this));
-
-	if (!smi->StorageManager()->ReadUnitRange(*smi))
-		return false;
-	MG_CHECK(HasTiledRangeData() or IsDefaultUnit());
-	return true;
-}
-
 //----------------------------------------------------------------------
 // Illegal Abstract implementation
 //----------------------------------------------------------------------

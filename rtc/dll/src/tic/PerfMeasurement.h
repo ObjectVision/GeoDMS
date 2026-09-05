@@ -71,10 +71,10 @@ void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
 	, Float64 elapsedMSec, SizeT actualNrElements, SizeT actualAllocBytes = 0, SizeT actualPeakBytes = 0);
 
-// Predict a pending storage read. Reads are not Operators, so they get their estimate here:
-// StorageMetaInfo::PrepareReadDataOrSuspend has already resolved the domain count and the values
-// range by the time the gated task runs, and tiling comes from the storage's native geometry --
-// so unlike a calculation, a read's size is knowable before it starts. §2.6 and §4.3 of the plan.
+// Predict the read of one stored attribute, per member of a storage_read_* result (#587): the
+// table's range, read first, has resolved the domain count, the values range is an argument, and
+// tiling comes from the storage's native geometry -- so unlike a calculation, a member's read size
+// is knowable before it starts. §2.6 and §4.3 of the plan.
 auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEstimationData;
 
 // Report a completed storage read against that estimate, establishing the per-manager throughput

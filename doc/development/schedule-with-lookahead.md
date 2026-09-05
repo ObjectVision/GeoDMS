@@ -183,34 +183,40 @@ the code, but only as a **manual, all-or-nothing, modeler-placed** barrier.
 
 ### 2.6 Storage reads: what is knowable before a read runs
 
-Reads are not `Operator`s; they are item-writer OCs created in
-`TreeItem::PrepareDataRead` (`tic/TreeItem.cpp:4209-4360`) whose payload is
-`StorageReadHandle::Read()`. Pre-read knowledge available to a planner:
+Since #587 a read *is* an `Operator` application (`rtc/dll/src/tic/stg/StorageReadOperators.cpp`,
+doc/development/storage-read-operators.md): `storage_read_table` for a unit and its stored
+attributes, `storage_read_attr` for one attribute over its domain, `storage_read_value` for a
+parameter. The configured item carries the call as its calculator, so a read is scheduled like
+any calculation, and what it depends on -- the domain and values units, its `ExplicitSuppliers`
+(as `do(...)` wrappers in the spec), a strfiles `FileName` -- are ordinary arguments. Pre-read
+knowledge available to a planner:
 
-- **Mutual exclusion group**: `OperationContext::m_RequiredStorageManager` — which
-  reads serialize against each other (per manager instance; ODBC additionally has a
-  process-global section, `stg/dll/src/odbc/OdbcStorageManager.cpp:238`).
-- **Cardinality**: `StorageMetaInfo::PrepareReadDataOrSuspend`
-  (`tic/stg/AbstrStoragemanager.cpp:71-80`, grid variant
-  `stg/dll/src/GridStoragemanager.cpp:177-182`) *guarantees* the domain count and
-  values-unit range are resolved before the gated task runs. `ReadUnitRange`
-  (`AbstrStorageManager.h:287`) is the cheap cardinality/extent-only read: raster dims
-  via `GetRasterXSize/YSize` (`stg/dll/src/gdal/gdal_grid.cpp:525-538`), DBF header
-  record count (`dbf/dbfStorageManager.cpp:71-75`), SHP header
-  (`shp/ShpStorageManager.cpp:463-482`), etc. Caveat: GDAL vector
-  `GetFeatureCount()` may fall back to a full scan (`gdal_vect.cpp:2217-2234`) — a
-  known-expensive probe the estimator must not trigger eagerly.
-- **Bytes**: count × `ElementWeight`/`ValueClass::GetSize` (`mci/ValueClass.h:170-177`);
-  actual file size via `FilePtrHandle::GetFileSize()` (`stg/dll/src/FilePtrHandle.h:35`).
+- **Mutual exclusion group**: `Operator::GetRequiredStorageManager` names the manager, and
+  `OperationContext::m_RequiredStorageManager` gates the task as before (#933): reads of one
+  manager instance serialize; ODBC additionally has a process-global section
+  (`stg/dll/src/odbc/OdbcStorageManager.cpp`).
+- **Cardinality**: a table's range is read first, by `ReadUnitRange` -- the cheap
+  cardinality/extent-only read: raster dims via `GetRasterXSize/YSize`
+  (`stg/dll/src/gdal/gdal_grid.cpp`), DBF header record count (`dbf/dbfStorageManager.cpp`),
+  SHP header (`shp/ShpStorageManager.cpp`), etc. -- and its attributes are members of the same
+  result, read only when a consumer asks for one (`oper_policy::members_on_demand`); an attribute
+  over another domain has that domain as an argument, calculated before the read. Caveat: GDAL
+  vector `GetFeatureCount()` may fall back to a full scan (`gdal_vect.cpp`) -- a known-expensive
+  probe the estimator must not trigger eagerly.
+- **Bytes**: count × `ElementWeight`/`ValueClass::GetSize` (`mci/ValueClass.h`);
+  actual file size via `FilePtrHandle::GetFileSize()` (`stg/dll/src/FilePtrHandle.h`).
 - **Tiling / chore geometry**: native block size cached without pixel I/O
-  (`gdal_grid.cpp:95-118`, `GetNativeTileSizeX/Y`, exposed as `StorageTileSizeX/Y`
-  props, `tic/TreeItemProps.cpp:681-706`); `GridBlockSubdivide`
-  (`AbstrStorageManager.h:202-216`); per-tile source rect via
-  `ViewPortInfoProvider::GetViewportInfoEx(t, smi)` (`stg/dll/src/ViewPortInfoEx.h:70`).
+  (`gdal_grid.cpp`, `GetNativeTileSizeX/Y`, exposed as `StorageTileSizeX/Y`
+  props, `tic/TreeItemProps.cpp`); `GridBlockSubdivide`
+  (`AbstrStorageManager.h`); per-tile source rect via
+  `ViewPortInfoProvider::GetViewportInfoEx(t, smi)` (`stg/dll/src/ViewPortInfoEx.h`).
 - **Strategy bits**: `AllowRandomTileAccess()` / `EasyRereadTiles()`
-  (`AbstrStorageManager.h:259-262`) decide fan-out over cloned readers vs serial loop
-  (`tic/AbstrDataItem.cpp:285-355`).
-- **Missing entirely**: measured bytes/sec or elapsed per read — nothing records them.
+  (`AbstrStorageManager.h`) decide fan-out over cloned readers vs serial loop
+  (`ReadDataItemInto` in `StorageReadOperators.cpp`).
+- **Measured**: a `[performance]read` line per member (`ReportReadPerformance`) and the measured
+  element width (`PublishMeasuredElementWidth`) follow each member's read; the operator's own
+  `RunOperator` line covers the pass. The default `EstimatePerformance` serves the read operators:
+  a read's size is known once the table's range is read, which is what the first pass does.
 
 ---
 
@@ -237,7 +243,8 @@ estimation value:
 2. No complexity class — everything is implicitly O(n) with factor 1.
 3. No chore decomposition info (`extraTasks`/`…PerChore` fields exist in the struct
    but nothing fills or reads them).
-4. No I/O model for read operations (not `Operator`s at all).
+4. No I/O model for read operations (`Operator`s since #587, see §2.6, but with the default
+   estimate: bytes and elapsed per read are measured after the fact, not predicted).
 5. No uncertainty/confidence marking — "exact count" vs "SizeEstimator" vs "assumed
    1M" are indistinguishable to a consumer.
 6. No way to say "my result cardinality is unknowable until I run" (`select`,

@@ -182,8 +182,8 @@ static void TreeItem_InstallStorageReadCalculator(const TreeItem* self, const Tr
 		return;
 	if (self->InTemplate() || self->HasCalculatorImpl() || self->HasConfigData() || self->IsDisabledStorage())
 		return;
-	if (!self->IsCurrLoadable())
-		return;
+	if (!self->IsLoadable())
+		return; // IsLoadable, not IsCurrLoadable: a missing file is the read's failure to report, with the storage's name
 
 	LispRef key;
 
@@ -304,11 +304,6 @@ void TreeItem::UpdateMetaInfoImpl() const
 		return;
 
 	TreeItem_MergeReferredCacheRoot(this);
-
-	if (IsCacheItem() || !IsDataReadable())
-		return;
-
-	assert(!HasConfigData()); // implied by IsDataReadable
 }	// end of recursion protected area
 
 // ======================================================
@@ -358,9 +353,9 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 	if (mpf & metainfo_policy_flags::subst_never)
 		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, true) }; // should this result in a SymcDC to itself ? No, present this tree only in GetKeyExpr
 
-	if (IsCurrLoadable())
-		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, false) };
-
+	// a stored item that has not got its read calculator yet (its UpdateTree is still to come) answers
+	// as any other item without a rule; GetCheckedKeyExpr and the Checker fallback of
+	// slSupplierExprImpl give it a source description when a key is asked for anyway (#587)
 	return MetaFuncCurry{}; // not as variant 2, as that would create an infinite recursion from GetOrgDC
 }
 
@@ -736,32 +731,9 @@ auto TreeItem::GetCheckedDC() const->DataControllerRef
 		assert(!refItem->IsCacheItem());
 		return refItem->GetCheckedDC();
 	}
-	if (IsCurrLoadable() && !GetTSF(USF_HasConfigRange))
-	{
-		auto sourceExpr = CreateLispTree(this, false);
-		// #1209: an item read from a storage has no calculation rule, so UpdateDC has no
-		// DataController to fold ancestor checks into and the exit here handed consumers an
-		// UNGUARDED source reference: a check on the read item or its ancestors was then only
-		// evaluated out-of-band by the validate phase of DoUpdate, after data preparation.
-		// Fold here the same way GetCheckedKeyExpr already folds this very representation for
-		// expression consumers, so a source-referencing consumer gets the guard woven into its
-		// calculation, scheduled and computed like any other supplier.
-		//
-		// No recursion: delivering the guarded expression evaluates its sourceDescr argument,
-		// whose SymbDC delegates to this item's PrepareDataUsage -- and PrepareDataUsageImpl
-		// consults GetCheckedDC only for items WITH a calculator (PrepareDataCalc); a loadable
-		// item without one goes straight to PrepareDataRead. That gate must stay as it is:
-		// routing a calculator-less item's own data preparation through this checked DC would
-		// close exactly that cycle.
-		if (TreeItem_HasIntegrityCheckerInclAncestors(this))
-		{
-			std::vector<const TreeItem*> foldedChecks; // #1197: the guardians whose check went into checkedExpr
-			auto checkedExpr = TreeItem_CreateCheckedExpr(sourceExpr, nullptr, this, &foldedChecks);
-			auto buildContext = MakeLCH([&foldedChecks]() -> SharedStr { return TreeItem_IntegrityCheckBuildContextStr(foldedChecks); });
-			return GetOrCreateDataController(checkedExpr);
-		}
-		return GetOrCreateDataController(sourceExpr);
-	}
+	// An item read from a storage has a read calculator since #587, so its checks fold into mc_DC
+	// like those of any calculated item; the #1209 exit that handed a guarded source reference to
+	// consumers of a calculator-less stored item is gone with the item-writer read path.
 	return {};
 }
 

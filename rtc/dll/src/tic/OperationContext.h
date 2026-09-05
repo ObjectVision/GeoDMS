@@ -136,12 +136,14 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	}
 
 	// Factory: create a writer task for an item and schedule it (may run inline if allowed).
+	// Since #587 only the class-break writer uses it: storage reads are operator applications
+	// (StorageReadOperators.cpp) and take the FuncDC route.
 	// - item:           target TreeItem to write/update.
 	// - func:           task body to execute.
 	// - allArgInterests:suppliers this task depends on.
 	// - runDirect:      if true, may execute on the caller thread if licensing allows.
 	// requiredStorageManager (#933): if set, the run-gate cooperatively try-acquires its
-	// critical section before running, instead of blocking a worker inside the read payload.
+	// critical section before running, instead of blocking a worker inside the payload.
 	TIC_CALL static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, SharedPtr<NonmappableStorageManager> requiredStorageManager = {});
 
 	~OperationContext();
@@ -371,13 +373,14 @@ public:
 	// Waiters that depend on this context (weak references to avoid cycles).
 	WaiterSet             m_Waiters;
 
-	// Item-writer (storage read/write) path only: keep the argument suppliers of-interest -- and
-	// their result data ready -- for this OC's whole lifetime. The calc path keeps its args alive via
-	// the FuncDC's SupplInterest and OC_CalcResultFunc::allInterests; the storage-read path
-	// (CreateItemWriter) had no such holder, so its arg futures were dropped the moment PrepareDataRead
-	// returned. A supplier that became 'done' before this waiter ran could then have its (cache /
-	// FreeData) data freed in the gap, tripping disconnect_supplier's IsDataReady assert. Retaining the
-	// DC futures keeps the suppliers of-interest; retaining an item interest keeps their data resident.
+	// Item-writer path only (since #587 the class-break writer; storage reads are operator
+	// applications on the calc path): keep the argument suppliers of-interest -- and their result
+	// data ready -- for this OC's whole lifetime. The calc path keeps its args alive via the FuncDC's
+	// SupplInterest and OC_CalcResultFunc::allInterests; an item writer (CreateItemWriter) has no such
+	// holder, so its arg futures would be dropped the moment its creator returned. A supplier that
+	// became 'done' before this waiter ran could then have its (cache / FreeData) data freed in the
+	// gap, tripping disconnect_supplier's IsDataReady assert. Retaining the DC futures keeps the
+	// suppliers of-interest; retaining an item interest keeps their data resident.
 	FutureSuppliers                        m_KeptArgInterests; // arg DCs of-interest for our lifetime
 	std::vector<SharedTreeItemInterestPtr> m_KeptArgItems;     // arg result items: keep data ready
 

@@ -1762,18 +1762,6 @@ const TreeItem* TreeItem::GetNamespaceUsage(UInt32 i) const
 	return m_UsingCache->GetUsing(i);
 }
 
-bool TreeItem::IsDataReadable() const
-{
-	bool isLoadable = IsLoadable();
-	if (!isLoadable)
-		return false;
-	bool hasCalculator = HasCalculatorImpl();
-	if (hasCalculator)
-		return false;
-	bool hasConfigData = HasConfigData();
-	return !hasConfigData;
-}
-
 
 static bool HasOwnCalculatorNow(TreeItem* result)
 {
@@ -2464,7 +2452,7 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 		lastChangeTS = Actor::DetermineLastSupplierChange(failReason, ft);
 
 	// Track changes in authentic sources
-	if ((ft == FailType::None) && (IsDataReadable() || IsReadFromStorage()) && !WasFailed(FailType::Determine))
+	if ((ft == FailType::None) && IsReadFromStorage() && !WasFailed(FailType::Determine))
 	{
 		try {
 			assert(!IsCacheItem());
@@ -2669,14 +2657,6 @@ void TreeItem::StartInterest() const
 	SharedActorInterestPtr    calcHolder = mc_DC.get_ptr();
 	SharedTreeItemInterestPtr refItemHolder = refItem;
 
-	auto storageParent = GetStorageParent(false);
-	if (storageParent)
-	{
-		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
-			nmsm->StartInterest(storageParent.get(), this);
-
-	}
-
 	// nothrow from here
 	undoActorInterest.release();
 
@@ -2693,11 +2673,6 @@ void TreeItem::StartInterest() const
 garbage_can TreeItem::StopInterest() const noexcept
 {
 	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
-	auto storageParent = GetCurrStorageParent(false);
-	if (storageParent)
-		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
-			nmsm->StopInterest(storageParent.get(), this);
-
 	auto garbage = Actor::StopInterest();
 
 	if (GetTreeParent())
@@ -2710,10 +2685,10 @@ garbage_can TreeItem::StopInterest() const noexcept
 	else
 		garbage |= TryCleanupMem();
 
-	// Release an INTEREST-SCOPED m_ReadAssets payload -- a parked read OperationContext (PrepareDataRead) or a
+	// Release an INTEREST-SCOPED m_ReadAssets payload -- a storage_read_* request (StorageReadOperators.cpp) or a
 	// PhaseContainer phase_resource -- now that this item is out of interest, so an abandoned scheduled read/phase
-	// does not survive to deadlock the config-root teardown drain (StartInterest is a precondition of the read, see
-	// PrepareDataUsageImpl; PhaseContainer re-installs its phase_resource in PreCalcUpdate). The TSF flag (set at the
+	// does not survive to deadlock the config-root teardown drain (both re-install their payload in
+	// PreCalcUpdate). The TSF flag (set at the
 	// store sites) distinguishes these from PERSISTENT operator calc-metainfo (DiscrAlloc htp_meta, Overlay info,
 	// ...) that MUST be kept across interest cycles for recalc -- and lets StopInterest (tic) release clc/geo-defined
 	// payloads without naming their types. Move into the garbage_can (deferred): the payload's destruction may

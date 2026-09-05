@@ -92,7 +92,6 @@ public:
 
 //	Override TreeItem virtuals that forward to DataObject
 	SharedStr GetSignature() const override;
-	bool DoReadItem(StorageMetaInfoPtr smi) override;
 	bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
 	void ClearDataObject(garbage_can&) const override;
 

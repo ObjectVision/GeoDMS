@@ -46,8 +46,6 @@ public:
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 protected:
-	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
-
 	SharedStr GetFileName(const TreeItem* storageHolder, const TreeItem* curr, SizeT recNo) const override;
 	SizeT     GetNrFiles (const TreeItem* storageHolder, const TreeItem* curr) const override;
 

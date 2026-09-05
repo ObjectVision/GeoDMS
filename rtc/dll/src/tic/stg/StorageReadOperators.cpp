@@ -34,12 +34,15 @@
 //
 // *****************************************************************************
 
+#include "Parallel.h"       // IsMultiThreaded3, MaxConcurrentTreads
+#include "RtcTypeLists.h"
 #include "act/any.h"
 #include "dbg/Diagnostics.h"
 #include "dbg/SeverityType.h"
 #include "mci/ValueComposition.h"
 #include "mci/ValueWrap.h"
 #include "utl/FileSystem.h" // IsFileOrDirAccessible: the mapping arm
+#include "utl/Registry.h"   // IsPerformanceLogging
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"  // DelimitedConcat
 #include "utl/StrFormat.h"
@@ -57,13 +60,20 @@
 #include "OperationContext.h"
 #include "OperGroups.h"
 #include "Operator.h"
+#include "ParallelTiles.h"   // serial_for
+#include "PerfMeasurement.h" // the per-read performance line
+#include "Projection.h"
 #include "SessionData.h"
+#include "TileFunctorImpl.h" // make_unique_LazyTileFunctor
 #include "TreeItemClass.h"
+#include "TreeItemContextHandle.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "UnitProcessor.h"
 #include "stg/AbstrStorageManager.h"
 
 #include <optional>
+#include <semaphore>
 
 namespace {
 
@@ -190,6 +200,175 @@ const TreeItem* FindConfigMember(const TreeItem* configRoot, const TreeItem* cac
 	return curr;
 }
 
+// *****************************************************************************
+// the read of one data item: what AbstrDataItem::DoReadItem did for the configured item before #587
+// *****************************************************************************
+
+// Per-thread reader clones for the tiles of one attribute: a storage manager is opened once per
+// clone, and MaxConcurrentTreads clones serve the tile functor's concurrent demands.
+using semaphore_t = std::counting_semaphore<>;
+struct reader_clone_farm
+{
+	semaphore_t m_Countdown;
+	std::vector<std::unique_ptr<StorageReadHandle>> m_ClonePtrs;
+	std::mutex m_CloneCS;
+	std::vector<UInt32> m_Tokens;
+
+	reader_clone_farm()
+		: m_Countdown(MaxConcurrentTreads())
+	{
+		auto nrThreads = MaxConcurrentTreads();
+		m_ClonePtrs.resize(nrThreads);
+		m_Tokens.reserve(nrThreads);
+		while (nrThreads)
+			m_Tokens.emplace_back(--nrThreads);
+	}
+
+	UInt32 acquire()
+	{
+		m_Countdown.acquire();
+		std::lock_guard csLock(m_CloneCS);
+		auto token = m_Tokens.back();
+		m_Tokens.pop_back();
+		return token;
+	}
+	void release(UInt32 token)
+	{
+		{
+			std::lock_guard csLock(m_CloneCS);
+			m_Tokens.emplace_back(token);
+		}
+		m_Countdown.release();
+	}
+};
+
+// Read the attribute the meta info describes into target: every tile through the manager's
+// ReadDataItem, either at once into a write lock or, for a random-access storage and a tiled
+// domain, on demand through a lazy tile functor that re-reads a tile whenever it is asked for
+// (doc/tile-data-retainment.md 4.3). The section of the manager is held by the caller.
+bool ReadDataItemInto(NonmappableStorageManager* sm_, StorageMetaInfoPtr smi, AbstrDataItem* target)
+{
+	assert(CheckCalculatingOrReady(target->GetAbstrDomainUnit()->GetCurrRangeItem().get()));
+
+	auto sm = MakeSharedFromBorrowedObjectPtr(sm_);
+	MG_CHECK(sm);
+	assert(sm->IsOpen());
+	assert(!sm->m_CriticalSection.try_acquire());
+
+	if (!sm->DoesExist(smi->StorageHolder()))
+		target->throwItemErrorF("Storage {} does not exist", sm->GetNameStr().c_str());
+
+	try {
+		auto adu = target->GetAbstrDomainUnit();
+		assert(adu);
+
+		if (adu->GetNrDimensions() == 2)
+		{
+			sm->DoCheckFactorSimilarity(smi);
+			sm->DoCheck50PercentExtentOverlap(smi);
+		}
+
+		auto tn = adu->GetNrTiles();
+		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
+		{
+			auto readerFarm = std::make_shared<reader_clone_farm>();
+
+			auto tileGenerator = [target, sm, smi, readerFarm](AbstrDataObject* self, tile_id t)
+			{
+				auto context = TreeItemContextHandle(target, "storage read");
+				auto token = readerFarm->acquire();
+				auto returnTokenOnExit = make_scoped_exit([&readerFarm, token]() { readerFarm->release(token); });
+
+				auto& readerClonePtr = readerFarm->m_ClonePtrs[token];
+				if (!readerClonePtr)
+					readerClonePtr = sm->ReaderClone(smi);
+				if (auto r = readerClonePtr->StorageManager()->ReadDataItem(smi, self, t); !r)
+					r.Throw("Failure during Reading from storage");
+			};
+			auto rangeDomainUnit = AsUnit(adu->GetCurrRangeItem()); assert(rangeDomainUnit);
+			auto tileRangeData = rangeDomainUnit->GetTiledRangeData();
+			auto rangeValuesUnit = AsUnit(target->GetAbstrValuesUnit()->GetCurrRangeItem()); assert(rangeValuesUnit);
+			MG_CHECK(tileRangeData);
+			visit<typelists::numerics>(rangeValuesUnit.get(), [target, tileRangeData, &tileGenerator]<typename V>(const Unit<V>* valuesUnit) {
+				target->m_DataObject = make_unique_LazyTileFunctor<V>(make_shared_tree(target, existing_obj{}), tileRangeData.get(), valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
+					MG_DEBUG_ALLOCATOR_SRC(target->md_FullName + ".storage read: lazy tiles of a random-access storage")
+				).release();
+			});
+		}
+		else
+		{
+			// mustzero: the storage managers that fill this buffer (Shp/dbf/Odbc/Xdb) ask for
+			// write_only_mustzero on it, so a short or partial read leaves zeros rather than
+			// indeterminate memory. That mode has to be given HERE -- an untiled result allocates in
+			// the DataWriteLock ctor, so the mode passed to GetDataWrite() cannot zero anything.
+			DataWriteLock readResultHolder(target, dms_rw_mode::write_only_mustzero);
+			MG_CHECK(readResultHolder.get_ptr());
+			serial_for<tile_id>(0, adu->GetNrTiles(),
+				[sm, smi, &readResultHolder](tile_id t)->void
+				{
+					auto r = sm->ReadDataItem(smi, readResultHolder.get_ptr(), t);
+					if (!r)
+						r.Throw("Failure during Reading from storage");
+				}
+			);
+			readResultHolder.Commit();
+		}
+	}
+	catch (const DmsException& x)
+	{
+		if (!target->WasFailed(FailType::Data))
+			target->DoFailCaller(x.AsErrMsg(), FailType::Data);
+		throw;
+	}
+	return true;
+}
+
+// The range of a table into its result unit.
+bool ReadUnitRangeInto(NonmappableStorageManager* sm, const StorageMetaInfo& smi, AbstrUnit* target)
+{
+	if (!sm->ReadUnitRange(smi))
+		return false;
+	MG_CHECK(target->HasTiledRangeData() || target->IsDefaultUnit());
+	return true;
+}
+
+// The projection and spatial reference that DoUpdateTree gave a configured grid domain from the file
+// go to the result unit of its read: the storage supplies them, and the configured unit and its result
+// have to unify. Meta thread: asking the configured unit updates it.
+void CopyProjection(const TreeItem* configItem, AbstrUnit* target)
+{
+	assert(IsMetaThread());
+	auto configUnit = AsDynamicUnit(configItem);
+	if (!configUnit)
+		return;
+	if (!target->GetProjection())
+		if (auto p = configUnit->GetProjection())
+			target->SetProjection(SharedPtr<const UnitProjection>(p));
+	if (!target->GetSpatialReference())
+		if (auto sr = configUnit->GetSpatialReference())
+			target->SetSpatialReference(sr);
+}
+
+// A read of one attribute or parameter needs the ranges of its domain and values units (its
+// arguments) for its meta info and its data allocation: wait for them, or suspend.
+bool UnitsReadyOrSuspend(const AbstrDataItem* adi)
+{
+	for (auto unit : { adi->GetAbstrDomainUnit(), adi->GetAbstrValuesUnit() })
+		if (unit)
+			if (auto rangeItem = unit->GetCurrRangeItem(); rangeItem && !WaitForReadyOrSuspendTrigger(rangeItem.get()))
+				return false;
+	return true;
+}
+
+// the request goes, with the interest it holds
+void ReleaseRequest(TreeItem* root)
+{
+	if (root->m_ReadAssets.is_a<storage_read_request>())
+		root->m_ReadAssets.Get<storage_read_request>().m_Pending.clear();
+	root->m_ReadAssets.Clear();
+	root->ClearTSF(TSF_ReadAssetsInterestScoped);
+}
+
 // The read of a member of a memory-mapped store (MMD): its file is mapped and becomes the member's data
 // object, as PrepareDataUsageImpl did for the configured item before #587. No storage handle: the
 // manager has no ReadDataItem; opening the store once establishes its existence and its lock file.
@@ -241,13 +420,9 @@ bool ReadPendingMembers(TreeItem* root)
 
 	// The request goes with this pass, whichever way it ends: it holds interest in the members and
 	// their meta info, which a failed read must not keep alive (a dangling interest keeps the keys,
-	// and their string literals, alive up to the teardown of the token registry).
-	auto releaseRequest = [root, &req]() noexcept
-	{
-		req.m_Pending.clear(); // meta infos first, while the storage section below is still held
-		root->m_ReadAssets.Clear();
-		root->ClearTSF(TSF_ReadAssetsInterestScoped);
-	};
+	// and their string literals, alive up to the teardown of the token registry). The meta infos go
+	// first, while the storage section below is still held.
+	auto releaseRequest = [root]() noexcept { ReleaseRequest(root); };
 
 	if (!req.m_NSM)
 	{
@@ -282,19 +457,29 @@ bool ReadPendingMembers(TreeItem* root)
 		auto progressMsg = mySSPrintF("Read {} from {}", m.m_ConfigItem->GetFullName(), storageName);
 		reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, progressMsg.c_str());
 		try {
-			StorageReadHandle srh(sm.get(), std::move(m.m_MetaInfo), no_storage_lock);
+			StorageReadHandle srh(sm.get(), std::move(m.m_MetaInfo), no_storage_lock); // opens the storage; closes it when it dies
 			bool ok = sm->IsOpen();
 			if (ok)
 			{
 				if (IsUnit(cacheItem))
-				{
-					// the table's range; not through AbstrUnit::DoReadItem, which is for a configured unit
-					// (it asserts that storage is not disabled, which it is on every result unit)
-					ok = sm->ReadUnitRange(*srh.MetaInfo());
-					MG_CHECK(!ok || AsUnit(cacheItem)->HasTiledRangeData());
-				}
+					ok = ReadUnitRangeInto(sm.get(), *srh.MetaInfo(), AsUnit(cacheItem));
 				else
-					ok = srh.Read();
+				{
+					bool measure = IsPerformanceLogging();
+					auto estimate = measure ? EstimateReadResources(cacheItem) : PerformanceEstimationData(); // the domain count is known: the table's range was read first
+					PerfTimer timer(measure);
+
+					ok = ReadDataItemInto(sm.get(), srh.MetaInfo(), AsDataItem(cacheItem));
+
+					// A variable-width attribute read from an external source is the LEAF of every estimate that
+					// consumes it, and right after the read its true volume is simply known -- the tiles are
+					// resident. Publish measured bytes-per-row (always on: the width feeds the admission gate),
+					// so consumers stop inheriting ASSUMED_SEQ_LENGTH guesses (schedule-with-lookahead 8.1.19).
+					if (ok)
+						PublishMeasuredElementWidth(AsDataItem(cacheItem));
+					if (measure)
+						ReportReadPerformance(cacheItem, estimate, timer.ElapsedMSec());
+				}
 			}
 			if (!ok)
 				m.m_ConfigItem->throwItemErrorF("Reading from {} failed", storageName);
@@ -318,18 +503,37 @@ SharedPtr<NonmappableStorageManager> RequiredStorageManager(const TreeItemDualRe
 	return {};
 }
 
-// 'geometry:poly' -> 'geometry', Polygon (decision 9: no suffix for Single)
-std::pair<SharedStr, ValueComposition> SplitCompositionSuffix(const SharedStr& memberSpec)
+// The parts of a member spec: 'geometry:poly' -> 'geometry', Polygon (decision 9: no suffix for
+// Single); a trailing '@' says that the member's values unit is the table itself (a relation to its
+// own table), whose key cannot be an argument of the read that produces it.
+struct member_spec_parts
 {
+	SharedStr        m_Name;
+	ValueComposition m_VC = ValueComposition::Single;
+	bool             m_ValuesAreTheTable = false;
+};
+
+member_spec_parts SplitMemberSpec(SharedStr memberSpec)
+{
+	member_spec_parts result;
 	auto r = memberSpec.AsRange();
+	if (!r.empty() && r.second[-1] == '@')
+	{
+		result.m_ValuesAreTheTable = true;
+		--r.second;
+	}
 	auto colon = std::find(r.first, r.second, ':');
 	if (colon == r.second)
-		return { memberSpec, ValueComposition::Single };
+	{
+		result.m_Name = SharedStr(CharPtrRange(r.first, r.second));
+		return result;
+	}
 	SharedStr suffix(CharPtrRange(colon + 1, r.second));
-	auto vc = DetermineValueComposition(suffix.c_str());
-	if (vc == ValueComposition::Unknown || vc == ValueComposition::Single)
-		throwDmsErrF("storage_read_table: unknown value composition '{}' in member spec '{}'", suffix, memberSpec);
-	return { SharedStr(CharPtrRange(r.first, colon)), vc };
+	result.m_VC = DetermineValueComposition(suffix.c_str());
+	if (result.m_VC == ValueComposition::Unknown || result.m_VC == ValueComposition::Single)
+		throwDmsErrF("storage read: unknown value composition '{}' in member spec '{}'", suffix, memberSpec);
+	result.m_Name = SharedStr(CharPtrRange(r.first, colon));
+	return result;
 }
 
 // *****************************************************************************
@@ -359,13 +563,14 @@ struct StorageReadTableOperator : TernaryOperator
 		MG_CHECK(domainType);
 		auto root = domainType->GetUnitClass()->CreateResultUnit(nullptr);
 		MG_CHECK(root);
+		CopyProjection(ResolveConfigItem(args).get(), root.get()); // a grid domain: the file's projection, as DoUpdateTree gave it to the configured unit
 
 		for (arg_index i = 3; i < args.size(); i += 2)
 		{
-			auto [name, vc] = SplitCompositionSuffix(ArgString(args, i));
-			auto vu = AsUnit(GetItem(args[i + 1]));
+			auto parts = SplitMemberSpec(ArgString(args, i));
+			const AbstrUnit* vu = parts.m_ValuesAreTheTable ? root.get() : AsUnit(GetItem(args[i + 1]));
 			MG_CHECK(vu);
-			CreateDataItemFromPath(root.get(), name.c_str(), root.get(), vu, vc);
+			CreateDataItemFromPath(root.get(), parts.m_Name.c_str(), root.get(), vu, parts.m_VC);
 		}
 		resultHolder = SharedMutableTreeItem(root);
 	}
@@ -375,6 +580,7 @@ struct StorageReadTableOperator : TernaryOperator
 		MG_CHECK(IsMetaThread());
 		auto root = resultHolder.GetNew();
 		MG_CHECK(root);
+		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); }); // a request left behind holds interest
 		auto& req = GetOrCreateRequest(root, args);
 
 		CollectMember(req, root, req.m_ConfigItem.get()); // the table's range, once
@@ -389,6 +595,7 @@ struct StorageReadTableOperator : TernaryOperator
 			else
 				CollectMember(req, const_cast<TreeItem*>(member), configMember);
 		}
+		releaseOnThrow.release();
 		return true;
 	}
 
@@ -438,8 +645,12 @@ struct StorageReadValueOperator : TernaryOperator
 		MG_CHECK(IsMetaThread());
 		auto root = resultHolder.GetNew();
 		MG_CHECK(root);
+		if (!UnitsReadyOrSuspend(AsDataItem(root)))
+			return false;
+		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); });
 		auto& req = GetOrCreateRequest(root, args);
 		CollectMember(req, root, req.m_ConfigItem.get());
+		releaseOnThrow.release();
 		return true;
 	}
 
@@ -487,10 +698,10 @@ struct StorageReadAttrOperator : QuinaryOperator
 
 		auto domain = AsUnit(GetItem(args[2]));
 		MG_CHECK(domain);
-		auto [name, vc] = SplitCompositionSuffix(ArgString(args, 3));
+		auto parts = SplitMemberSpec(ArgString(args, 3));
 		auto vu = AsUnit(GetItem(args[4]));
 		MG_CHECK(vu);
-		resultHolder = SharedMutableTreeItem(CreateCacheDataItem(domain, vu, vc));
+		resultHolder = SharedMutableTreeItem(CreateCacheDataItem(domain, vu, parts.m_VC));
 	}
 
 	bool PreCalcUpdate(TreeItemDualRef& resultHolder, ArgRefs& args) const override
@@ -498,8 +709,12 @@ struct StorageReadAttrOperator : QuinaryOperator
 		MG_CHECK(IsMetaThread());
 		auto root = resultHolder.GetNew();
 		MG_CHECK(root);
+		if (!UnitsReadyOrSuspend(AsDataItem(root)))
+			return false;
+		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); });
 		auto& req = GetOrCreateRequest(root, args);
 		CollectMember(req, root, req.m_ConfigItem.get());
+		releaseOnThrow.release();
 		return true;
 	}
 

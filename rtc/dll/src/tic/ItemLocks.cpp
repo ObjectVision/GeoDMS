@@ -954,7 +954,7 @@ std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item)
 			break;
 		item = item->GetTreeParent().get(); // cache items can inherit write rights from parent
 	}	while (item);
-	assert(!item || CheckDataReady(item) || item->IsDataReadable() || item->IsReadFromStorage() || item->WasFailed()); // #587: a stored item may carry a read calculator
+	assert(!item || CheckDataReady(item) || item->IsReadFromStorage() || item->WasFailed()); // #587: a stored item carries a read calculator
 	return std::shared_ptr<OperationContext>();
 }
 

@@ -244,7 +244,6 @@ public:
 
 protected:
 	SharedStr GetSignature() const override;
-	bool DoReadItem(StorageMetaInfoPtr smi) override;
 
 private:
 	void      UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg, bool isDomain) const;

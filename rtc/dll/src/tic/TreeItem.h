@@ -234,7 +234,6 @@ public:
 	// Disable storage to force in-memory or calculator-only operation.
 	TIC_CALL void DisableStorage(bool disableStorage=true); // don't use storage
           bool IsDisabledStorage() const { return GetTSF(TSF_DisabledStorage); }
-	bool IsDataReadable()    const;
 
 //	Containment
 
@@ -486,8 +485,8 @@ public:
 	std::weak_ptr<const Actor> weak_from_actor() const override { return weak_from_this(); } // std-managed: real weak for the supplier-interest list
 
 //protected: // new callback functions
-	// Hooks for storage read/write and data (clear/copy/signature/result checks).
-	virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
+	// Hooks for storage write and data (clear/copy/signature/result checks). Reading is an operator
+	// application since #587 (StorageReadOperators.cpp), not a hook of the item.
 	virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
 	virtual void ClearDataObject(garbage_can&) const;
 	virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;
@@ -544,8 +543,7 @@ public: // TODO G8: Re-encapsulate
 	void InheritParentState(TreeItem* parent); // copy template/cache/passor/keep-data flags down from parent (called by InitTreeItem)
 	friend void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
 
-	// Storage IO entry points; ReadItem integrates with StorageReadHandle.
-	bool ReadItem(StorageReadHandle&& srh);
+	// Storage IO entry points.
 	void SetStorageManager(AbstrStorageManager* sm);
 
 	// Mark meta-info as ready after updates.

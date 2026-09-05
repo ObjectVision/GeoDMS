@@ -1,0 +1,20 @@
+// #587 S3: an attribute whose values unit is its own table (a relation to the table itself) is a
+// member of the table's read, spelled 'parent@' in the spec: its values unit is the read's result,
+// which cannot be an argument of that same read.
+container stor_read_self_relation
+{
+	unit<uint32> tab
+	:	StorageName     = "%currDir%/read_relation.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<uint32> id;
+		attribute<tab>    parent;
+	}
+	container checks
+	{
+		parameter<uint32> c1 := sum(id(tab)),               IntegrityCheck = "c1 == 10";
+		parameter<uint32> c2 := sum(uint32(tab/parent)),    IntegrityCheck = "c2 == 10";
+		parameter<uint32> c3 := sum(tab/id[tab/parent]),    IntegrityCheck = "c3 == 15";
+	}
+}

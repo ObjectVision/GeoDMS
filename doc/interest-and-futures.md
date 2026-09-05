@@ -128,7 +128,7 @@ these are what `FutureSuppliers`/`ArgRef` (`rtc/dll/src/tic/OperGroups.h:32-37`)
 | site | pattern |
 |---|---|
 | `rtc/dll/src/tic/TreeItem.cpp:3651` | `FutureData dc = self->GetCheckedDC();` before `dc->CallCalcResult()` at `:3662` |
-| `rtc/dll/src/tic/TreeItem.cpp:3750,3813,3825` | `FutureData tmpFut = dc; // hold interest while obtaining the future` |
+| (`PrepareDataRead`, retired by #587) | `FutureData tmpFut = dc; // hold interest while obtaining the future` -- the read's pre-charges of its Calc-suppliers and its domain and values units went with the item-writer read path; a read is an operator application now (`stg/StorageReadOperators.cpp`) whose suppliers are arguments, charged as any operator's (a) |
 | `rtc/dll/src/tic/MoreDataControllers.cpp:566` | `FutureData fd = argIter->m_DC; fd = ...CalcResultWithValuesUnits();` |
 | `rtc/dll/src/tic/AbstrCalculator.cpp:1092` | `FutureData dc = GetOrCreateDataController(...)` then `CalcResultWithValuesUnits` |
 | `rtc/dll/src/tic/AbstrCalculator.cpp:193` | `CalledCalcHandle` returns `dc` as `calc_result_t` on the MetaInfo-failed path — a "settled-failed" future by convention only |

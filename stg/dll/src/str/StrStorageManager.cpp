@@ -193,12 +193,10 @@ SizeT StrFilesStorageManager::GetNrFiles (const TreeItem* storageHolder, const T
 	return GetFileNameAttr(storageHolder, curr)->GetAbstrDomainUnit()->GetCount();
 }
 
-// No GetMetaInfo override: the file-list supplier (FileName) is now arranged generically -- PrepareDataRead
-// adds it (via StrFilesStorageManager::VisitSuppliers under the Calc flag) to the read OperationContext's
-// future suppliers, and ReadDataItem/WriteDataItem each hold a (Prepared)DataReadLock on FileName for the
-// operation. The former override only synchronously PrepareDataUsage'd FileName, which is now redundant (and
-// asserted when FileName's transient SupplInterest had been dropped before a re-read). base_type::GetMetaInfo
-// (NonmappableStorageManager) merely builds the StorageMetaInfo and needs nothing from FileName.
+// No GetMetaInfo override: base_type::GetMetaInfo (NonmappableStorageManager) merely builds the
+// StorageMetaInfo and needs nothing from FileName. ReadDataItem/WriteDataItem each hold a
+// (Prepared)DataReadLock on FileName for the operation; the read has FileName as an argument (below),
+// the write reaches FileName through the ExportInfo visit.
 
 // #587: the FileName attribute is an argument of the read, so that it is calculated before the read
 // and is part of the read's identity: storage_read_attr(spec, name, domain, 'attr', vu, <FileName key>)
@@ -230,18 +228,6 @@ FileResult StrFilesStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
 	PreparedDataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD().get()), "@StrFilesStorageManager::WriteDataItem");
 	return base_type::WriteDataItem(std::move(smi));
-}
-
-ActorVisitState StrFilesStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
-{
-	if (IsDataItem(self))
-	{
-		const TreeItem* fileNameAttr = GetFileNameAttr(storageHolder, self);
-		if (fileNameAttr != self && fileNameAttr != storageHolder)
-			if (visitor.Visit(fileNameAttr) != AVS_Ready)
-				return AVS_SuspendedOrFailed;
-	}
-	return base_type::VisitSuppliers(svf, visitor, storageHolder, self);
 }
 
 void StrFilesStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const

@@ -69,17 +69,6 @@ StorageMetaInfo::~StorageMetaInfo()
 auto StorageMetaInfo::CurrRD() const -> std::shared_ptr<const AbstrDataItem> { return AsDataItem(m_Curr); }
 auto StorageMetaInfo::CurrRU() const -> std::shared_ptr<const AbstrUnit> { return AsUnit(m_Curr); }
 
-void StorageMetaInfo::PrepareReadDataOrSuspend()
-{
-	if (IsDataItem(m_Curr.get()))
-	{
-		std::shared_ptr<const AbstrUnit> adu = make_shared_tree(CurrRD()->GetAbstrDomainUnit(), existing_obj{});
-		adu->GetCount(); // Prepare for later DataWriteLock->DoCreateMemoryStorage
-		std::shared_ptr<const AbstrUnit> avu = make_shared_tree(CurrRD()->GetAbstrValuesUnit(), existing_obj{});
-		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem().get());
-	}
-}
-
 void StorageMetaInfo::OnOpenForRead(StorageReadHandle*)
 {}
 
@@ -855,14 +844,22 @@ namespace { // #587 helpers for NonmappableStorageManager::DescribeReadCall
 				if (adi->GetAbstrDomainUnit() != table)
 					continue;
 				auto vu = adi->GetAbstrValuesUnit();
-				if (!vu || vu == table) // a relation to the table itself: its key would be the key being built; it stays on the item-writer path
+				if (!vu)
 					continue;
 				auto vc = adi->GetValueComposition();
 				auto name = adi->GetRelativeName(table);
 				if (vc != ValueComposition::Single)
 					name = mySSPrintF("{}:{}", name, GetValueCompositionID(vc)); // decision 9: ':poly', ':arc', ':multipoint'
 				nameExpr = WrapExplicitSuppliers(adi, nameExpr);
-				members.emplace_back(std::move(name), UnitKey(vu));
+				if (vu == table)
+				{
+					// a relation to the table itself: its values unit is the result of this very read, which the
+					// operator takes from the '@' suffix; the key argument is a placeholder of the right type
+					name = name + "@";
+					members.emplace_back(std::move(name), ExprList(table->GetValueType()->GetNameID()));
+				}
+				else
+					members.emplace_back(std::move(name), UnitKey(vu));
 			}
 			if (!IsUnit(sub))
 				CollectStoredMembers(table, sub, nameExpr, members);
@@ -914,7 +911,7 @@ namespace { // #587 helpers for NonmappableStorageManager::DescribeReadCall
 
 } // anonymous namespace
 
-ReadCallSpec AbstrStorageManager::DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table) const
+ReadCallSpec AbstrStorageManager::DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table, bool withMembers) const
 {
 	assert(IsMetaThread());
 	assert(storageHolder);
@@ -923,7 +920,8 @@ ReadCallSpec AbstrStorageManager::DescribeTableRead(const TreeItem* storageHolde
 	LispRef nameExpr = WrapExplicitSuppliers(table, StrLit(GetNameStr()));
 
 	std::vector<member_spec> members;
-	CollectStoredMembers(table, table, nameExpr, members);
+	if (withMembers)
+		CollectStoredMembers(table, table, nameExpr, members);
 
 	LispRef tail;
 	for (auto m = members.rbegin(), e = members.rend(); m != e; ++m)
@@ -1076,31 +1074,6 @@ ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const
 void NonmappableStorageManager::DropStream(const TreeItem* item, CharPtr path)
 {
 	throwIllegalAbstract(MG_POS, this, "DropStream");
-}
-
-void NonmappableStorageManager::StartInterest(const TreeItem* storageHolder, const TreeItem* self) const
-{
-	interest_holders_container interestHolders;
-
-	auto visitorImpl = [&interestHolders](const Actor* item) 
-		{ 
-			if (!item->IsPassor()) 
-				if (auto sa = dynamic_cast<const SharedActor*>(item))
-					interestHolders.emplace_back(sa); 
-		};
-	auto visitor = MakeDerivedProcVisitor(std::move(visitorImpl));
-
-	VisitSuppliers(SupplierVisitFlag::StartSupplInterest, visitor, storageHolder, self);
-
-	if (interestHolders.size())
-		m_InterestHolders[interest_holders_key(make_shared_tree(storageHolder, existing_obj{}), make_shared_tree(self, existing_obj{}))].swap(interestHolders);
-	else
-		StopInterest(storageHolder, self);
-}
-
-void NonmappableStorageManager::StopInterest(const TreeItem* storageHolder, const TreeItem* self) const noexcept
-{
-	m_InterestHolders.erase(interest_holders_key(make_shared_tree(storageHolder, existing_obj{}), make_shared_tree(self, existing_obj{})));
 }
 
 // Wrapper functions for consistent calls to specific StorageManager overrides
@@ -1280,35 +1253,6 @@ void StorageReadHandle::Init()
 		MetaInfo()->OnOpenForRead(this);
 }
 
-bool StorageReadHandle::Read() const
-{
-	assert(FocusItem     ()); // note that storageHolder may be nullptr
-	assert(StorageManager());
-	if (!StorageManager()->IsOpen())
-		return false;
-
-	bool measure = IsPerformanceLogging();
-	// Estimate before reading: PrepareReadDataOrSuspend has already resolved the domain count and
-	// values range, so unlike a calculation a read knows its size up front.
-	auto estimate = measure ? EstimateReadResources(FocusItem()) : PerformanceEstimationData();
-
-	PerfTimer timer(measure);
-
-	auto result = FocusItem()->DoReadItem(MetaInfo());
-
-	// A variable-width attribute read from an external source is the LEAF of every estimate that
-	// consumes it, and right after the read its true volume is simply known -- the tiles are
-	// resident. Publish measured bytes-per-row (always on: the width feeds the admission gate),
-	// so consumers stop inheriting ASSUMED_SEQ_LENGTH guesses. BAG pand geometry ran ~21x UNDER
-	// the guess while GTFS arcs ran 16x over it -- only a measured width serves both (SS8.1.19).
-	if (result && IsDataItem(FocusItem()))
-		PublishMeasuredElementWidth(AsDataItem(FocusItem()));
-
-	if (measure)
-		ReportReadPerformance(FocusItem(), estimate, timer.ElapsedMSec());
-
-	return result;
-}
 
 
 StorageWriteHandle::StorageWriteHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi)
