@@ -1,0 +1,29 @@
+// #587: an IntegrityCheck ON an item read from a storage may refer to that item itself, by
+// name or as 'this'. The checker of an item substitutes the item's RAW key expression, so
+// that the check does not fold itself into what it guards; a stored item without a
+// calculation rule has no raw key, and the empty key ended in "SubstitutionError" on the
+// checked item while the check was built. The checker now refers to such an item by its
+// source description, as every other consumer does. This positive pins that both spellings
+// build and pass on a satisfying payload; fn_test_icheck_storage_self_neg1 pins that a
+// violated self-referring check still fails the run.
+container fn_test_icheck_storage_self
+{
+	parameter<string> byName
+	:	StorageType    = "str"
+	,	StorageName    = "%currDir%/icheck_payload.txt"
+	,	IntegrityCheck = "strlen(byName) > 0";
+
+	parameter<string> byThis
+	:	StorageType    = "str"
+	,	StorageName    = "%currDir%/icheck_payload.txt"
+	,	IntegrityCheck = "strlen(this) > 0";
+
+	parameter<string> viaName := byName + '!';
+	parameter<string> viaThis := byThis + '!';
+
+	container checks
+	{
+		parameter<bool> c1 := viaName == 'payload-42!', IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := viaThis == 'payload-42!', IntegrityCheck = "c2 == true";
+	}
+}

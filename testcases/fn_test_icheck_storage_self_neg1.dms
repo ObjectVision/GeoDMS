@@ -1,0 +1,17 @@
+// Negative twin of fn_test_icheck_storage_self: the self-referring check on the stored item
+// is violated (the payload has 10 characters, the check demands more than 20), so consuming
+// the item must fail the run, through the check and not through a SubstitutionError.
+container fn_test_icheck_storage_self_neg1
+{
+	parameter<string> byName
+	:	StorageType    = "str"
+	,	StorageName    = "%currDir%/icheck_payload.txt"
+	,	IntegrityCheck = "strlen(byName) > 20";
+
+	parameter<string> viaName := byName + '!';
+
+	container checks
+	{
+		parameter<bool> c1 := viaName == 'payload-42!', IntegrityCheck = "c1 == true";
+	}
+}

@@ -1009,7 +1009,26 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	if (mpf & metainfo_policy_flags::subst_never || (!supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier)))
 		return CreateLispTree(supplier, mpf & metainfo_policy_flags::suppl_tree);
 
-	LispRef result = (m_CalcRole == CalcRole::Checker && holder.get() == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
+	LispRef result;
+	if (m_CalcRole == CalcRole::Checker && holder.get() == supplier)
+	{
+		// The check refers to the item it guards: take that item's RAW key, so the check does not
+		// fold itself into the expression it guards (#1180). An item without a calculation rule
+		// that is read from a storage has no raw key -- GetCurrMetaInfo keeps the loadable case
+		// out of GetOrgDC -- and the empty key ended in "SubstitutionError" on the checked item
+		// (#587 as filed: a check on a stored parameter naming that parameter). Such an item is
+		// referred to by its source description, the reference every other consumer gets through
+		// the GetCheckedKeyExpr fallback: the condition then reads the item through the same
+		// SymbDC as the guarded reference, and PrepareDataUsageImpl does not consult GetCheckedDC
+		// for an item without a calculator, so no cycle closes. The fallback is transitional: #587
+		// goes on to substitute the read itself as an operator application, which gives a stored
+		// item a raw key and leaves this branch to items that never had one.
+		result = supplier->GetKeyExprImpl();
+		if (result.EndP())
+			result = CreateLispTree(supplier, false);
+	}
+	else
+		result = supplier->GetCheckedKeyExpr();
 
 #if defined(MG_DEBUG_LISP_TREE)
 	reportF(SeverityTypeID::ST_MinorTrace, "result={}", AsString(result).c_str());
