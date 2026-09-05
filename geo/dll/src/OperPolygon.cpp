@@ -1190,11 +1190,13 @@ public:
 			, last_i2 = {};
 
 		Float64 dist = const_array_cast<DistType>(arg3A)->GetDataRead()[0];
-		
+		// dist divides every segment length into a point count below; zero, negative or null
+		// would turn that count into inf, a negative value or NaN, none of which converts to SizeT.
+		if (!IsDefined(dist) || !(dist > 0.0))
+			this->GetGroup()->throwOperErrorF("the distance argument must be a defined positive value, not {}", dist);
+
 		// first, calc cardinality for resDomain
 		bool withEnds = (this->m_CreateFlags & TableCreateFlags::DoIncludeEndPoints);
-		bool withNextPoints = (resSub2 != nullptr);
-		bool extraStartPoint = (withEnds && !withNextPoints);
 
 		SizeT nrPoints = 0;
 		Float64 carry = 0;
@@ -1297,7 +1299,7 @@ public:
 				if (nrPointsHere > 1)
 				{
 					segment *= dist;
-					UInt32 nrRemainingPoints = nrPointsHere;
+					SizeT nrRemainingPoints = nrPointsHere; // not UInt32: a count pass in SizeT that a narrowed write pass cannot match
 					while (--nrRemainingPoints)
 					{
 						currLoc += segment;
@@ -1323,8 +1325,10 @@ public:
 					ri1.Write(*i2);
 					if (resSub2)
 						ri2.Write(prevLoc);
-					ri3.WriteUInt32(nrOrgEntity);
-					ri4.Write(ordinalID++);
+					if (resSub3) // absent for a void point domain, as at every other write above
+						ri3.WriteUInt32(nrOrgEntity);
+					if (resSub4)
+						ri4.Write(ordinalID++);
 					++nrPointsHere;
 					carry = 0;
 				}

@@ -193,10 +193,6 @@ STGIMPL_CALL std::vector<Float64> TifImp::GetImageToWorldTransform() const
 	
 	// Read affine transform from TIFFTAG_ModelTransformationTag
 	std::vector<Float64> final_transform;
-	std::vector<Float64> transform = { 0.0, 0.0, 0.0, 0.0, 0.0, 
-									   0.0, 0.0, 0.0, 0.0, 0.0,
-									   0.0, 0.0, 0.0, 0.0, 0.0,
-									   0.0 };
 
 	/*
 	|-   -|     |-                 -|  |-   -|
@@ -210,29 +206,39 @@ STGIMPL_CALL std::vector<Float64> TifImp::GetImageToWorldTransform() const
 	|-   -|     |-                 -|  |-   -|
 	*/
 
-	auto result = TIFFGetField(m_TiffHandle, TIFFTAG_ModelTransformationTag, transform.begin()); // https://www.awaresystems.be/imaging/tiff/tifftags/modeltransformationtag.html
-	if (result)
+	// Tag 34264 is a pass-count field, both when libgeotiff or GDAL registered it (TIFF_VARIABLE)
+	// and when libtiff made it an anonymous field (TIFF_VARIABLE2): TIFFGetField writes the count
+	// through the first vararg and the data pointer through the second, as for the tie-point and
+	// pixel-scale tags below. Passing only a double* stored the count in the first bytes of that
+	// buffer and the pointer through a vararg that was never passed, and every rotated GeoTIFF
+	// got a georeference of zeros. The count is a uint16 under the registered definition and a
+	// uint32 under the anonymous one; a zero-initialised uint32 receives both on a little-endian
+	// machine.
+	uint32_t transformCount = 0;
+	double* transformData = nullptr;
+	auto result = TIFFGetField(m_TiffHandle, TIFFTAG_ModelTransformationTag, &transformCount, &transformData); // https://www.awaresystems.be/imaging/tiff/tifftags/modeltransformationtag.html
+	if (result && transformCount == 16 && transformData)
 	{
-		final_transform.push_back(transform[0]); // a: pixel size in the x-direction in map units
-		final_transform.push_back(transform[1]); // b: rotation about y-axis
-		final_transform.push_back(transform[4]); // e: rotation about x-axis
-		final_transform.push_back(-transform[5]); // f: pixel size in the y-direction in map in map units
-		final_transform.push_back(transform[3]); // d: x-coordinate of the upper left corner of the image
-		final_transform.push_back(transform[7]); // h: y-coordinate of the upper left corner of the image
-		
+		final_transform.push_back(transformData[0]); // a: pixel size in the x-direction in map units
+		final_transform.push_back(transformData[1]); // b: rotation about y-axis
+		final_transform.push_back(transformData[4]); // e: rotation about x-axis
+		final_transform.push_back(-transformData[5]); // f: pixel size in the y-direction in map in map units
+		final_transform.push_back(transformData[3]); // d: x-coordinate of the upper left corner of the image
+		final_transform.push_back(transformData[7]); // h: y-coordinate of the upper left corner of the image
+
 		return final_transform;
 	}
 
 	// Read affine transform from TIFFTAG_ModelTiePointTag and TIFFTAG_ModelPixelScaleTag
-	double * data_tie;
+	double * data_tie = nullptr;
 	uint32_t count = 0;
 	auto statusT = TIFFGetField(m_TiffHandle, TIFFTAG_ModelTiePointTag, &count, &data_tie);
 	if (!statusT || count!=6)
 		return final_transform;
 	
-	double * data_scale;	
+	double * data_scale = nullptr;
 	auto statusS = TIFFGetField(m_TiffHandle, TIFFTAG_ModelPixelScaleTag, &count, &data_scale);
-	if (!statusS || count!=3)
+	if (!statusS || count!=3 || !data_scale)
 		return final_transform;
 
 	final_transform.push_back(data_scale[0]); // a: pixel size in the x-direction in map units
@@ -470,7 +476,7 @@ void TifImp::SetWidth (UInt32 w)
 UInt32 TifImp::GetTileWidth() const 
 { 
 	dms_assert(m_TiffHandle);
-	UInt32 tile_image_width_info;
+	UInt32 tile_image_width_info = 0;
 	if (IsTiledTiff())
 		TIFFGetField(m_TiffHandle, TIFFTAG_TILEWIDTH, &tile_image_width_info);
 	else
@@ -489,12 +495,16 @@ UInt32 TifImp::GetTileByteWidth() const
 UInt32 TifImp::GetTileHeight() const
 { 
 	dms_assert(m_TiffHandle);
-	UInt32 result, rps, il;
+	UInt32 result = 0;
 	if (IsTiledTiff())
 		TIFFGetField(m_TiffHandle, TIFFTAG_TILELENGTH, &result); // m_TiffHandle->tif_dir.td_tilelength
 	else
 	{
-		TIFFGetField(m_TiffHandle, TIFFTAG_ROWSPERSTRIP, &rps); // m_TiffHandle->tif_dir.td_rowsperstrip,
+		// TIFFGetField leaves its argument untouched when the tag is absent from the file, and
+		// RowsPerStrip is optional (single-strip files omit it), so ask for the defaulted value:
+		// libtiff's default is 2^32-1, one strip of the full image height.
+		UInt32 rps = UInt32(-1), il = 0;
+		TIFFGetFieldDefaulted(m_TiffHandle, TIFFTAG_ROWSPERSTRIP, &rps); // m_TiffHandle->tif_dir.td_rowsperstrip,
 		TIFFGetField(m_TiffHandle, TIFFTAG_IMAGELENGTH, &il);  //m_TiffHandle->tif_dir.td_imagelength
 		result = Min<UInt32>(rps, il);
 	}
@@ -519,12 +529,16 @@ UInt32 TifImp::GetNrBitsPerPixel()  const
 {
 	dms_assert(m_TiffHandle);
 	
-	UInt16 bps, spp, config;
-	TIFFGetField(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, &bps); // m_TiffHandle->tif_dir.td_bitspersample;
-	TIFFGetField(m_TiffHandle, TIFFTAG_PLANARCONFIG, &config);
+	// BitsPerSample, PlanarConfig and SamplesPerPixel are optional tags with TIFF defaults (1,
+	// contiguous, 1). TIFFGetField leaves its argument untouched when a tag is absent, which made
+	// bilevel, single-band and fax files read uninitialised values here; the defaulted variant
+	// answers the TIFF default, and the variables start at those defaults as well.
+	UInt16 bps = 1, spp = 1, config = PLANARCONFIG_CONTIG;
+	TIFFGetFieldDefaulted(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, &bps); // m_TiffHandle->tif_dir.td_bitspersample;
+	TIFFGetFieldDefaulted(m_TiffHandle, TIFFTAG_PLANARCONFIG, &config);
 	if (config == PLANARCONFIG_CONTIG)			   // m_TiffHandle->tif_dir.td_planarconfig == PLANARCONFIG_CONTIG)
 	{
-		TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, &spp);
+		TIFFGetFieldDefaulted(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, &spp);
 		bps *= spp;  // m_TiffHandle->tif_dir.td_samplesperpixel;
 	}
 		

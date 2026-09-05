@@ -108,17 +108,22 @@ void XmlParser::TransformChar(char& nextChar)
 {
 	if (nextChar == '&')
 	{
+		// An entity reference: the name between '&' and ';' goes into a stack buffer. The name comes
+		// from the file, so its length is checked before every store. The loop stops at the end of
+		// the input as AtEnd() reports it; NextChar() is then 0, never EOF, so the earlier test for
+		// EOF ran past the end of any buffer without a trailing sentinel byte.
 		char nextToken[MAX_TOKEN_LEN+1], *nextTokenPtr = nextToken;
 		ReadChar();
 		nextChar = NextChar();
-		while (nextChar != ';' && nextChar !=EOF)
+		while (!AtEnd() && nextChar != ';')
 		{
+			if (nextTokenPtr - nextToken >= MAX_TOKEN_LEN)
+				throwDmsErrF("XML entity reference '&{}...' is longer than the {} characters supported", SharedStr(CharPtrRange(nextToken, nextTokenPtr)), MAX_TOKEN_LEN);
 			*nextTokenPtr++ = nextChar;
 			ReadChar();
 			nextChar = NextChar();
 		}
 		ReadChar(); // nextChar = one after ';'
-		dms_assert(nextTokenPtr - nextToken <= MAX_TOKEN_LEN);
 		*nextTokenPtr = 0;
 		nextChar = SymbolGetChar(nextToken);
 	}
@@ -129,7 +134,7 @@ void XmlParser::ReadText(XmlElement::TextType& elementText)
 	bool newToken = true; 
 	bool writeSpace = false;
 	char nextChar = NextChar();
-	while (nextChar !='<' && nextChar != EOF)
+	while (!AtEnd() && nextChar != '<') // not EOF: ReadChar answers 0 at the end, see TransformChar
 	{
 		if (isspace(UChar(nextChar)))
 		{
@@ -314,12 +319,17 @@ void XmlParser::ReadAttr(XmlElement& element)
 #include "xml/XmlConst.h"
 
 CharPtr XmlConstTable[256];
-std::map<CharPtr, Char, CompCharPtr> XmlConstMap;
+static std::map<CharPtr, Char, CompCharPtr> XmlConstMap; // filled by RegisterConst at static initialisation, read-only afterwards
 
 
 char SymbolGetChar(CharPtr symbol)
 {
-	return XmlConstMap[symbol];
+	// A lookup, never an insertion: operator[] on a miss stored the caller's pointer as a key --
+	// the stack buffer of TransformChar, or a slice of a string that HtmlDecode erases right
+	// after -- and every later lookup compared against that dangling key. An unknown entity
+	// decodes to 0, as before.
+	auto i = XmlConstMap.find(symbol);
+	return i == XmlConstMap.end() ? 0 : i->second;
 }
 
 struct RegisterConst {

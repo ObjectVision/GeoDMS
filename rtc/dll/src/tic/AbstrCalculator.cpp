@@ -525,6 +525,31 @@ UInt32 CountIndirections(CharPtr expr)
 	return expr - exprBegin;
 }
 
+namespace {
+
+	// An '=' indirection evaluates to a rule that may itself start with '='. A rule that evaluates
+	// back to itself, directly or through other rules, kept the evaluation loops below busy on the
+	// meta thread forever, so one chain is bounded and every rule evaluated in it is remembered.
+	// Admit answers nullptr when expr may be evaluated, else the reason it may not.
+	struct IndirectionChainGuard
+	{
+		static constexpr SizeT MAX_CHAIN_LENGTH = 64;
+
+		CharPtr Admit(const SharedStr& expr)
+		{
+			if (std::find(m_Evaluated.begin(), m_Evaluated.end(), expr) != m_Evaluated.end())
+				return "the chain of indirections leads back to this rule";
+			if (m_Evaluated.size() >= MAX_CHAIN_LENGTH)
+				return "the chain of indirections is longer than 64";
+			m_Evaluated.push_back(expr);
+			return nullptr;
+		}
+
+		std::vector<SharedStr> m_Evaluated;
+	};
+
+} // namespace
+
 BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr expr)
 {
 	if (expr.empty())
@@ -545,9 +570,12 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 
 	SharedStr resultStr(exprPtr);
 	dms_assert(!MustEvaluate(resultStr.begin()));
+	IndirectionChainGuard chainGuard;
 	if (!context->InTemplate())
 		while (nrEvals-- && !resultStr.empty())
 		{
+			if (chainGuard.Admit(resultStr))
+				return {}; // a cycle has no single erroneous item; EvaluateExpr reports it
 			AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, CalcRole::Other);
 			assert(calculator);
 			auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
@@ -604,9 +632,12 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 	FencedInterestRetainContext irc("EvaluateExpr");
 
 	SharedStr resultStr(expr);
+	IndirectionChainGuard chainGuard;
 	if (!context->InTemplate())
 	while (nrEvals-- && !resultStr.empty())
 	{
+		if (auto reason = chainGuard.Admit(resultStr))
+			context->throwItemErrorF("indirect expression '={}' for {} cannot be evaluated: {}", resultStr, context->GetFullName().c_str(), reason);
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, cr);
 		auto dc = MakeResult(calculator.get());
 		irc.Add(dc.get());
@@ -751,8 +782,11 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 	FencedInterestRetainContext irc("AbstrCalculator::VisitImplSuppl");
 
 	SharedStr resultStr(exprPtr+nrEvals MG_DEBUG_ALLOCATOR_SRC("AbstrCalculator::VisitImplSuppl.resultStr")); // creates a new copy of exprPtr
+	IndirectionChainGuard chainGuard;
 	while (!resultStr.empty())
 	{
+		if (chainGuard.Admit(resultStr))
+			break; // the suppliers of a cycle have all been visited; EvaluateExpr reports it
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(const_cast<TreeItem*>(context), resultStr, cr);
 		auto dc = MakeResult(calculator.get());
 		irc.Add(dc.get());

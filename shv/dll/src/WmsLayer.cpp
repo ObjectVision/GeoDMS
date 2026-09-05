@@ -1060,21 +1060,26 @@ bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 {
 	assert(vp);
 
-	auto zoomFactor = vp->CalcCurrWorldToDeviceZoomLevel();
-	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
-	if (!m_ZoomLevel)
+	if (m_TMS.empty()) // no tile matrix set (the capabilities did not load): nothing to snap to
 		return false;
-	if (m_TMS.size() < SizeT(m_ZoomLevel))
-		m_ZoomLevel = SizeT(m_TMS.size());
-	--m_ZoomLevel;
+
+	auto zoomFactor = vp->CalcCurrWorldToDeviceZoomLevel();
+	SizeT level = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
+	if (!IsDefined(level))
+		level = m_TMS.size(); // zoomed in beyond the finest level: that level is the first step out
+	// Level 0 is the coarsest. Decrementing an undefined level (all bits set) used to run past the
+	// vector when the set was empty.
+	if (!level)
+		return false;
+	m_ZoomLevel = --level;
 	Zoom1To1(vp);
 	if (!zoomFactor || justClickIsOK)
 		return true;
 	if (vp->CalcCurrWorldToDeviceZoomLevel() * MIN_ZOOM_STEP <= zoomFactor)
 		return true; // snapping to this level is a zoom-out step by itself
-	if (!m_ZoomLevel)
+	if (!level)
 		return false;
-	--m_ZoomLevel;
+	m_ZoomLevel = --level;
 	Zoom1To1(vp);
 	return true;
 }
@@ -1083,18 +1088,22 @@ bool WmsLayer::ZoomIn(ViewPort* vp)
 {
 	assert(vp);
 
+	if (m_TMS.empty())
+		return false;
+
 	auto zoomFactor = vp->CalcCurrWorldToDeviceZoomLevel();
-	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
-	if (m_ZoomLevel >= m_TMS.size() - 1) // also when undefined: zoomed in beyond the finest level
-		return false;                    // let the caller zoom by a plain factor 2
+	SizeT level = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
+	if (!IsDefined(level) || level + 1 >= m_TMS.size()) // undefined: zoomed in beyond the finest level
+		return false;                                   // let the caller zoom by a plain factor 2
+	m_ZoomLevel = level;
 	Zoom1To1(vp);
 	if (!zoomFactor)
 		return true;
 	if (vp->CalcCurrWorldToDeviceZoomLevel() >= zoomFactor * MIN_ZOOM_STEP)
 		return true; // snapping to this level is a zoom-in step by itself
-	if (m_ZoomLevel >= m_TMS.size() - 1)
+	if (level + 1 >= m_TMS.size())
 		return false;
-	++m_ZoomLevel;
+	m_ZoomLevel = ++level;
 	Zoom1To1(vp);
 	return true;
 }

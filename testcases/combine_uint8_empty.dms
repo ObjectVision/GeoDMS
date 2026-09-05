@@ -1,0 +1,20 @@
+// Regression for doc/code-fixes.md CLC-25 (2026-09-05): combine_uint8/combine_uint16 with an
+// empty argument unit. The product domain is empty, but a small-range result still carries one,
+// empty, tile, and the combine tile functor divided the tile start by a cycle size of 0 when
+// that tile was materialised. Expected: exit 0 on /checks.
+container combine_uint8_empty
+{
+	unit<uint32> Empty : nrofrows = 0;
+	unit<uint32> Three : nrofrows = 3;
+
+	unit<uint8>  c08 := combine_uint8 (Empty, Three);
+	unit<uint16> c16 := combine_uint16(Three, Empty);
+
+	container checks
+	{
+		parameter<uint32> n08 := #c08, IntegrityCheck = "n08 == 0";
+		parameter<uint32> n16 := #c16, IntegrityCheck = "n16 == 0";
+		parameter<uint32> f08 := count(c08/first_rel),  IntegrityCheck = "f08 == 0"; // reads the empty tile through the functor
+		parameter<uint32> s16 := count(c16/second_rel), IntegrityCheck = "s16 == 0";
+	}
+}

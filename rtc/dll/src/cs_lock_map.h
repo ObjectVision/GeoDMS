@@ -171,7 +171,10 @@ struct cs_lock_map
 		assoc_ptr ptr = GetorCreateMutex(MG_SOURCE_INFO_USE std::forward<KeyProxy>(key));
 		try {
 			if (!ptr->second.m_Lock.try_lock(std::forward<Args>(args)...))
+			{
+				ReleaseMutexRef(ptr); // GetorCreateMutex counted this reference and no ScopedTryLock will release it
 				return {};
+			}
 		}
 		catch (...)
 		{

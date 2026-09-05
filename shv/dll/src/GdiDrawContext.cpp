@@ -22,7 +22,14 @@
 GdiDrawContext::~GdiDrawContext()
 {
 	if (m_OwnedFont)
+	{
+		// The DC outlives this context (DataView::OnPaint keeps its PaintDcHandle), and GDI refuses
+		// to delete a font that is still selected into a DC, so select the original font back
+		// first. Without that, every paint that set a font leaked one HFONT.
+		if (m_OrgFont)
+			::SelectObject(m_hDC, m_OrgFont);
 		::DeleteObject(m_OwnedFont);
+	}
 }
 
 void GdiDrawContext::FillRect(const GRect& rect, DmsColor color)
@@ -176,8 +183,10 @@ void GdiDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegT
 	if (hFont)
 	{
 		HFONT old = (HFONT)::SelectObject(m_hDC, hFont);
-		if (m_OwnedFont)
-			::DeleteObject(m_OwnedFont);
+		if (!m_OwnedFont)
+			m_OrgFont = old; // the DC's own font, restored in the destructor
+		else
+			::DeleteObject(m_OwnedFont); // old == m_OwnedFont, no longer selected
 		m_OwnedFont = hFont;
 	}
 }
@@ -197,9 +206,11 @@ void GdiDrawContext::SetBold(bool isBold)
 	HFONT hFont = ::CreateFontIndirectW(&lf);
 	if (!hFont)
 		return;
-	::SelectObject(m_hDC, hFont);
-	if (m_OwnedFont)
-		::DeleteObject(m_OwnedFont);
+	HFONT old = (HFONT)::SelectObject(m_hDC, hFont);
+	if (!m_OwnedFont)
+		m_OrgFont = old; // the DC's own font, restored in the destructor
+	else
+		::DeleteObject(m_OwnedFont); // old == m_OwnedFont, no longer selected
 	m_OwnedFont = hFont;
 }
 

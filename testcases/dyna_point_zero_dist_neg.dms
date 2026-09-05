@@ -1,0 +1,20 @@
+// Regression for doc/code-fixes.md GEO-29 (2026-09-05): dyna_point with a distance of 0 divided
+// every segment length by zero and converted the resulting inf to a point count. The distance
+// argument is now refused unless it is a defined positive value.
+// Expected: exit nonzero on /checks ("the distance argument must be a defined positive value").
+container dyna_point_zero_dist_neg
+{
+	unit<fpoint> Crd;
+
+	unit<uint32> Seg : nrofrows = 1
+	{
+		attribute<Crd> p := const(point_xy(0f, 0f, Crd), Seg);
+		attribute<Crd> q := const(point_xy(10f, 0f, Crd), Seg);
+	}
+	unit<uint32> dp := dyna_point(Seg/p, Seg/q, 0f);
+
+	container checks
+	{
+		parameter<uint32> n := #dp, IntegrityCheck = "n == 0";
+	}
+}

@@ -140,8 +140,8 @@ public:
 class GdiDrawContext : public DrawContext
 {
 public:
-	GdiDrawContext() : m_hDC(NULL), m_OwnedFont(NULL) {}
-	explicit GdiDrawContext(HDC hdc) : m_hDC(hdc), m_OwnedFont(NULL) {}
+	GdiDrawContext() : m_hDC(NULL), m_OwnedFont(NULL), m_OrgFont(NULL) {}
+	explicit GdiDrawContext(HDC hdc) : m_hDC(hdc), m_OwnedFont(NULL), m_OrgFont(NULL) {}
 	~GdiDrawContext() override;
 
 	HDC GetHDC() const { return m_hDC; }
@@ -183,7 +183,8 @@ public:
 
 private:
 	HDC   m_hDC;
-	HFONT m_OwnedFont;
+	HFONT m_OwnedFont; // the font this context created and selected into m_hDC
+	HFONT m_OrgFont;   // the font that m_OwnedFont replaced in m_hDC; selected back before m_OwnedFont is deleted
 };
 #endif // _WIN32
 

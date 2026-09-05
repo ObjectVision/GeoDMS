@@ -54,7 +54,9 @@ namespace {
 		return reinterpret_cast<TreeItem*>(mi.internalPointer());
 	}
 
-	int GetRow(const TreeItem* ti) {
+	// The row of ti among its parent's children as DmsModel::index enumerates them: from 0, and
+	// counting only the items that are shown. Answers -1 when ti is not among them.
+	int GetRow(const TreeItem* ti, bool showHiddenItems) {
 		assert(ti);
 		auto p = ti->GetTreeParent();
 		if (!p)
@@ -68,14 +70,14 @@ namespace {
 		if (!isWaiting && !p->Was(ProgressState::MetaInfo) && !p->WasFailed())
 			showWaitingStatus.start(&thisMsgGenerator);
 
-		auto si = isWaiting ? p->_GetFirstSubItem() : p->GetFirstSubItem(); // update metainfo
-		int row = 1;
-		while (si != ti) {
-			assert(si);
-			si = si->GetNextItem();
-			++row;
+		int row = 0;
+		for (auto si = isWaiting ? p->_GetFirstSubItem() : p->GetFirstSubItem(); si; si = si->GetNextItem()) { // update metainfo
+			if (si == ti)
+				return row;
+			if (showHiddenItems || !si->GetTSF(TSF_IsHidden))
+				++row;
 		}
-		return row;
+		return -1;
 	}
 
 	auto BlendColor(const QColor& base, const QColor& overlay, double weight) -> QColor {
@@ -215,10 +217,15 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const {
 		auto ti = GetTreeItem(child);
 		assert(ti);
 		auto parent = ti->GetTreeParent();
-		if (!parent)
+		if (!parent || parent.get() == m_root) // the children of m_root are the top-level rows
 			return{};
 
-		return createIndex(GetRow(parent.get()), 0, parent.get());
+		// The row must be the one index() assigns, or QTreeView cannot map this index back:
+		// GetRow used to count from 1 and to count hidden items that index() skips.
+		int row = GetRow(parent.get(), show_hidden_items);
+		if (row < 0)
+			return{};
+		return createIndex(row, 0, parent.get());
 	}
 	catch (...) {
 		catchAndReportException();

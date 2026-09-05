@@ -158,6 +158,8 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(make_shared_tree(resSub, existing_obj{}), trd.get(), valuesUnit->m_RangeDataPtr
 					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
 						tile_offset  tileSize = trd->GetTileSize(t);
+						if (!tileSize)
+							return; // an empty argument unit makes cycleSize 0; a small-range result (combine08/16) still has one, empty, tile
 						SizeT tileStart = trd->GetFirstRowIndex(t);
 						SizeT cyclePos = tileStart % cycleSize;
 						SizeT iGroup = cyclePos % groupSize;

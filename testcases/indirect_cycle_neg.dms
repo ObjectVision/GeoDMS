@@ -1,0 +1,14 @@
+// Regression for doc/code-fixes.md TIC-07 (2026-09-05): an '=' indirection whose rule evaluates
+// back to itself kept AbstrCalculator::EvaluateExpr on the meta thread forever. p's value is the
+// rule '=p', so evaluating x asks for p, which asks for p again.
+// Expected: exit nonzero on /checks ("the chain of indirections leads back to this rule").
+container indirect_cycle_neg
+{
+	parameter<string> p := '=p';
+	parameter<uint32> x := =p;
+
+	container checks
+	{
+		parameter<uint32> y := x, IntegrityCheck = "y == 0";
+	}
+}

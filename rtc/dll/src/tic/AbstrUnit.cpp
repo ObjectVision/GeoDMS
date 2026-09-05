@@ -1004,6 +1004,7 @@ tile_offset AbstrUnit::GetTileCount(tile_id t) const
 	assert(t != no_tile);
 
 	auto range_item = this->GetCurrRangeItem();
+	MG_CHECK(range_item); // empty while the ultimate item is being destroyed, as in GetNrTiles
 	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetTileSize(t);
@@ -1017,6 +1018,7 @@ bool AbstrUnit::ContainsUndefined(tile_id t) const
 bool AbstrUnit::IsCovered() const
 {
 	auto range_item = this->GetCurrRangeItem();
+	MG_CHECK(range_item);
 	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->IsCovered();

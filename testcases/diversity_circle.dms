@@ -1,0 +1,36 @@
+// Regression for doc/code-fixes.md GEO-27 (2026-09-05): the circular kernel of diversity tested
+// each coordinate against its own chord, an inscribed square that was not monotone along a row,
+// and the incremental counting then subtracted cells it had never added, so every result for a
+// radius of 4 or more was wrong. On a grid whose 256 cells all carry distinct values, the
+// diversity of a cell is the number of grid cells within the disc, which is counted here by
+// brute force over all cell pairs. Expected: exit 0 on /checks.
+container diversity_circle
+{
+	unit<fpoint> gbase;
+	unit<spoint> G := range(gridset(gbase, point_yx(1f, 1f, gbase), point_yx(0f, 0f, gbase), spoint), point_yx(0s, 0s), point_yx(16s, 16s))
+	{
+		attribute<int16> r := pointrow(id(G));
+		attribute<int16> c := pointcol(id(G));
+		attribute<uint8> v := uint8(int32(r) * 16i + int32(c)); // 16 x 16 = 256 distinct values
+	}
+
+	attribute<uint8> div4 (G) := diversity(G/v, uint16(4), uint16(1));
+	attribute<uint8> div6 (G) := diversity(G/v, uint16(6), uint16(1));
+
+	unit<uint32> pairs := combine(G, G)
+	{
+		attribute<int32> dr := int32(G/r[first_rel]) - int32(G/r[second_rel]);
+		attribute<int32> dc := int32(G/c[first_rel]) - int32(G/c[second_rel]);
+		attribute<int32> d2 := dr * dr + dc * dc;
+	}
+	unit<uint32> disc4 := select_with_org_rel(pairs/d2 <= 16i) { attribute<G> cell := pairs/first_rel[org_rel]; }
+	unit<uint32> disc6 := select_with_org_rel(pairs/d2 <= 36i) { attribute<G> cell := pairs/first_rel[org_rel]; }
+	attribute<uint32> bf4 (G) := pcount(disc4/cell);
+	attribute<uint32> bf6 (G) := pcount(disc6/cell);
+
+	container checks
+	{
+		parameter<bool> ok4 := all(uint32(div4) == bf4), IntegrityCheck = "ok4";
+		parameter<bool> ok6 := all(uint32(div6) == bf6), IntegrityCheck = "ok6";
+	}
+}

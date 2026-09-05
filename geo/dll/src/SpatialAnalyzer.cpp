@@ -36,6 +36,7 @@ void TForm::Init(RadiusType radius, bool isCircle)
 	{
 		m_CirclePoint.resize(SizeT(m_Radius) + 1);
 
+		// m_CirclePoint[i]: the largest |other coordinate| of a disc point at offset i from the centre
 		for (RadiusType i = 0; i <= radius; i++)
 			m_CirclePoint[i] = RadiusType( sqrt(sqrRadiusAsF64 - Float64(i)*Float64(i)) );
 	}
@@ -55,8 +56,12 @@ bool TForm::ContainsCentered(FormPoint p)
 
 	if (!m_IsCircle) return true;
 
-	if (abs(p.Row()) > m_CirclePoint[abs(p.Row())]) return false;
-	if (abs(p.Col()) > m_CirclePoint[abs(p.Col())]) return false;
+	// m_CirclePoint[|row|] is the largest |col| still inside the disc on that row, the chord that
+	// GetOtherCoordinateCentered hands out. Testing each coordinate against its own chord instead
+	// described the inscribed square, which is not monotone along a row: NextContainedPoint then
+	// abandoned rows early for radius >= 4, the border updates later subtracted cells that were
+	// never counted, and every diversity(..., true) result was wrong from that cell on.
+	if (abs(p.Col()) > m_CirclePoint[abs(p.Row())]) return false;
 
 	return true;
 }

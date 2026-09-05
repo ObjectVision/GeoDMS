@@ -1,0 +1,27 @@
+// Regression for doc/code-fixes.md GEO-29/GEO-30 (2026-09-05), the positive half.
+// dyna_point on one segment of length 10 with distance 2.5: the start point plus 4 points.
+// dyna_point_with_ends on parameters (a void point domain): the sequence_rel sub-item does not
+// exist for that domain, and the end-point write went through its null channel. Start point,
+// 3, 6, 9 and the end point at 10: 5 points. Expected: exit 0 on /checks.
+container dyna_point_dist
+{
+	unit<fpoint> Crd;
+
+	unit<uint32> Seg : nrofrows = 1
+	{
+		attribute<Crd> p := const(point_xy(0f, 0f, Crd), Seg);
+		attribute<Crd> q := const(point_xy(10f, 0f, Crd), Seg);
+	}
+	unit<uint32> dp := dyna_point(Seg/p, Seg/q, 2.5f);
+
+	parameter<Crd> pp := point_xy(0f, 0f, Crd);
+	parameter<Crd> pq := point_xy(10f, 0f, Crd);
+	unit<uint32> dpe := dyna_point_with_ends(pp, pq, 3f);
+
+	container checks
+	{
+		parameter<uint32> n   := #dp,  IntegrityCheck = "n == 5";
+		parameter<uint32> ne  := #dpe, IntegrityCheck = "ne == 5";
+		parameter<uint32> ord := max_elem(dpe/ordinal) + 1, IntegrityCheck = "ord == 5"; // the ordinal channel was written for all 5 points
+	}
+}

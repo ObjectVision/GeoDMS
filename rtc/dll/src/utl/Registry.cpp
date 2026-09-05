@@ -133,8 +133,10 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
     GetDataW(name, reinterpret_cast<BYTE*>(wcharResult.get()), len, regDataType);
 	if ((regDataType != RegDataType::String) && (regDataType != RegDataType::ExpandString))
 		throwErrorF("RegistryHandle.ReadString", "key '{}' has a non string type", name);
-	--nr_wchars;
-	assert(wcharResult.get()[nr_wchars] == wchar_t(0));
+	// REG_SZ data normally includes the terminating NUL, but not always: WriteString omitted it
+	// until 2026-09 and other writers may still, so strip a terminator only when there is one.
+	if (wcharResult.get()[nr_wchars - 1] == wchar_t(0))
+		--nr_wchars;
 	auto utf8Str = wchar_2_Utf8Str(wcharResult.get(), nr_wchars);
 	return utf8Str;
 }
@@ -152,7 +154,9 @@ void RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
 {
 	auto strW = Utf8_2_wchar(str.begin(), static_cast<int>(str.size()));
 	auto nameW = Utf8_2_wchar(name);
-	RegSetValueExW(m_Key, nameW.get(), NULL, REG_SZ, reinterpret_cast<const BYTE*>(strW.get()), std::wcslen(strW.get()) * sizeof(wchar_t));
+	// REG_SZ data includes the terminating NUL. Without it ReadString, which strips a terminator,
+	// returned every value written here one character short.
+	RegSetValueExW(m_Key, nameW.get(), NULL, REG_SZ, reinterpret_cast<const BYTE*>(strW.get()), (std::wcslen(strW.get()) + 1) * sizeof(wchar_t));
 }
 
 auto RegistryHandle::ReadMultiString(CharPtr name) const -> std::vector<SharedStr>

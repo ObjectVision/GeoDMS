@@ -104,7 +104,9 @@ FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 			auto dataBegin = sdData[i].begin();
 			auto dataSize  = sdData[i].size();
-			fwrite(dataBegin, dataSize, 1, file);
+			// a short write (disk full, share dropped) left a truncated file and reported success;
+			// fwrite with a size of 0 answers 0, hence the guard, as in ReadDataItem
+			MG_CHECK(dataSize == 0 || fwrite(dataBegin, dataSize, 1, file) == 1);
 		}
 	}
 	else
@@ -120,7 +122,7 @@ FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 			auto dataBegin = ado->GetDataReadBegin(i); // TODO G8: maake van dataBegin een tileHandle met void pointer
 			auto dataSize = ado->GetNrTileBytesNow(i, false);
-			fwrite(dataBegin, dataSize, 1, file);
+			MG_CHECK(dataSize == 0 || fwrite(dataBegin, dataSize, 1, file) == 1);
 		}
 	}
 	return {};
