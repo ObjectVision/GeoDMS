@@ -224,7 +224,7 @@ TokenID CopyName(TreeItem* context, TokenID orgNameID)
 	SharedStr orgName =  SharedStr(orgNameID);
 	while (orgName.ssize() && isdigit(UChar(orgName.sback())))
 		orgName.GetAsMutableCharArray()->erase(orgName.ssize()-1);
-	if (orgName.ssize() > 4 && substr(orgName, orgName.ssize()-4, 4) == "Copy")
+	if (orgName.ssize() > 4 && substr(orgName, orgName.ssize()-4, 4) == "Copy") // > 4, not >= 4: stripping a name that is only "Copy" would leave nothing, so that one becomes "CopyCopy"
 		orgName = substr(orgName, 0, orgName.ssize()-4);
 
 	return UniqueName(context, mySSPrintF("{}Copy", orgName.c_str()).c_str());
@@ -265,10 +265,12 @@ void UpdateShowSelOnlyImpl(
 
 	if (self->ShowSelectedOnly())
 	{
-		dms_assert(selTheme);
+		// A check, not an assert: the caller derives selTheme from the first column, and "show
+		// selected only" can outlive the last column; in Release the assert was an optimizer promise.
+		MG_CHECK2(selTheme, "show selected only requires a column with a selections theme");
 		const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
-		dms_assert(selAttr);
-		dms_assert(entity);
+		MG_CHECK(selAttr);
+		MG_CHECK(entity);
 		entity->UnifyDomain(selAttr->GetAbstrDomainUnit(), "TableDomain", "Domain of selection attribute", UM_Throw);
 
 		SharedStr expr = selAttr->GetFullName();

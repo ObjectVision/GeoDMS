@@ -331,6 +331,7 @@ const T* GetUltimateSourceItem(const T* item)
 template <typename T>
 inline T InterpolateValue(T first, T last, SizeT n, SizeT i)
 {
+	dms_assert(n); // the caller guarantees n > 0 (the number of steps between first and last)
 	return (first*(n-i)+last*i)/n;
 }
 

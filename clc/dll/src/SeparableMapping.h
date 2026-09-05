@@ -392,7 +392,8 @@ inline SizeT FirstOkIndex(const std::vector<char>& okFlags)
 inline std::vector<SizeT> PickProbeLines(const std::vector<char>& okFlags)
 {
 	SizeT n = okFlags.size();
-	assert(n >= 2);
+	if (n < 2) // not reached by the current callers (they pass grid sizes above g_SeparableMapping_MinCells), but the k - 1 divisor below needs k >= 2
+		return n ? std::vector<SizeT>{ 0 } : std::vector<SizeT>{};
 
 	SizeT k = g_SeparableMapping_ProbeLines;
 	MakeMin(k, n);

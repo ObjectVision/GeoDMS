@@ -968,8 +968,11 @@ void GridLayer::CopySelValuesToBitmap()
 	);
 	if (pvBits && drawer.m_pvBits)
 	{
-		int bytesPerRow = ((selectGRect.Width() * bmi->bmiHeader.biBitCount + 31) / 32) * 4;
-		memcpy(pvBits, drawer.m_pvBits, bytesPerRow * selectGRect.Height());
+		// SizeT, not int: a 32 bpp selection of ~25k x 25k pixels overflowed int and handed memcpy a
+		// negative size; CreateDIBSection accepts such sizes on 64-bit
+		MG_CHECK(selectGRect.Width() >= 0 && selectGRect.Height() >= 0);
+		SizeT bytesPerRow = ((SizeT(selectGRect.Width()) * bmi->bmiHeader.biBitCount + 31) / 32) * 4;
+		memcpy(pvBits, drawer.m_pvBits, bytesPerRow * SizeT(selectGRect.Height()));
 	}
 
 	GdiHandle<HBITMAP>

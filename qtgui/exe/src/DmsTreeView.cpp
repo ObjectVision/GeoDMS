@@ -140,7 +140,8 @@ QString TreeModelCompleter::separator() const {
 
 QStringList TreeModelCompleter::splitPath(const QString& path) const {
 	QStringList split_path = (sep.isNull() ? QCompleter::splitPath(path) : path.split(sep));
-	split_path.remove(0);
+	if (!split_path.isEmpty()) // both splits yield at least one element today; the guard keeps that from being load-bearing
+		split_path.remove(0);   // the empty first element of a path that starts with the separator
 	return split_path;
 }
 
@@ -151,7 +152,8 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const {
 	QStringList data_list;
 	for (QModelIndex i = index; i.isValid(); i = i.parent())
 		data_list.prepend(model()->data(i, completionRole()).toString());
-	data_list.remove(0);
+	if (!data_list.isEmpty()) // an invalid index yields no elements
+		data_list.remove(0);
 	if (!data_list.isEmpty())
 		data_list[0] = "/" + data_list[0];
 	auto rval = data_list.join(sep);
@@ -257,13 +259,13 @@ bool DmsModel::updateChachedDisplayFlags() {
 	auto dms_reg_status_flags = GetRegStatusFlags();
 
 	bool reg_show_hidden_items = (dms_reg_status_flags & RSF_AdminMode);
-	if (!show_hidden_items == reg_show_hidden_items) {
+	if (show_hidden_items != reg_show_hidden_items) {
 		was_updated = true;
 		show_hidden_items = reg_show_hidden_items;
 	}
 
 	bool reg_show_state_colors = (dms_reg_status_flags & RSF_ShowStateColors);
-	if (!show_state_colors == reg_show_state_colors) {
+	if (show_state_colors != reg_show_state_colors) {
 		was_updated = true;
 		show_state_colors = reg_show_state_colors;
 	}

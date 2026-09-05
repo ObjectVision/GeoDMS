@@ -272,7 +272,8 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 
 			//	CreatePointFont(UInt32(fontSize) * 10, fontName, NULL)
 			auto font = CreateFontIndirectW(&fontInfo);
-			m_FontArray.push_back(GdiHandle<HFONT>(font));// CreateFontIndirect(&fontInfo) ) );
+			MG_CHECK2(font, "CreateFontIndirectW failed; the process may have run out of GDI handles"); // SelectObject(NULL) later would fail silently
+			m_FontArray.push_back(GdiHandle<HFONT>(font));
 		}
 	}
 	dms_assert(size() > 0);

@@ -325,13 +325,13 @@ void GridCoord::OnDeviceScroll(const GPoint& delta)
 
 const grid_rowcol_id* GridCoord::GetGridRowPtr(view_rowcol_id currViewRelRow, bool withLines) const
 {
-	assert(!IsDirty()); 
+	MG_CHECK(!IsDirty()); // a stale read would silently return old coordinates
 	if (Empty())
 		return nullptr;
 
-	assert(currViewRelRow >= view_rowcol_id(m_ClippedRelDeviceRect.Top()));
-	currViewRelRow -= m_ClippedRelDeviceRect.top; 
-	assert(currViewRelRow <= m_GridRows.size()); 
+	MG_CHECK(currViewRelRow >= view_rowcol_id(m_ClippedRelDeviceRect.Top()));
+	currViewRelRow -= m_ClippedRelDeviceRect.top;
+	MG_CHECK(currViewRelRow <= m_GridRows.size()); // <=: the end pointer is a valid result; AdjustGridNrs keeps m_LinedRows the same size when it is in use 
 	if (withLines && !m_LinedRows.empty())
 		return begin_ptr(m_LinedRows) + currViewRelRow;
 	return begin_ptr(m_GridRows) + currViewRelRow; 
@@ -339,15 +339,13 @@ const grid_rowcol_id* GridCoord::GetGridRowPtr(view_rowcol_id currViewRelRow, bo
 
 const grid_rowcol_id* GridCoord::GetGridColPtr(view_rowcol_id currViewRelCol, bool withLines) const
 {
-	dms_assert(!IsDirty()); 
+	MG_CHECK(!IsDirty()); // a stale read would silently return old coordinates
 	if (Empty())
 		return nullptr;
 
-//	if (m_Owner)
-//		currViewRelCol -= m_Owner->GetCurrClientAbsPos().x;
-	dms_assert(currViewRelCol >= view_rowcol_id(m_ClippedRelDeviceRect.Left())); 
-	currViewRelCol -= m_ClippedRelDeviceRect.left; 
-	dms_assert(currViewRelCol <= m_GridCols.size()); 
+	MG_CHECK(currViewRelCol >= view_rowcol_id(m_ClippedRelDeviceRect.Left()));
+	currViewRelCol -= m_ClippedRelDeviceRect.left;
+	MG_CHECK(currViewRelCol <= m_GridCols.size()); // <=: the end pointer is a valid result; AdjustGridNrs keeps m_LinedCols the same size when it is in use 
 	if (withLines && !m_LinedCols.empty())
 		return begin_ptr(m_LinedCols) + currViewRelCol;
 	return begin_ptr(m_GridCols) + currViewRelCol; 

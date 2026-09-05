@@ -802,7 +802,7 @@ void QDmsViewArea::VH_KillTimer(UInt32 id)
     auto it = m_Timers.find(id);
     if (it != m_Timers.end()) {
         it->second->stop();
-        delete it->second;
+        it->second->deleteLater(); // not delete: OnTimer may kill its own timer from inside the timeout emission
         m_Timers.erase(it);
     }
 }

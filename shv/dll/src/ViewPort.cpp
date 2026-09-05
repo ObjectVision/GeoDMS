@@ -891,6 +891,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 
 CrdType interpolate(CrdType min, CrdType max, UInt32 i, UInt32 n)
 {
+	dms_assert(n); // the caller guarantees n > 0; with doubles a zero would give inf/NaN rather than a trap
 	return (i*max + (n-i) *min) / n;
 }
 

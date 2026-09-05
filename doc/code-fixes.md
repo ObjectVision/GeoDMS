@@ -480,7 +480,16 @@ GDAL config for RTC-16; a Debug run to process exit for the RTC-07/RTC-08 map em
 
 ---
 
-## Phase 3 — Viewer and GUI (shv, qtgui) plus one operator hack
+$1
+**Status 2026-09-05:** implemented, built (Release x64) and committed, with these deviations. SHV-43 became
+an `MG_CHECK2` rather than an early return (the caller asserts the invariant; a violation is now a clean
+error instead of undefined behaviour). SHV-46/73: the bounds keep `<=` (the end pointer stays a valid
+result) but are `MG_CHECK`s, as is the freshness precondition. SHV-53: the empty handle is gone; the task
+is still detached (the TODO stays). CLC-27: the interest holder is kept under the name `adiInterest`
+with the analysis as its comment; removing it needs a Debug run of the unit-metric configurations.
+QT-60: the two `remove(0)` calls are guarded; the three meta-info policies of the tree enumeration are
+left as they are (a behaviour choice, not hygiene). Also in this commit: `act/Actor.h` forward-declared
+`garbage_can` as a `struct` (C4099 in every TU); it is a `class`.
 
 ### SHV-43 · LIKELY / Low · S / low — "Show selected only" with no selections theme dereferences null
 - **Where:** `shv/dll/src/ShvUtils.cpp:266-272`; caller `shv/dll/src/TableControl.cpp:401-413` `UpdateShowSelOnly`.
@@ -746,7 +755,7 @@ as its own commit) → R3 (slotted around the g8 lock-handle rename) → C4 → 
 | 0 | Confirmed defects, small fixes | 15 implemented 2026-09-05, 1 refuted (STG-14) | S each, ~1–2 days total | low | build + battery pending |
 | 1 | Storage-reader validation + assert policy | implemented 2026-09-05 (1a, 1b incl. STG-N03, 1c incl. GEO-32, 1d); STG-15 deferred, STG-24 mostly refuted | M | low, except GEO-32 (med) | build + battery pending |
 | 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries) | S–M | low; RTC-70 follow-up split L/med | build green; battery after Phase 5 |
-| 3 | Viewer and GUI | 16 groups | S, two M | low; SHV-53 / CLC-27 med | none |
+| 3 | Viewer and GUI | implemented 2026-09-05 (all groups; CLC-27 renamed, not removed) | S, two M | low; SHV-53 / CLC-27 med | build green; T4 GUI smoke pending |
 | 4 | Dead code and comments | ~560 lines deleted, ~95 comment lines translated, 12 stale comments | S–M | none | `AbstrCalculator.cpp` micro-commit first |
 | 5 | Renames and contracts | R1 ~120 sites, R1b 13, R2 ~75, R3 ~135, R4 doc, C4 12 comments | S–M | low (T3 for XMLOut) | R3 not concurrent with the g8 lock-handle rename |
 

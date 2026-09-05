@@ -10,6 +10,7 @@
 #include <QScreen>
 #include <QThread> // TODO: remove
 
+#include <cstring> // strnlen
 #include <memory>
 #include <iostream>
 #include <stdexcept>
@@ -19,6 +20,7 @@
 #include "act/garbage_can.h"
 #include "act/MainThread.h" // SetMainThreadID
 #include "dbg/DebugLog.h"
+#include "dbg/Diagnostics.h" // MG_CHECK2
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
@@ -195,6 +197,15 @@ UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i) {
 }
 
 
+// The payload as a string. Another process fills lpData, so a NUL terminator is not guaranteed and
+// cbData bounds what may be read; a missing or empty payload gives an empty string.
+std::string PayloadAsString(const COPYDATASTRUCT* pcds) {
+    if (!pcds->lpData || !pcds->cbData)
+        return {};
+    auto chars = static_cast<const char*>(pcds->lpData);
+    return std::string(chars, strnlen(chars, pcds->cbData));
+}
+
 bool WmCopyData(MSG* copyMsgPtr) {
     auto pcds = reinterpret_cast<const COPYDATASTRUCT*>(copyMsgPtr->lParam);
     if (!pcds)
@@ -203,7 +214,7 @@ bool WmCopyData(MSG* copyMsgPtr) {
     std::shared_ptr<DataView> dv;
     auto commandCode = (CommandCode)pcds->dwData;
     switch (commandCode) {
-    case CommandCode::SendApp: //break; // send msg without HWND
+    case CommandCode::SendApp: [[fallthrough]]; // SendMessage(nullptr) is not a broadcast, so the main window receives app-level commands too
     case CommandCode::SendMain: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
     case CommandCode::SendFocus: hWindow = GetFocus(); break;
     case CommandCode::SendActiveDmsControl:
@@ -226,7 +237,7 @@ bool WmCopyData(MSG* copyMsgPtr) {
         return true;
 
     case CommandCode::ActivateItem:
-        MainWindow::TheOne()->m_address_bar->setPath(CharPtr(pcds->lpData));
+        MainWindow::TheOne()->m_address_bar->setPath(PayloadAsString(pcds).c_str());
         return true;
 
     case CommandCode::miExportViewPorts:
@@ -250,7 +261,7 @@ bool WmCopyData(MSG* copyMsgPtr) {
         return true;
 
     case CommandCode::SaveDetailPage:
-        SaveDetailPage(CharPtr(pcds->lpData));
+        SaveDetailPage(PayloadAsString(pcds).c_str());
         return true;
 
     case CommandCode::miDatagridView:
@@ -276,7 +287,7 @@ bool WmCopyData(MSG* copyMsgPtr) {
         return true;
 
     case CommandCode::SaveValueInfo:
-        MainWindow::TheOne()->SaveValueInfoImpl(CharPtr(pcds->lpData));
+        MainWindow::TheOne()->SaveValueInfoImpl(PayloadAsString(pcds).c_str());
         return true;
 
     case CommandCode::ExportPrimaryData:
@@ -287,7 +298,9 @@ bool WmCopyData(MSG* copyMsgPtr) {
         return false;
     }
 
-    assert(commandCode <= CommandCode::WmCopyActiveDmsControl);
+    // The two payload layouts below are tied to the enum order: a new command code that is not
+    // handled in the switch above must not silently fall into the "code >= 4" layout.
+    MG_CHECK2(commandCode <= CommandCode::WmCopyActiveDmsControl, "WmCopyData: unknown command code");
     UINT message; WPARAM wParam; LPARAM lParam;
     COPYDATASTRUCT cds2;
     if (commandCode < CommandCode::WmCopyActiveDmsControl) {
@@ -355,7 +368,7 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
 
     case UM_COPYDATA:
     case WM_COPYDATA:
-        if (msg->hwnd == (HWND)MainWindow::TheOne()->winId()) {
+        if (auto mw = MainWindow::TheOne(); mw && msg->hwnd == (HWND)mw->winId()) { // a WM_COPYDATA can arrive before construction or after destruction
             try {
                 return WmCopyData(msg);
             }

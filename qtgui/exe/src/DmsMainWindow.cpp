@@ -489,7 +489,9 @@ void MainWindow::updateActionsForNewCurrentItem() {
             m_metainfo_page_action->setDisabled(true);
     }
     catch (...) {
-        m_metainfo_page_action->setEnabled(true); 
+        // Deliberately the opposite of the chart actions above: those need a resolved values unit,
+        // while a URL that cannot be evaluated now may still resolve later; keep the page reachable.
+        m_metainfo_page_action->setEnabled(true);
     }
 }
 
@@ -663,7 +665,7 @@ void MainWindow::aboutGeoDms() {
 void MainWindow::splashScreen() {
     assert(IsMainThread());
     auto splash = showSplashScreen();
-    QTimer::singleShot(3000, 
+    QTimer::singleShot(3000, this, // with this as context the splash is released with the window when the process exits within 3 s
         [splashHandle = std::move(splash)]() 
         { 
             splashHandle->close(); 
@@ -777,7 +779,7 @@ void MainWindow::scheduleUpdateToolbar() {
         return;
 
     m_UpdateToolbarRequestPending = true;
-    QTimer::singleShot(0, 
+    QTimer::singleShot(0, this, // with this as context Qt discards the callback when the window is gone, whatever g_IsTerminating says
         [this]()
         {
             if (g_IsTerminating)
@@ -2151,16 +2153,15 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
     // this actually only invalidates any drawn area and causes repaint later, but time anyway to avoid too many repaints
     if (!s_TreeViewRefreshPending.exchange(true)) 
     {
-        QTimer::singleShot(1000, mainWindow, 
-            []()
-            { 
-                // MainWindow could have been destroyed
+        QTimer::singleShot(1000, mainWindow,
+            [mainWindow]() // mainWindow is the context: Qt discards this callback once it is destroyed
+            {
                 if (g_IsTerminating)
                     return;
 
                 if (s_TreeViewRefreshPending.exchange(false))
                 {
-                    auto tv = s_CurrMainWindow->m_treeview;
+                    auto tv = mainWindow->m_treeview;
                     if (tv)
                         tv->update();
                 }

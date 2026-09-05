@@ -35,6 +35,7 @@
 #include "mem/MyContainers.h"
 
 #include "dbg/SeverityType.h"
+#include "parallel/portable_task_group.h" // task_canceled
 #include "utl/Environment.h"
 #include "utl/Registry.h" // IsPerformanceLogging
 
@@ -730,6 +731,7 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 								, v, vCount.upperBound, AsString(vCount.confidence), n, p, fires, result.workingMemorySize);
 					}
 			}
+			catch (const task_canceled&) { throw; } // a teardown in progress is not an estimation failure
 			catch (...) {} // an unresolved unit just keeps the family default
 		return result;
 	}
@@ -815,6 +817,7 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 							MakeMax(result.workingMemorySize, v * p * sizeof(Float64));
 					}
 			}
+			catch (const task_canceled&) { throw; } // a teardown in progress is not an estimation failure
 			catch (...) {} // an unresolved unit just keeps the family default
 		return result;
 	}

@@ -171,7 +171,7 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 		StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 
 		assert(!SuspendTrigger::DidSuspend());
-		SuspendTrigger::Resume();  // REMOVE
+		SuspendTrigger::Resume();  // load-bearing in Release: AddLayer's precondition, which the assert above only checks in Debug
 
 		CheckPtr(dv,            DataView::GetStaticClass(), "SHV_DataView_AddItem");
 		CheckPtr(viewItem,      TreeItem::GetStaticClass(), "SHV_DataView_AddItem");

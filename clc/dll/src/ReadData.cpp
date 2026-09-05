@@ -8,6 +8,7 @@
 #pragma hdrstop
 #endif
 
+#include "vt/BaseBounds.h" // MAX_VALUE
 #include "vt/Conversions.h"
 #include "ser/StringStream.h"
 
@@ -19,6 +20,14 @@
 #include "UnitClass.h"
 
 static StaticLateTokenID readPosToken("ReadPos");
+
+// The read position is published as a UInt32 attribute; a text of 4 GiB or more cannot be expressed
+// in it, and the generic conversion error that ThrowingConvert gave did not say so.
+static UInt32 ReadPosAsUInt32(SizeT pos)
+{
+	MG_USERCHECK2(pos <= MAX_VALUE(UInt32), "ReadElems: the text is 4 GiB or longer, which the UInt32 read position cannot express");
+	return UInt32(pos);
+}
 
 // *****************************************************************************
 //										ReadNumbersOperator
@@ -158,7 +167,7 @@ struct ReadArrayOperator: public QuinaryOperator
 		avu->InviteUnitProcessor(dr);
 		dwl.Commit();
 
-		SetTheValue<UInt32>(resReadPos, ThrowingConvert<UInt32>(readPos + dataValuesStream.CurrPos()));
+		SetTheValue<UInt32>(resReadPos, ReadPosAsUInt32(readPos + dataValuesStream.CurrPos()));
 
 		return true;
 	}
@@ -256,7 +265,7 @@ struct ReadElemsOperator: public QuaternaryOperator
 				dr.m_FIS = &dataValuesStream;
 				dr.m_Offset = i;
 				avu->InviteUnitProcessor(dr);
-				resReadPosArray[i] = ThrowingConvert<UInt32>( readPos + dataValuesStream.CurrPos() );
+				resReadPosArray[i] = ReadPosAsUInt32(readPos + dataValuesStream.CurrPos());
 			}
 		}
 		);

@@ -89,7 +89,7 @@ void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUn
 	SharedDataItemInterestPtr newSelDataManager = newSelData;
 	SharedUnitInterestPtr newDomain = entity;
 	entity->GetCount();
-	DataWriteLock(newSelData, dms_rw_mode::write_only_mustzero).Commit();
+	DataWriteLock(newSelData, dms_rw_mode::write_only_mustzero).Commit(); // an unnamed lock on purpose: this materialises the all-zero selection attribute, nothing needs the lock afterwards
 
 	auto result = Theme::Create(AN_Selections, newSelData, 0, CreateSystemColorPalette(dv, userValuesUnit, AN_BrushColor, false, false, false, nullptr, nullptr));
 

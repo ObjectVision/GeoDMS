@@ -66,7 +66,7 @@
 struct ActorVisitor;
 struct SupplInterestListPtr;
 
-struct garbage_can;
+class garbage_can; // class, as defined in act/garbage_can.h; a struct forward declaration draws C4099 in every TU
 
 // #1233 P14. Actor::DoFail ends by releasing the supplier interest it moved out (a SupplInterestListPtr),
 // which takes each supplier's per-item actor lock. A caller that holds a global section while it fails

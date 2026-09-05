@@ -250,6 +250,7 @@ PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
 				, (pk.m_Style == PS_USERSTYLE) ? userPenStyleArray : nullptr
 			);
 		}
+		MG_CHECK2(pen, "CreatePen failed; the process may have run out of GDI handles"); // SelectObject(NULL) later would fail silently
 		m_Collection.emplace_back(pen);
 	}
 	MG_CHECK(size() > 0);
@@ -262,7 +263,7 @@ PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
 
 PenArray::~PenArray()
 {
-	// try not to destroy a HFONT that is currently selected in the DC
+	// try not to destroy an HPEN that is currently selected in the DC
 	if (m_OrgHPen)
 		SelectObject(m_hDC, m_OrgHPen);
 	// default destructor of ResourceContainer will do the rest.

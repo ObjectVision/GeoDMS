@@ -369,7 +369,10 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 		}
 	};
 
-	dms_task updater = dms_task(prepareDataTask); // XXX, TODO: WaitForReadyOrSuspend on itemHolder. XXX how to deal with suspend or cancel here ?
+	// dms_task detaches its thread in the constructor, so there is no handle to keep: the task runs
+	// unsupervised (it locks its weak pointers before use, so it cannot dangle) and can be neither
+	// suspended nor cancelled. TODO: track it in the owner and cancel or join on destruction.
+	dms_task{ prepareDataTask }; // a temporary: its constructor detaches the thread
 	return false;
 }
 
