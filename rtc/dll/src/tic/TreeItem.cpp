@@ -2272,6 +2272,22 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				if (ic->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 					return AVS_SuspendedOrFailed;
 
+				// #587: a check on an item read from a storage that names that item refers to it by
+				// its source description (see AbstrCalculator::slSupplierExprImpl), and is then not a
+				// supplier of the item it guards: making its DataController here would resolve the
+				// item -- ResolveItemPath, UpdateMetaInfo -- inside this very DetermineState, which is
+				// the "Invalid Recursion in UpdateMetaInfo" that failed the item. The check is still
+				// evaluated by the validate phase of DoUpdate and folded into every consumer's
+				// calculation through GetCheckedDC/GetCheckedKeyExpr, both after this item's meta
+				// info is complete. Only the item's OWN check is affected; an ancestor's self-check
+				// resolves an ancestor that has finished determining itself.
+				if (guardian == this && ic->RefersToHolderBySource())
+				{
+					guardianHolder = guardian->GetTreeParent();
+					guardian = guardianHolder.get();
+					continue;
+				}
+
 				auto dc = MakeResult(ic.get());
 				if (dc->WasFailed(FailType::MetaInfo))
 				{

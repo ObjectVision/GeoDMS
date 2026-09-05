@@ -141,6 +141,12 @@ public:
 	virtual bool        IsDataBlock() const { return false; }
 	virtual bool        IsDcPtr    () const { return false; }
 
+	// A checker that names the item it guards while that item has no raw key expression (an item
+	// read from a storage, #587) refers to it by its source description. Such a check cannot be a
+	// supplier of that item: materialising its DataController resolves the item, which is what
+	// the item's own DetermineState is doing at that moment. Set during substitution.
+	bool RefersToHolderBySource() const { return m_RefersToHolderBySource; }
+
 	bool            HasTemplSource() const;
 	const TreeItem* GetTemplSource() const;
 
@@ -170,10 +176,11 @@ public:
 	mutable LispRef m_LispExprOrg; // TODO G8: required for ExprCalculator and DC_Ptr(ArgCalc), but not for DataBlockTask and maybe also not for DC_Ptr(Calc)
 	mutable MetaInfo m_LispExprSubst;
 	
-	mutable bool     
+	mutable bool
 		m_HasParsed      : 1 = false,
 		m_HasSubstituted : 1 = false,
-		m_HasCollectedNamedSuppliers: 1 = false;
+		m_HasCollectedNamedSuppliers: 1 = false,
+		m_RefersToHolderBySource: 1 = false; // see RefersToHolderBySource
 
 	CalcRole m_CalcRole : 3 = CalcRole::Calculator;
 

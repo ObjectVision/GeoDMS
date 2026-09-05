@@ -1020,12 +1020,21 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 		// referred to by its source description, the reference every other consumer gets through
 		// the GetCheckedKeyExpr fallback: the condition then reads the item through the same
 		// SymbDC as the guarded reference, and PrepareDataUsageImpl does not consult GetCheckedDC
-		// for an item without a calculator, so no cycle closes. The fallback is transitional: #587
-		// goes on to substitute the read itself as an operator application, which gives a stored
-		// item a raw key and leaves this branch to items that never had one.
+		// for an item without a calculator, so no cycle closes at data time. At META time it would:
+		// the Checker visit of TreeItem::VisitSuppliers materialises a guardian's check to make it
+		// a supplier of the item, and materialising a reference to the item itself while that item
+		// determines its state is the "Invalid Recursion in UpdateMetaInfo" the first attempt ran
+		// into; the flag set here lets that visit leave this check out (it is evaluated by the
+		// validate phase and folded for consumers, after the item's meta info is complete). The
+		// fallback is transitional: #587 goes on to substitute the read itself as an operator
+		// application, which gives a stored item a raw key and leaves this branch to items that
+		// never had one.
 		result = supplier->GetKeyExprImpl();
 		if (result.EndP())
+		{
 			result = CreateLispTree(supplier, false);
+			m_RefersToHolderBySource = true;
+		}
 	}
 	else
 		result = supplier->GetCheckedKeyExpr();
