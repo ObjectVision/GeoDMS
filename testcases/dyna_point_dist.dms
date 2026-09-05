@@ -22,6 +22,6 @@ container dyna_point_dist
 	{
 		parameter<uint32> n   := #dp,  IntegrityCheck = "n == 5";
 		parameter<uint32> ne  := #dpe, IntegrityCheck = "ne == 5";
-		parameter<uint32> ord := max_elem(dpe/ordinal) + 1, IntegrityCheck = "ord == 5"; // the ordinal channel was written for all 5 points
+		parameter<uint32> ord := max(dpe/ordinal) + 1, IntegrityCheck = "ord == 5"; // the ordinal channel was written for all 5 points
 	}
 }

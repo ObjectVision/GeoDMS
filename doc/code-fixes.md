@@ -352,8 +352,17 @@ whose item does not match counts as absent; non-TreeItem actors stay as visited-
 is gone. RTC-58: the three `SetGeoDmsRegKey*` wrappers and `RegistryHandle::Write*` now return the real
 status (the callers ignore it); no report is added, since HKLM writes fail routinely for non-admin users.
 RTC-31 affects only invalid UTF-8 / Latin-1 input. RTC-16: the four run-time sites use `_mt`, and both
-`st` entry points assert `NoOtherThreadsStarted()`. Left alone: the unused `m_Hasher` members (referenced
-by an /analyze suppression comment) and `UnorderedMapCache::remove`, which is fixed rather than deleted.
+$1
+**Correction (same day, found by the battery):** the RTC-27 implementation moved the `LispComponent` of
+`LispEval.cpp` to the top of the file, which put it INSIDE the `#if defined(MG_USE_LISPFUNCS)` block that
+is not compiled; the TU then had no component at all, `s_LispComponentCount` hit zero at exit while
+`g_applyTopEnvCache` still held its `LispRef`s, and every GeoDmsRun died at exit: first as 0xC0000409
+(the new `MG_CHECK` in `GetLispCaches` throwing inside a destructor), then, with that check reverted,
+as 0xC0000005 in `UnorderedSetCache::remove`. Fixed by placing the component outside the block, ahead
+of every `LispRef` static of the TU; `GetLispCaches` keeps an `assert`, since it runs from destructors
+at exit. The lesson is recorded there in code. The original RTC-27 concern (link-order dependence)
+stands resolved by the placement.
+
 
 All S effort / low fix-risk unless stated. Suggested commits: (i) token registry + interest holders,
 (ii) fail-reason bookkeeping, (iii) hygiene.
@@ -779,10 +788,14 @@ as its own commit) → R3 (slotted around the g8 lock-handle rename) → C4 → 
 |---|---|---|---|---|---|
 | 0 | Confirmed defects, small fixes | 15 implemented 2026-09-05, 1 refuted (STG-14) | S each, ~1–2 days total | low | build + battery pending |
 | 1 | Storage-reader validation + assert policy | implemented 2026-09-05 (1a, 1b incl. STG-N03, 1c incl. GEO-32, 1d); STG-15 deferred, STG-24 mostly refuted | M | low, except GEO-32 (med) | build + battery pending |
-| 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries) | S–M | low; RTC-70 follow-up split L/med | build green; battery after Phase 5 |
+| 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries) | S–M | low; RTC-70 follow-up split L/med | build green; battery 262/262 |
 | 3 | Viewer and GUI | implemented 2026-09-05 (all groups; CLC-27 renamed, not removed) | S, two M | low; SHV-53 / CLC-27 med | build green; T4 GUI smoke pending |
 | 4 | Dead code and comments | implemented 2026-09-05 (~1200 lines deleted incl. the .xdb path; STG-N04 opened) | S–M | none | build green |
-| 5 | Renames and contracts | implemented 2026-09-05 (R1b as its own commit; GetUlt not renamed) | S–M | low (T3 for XMLOut) | build green; battery run after this phase |
+$1
+**Battery, 2026-09-05, after Phase 5 and the RTC-27 correction:** `testcases\run_testcases.bat` on the
+Release x64 build: 262 of 262 cases as expected (BAD=0). The two runs before the
+correction had BAD=132 (every positive case, all crashing at exit); that is how the RTC-27 mistake was
+found. T2 (`batch\Test*Unit.bat`), T3 and T4 were not run in this session.
 
 ---
 

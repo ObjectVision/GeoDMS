@@ -4,6 +4,10 @@
 // radius of 4 or more was wrong. On a grid whose 256 cells all carry distinct values, the
 // diversity of a cell is the number of grid cells within the disc, which is counted here by
 // brute force over all cell pairs. Expected: exit 0 on /checks.
+//
+// The values unit has an explicit range: diversity counts only values below the cardinality of
+// the values unit (as nulls are), and with the default uint8 unit the two highest values of the
+// grid, 254 and 255, were ignored, which made the counts around the bottom-right corner short.
 container diversity_circle
 {
 	unit<fpoint> gbase;
@@ -11,11 +15,12 @@ container diversity_circle
 	{
 		attribute<int16> r := pointrow(id(G));
 		attribute<int16> c := pointcol(id(G));
-		attribute<uint8> v := uint8(int32(r) * 16i + int32(c)); // 16 x 16 = 256 distinct values
+		unit<uint32>     Vals := range(uint32, 0, 300);
+		attribute<Vals>  v := value(uint32(r) * 16 + uint32(c), Vals); // 16 x 16 = 256 distinct values, all inside Vals
 	}
 
-	attribute<uint8> div4 (G) := diversity(G/v, uint16(4), uint16(1));
-	attribute<uint8> div6 (G) := diversity(G/v, uint16(6), uint16(1));
+	attribute<G/Vals> div4 (G) := diversity(G/v, uint16(4), uint16(1));
+	attribute<G/Vals> div6 (G) := diversity(G/v, uint16(6), uint16(1));
 
 	unit<uint32> pairs := combine(G, G)
 	{
@@ -30,7 +35,11 @@ container diversity_circle
 
 	container checks
 	{
-		parameter<bool> ok4 := all(uint32(div4) == bf4), IntegrityCheck = "ok4";
-		parameter<bool> ok6 := all(uint32(div6) == bf6), IntegrityCheck = "ok6";
+		// "ok4 == true", not "ok4": a check expression that is exactly the item's own name is a
+		// source reference to the item being built, which the UpdateMetaInfo recursion guard refuses
+		parameter<bool> ok4 := all(uint32(div4) == bf4), IntegrityCheck = "ok4 == true";
+		parameter<bool> ok6 := all(uint32(div6) == bf6), IntegrityCheck = "ok6 == true";
+		parameter<uint32> centre4 := uint32(div4[point_yx(8s, 8s, G)]), IntegrityCheck = "centre4 == 49";  // the disc of radius 4 has 49 cells
+		parameter<uint32> centre6 := uint32(div6[point_yx(8s, 8s, G)]), IntegrityCheck = "centre6 == 113"; // and that of radius 6 has 113
 	}
 }

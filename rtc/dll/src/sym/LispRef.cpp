@@ -596,9 +596,12 @@ LispCaches* GetLispCachesPtr()
 	return reinterpret_cast<LispCaches*>(s_LispCacheBuffer);
 }
 
+// Not a throwing check: this runs from destructors at process exit, where a throw is std::terminate.
+// The invariant that the caches outlive every LispRef is kept by each TU with LispRef statics
+// declaring a LispComponent ahead of them (see LispEval.cpp), not by this line.
 LispCaches* GetLispCaches()
 {
-	MG_CHECK(s_LispComponentCount); // a LispRef made before the first LispComponent would use uninitialised cache storage
+	assert(s_LispComponentCount);
 	return GetLispCachesPtr();
 }
 
