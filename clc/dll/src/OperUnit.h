@@ -186,12 +186,7 @@ public:
 		auto result = arg2A->GetUnitClass()->CreateTmpUnit(resultHolder.GetNew());
 		dms_assert(result);
 
-		// FuncDC_CreateResult already holds interest in adi (its arg policy is calc_always, honoured
-		// since the operator is resolved before the policy is asked), so this holder is probably
-		// redundant; removing it needs a Debug run of the unit-metric configurations, where
-		// DataReadLock asserts the interest. Until then it is kept, cheap and harmless.
-		InterestPtr<const TreeItem*> adiInterest(adi);
-		DataReadLock lck(adi);
+		DataReadLock lck(adi); // FuncDC_CreateResult holds interest in adi (its arg policy is calc_always); DataReadLock asserts that in Debug
 
 		// The factor scales the metric, and UnitPowerOperator takes its log: zero, negative and
 		// null used to pass through into a metric that no display path can handle.

@@ -268,7 +268,7 @@ SupplInclusionTester::SupplInclusionTester(const Actor* actor): m_Prev(s_Active)
 			if (f1==l1 || *f2 < *f1)
 			{
 				reportD(ST_MajorTrace, "Intransitive supplier: ", (*f2)->GetSourceName().c_str());
-				dms_assert(0);
+				MG_CHECK2(false, "intransitive supplier order: a visited supplier is not in the active set (reported above)");
 				++f2;
 			}
 			else if (*f1< *f2)

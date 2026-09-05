@@ -21,8 +21,8 @@
 
 #include <unordered_set>
 
-// m_Hasher{}/m_EqComp{} below are NSDMI-initialized, but /analyze misses that
-// through [[no_unique_address]] and reports them as uninitialized (type.6).
+// m_EqComp{} below is NSDMI-initialized, but /analyze misses that through
+// [[no_unique_address]] and reports it as uninitialized (type.6).
 #pragma warning(push)
 #pragma warning(disable: 26495)
 template<typename Func>
@@ -131,7 +131,6 @@ private:
 	uset_type        m_USet;
 	std::mutex       mx_MapLock;
 
-	[[no_unique_address]] hasher           m_Hasher{};
 	[[no_unique_address]] equality_compare m_EqComp{};
 };
 #pragma warning(pop)
@@ -150,7 +149,7 @@ struct UnorderedMapCache
 	using umap_type = std::unordered_map<argument_type, result_type, arg_hasher, arg_compare>;
 
 	UnorderedMapCache() noexcept
-		: m_EqComp(), m_Hasher()
+		: m_EqComp()
 	{}
 
 	LispRef apply(argument_reftype arg)
@@ -213,7 +212,6 @@ private:
 	SizeT md_NrMisses = 0;
 #endif
 
-	arg_hasher  m_Hasher;
 	arg_compare m_EqComp;
 	Func        m_Func;
 	umap_type   m_UMap;
