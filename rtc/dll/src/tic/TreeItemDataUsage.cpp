@@ -644,7 +644,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				default: MG_CHECK2(false, "unexpected how_to_proceed"); // an assert here was __assume(false) in Release
 				}
 
-			//* REMOVE, DEBUG, SOLVES: for_each(xx[SubItem(Combine(...), 'Nr_1')] )
+			// these two checks solve for_each(xx[SubItem(Combine(...), 'Nr_1')])
 			if (SuspendTrigger::DidSuspend()) goto suspended;
 			if (WasFailed(FailType::Data))           goto failed;
 
@@ -684,7 +684,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 	}
 	catch (...)
 	{
-		// REMOVE, TODO: Actor::Fail(const DmsException&) toevoegen in Actor.h en hier gebruiken.
+		// TODO: add Actor::Fail(const DmsException&) to Actor.h and use it here.
 		auto err = catchException(true);
 		DoFailCaller(err, FailType::Data);
 		goto failed;

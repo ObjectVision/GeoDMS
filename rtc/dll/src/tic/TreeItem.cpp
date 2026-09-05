@@ -342,7 +342,7 @@ TreeItem::~TreeItem ()
 		garbage_can supplGarbage = StopSupplInterest(); // releases our suppliers' interest; destructs here
 	}
 
-	SetKeepDataState(false); // StringDC en NumbDC cache items hebben ook KeepInterest
+	SetKeepDataState(false); // StringDC and NumbDC cache items also have KeepInterest
 
 	// Symmetric to ~AbstrDataItem: an item may be destroyed while still of interest (consumer interest is
 	// non-owning/weak), so m_InterestCount can be > 0 here while StopInterest never ran. Release our interest
@@ -1411,9 +1411,9 @@ retry:
 
 	newRefItem->DetermineState();
 	if (GetKeepDataState())
-		const_cast<TreeItem*>(newRefItem.get())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+		const_cast<TreeItem*>(newRefItem.get())->SetKeepDataState(true); // NB: the state is not removed from the previous refItem (there may be other keepers)
 	if (GetLazyCalculatedState())
-		const_cast<TreeItem*>(newRefItem.get())->SetLazyCalculatedState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+		const_cast<TreeItem*>(newRefItem.get())->SetLazyCalculatedState(true); // NB: the state is not removed from the previous refItem (there may be other keepers)
 
 	const UInt32 inheritedFlags = TSF_Depreciated | TSF_Categorical;
 	m_StatusFlags.SetBits(inheritedFlags, newRefItem->m_StatusFlags.GetBits(inheritedFlags));
@@ -1910,8 +1910,8 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 
 			if (!copyContext.MustCopyExpr())
 			{
-				// subItems van referees dmv case-parameter value of gewoon expr-ref. aangeroepen vanuit UpdateMetaInfo 
-				// Case-Parameter := itemRef OF result of compound-expr  (met DC_Ptr)
+				// sub-items of referees, by case-parameter value or plain expr-ref; called from UpdateMetaInfo
+				// case-parameter := itemRef OR the result of a compound expression (with DC_Ptr)
 				if (!result->GetCalculatorMember())
 					result->SetCalculator(CreateCalculatorForTreeItem(result.get(), this, copyContext));
 			}
@@ -2410,7 +2410,6 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 		lastChangeTS = Actor::DetermineLastSupplierChange(failReason, ft);
 
 	// Track changes in authentic sources
-//REMOVE	// make sure not to pass changes because item was already last
 	if ((ft == FailType::None) && IsDataReadable() && !WasFailed(FailType::Determine))
 	{
 		try {
@@ -2707,32 +2706,10 @@ void TreeItem::CheckFlagInvariants() const
 
 // ============== BLOB ====================
 
-void TreeItem::LoadBlobBuffer (const BlobBuffer& rs)
-{
-	dms_assert(IsCacheRoot());
-//	dms_assert(IsReadLocked(this));
-	MemoInpStreamBuff impBuff(rs.begin(), rs.end());
- 	LoadBlobStream(&impBuff);
-	for (auto si = _GetFirstSubItem(); si; si = GetNextItem())
-		si->LoadBlobStream(&impBuff);
-}
 
 void TreeItem::LoadBlobStream (const InpStreamBuff*)
 {
 }
-/*
-void TreeItem::StoreBlobBuffer(BlobBuffer& rs) const
-{
-	dms_assert(IsInWriteLock(this) || IsMetaThread() || (IsUnit(this) && !IsCacheItem()));
-	VectorOutStreamBuff os;
-
-	StoreBlobStream(&os);
-	for (auto si = GetFirstSubItem(); si; si = GetNextItem())
-		si->StreamBlobStream(&impBuff);
-
-	rs = BlobBuffer(os.GetData(), os.GetData() + os.CurrPos());
-}
-*/
 void TreeItem::StoreBlobStream(OutStreamBuff*) const
 {
 	throwIllegalAbstract(MG_POS, this, "StoreBlobStream"); 

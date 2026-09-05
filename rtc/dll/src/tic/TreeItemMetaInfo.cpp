@@ -1152,10 +1152,10 @@ ActorVisitState TreeItem::DoUpdate()
 
 	if (m_State.GetProgress() < ProgressState::Committed)
 	{
-		//	TODO, Uitzoeken wanneer Commit overbodig is (zoals indien in vorige sessie reeds gedaan).
-		//	Voorlopig antwoord: wanneer er geen changes zijn, is er geen cause voor invalidatatie en mag DoUpdate helemaal niet aangeroepen worden.
-		//	probleem: Als export file is weggegooid, moet de DoUpdate dan opnieuw worden uitgevoerd? 
-		//	probleem: verschillende ItemCommits kunnen dezelfde export timestampen.
+		//	TODO: find out when a Commit is redundant (as when it was already done in a previous session).
+		//	Provisional answer: when there are no changes there is no cause for invalidation and DoUpdate must not be called at all.
+		//	problem: when the export file has been deleted, must DoUpdate then run again?
+		//	problem: different ItemCommits can timestamp the same export.
 		bool result = CommitDataChanges(); // @@@SCHEDULE AND USE
 
 		if (SuspendTrigger::DidSuspend())

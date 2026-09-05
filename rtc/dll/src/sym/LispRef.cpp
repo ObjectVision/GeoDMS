@@ -928,5 +928,4 @@ bool IsExpr(LispPtr e)
 }
 
 
-//REMOVE const LispPtr LispPtr::null;
 

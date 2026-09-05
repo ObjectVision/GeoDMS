@@ -921,7 +921,7 @@ namespace
 		AggrFuncInst<V, asUniqueListFunc > m_AsUniqueListWithNull;
 	};
 
-	// TODO: WeightedModusXXXX ook generaliseren met variabele AggrFunc, conform Modus
+	// TODO: generalise WeightedModusXXXX with a variable AggrFunc too, as Modus
 	template <typename V>
 	struct WeightedModusInst
 	{
@@ -938,5 +938,5 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::scalars, AggrFuncsInst> aggrOpers;
 	tl_oper::inst_tuple_templ<typelists::aints, WeightedModusInst> weigthedModusOpers;
 
-//	ModusInst<SharedStr> mpString; //TODO, ook TODO: optimize dispatchers voor (U)Int4/2
+//	ModusInst<SharedStr> mpString; // TODO; also TODO: optimize the dispatchers for (U)Int4/2
 }

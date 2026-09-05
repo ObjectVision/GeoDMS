@@ -260,6 +260,9 @@ bool TifImp::HasColorTable() const
 		&& (TIFFGetField(m_TiffHandle, TIFFTAG_COLORMAP, &rcmap, &gcmap, &bcmap));
 }
 
+// The SampleFormat tag is optional (the TIFF specification defaults it to unsigned integer); a file
+// that omits it yields VT_Unknown here, which the caller in TifStorageManager treats as an error
+// rather than as UINT. Left as is pending a test with such a file (doc/code-fixes.md, STG-N04).
 ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 {
 	uint16_t sample_format = 0;

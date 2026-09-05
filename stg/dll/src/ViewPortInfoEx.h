@@ -30,8 +30,6 @@ struct ViewPortInfoEx : public ViewPortInfo<SignedInt>
 		return IsIntersecting(m_GridExtents, this->GetViewPortInGridAsIRect());
 	}
 
-	void SetWritability(AbstrDataItem* adi) const;
-
 	rect_type GetGridExtents() const { return m_GridExtents; }
 
 protected:

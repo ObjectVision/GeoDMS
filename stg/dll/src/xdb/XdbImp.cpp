@@ -8,11 +8,9 @@
 #pragma hdrstop
 #endif
 
-// XdbImp: non-DMS based class used by XdbStorageManager to read and write
-// 'Xdb-grids'.
+// XdbImp: non-DMS class used by XdbStorageManager to read fixed-width text records (.xyz).
 
 #include "ImplMain.h"
-#include "utl/StrFormat.h" // mySSPrintF
 
 #include "XdbImp.h"
 
@@ -48,10 +46,8 @@ void XdbImp::Clear()
 	DBG_START("XdbImp", "Clear", MG_DEBUG_XDB);
 
 	// Refresh, files are assumed closed
-	assert(!IsOpen());
 	assert(!m_FHD.IsUsable());
 
-	m_FileName.clear();
 	m_DatFileName.clear();
 	nRecPos = 0;
 	nrows = -1;
@@ -72,86 +68,24 @@ XdbImp::~XdbImp()
 }
 
 
-// Opens the indicated Xdb-table for reading. 
-// The header is read.
-FileResult XdbImp::OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo)
+// Opens the data file of the indicated table for reading; the column layout is not read from a
+// file but set by the storage manager beforehand.
+FileResult XdbImp::OpenForRead(WeakStr name, CharPtr datExtension)
 {
-	return Open(name, FCM_OpenReadOnly, datExtension, saveColInfo);
-}
+	DBG_START("XdbImp", "OpenForRead", MG_DEBUG_XDB);
 
-
-// Opens the indicated Xdb-table for reading. 
-// The header is read.
-FileResult XdbImp::Open(WeakStr name, FileCreationMode fileMode, CharPtr datExtension, bool saveColInfo)
-{
-	DBG_START("XdbImp", "Open", MG_DEBUG_XDB);
-	
 	assert(!m_FHD.IsUsable());
-	// Retain name and corresponding dat-file name
-	SetFileName(name, datExtension, saveColInfo);
-
-	// Open files
+	SetFileName(name, datExtension);
 	Close();
 
-	if (saveColInfo)
-	{
-		auto r = OpenFH(m_FileName, FCM_OpenReadOnly, true, NR_PAGES_HDRFILE);
-		if (!r)
-			return r;
-	}
-
-	bool alsoWrite = (fileMode != FCM_OpenReadOnly);
-	MG_USERCHECK2(!alsoWrite, "writing to .xdb is no longer supported");
 	m_FHD = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, true, false), 0, -1, -1);
 	m_FHD.MapView();
-
-	// Read header info
-	if (!saveColInfo)
-		return {};
-	return FileResult::require(ReadHeader(), "Cannot read Header");
+	return {};
 }
 
 
 
 
-// Creates a new file
-FileResult XdbImp::Create(WeakStr name, CharPtr datExtension, bool saveColInfo)
-{
-	DBG_START("XdbImp", "Create", MG_DEBUG_XDB);
-	
-	// Retain name and corresponding dat file name
-	SetFileName(name, datExtension, saveColInfo);
-
-	// Create dummy files
-	Close();
-
-	GetWritePermission(m_FileName);
-
-	if (saveColInfo)
-	{
-		auto r = OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
-		if (!r)
-			return r;
-	}
-
-	auto r = FilePtrHandle().OpenFH(m_DatFileName, FCM_CreateAlways, false, NR_PAGES_DIRECTIO);
-	if (!r)
-	{
-		Close();
-		return r;
-	}
-
-	// Write rec-count = 0 and nr header-lines = 0 to first line
-	if (saveColInfo)
-		fprintf(*this, "%d %d\n", 0, 0);
-
-	nrows = 0;
-	nrheaderlines = 0;
-	Close();
-	
-	// Regular open
-	return Open(name, FCM_OpenRwFixed, datExtension, saveColInfo);
-}
 
 
 // Get table longs into an external buffer
@@ -221,120 +155,10 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 
 
 
-// Write the provided shorts to the table
-FileResult XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
-{
-	DBG_START("XdbImp", "WriteColumn", MG_DEBUG_XDB);
-	DBG_TRACE(("cnt		  : {}", cnt));
-	DBG_TRACE(("nRecPos   : {}", nRecPos));
-
-	throwErrorD("Xdb", "XdbWriteColumn::Temporary Disabled Due To Maintenance");
-	// Must be open
-
-	if (auto r= FileResult::require(UInt32(col_index) >= ColDescriptions.size(), "column index error"); !r)
-		return r;
-
-	// Get column offset and total width in bytes of record
-	long width  = RecSize();
-	long offset = headersize + ColDescriptions[col_index].m_Offset;
-	long colwidth = ColWidth(col_index);
-    DBG_TRACE(("width, offset: {} {}", width, offset));
-
-	long stripped = nRecPos + cnt -  NrOfRows();
-	if (stripped < 0) stripped = 0;
-	if (stripped > 0) cnt = cnt - stripped;
-    DBG_TRACE(("stripped  : {}", stripped));
-	// Done
-	return {};
-}
-
-void freadln(FILE* fp)
-{
-	char ch = getc(fp);
-	while (ch != '\n' && !feof(fp))
-	{
-		ch = getc(fp);
-	}
-	// see if we get a chr(10) after the chr(13)
-	if (!feof(fp))
-	{
-		ch = getc(fp);
-		if (ch != 10)
-			ungetc(ch, fp); // apparently not
-	}
-}
-
-// Read column info from header file
-bool XdbImp::ReadHeader()
-{
-	DBG_START("XdbImp", "ReadHeader", MG_DEBUG_XDB);
-
-	// Must be open
-	if (!IsOpen()) 
-		return false;
-
-	// Read nrRows from first line
-	auto nrFieldsRead = fscanf(*this, "%u %u", &nrows, &nrheaderlines);
-	MG_CHECK(nrFieldsRead == 2);
-
-	DBG_TRACE(("nrows:         {}", nrows));
-	DBG_TRACE(("nrheaderlines: {}", nrheaderlines));
-	
-	// Read structs until end of file
-	ColDescriptions.reserve(100);
-	ColDescriptions.resize(0);
-	char fldName[400]; fldName[0] = 0;
-	long len = 0;
-	long offset = 0;
-
-	int int_type = 0;
-	while (fscanf(*this, "%s %ld %d", fldName, &len, &int_type) != EOF)
-	{	
-		MG_CHECK(int_type >= 0 && int_type < int(ValueClassID::VT_Count));
-		auto type = ValueClassID(int_type);
-		MG_CHECK(StrLen(fldName) < 400);
-
-		DBG_TRACE(("name, len: {}, {}", fldName, len));
-		ColDescriptions.resize(ColDescriptions.size()+1);
 
 
-		ColDescriptions[ColDescriptions.size()-1].m_Name   = fldName;
-		ColDescriptions[ColDescriptions.size()-1].m_Offset = offset;
-		offset += len;
-		ColDescriptions[ColDescriptions.size()-1].m_Type = type;
-	}
-	m_RecSize = offset;
-	DBG_TRACE(("nrecsize: {}", m_RecSize ));
-
-	headersize = nrheaderlines * RecSize();
-
-	return true; // Done
-}
 
 
-// Write header file
-bool XdbImp::WriteHeader()
-{
-	DBG_START("XdbImp", "WriteHeader", MG_DEBUG_XDB);
-
-	// Must be open
-	if (!IsOpen())
-		return false;
-
-	// Write rec-count to first line
-	fprintf(*this, "%u %u\n", nrows, nrheaderlines);
-
-	// Write the column descriptions
-	for (UInt32 i=0; i<ColDescriptions.size(); i++)
-		fprintf(*this, "%s %u %d\n"
-			,	ColDescriptions[i].m_Name.c_str()
-			,	ColWidth(i)
-			,	int(ColDescriptions[i].m_Type)
-		);
-
-	// Done
-	return true;
-}
 
 // Get rid of file connections
 void XdbImp::Close()
@@ -349,26 +173,17 @@ void XdbImp::Close()
 }
 
 
-// Dat file name differs only in extension from the filename
-bool XdbImp::SetFileName(WeakStr src, CharPtr datExtension, bool saveColInfo)
+// The data file name differs only in extension from the storage name
+bool XdbImp::SetFileName(WeakStr src, CharPtr datExtension)
 {
 	DBG_START("XdbImp", "SetFileName", MG_DEBUG_XDB);
 
-	// fill membervariable
-	m_FileName = src;
-
-	m_DatExtension = datExtension;
-
-	// scan extension
-	CharPtr fileNameExtension = getFileNameExtension(m_FileName.c_str());
+	CharPtr fileNameExtension = getFileNameExtension(src.c_str());
 	if (!*fileNameExtension)
 		return false;
 
-	// fill membervariable
-	m_DatFileName = SharedStr(CharPtrRange(m_FileName.c_str(), fileNameExtension)) + datExtension;
-	if (!saveColInfo)
-		m_FileName = "";
-	DBG_TRACE(("Names: {} {}", m_FileName.c_str(), m_DatFileName.c_str()));
+	m_DatFileName = SharedStr(CharPtrRange(src.c_str(), fileNameExtension)) + datExtension;
+	DBG_TRACE(("Name: {}", m_DatFileName.c_str()));
 	return true;
 }
 
@@ -426,135 +241,3 @@ ValueClassID XdbImp::ColType(column_index i) const
 	return ColDescriptions[i].m_Type;
 }
 
-// Add a new column or create the first column in a fresh table
-FileResult XdbImp::AppendColumn
-(
-	CharPtr      fldName
-,	width_t      size
-,	ValueClassID type 
-,	recno_t      rows
-,	bool         saveColInfo
-)
-{
-	DBG_START("XdbImp", "AppendColumn", MG_DEBUG_XDB);
-
-	// Columnnames should be unique
-	if (auto r = FileResult::require(ColIndex(fldName) == UInt32(-1), "Column alredy exists"); !r)
-		return r;
-	if (size < 1) 
-		return std::unexpected(SharedStr("invalid size"));
-
-	assert(m_FHD.IsUsable()|| NrOfCols() == 0);
-	// Close open files
-	Close();
-
-	// New file?
-	if (NrOfCols() == 0) 
-	{
-		DBG_TRACE(("new file"));
-		auto r = Create(m_FileName, m_DatExtension, true);
-		if (!r)
-			return r; 
-		Close();
-		nrows = rows;
-	}
-
-	// Local streams
-	FilePtrHandle src;
-	FilePtrHandle dst;
-
-	// Name of temporary dat-file
-	SharedStr tmpDatFile =  m_DatFileName + ".tmp";
-
-	// Open dat-files
-	auto srcFileResult = src.OpenFH(m_DatFileName, FCM_OpenReadOnly, true, NR_PAGES_DATFILE);
-	if (!srcFileResult)
-		return srcFileResult;
-
-	DBG_TRACE(("padding data"));
-
-	
-	// Read lines, write lines + padding
-	width_t width = RecSize();
-	recno_t row=0;
-	width_t i=0;
-
-	bool copyMade = false;
-	fseek(src, 0, SEEK_END);
-	width_t srcfilesize = ftell(src);
-	if (srcfilesize > headersize)
-	{
-		auto dstFileResult = dst.OpenFH(tmpDatFile, FCM_CreateAlways, true, NR_PAGES_DATFILE);
-		if (!dstFileResult)
-			return dstFileResult;
-
-		fseek(src, 0, 0);
-		copyMade = true;
-		for (i=0; i<headersize; i++)
-		{
-			fputc(fgetc(src), dst);
-		}
-
-		std::vector<char> buf(width);
-		for (row=0; row<nrows; row++)
-		{
-			// Get complete line in a string
-			width_t nextpos = row * width + headersize;
-			if (nextpos >= srcfilesize) 
-				break;
-			fseek( src, nextpos, 0);
-
-			std::vector<char>::iterator bufPtr = buf.begin(), bufEnd = bufPtr + m_RecSize;
-			for (; bufPtr != bufEnd; ++bufPtr)
-				*bufPtr = fgetc(src);
-			*bufEnd = 0;
-			//DBG_TRACE(("rec: {}", buf));
-
-			// Write line + padding to new dat-file
-			fputs(reinterpret_cast<CharPtr>( &* buf.begin() ), dst);
-			fputc('0', dst);
-			for (i=1; i<size; i++) 
-				fputc(' ', dst);
-			fputs("\n", dst);
-		}
-	}
-
-	// Done, with dat-files
-	src.CloseFH();
-	dst.CloseFH();
-
-	// Change header info
-	if (saveColInfo)
-	{
-		DBG_TRACE(("changing header"));
-
-		// Add new column to description
-		XdbImp local;
-		local.nrows = nrows;
-		local.nrheaderlines = nrheaderlines;
-		local.headersize = headersize;
-		local.m_RecSize = m_RecSize + size;
-		local.ColDescriptions = ColDescriptions;
-		local.ColDescriptions.resize(local.ColDescriptions.size()+1);
-		local.ColDescriptions[local.ColDescriptions.size()-1].m_Name   = fldName;
-		local.ColDescriptions[local.ColDescriptions.size()-1].m_Offset = m_RecSize;
-		local.ColDescriptions[local.ColDescriptions.size()-1].m_Type   = type;
-
-		// Write new header
-		auto headerFileResult = local.OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
-		if (!headerFileResult)
-			return headerFileResult;
-		local.WriteHeader();
-	}
-
-	// Swap files
-	if (copyMade)
-	{
-		remove(m_DatFileName.c_str());
-		if (rename(tmpDatFile.c_str(), m_DatFileName.c_str()))
-			return std::unexpected(mySSPrintF("unable to rename {} to {}", tmpDatFile.c_str(), m_DatFileName.c_str()));
-	}
-
-	// Reopen
-	return Open(m_FileName, FCM_OpenRwFixed, m_DatExtension, saveColInfo);
-}

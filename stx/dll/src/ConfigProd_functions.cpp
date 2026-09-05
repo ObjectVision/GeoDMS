@@ -113,7 +113,7 @@ void ConfigProd::SetVC (ValueComposition    vc)
 // Description:       Set range of the current unit
 // *****************************************************************************
 
-// REMOVE COMMENT: Integreer met DoNrOfRowsProp()
+// TODO: integrate with DoNrOfRowsProp()
 void ConfigProd::DoUnitRangeProp(bool isCategorical)
 {
 	assert(m_pCurrent);

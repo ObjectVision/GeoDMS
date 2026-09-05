@@ -55,8 +55,6 @@ struct DomainChangeInfo
 // item (issue #634), the same old-object -> new-object copy a domain change uses.
 TIC_CALL void CopyData(const AbstrDataObject* oldData, AbstrDataObject* newData, const DomainChangeInfo* info = nullptr);
 
-const UInt32 MAX_TILE_SIZE = 0x10000;
-
 //----------------------------------------------------------------------
 // class  : AbstrUnit
 //----------------------------------------------------------------------
@@ -160,7 +158,6 @@ public:
 	virtual bool HasVarRange() const { return false; }
 	virtual bool CanBeDomain() const { return false; }
 
-	virtual tile_id GetThisCurrTileID(SizeT& index, tile_id prevT) const;
 	virtual tile_id GetNrTiles() const;
 
 	TIC_CALL row_id GetTileFirstIndex(tile_id t) const;
@@ -235,7 +232,7 @@ public:
 
 	virtual void InviteUnitProcessor(const UnitProcessor& visitor) const = 0;
 
-// mag alleen vanuit Update of Create worden aangeroepen 
+// may only be called from Update or Create 
 	virtual void SetMetric    (SharedPtr<const UnitMetric    > m);
 	virtual void SetProjection(SharedPtr<const UnitProjection> p);
 	TIC_CALL void DuplFrom(const AbstrUnit* src);

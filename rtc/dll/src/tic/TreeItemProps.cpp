@@ -124,7 +124,6 @@ SharedStr TreeItem_GetViewAction(const TreeItem* self)
 // section : Specific DialogTypes
 //----------------------------------------------------------------------
 
-//TokenID classificationDialogTypeID = GetTokenID_st("classification"); // OBSOLETE
 StaticTokenID classBreaksDialogTypeID("class_breaks");
 
 bool IsClassBreakAttr(const TreeItem* adi)
@@ -653,7 +652,7 @@ namespace { // local defs
 	};
 
 
-	// OBSOLETE, MAKE THIS an instance of StateFlagPropDef
+	// TODO: make this an instance of StateFlagPropDef
 	struct IsPassorPropDef: ReadOnlyPropDef<TreeItem, PropBool>
 	{
 	  public:
@@ -802,7 +801,7 @@ namespace {
 	static StoredPropDef<TreeItem, SharedStr> viewDataPropDef(VIEW_DATA_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, false);
 	static StoredPropDef<TreeItem, SharedStr> sourceDescrPropDef(SOURCE_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, false);
 
-	// TODO: Dit zijn eigenlijk props van ODBCStorageManager en niet van TreeItem
+	// TODO: these are really properties of the ODBCStorageManager, not of TreeItem
 	static StoredPropDef<TreeItem, SharedStr> sqlStringPropDef(SQLSTRING_NAME, set_mode::optional, xml_mode::element, odbc_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, TokenID  > tableTypeNamePropDef(TABLETYPE_NAME, set_mode::none, xml_mode::element, cpy_mode::none, false);
 
@@ -816,7 +815,7 @@ namespace {
 	static struct InTemplatePropDef inTemplatePropDef;
 	static struct IsEndogenousPropDef isEndogenousPropDef;
 
-	// OBSOLETE, MAKE THIS an instance of StateFlagPropDef
+	// TODO: make this an instance of StateFlagPropDef
 	static struct IsPassorPropDef isPassorPropDef;
 	static struct UsingPropDef usingPropDef;
 

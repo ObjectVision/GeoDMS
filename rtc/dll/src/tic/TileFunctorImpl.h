@@ -267,6 +267,7 @@ auto LazyTileFunctor<V, MustZero, ApplyFunc>::GetTile(tile_id t) const -> locked
 			resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), MustZero MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
 			m_ActiveTiles[t].m_TileFutureWPtr = tileSPtr;
+			// also invoked for an empty tile: an apply function must tolerate a tile size of 0 (cf. combine08 in clc/OperUnit.cpp)
 			m_ApplyFunc(const_cast<LazyTileFunctor<V, MustZero, ApplyFunc>*>(this), t);
 		}
 		assert(tileSPtr);

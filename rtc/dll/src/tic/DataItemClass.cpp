@@ -271,7 +271,7 @@ TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(
 				name
 			);
 
-//		dms_assert(!context->IsCacheItem()); ReportFunctions genereert wel in cache
+//		dms_assert(!context->IsCacheItem()); ReportFunctions does generate in the cache
 
 		CheckPtr(valuesUnit, AbstrUnit::GetStaticClass(), "DMS_CreateDataItem");
 		if (domainUnit)

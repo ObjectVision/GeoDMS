@@ -467,7 +467,7 @@ static void UnionData_CheckPartDomains(const AbstrOperGroup* og, const TreeItemD
 //                         UnionDataOperator
 // *****************************************************************************
 
-// REMOVE TODO AbstrOperator
+// TODO: derive from a generic AbstrOperator
 template <typename V>
 class UnionDataOperator : public BinaryOperator // extra args are allowed
 {

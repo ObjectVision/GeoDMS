@@ -788,7 +788,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetSourceObject(const TreeItem* t
 		{
 			const TreeItem* si = ti->GetSourceItem();
 			dms_assert(si != ti); 
-			if (si != ti) // REMOVE
+			if (si != ti) // the Release guard for the assert above
 				return si;
 		}
 

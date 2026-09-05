@@ -208,7 +208,7 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 	{
 //		case 2:  // cannot find the file specified
 		case 5:  // access denied
-		case 32: // Het proces heeft geen toegang tot het bestand omdat het door een ander proces wordt gebruikt
+		case 32: // ERROR_SHARING_VIOLATION: the process cannot access the file because it is being used by another process
 			if (!doRetry)
 				break;
 			if (++retryCounter > 10)

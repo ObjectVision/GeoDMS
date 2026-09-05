@@ -711,6 +711,7 @@ gdalComponent::gdalComponent()
 	++gdalComponentImpl::s_ComponentCount;
 }
 
+// "was initialised at least once": s_ComponentCount never decrements (the release path returns early).
 bool gdalComponent::isActive()
 {
 	return gdalComponentImpl::s_ComponentCount > 0;

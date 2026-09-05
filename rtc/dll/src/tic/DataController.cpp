@@ -38,31 +38,27 @@
 // *****************************************************************************
 
 
-/* ISSUES
-- Explicit Supplier Items
-  Voorbeeld: a: maak en bewaar data in externe storage x; b: result of externe processing van x
+/* Historical design notes (kept for the reasoning; the mechanisms have since changed)
+- Explicit supplier items
+  Example: a: create and store data in external storage x; b: the result of external processing of x
 - Parents
-- Compound Results
+- Compound results
 - Unit props
 - Lookahead locks
-  zijn future data request counts die beginnen bij een 
-  DMS_TreeItem_Updata (in pre-update fase) of al eerder,
-  die geplaatst worden op een DataController, 
-  die ze doorplaatst bij z'n args indien deze invalide is.
-  na gebruik van het arg (na berekening van de data van this),
-  wordt de data weer afgelaagd; bij 0 wordt de data geflushd
-  Lookahead locks betreffen interesse in de data, te onderscheiden van managed actors, 
-  die interesse in het up-to-date van de gehele item-state betreft (incl. externe storage).
-- Read Locks / Write Locks. Moeten tijdelijk zijn (thread-local).
-- Flushen of storen.
-  gezien de hoge kosten van opslaan, is free-en een optie indien
-  de opvraagfrequentie gering of de rekentijd niet al te hoog is en de suppliers beschikbaar.
-
-  Dit is een moeilijke afweging. 
-  Vooralsnog moet dit per item geconfigureerd worden.
-  Alle virtuele items hebben geen storage
-- Invalidation by datachange, this->exprchange, supplier->exprchange, etc.
-  Doe in idletime van alle up-to date dingen een state check en update vervolgens alle (zojuist) geinvalideerde items
+  are future data request counts that start at a DMS_TreeItem_Update (in the pre-update phase) or
+  earlier, are placed on a DataController, which passes them on to its args when it is invalid.
+  After the arg has been used (after the data of this has been calculated) the count is decremented
+  again; at 0 the data is flushed.
+  Lookahead locks concern interest in the data, as distinct from managed actors, which concern
+  interest in the up-to-dateness of the whole item state (including external storage).
+- Read locks / write locks. Must be temporary (thread-local).
+- Flush or store.
+  Given the high cost of storing, freeing is an option when the request frequency is low or the
+  calculation time not too high and the suppliers available.
+  This is a difficult trade-off. For now it must be configured per item.
+  All virtual items have no storage.
+- Invalidation by data change, this->exprchange, supplier->exprchange, etc.
+  In idle time do a state check of all up-to-date things and then update all (just) invalidated items.
 */
 
 
@@ -565,7 +561,7 @@ auto DataController::CallCalcResult(std::shared_ptr<Explain::Context> context) c
 	return resultHolder;
 }
 
-auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: REMOVE
+auto DataController::CalcResultWithValuesUnits() const -> FutureData // TODO G8: fold into CalcResult; 3 callers (MetaFuncApply, MoreDataControllers, shv/Theme)
 {
 	dms_assert(IsMetaThread());
 

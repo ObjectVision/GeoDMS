@@ -326,3 +326,8 @@ old API (`GetCachedConfigSourceTS`, `Curr()->DetermineExternalChange(lastFileCha
 be re-implemented, which is the subject of `doc/incremental-updates.md`. Detecting that a
 source file changed does not require a persistent result cache, so that work is
 unaffected by the retirement above.
+
+### From the retired "High-level Suggestions" block of act/Actor.cpp (2026-09)
+
+- The Was/Is/WasFailed/IsFailed family: clarify the semantics in one place and consider renaming for discoverability.
+- StopInterest runs on whatever thread drops the last interest; consider deferring its work to a safe executor when that is not the meta thread.

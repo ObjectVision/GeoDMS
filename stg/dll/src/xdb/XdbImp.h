@@ -4,7 +4,9 @@
 
 // *****************************************************************************
 //
-// Non DMS-based class used to stream to and from Xdb tables
+// Non-DMS class that reads the fixed-width text records of an .xyz file. The .xdb column format it
+// descends from (a header file describing the columns, appendable) is no longer read or written;
+// the layout is set by the storage manager, see XyzStorageManager::UpdateColInfo.
 //
 // *****************************************************************************
 
@@ -43,7 +45,7 @@ struct XdbColDescription
 };
 
 
-class XdbImp : FilePtrHandle
+class XdbImp
 {
 	using column_index = UInt32;
 	using width_t = UInt32;
@@ -53,14 +55,10 @@ public:
 	STGIMPL_CALL  XdbImp();
 	STGIMPL_CALL ~XdbImp();
 
-	// read/write functions
-	STGIMPL_CALL [[nodiscard]] FileResult Open       (WeakStr name, FileCreationMode mode, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL [[nodiscard]] FileResult OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL [[nodiscard]] FileResult Create     (WeakStr name, CharPtr datExtension, bool saveColInfo);
+	// read functions
+	STGIMPL_CALL [[nodiscard]] FileResult OpenForRead(WeakStr name, CharPtr datExtension);
 
 	STGIMPL_CALL [[nodiscard]] bool       ReadColumn (      void* data, recno_t cnt, column_index col_index);
-	STGIMPL_CALL [[nodiscard]] FileResult WriteColumn(const void* data, recno_t cnt, column_index col_index);
-	STGIMPL_CALL [[nodiscard]] FileResult AppendColumn(CharPtr name, width_t size, ValueClassID type, recno_t rows, bool saveColInfo);
 	STGIMPL_CALL void Close();
 
 	// info functions
@@ -74,15 +72,13 @@ public:
 	
 private:
 
-	ConstFileViewHandle m_FHD;				// .dat file
-	SharedStr m_FileName;					// .xdb file name
-	SharedStr m_DatFileName;				// .dat file name
-	CharPtr   m_DatExtension;               // .dat could be .txt or .kml or .xyz
+	ConstFileViewHandle m_FHD;				// the data file
+	SharedStr m_DatFileName;				// its name: the storage name with the extension of the storage manager
 
-	UInt32   nRecPos;						// read/write position
+	UInt32   nRecPos;						// read position
 public:
-	std::vector<XdbColDescription> ColDescriptions;		// .xdb content 
-	// header attributes, set when .xdb is read
+	std::vector<XdbColDescription> ColDescriptions;		// the column layout, set by the storage manager (UpdateColInfo)
+	// header attributes, set by the storage manager
 	recno_t nrows;                          // number of records
 	recno_t nrheaderlines;                  // number of header lines in .txt before first record
 	width_t headersize;                     // size of header lines in .txt (nr of bytes)
@@ -91,10 +87,8 @@ public:
 
 private:
 	// helper functions
-	[[nodiscard]] bool ReadHeader();                      // read from .xdb
-	bool WriteHeader();                     // write to .xdb
 	void Clear();                           // reset all
-	bool SetFileName(WeakStr xdb_name, CharPtr datExtension, bool saveColInfo);             // extension swap
+	bool SetFileName(WeakStr name, CharPtr datExtension);             // extension swap
 
 	// layout
 	width_t RecSize() const { return m_RecSize + m_LineBreakSize;}; // including 0A0D

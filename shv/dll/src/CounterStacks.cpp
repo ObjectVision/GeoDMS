@@ -122,7 +122,7 @@ void CounterStacks::LimitDrawRegions(const GPoint& maxSize)
 
 		increment_or_remove(stackPtr, stackEnd);
 	}
-	dbg_assert(IsOK()); // let op: MustBreak check counter values van NextStack kan wellicht gemist worden wegens scherpere clipping
+	dbg_assert(IsOK()); // NB: the MustBreak check of the counter values of NextStack may be missed because of tighter clipping
 }
 
 void CounterStacks::ScrollDevice(GPoint delta, const GRect& scrollRect, const GRect& clipRect)

@@ -244,8 +244,8 @@ public:
 	TIC_CALL bool              HasSubItems   () const noexcept;                            // calls UpdateMetaInfo
 	bool              _HasSubItems  ()  noexcept { return _GetFirstSubItem(); }    // doesn't call UpdateMetaInfo
 
-	// Inlined single-linked sub-item list (was the single_linked_tree<TreeItem> base). Raw links for now;
-	// these become std::shared_ptr in the ownership migration (see doc/development/std-ptr-migration-plan.md).
+	// Inlined single-linked sub-item list (was the single_linked_tree<TreeItem> base): m_FirstSub owns the
+	// first child and each child owns its next sibling (std::shared_ptr); these accessors return raw borrows.
 	      TreeItem* _GetFirstSubItem()       noexcept { return m_FirstSub.get(); }
 	const TreeItem* _GetFirstSubItem() const noexcept { return m_FirstSub.get(); }
 	      TreeItem* GetNextItem()            noexcept { return m_Next.get(); }
@@ -557,9 +557,6 @@ public: // TODO G8: Re-encapsulate
 	bool CanSubstituteByCalcSpec() const noexcept;
 public:
 	// Binary blob IO; override to customize (streams/buffers).
-	void LoadBlobBuffer (const BlobBuffer& rs);
-	void StoreBlobBuffer(      BlobBuffer& rs) const;
-
 	virtual void LoadBlobStream (const InpStreamBuff*);
 	virtual void StoreBlobStream(      OutStreamBuff*) const;
 

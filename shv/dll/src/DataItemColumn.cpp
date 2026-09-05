@@ -804,7 +804,7 @@ void DataItemColumn::SetActiveRow(SizeT row)
 			dv->m_TextEditController.CloseCurr();
 		InvalidateDrawnActiveElement();
 	}
-	dbg_assert( row != UNDEFINED_VALUE(UInt32) ); // DEBUG, REMOVE
+	dbg_assert( row != UNDEFINED_VALUE(UInt32) ); // precondition
 	m_ActiveRow = row;
 
 	InvalidateDrawnActiveElement();

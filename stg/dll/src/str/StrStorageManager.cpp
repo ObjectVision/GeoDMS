@@ -120,7 +120,7 @@ FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 				return r;
 			MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
 
-			auto dataBegin = ado->GetDataReadBegin(i); // TODO G8: maake van dataBegin een tileHandle met void pointer
+			auto dataBegin = ado->GetDataReadBegin(i); // TODO G8: make dataBegin a tile handle with a void pointer
 			auto dataSize = ado->GetNrTileBytesNow(i, false);
 			MG_CHECK(dataSize == 0 || fwrite(dataBegin, dataSize, 1, file) == 1);
 		}

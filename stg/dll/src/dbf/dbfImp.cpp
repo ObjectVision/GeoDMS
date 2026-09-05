@@ -563,7 +563,7 @@ bool DbfImpl::WriteHeader()
 	today = gmtime(&ltime);
 	today->tm_mon++;
 
-//	DEBUG, REMOVE, NYI: Fixed date to support current working of tst/Storage/cfg
+//	A fixed date on purpose: tst/Storage/cfg compares the written file byte for byte
 	today->tm_year = 109;
 	today->tm_mon  = 9;
 	today->tm_mday = 9;
@@ -953,7 +953,7 @@ template<class T> bool DbfImplStub<T>::TypeResolution(TDbfType dbftype, UInt8 le
 	return	dbftype == colDesc.m_DbfType 
 		&& (dbftype != dtNumeric 
 			|| (len - decCount <= colDesc.m_Length - colDesc.m_DecimalCount 
-//				&& deccount <= coldesc.DecimalCount dbf storage leidt soms tot nauwkeurigheidsproblemen
+//				&& deccount <= coldesc.DecimalCount dbf storage sometimes causes precision problems
 				)
 			);
 } // TypeResolution

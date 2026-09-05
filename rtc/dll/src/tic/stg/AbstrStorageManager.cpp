@@ -916,7 +916,7 @@ void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITI
 	if (m_IsOpen && m_IsOpenedForWrite)
 		return;
 
-	if (m_IsOpen) // dus niet m_IsOpenedForWrite
+	if (m_IsOpen) // i.e. not m_IsOpenedForWrite
 	{
 		DoCloseStorage(false);
 		m_IsOpen = false;

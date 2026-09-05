@@ -179,7 +179,7 @@ SharedStr SessionData::ReadConfigString(CharPtr section, CharPtr key, CharPtr de
 	const AbstrDataItem* adi = AsDataItem(GetConfigSettings(section, key).get());
 	if (adi)
 		return adi->LockAndGetValue<SharedStr>(0);
-	return GetConfigKeyString(GetConfigIniFile(), section, key, defaultValue ); // Backward compatibility, REMOVE
+	return GetConfigKeyString(GetConfigIniFile(), section, key, defaultValue ); // backward compatibility with ini-file configuration keys
 }
 
 Int32 SessionData::ReadConfigValue(CharPtr section, CharPtr key, Int32 defaultValue) const
@@ -187,7 +187,7 @@ Int32 SessionData::ReadConfigValue(CharPtr section, CharPtr key, Int32 defaultVa
 	const AbstrDataItem* adi = AsDataItem(GetConfigSettings(section, key).get());
 	if (adi)
 		return NumericParam_GetValueAsInt32(adi);
-	return GetConfigKeyValue(GetConfigIniFile(), section, key, defaultValue ); // Backward compatibility, REMOVE
+	return GetConfigKeyValue(GetConfigIniFile(), section, key, defaultValue ); // backward compatibility with ini-file configuration keys
 }
 
 const TreeItem* SessionData::GetContainer(const TreeItem* context, CharPtr name) const

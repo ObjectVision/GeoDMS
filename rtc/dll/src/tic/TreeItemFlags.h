@@ -94,7 +94,7 @@ const TreeItemStatusFlags TSF_IsFunctionItem              = 0x01000000; // 'func
 // so a future flag does not collide with a stale persisted value.
 const UnitItemStatusFlags USF_HasConfigRange              = 0x04000000;
 
-// REMOVE, TODO: CONSIDER STORING THE FOLLOWING PER TILE
+// TODO: consider storing the following per tile
 const int DCM2DSF_SHIFT = 25;
 const int DCM_MASK = 0x03U;
 const DataItemStatusFlags DSF_HasUndefinedValues     = 0x02000000;

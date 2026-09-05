@@ -139,17 +139,6 @@ bool IsCondExpr(LispPtr expr)
 	return expr.Left() == CondSymbol;
 }
 
-/*
-LispRef EvalCondList(LispPtr condList)
-  {
-	if (EndP(condList)) return condList;           // condList OK: Return ()
-	LispRef FirstCond=Eval(First(condList));
-	if (FirstCond==FailSymbol)  return FailSymbol; // 1 cond FAIL: Return FAIL
-	LispRef RestCond= EvalCondList(Rest(condList));
-	if (EndP(FirstCond)) return RestCond;
-	return Cons(FirstCond,RestCond);               // return Reduced condList
-  }
-*/
 
 LispRef EvalClauseList(const LispClauseList& clauseList, AssocListPtr env)
 {
@@ -221,15 +210,6 @@ AssocList Match(AssocListPtr aList, LispPtr header, LispPtr expr)
 	return Match(newAssocList, header.Right(), expr.Right());
 }
 
-/*
-LispRef ShortEvalCondList(LispPtr condList)
-{
-	if (condList.EndP()) return condList;           // Conditions OK: ()
-	LispRef FirstCond=Eval(condList.Left());
-	if (FirstCond.EndP()) return ShortEvalCondList(condList.Right());
-	return FailSymbol;                             // If not all cond reduces
-}   						 									// to (): return FAIL
-*/
 /****************** Global eval functions         *******************/
 
 /*
@@ -253,12 +233,6 @@ LispRef ApplySubstList(LispPtr expr, AssocListPtr substList)
 		AssocList assocList = Match(AssocList(), header, expr);
 		if (!assocList.IsFailed())
 		{
-/*
-			DBG_START("LispEval", "ApplySubstList", false);
-			DBG_TRACE(("expr   = {}", AsString(expr).c_str()));
-			DBG_TRACE(("subst  = {}", AsString(subst).c_str()));
-			DBG_TRACE(("unifier= {}", AsString(assocList).c_str()));
-*/
 			dms_assert(expr == assocList.ApplyOnce(subst.Key()));
 			LispRef result = assocList.ApplyOnce(subst.Val());
 
@@ -272,25 +246,7 @@ LispRef ApplySubstList(LispPtr expr, AssocListPtr substList)
 	return expr;
 }
 
-/*
-LispRef ApplyList(LispPtr expr, AssocListPtr env)
-{
-	if (!expr.IsRealList())
-		return expr;
 
-	return LispRef(
-		Apply(expr.Left(), env), 
-		ApplyList(expr.Right(), env)
-	);
-}
-*/
-
-/*
-inline LispRef ApplyStep(LispPtr expr, AssocListPtr env)
-{
-	return ApplySubstList(ApplyList(expr, env), env); // bottom up
-}
-*/
 
 #if defined(MG_USE_LISPFUNCS)
 
@@ -326,16 +282,6 @@ LispRef EvalStep(LispPtr expr, AssocListPtr env)
 			if (t == T_Cons)  return LispRef(Eval(tail.First(), env), Eval(tail.Second(), env));
 			if (t == T_Times) return Times(  Eval(tail.First(), env), Eval(tail.Second(), env));
 			if (t == T_Plus ) return Plus(   Eval(tail.First(), env), Eval(tail.Second(), env));
-/*
-				if (T==T_Prolog) return Solve(Tail);
-				if (T==T_Renum)
-				{
-					LispRef assocList;
-					int Nr=0;
-					return Renum(assocList,First(Tail),Nr);
-				}
-  */
-//			}
 		}
 	}
 	else if (expr.IsSymb())
@@ -400,51 +346,7 @@ LispRef MakeVarsOfUnderscores(LispPtr expr)
 
 #endif //defined(MG_USE_LISPFUNCS)
 
-/*
-struct ApplyStepFunc
-{
-	using argument_type = cache_key_t;
-	using result_type = LispRef;
-//	using result_reftype = result_type;
-	using hasher = std::hash<const LispObj*>;
-	using equality_compare = std::equal_to<const LispObj*>;
 
-	LispRef operator ()(const cache_key_t& exprEnvPair) const
-	{
-		return ApplyStep(exprEnvPair.first, exprEnvPair.second);
-	}
-};
-*/
-
-/* REMOVE
-UnorderedMapCache<ApplyStepFunc> g_applyCache;
-
-LispRef Apply(LispPtr expr, AssocListPtr env)
-{
-#if defined(MG_DEBUG)
-	StaticMtIncrementalLock<gd_LispEvalLevel> levelLock;
-	dms_assert(gd_LispEvalLevel <= MaxAllowedLevel);
-#endif
-//	reportF(ST_MinorTrace, "Apply: {}", AsString(expr).c_str()); // DEBUG
-
-	return g_applyCache.apply(cache_key_t(expr, env));
-}
-
-LispRef RepeatedApply(LispPtr expr, AssocListPtr env)
-{
-	DBG_START("LispEval", "RepeatedApply", false);
-	DBG_TRACE(("expr  = {}", AsString(expr).c_str()));
-
-	LispRef result=expr;
-	while (true)
-	{
-		LispRef newResult = Apply(result, env);
-		if (result == newResult)
-			return result;
-		result = std::move(newResult);
-	}
-}
-*/
 //==============================
 
 #include "RewriteRules.h"
@@ -550,13 +452,6 @@ struct ApplyTopEnvFunc
 			AssocList unifier = Match(AssocList(), pattern, expr);
 			if (!unifier.IsFailed())
 			{
-/*
-				DBG_START("LispEval", "ApplyEnv", MG_TRACE_LISP);
-				DBG_TRACE(("expr     = {}", AsString(expr).c_str()));
-				DBG_TRACE(("pattern  = {}", AsString(rewriteRulePtr->Key()).c_str()));
-				DBG_TRACE(("unifier  = {}", AsString(unifier).c_str()));
-				DBG_TRACE(("templExpr= {}", AsString(rewriteRulePtr->Val()).c_str()));
-*/
 //				dms_assert(expr == unifier.ApplyOnce(pattern)); POST_CONDITION, but MUTATING through LispRef coy-ctor
 
 				LispRef result = AssocList_RepApplyTopEnv(unifier, rewriteRulePtr->Val());
@@ -662,366 +557,6 @@ LispRef MakeVarsOfUnderscores(LispPtr expr)
 	return expr;
 }
 
-/****************** renumerate vars               *******************/
-
-/*
-LispRef MakeVar(int VarNr)
-{
-	char name[10];
-	sprintf(name,"_%d",VarNr);
-	return MakeSymb(name);
-}
-
-LispRef Renum(AssocListPtr assocList, LispPtr expr, int& NextFreeVarNum)
-{
-	if (IsVar(expr))
-	{
-		Assoc envDef=assocList.Find(expr);
-		if (envDef.Empty())
-		{
-			LispRef newVar=MakeVar(NextFreeVarNum++);
-			assocList = assocList.Add(Assoc(expr,newVar));
-			return newVar;
-		}
-		else
-		  return envDef.Val();
-	}
-	if (!expr.IsRealList())   return expr;
-	return Cons(Renum(assocList, expr.Left(),NextFreeVarNum),
-					Renum(assocList, expr.Right(),NextFreeVarNum));
-}
-*/
-/****************** class Query                   *******************/
-
-/*
-bool HasExpr(LispPtr expr, const LispRef Has)
-{
-	if (expr==Has)
-  	return true;
-	if (expr.IsRealList())
-		if (!HasExpr(expr.Left(),Has))
-			return HasExpr(expr.Right(),Has);
-		else
-			return true;
-  	return false;
-}
-*/
-/*
-bool PrologMatch(	  LispRef& assocList,
-				LispPtr Goal,
-				LispPtr Patt)
-  {
-  //cout << "PMSR" << Source << "\n";
-  //cout << "PMDS" << Dest   << "\n";
-	if (IsVar(Goal)||IsVar(Patt))
-	  {
-		LispRef GoalDef=UseAssoc(assocList,Goal);
-		LispRef PattDef=UseAssoc(assocList,Patt);
-		if (IsVar(GoalDef)||IsVar(PattDef))
-		  {
-			if (IsVar(GoalDef))
-				if (IsVar(PattDef))
-				  {
-					if (GoalDef!=PattDef)
-						AddAssoc(assocList,GoalDef,PattDef);
-					return true;
-				  }
-				else
-				  {
-					if (HasExpr(PattDef,GoalDef))
-						return false;
-					AddAssoc(assocList,GoalDef,PattDef);
-					return true;
-				  } 
-			else
-			  {
-				if (HasExpr(GoalDef,PattDef))
-					return false;
-				AddAssoc(assocList,PattDef,GoalDef);
-				return true;
-			  }
-		  }
-		else return PrologMatch(assocList,GoalDef,PattDef);
-	  }
-	if (!IsRealList(Goal)) return Goal==Patt;
-	if (!IsRealList(Patt)) return false;
-	if (	   PrologMatch(assocList,First(Goal),First(Patt)))
-		return PrologMatch(assocList,Rest (Goal),Rest (Patt));
-	return false;
-  }
-
-LispRef LockedCond;
-
-int NrLockedGoals=0;
-
-inline void PushLock(LispPtr Goal)
-  {
-	NrLockedGoals++;
-	AddAssoc(LockedCond,Goal,EmptyList);
-  }
-
-inline void PopLock(LispPtr Goal)
-  {
-	dms_assert(First(First(LockedCond))==Goal);
-	dms_assert(NrLockedGoals>0);
-	LockedCond=Rest(LockedCond);
-	NrLockedGoals--;
-  }
-
-class Query {
-  protected:
-	Query(const VarNrType NFV):NFVExpr(NFV),NFVRslt(NFV),Active(false) {};
-	virtual void Call(LispPtr expr) =0;
-  public:
-    virtual void Redo()                =0;
-	 virtual ~Query()                   {};
-	int  IsActive()                   { return Active; };
-	LispRef  GetLast()  		       	  { return LastResult; };
-    VarNrType GetNFV()				  { return NFVRslt; };
-  protected:
-    bool Active;
-	 LispRef LastResult;
-	VarNrType NFVExpr;	// Next Free Vars.
-    VarNrType NFVRslt;
-  };
-
-
-class CondListQuery:public Query {
-  public:
-	CondListQuery(LispPtr expr, const VarNrType NFV):Query(NFV)
-	  {
-		FirstCondQ=NULL;
-		RestCondQ =NULL;
-		Call(expr);
-      };
-	virtual void Redo();
-   ~CondListQuery()
-  	  {
-		if (FirstCondQ) delete FirstCondQ;
-		if (RestCondQ ) delete RestCondQ;
-	  };
-  private:
-	virtual void Call(LispPtr expr);
-	LispRef FirstCond;
-	 LispRef RestCond;
-    Query* FirstCondQ;
-	Query* RestCondQ;
-  };
-
-class CondQuery:public Query {
-  public:
-	CondQuery(LispPtr expr, const NFV):Query(NFV)
-	  {
-		CondListQ=NULL;
-		HadAll=false;
-		Call(expr);
-      };
-	virtual void Redo();
-   ~CondQuery()
-	  {
-		if (CondListQ) delete CondListQ;
-	  };
-
-  private:
-	virtual void Call(LispPtr expr);
-	LispRef AssocP;		// assoc from Prolog match
-	LispRef Goal;
-	LispRef RestEnv;
-	Query* CondListQ;
-	bool HadAll;
-  };
-
-void CondQuery::Call(LispPtr expr)
-  {
-	if (NrLockedGoals>5) return;						// Protect looping
-	Active  =true;
-	Goal    = expr;
-	cout << "Call:" << Goal << "\n"; //DEBUG
-	if (!HasAnyVar(Goal))  			// Hook to Eval!!!
-		if (EndP(Eval(Goal)))
-		  {
-			HadAll=true;
-			return;
-		  }
- //if (!EndP(GetAssoc(LockedCond,Goal))) return;		// Protect looping
-
-	RestEnv = GlobalEnv;
-	HadAll  =false;
-	Redo();
-  };
-
-void CondQuery::Redo()
-  {
-	if (HadAll)  Active=false;
-	if (!Active) return;
-	cout << "CondG" << ++Level << ":" << Goal << "\n";  //DEBUG
-	while (!EndP(RestEnv))
-	  {
-		PushLock(Goal);
-		if (!CondListQ)
-		  {
-			LispRef envDef=First(RestEnv);		// V: env
-			AssocP=EmptyList;               // V: env+goal
-			if (PrologMatch(AssocP,Goal,First(envDef)))
-			  {
-				LispRef RenumP;          // D: env; B: new
-				NFVRslt=NFVExpr;
-				envDef=Renum(RenumP,envDef,NFVRslt);	// V: new
-					 AssocP=ApplyAssoc(RenumP,AssocP); 			// V: goal+new
-				CondListQ = CheckNew(CondListQuery,
-							(UseAssoc(AssocP,Rest(envDef)),
-							NFVRslt));
-							  // V: krn(g+b); New vars must be above
-		      }
-		  }
-		else
-			CondListQ->Redo();
-	    PopLock(Goal);
-
-		if (CondListQ)
-		  {
-		  	if (CondListQ->IsActive())
-			  {
-				LastResult =
-					UseAssoc(
-						CondListQ->GetLast(),
-						AssocP);
-				NFVRslt=CondListQ->GetNFV();		//Optimize more                
-//				HadAll=(LastResult==EmptyList);
-				cout << "CondR" << Level-- << ":" << LastResult << "\n";   //DEBUG
-				return;
-			  }
-			delete CondListQ; CondListQ=NULL;
-		  }
-		RestEnv=Rest(RestEnv);
-		if (EndP(RestEnv))
-			if (EndP(EvalDirect(Goal)))
-			  {
-				LastResult=EmptyList;
-				NFVRslt=NFVExpr;
-				HadAll=true;
-				cout << "CondD" << Level-- << ":" << LastResult << "\n";  //DEBUG
-				return;
-			  }
-	  }
-	cout << "CondE" << Level-- << ":" << LastResult << "\n"; //DEBUG
-	Active=0;
-  }
-
-LispRef ConcatLists(LispPtr A, LispPtr B)
-  {
-	 if (EndP(A)) return B;
-    return Cons(First(A),ConcatLists(Rest(A),B));
-  }
-
-void CondListQuery::Call(LispPtr expr)
-  {
-	Active  =true;
-	if (EndP(expr))
-	  {
-		 FirstCond = FailSymbol;
-    	return;
-  	  }
-	FirstCond = First(expr);
-	RestCond  = Rest(expr);
-  	FirstCondQ=CheckNew(CondQuery,(FirstCond,NFVExpr));
-	Redo();
-  }
-
-void CondListQuery::Redo()
-  {
-	 if (FirstCond==FailSymbol) Active=false;
-    if (!Active) return;
-
-  	while (FirstCondQ->IsActive())
-	  {
-		 if (!RestCondQ)
-		  {
-			RestCondQ=CheckNew(
-				CondListQuery,
-				(UseAssoc(FirstCondQ->GetLast(),RestCond),
-				 FirstCondQ->GetNFV()));
-		  }
-		else
-			RestCondQ->Redo();
-		if (RestCondQ)
-		  {
-			 if (RestCondQ->IsActive())
-			  {
-				LastResult=ConcatLists(FirstCondQ->GetLast(),
-										RestCondQ ->GetLast());
-					 NFVRslt=RestCondQ->GetNFV();
-				  return;
-				}
-			delete RestCondQ; RestCondQ=NULL;
-				FirstCondQ->Redo();
-		  }
-	  }
-	Active=false;
-  }
-*/
-/****************** Prolog like query             *******************/
-/*
-VarNrType NextGoalVar = 1000;
-
-
-LispRef BoolEvalCond(LispPtr Goal)
-  // Precondition: Goal bevat geen vars boven NextGoalVar
-  //		reden: bij het terugsubsitueren zouden deze conflicteren
-  //				met free vars van het resultaat.
-  //				Goal mag wel env-variabelen bevatten; deze komen in
-  //				het resultaat niet voor.
-  {
-	LispRef       result;
-	ProMod = 1;
-	cout << "BlEvS" << ++Level << ":" << Goal << "\n";		//DEBUG
-
-	VarNrType NFV = NextGoalVar;
-	LispRef AssocG;
-	LispRef NewGoal=Renum(AssocG,Goal,NFV);
-	LispRef AssocR=ReverseAssoc(AssocG);
-
-	CondQuery G(NewGoal,NFV);
-	while (G.IsActive())
-	  {
-		cout << "BlEvR" << Level << ":" << G.GetLast() << "\n";
-		result = Cons(ApplyAssoc(AssocR,G.GetLast()),result);
-		G.Redo();
-	  }
-	cout << "BlEvE" << Level-- << "\n";
-	ProMod = 0;
-	return result;
-  }
-
-LispRef BoolEvalCondList(LispPtr Goal)
-  // Precondition: Goal bevat geen vars boven NextGoalVar
-  //		reden: bij het terugsubsitueren zouden deze conflicteren
-  //				met free vars van het resultaat.
-  //				Goal mag wel env-variabelen bevatten; deze komen in
-  //				het resultaat niet voor.
-  {
-	LispRef       result;
-	ProMod = 1;
-	cout << "BlEvS" << ++Level << ":" << Goal << "\n";		//DEBUG
-
-	VarNrType NFV = NextGoalVar;
-	LispRef AssocG;
-	LispRef NewGoal=Renum(AssocG,Goal,NFV);
-	LispRef AssocR=ReverseAssoc(AssocG);
-
-	CondListQuery G(NewGoal,NFV);
-	while (G.IsActive())
-	  {
-		cout << "BlEvR" << Level << ":" << G.GetLast() << "\n";
-		result = Cons(ApplyAssoc(AssocR,G.GetLast()),result);
-		G.Redo();
-	  }
-	cout << "BlEvE" << Level-- << "\n";
-	ProMod = 0;
-	return result;
-  }
-
-*/
 
 
 

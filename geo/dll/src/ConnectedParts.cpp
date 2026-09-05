@@ -136,7 +136,7 @@ public:
 			assert(node1Data.size() == nrE);
 			assert(node2Data.size() == nrE);
 
-			// TODO G8: doe dit zoals in OperDistrict.cpp
+			// TODO G8: do this as in OperDistrict.cpp
 
 			my_vec_t<PartType> resultData(nrV, UNDEFINED_VALUE(PartType));
 			assert(resultData   .size() == nrV); 

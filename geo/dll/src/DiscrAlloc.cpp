@@ -2561,7 +2561,7 @@ bool UpdateSplitterDown(htp_info_t<S, P, AR, AT>& htpInfo, claim<S, P>& root)
 	// adjust G on whole MST (including dead ends) in ClaimIdList order (from root) 
 	// to prevent unadministered facet crossings
 	// laat schadowprijs van target stijgen op basis van (Ga - Gb) = (Qa - Qb)  
-	//	=>  Gb := Ga - (Qa - Qb) = Ga + c, want c = -(Qa - Qb)
+	//	=>  Gb := Ga - (Qa - Qb) = Ga + c, since c = -(Qa - Qb)
 
 	for (auto claimIdPtr = htpInfo.m_ClaimIdList.begin(), claimIdEnd = htpInfo.m_ClaimIdList.end(); claimIdPtr != claimIdEnd; ++claimIdPtr)
 	{
@@ -2704,7 +2704,7 @@ bool UpdateSplitterUp(htp_info_t<S, P, AR, AT>& htpInfo, claim<S, P>& root)
 	// adjust G on whole MST (including dead ends) in ClaimIdList order (from root) 
 	// to prevent unadministered facet crossings
 	// laat schadowprijs van target stijgen op basis van (Ga - Gb) = (Qa - Qb)  
-	//	=>  Gb := Ga - (Qa - Qb) = Ga + c, want c = -(Qa - Qb)
+	//	=>  Gb := Ga - (Qa - Qb) = Ga + c, since c = -(Qa - Qb)
 
 	std::vector<UInt32>::const_iterator
 		claimIdPtr = htpInfo.m_ClaimIdList.begin(),

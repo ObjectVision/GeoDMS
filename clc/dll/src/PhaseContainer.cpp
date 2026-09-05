@@ -23,7 +23,6 @@
 #include "SupplCache.h"
 #include "TreeItemClass.h"
 #include "UnitProcessor.h"
-extern RTC_CALL bool s_IsDetectingIncInterest; // defined in rtc act/Actor.cpp; extern is required: without it this is a tentative definition that silently creates a private copy if the symbol ever stops being dllimport
 
 // PhaseContainers are used to separate calculations into groups that are to be executed serially, sequentially and/or consequetively and NOT in parallel.
 // All calculation steps behind the phase are to be completed before calculation steps in front of the phase, i.e. steps that use fenced results, are to be executed
@@ -133,8 +132,8 @@ struct PhaseContainerOperator : BinaryOperator
 	// 
 	// d := add(subitem(phase, 'a') + subitem(phase, 'b');
 	// d should not be rewritten to state/a + state/b as that whould keep refs open that we want to close before completing of phase, but
-	// of a of b, en/of hun domein suppliers zijn van phase, wordt bepaald op moment van phase execution;
-	// op dat moment zijn de targets bekend en kan (re)scheduling bepaald worden; na completering van deze phase zijn de target domain bepaald en kan (re)scheduling van operaties na deze phase (beter) plaats vinden.
+	// whether a or b, and/or their domain suppliers, belong to phase is determined at the moment of phase execution;
+	// at that moment the targets are known and (re)scheduling can be decided; after this phase completes the target domains are determined and the (re)scheduling of the operations after this phase can take place (better).
 
 	bool PreCalcUpdate(TreeItemDualRef& resultHolder, ArgRefs& args) const override
 	{
@@ -190,7 +189,6 @@ struct PhaseContainerOperator : BinaryOperator
 			s_CurrBlockedPhaseItem = srcItem.get();
 			//*
 			{
-//				auto detectInterest = tmp_swapper(s_IsDetectingIncInterest, true);
 				if (!srcItem->SuspendibleUpdate())
 				{
 					if (srcItem->WasFailed())

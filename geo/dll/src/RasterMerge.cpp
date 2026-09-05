@@ -19,7 +19,7 @@
 
 // *****************************************************************************
 //                            RasterMergeOperator
-// een operator om een serie deelkaarten in 1 keer samen te voegen
+// an operator that merges a series of partial maps in one go
 //	raster_merge<I,V>: (
 //		indexmap: GRID->I; 
 //      resultUnit: V;

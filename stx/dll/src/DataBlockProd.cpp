@@ -32,7 +32,6 @@ DataBlockProd::DataBlockProd(AbstrDataItem* adi, SizeT elemCount)
 
 DataBlockProd::~DataBlockProd()
 {
-	//REMOVE boost::on_thread_exit();
 }
 
 // *****************************************************************************

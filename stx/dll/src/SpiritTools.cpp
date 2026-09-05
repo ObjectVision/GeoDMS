@@ -8,7 +8,6 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-// (StringProd merged in, 2026-08)
 
 
 #include "SpiritTools.h"

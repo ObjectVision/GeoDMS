@@ -208,7 +208,7 @@ template <typename T>
 void SyncValue(TreeItem* context, TokenID nameID, T& value, typename param_type<T>::type defaultValue, ShvSyncMode sm)
 {
 	dms_assert(context);
-	if (!context) // REMOVE?
+	if (!context) // tolerated in Release; the assert above states the expectation
 		return;
 
 	if (sm == SM_Load)

@@ -827,8 +827,8 @@ TIMESTAMP_STRUCT ODBCStorageManager::AccessTableLastUpdate(const TreeItem* stora
 //			updateinfo.ExecSQL(false); // dont worry if table does not exist
 //			updateinfo.Close();
 //
-			// VRAAG: wat is het type van een VIEW ? Ligt dit in de geselcteerde range 1-6 ?
-			// ANTWOORD: begluur access
+			// QUESTION: what is the type of a VIEW? Is it within the selected range 1-6?
+			// ANSWER: peek at Access
 			RunAccessSql(GetDatabaseFilename(storageHolder).c_str(), 
 							"SELECT NAME, DATEUPDATE INTO MSYSOBJECTS_COPY FROM MSYSOBJECTS WHERE TYPE IN (1, 5, 6)",
 							"MYSYSOBJECTS_COPY");

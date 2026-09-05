@@ -95,7 +95,7 @@ TIC_CALL ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqTyp
 
 inline ConstUnitRef square_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
-	dms_assert(args.size() >= 1); // ook gebruikt voor var_partial
+	dms_assert(args.size() >= 1); // also used for var_partial
 	ArgSeqType tmpArgs; tmpArgs.reserve(2);
 	tmpArgs.push_back(args[0]);
 	tmpArgs.push_back(args[0]);

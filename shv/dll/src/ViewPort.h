@@ -63,7 +63,7 @@ public:
 	void InitWorldCrdUnit(const AbstrUnit* worldCrdUnit);
 	void SetBkColor(COLORREF bkColor) { m_BkColor = bkColor; }
 
-//	nieuwe functions
+//	new functions
 
 	const LayerSet* GetLayerSet() const;
 	      LayerSet* GetLayerSet();

@@ -217,7 +217,7 @@ UInt32 DMS_CONV DMS_DomainUnit_VisitPaletteCandidates (const AbstrUnit* domain, 
 	return count;
 }
 
-// ========================== Start OBSOLETE code, FIND REMOVE SIMPLIFY DataStructures for getting this data
+// ========================== Retired C-API entry points: kept as exports for binary compatibility, each throws
 
 extern "C" {
 

@@ -188,7 +188,6 @@ void DbfStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	BuildNameSet(storageHolder);
 }
 
-// REMOVE return dbf.ReadData(&(debug_cast<DataArray<type>*>(ado)->GetDataWrite()), fieldName.begin(), vcID);
 
 FileResult DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {

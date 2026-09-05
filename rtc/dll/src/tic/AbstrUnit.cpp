@@ -953,10 +953,6 @@ void AbstrUnit::SetMaxRange()
 //	SetDataInMem();
 }
 
-tile_id AbstrUnit::GetThisCurrTileID(SizeT& index, tile_id prevT) const
-{
-	return 0;
-}
 
 I64Rect AbstrUnit::GetTileSizeAsI64Rect(tile_id t) const // asssume 1D; Unit<V> overrules this for all 2D domains
 {
@@ -1036,7 +1032,7 @@ void CheckNrTiles(SizeT nrTiles)
 	if (nrTiles > MAX_VALUE(tile_id))
 		throwErrorF("Tiles", "The requested number of {} tiles exceeds the GeoDms limit of {}", 
 			nrTiles,
-			MAX_NR_TILES
+			MAX_VALUE(tile_id)
 		); 
 }
 

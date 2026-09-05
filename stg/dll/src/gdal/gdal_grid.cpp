@@ -164,7 +164,6 @@ FileResult GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bor
 		const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
 
 		auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
-		vpi.SetWritability(adi);
 
 		if (vpi.GetCountColor() != -1)
 			ReadGridCounts(vpi, borrowedReadResultHolder, t, gbr->m_SqlString, smi);
@@ -372,7 +371,7 @@ SizeT GDalGridImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt3
 	return GetTileByteSize();
 }
 
-Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // REMOVE, UInt32 strip_y, SizeT tileByteSize) const
+Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y)
 {
 	MG_CHECK(tile_x < GetWidth()); UInt32 sx = Min<UInt32>(GetTileSize().X(), GetWidth() - tile_x);
 	MG_CHECK(tile_y < GetHeight()); UInt32 sy = Min<UInt32>(GetTileSize().Y(), GetHeight() - tile_y);

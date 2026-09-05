@@ -46,7 +46,6 @@ const UInt32 GOF_IsDrawn             = actor_flag_set::AF_Next * 0x0040;
 
 const UInt32 GOF_IsUpdated           = actor_flag_set::AF_Next * 0x0080; 
 const UInt32 GOF_AllUpdated          = actor_flag_set::AF_Next * 0x0100;
-//REMOVE const UInt32 GOF_AllDataReady        = actor_flag_set::AF_Next * 0x0200; // Used only by TableControl and Control
 const UInt32 GOF_ShowSelectedOnly    = actor_flag_set::AF_Next * 0x0400; // Used only by TableControl and Control
 
 const UInt32 GOF_Next                = actor_flag_set::AF_Next * 0x0800;

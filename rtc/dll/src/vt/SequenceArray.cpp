@@ -530,7 +530,7 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	assert(oldData.IsAssigned());
 	assert(oldData.IsHeapAllocated());
 
-	// NYI: doe alleen m_Values en laat m_Indices ongemoeid
+	// NYI: do only m_Values and leave m_Indices untouched
 	if (!IsDirty())
 	{
 		assert(actual_data_size() == m_Values.size());

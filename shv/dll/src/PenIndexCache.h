@@ -133,7 +133,7 @@ private:
 
 	std::vector<SafePenHandle> m_Collection;
 	HDC                        m_hDC;
-	HPEN                       m_OrgHPen = nullptr; // zodat dat weer terug te zetten is in destructor, bewaar pas bij eerste Selectie
+	HPEN                       m_OrgHPen = nullptr; // so that it can be restored in the destructor; only saved at the first selection
 	bool                       m_CurrPenIsExceptional = false;
 
 };

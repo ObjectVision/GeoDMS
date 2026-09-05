@@ -5,7 +5,7 @@
 // general
 #include "dbg/check.h"   // dms_assert
 #include "dbg/debug.h"	 // DBG_TRACE
-//#include "dbg/TraceToConsole.h" // MTA: DBG_TRACE ook meteen naar console
+//#include "dbg/TraceToConsole.h" // MTA: DBG_TRACE also straight to the console
 #include <direct.h>      // _chdir
 
 // DMS interface

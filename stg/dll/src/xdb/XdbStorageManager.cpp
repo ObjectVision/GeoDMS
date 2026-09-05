@@ -10,9 +10,8 @@
 
 // *****************************************************************************
 //
-// Implementations of - XdbStorageOutStreamBuff
-//                    - XdbStorageInpStreamBuff
-//                    - XdbStorageManager
+// XdbStorageManager: reads fixed-width text records; XyzStorageManager is its only registered
+// instance (see UpdateColInfo below for the .xyz layout). Writing is not supported.
 //
 // *****************************************************************************
 
@@ -46,7 +45,7 @@ FileResult XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObje
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	auto result = imp.OpenForRead(GetNameStr(), m_DatExtension, false);
+	auto result = imp.OpenForRead(GetNameStr(), m_DatExtension);
 	if (!result)
 		return result;
 
@@ -82,31 +81,9 @@ FileResult XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObje
 
 FileResult XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
-	auto smi = smiHolder.get();
-	StorageWriteHandle storageHandle(this, std::move(smiHolder));
-
-	XdbImp imp;
-	UpdateColInfo(imp);
-
-	auto result = imp.Open  (GetNameStr(), FCM_OpenRwFixed, m_DatExtension, false);
-	if (!result)
-		result  = imp.Create(GetNameStr(), m_DatExtension, false);
-	MG_CHECK2(result, "Cannot open Xdb");
-
-	auto adi = smi->CurrRD();
-
-	assert(adi->GetDataRefLockCount());
-
-	const AbstrDataObject* ado = adi->GetRefObj().get();
-	ValueClassID  vclsid = ado->GetValuesType()->GetValueClassID();
-
-	MG_CHECK(ado->GetNrFeaturesNow() == imp.NrOfRows());
-
-	return imp.WriteColumn(
-		ado->GetDataReadBegin()
-	,	ado->GetNrFeaturesNow()
-	,	imp.ColIndex(adi->GetRelativeName(smi->StorageHolder()).c_str())
-	);
+	// The .xdb column-append path was retired long ago; until 2026-09 this opened the file for
+	// writing and threw the same message from XdbImp::Open.
+	throwErrorF("Xdb", "writing to {} is not supported", GetNameStr());
 }
 
 // Constructor for this implementation of the abstact storagemanager interface
@@ -121,7 +98,7 @@ bool XdbStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	if (!imp.OpenForRead(GetNameStr(), m_DatExtension, false))
+	if (!imp.OpenForRead(GetNameStr(), m_DatExtension))
 		return false;
 
 	smi.CurrWU()->SetCount(imp.NrOfRows());
@@ -177,50 +154,11 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 }
 
 
-// Inspect the current tree and creates c.q synchronises the ascii table
-void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const TreeItem* subItem)
-{
-	DBG_START("XdbStorageManager", "SyncTree", false);
-
-	if (!IsDataItem(subItem))
-		return;
-	const AbstrDataItem* curdi = AsDataItem(subItem);
-
-	// Units
-	const AbstrUnit* du = curdi->GetAbstrDomainUnit();
-	const AbstrUnit* vu = curdi->GetAbstrValuesUnit();
-
-	assert(du);
-	assert(vu);
-
-	// Get domain range
-	long range = du->GetCount();
-	DBG_TRACE(("range: {}", range));
-
-	// Get value type
-	long col_size = 0;
-
-	ValueClassID vid = vu->GetValueType()->GetValueClassID();
-	switch (vid)
-	{
-		case ValueClassID::VT_UInt32:  col_size = 12;  break;
-		case ValueClassID::VT_Int32:   col_size = 12;  break;
-		case ValueClassID::VT_Float32: col_size = 16; break;
-		case ValueClassID::VT_Float64: col_size = 25; break;
-		default: self->throwItemErrorF("xdb: unsupported value-type {}", vu->GetValueType()->GetNameID());
-	}
-	DBG_TRACE(("col_type = {}", int(vid)));
-	DBG_TRACE(("col_size = {}", col_size));
-
-	// Write dummy content to disk (if the column doesn't exist yet)
-	auto result = imp.AppendColumn(curdi->GetName().c_str(), col_size, vid, range, saveColInfo);
-	MG_CHECK(result);
-}
 
 void XdbStorageManager::UpdateColInfo(XdbImp& imp) const
 {}
 
-//IMPL_DYNC_STORAGECLASS(XdbStorageManager, "xdb");
+// Only XyzStorageManager is registered as a storage type; a plain "xdb" storage type no longer exists.
 
 class XyzStorageManager : public XdbStorageManager
 {
@@ -228,6 +166,8 @@ public:
 	XyzStorageManager() : XdbStorageManager("xyz") 
 	{}
 
+	// An .xyz file is read as fixed-width records: three 12-byte fields (X, Y, Z as Float32 text)
+	// plus a 1-byte line break, 33 bytes per line. The line length is not validated against the file.
 	void UpdateColInfo(XdbImp& imp) const override
 	{
 		imp.nrows = -1;

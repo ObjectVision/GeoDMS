@@ -41,7 +41,6 @@
 #include "NameSet.h"
 #include "ViewPortInfoEx.h"
 #include "GridStorageManager.h"
-extern RTC_CALL bool s_IsDetectingIncInterest; // defined in rtc act/Actor.cpp; extern is required: without it this is a tentative definition that silently creates a private copy if the symbol ever stops being dllimport
 void gdalFinalCleanup();
 
 // DMS_Stg_Load, stream-type helpers and the table-domain validation used by

@@ -554,7 +554,7 @@ void UsingCache::OnItemAdded(const TreeItem* child)
 				if (cachedItem->GetTreeParent().get() == m_Context)  // *ip has best rights
 					return;
 
-				// child was toegevoegd in 1 der usings; kijk of het niet overruled wordt door *ip
+				// child was added in one of the usings; check that it is not overruled by *ip
 				UInt32 n = m_Usings.size();
 				SharedTreeItem foundItem;
 				while (n-- && !foundItem)

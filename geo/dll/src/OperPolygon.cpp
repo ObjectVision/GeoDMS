@@ -1245,6 +1245,9 @@ public:
 		SizeT nrOrgEntity = 0, currPointIndex = 0;
 //		UInt32 ri3 = 0;
 
+		// Note: carry is not reset when isFirstPoint starts a new polyline, so without withEnds the
+		// sampling phase continues across polylines; the counting pass above does the same, so the
+		// two passes agree.
 		carry = 0;
 		isFirstPoint = true;
 		DPoint prevLoc;

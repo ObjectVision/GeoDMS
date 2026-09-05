@@ -292,7 +292,7 @@ HFONT FontArray::GetFontHandle(UInt32 index) const
 SelectingFontArray::SelectingFontArray(HDC hDC, const FontIndexCache* indexCache, bool sizesAreCellHeights)
 	:	FontArray(indexCache, sizesAreCellHeights)
 	,	m_hDC(hDC)
-	,	m_OrgHFont(NULL) // zodat dat weer terug te zetten is in destructor, bewaar pas bij eerste Selectie
+	,	m_OrgHFont(NULL) // so that it can be restored in the destructor; only saved at the first selection
 {
 	dms_assert(hDC);
 }

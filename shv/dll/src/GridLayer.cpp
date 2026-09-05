@@ -155,7 +155,7 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 		return;
 
 	InvalidationBlock viewChangeLock(this);
-	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
+	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // TODO: make this a generic facility of DataWriteLock
 	{
 		DataWriteLock lock(selAttr, CompoundWriteType(eventID));
 		{
@@ -441,7 +441,7 @@ void GridLayer::AssignValues(sequence_traits<Bool>::cseq_t selData)
 	ClassID clsID = GetCurrClassID();
 	AbstrDataItem* adi = const_cast<AbstrDataItem*>(GetActiveTheme()->GetThemeAttrSource());
 
-	InvalidationBlock dataChangeLock(GetActiveTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
+	InvalidationBlock dataChangeLock(GetActiveTheme()->GetThemeAttr()); // TODO: make this a generic facility of DataWriteLock
 	DataWriteLock dwl(adi, DmsRwChangeType(false));
 
 	auto editData = mutable_array_cast<ClassID>(dwl)->GetDataWrite(no_tile, dms_rw_mode::read_write);
@@ -522,7 +522,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 
 
 	InvalidationBlock viewChangeLock(this);
-	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
+	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // TODO: make this a generic facility of DataWriteLock
 
 	URect changedRect;
 	auto dwlt = DmsRwChangeType(false);

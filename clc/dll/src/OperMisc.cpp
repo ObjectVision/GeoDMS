@@ -46,7 +46,7 @@ namespace
 //                         Sort
 // *****************************************************************************
 
-// REMOVE, TODO: AbstrSortOperator
+// TODO: factor an AbstrSortOperator out of the sort operators below
 
 template <class V>
 class SortOperator : public UnaryOperator
@@ -496,9 +496,9 @@ static StaticLateTokenID lastValueToken("lastValue");
 
 class LoopNTVOperator : public TernaryOperator
 {
-	typedef DataArray<SharedStr> Arg1Type; // namen van de loop-elementen
+	typedef DataArray<SharedStr> Arg1Type; // names of the loop elements
 	typedef TreeItem             Arg2Type; // container met te repeteren groep
-	typedef DataArray<SharedStr> Arg3Type;    // eerste waarde voor eerste parameter
+	typedef DataArray<SharedStr> Arg3Type;    // first value for the first parameter
 
 public:
 	LoopNTVOperator(AbstrOperGroup* gr)

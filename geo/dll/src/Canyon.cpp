@@ -86,7 +86,6 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-//XXX arg1 en arg2 omdraaien
 		dms_assert(args.size() == 9);
 
 		const AbstrDataItem* arg1A = debug_valcast<const AbstrDataItem*>(args[0]);

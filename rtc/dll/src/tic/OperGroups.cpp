@@ -491,7 +491,7 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	return nullptr;
 }
 
-const Operator* AbstrOperGroup::FindOperByArgs(const ArgRefs& args) const // REMOVE, OBSOLETE?, NOW IN FuncDC::GetOperator? RELOCATE check on tile support
+const Operator* AbstrOperGroup::FindOperByArgs(const ArgRefs& args) const // resolves by the argument items; FuncDC::GetOperator does the same from the argument DCs. TODO: relocate the tile-support check
 {
 	arg_index n = args.size();
 	if (!n)
@@ -512,7 +512,7 @@ const Operator* AbstrOperGroup::FindOperByArgs(const ArgRefs& args) const // REM
 }
 
 
-// CreateValuesUnit() wordt alleen (deels indirect) gebruikt door operated_unit_creator
+// CreateValuesUnit() is only used (partly indirectly) by operated_unit_creator
 // met cog_div, cog_mul, en cog_sqrt
 
 ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const

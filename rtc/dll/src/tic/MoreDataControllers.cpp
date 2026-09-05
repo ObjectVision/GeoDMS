@@ -56,32 +56,7 @@ extern leveled_std_section cs_ThreadMessing;
 // *****************************************************************************
 
 
-/* ISSUES
-- Explicit Supplier Items
-  Voorbeeld: a: maak en bewaar data in externe storage x; b: result of externe processing van x
-- Parents
-- Compound Results
-- Unit props
-- Lookahead locks
-  zijn future data request counts die beginnen bij een 
-  DMS_TreeItem_Updata (in pre-update fase) of al eerder,
-  die geplaatst worden op een DataController, 
-  die ze doorplaatst bij z'n args indien deze invalide is.
-  na gebruik van het arg (na berekening van de data van this),
-  wordt de data weer afgelaagd; bij 0 wordt de data geflushd
-  Lookahead locks betreffen interesse in de data, te onderscheiden van managed actors, 
-  die interesse in het up-to-date van de gehele item-state betreft (incl. externe storage).
-- Read Locks / Write Locks. Moeten tijdelijk zijn (thread-local).
-- Flushen of storen.
-  gezien de hoge kosten van opslaan, is free-en een optie indien
-  de opvraagfrequentie gering of de rekentijd niet al te hoog is en de suppliers beschikbaar.
-
-  Dit is een moeilijke afweging. 
-  Vooralsnog moet dit per item geconfigureerd worden.
-  Alle virtuele items hebben geen storage
-- Invalidation by datachange, this->exprchange, supplier->exprchange, etc.
-  Doe in idletime van alle up-to date dingen een state check en update vervolgens alle (zojuist) geinvalideerde items
-*/
+// The design notes that used to be duplicated here live in DataController.cpp.
 
 // *****************************************************************************
 // ArgRefs
@@ -289,14 +264,14 @@ oper_arg_policy FuncDC::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) con
 //
 //	special operations:
 //
-//		DomainUnit, ValuesUnit: (gevonden unit moet een config-item zijn).
-//			IsOld() geldt, dus igv doCalc doet PrepareDataUsage het echte werk
-//			normal operation if fine
+//		DomainUnit, ValuesUnit: (the found unit must be a config item).
+//			IsOld() holds, so with doCalc PrepareDataUsage does the real work
+//			normal operation is fine
 //
-//		SubItem: 
-//			igv config-item; zie DomainUnit, ValuesUnit
-//			igv CacheTree (relational operator, template call of for_each): DoCalc arg1
-//			let op: bij verandering van 2e arg is wijziging van m_Data noodzakelijk.
+//		SubItem:
+//			for a config item: see DomainUnit, ValuesUnit
+//			for a CacheTree (relational operator, template call or for_each): DoCalc arg1
+//			NB: a change of the 2nd arg requires a change of m_Data.
 //
 //	CompoundDC's:
 //

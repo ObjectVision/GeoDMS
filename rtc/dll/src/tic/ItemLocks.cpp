@@ -684,8 +684,6 @@ bool IsAllInterestedDataReady_impl(const TreeItem* item)
 	return true;
 }
 
-extern RTC_CALL bool s_IsDetectingIncInterest; // defined in rtc act/Actor.cpp
-
 bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 {
 	MGD_PRECONDITION(item);
@@ -700,10 +698,7 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 		if (IsCalculating(ultimateCacheItem.get()))
 			return true;
 		if (!IsDataCurrReady(ultimateCacheItem.get()))
-		{
-			MG_CHECK(!s_IsDetectingIncInterest);
 			return false;
-		}
 	}
 
 	for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -886,7 +881,7 @@ bool IsInWriteLock(const TreeItem* item)
 }
 
 
-// TODO: zoek OperationContext op en oc->Join()
+// TODO: look up the OperationContext and oc->Join()
 bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 {
 	// a production wait (#1233 P2)

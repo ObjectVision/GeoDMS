@@ -235,7 +235,7 @@ struct PropValueOperator : public BinaryOperator
 						break;
 					item = source;
 				}
-	//		TODO, string contents scannen in FuncDC::VisitSuppliers, evt ook specifieke Eval functie maken
+	//		TODO: scan the string contents in FuncDC::VisitSuppliers, possibly with a dedicated Eval function
 	//			value = AbstrCalculator::EvaluatePossibleStringExpr(arg1, value.c_str());
 
 				dms_assert(ri < resData.size());

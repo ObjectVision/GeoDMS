@@ -460,12 +460,6 @@ void IrregularTileRangeData<V>::Load(BinaryInpStream& pis)
 {
 	TiledRangeData<V>::Load(pis);
 	pis >> m_Ranges;
-/* REMOVE
-//	tile_id nrTiles; pis >> nrTiles;
-//	m_Ranges.resize(nrTiles);
-//	while (nrTiles--)
-//		pis >> m_SegmPtr->m_Ranges[nrTiles];
-*/
 }
 
 template <typename V>

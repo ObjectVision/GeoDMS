@@ -20,7 +20,7 @@
 
 // *****************************************************************************
 //                            RegCountOperator
-// een operator om de 27 pcounts op de ontwerpkaart in 1 keer te doen.
+// an operator that computes the 27 pcounts of the design map in one go.
 //	reg_count<K>: (
 //		tekenkaart: GRID->K; 
 //		naam: K->STRING;

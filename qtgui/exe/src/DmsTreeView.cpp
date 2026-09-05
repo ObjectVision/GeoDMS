@@ -574,7 +574,6 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			// that many device pixels times the device pixel ratio
 			int offset_icon = dms_params::treeitem_icon_size;
 			auto rect = option.rect;
-			//		auto cur_brush = painter->brush(); NOT USED, REMOVE, if used, prefer a const auto&
 			auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
 
 			static QFont font = CreateRemixFont();
@@ -817,7 +816,6 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
 	
-//	horizontalScrollBar()->setEnabled(true); REMOVE, not required with the following policy
 	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
 	header()->setStretchLastSection(false);
 	connect(header(), &QHeaderView::sectionClicked, this, &DmsTreeView::onHeaderSectionClicked);

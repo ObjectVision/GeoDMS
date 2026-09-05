@@ -17,10 +17,10 @@
 // List = LispList<LispRef> is afgeleid van LispRef 
 // List x geeft de garantie dat x.IsRealList() == true
 // wat impliceert dat x.IsNumb() == x.false en IsSymb() == false.
-// Ieder element van LispList<T> is gegarandeerd van type T.
-// Dus LispList<T> y garandeert dat indien ! y.EndP()
-//	 y.Head() ( == y.Left() ) heeft de garanties van type T en 
-//   y.Tail() ( == y.Right()) heeft de garanties van type LispList<T>
+// Every element of a LispList<T> is guaranteed to be of type T.
+// So LispList<T> y guarantees that if !y.EndP():
+//   y.Head() ( == y.Left() ) has the guarantees of type T and
+//   y.Tail() ( == y.Right()) has the guarantees of type LispList<T>
 
 template <class T = LispRef> struct LispList;
 

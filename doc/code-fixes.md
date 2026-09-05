@@ -571,7 +571,20 @@ dialog, close during calculation), a Debug run under `QAbstractItemModelTester` 
 
 ---
 
-## Phase 4 — Dead code and comments (C1, C2)
+$1
+**Status 2026-09-05:** implemented, built (Release x64) and committed. C1: every enumerated item is gone
+(`LoadBlobBuffer`, `GetThisCurrTileID`, `s_IsDetectingIncInterest` with its externs and checks, the
+`SetWritability` husk, the `REMOVE` blocks, the one-line leftovers, `MAX_NR_TILES`/`MAX_TILE_SIZE`, the
+commented Prolog/Query sections of `LispEval.cpp` (465 lines; the doc comment on `ApplySubstList` stays)
+and the retired `.xdb` column path: `XdbImp` now only opens and reads, `XdbStorageManager::WriteDataItem`
+throws the message that `XdbImp::Open` used to throw, `SyncItem` is gone). C2: the design essay lives in
+`DataController.cpp` in English, the located Dutch comments are translated, the stale `REMOVE`/`OBSOLETE`
+markers on live code say what the code is instead, and the listed stale comments are rewritten
+(`Dijkstra.h` gets its include guard fixed rather than discussed). Not done: the general sweep of 347
+commented-out statements in 161 files stays a policy, not a batch; `TifImp::GetValueClassFromTiffDataTypeTag`
+is documented rather than changed and raises an open question, STG-N04: a TIFF without a SampleFormat
+tag yields `VT_Unknown`, which `TifStorageManager` reports as an error rather than taking the
+specification default (unsigned integer); needs a test with such a file before changing.
 
 ### C1 — delete dead code (all evidence = grep at HEAD)
 
@@ -756,7 +769,7 @@ as its own commit) → R3 (slotted around the g8 lock-handle rename) → C4 → 
 | 1 | Storage-reader validation + assert policy | implemented 2026-09-05 (1a, 1b incl. STG-N03, 1c incl. GEO-32, 1d); STG-15 deferred, STG-24 mostly refuted | M | low, except GEO-32 (med) | build + battery pending |
 | 2 | Runtime-core robustness | implemented 2026-09-05 (all groups; RTC-36 by move-construct relocation, TIC-03 by validated entries) | S–M | low; RTC-70 follow-up split L/med | build green; battery after Phase 5 |
 | 3 | Viewer and GUI | implemented 2026-09-05 (all groups; CLC-27 renamed, not removed) | S, two M | low; SHV-53 / CLC-27 med | build green; T4 GUI smoke pending |
-| 4 | Dead code and comments | ~560 lines deleted, ~95 comment lines translated, 12 stale comments | S–M | none | `AbstrCalculator.cpp` micro-commit first |
+| 4 | Dead code and comments | implemented 2026-09-05 (~1200 lines deleted incl. the .xdb path; STG-N04 opened) | S–M | none | build green |
 | 5 | Renames and contracts | R1 ~120 sites, R1b 13, R2 ~75, R3 ~135, R4 doc, C4 12 comments | S–M | low (T3 for XMLOut) | R3 not concurrent with the g8 lock-handle rename |
 
 ---

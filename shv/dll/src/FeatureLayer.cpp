@@ -412,7 +412,7 @@ CrdRect FeatureLayer::GetFeatureWorldExtents() const
 			Float32 maxFontSizeX = maxFontSizeY * GetMaxLabelStrLen();
 			if (maxFontSizeX) {
 
-				// LET OP: SOLVE ORIENTATION PROBLEM BY BEING CONSERVATIVE
+				// NB: SOLVE THE ORIENTATION PROBLEM BY BEING CONSERVATIVE
 				return
 					shp2dms_order(
 						CrdRect(
@@ -1303,7 +1303,7 @@ CrdRect GraphicPointLayer::GetFeatureWorldExtents() const
 			maxFontSizeY = GetMaxValue( GetEnabledTheme(AN_SymbolWorldSize).get(), DEFAULT_SYMB_WORLD_SIZE ),
 			maxFontSizeX = maxFontSizeY;
 			
-		// LET OP: SOLVE ORIENTATION PROBLEM BY BEING CONSERVATIVE
+		// NB: SOLVE THE ORIENTATION PROBLEM BY BEING CONSERVATIVE
 		if (maxFontSizeY)
 			rect |= shp2dms_order(
 				CrdRect(

@@ -89,7 +89,7 @@ void DoInterpolateLinear(
 
 	comp_first<T, chart_elem> xComparator;
 
-	// OPTIMIZE: reken RC vooraf uit voor alle entries (laatste RC=0 en gooi irrelevante dubbele keys weg) en gebruik upper_bound om chartM te vinden; check of chartE kan dan weg.
+	// OPTIMIZE: precompute RC for all entries (last RC=0, drop irrelevant duplicate keys) and use upper_bound to find chartM; check whether chartE can then go.
 
 	for (; dataB != dataE; ++resultI, ++dataB) 
 	{

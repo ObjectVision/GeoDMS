@@ -38,7 +38,7 @@ const UInt32 MAX_STRIP_SIZE = 1024;
 
 //  ---------------------------------------------------------------------------
 
-#if defined(MG_DEBUG) // DEBUG, REMOVE
+#if defined(MG_DEBUG) // CheckValueCount: a Debug-only diagnostic
 
 #include "dbg/SeverityType.h"
 
@@ -209,7 +209,6 @@ namespace Grid {
 							UInt32 rowStartIndex = tw_aligned * nrReadRows;
 							assert(rowStartIndex <= tile_wh);
 							fast_fill(strip.begin() + rowStartIndex, strip.begin() + tile_wh, defaultColor);
-							//REMOVE							CheckValueCount("After fill completion", strip.begin(), tile_wh); // DEBUG
 						}
 						else
 							read_result = 0;
@@ -338,7 +337,6 @@ namespace Grid {
 			Int32 stripEnd = readRectInGrid.first.Row() + stripHeight;  // TODO: GENERALIZE FOR VERTICAL MIRRORING
 			ReadTiles<T>(imp, readRectInGrid.first, shp2dms_order(stripWidth, stripHeight), defaultColor, stripBuffer.begin()); // TODO: GENERALIZE FOR VERTICAL MIRRORING
 
-			//REMOVE			CheckValueCount("stripBuffer after ReadTiles", stripBuffer.begin(), stripBufferSize); // DEBUG
 
 			// write to output buffer
 			while (currViewPortSize.Row())

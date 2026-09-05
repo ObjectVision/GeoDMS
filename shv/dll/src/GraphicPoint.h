@@ -15,7 +15,7 @@
 #include "GraphicObject.h"
 
 //----------------------------------------------------------------------
-// class  : GraphicPoint: example (mag naar andere klasse)
+// class  : GraphicPoint: example (may move to another class)
 //----------------------------------------------------------------------
 
 struct GraphicPoint : GraphicObject

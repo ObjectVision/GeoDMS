@@ -175,7 +175,7 @@ Facts that shape the pass:
   `extern TIC_CALL TokenID` in `LispTreeType.h`; 11 `CommonOperGroup` in `OperGroups.h`;
   the 29 PropDef pointers of `TreeItemProps.h`/`AbstrDataItem.h`; …). A function
   de-export mistake is a clean link error; a *data* de-export mistake can be silent:
-  the `s_IsDetectingIncInterest` hazard is still half-live — `stg/DllMain.cpp:45` and
+  the `s_IsDetectingIncInterest` hazard (the flag itself was retired in 2026-09, code-fixes Phase 4) was still half-live — `stg/DllMain.cpp:45` and
   `clc/PhaseContainer.cpp:25` declare `RTC_CALL bool s_IsDetectingIncInterest;`
   **without `extern`** (they compile today only because dllimport implies extern; if the
   symbol were de-exported these would silently become private per-DLL copies). Fix the

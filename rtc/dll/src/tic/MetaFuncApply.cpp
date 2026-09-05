@@ -498,7 +498,7 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 // applied on direct arguments: for_each, loop
 void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const AbstrOperGroup* og, LispPtr metaCallArgs)
 {
-//	let op: (oap & oap_is_templ) in argumenten van oper_group
+//	NB: (oap & oap_is_templ) in the arguments of oper_group
 
 	dms_assert(IsMetaThread());
 	dms_check_not_debugonly;

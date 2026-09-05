@@ -27,7 +27,7 @@ class ScrollPort : public Wrapper
 public:
 	ScrollPort(MovableObject* owner, DataView* dv, CharPtr caption, bool disableScrollbars);
 
-//	nieuwe functions
+//	new functions
 	void ScrollLogical  (CrdPoint delta);
 	void ScrollLogicalTo(CrdPoint delta);
 

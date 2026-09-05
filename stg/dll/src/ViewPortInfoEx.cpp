@@ -46,7 +46,6 @@
 #include "ViewPortInfoEx.h"
 #include "GridStorageManager.h"
 
-extern RTC_CALL bool s_IsDetectingIncInterest; // defined in rtc act/Actor.cpp
 
 // ------------------------------------------------------------------------
 // Implementation of ViewPortInfo
@@ -134,13 +133,6 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	this->m_CountColor = cc;
 }
 
-template <typename Int>
-void ViewPortInfoEx<Int>::SetWritability(AbstrDataItem* adi) const
-{
-// REMOVE, CLEAN-UP THIS FUNCTION AND ALL ITS CALLERS.
-//	if (!Is1to1())
-//		storageReadOnlyPropDefPtr->SetValue(adi, true);
-}
 
 ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const AbstrDataItem* adi, bool mayCreateDomain, bool queryActualRange)
 	: m_ADI(make_shared_tree(adi, existing_obj{})) // borrow the tree-owned data item (co-own its real control block)
@@ -151,7 +143,6 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	assert(adi);
 
 	// Domain of column & grid
-	auto allowDomainCalculation = tmp_swapper(s_IsDetectingIncInterest, false);
 
 	SharedUnitInterestPtr currDomain = CheckedGridDomain(adi); dms_assert(currDomain);
 	SharedUnitInterestPtr gridDomain = GetGridDataDomainRO(storageHolder);

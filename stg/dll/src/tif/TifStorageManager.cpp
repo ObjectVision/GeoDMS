@@ -165,7 +165,6 @@ FileResult TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowe
 	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
 	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
 
-	vpi.SetWritability(adi);
 
 	if (vpi.GetCountColor() != -1)
 		ReadGridCounts(vpi, adi, borrowedReadResultHolder, t, smi);

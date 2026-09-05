@@ -1223,7 +1223,7 @@ GraphVisitState DataView::UpdateView()
 //	GPoint viewSize = m_ViewDeviceSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
 	updateAllStack.AddDrawRegion(Region(m_ViewDeviceSize));
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
+	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon by the caller
 
 	GraphVisitState suspended = GraphDrawer(nullptr, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData), scaleFactors)
 		.Visit(GetContents().get());
@@ -1231,7 +1231,7 @@ GraphVisitState DataView::UpdateView()
 	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
 
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
-	if (!m_DoneGraphics.Empty()) // DEBUG, REMOVE when above assert is proven to hold
+	if (!m_DoneGraphics.Empty()) // the Release safety net for the assert above
 		return GVS_Break;
 
 	if (SuspendTrigger::DidSuspend())

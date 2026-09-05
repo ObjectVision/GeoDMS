@@ -60,12 +60,6 @@
 //   - Add noexcept specifiers where safe.
 //   - Consider small-vector optimization for tiny graphs.
 //   - Provide an interface to shrink / clear heap without reallocation.
-//   - Validate / fix trailing extra parenthesis in include guard end line.
-//
-// Caution:
-//   - The trailing parenthesis in the final #endif looks unintended:
-//       #endif //!defined(__GEO_DIJKSTRA_H))
-//     Kept unchanged to avoid semantic edits.
 //
 //-----------------------------------------------------------------------------
 
@@ -457,4 +451,4 @@ protected:
 	OwningPtrSizedArray<ZoneType> m_SrcZoneStamp; // optional per-node stamp buffer (lazy reset)
 };
 
-#endif //!defined(__GEO_DIJKSTRA_H))
+#endif //!defined(__GEO_DIJKSTRA_H)

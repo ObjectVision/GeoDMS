@@ -235,7 +235,7 @@ public:
 
 				std::shared_ptr<const AbstrUnit> paletteDomain = make_shared_tree(m_Result->GetActiveTheme()->GetPaletteDomain(), existing_obj{});
 
-				//TODO: Dit moet toch handiger kunnen 
+				// TODO: there must be a handier way 
 				dms_assert(!SuspendTrigger::DidSuspend());
 				if (IsMultiThreaded2())
 				{

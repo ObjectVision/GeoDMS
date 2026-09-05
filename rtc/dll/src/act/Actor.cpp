@@ -1208,8 +1208,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
         // no other specific incrementer before us; we have incremented and this thread must execute the resourcefull StartInterest()
     }
 
-    dms_assert( !DoesHaveSupplInterest() ); // PRECONDITION IF m_InterestCount was 0 when specificSectionLock was obtained
-    dms_assert( !DoesHaveSupplInterest() ); // invalidation
+    dms_assert( !DoesHaveSupplInterest() ); // PRECONDITION: m_InterestCount was 0 when specificSectionLock was obtained, so no supplier interest is registered
     try {
         StartInterest(); // thread-safe (should leave things unchanged when throwing) ?
     }
@@ -1292,7 +1291,6 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
             return {}; // another thread did take interest after DecCountIfAboveZero
 
         // change 1-> 0 is a local critical section
-    //  UpdateLock updateLock(this, actor_flag_set::AF_ChangingInterest); Maybe this is not the main thread
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
         DemandManagement::IncInterestDetector lock("Actor::DecInterestCount()"); // removal of interest should work like a destructor: no tricky resource locking; just let it go.
@@ -1312,9 +1310,6 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
     return garbage;
 }
 
-RTC_CALL bool s_IsDetectingIncInterest = false;
-
-
 // Lifecycle start when first observer appears.
 // Starts supplier interest accordingly.
 void Actor::StartInterest() const
@@ -1324,8 +1319,6 @@ void Actor::StartInterest() const
 
     assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
     assert( !DoesHaveSupplInterest() ); // PRECONDITION
-
-    MG_CHECK(!s_IsDetectingIncInterest);
 
     StartSupplInterest();
     assert(m_InterestCount == 0); // no recursion
@@ -1638,24 +1631,3 @@ auto Actor::GetPhaseNumber() const -> phase_number
     return m_PhaseNumber;
 }
 
-/*
-High-level Suggestions (non-exhaustive):
-- Concurrency:
-  - TODO: Review lock order (sg_CountSection, sg_ActorLockMap, sc_MoveSupplInterestSection, sc_FailSection) to document a deadlock hierarchy.
-  - TODO: Explore using std::atomic for m_InterestCount with fetch_add/sub to shrink critical sections where feasible.
-  - TODO: Ensure no callbacks that may re-enter Actor code are made while holding global locks.
-
-- Complexity/Readability:
-  - TODO: Extract sub-steps from SuspendibleUpdate and DetermineState to helpers to reduce cyclomatic complexity and improve testability.
-  - TODO: Add structured logging (with IDs) to track update and invalidation flows for large graphs.
-
-- Failure handling:
-  - TODO: Consider throttling repeat error reports and deduplicating messages.
-  - TODO: Make GetFailReason/DoFail behavior clearer with stronger guarantees around message lifetime.
-
-- API clarity:
-  - TODO: Clarify semantics between Was vs Is vs WasFailed vs IsFailed in documentation and possibly rename for discoverability.
-
-- Interest management:
-  - TODO: Consider centralizing supplier-interest tree ownership to a dedicated component for testability and lifecycle isolation.
-*/

@@ -22,7 +22,6 @@ const int X_GRANULARITY = 1 << 8; //256
 const int Y_GRANULARITY = 1 << 8; //256
 const int D32_GRANULARITY = 1 << 14; //16384
 const int D64_GRANULARITY = 1 << 14; //16384
-const int MAX_NR_TILES    = 1 << 16; //65536
 
 template <typename T>
 inline Point<T> GetGranularity(const Point<T>*) { return shp2dms_order<T>(X_GRANULARITY, Y_GRANULARITY); }

@@ -45,8 +45,8 @@ struct XmlElement {
 	std::vector<XmlElement> m_SubElements;
 	XmlElementType         m_ElementType;
 	void*                  m_ClientData;
-private: // Let op: een std::map heeft een static _NIL dit per .DLL instantiering wordt aangemaakt
-	// Dus NIET van buitenaf deze map benaderen, gebruik de gelinkte interface funcs.
+private: // NB: a std::map has a static _NIL that is instantiated per DLL, so this map must NOT be
+	// accessed from outside; use the linked interface functions.
 	AttrValuesType         m_AttrValues;
 	XmlElement(const XmlElement&) = delete;
 };

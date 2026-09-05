@@ -810,7 +810,7 @@ SharedStr AbstrDataItem::GetDescr() const
 	return descr;
 }
 
-bool AbstrDataItem::HasUndefinedValues() const // REMOVE, XXX TRY TO REPLACE BY DIRECT APPL OF GetCheckType
+bool AbstrDataItem::HasUndefinedValues() const // TODO: consider replacing the callers by a direct application of GetCheckMode
 {
 	// through GetRawCheckMode
 	DMS_ENTERS_ITEM(ord_level_type::DataFlagsLock, dms_exclusive_v);
@@ -949,7 +949,7 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 			assert(!GetDataObjLockCount());
 			auto oldDataObject = GetDataObj();
 			
-			DataWriteLock lock(this); // calls CreateAbstrHeapTileFunctor(); is dan nu ineens info->newDataRange "actief" ?
+			DataWriteLock lock(this); // calls CreateAbstrHeapTileFunctor(); does that suddenly make info->newDataRange "active"?
 			CopyData(oldDataObject.get(), lock.get(), info); // can I reuse tiles ?
 			lock.Commit();
 			assert(!GetCalculatorMember()); // DataWriteLock::Commit() destroyed DataBlockTask

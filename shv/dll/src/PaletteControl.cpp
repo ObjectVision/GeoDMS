@@ -361,7 +361,7 @@ void PaletteControl::CreateColumnsImpl()
 	}
 
 	//	=========================================	add Count
-	// DEBUG, TMP, OPTIMIZE, GEEN COUNT VOOR LANDS DEMO
+	// DEBUG, TMP, OPTIMIZE: NO COUNT FOR THE LANDS DEMO
 	assert(classIds || ! m_ThemeAttr); // Follows from definitioin, assumed in next if.
 
 	if	(	m_ThemeAttr 

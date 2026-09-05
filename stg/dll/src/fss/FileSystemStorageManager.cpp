@@ -56,7 +56,7 @@ SharedStr FileSystemStorageManager::GetFullFileName(CharPtr name) const
 
 FileDateTime FileSystemStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const
 {
-	if (DoesExist(storageHolder)) // TODO: lock deze file vanaf hier.
+	if (DoesExist(storageHolder)) // TODO: lock this file from here on.
 		m_FileTime = GetFileOrDirDateTime(GetFullFileName(path));
 
 	return m_FileTime; 

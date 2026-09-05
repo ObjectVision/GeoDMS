@@ -255,7 +255,7 @@ bool CastUnitOperatorBase::CreateResult(TreeItemDualRef& resultHolder, const Arg
 	const Arg1Type* arg1 = debug_cast<const Arg1Type*>(args[0]);
 	assert(arg1);
 
-	// TODO G8: Niet Tmp, want dat roept SetMaxRange aan, roep CreateResultUnit aan en copy range en intersect als onderdeel van DuplFrom met mustCalc conform Range(srcUnit, lb, ub);
+	// TODO G8: not Tmp, since that calls SetMaxRange; call CreateResultUnit and copy the range and intersect as part of DuplFrom with mustCalc, as Range(srcUnit, lb, ub);
 	// TODO G8: Of schedule geen calc phase voor dit soort operator die in meta-info tijd een compleet resultaat geven (dus zonder range output) 
 	if (!resultHolder)
 	{
@@ -519,7 +519,8 @@ struct CrsUnitOperator : AbstrCrsUnitOperator
 // BaseUnitOperator
 // *****************************************************************************
 
-// REMOVE OBSOLETE VERSION AND THEN oper_arg_policy::calc_always for the fourth argument
+// BaseUnitObsoleteOperator stays to give configurations the migration message below; once it goes,
+// the fourth argument can become oper_arg_policy::calc_always
 
 class BaseUnitObsoleteOperator : public BinaryOperator
 {

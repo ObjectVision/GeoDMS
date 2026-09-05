@@ -651,7 +651,6 @@ inline GType Height(const GRect& r) { return r.bottom - r.top;  }
 FormattedOutStream& operator <<(FormattedOutStream& os, const GRect&  rect );
 FormattedOutStream& operator <<(FormattedOutStream& os, const GPoint& point);
 
-//REMOVE FormattedOutStream& operator <<(FormattedOutStream& os, const TRect&  rect );
 FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point);
 
 //----------------------------------------------------------------------

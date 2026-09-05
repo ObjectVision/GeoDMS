@@ -393,7 +393,7 @@ SubSet(sel): j ->i
 index[SubSet(sel[index]).org]
 = lookup(SubSet(sel[index]).org, index)
 = lookup(SubSet(lookup(index, sel)), index)
-als index=<> dan = SubSet(sel).org
+if index=<> then = SubSet(sel).org
 
 sr->i
 */

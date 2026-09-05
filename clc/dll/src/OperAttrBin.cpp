@@ -303,7 +303,7 @@ namespace {
 	tl_oper::inst_tuple_templ<ints, PowF32Oper> s_powF32Int(&cog_pow);
 	tl_oper::inst_tuple_templ<ints, PowF64Oper> s_powF64Int(&cog_pow);
 
-//TODO: voor alle Floats beschikbaar maken.
+// TODO: make available for all Float types.
 	tl_oper::inst_tuple<num_objects, tl::bind_placeholders<UnitMulOpers, ph::_1, ph::_1, ph::_1> > g_UnitUnaryTypeMulOpers;
 
 	tl_oper::inst_tuple_templ<num_objects, ParamUnitOpers > g_ParamUnitOpers;
