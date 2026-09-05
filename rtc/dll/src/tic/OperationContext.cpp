@@ -1911,8 +1911,25 @@ void OperationContext::RefreshEstimateForAdmission()
 	// 'derived'/'declared' and is final. (reclaimableInputMemory is thereby frozen even though arg
 	// interest counts can still drop; retries happen on release events, and a stale classification
 	// only costs drain efficiency -- a grower kept waiting one cycle longer -- never progress.)
-	if (m_Estimate && m_Estimate->confidence <= estimate_confidence::declared)
-		return;
+	//
+	// Two threads can be here for the same OC at once: the pool worker that
+	// StartCollectedOperationContexts handed it to, and a waiter that runs an activated OC inline
+	// (WaitForResult -> TryRunningTaskInline). The walk below is read-only and may run twice; the
+	// unique_ptr assignment may not, and even a bare read of m_Estimate while the other thread
+	// assigns it is a race. So both the decision and the assignment go through cs_ThreadMessing,
+	// which every other reader already holds (AdmitOrRequeue, MemoryLedger_Charge, OnEnd), and stop
+	// once the OC is licensed: from then on the running thread reads its estimate without a lock
+	// (RunOperator's report). Measured on ObjectVision/BAG-Tools#2: five of five resource-aware runs
+	// (/SQ and /Sq alike) of a 40-fileset parse_xml died within seconds, with 0xC0000374 or an access
+	// violation in ~OperationContext freeing m_Estimate, on 20.19.3.m and on the dev tree.
+	{
+		DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
+		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+		if (m_Status != task_status::activated)
+			return;
+		if (m_Estimate && m_Estimate->confidence <= estimate_confidence::declared)
+			return;
+	}
 	auto funcDC = GetFuncDC();
 	if (!funcDC || !funcDC->m_Operator)
 		return;
@@ -1923,8 +1940,16 @@ void OperationContext::RefreshEstimateForAdmission()
 	if (!resultHolder)
 		return;
 	auto fresh = EstimateOperPerformance(funcDC->m_Operator, resultHolder, *args);
-	if (fresh.confidence <= estimate_confidence::declared) // only replace with something trustworthy
-		m_Estimate = std::make_unique<PerformanceEstimationData>(fresh);
+	if (fresh.confidence > estimate_confidence::declared) // only replace with something trustworthy
+		return;
+
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	if (m_Status != task_status::activated)
+		return;
+	if (m_Estimate && m_Estimate->confidence <= estimate_confidence::declared)
+		return; // the other thread got here first
+	m_Estimate = std::make_unique<PerformanceEstimationData>(fresh);
 }
 
 // Thread-safe wrapper for licensing.
