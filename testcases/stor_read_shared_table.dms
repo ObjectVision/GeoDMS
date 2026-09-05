@@ -1,0 +1,35 @@
+// #587 S4 (identity by value): two configured tables that read the same file with the same
+// attributes have the same key, so they share one DataController, one read and one result; their
+// domains unify, which is what c3 asks for (before S4 the two reads had different domains and the
+// addition was refused). The /SP log shows every attribute read once.
+container stor_read_shared_table
+{
+	container a
+	{
+		unit<uint32> tab
+		:	StorageName     = "%currDir%/read_table.csv"
+		,	StorageType     = "gdal.vect"
+		,	StorageReadOnly = "True"
+		{
+			attribute<uint32> id;
+			attribute<string> name;
+		}
+	}
+	container b
+	{
+		unit<uint32> tab
+		:	StorageName     = "%currDir%/read_table.csv"
+		,	StorageType     = "gdal.vect"
+		,	StorageReadOnly = "True"
+		{
+			attribute<uint32> id;
+			attribute<string> name;
+		}
+	}
+	container checks
+	{
+		parameter<bool>   c1 := sum(a/tab/id) == 15 && sum(b/tab/id) == 15,           IntegrityCheck = "c1 == true";
+		parameter<bool>   c2 := asList(a/tab/name, ';') == asList(b/tab/name, ';'), IntegrityCheck = "c2 == true";
+		parameter<uint32> c3 := sum(a/tab/id + b/tab/id),                            IntegrityCheck = "c3 == 30";
+	}
+}

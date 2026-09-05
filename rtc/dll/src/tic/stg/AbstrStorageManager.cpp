@@ -878,24 +878,24 @@ namespace { // #587 helpers for NonmappableStorageManager::DescribeReadCall
 
 	// the storage spec, union_data(uint2, do(ES..., storageName), storageType, sqlString, tableName):
 	// one string attribute over the four-element domain, decision 2 of the plan. The name is the
-	// expanded storage name, so that two holders naming the same file read the same table.
-	LispRef BuildStorageSpec(const AbstrStorageManager* sm, LispRef nameExpr, const SharedStr& sqlString, const SharedStr& tableName)
+	// expanded storage name, so that two holders naming the same file read the same table; the
+	// manager adds what else its read depends on (WrapStorageName, DescribeStorageType).
+	LispRef BuildStorageSpec(const AbstrStorageManager* sm, const TreeItem* storageHolder, LispRef nameExpr, const SharedStr& sqlString, const SharedStr& tableName)
 	{
 		return ExprList(token::union_data
 			, ExprList(token::UInt2)
-			, nameExpr
-			, StrLit(sm->GetDynamicClass()->GetNameID().AsSharedStr())
+			, sm->WrapStorageName(storageHolder, nameExpr)
+			, StrLit(sm->DescribeStorageType(storageHolder))
 			, StrLit(sqlString)
 			, StrLit(tableName)
 		);
 	}
 
-	// the arguments every form starts with: the spec, and the transitional full name of the configured
-	// item, through which the operator finds its storage holder and meta info until S4 makes the spec
-	// self-contained (section 3.1 of the plan)
-	LispRef ReadArgs(LispRef spec, const TreeItem* item, LispRef tail)
+	// the arguments every form starts with: the spec. No item name: the operator finds the configured
+	// item as the origin item of its DataController (identity by value, S4)
+	LispRef ReadArgs(LispRef spec, LispRef tail)
 	{
-		return LispRef(spec, LispRef(StrLit(item->GetFullName()), tail));
+		return LispRef(spec, tail);
 	}
 
 	// Is du a table that this storage reads, so that an attribute over it is a member of that read
@@ -928,10 +928,49 @@ ReadCallSpec AbstrStorageManager::DescribeTableRead(const TreeItem* storageHolde
 		tail = LispRef(StrLit(m->m_Name), LispRef(m->m_ValuesKey, tail));
 	tail = LispRef(ExprList(table->GetValueType()->GetNameID()), tail); // the domain's value type, as a unit argument (decision 3)
 
+	// the table element of the spec: the table's path relative to the storage holder (its own name when
+	// it is the holder), which names the layer (gdal.vect) or the folder (FSS, cfs)
+	SharedStr tablePath = (table == storageHolder) ? table->GetName() : table->GetRelativeName(storageHolder);
+
 	ReadCallSpec result;
 	result.operName = token::storage_read_table;
-	result.args = ReadArgs(BuildStorageSpec(this, nameExpr, FindSqlString(table, storageHolder), table->GetName()), table, tail);
+	result.args = ReadArgs(BuildStorageSpec(this, storageHolder, nameExpr, FindSqlString(table, storageHolder), tablePath), tail);
 	return result;
+}
+
+SharedStr AbstrStorageManager::DescribeStorageType(const TreeItem* storageHolder) const
+{
+	return GetDynamicClass()->GetNameID().AsSharedStr();
+}
+
+LispRef AbstrStorageManager::WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr) const
+{
+	return nameExpr;
+}
+
+LispRef StorageRead_SupplierKey(const TreeItem* supplier)
+{
+	return SupplierKey(supplier);
+}
+
+// the GDAL option items GdalMetaInfo resolves for a read (GDAL_Options, GDAL_Driver,
+// GDAL_ConfigurationOptions; GDAL_LayerCreationOptions serves writing only) wrap the storage name
+LispRef GdalMetaInfo_WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr)
+{
+	for (CharPtr optionItemName : { "GDAL_ConfigurationOptions", "GDAL_Driver", "GDAL_Options" })
+		if (auto optionItem = storageHolder->ResolveItemPath(optionItemName))
+			nameExpr = ExprList(token::do_, SupplierKey(optionItem.get()), nameExpr);
+	return nameExpr;
+}
+
+// the StorageDriver and StorageOptions properties of the holder extend the storage type element
+SharedStr GdalMetaInfo_DescribeStorageType(const TreeItem* storageHolder, SharedStr className)
+{
+	if (storageDriverPropDefPtr->HasNonDefaultValue(storageHolder))
+		className = mySSPrintF("{};driver={}", className, storageDriverPropDefPtr->GetValue(storageHolder));
+	if (storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder))
+		className = mySSPrintF("{};options={}", className, storageOptionsPropDefPtr->GetValue(storageHolder));
+	return className;
 }
 
 ReadCallSpec AbstrStorageManager::DescribeAttrRead(const TreeItem* storageHolder, const AbstrDataItem* item) const
@@ -948,26 +987,28 @@ ReadCallSpec AbstrStorageManager::DescribeAttrRead(const TreeItem* storageHolder
 	LispRef nameExpr = WrapExplicitSuppliers(item, StrLit(GetNameStr()));
 	SharedStr sqlString = FindSqlString(item, storageHolder);
 
+	// the table element of the spec: the attribute's path relative to the storage holder, which names
+	// the container it is found in (the layer, for gdal.vect) and the file (for FSS, cfs and MMD)
+	SharedStr relPath = item->GetRelativeName(storageHolder);
+
 	ReadCallSpec result;
 	if (adu->GetValueType() == ValueWrap<Void>::GetStaticClass())
 	{
-		// a parameter, read whole
+		// a parameter, read whole: storage_read_value(spec, vu)
 		result.operName = token::storage_read_value;
-		result.args = ReadArgs(BuildStorageSpec(this, nameExpr, sqlString, SharedStr()), item, LispRef(UnitKey(avu), LispRef()));
+		result.args = ReadArgs(BuildStorageSpec(this, storageHolder, nameExpr, sqlString, relPath), LispRef(UnitKey(avu), LispRef()));
 		return result;
 	}
 
-	// one attribute over its own domain: storage_read_attr(spec, name, domain, 'attr[:vc]', vu, extras...)
+	// one attribute over its own domain: storage_read_attr(spec, domain, 'attr[:vc]', vu, extras...)
 	SharedStr memberSpec = item->GetName();
 	auto vc = item->GetValueComposition();
 	if (vc != ValueComposition::Single)
 		memberSpec = mySSPrintF("{}:{}", memberSpec, GetValueCompositionID(vc));
-	auto parent = item->GetTreeParent();
-	SharedStr tableName = parent ? parent->GetName() : SharedStr(); // the table element of the spec: the container the attribute is found in, as the gdal.vect meta info names its layer
 
 	LispRef tail = LispRef(UnitKey(adu), LispRef(StrLit(memberSpec), LispRef(UnitKey(avu), LispRef())));
 	result.operName = token::storage_read_attr;
-	result.args = ReadArgs(BuildStorageSpec(this, nameExpr, sqlString, tableName), item, tail);
+	result.args = ReadArgs(BuildStorageSpec(this, storageHolder, nameExpr, sqlString, relPath), tail);
 	return result;
 }
 

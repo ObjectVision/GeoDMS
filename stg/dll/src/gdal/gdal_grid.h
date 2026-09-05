@@ -26,6 +26,8 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 	virtual bool IsWritableGDAL() const { return false; }
 
     // Implement AbstrStorageManager interface
+	SharedStr DescribeStorageType(const TreeItem* storageHolder) const override { return GdalMetaInfo_DescribeStorageType(storageHolder, AbstrGridStorageManager::DescribeStorageType(storageHolder)); } // #587 S4
+	LispRef   WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr) const override { return GdalMetaInfo_WrapStorageName(storageHolder, nameExpr); }
 	void DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const override;
 	void DoCloseStorage(bool mustCommit) const override;
 

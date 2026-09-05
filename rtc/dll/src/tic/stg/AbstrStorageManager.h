@@ -291,6 +291,14 @@ public:
 	// an item this manager cannot describe (yet). Called on the meta thread right after UpdateTree.
 	TIC_CALL virtual ReadCallSpec DescribeReadCall(const TreeItem* storageHolder, const TreeItem* item) const;
 
+	// #587 S4, identity by value: what, besides the storage name, the sql string and the table, a
+	// read of this manager depends on enters its spec here. The storage type element (default: the
+	// class name) carries string properties; items the read depends on wrap the storage name in
+	// do(item, ...), as the ExplicitSuppliers do, so that they are calculated first and a difference
+	// in them is a different read.
+	TIC_CALL virtual SharedStr DescribeStorageType(const TreeItem* storageHolder) const;
+	TIC_CALL virtual LispRef   WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr) const;
+
 protected:
 	// #587: the generic descriptions, for DescribeReadCall overrides to pick from
 	TIC_CALL ReadCallSpec DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table, bool withMembers = true) const; // a unit and (withMembers) its stored attributes: storage_read_table
@@ -470,10 +478,16 @@ struct StorageWriteHandle : StorageCloseHandle
 };
 
 // *****************************************************************************
-// 
+//
 // helper funcs
 //
 // *****************************************************************************
+
+// #587 S4: the key of an item a read depends on, as an argument of do(item, expr); and the wrapping
+// and storage type element the GDAL managers use (GdalMetaInfo resolves the same items and properties)
+TIC_CALL LispRef   StorageRead_SupplierKey(const TreeItem* supplier);
+TIC_CALL LispRef   GdalMetaInfo_WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr);
+TIC_CALL SharedStr GdalMetaInfo_DescribeStorageType(const TreeItem* storageHolder, SharedStr className);
 
 SharedStr GetConfigIniFileName();
 SharedStr GetCaseDir(const TreeItem* configStore);

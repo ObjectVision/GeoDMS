@@ -228,6 +228,15 @@ static void TreeItem_InstallStorageReadCalculator(const TreeItem* self, const Tr
 		self->ResetIntegrityCheckerMember();
 
 	self->UpdateDC();
+
+	// The read's DataController knows the configured item it reads as its origin item (UpdateDC
+	// handed it over before the result was made); the operator takes its storage from there, so the
+	// key needs no name of the item and two items with the same spec share the read (S4). Make sure
+	// of it here, for the case where the key was interned before this UpdateDC.
+	if (auto readDC = GetExistingDataController(key))
+		if (!readDC->GetOriginItem())
+			readDC->SetOriginItem(make_shared_tree(self, existing_obj{}));
+
 	TreeItem_MergeReferredCacheRoot(self);
 	TreeItem_MarkStorageReadMembers(self);
 }

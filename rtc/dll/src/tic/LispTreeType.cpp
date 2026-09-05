@@ -45,9 +45,7 @@ TIC_CALL LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath)
 // subItems ::= (tree ... )
 
 // srcSpec ::= calcRule
-// srcSpec ::= read   ( storageName, storageType, relPath )
-// srcSpec ::= readSql( storageName, storageType, relPath, sqlString, relPathToSqlString)
-// srcSpec ::= EndP
+// srcSpec ::= EndP  (a stored item's read is its calculator since #587, not a spec in this tree)
 
 // tree ::= tree(tiSign, storageSpec, calcRule,  subItem1, subItem2, ...)
 
@@ -57,9 +55,6 @@ TIC_CALL LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath)
 
 // domainSpec ::= unitSpec
 // valuesSpec ::= unitSpec
-
-static StaticTokenID readSqlID("readSql");
-static StaticTokenID readID("read");
 
 namespace token {
 	TIC_CALL StaticTokenID add("add");
@@ -225,47 +220,6 @@ namespace token {
 	StaticTokenID UInt2("uint2");
 }
 
-LispRef CreateStorageSpec(const TreeItem* src)
-{
-	dms_assert(src);
-//	dbg_assert(!src->HasCalculatorImpl()); // PRECONDITION
-	dms_assert(src->IsLoadable());         // PRECONDITION
-
-	auto storageParent = src->GetStorageParent(false);
-	if (!storageParent)
-		return LispRef();
-	auto storageManager = storageParent->GetStorageManager();
-	SharedStr storageName = storageManager ? storageManager->GetNameStr() : TreeItemPropertyValue(storageParent.get(), storageNamePropDefPtr);
-	TokenID   storageType = storageManager ? storageManager->GetDynamicClass()->GetNameID() : storageTypePropDefPtr->GetValue(storageParent.get());
-	SharedTreeItem sqlStringParent = make_shared_tree(src, existing_obj{});
-	while (true)
-	{
-		if (sqlStringPropDefPtr->HasNonDefaultValue(sqlStringParent.get()))
-		{
-			auto sqlString = TreeItemPropertyValue(sqlStringParent.get(), sqlStringPropDefPtr);
-			return List6<LispRef>(
-				LispRef(readSqlID),
-				LispRef(storageName.c_str()),
-				LispRef(storageType),
-				LispRef(src->GetRelativeName(storageParent.get()).c_str()),
-				LispRef(sqlString.c_str()),
-				LispRef(src->GetRelativeName(sqlStringParent.get()).c_str())
-			);
-		}
-		if (sqlStringParent.get() == storageParent.get())
-			break;
-		sqlStringParent = sqlStringParent->GetTreeParent();
-		assert(sqlStringParent);
-	}
-	assert(sqlStringParent == storageParent);
-	return List4<LispRef>(
-		LispRef(readID),
-		LispRef(storageName.c_str()),
-		LispRef(storageType),
-		LispRef(src->GetRelativeName(storageParent.get()).c_str())
-	);
-}
-
 // #1161: the sign-marker heads below, the metaclass names in UnitClass.cpp and ValueWrap.cpp and
 // the nrofrows token above are spelled lower case on purpose. The token table is ASCII-case-folded,
 // so the FIRST spelling interned becomes the canonical one and every later different-case spelling
@@ -339,10 +293,7 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 				result = LispRef(CreateLispSubTree(subItem, true), result);
 			}
 
-		if (self->IsLoadable())
-			result = LispRef(CreateStorageSpec(self), result);
-		else
-			result = LispRef(LispRef(token::SubItems), result);
+		result = LispRef(LispRef(token::SubItems), result); // a stored item's read is its calculator (#587), not a spec here
 	}
 	catch (const DmsException& x)
 	{

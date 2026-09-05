@@ -15,17 +15,24 @@
 // The read of a stored item as an operator application. A table unit that is read from a storage
 // gets the calculator
 //
-//     storage_read_table(spec, '/full/name', uint32, 'attr1', vu1, 'attr2', vu2, ...)
+//     storage_read_table(spec, uint32, 'attr1', vu1, 'attr2', vu2, ...)
 //
 // and each of its stored attributes subitem(<that key>, 'attr1') through the cache-root merge
-// (TreeItemMetaInfo.cpp, TreeItem_InstallStorageReadCalculator); a stored parameter gets
+// (TreeItemMetaInfo.cpp, TreeItem_InstallStorageReadCalculator); an attribute that is not read with
+// its domain gets
 //
-//     storage_read_value(spec, '/full/name', vu)
+//     storage_read_attr(spec, domain, 'attr', vu, extras...)
 //
-// where spec = union_data(uint2, do(ES..., storageName), storageType, sqlString, tableName) is the
-// storage spec of decision 2 of doc/development/storage-read-operators.md, and the full name is the
-// transitional argument that finds the configured item and its storage holder until S4 makes the spec
-// self-contained. Both operators follow PhaseContainer: CreateResultCaller builds the result skeleton
+// and a stored parameter
+//
+//     storage_read_value(spec, vu)
+//
+// where spec = union_data(uint2, do(ES..., storageName), storageType, sqlString, tablePath) is the
+// storage spec of decision 2 of doc/development/storage-read-operators.md. Nothing in the key names
+// the configured item: the operator takes it from the origin item of its DataController, which
+// TreeItem::UpdateDC sets before the result is made, so that two configured items with the same key
+// share one DataController and one read (identity by value, S4). The operators follow PhaseContainer:
+// CreateResultCaller builds the result skeleton
 // (the unit and one member per stored attribute), PreCalcUpdate collects the members that carry
 // interest and are not read yet into the root's m_ReadAssets, and CalcResult reads exactly those under
 // the storage manager's critical section, taken at the scheduling gate through
@@ -116,24 +123,21 @@ SharedStr ArgString(const ArgRefs& args, arg_index i)
 	return GetTheCurrValue<SharedStr>(GetItem(args[i]));
 }
 
-// arg 1: the full name of the configured item, resolved against the configuration root
-SharedTreeItem ResolveConfigItem(const ArgRefs& args)
+// The configured item whose read this is: the origin item of the DataController. TreeItem::UpdateDC
+// hands it over before the result is made, and TreeItem_InstallStorageReadCalculator makes sure of
+// it. Two configured items with the same key share the DataController and the first one's storage
+// serves both; the key says everything the read depends on (identity by value, S4).
+SharedTreeItem ResolveConfigItem(const TreeItemDualRef& resultHolder)
 {
-	auto fullName = ArgString(args, 1);
-	auto sd = SessionData::Curr();
-	MG_CHECK(sd);
-	auto configRoot = sd->GetConfigRoot();
-	MG_CHECK(configRoot);
-	auto path = fullName.AsRange();
-	while (!path.empty() && path.first[0] == '/')
-		++path.first;
-	auto item = configRoot->ResolveItemPath(path);
+	auto item = resultHolder.GetOriginItem();
 	if (!item)
-		throwDmsErrF("storage read: configured item {} not found", fullName);
+		throwDmsErrF("storage read: the configured item of the result {} is not known", resultHolder.GetItemNameStr());
+	if (!item->GetStorageParent(false))
+		item->throwItemError("storage read: the item has no storage to read from");
 	return item;
 }
 
-storage_read_request& GetOrCreateRequest(TreeItem* root, const ArgRefs& args)
+storage_read_request& GetOrCreateRequest(TreeItem* root, const TreeItemDualRef& resultHolder)
 {
 	root->UpdateMetaInfo(); // a passor: marks it MetaInfo-ready, which the DataWriteLock of a member asserts on a worker thread
 	if (!root->m_ReadAssets.has_value())
@@ -145,10 +149,9 @@ storage_read_request& GetOrCreateRequest(TreeItem* root, const ArgRefs& args)
 	auto& req = root->m_ReadAssets.Get<storage_read_request>();
 	if (!req.m_SM)
 	{
-		req.m_ConfigItem = ResolveConfigItem(args);
+		req.m_ConfigItem = ResolveConfigItem(resultHolder);
 		req.m_Holder = req.m_ConfigItem->GetStorageParent(false);
-		if (!req.m_Holder)
-			req.m_ConfigItem->throwItemError("storage read: the item has no storage to read from");
+		MG_CHECK(req.m_Holder);
 		auto sm = req.m_Holder->GetStorageManager();
 		MG_CHECK(sm);
 		req.m_SM = sm;
@@ -537,17 +540,16 @@ member_spec_parts SplitMemberSpec(SharedStr memberSpec)
 }
 
 // *****************************************************************************
-// storage_read_table(spec, configName, domainType, [memberName, valuesUnit]*) -> unit with members
+// storage_read_table(spec, domainType, [memberSpec, valuesUnit]*) -> unit with members
 // *****************************************************************************
 
 CommonOperGroup cog_storage_read_table("storage_read_table", oper_policy::allow_extra_args | oper_policy::dynamic_result_class | oper_policy::members_on_demand);
 
-struct StorageReadTableOperator : TernaryOperator
+struct StorageReadTableOperator : BinaryOperator
 {
 	StorageReadTableOperator(AbstrOperGroup& og)
-		: TernaryOperator(&og, AbstrUnit::GetStaticClass()
+		: BinaryOperator(&og, AbstrUnit::GetStaticClass()
 			, DataArray<SharedStr>::GetStaticClass() // spec
-			, DataArray<SharedStr>::GetStaticClass() // the configured table's full name
 			, AbstrUnit::GetStaticClass()            // the domain's value type, as a unit
 		)
 	{}
@@ -557,15 +559,15 @@ struct StorageReadTableOperator : TernaryOperator
 		if (resultHolder && !resultHolder.IsTmp())
 			return;
 		MG_CHECK(IsMetaThread());
-		MG_CHECK(args.size() >= 3 && (args.size() - 3) % 2 == 0);
+		MG_CHECK(args.size() >= 2 && (args.size() - 2) % 2 == 0);
 
-		auto domainType = AsUnit(GetItem(args[2]));
+		auto domainType = AsUnit(GetItem(args[1]));
 		MG_CHECK(domainType);
 		auto root = domainType->GetUnitClass()->CreateResultUnit(nullptr);
 		MG_CHECK(root);
-		CopyProjection(ResolveConfigItem(args).get(), root.get()); // a grid domain: the file's projection, as DoUpdateTree gave it to the configured unit
+		CopyProjection(ResolveConfigItem(resultHolder).get(), root.get()); // a grid domain: the file's projection, as DoUpdateTree gave it to the configured unit
 
-		for (arg_index i = 3; i < args.size(); i += 2)
+		for (arg_index i = 2; i < args.size(); i += 2)
 		{
 			auto parts = SplitMemberSpec(ArgString(args, i));
 			const AbstrUnit* vu = parts.m_ValuesAreTheTable ? root.get() : AsUnit(GetItem(args[i + 1]));
@@ -581,7 +583,7 @@ struct StorageReadTableOperator : TernaryOperator
 		auto root = resultHolder.GetNew();
 		MG_CHECK(root);
 		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); }); // a request left behind holds interest
-		auto& req = GetOrCreateRequest(root, args);
+		auto& req = GetOrCreateRequest(root, resultHolder);
 
 		CollectMember(req, root, req.m_ConfigItem.get()); // the table's range, once
 
@@ -613,18 +615,17 @@ struct StorageReadTableOperator : TernaryOperator
 };
 
 // *****************************************************************************
-// storage_read_value(spec, configName, valuesUnit) -> parameter
+// storage_read_value(spec, valuesUnit) -> parameter
 // *****************************************************************************
 
 CommonOperGroup cog_storage_read_value("storage_read_value", oper_policy::dynamic_result_class);
 
-struct StorageReadValueOperator : TernaryOperator
+struct StorageReadValueOperator : BinaryOperator
 {
 	StorageReadValueOperator(AbstrOperGroup& og)
-		: TernaryOperator(&og, AbstrDataItem::GetStaticClass()
+		: BinaryOperator(&og, AbstrDataItem::GetStaticClass()
 			, DataArray<SharedStr>::GetStaticClass() // spec
-			, DataArray<SharedStr>::GetStaticClass() // the configured parameter's full name
-			, AbstrUnit::GetStaticClass()            // its values unit
+			, AbstrUnit::GetStaticClass()            // the parameter's values unit
 		)
 	{}
 
@@ -633,9 +634,9 @@ struct StorageReadValueOperator : TernaryOperator
 		if (resultHolder && !resultHolder.IsTmp())
 			return;
 		MG_CHECK(IsMetaThread());
-		MG_CHECK(args.size() == 3);
+		MG_CHECK(args.size() == 2);
 
-		auto vu = AsUnit(GetItem(args[2]));
+		auto vu = AsUnit(GetItem(args[1]));
 		MG_CHECK(vu);
 		resultHolder = SharedMutableTreeItem(CreateCacheDataItem(Unit<Void>::GetStaticClass()->CreateDefault(), vu, ValueComposition::Single));
 	}
@@ -648,7 +649,7 @@ struct StorageReadValueOperator : TernaryOperator
 		if (!UnitsReadyOrSuspend(AsDataItem(root)))
 			return false;
 		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); });
-		auto& req = GetOrCreateRequest(root, args);
+		auto& req = GetOrCreateRequest(root, resultHolder);
 		CollectMember(req, root, req.m_ConfigItem.get());
 		releaseOnThrow.release();
 		return true;
@@ -668,7 +669,7 @@ struct StorageReadValueOperator : TernaryOperator
 };
 
 // *****************************************************************************
-// storage_read_attr(spec, configName, domain, memberSpec, valuesUnit, extras...) -> attribute
+// storage_read_attr(spec, domain, memberSpec, valuesUnit, extras...) -> attribute
 //
 // One stored attribute over a domain that is not read with it: a grid, a stream item (FSS, cfs), a
 // strfiles attribute, an attribute of a memory-mapped store. The extras are further arguments the
@@ -677,13 +678,12 @@ struct StorageReadValueOperator : TernaryOperator
 
 CommonOperGroup cog_storage_read_attr("storage_read_attr", oper_policy::allow_extra_args | oper_policy::dynamic_result_class);
 
-struct StorageReadAttrOperator : QuinaryOperator
+struct StorageReadAttrOperator : QuaternaryOperator
 {
 	StorageReadAttrOperator(AbstrOperGroup& og)
-		: QuinaryOperator(&og, AbstrDataItem::GetStaticClass()
+		: QuaternaryOperator(&og, AbstrDataItem::GetStaticClass()
 			, DataArray<SharedStr>::GetStaticClass() // spec
-			, DataArray<SharedStr>::GetStaticClass() // the configured attribute's full name
-			, AbstrUnit::GetStaticClass()            // its domain
+			, AbstrUnit::GetStaticClass()            // the attribute's domain
 			, DataArray<SharedStr>::GetStaticClass() // 'name[:composition]'
 			, AbstrUnit::GetStaticClass()            // its values unit
 		)
@@ -694,12 +694,12 @@ struct StorageReadAttrOperator : QuinaryOperator
 		if (resultHolder && !resultHolder.IsTmp())
 			return;
 		MG_CHECK(IsMetaThread());
-		MG_CHECK(args.size() >= 5);
+		MG_CHECK(args.size() >= 4);
 
-		auto domain = AsUnit(GetItem(args[2]));
+		auto domain = AsUnit(GetItem(args[1]));
 		MG_CHECK(domain);
-		auto parts = SplitMemberSpec(ArgString(args, 3));
-		auto vu = AsUnit(GetItem(args[4]));
+		auto parts = SplitMemberSpec(ArgString(args, 2));
+		auto vu = AsUnit(GetItem(args[3]));
 		MG_CHECK(vu);
 		resultHolder = SharedMutableTreeItem(CreateCacheDataItem(domain, vu, parts.m_VC));
 	}
@@ -712,7 +712,7 @@ struct StorageReadAttrOperator : QuinaryOperator
 		if (!UnitsReadyOrSuspend(AsDataItem(root)))
 			return false;
 		auto releaseOnThrow = make_releasable_scoped_exit([root] { ReleaseRequest(root); });
-		auto& req = GetOrCreateRequest(root, args);
+		auto& req = GetOrCreateRequest(root, resultHolder);
 		CollectMember(req, root, req.m_ConfigItem.get());
 		releaseOnThrow.release();
 		return true;

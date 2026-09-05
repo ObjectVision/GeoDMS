@@ -977,6 +977,25 @@ string removed from the spec and `CreateStorageSpec` from the `sourceDescr` tree
 on a real geopackage and a large CSV: N attributes cost one scan instead of N; two holders
 reading the same table share one read. The work is complete when the holder is gone.
 
+*Status 2026-09-05, first part (identity by value): the holder is gone from the key. Not the
+way the list above foresaw: instead of spec-only `StorageMetaInfo` constructors and a manager
+instance per DC, the operator takes the configured item from the origin item of its
+DataController (`TreeItemDualRef::GetOriginItem`, set by `UpdateDC` before the result is made
+and asserted by `TreeItem_InstallStorageReadCalculator`), and builds the meta info from it as
+before. Two configured items with the same key share the DataController; the first one's
+storage serves both, which is sound because the key says everything the read depends on: the
+GDAL option items wrap the storage name in `do(...)` and the `StorageDriver`/`StorageOptions`
+properties extend the storage type element (`WrapStorageName`, `DescribeStorageType`,
+overridden by the gdal managers), the table element is the relative path. The name arguments
+of the three operators went, and `CreateStorageSpec` with the `read`/`readSql` elements of the
+`sourceDescr` tree. Verified by `stor_read_shared_table` (two units reading the same file,
+`sum(a/tab/id + b/tab/id)` unifies and the log reads each attribute once) and by
+`fn_test_icheck_storage_self`, whose two parameters now share one read. Still to do in S4: the
+one-scan `ReadDataItems` for `gdal.vect`, `dbf` and `odbc` (every attribute still opens the
+storage and scans on its own), and the spec-only meta infos, which are no longer needed for
+identity but would let a read run without a configured item (a modeller-written
+`storage_read_*` call); the measurement on a real geopackage and a large CSV.*
+
 ---
 
 ## 5. Decisions
