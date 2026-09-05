@@ -156,7 +156,7 @@ struct TreeItemDualRef : SharedActor
 		}
 	}
 	const TreeItem* GetOld()  const { return m_Data.get().get(); }
-	const TreeItem* GetUlt()  const { if (auto p = m_Data.get()) return p->GetCurrUltimateItem().get(); return nullptr; } // the one accessor of GetCurr/GetNew/GetOld/GetUlt that also RESOLVES (GetCurrUltimateItem)
+	const TreeItem* GetCurrUlt()  const { if (auto p = m_Data.get()) return p->GetCurrUltimateItem().get(); return nullptr; } // the one accessor of GetCurr/GetNew/GetOld/GetCurrUlt that also RESOLVES (GetCurrUltimateItem)
 
 	virtual bool IsSymbDC() const { return false; }
 	virtual bool CanResultToConfigItem() const { return false; }

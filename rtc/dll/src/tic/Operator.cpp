@@ -221,8 +221,8 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 
 	// Never GetNew() here: it MG_CHECKs !IsOld(), so it throws for every operator whose result is an
 	// EXISTING item (oper_policy::existing -- subitem and friends), which silently cost those their
-	// whole estimate. GetUlt() is also the item RunOperator measures, so estimate and actual agree.
-	auto resultItem = resultHolder.GetUlt();
+	// whole estimate. GetCurrUlt() is also the item RunOperator measures, so estimate and actual agree.
+	auto resultItem = resultHolder.GetCurrUlt();
 	if (!resultItem)
 		resultItem = resultHolder.GetOld();
 	if (!resultItem || !IsDataItem(resultItem))

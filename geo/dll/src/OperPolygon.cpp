@@ -608,7 +608,7 @@ public:
 						// root of the chain: without it, the union_data levels above re-guess
 						// ASSUMED_SEQ_LENGTH for each argument and the 8.25x over-charge comes back.
 						if (result.resultingNrElements)
-							if (auto resultItem = resultHolder.GetUlt(); resultItem && IsDataItem(resultItem))
+							if (auto resultItem = resultHolder.GetCurrUlt(); resultItem && IsDataItem(resultItem))
 								AsDataItem(resultItem)->SetEstimatedBytesPerElement(
 									result.resultingMemory / result.resultingNrElements);
 					}

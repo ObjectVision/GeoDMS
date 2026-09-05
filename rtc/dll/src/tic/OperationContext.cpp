@@ -3171,7 +3171,7 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			if (measure)
 			{
 				auto elapsedMSec = timer.ElapsedMSec();
-				auto resultItem = resultHolder.GetUlt();
+				auto resultItem = resultHolder.GetCurrUlt();
 				// op->GetGroup(), NOT GetOperGroup(): CalcResult may complete the operation and clear
 				// m_FuncDC (see ScheduleCalcResult's "RunImpl() may destroy this" note), and
 				// GetOperGroup() derefs that member -- which turned a SUCCESSFUL calculation into a
@@ -3192,9 +3192,9 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 
 			assert(resultHolder || IsCanceled());
 			assert(actualResult || SuspendTrigger::DidSuspend());
-			assert(!IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
+			assert(!IsDataItem(resultHolder.GetCurrUlt()) || AsDataItem(resultHolder.GetCurrUlt())->m_DataObject
 				|| !actualResult
-				|| CheckCalculatingOrReady(resultHolder.GetUlt())
+				|| CheckCalculatingOrReady(resultHolder.GetCurrUlt())
 				|| resultHolder->WasFailed(FailType::Data)
 			);
 			for (const auto& argRef : argRefs)

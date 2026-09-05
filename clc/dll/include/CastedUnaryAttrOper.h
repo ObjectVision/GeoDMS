@@ -42,7 +42,7 @@ public:
 	{
 		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
 		if (result.regime != materialization::meta)
-			if (auto res = resultHolder.GetUlt(); res && res->GetKeepDataState())
+			if (auto res = resultHolder.GetCurrUlt(); res && res->GetKeepDataState())
 			{
 				result.regime = materialization::eager;
 				result.residentMemory = result.resultingMemory; // a kept result holds its whole array

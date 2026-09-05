@@ -512,7 +512,7 @@ public:
 			// This is the average over the arguments; SetEstimatedBytesPerElement keeps the larger of
 			// this and whatever the base already inherited, which is the conservative side.
 			if (result.resultingNrElements)
-				if (auto resultItem = resultHolder.GetUlt(); resultItem && IsDataItem(resultItem))
+				if (auto resultItem = resultHolder.GetCurrUlt(); resultItem && IsDataItem(resultItem))
 					AsDataItem(resultItem)->SetEstimatedBytesPerElement(
 						result.resultingMemory / result.resultingNrElements);
 		}

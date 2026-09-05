@@ -263,7 +263,7 @@ struct PhaseContainerOperator : BinaryOperator
 				else
 				{
 					// hold the source result and its ultimate item: interest does not block a meta-thread
-					// DoInvalidate->Clear() on the source DC mid-phase, so an unowned GetUlt() raw can go null/dangle
+					// DoInvalidate->Clear() on the source DC mid-phase, so an unowned GetCurrUlt() raw can go null/dangle
 					auto srcCurr = dc->GetCurr();
 					auto srcUltItem = srcCurr ? srcCurr->GetCurrUltimateItem() : SharedTreeItem();
 					if (!srcUltItem)

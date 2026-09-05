@@ -151,7 +151,7 @@ void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	// GetCurrDataObj, NOT GetRefObj: this runs on the OperationContext worker that just produced
 	// the result, and GetRefObj asserts IsMetaThread -- its GetUltimateItem walk can trigger meta
 	// processing -- which made any Debug run with a data-producing operator die here (#1181). The
-	// caller passes resultHolder.GetUlt(), already the ultimate item, whose m_DataObject is the
+	// caller passes resultHolder.GetCurrUlt(), already the ultimate item, whose m_DataObject is the
 	// object the operation just stored (asserted at the call site) and is kept alive by the
 	// running context's interest; reading it directly needs no walk and no meta processing.
 	auto actualRegime = estimate.regime;

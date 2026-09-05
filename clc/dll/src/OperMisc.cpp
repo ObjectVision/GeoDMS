@@ -283,7 +283,7 @@ struct SubItemOperator: BinaryOperator
 			MG_CHECK(subItem->GetInterestCount() || !resultHolder.GetInterestCount());
 		}
 		assert(resultHolder);
-		MG_CHECK(!mustCalc || !IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
+		MG_CHECK(!mustCalc || !IsDataItem(resultHolder.GetCurrUlt()) || AsDataItem(resultHolder.GetCurrUlt())->m_DataObject
 			|| resultHolder->WasFailed(FailType::Data)
 		);
 		return true;

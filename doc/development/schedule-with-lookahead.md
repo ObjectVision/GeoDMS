@@ -1907,7 +1907,7 @@ throttling behaving badly, and it is a modelling error rather than a measurement
   operator whose result is an existing item** (`oper_policy::existing` — `subitem` and
   friends), and the guard turned that into an all-zero record: `subitem` estimated
   `n=0 / assumed / eager` where the truth was `n=32,492,000 / derived / deferred, 496
-  chores`. It now uses `GetUlt()` (falling back to `GetOld()`), which is also the item
+  chores`. It now uses `GetCurrUlt()` (falling back to `GetOld()`), which is also the item
   `RunOperator` measures, so estimate and actual describe the same item. Any operator
   family added later must not reintroduce `GetNew()` here.
 - **Aggregation family override** (`clc/dll/include/OperAccUni.h`): the accumulator is
