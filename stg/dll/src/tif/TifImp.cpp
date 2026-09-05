@@ -21,6 +21,7 @@
 #include "utl/FileSystem.h"
 #include "utl/FixedBufferFormat.h"
 #include "mci/ValueClassID.h"
+#include "mci/ValueClass.h"
 
 #include <tiff.h> // See http://www.libtiff.org/man/TIFFGetField.3t.html for TIFFTAG specification
 #include <tiffio.h> 
@@ -260,22 +261,27 @@ bool TifImp::HasColorTable() const
 		&& (TIFFGetField(m_TiffHandle, TIFFTAG_COLORMAP, &rcmap, &gcmap, &bcmap));
 }
 
-// The SampleFormat tag is optional (the TIFF specification defaults it to unsigned integer); a file
-// that omits it yields VT_Unknown here, which the caller in TifStorageManager treats as an error
-// rather than as UINT. Left as is pending a test with such a file (doc/code-fixes.md, STG-N04).
-ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
+// The SampleFormat tag is optional (the TIFF specification defaults it to unsigned integer). When it
+// is absent, the configured attribute type is what the modeller asserted about the file: its category
+// (unsigned, signed, floating point) is taken, with the bit depth the file does declare. A mismatch
+// then surfaces in the caller's bit-depth check, which runs in the read itself and so fails the
+// item's data (a Data failure) rather than the meta-info of the whole storage (STG-N04, 2026-09-05).
+ValueClassID TifImp::GetValueClassFromTiffDataTypeTag(ValueClassID fallbackType)
 {
 	uint16_t sample_format = 0;
-	uint16_t bits_per_sample = 0;
-	uint16_t samples_per_pixel = 0;
+	uint16_t bits_per_sample = 1;   // libtiff's defaults for the two tags below
+	uint16_t samples_per_pixel = 1;
 	if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, &sample_format))
-		return ValueClassID::VT_Unknown;
+	{
+		auto fallbackClass = ValueClass::FindByValueClassID(fallbackType);
+		if (!fallbackClass || !fallbackClass->IsNumericOrBool())
+			return ValueClassID::VT_Unknown;
+		bool isFloatingPoint = fallbackClass->IsNumeric() && !fallbackClass->IsIntegral();
+		sample_format = isFloatingPoint ? SAMPLEFORMAT_IEEEFP : fallbackClass->IsSigned() ? SAMPLEFORMAT_INT : SAMPLEFORMAT_UINT;
+	}
 
-	if (!TIFFGetField(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, &bits_per_sample))
-		return ValueClassID::VT_Unknown;
-
-	if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, &samples_per_pixel))
-		return ValueClassID::VT_Unknown;
+	TIFFGetFieldDefaulted(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
+	TIFFGetFieldDefaulted(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, &samples_per_pixel);
 
 	UInt32 total_number_of_bits = bits_per_sample * samples_per_pixel;
 
@@ -487,7 +493,7 @@ UInt32 TifImp::GetTileWidth() const
 	return tile_image_width_info;
 };
 
-UInt32 TifImp::GetTileByteWidth() const 
+SizeT TifImp::GetTileByteWidth() const 
 { 
 	dms_assert(m_TiffHandle);
 	return IsTiledTiff()

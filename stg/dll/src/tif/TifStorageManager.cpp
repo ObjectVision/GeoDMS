@@ -196,10 +196,12 @@ void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrD
 
 	auto vcid_ado = vc_ado->GetValueClassID();
 
-	auto vcid_tiff = m_pImp->GetValueClassFromTiffDataTypeTag();
+	auto vcid_tiff = m_pImp->GetValueClassFromTiffDataTypeTag(vcid_ado); // the configured type stands in for an absent SampleFormat tag
 	auto vc_tiff = ValueClass::FindByValueClassID(vcid_tiff);
 	if (!vc_tiff)
-		adi->throwItemErrorF("Uknown tiff pixel value type");
+		adi->throwItemErrorF("unsupported TIFF pixel type: the SampleFormat and bit depth of the file match no GeoDMS value type");
+	// Thrown here, in the read: the exception becomes a Data failure of this item, not a failure of
+	// the storage's meta-info, so the rest of the storage stays usable.
 	if (vc_ado->GetBitSize() != vc_tiff->GetBitSize())
 		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '{}' and tiff pixel value type: '{}'."
 		, AsString(vc_ado->GetNameID())

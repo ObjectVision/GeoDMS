@@ -105,7 +105,7 @@ public:
 	void SetTiled();
 	void SetDataMode(UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat);
 	UInt32 GetNrBitsPerPixel() const;
-	UInt32 GetTileByteWidth() const;
+	SizeT GetTileByteWidth() const;
 	SizeT GetTileByteSize() const;
 
 private:

@@ -270,11 +270,11 @@ UPoint GDalGridImp::GetTileSize() const {
 }
 
 UInt32 GDalGridImp::GetNrBitsPerPixel() const { return GDALGetDataTypeSize(gdalRasterDataType(m_ValueClassID)); }
-UInt32 GDalGridImp::GetTileByteWidth() const {
-	return (GetTileSize().X() * GetNrBitsPerPixel() + 7) / 8;
+SizeT GDalGridImp::GetTileByteWidth() const {
+	return (SizeT(GetTileSize().X()) * GetNrBitsPerPixel() + 7) / 8;
 }
 SizeT GDalGridImp::GetTileByteSize() const {
-	return Cardinality(UPoint(GetTileByteWidth(), GetTileSize().Y()));
+	return GetTileByteWidth() * GetTileSize().Y();
 }
 
 /*template <typename T>

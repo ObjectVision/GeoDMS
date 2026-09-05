@@ -148,7 +148,7 @@ namespace Grid {
 			tyr(bufStart.Y(), bufSize.Y(), tileSize.Y());
 
 		UInt32 tile_wh = tw_aligned*tileSize.Y();
-		UInt32 scanlineSize = imp.GetTileByteWidth();
+		UInt32 scanlineSize = ThrowingConvert<UInt32>(imp.GetTileByteWidth()); // UnpackStrip takes a UInt32 row width; a wider scanline is an error, not a truncation
 
 		// one strip of tiles of storage defined values
 		OwningPtrSizedArray<T> strip(tile_wh, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: strip"));
@@ -531,9 +531,7 @@ namespace Grid {
 			txr(x, entireSize.X(), tileSize.X()),
 			tyr(y, entireSize.Y(), tileSize.Y());
 		UInt32 tile_wh = tw_aligned*tileSize.Y();
-		UInt32 scanlineSize = imp.GetTileByteWidth();
-
-		// one strip of tiles 
+		// one strip of tiles
 		OwningPtrSizedArray<T> strip(tile_wh, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.WriteTiles: strip"));
 		UInt32 tileByteSize = array_traits<T>::ByteSize(tile_wh);
 		TileCRef dmsTileLock;

@@ -62,7 +62,7 @@ private:
 
 public:
 	UInt32 GetTileWidth()     const; 
-	STGIMPL_CALL UInt32 GetTileByteWidth() const;
+	STGIMPL_CALL SizeT GetTileByteWidth() const;
 	UInt32 GetTileHeight()    const; 
 	STGIMPL_CALL UPoint GetTileSize()      const;
 	STGIMPL_CALL SizeT  GetTileByteSize()  const; // the # bytes in a row - aligned tile.
@@ -139,7 +139,7 @@ public:
 
 	STGIMPL_CALL bool HasColorTable() const;
 
-	STGIMPL_CALL ValueClassID GetValueClassFromTiffDataTypeTag();
+	STGIMPL_CALL ValueClassID GetValueClassFromTiffDataTypeTag(ValueClassID fallbackType); // fallbackType: the configured type, used when the SampleFormat tag is absent
 
 	STGIMPL_CALL PALETTE_SIZE GetClrImportant() const;
 	STGIMPL_CALL void     GetColor(PALETTE_SIZE, UByte& r, UByte& g, UByte& b) const;
