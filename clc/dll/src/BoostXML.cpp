@@ -291,29 +291,7 @@ TreeItem* WalkNextElementOrContainer(TreeItem* context, TreeItem* walker)
 // *****************************************************************************
 
 oper_arg_policy rapidXmlArgs[] = { oper_arg_policy::calc_as_result, oper_arg_policy::is_templ };
-
-// #1259: NOT calc_requires_metainfo, so that CanRunParallel holds and several parses run on the
-// worker pool at once. That flag forced every parse onto the meta thread (a false CanRunParallel
-// makes OperationContext_ScheduleThis run the task inline and getUniqueLicenseToRun refuse it), which
-// made a run over N filesets strictly serial however much memory and however many cores were free.
-//
-// What makes it safe is that the parse never touches the SHAPE of its result. CreateResultCaller
-// instantiates the schema and creates every member the calculation writes; ParseContext::CreateElement
-// only LOOKS members up, and an element the schema does not name gets the base Element, whose AddValue
-// is a no-op. So CalcResult only fills a tree that already exists, and two concurrent parses work on
-// disjoint cache trees. The remaining shared state is thread-safe already: TokenID(WeakStr) interns
-// through the mt path (Token.cpp:150), IndexedStrings uses GetOrCreateID_mt, the status flags are a
-// std::atomic<UInt32>, and the per-UnitClass default units are singletons already warmed by
-// CreateResultCaller on the meta thread. The CreateUnit/CreateDataItem calls in CalcResult resolve to
-// lookups, since TreeItem_CreateItem returns an existing sub-item when there is one.
-//
-// SetCount from a worker is not new: unique(), a plain CommonOperGroup, sets its result unit's count in
-// its own CalcResult, and storage_read_table produces a whole tree of members off the meta thread.
-//
-// The consequence to know about: a parallel operator takes the IsAllInterestedCalculatingOrDataReady
-// branch of FuncDC's mustStartCalc instead of IsAllDataCurrStandby (MoreDataControllers.cpp), so the
-// recalculation decision now looks at the members that carry interest rather than at every member.
-SpecialOperGroup rapidXmlOg("parse_xml", 2, rapidXmlArgs, oper_policy::allow_extra_args|oper_policy::has_template_arg);
+SpecialOperGroup rapidXmlOg("parse_xml", 2, rapidXmlArgs, oper_policy::calc_requires_metainfo|oper_policy::allow_extra_args|oper_policy::has_template_arg);
 
 struct RapidXmlOperator : public BinaryOperator
 {
@@ -466,15 +444,8 @@ struct RapidXmlOperator : public BinaryOperator
 		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder.GetNew(), GetTokens().entityTableID).get();
 		entityTable->SetCount(pc.m_EntityNames.size());
 
-		// #1259: an OWNING share, not an InterestPtr. This body runs on a worker now, and starting
-		// interest is a meta-thread operation: Actor::IncInterestCount asserts IsMetaThread on the
-		// 0 -> 1 edge, which is what taking an InterestPtr on a freshly created member is. The
-		// interest bought nothing anyway: these are cache items, and TreeItem::TryCleanupMem returns
-		// early for a cache item that is not the cache root, so the data written below is never
-		// reclaimed on the strength of their own count. What has to be kept is the item itself,
-		// which the owning share does, and the cache root's interest covers the tree as a whole.
-		auto entityNames = CreateDataItem(entityTable, GetTokens().valuesID, entityTable,  Unit<SharedStr>::GetStaticClass()->CreateDefault()); // owned by entityTable (parent)
-		StoreValues<SharedStr>(entityNames.get(), pc.m_EntityNames);
+		InterestPtr<std::shared_ptr<AbstrDataItem>> entityNames = CreateDataItem(entityTable, GetTokens().valuesID, entityTable,  Unit<SharedStr>::GetStaticClass()->CreateDefault()).get(); // owned by entityTable (parent)
+		StoreValues<SharedStr>(entityNames, pc.m_EntityNames);
 
 		Entity defaultEntity;
 
@@ -498,22 +469,23 @@ struct RapidXmlOperator : public BinaryOperator
 					entity = &defaultEntity;
 
 				entityDomain->SetCount(entity->GetCount());
+				InterestPtr<std::shared_ptr<AbstrDataItem>> parentEntityTableRelAdi;
 				if (entityDomain->GetTreeParent().get() == resultHolder.GetNew())
 				{
-					auto parentEntityTableRelAdi = CreateDataItem(entityDomain, GetTokens().parentEntityTableRelID, entityDomain, entityTable); // owned by entityDomain (parent)
-					StoreValues<entity_index>(parentEntityTableRelAdi.get(), entity->m_ParentEntityTableRel);
+					parentEntityTableRelAdi = CreateDataItem(entityDomain, GetTokens().parentEntityTableRelID, entityDomain, entityTable).get(); // owned by entityDomain (parent)
+					StoreValues<entity_index>(parentEntityTableRelAdi, entity->m_ParentEntityTableRel);
 				}
-				auto parentRelAdi = CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault()); // owned by entityDomain (parent)
-				StoreValues<entity_index>(parentRelAdi.get(), entity->m_ParentRel);
+				InterestPtr<std::shared_ptr<AbstrDataItem>> parentRelAdi = CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault()).get(); // owned by entityDomain (parent)
+				StoreValues<entity_index>(parentRelAdi, entity->m_ParentRel);
 
 				AbstrUnit* valueSet = Unit<entity_index>::GetStaticClass()->CreateUnit(entityDomain, GetTokens().valuesTableID).get();
 				valueSet->SetCount(entity ? entity->m_Values.size() : 0);
 
-					auto valuesIdAdi = CreateDataItem(valueSet, GetTokens().valuesID, valueSet, Unit<SharedStr>::GetStaticClass()->CreateDefault()); // owned by valueSet (parent)
-					StoreValues<SharedStr>(valuesIdAdi.get(), entity->m_Values.GetVec());
+					InterestPtr<std::shared_ptr<AbstrDataItem>> valuesIdAdi = CreateDataItem(valueSet, GetTokens().valuesID, valueSet, Unit<SharedStr>::GetStaticClass()->CreateDefault()).get(); // owned by valueSet (parent)
+					StoreValues<SharedStr>(valuesIdAdi, entity->m_Values.GetVec());
 
-					auto valueRelAdi = CreateDataItem(entityDomain, GetTokens().valueRelID, entityDomain, valueSet); // owned by entityDomain (parent)
-					StoreValues<entity_index>(valueRelAdi.get(), entity->m_ValueIndex);
+					InterestPtr<std::shared_ptr<AbstrDataItem>> valueRelAdi = CreateDataItem(entityDomain, GetTokens().valueRelID, entityDomain, valueSet).get(); // owned by entityDomain (parent)
+					StoreValues<entity_index>(valueRelAdi, entity->m_ValueIndex);
 			}
 			else if (IsDataItem(walker) && !walker->HasCalculator())
 			{
