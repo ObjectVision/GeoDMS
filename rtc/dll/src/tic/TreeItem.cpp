@@ -1169,7 +1169,7 @@ static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 // the computed one passes the ItemType check unnoticed - e.g. an attribute declared (poly) but filled
 // by points2sequence (which yields arc). Warn so users can make the configuration explicit about the
 // intended composition (points2sequence for arc, points2polygon for poly, points2multi_point for
-// multipoint); this is slated to become an error in GeoDms 21 (issue #1038).
+// multipoint); an error from GeoDms 21 on (issue #1038), see the version switch below.
 static void ReportResultCompositionDeprecation(const TreeItem* self, const AbstrDataItem* selfDi, const AbstrDataItem* refDi)
 {
 	// Name the cause next to the declaration (#1243): the item named here is where the modeller has to make
@@ -1180,6 +1180,18 @@ static void ReportResultCompositionDeprecation(const TreeItem* self, const Abstr
 	// empty when the calculator comes from elsewhere (an inherited or cache item) and then nothing is added.
 	const auto& expr = self->GetExprMember();
 
+#if DMS_VERSION_MAJOR >= 21
+	throwDmsErrF(
+		"{}: the declared ValueComposition '{}' differs from the '{}' of the calculation result{}{}."
+		" Make the configuration explicit about the intended composition:"
+		" points2sequence for arc, points2polygon for poly, points2multi_point for multipoint."
+	,	self->GetFullName().c_str()
+	,	GetValueCompositionID(selfDi->GetValueComposition())
+	,	GetValueCompositionID(refDi->GetValueComposition())
+	,	expr.empty() ? "" : " of "
+	,	expr.empty() ? "" : expr.c_str()
+	);
+#else
 	auto msg = mySSPrintF(
 		"{}: Deprecated: the declared ValueComposition '{}' differs from the '{}' of the calculation result{}{}.\n"
 		"Make the configuration explicit about the intended composition "
@@ -1192,6 +1204,7 @@ static void ReportResultCompositionDeprecation(const TreeItem* self, const Abstr
 	,	expr.empty() ? "" : expr.c_str()
 	);
 	reportD(SeverityTypeID::ST_Warning, msg.c_str());
+#endif
 }
 
 bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const

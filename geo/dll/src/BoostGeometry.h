@@ -10,6 +10,7 @@
 #define MG_GEO_BOOST_GEOMETRY_H
 
 #include "RtcTypeLists.h"
+#include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR, for the v21 switch in CheckGeometryArgComposition
 #include "VersionComponent.h"
 #include "ser/SequenceArrayStream.h"
 
@@ -685,7 +686,7 @@ void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rval
 // on arc geometry - is not caught by argument-type dispatch and instead fails deep inside the geometry
 // code (issue #1038). Warn so users configure the matching composition explicitly (points2sequence for
 // arc, points2polygon for poly, points2multi_point for multipoint - multipoint is an expected input of
-// the buffer operators, see BoostGeometryImpl.h); this is slated to become an error in GeoDms 21.
+// the buffer operators, see BoostGeometryImpl.h); an error from GeoDms 21 on, see the version switch.
 inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDataItem* argA, ValueComposition expectedVC)
 {
 	ValueComposition givenVC = argA->GetValueComposition();
@@ -695,6 +696,19 @@ inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDat
 		return; // only nudge between arc/poly/multipoint, never Single
 
 	auto argName = argA->GetFullName();
+#if DMS_VERSION_MAJOR >= 21
+	throwDmsErrF(
+		  "{}: the geometry argument{}{} has ValueComposition '{}' but {} is meant for '{}' geometry."
+		  " Configure the argument with the matching composition:"
+		  " points2sequence for arc, points2polygon for poly, points2multi_point for multipoint."
+		, gr->GetNameStr()
+		, argName.empty() ? "" : " "
+		, argName.c_str()
+		, GetValueCompositionID(givenVC)
+		, gr->GetNameStr()
+		, GetValueCompositionID(expectedVC)
+	);
+#else
 	reportF(SeverityTypeID::ST_Warning
 		, "{}: Deprecated: the geometry argument{}{} has ValueComposition '{}' but {} is meant for '{}' geometry.\n"
 		  "Configure the argument with the matching composition "
@@ -707,6 +721,7 @@ inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDat
 		, gr->GetNameStr()
 		, GetValueCompositionID(expectedVC)
 	);
+#endif
 }
 
 
