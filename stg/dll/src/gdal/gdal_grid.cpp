@@ -50,6 +50,7 @@
 #include "mci/ValueClassID.h"
 #include "stg/StorageClass.h"
 
+#include <mutex>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -192,15 +193,22 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 	if (rasterDataType != geoDmsDataType)
 		if (rasterDataType != GDT_Byte || geoDmsDataType != GDT_UInt32 || hDS->GetRasterCount() != 4)
 		{
-			// Use static set to track already-warned combinations of (filename, rasterDataType, valueClassID)
-			// to avoid repeating the same warning for each tile (each tile may open a new GDALDataset instance)
+			// Warn once per combination of (filename, rasterDataType, valueClassID) rather than once
+			// per tile: a GDalGridImp is constructed for every tile read, and each tile may open a
+			// new GDALDataset instance. Those tile reads run on the worker threads, through as many
+			// reader clones of a random-access storage, so this cache is reached concurrently and
+			// carries its own lock. The unguarded set it replaces was a data race, a find against
+			// another thread's insert, which any values type mismatch on a many-tiled grid hits.
 			using WarningKey = std::tuple<std::string, GDALDataType, ValueClassID>;
+			static std::mutex s_IssuedWarningsMutex;
 			static std::set<WarningKey> s_IssuedWarnings;
 
 			auto warningKey = WarningKey(hDS->GetDescription(), rasterDataType, valueClass->GetValueClassID());
-			if (s_IssuedWarnings.find(warningKey) != s_IssuedWarnings.end())
-				return;
-			s_IssuedWarnings.insert(warningKey);
+			{
+				std::lock_guard lock(s_IssuedWarningsMutex);
+				if (!s_IssuedWarnings.insert(std::move(warningKey)).second) // the insert says whether this thread is the one that claimed the warning
+					return;
+			}
 
 			reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains {} values while GeoDms expects {} values"
 				, GDALGetDataTypeName(rasterDataType)
