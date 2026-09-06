@@ -1,6 +1,6 @@
 // #587 S5: write half of a geopackage round trip; stor_gpkg_2_read.dms reads it back. A geopackage
 // is a random-layer-read dataset: GDAL iterates its features through a dataset-level cursor, which
-// is what the read case exercises. Two open squares as arcs, each with a name and a flag. Run item: /export
+// is what the read case exercises. Two squares as polygons, each with a name and a flag. Run item: /export
 // (fnrun_itemmap.txt).
 container stor_gpkg_1_write
 {
@@ -21,7 +21,7 @@ container stor_gpkg_1_write
 	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_gpkg_rt.gpkg"
 	,	StorageType = "gdalwrite.vect"
 	{
-		attribute<point_rd> geometry (arc) := points2sequence(coords/point, coords/shape_rel, coords/ordinal);
+		attribute<point_rd> geometry (polygon) := points2polygon(coords/point, coords/shape_rel, coords/ordinal);
 		attribute<string>   name              : ['left', 'right'];
 		attribute<bool>     flag              : [true, false];
 	}

@@ -1,0 +1,31 @@
+// Read half of stor_gdalwrite_geom_name.dms: the shapefile it writes must be a POLYGON layer.
+//
+// What this guards: since #1038 (20.20.0 wording: "will become an error in GeoDms 21") a declared
+// ValueComposition that differs from the one its calculation produces is replaced by the computed
+// one. gdalwrite.vect asks the geometry item for its composition when it creates the layer, so a
+// geometry declared (polygon) but computed by points2sequence creates a PolyLine layer instead of a
+// Polygon one -- silently, aside from the deprecation warning. Reading such a file back as polygons
+// fails with "Value composition is "poly", which is incompatible with GDAL's geometry type
+// "Line String"", which is how the polygon disappears. Two 10x10 squares, together 200 m2.
+container stor_gdalwrite_geom_name_read
+{
+	unit<fpoint>  point_rd := baseunit('m', fpoint);
+	unit<float32> m        := baseunit('m', float32);
+	unit<float32> m2       := m * m;
+
+	unit<uint32> shapes
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_gdalwrite_geom_name.shp"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<point_rd> geometry (polygon);
+		attribute<string>   label;
+	}
+
+	container checks
+	{
+		parameter<uint32>  c_n     := #shapes,                                       IntegrityCheck = "c_n == 2";
+		parameter<float32> c_area  := sum(float32(area(shapes/geometry, m2))),       IntegrityCheck = "abs(c_area) == 200f";
+		parameter<string>  c_label := asList(shapes/label, ','),                     IntegrityCheck = "c_label == 'left,right'";
+	}
+}

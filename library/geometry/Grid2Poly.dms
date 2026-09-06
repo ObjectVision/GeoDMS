@@ -393,7 +393,7 @@ template grid2poly
 		attribute<coordinate_system> geometry(poly) := union_data(., ZoneRing/geometry, NonEmptyJFRing/SimplifiedRing, NonEmptyJFRing/SimplifiedReversedRing);
 		unit<uint32> all_points := sequence2points(geometry);
 		
-		attribute<coordinate_system> geometry_reversed(poly) := points2sequence(all_points/point, all_points/sequence_rel, max(all_points/ordinal, all_points/sequence_rel)[all_points/sequence_rel] - all_points/ordinal);
+		attribute<coordinate_system> geometry_reversed(poly) := points2polygon(all_points/point, all_points/sequence_rel, max(all_points/ordinal, all_points/sequence_rel)[all_points/sequence_rel] - all_points/ordinal);
 		
 		attribute<meter2>            area           := area(geometry, meter2);
 		attribute<Zone>              zone_rel       := union_data(., ZoneRing/FirstZone_rel, NonEmptyJFRing/rightZone_rel, NonEmptyJFRing/left_Zone_rel), IntegrityCheck = "ZoneRing/CheckUniqueZonePerRing";

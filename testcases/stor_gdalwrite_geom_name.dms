@@ -5,8 +5,8 @@
 // with "driver ESRI Shapefile does not support writing of values type fpoint". Versions before that
 // accepted the write but created the layer without a geometry field, so its features had no shape
 // and only the .dbf appeared. Both halves are fixed by recognizing the geometry by its value
-// composition. This case covers the refusal; that the .shp is really written is covered by t050 in
-// GeoDMS-Test, because a read of the file just written cannot be ordered after the write here.
+// composition. This case covers the refusal; stor_gdalwrite_geom_name_read.dms reads the file back
+// (the battery runs its configs sorted by file name, so the read follows this write).
 container stor_gdalwrite_geom_name
 {
 	unit<fpoint> point_rd := baseunit('m', fpoint);
@@ -26,8 +26,11 @@ container stor_gdalwrite_geom_name
 	,	StorageName = "='%LocalDataDir%/GeoDmsTestcases/stor_gdalwrite_geom_name.shp'"
 	,	StorageType = "gdalwrite.vect"
 	{
-		// deliberately not called 'geometry'
-		attribute<point_rd> shape (polygon) := points2sequence(coords/point, coords/shape_rel, coords/ordinal);
+		// deliberately not called 'geometry'. points2polygon, not points2sequence: since #1038 a
+		// declared composition that differs from the calculation result is replaced by the computed
+		// one, so a points2sequence result declared (polygon) is an arc and this layer would be
+		// written as a polyline. stor_gdalwrite_geom_name_read.dms reads the file back as polygons.
+		attribute<point_rd> shape (polygon) := points2polygon(coords/point, coords/shape_rel, coords/ordinal);
 		attribute<string>   label           : ['left', 'right'];
 	}
 }

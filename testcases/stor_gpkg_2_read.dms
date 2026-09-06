@@ -3,18 +3,20 @@
 // geometry through its own pass under the same open dataset. The second pass must see the geometry
 // column again (the driver composes its statement from the ignore flags at ResetReading) and start
 // at the first feature (the dataset-level cursor of a random-layer-read dataset). Before the fix the
-// geometries came back empty: 0 points instead of 8. The bool column covers the bool target of the
+// geometries came back empty: 0 points instead of the ring points. The bool column covers the bool target of the
 // one-pass field read, which the numeric instantiation set leaves out.
 container stor_gpkg_2_read
 {
-	unit<fpoint> point_rd := baseunit('m', fpoint);
+	unit<fpoint>  point_rd := baseunit('m', fpoint);
+	unit<float32> m        := baseunit('m', float32);
+	unit<float32> m2       := m * m;
 
 	unit<uint32> tab
 	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_gpkg_rt.gpkg"
 	,	StorageType     = "gdal.vect"
 	,	StorageReadOnly = "True"
 	{
-		attribute<point_rd> geometry (arc);
+		attribute<point_rd> geometry (polygon);
 		attribute<string>   name;
 		attribute<bool>     flag;
 	}
@@ -22,7 +24,8 @@ container stor_gpkg_2_read
 	container checks
 	{
 		parameter<uint32> n  := #tab,                              IntegrityCheck = "n == 2";
-		parameter<uint32> np := #Sequence2Points(tab/geometry),    IntegrityCheck = "np == 8";
+		parameter<uint32> np := #Sequence2Points(tab/geometry),    IntegrityCheck = "np == 10";
+		parameter<float32> ar := sum(float32(area(tab/geometry, m2))), IntegrityCheck = "abs(ar) == 200f";
 		parameter<string> s  := asList(tab/name, ','),             IntegrityCheck = "s == 'left,right'";
 		parameter<uint32> f  := sum(uint32(tab/flag)),             IntegrityCheck = "f == 1";
 	}
