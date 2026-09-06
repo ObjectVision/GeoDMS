@@ -123,7 +123,9 @@ void XmlParser::TransformChar(char& nextChar)
 			ReadChar();
 			nextChar = NextChar();
 		}
-		ReadChar(); // nextChar = one after ';'
+		// Leave the stream ON the ';', the last character this entity consumed. ReadText advances
+		// once per iteration at the bottom of its loop, so consuming the ';' here as well ate the
+		// character that followed the entity: 'a &amp; b' decoded to 'a &b' (#1260).
 		*nextTokenPtr = 0;
 		nextChar = SymbolGetChar(nextToken);
 	}

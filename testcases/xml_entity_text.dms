@@ -1,0 +1,9 @@
+// The character right after an entity's ';' belongs in the text: 'a &amp; b &lt;c&gt;' is 'a & b <c>', not 'a &b <>'. TransformChar used to leave the stream one past the ';' and ReadText's loop then advanced again, eating it
+container xml_entity_text
+{
+	container xmlpart { #include <../data/xml_entity_text.xml> }
+	container checks
+	{
+		parameter<string> d := PropValue(xmlpart/xt, 'descr'), IntegrityCheck = "d == 'a & b <c>'";
+	}
+}

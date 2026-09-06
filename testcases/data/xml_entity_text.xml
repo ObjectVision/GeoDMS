@@ -1,0 +1,4 @@
+<? xml version = "1.0" ? >
+< TreeItem name = "xt" >
+< Descr > a &amp; b &lt;c&gt; < / Descr >
+< / TreeItem >

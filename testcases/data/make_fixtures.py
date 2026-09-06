@@ -128,8 +128,10 @@ xml('xml_entity_long.xml', HEADER + '< TreeItem name = "xc" >\n< Descr > a &this
 xml('xml_entity_eof.xml', HEADER + '< TreeItem name = "xd" >\n< Descr > a &amp')
 # RTC-03 positive: a fragment that loads completely, with a nested item element and an entity decoded
 # into each Descr. Not a battery case until #1254 fixed the parse-context assertion that killed such
-# a load in Debug. Every entity sits at the END of its text on purpose: the character right after a
-# ';' is eaten (the ReadChar after the loop in TransformChar, on top of the one in ReadText), and
-# there that character is the trailing space, which ReadText drops anyway. So the expected values
-# hold both with and without a fix for that.
+# a load in Debug. Every entity sits at the END of its text, which is why this case was unaffected by
+# #1260 (the character right after a ';' was eaten): there that character is the trailing space,
+# which ReadText drops anyway. xml_entity_text.xml below is the case for #1260 itself.
 xml('xml_entity.xml', HEADER + '< TreeItem name = "xb" >\n< Descr > a &amp; < / Descr >\n< TreeItem name = "xc" >\n< Descr > b &lt; < / Descr >\n< / TreeItem >\n< / TreeItem >\n')
+# entity followed by text, on both sides of a decoded character: the whole point of the case is the
+# character right after the ';', which used to be swallowed
+xml('xml_entity_text.xml', HEADER + '< TreeItem name = "xt" >\n< Descr > a &amp; b &lt;c&gt; < / Descr >\n< / TreeItem >\n')
