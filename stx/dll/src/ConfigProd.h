@@ -191,6 +191,7 @@ void                ClearPropData();
 	TokenID                          m_AliasNameID;
 	iterator_t                       m_PendingNameLoc; // source location captured at a function/variant-set name
 	const TreeItem*                  m_PendingFunctionParamSig = nullptr; // function-signature exemplar awaiting item creation
+	TokenID                          m_PendingTypeRefName;        // #1252: that reference as the source wrote it, kept for the config dump
 	std::vector<TokenID>             m_PendingTypeArgs; // WP4.1: 'sig<V, D>' type-application arguments of the pending typeref
 	const TreeItem*                  m_PendingTypeExemplar = nullptr; // type-by-example / alias source, for refinement (IntegrityCheck) cloning
 
@@ -221,6 +222,7 @@ void                ClearPropData();
 		bool                      resultIsFunction = false; // §5.10 '-> function': result is a nested function
 		bool                      resultIsGenericUnit = false; // '-> unit<V>': parsed as a TreeItem until V is bound
 		const TreeItem*           resultSigExemplar = nullptr; // '-> sigAlias<...>' result-signature exemplar (for the config dump)
+		TokenID                   resultSigName;            // #1252: that reference as the source wrote it
 		std::vector<TokenID>      resultSigTypeArgs;        // its type-application args
 		bool                      inParamList = false;
 		TokenID                   resultName;
@@ -230,7 +232,7 @@ void                ClearPropData();
 		TokenID                   resultParamEntity;
 		ValueComposition          resultVC = ValueComposition::Unknown;
 		SharedStr                 resultExpr;
-		std::vector<std::tuple<UInt32, const TreeItem*, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
+		std::vector<std::tuple<UInt32, const TreeItem*, std::vector<TokenID>, TokenID>> paramSigs; // (param index, signature exemplar, type-application args, reference as written)
 		std::vector<std::pair<UInt32, const TreeItem*>> paramExemplars; // K11a by-example: (param index, UNIT type exemplar) -- its declared members type the parameter
 		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, var, constraint, isDomainVar)

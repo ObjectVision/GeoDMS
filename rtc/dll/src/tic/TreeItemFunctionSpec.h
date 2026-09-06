@@ -30,7 +30,11 @@
 TIC_CALL void    TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrParams, TokenID resultName);
 TIC_CALL UInt32  TreeItem_GetFunctionParamCount(const TreeItem* functionItem);
 TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem);
-TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs = {});
+TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs = {}, TokenID sourceName = TokenID());
+// #1252: the signature reference AS THE SOURCE WROTE IT ('f: unary_fn'), for a source-faithful
+// config dump; a resolve-then-GetScriptName rendering yields '../unary_fn', which the config
+// reader's parse-time type resolution does not accept
+TokenID TreeItem_GetFunctionParamSigName(const TreeItem* functionItem, UInt32 paramIndex);
 // meta-reference parameters ('item x'): the argument binds as a raw item reference
 // (sourceDescr key), like PropValue's item argument in a direct call -- never as the
 // argument's calculation/range key
@@ -49,12 +53,13 @@ TIC_CALL void    TreeItem_SetFunctionTypeVars(const TreeItem* functionItem, std:
 const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTypeVars(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_SetFunctionSignatureOnly(const TreeItem* functionItem); // 'alias = function<...>(...) -> ...;' -- declared type, no body
 bool    TreeItem_IsFunctionSignatureOnly(const TreeItem* functionItem);
-TIC_CALL void    TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool resultIsFunction, const TreeItem* resultSigExemplar, std::vector<TokenID> typeArgs = {}); // §5.10: function-valued result
+TIC_CALL void    TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool resultIsFunction, const TreeItem* resultSigExemplar, std::vector<TokenID> typeArgs = {}, TokenID sourceName = TokenID()); // §5.10: function-valued result
 bool    TreeItem_IsFunctionResultFunction(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_SetFunctionResultGenericUnit(const TreeItem* functionItem); // '-> unit<V>': concrete UnitClass follows from application
 bool    TreeItem_IsFunctionResultGenericUnit(const TreeItem* functionItem);
 auto    TreeItem_GetFunctionResultSig(const TreeItem* functionItem) -> SharedTreeItem;
 const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem* functionItem);
+TokenID TreeItem_GetFunctionResultSigName(const TreeItem* functionItem); // #1252: as the source wrote it
 void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);
 // drop the spec of a function item that is being destroyed; called from ~TreeItem, which is
 // the only reader of the assoc outside this component

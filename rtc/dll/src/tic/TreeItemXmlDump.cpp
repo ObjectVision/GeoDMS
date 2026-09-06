@@ -225,7 +225,12 @@ void DMS_WriteFunctionParam(OutStreamBase& out, const TreeItem* fn, const TreeIt
 	if (auto sig = TreeItem_GetFunctionParamSignature(fn, idx))
 	{
 		out << pname.c_str(); out << ": ";
-		out << SharedStr(sig->GetScriptName(fn)).c_str();
+		// #1252: the reference AS THE SOURCE WROTE IT, like the data-item types above.
+		// GetScriptName(fn) renders a path relative to the function's PARENT ('../unary_fn'),
+		// and the reader's parse-time type resolution does not take a dotted path, so the
+		// reloaded parameter silently became 'container f'.
+		auto srcName = TreeItem_GetFunctionParamSigName(fn, idx);
+		out << (srcName ? SharedStr(srcName) : SharedStr(sig->GetScriptName(fn))).c_str();
 		DMS_WriteTypeArgs(out, TreeItem_GetFunctionParamSigTypeArgs(fn, idx));
 		return;
 	}
@@ -264,7 +269,8 @@ void DMS_WriteResultType(OutStreamBase& out, const TreeItem* fn, const TreeItem*
 	{
 		if (auto rsig = TreeItem_GetFunctionResultSig(fn))
 		{
-			out << SharedStr(rsig->GetScriptName(fn)).c_str();
+			auto srcName = TreeItem_GetFunctionResultSigName(fn); // #1252: as the source wrote it
+			out << (srcName ? SharedStr(srcName) : SharedStr(rsig->GetScriptName(fn))).c_str();
 			DMS_WriteTypeArgs(out, TreeItem_GetFunctionResultSigTypeArgs(fn));
 		}
 		else

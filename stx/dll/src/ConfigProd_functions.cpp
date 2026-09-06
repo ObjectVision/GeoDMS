@@ -341,6 +341,18 @@ static const TreeItem* FindSubItemRaw(const TreeItem* parent, TokenID id)
 	return nullptr;
 }
 
+// walk the '/'-separated segments in [b, e) down from cursor; an empty range yields cursor
+static const TreeItem* FollowSubPathRaw(const TreeItem* cursor, CharPtr b, CharPtr e)
+{
+	while (cursor && b != e)
+	{
+		CharPtr segEnd = std::find(b, e, '/');
+		cursor = FindSubItemRaw(cursor, GetTokenID_mt(b, segEnd));
+		b = (segEnd == e) ? e : segEnd + 1;
+	}
+	return cursor;
+}
+
 const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 {
 	// parse-time type resolution: declared-before-use, walking the parent chain of the
@@ -348,7 +360,24 @@ const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 	// resolution must not be forced mid-parse)
 	SharedStr refStr(GetTokenStrLock(refID));
 	CharPtr b = refStr.begin(), e = refStr.send();
-	if (b == e || *b == '.' || *b == '/')
+	if (b == e)
+		return nullptr;
+
+	// #1252: an absolute path from the root of the tree under construction is the one path
+	// form with an unambiguous base, so it resolves here. A dot-relative path does not: a
+	// parameter is declared INSIDE the function item while a written relative name is based
+	// on the function's parent, so the two readings differ by one level. DoRefTypeSignature
+	// reports such a reference instead of letting it degrade into a container.
+	if (*b == '/')
+	{
+		const TreeItem* root = GetContextItem();
+		if (!root)
+			return nullptr;
+		while (const TreeItem* parent = root->GetTreeParent().get())
+			root = parent;
+		return FollowSubPathRaw(root, b + 1, e);
+	}
+	if (*b == '.')
 		return nullptr;
 
 	CharPtr slash = std::find(b, e, '/');
@@ -359,16 +388,7 @@ const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 		const TreeItem* found = FindSubItemRaw(scope, firstTok);
 		if (!found)
 			continue;
-		CharPtr segBegin = slash;
-		const TreeItem* cursor = found;
-		while (cursor && segBegin != e)
-		{
-			++segBegin; // skip '/'
-			CharPtr segEnd = std::find(segBegin, e, '/');
-			cursor = FindSubItemRaw(cursor, GetTokenID_mt(segBegin, segEnd));
-			segBegin = segEnd;
-		}
-		return cursor; // nearest scope wins; no fall-through on partial resolution
+		return FollowSubPathRaw(found, (slash == e) ? e : slash + 1, e); // nearest scope wins; no fall-through on partial resolution
 	}
 	return nullptr;
 }
@@ -376,6 +396,7 @@ const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 void ConfigProd::DoRefTypeSignature()
 {
 	m_PendingFunctionParamSig = nullptr;
+	m_PendingTypeRefName = m_strIdentifierID; // #1252: keep the reference as written, for the config dump
 	m_PendingTypeArgs.clear(); // a fresh typeref: type-application args follow, if any
 
 	if (auto exemplar = ResolveTypeRef(m_strIdentifierID))
@@ -421,6 +442,18 @@ void ConfigProd::DoRefTypeSignature()
 		return;
 	}
 
+	// #1252: a PATH is explicit -- when it does not resolve it is a typo or a stale path,
+	// never the 'f: function' or declared-further-down case that the permissive fallback
+	// below exists for. Such a reference used to become a plain container without a word.
+	SharedStr refStr(GetTokenStrLock(m_strIdentifierID));
+	CharPtr rb = refStr.begin(), re = refStr.send();
+	if (rb != re && *rb == '.')
+		throwSemanticError(mgFormat2string("a dot-relative path ({}) is not supported as a type reference; write the item's name, or an absolute path starting at '/'"
+			, refStr).c_str());
+	if (std::find(rb, re, '/') != re)
+		throwSemanticError(mgFormat2string("unknown type: the path {} does not resolve to a previously declared item"
+			, refStr).c_str());
+
 	// unresolved reference: allowed inside function declarations only (binds by
 	// reference, e.g. 'f: function' or a composite type declared further down)
 	if (m_FuncStates.empty())
@@ -447,7 +480,7 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 			m_LastDeclSiblings.push_back(m_pCurrent); // all but the last; props/expr also apply to these
 		bool topLevel = inParams && IsTopLevelFunctionParam();
 		if (m_PendingFunctionParamSig && topLevel)
-			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig, m_PendingTypeArgs);
+			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig, m_PendingTypeArgs, m_PendingTypeRefName);
 		// K11a by-example: 'nw: network_links' / 'cfg: Settings' -- retain the UNIT or
 		// CONTAINER exemplar so the definition-time checker can type the parameter's
 		// members from ITS declared sub-items (the class clone above carries no
@@ -463,6 +496,7 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 	}
 	m_PendingNames.clear();
 	m_PendingFunctionParamSig = nullptr;
+	m_PendingTypeRefName = TokenID();
 
 	ClearSignature();
 	ClearPropData();
@@ -705,8 +739,10 @@ void ConfigProd::OnFunctionResultSig()
 		// declared result signature faithfully ('-> nuf<V, D>' rather than '-> function').
 		m_FuncStates.back().resultSigExemplar = m_PendingFunctionParamSig;
 		m_FuncStates.back().resultSigTypeArgs = std::move(m_PendingTypeArgs);
+		m_FuncStates.back().resultSigName = m_PendingTypeRefName; // #1252: as the source wrote it
 		m_PendingTypeArgs.clear();
 		m_PendingFunctionParamSig = nullptr;
+		m_PendingTypeRefName = TokenID();
 		m_FuncStates.back().resultIsFunction = true;
 	}
 	auto& fs = m_FuncStates.back();
@@ -865,7 +901,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 
 	TreeItem_SetFunctionSpec(func, fs.paramCount, designated);
 	for (const auto& paramSig : fs.paramSigs)
-		TreeItem_AddFunctionParamSignature(func, std::get<0>(paramSig), std::get<1>(paramSig), std::get<2>(paramSig));
+		TreeItem_AddFunctionParamSignature(func, std::get<0>(paramSig), std::get<1>(paramSig), std::get<2>(paramSig), std::get<3>(paramSig));
 	for (const auto& paramEx : fs.paramExemplars)
 		TreeItem_AddFunctionParamTypeExemplar(func, paramEx.first, paramEx.second); // K11a by-example member source
 	for (const auto& genericParam : fs.genericParams)
@@ -877,7 +913,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	if (fs.signatureOnly)
 		TreeItem_SetFunctionSignatureOnly(func); // config-dump: render 'nuf = function<...>(...) -> ...;'
 	if (fs.resultIsFunction)
-		TreeItem_SetFunctionResultSig(func, true, fs.resultSigExemplar, fs.resultSigTypeArgs); // config-dump: render '-> nuf<V, D>'
+		TreeItem_SetFunctionResultSig(func, true, fs.resultSigExemplar, fs.resultSigTypeArgs, fs.resultSigName); // config-dump: render '-> nuf<V, D>'
 	if (fs.resultIsGenericUnit)
 		TreeItem_SetFunctionResultGenericUnit(func);
 	// arity-aware operator-name coexistence check (variant members are not call heads;

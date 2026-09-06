@@ -43,6 +43,7 @@ namespace {
 		UInt32 nrParams = 0;
 		TokenID resultName;
 		std::vector<std::tuple<UInt32, std::weak_ptr<const TreeItem>, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
+		std::vector<std::pair<UInt32, TokenID>> paramSigNames = {}; // #1252: (param index, the reference as the source wrote it)
 		// the `= {}` on the members below keeps `FunctionSpecData{ nrParams, resultName, {} }`
 		// out of -Wmissing-field-initializers, like the bool members further down
 		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramTypeExemplars = {}; // K11a by-example: (param index, UNIT exemplar whose declared members type the parameter)
@@ -57,8 +58,9 @@ namespace {
 		bool resultIsGenericUnit = false; // '-> unit<V>': represented as TreeItem until the application binds V
 		std::weak_ptr<const TreeItem> resultSig = {}; // the '-> sigAlias<...>' result-signature exemplar, if any (else expired)
 		std::vector<TokenID> resultSigTypeArgs = {};  // the result signature's type-application args
+		TokenID resultSigName = {};                   // #1252: the result signature reference as the source wrote it
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet && !v.signatureOnly && !v.resultIsFunction && !v.resultIsGenericUnit && v.resultSig.expired() && v.resultSigTypeArgs.empty(); }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet && !v.signatureOnly && !v.resultIsFunction && !v.resultIsGenericUnit && v.resultSig.expired() && v.resultSigTypeArgs.empty() && v.paramSigNames.empty() && !v.resultSigName; }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -129,11 +131,24 @@ TIC_CALL void TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrPa
 	s_FunctionSpecAssoc.assocOrErase(functionItem, FunctionSpecData{ nrParams, resultName, {} });
 }
 
-TIC_CALL void TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs)
+TIC_CALL void TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs, TokenID sourceName)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
 	assert(signatureExemplar && signatureExemplar->IsFunctionItem());
-	s_FunctionSpecAssoc[functionItem].paramSigs.emplace_back(paramIndex, signatureExemplar->weak_from_this(), std::move(typeArgs));
+	auto& spec = s_FunctionSpecAssoc[functionItem];
+	spec.paramSigs.emplace_back(paramIndex, signatureExemplar->weak_from_this(), std::move(typeArgs));
+	if (sourceName)
+		spec.paramSigNames.emplace_back(paramIndex, sourceName);
+}
+
+TokenID TreeItem_GetFunctionParamSigName(const TreeItem* functionItem, UInt32 paramIndex)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (specPtr)
+		for (const auto& sigName : specPtr->paramSigNames)
+			if (sigName.first == paramIndex)
+				return sigName.second;
+	return {};
 }
 
 SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex)
@@ -232,7 +247,7 @@ bool TreeItem_IsFunctionSignatureOnly(const TreeItem* functionItem)
 
 // §5.10: record a function-valued result. `resultSigExemplar` (the '-> sigAlias<...>' exemplar,
 // may be null for a bare '-> function') + its type-application args enable faithful rendering.
-TIC_CALL void TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool resultIsFunction, const TreeItem* resultSigExemplar, std::vector<TokenID> typeArgs)
+TIC_CALL void TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool resultIsFunction, const TreeItem* resultSigExemplar, std::vector<TokenID> typeArgs, TokenID sourceName)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
 	auto& spec = s_FunctionSpecAssoc[functionItem];
@@ -240,6 +255,7 @@ TIC_CALL void TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool r
 	if (resultSigExemplar)
 		spec.resultSig = resultSigExemplar->weak_from_this();
 	spec.resultSigTypeArgs = std::move(typeArgs);
+	spec.resultSigName = sourceName;
 }
 
 bool TreeItem_IsFunctionResultFunction(const TreeItem* functionItem)
@@ -274,6 +290,12 @@ const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem
 	if (specPtr && !specPtr->resultSigTypeArgs.empty())
 		return &specPtr->resultSigTypeArgs;
 	return nullptr;
+}
+
+TokenID TreeItem_GetFunctionResultSigName(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr ? specPtr->resultSigName : TokenID();
 }
 
 // ===================================== §5.7 v2: variant specificity / disjointness
