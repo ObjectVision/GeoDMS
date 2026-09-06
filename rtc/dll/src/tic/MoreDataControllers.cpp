@@ -421,10 +421,15 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	bool mustStartCalc = (context != nullptr);
 	if (!mustStartCalc)
 	{
+		// A parallel operator is asked whether everything anyone WANTS is calculating or ready; a
+		// meta-thread one whether every member is in standby. #1259 moved parse_xml to the first of
+		// these, which its comment used to name as needing the second: a composite result whose
+		// members are reached through SubItem is what the interested form is for, and it already
+		// carries storage_read_table and the PhaseContainer members, which have the same shape.
 		if (IsNew() && GetOperator()->CanRunParallel())
 			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(curr.get());
 		else
-			mustStartCalc = !IsAllDataCurrStandby(curr.get()); // condition required for operations such as parse_xml as first argument of a SubItem
+			mustStartCalc = !IsAllDataCurrStandby(curr.get());
 	}
 
 	if (mustStartCalc)
