@@ -350,6 +350,74 @@ struct RapidXmlOperator : public BinaryOperator
 		assert(resultHolder);
 	}
 
+	// #1259: without this the base estimator calls parse_xml a FREE operation. Its result is a
+	// cache-root container, so Operator::EstimatePerformance takes the early-out for a non-DataItem
+	// result -- regime 'meta', zero bytes, and confidence 'derived', i.e. high confidence in the
+	// number 0 -- and MemoryLedger_Retain, guarded on the same IsDataItem test, books nothing after
+	// the fact either. The gate therefore reads 0 for the hungriest operation in a BAG import and
+	// admits the next fileset whatever the process already holds.
+	//
+	// The two terms are shaped differently and were measured separately (synthetic PND filesets of
+	// 43 to 346 MB, GeoDms 20.19.3.m):
+	//
+	//  * The RESULT accumulates over the whole argument: one ParseContext lives across the file loop
+	//    in CalcResult, and what lands in it is the element text the SCHEMA captures -- an element
+	//    the schema does not name gets the base Element, whose AddValue is a no-op. Measured 0.60x
+	//    the input bytes for the BAG pand schema, which captures the coordinate lists, and 0.02x for
+	//    a schema of one attribute. The charge below is the input size itself: captured text is a
+	//    subset of the document, so that is a sound ceiling that needs no per-schema calibration,
+	//    and over-charging is the direction the charge policy prefers (a slower run, not a paging
+	//    collapse). A sharper factor would have to come from the schema in arg 1.
+	//
+	//  * The WORKING set is per FILE, not per argument: the rapidxml document and the string copy it
+	//    parses in place are declared inside the loop body and freed each iteration. Measured: the
+	//    peak of a minimal-schema parse equals the peak of the read that feeds it, at every size, so
+	//    charging the whole argument here would over-book by the file count -- fifty-fold on this
+	//    configuration.
+	//
+	// The regime stays 'meta' because that is what the result IS; resultingMemory is what
+	// LedgerChargeOf reads. Confidence is left as the base set it, for the reason
+	// AbstrPolygonConnectivityOperator spells out: RefreshEstimateForAdmission installs nothing above
+	// 'declared', so downgrading here would discard the figure this exists to supply.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
+
+		if (args.empty())
+			return result;
+		auto argItem = GetItem(args[0]);
+		if (!argItem || !IsDataItem(argItem))
+			return result;
+		auto argAdi = AsDataItem(argItem);
+
+		AbstrUnit::CountEstimate argCount;
+		try { argCount = argAdi->GetAbstrDomainUnit()->EstimateCount(); }
+		catch (...) { return result; } // an unresolvable domain keeps the base's figures
+		auto inputBytes = EstimateDataBytes(argAdi, argCount.expected);
+		if (!inputBytes)
+			return result;
+
+		// rapidxml parses in place into a copy of the element, and its node pool holds a record per
+		// node beside it. An order-of-magnitude shape factor, not a measurement of a particular run.
+		static constexpr SizeT XML_DOM_BYTES_PER_ELEMENT_BYTE = 3;
+
+		result.inputSize = inputBytes;
+		result.inputSizePerChore = inputBytes;
+		result.nrChores = 1;
+		result.extraTasks = 1;
+
+		auto bytesPerElement = argCount.expected ? (inputBytes / argCount.expected) : inputBytes;
+		result.workingMemorySize = bytesPerElement * XML_DOM_BYTES_PER_ELEMENT_BYTE;
+		result.workingMemorySizePerChore = result.workingMemorySize;
+
+		result.resultingNrElements = argCount.expected;
+		result.resultingMemory = inputBytes;
+		result.resultingMemoryUpperBound = inputBytes;
+		result.residentMemory = inputBytes;
+		result.choreMemory = inputBytes;
+		return result;
+	}
+
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& argRefs, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const override
 	{
 		assert(resultHolder);

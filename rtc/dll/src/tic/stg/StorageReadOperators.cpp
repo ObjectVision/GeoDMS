@@ -137,6 +137,30 @@ SharedTreeItem ResolveConfigItem(const TreeItemDualRef& resultHolder)
 	return item;
 }
 
+// #1259: put a storage's own answer about its read volume into an estimate. See the long note above
+// ApplyStorageReadBytes below, which resolves the three arguments from a result holder; this is the
+// core, so that the read's performance line and the operator's estimate cannot disagree -- and they
+// did, visibly: the same 346 MB read reported 1.00x against the operator estimate and 51131x against
+// the report's own, because only one of the two consulted the storage.
+void ApplyStorageReadBytes(PerformanceEstimationData& result, const AbstrStorageManager* sm
+	, const TreeItem* storageHolder, const TreeItem* configItem)
+{
+	if (!sm || !storageHolder || !configItem)
+		return;
+	SizeT bytes = 0;
+	try { bytes = sm->EstimateReadBytes(storageHolder, configItem); }
+	catch (...) { return; } // a storage that cannot look: keep the assumed figure, never fail an estimate
+	if (!bytes)
+		return;
+
+	result.resultingMemory = bytes;
+	result.resultingMemoryUpperBound = Max<SizeT>(bytes, result.resultingMemoryUpperBound);
+	result.ioBytes = bytes;              // the volume that crosses the storage boundary
+	result.residentMemory = bytes;       // eager: the read writes into the result array and keeps it
+	if (result.nrChores <= 1)
+		result.choreMemory = bytes;
+}
+
 storage_read_request& GetOrCreateRequest(TreeItem* root, const TreeItemDualRef& resultHolder)
 {
 	root->UpdateMetaInfo(); // a passor: marks it MetaInfo-ready, which the DataWriteLock of a member asserts on a worker thread
@@ -443,9 +467,14 @@ void ReadMembersAtOnce(NonmappableStorageManager* sm, TreeItem* root, const std:
 	bool measure = IsPerformanceLogging();
 	PerformanceEstimationData estimate;
 	if (measure)
-		for (auto& t : targets)
+		for (SizeT i = 0, n = targets.size(); i != n; ++i)
 		{
+			const auto& t = targets[i];
 			auto e = EstimateReadResources(t.m_Item);
+			// #1259: a manager that knows its per-member volume beforehand overrules the assumed
+			// widths here too, so that this pass and the gate weigh the same bytes. None of the
+			// at-once managers answers today; the single-member path below is where strfiles lands.
+			ApplyStorageReadBytes(e, sm, t.m_MetaInfo->StorageHolder(), members[i]->m_ConfigItem.get());
 			estimate.residentMemory      += e.residentMemory;
 			estimate.choreMemory         += e.choreMemory;
 			estimate.resultingNrElements += e.resultingNrElements;
@@ -560,6 +589,8 @@ bool ReadPendingMembers(TreeItem* root)
 				{
 					bool measure = IsPerformanceLogging();
 					auto estimate = measure ? EstimateReadResources(cacheItem) : PerformanceEstimationData(); // the domain count is known: the table's range was read first
+					if (measure)
+						ApplyStorageReadBytes(estimate, sm.get(), req.m_Holder.get(), m.m_ConfigItem.get()); // #1259: the same figure the gate was given
 					PerfTimer timer(measure);
 
 					ok = ReadDataItemInto(sm.get(), srh.MetaInfo(), AsDataItem(cacheItem));
@@ -629,6 +660,43 @@ member_spec_parts SplitMemberSpec(SharedStr memberSpec)
 		throwDmsErrF("storage read: unknown value composition '{}' in member spec '{}'", suffix, memberSpec);
 	result.m_Name = SharedStr(CharPtrRange(r.first, colon));
 	return result;
+}
+
+// #1259: what the admission gate is told a read will cost.
+//
+// Operator::EstimatePerformance charges EstimateDataBytes over the result's domain. For a
+// fixed-width result that is exact, but for a variable-width one with no measured width yet it is
+// ASSUMED_STRING_BYTES (32) plus an index entry per element -- and the first read of an item is
+// precisely when no width has been measured. Logged on a strfiles fileset of 50 whole XML files:
+//
+//   read .../fs_1/XmlData: 20.8ms n=50 (1.00x derived) B=43.30M (22702.60x) 2085.2MB/s 1 chores
+//
+// 2 KB charged against 43 MB allocated. A storage that knows its volume beforehand says so through
+// AbstrStorageManager::EstimateReadBytes, and this puts that answer where the gate reads it:
+// resultingMemory, which is what LedgerChargeOf adds up, and ioBytes, which is what the read's own
+// performance line compares against.
+//
+// The confidence is left as the base set it, deliberately, for the reason spelled out in
+// AbstrPolygonConnectivityOperator: RefreshEstimateForAdmission installs nothing above 'declared',
+// so downgrading here would discard the very figure this exists to supply.
+//
+// Applied to the attribute and value reads. The table read is a unit whose MEMBERS carry the data;
+// its members are estimated when they are collected, and giving the table operator a total would
+// need the pending list, which does not exist at schedule time. Left alone rather than guessed.
+void ApplyStorageReadBytes(PerformanceEstimationData& result, const TreeItemDualRef& resultHolder)
+{
+	SharedTreeItem configItem;
+	try { configItem = ResolveConfigItem(resultHolder); }
+	catch (...) { return; } // no origin item, or no storage: the base's figures stand
+
+	auto storageHolder = configItem->GetStorageParent(false);
+	if (!storageHolder)
+		return;
+	auto sm = storageHolder->GetStorageManager(false);
+	if (!sm)
+		return;
+
+	ApplyStorageReadBytes(result, sm, storageHolder.get(), configItem.get());
 }
 
 // *****************************************************************************
@@ -754,6 +822,13 @@ struct StorageReadValueOperator : BinaryOperator
 		return RequiredStorageManager(resultHolder);
 	}
 
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
+		ApplyStorageReadBytes(result, resultHolder);
+		return result;
+	}
+
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		auto root = resultHolder.GetNew();
@@ -815,6 +890,13 @@ struct StorageReadAttrOperator : QuaternaryOperator
 	auto GetRequiredStorageManager(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> SharedPtr<NonmappableStorageManager> override
 	{
 		return RequiredStorageManager(resultHolder);
+	}
+
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = QuaternaryOperator::EstimatePerformance(resultHolder, args);
+		ApplyStorageReadBytes(result, resultHolder);
+		return result;
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override

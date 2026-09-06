@@ -1395,7 +1395,18 @@ void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept
 			return;
 		auto bytes = obj->GetNrBytesNow(false);
 		auto avg = bytes / rows;
-		if (avg && avg <= (SizeT(1) << 20)) // > 1 MiB/row is not a credible element width
+		// #1259: the ceiling was 1 MiB/row, which a whole-file read exceeds as a matter of course --
+		// a strfiles attribute holds one BAG XML file per element, 1.7 MB and up. The rejection cost
+		// twice over: EstimateDataBytes kept charging ASSUMED_STRING_BYTES for the item, and the
+		// performance line, which grades the estimate against EstimateDataBytes over the ACTUAL
+		// count, then compared that same assumption with itself and printed a perfect score for a
+		// read that had just allocated 346 MB:
+		//   read .../fs_1/XmlData: 125.6ms n=50 (1.00x derived) B=1K (1.00x) 0.0MB/s 1 chores
+		// So the diagnostic went blind exactly where the estimate was worst. The guard is against a
+		// bogus GetNrBytesNow, not against a large element: avg is bytes the object reports divided
+		// by rows it reports, and EstimateDataBytes bounds whatever is built from it (CappedDataBytes).
+		// A gigabyte per element is beyond any real one and still catches a nonsense measurement.
+		if (avg && avg <= (SizeT(1) << 30))
 			adi->SetEstimatedBytesPerElement(avg);
 	}
 	catch (...) {}

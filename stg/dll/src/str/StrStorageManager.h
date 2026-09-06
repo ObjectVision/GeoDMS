@@ -45,6 +45,8 @@ public:
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
+	SizeT EstimateReadBytes(const TreeItem* storageHolder, const TreeItem* curr) const override; // #1259: the sum of the file sizes
+
 protected:
 	SharedStr GetFileName(const TreeItem* storageHolder, const TreeItem* curr, SizeT recNo) const override;
 	SizeT     GetNrFiles (const TreeItem* storageHolder, const TreeItem* curr) const override;

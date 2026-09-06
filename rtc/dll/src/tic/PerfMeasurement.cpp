@@ -134,10 +134,17 @@ void ReportOperPerformance(CharPtr operName, const TreeItem* result
 
 	if (!result || !IsDataItem(result))
 	{
-		// A unit or container result: the operator only did meta work, so there is nothing to
-		// compare. Still worth timing -- meta work on the meta thread delays everything behind it.
+		// A unit or container result. There is no actual element count or array to grade the
+		// estimate against -- that is what the data-item line below does -- but "no data cost" was
+		// wrong as a claim and blind as a diagnostic: parse_xml's cache tree and
+		// polygon_connectivity's graph are exactly this shape, and the overrides that model them
+		// (#1259, schedule-with-lookahead §4.3) had nowhere to show their figures. So print what was
+		// estimated and, through workStr, what the run actually allocated inside its own
+		// CancelableFrame -- which for these operators is the only comparison available.
 		reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
-			, "oper {} {}: {:.1f}ms meta result, no data cost", operName, resultLabel, elapsedMSec);
+			, "oper {} {}: {:.1f}ms meta result, est res={} {}{}"
+			, operName, resultLabel, elapsedMSec
+			, Bytes(estimate.resultingMemory), AsString(estimate.confidence), workStr);
 		return;
 	}
 

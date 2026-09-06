@@ -223,6 +223,30 @@ FileResult StrFilesStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 	return base_type::WriteDataItem(std::move(smi));
 }
 
+// #1259: the read produces one string per file, so its volume is the sum of the file sizes plus the
+// sequence index -- known before a byte is read, and the figure the admission gate needs. Without it
+// the gate charges EstimateDataBytes' assumed 32 bytes per string: 2 KB for a 43 MB fileset, and no
+// pressure to weigh against the budget however many filesets are queued.
+//
+// The same walk ReadDataItem makes, with the size taken from the opened handle instead of the
+// content: FileName is an argument of the read (#587), so it is calculated by the time this is asked
+// and the DataReadLock below is uncontended. A file that will not open returns 0 rather than a
+// partial sum -- the read reports the failure, and half an estimate is worse than none.
+SizeT StrFilesStorageManager::EstimateReadBytes(const TreeItem* storageHolder, const TreeItem* curr) const
+{
+	DataReadLock drl(GetFileNameAttr(storageHolder, curr));
+
+	SizeT total = 0, n = GetNrFiles(storageHolder, curr);
+	for (SizeT i = 0; i != n; ++i)
+	{
+		FilePtrHandle file;
+		if (!file.OpenFH(GetFileName(storageHolder, curr, i), FCM_OpenReadOnly, false, 0))
+			return 0;
+		total += file.GetFileSize();
+	}
+	return total + n * sizeof(SizeT);
+}
+
 void StrFilesStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);

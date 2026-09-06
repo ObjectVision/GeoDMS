@@ -332,6 +332,18 @@ public:
 	TIC_CALL virtual bool ReadUnitRange(const StorageMetaInfo& smi) const;
 	TIC_CALL virtual bool WriteUnitRange(StorageMetaInfoPtr&& smi);
 
+	// #1259: the byte volume that reading curr from this storage will produce, for the admission
+	// gate, or 0 when this storage cannot say cheaply and exactly. Only override where the answer is
+	// KNOWN before the read -- a directory listing, a header, a declared record count -- never where
+	// it takes a scan; the caller falls back to EstimateDataBytes' assumed element widths, which is
+	// merely imprecise, whereas an estimator that reads the data defeats its own purpose.
+	//
+	// It exists because that fallback is hopeless for a whole-file read: ASSUMED_STRING_BYTES (32)
+	// plus an index entry per element makes 2 KB of a strfiles fileset that allocates 43 MB, and the
+	// gate cannot defer what it cannot see. Called on the meta thread or on the worker that is about
+	// to run the read, with the read's other arguments already calculated.
+	TIC_CALL virtual SizeT EstimateReadBytes(const TreeItem* storageHolder, const TreeItem* curr) const;
+
 	void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
 
 protected:

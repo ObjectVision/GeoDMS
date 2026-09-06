@@ -1133,9 +1133,16 @@ bool AbstrStorageManager::ReadUnitRange (const StorageMetaInfo& smi) const
 	throwIllegalAbstract(MG_POS, "AbstrStorageManager::ReadUnitRange");
 }
 
-bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)  
+bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 {
 	throwIllegalAbstract(MG_POS, "AbstrStorageManager::WriteUnitRange");
+}
+
+// #1259: not knowing is the honest default. A storage that cannot answer without reading says so
+// here, and the caller keeps EstimateDataBytes' figure rather than a fabricated one.
+SizeT AbstrStorageManager::EstimateReadBytes(const TreeItem* /*storageHolder*/, const TreeItem* /*curr*/) const
+{
+	return 0;
 }
 
 
