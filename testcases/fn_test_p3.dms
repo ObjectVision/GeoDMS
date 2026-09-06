@@ -5,17 +5,21 @@ container fn_test_p3
 		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
 	}
 
+	// #1252: a function-valued parameter states the signature it must match; 'function' is not
+	// a type. One alias serves every unary domain+attribute function here.
+	unary_fn = (unit<uint32> Dx; attribute<float64> v (Dx)) -> attribute<float64> (Dx);
+
 	container lib
 	{
 		function Halve(unit<uint32> Dx; attribute<float64> v (Dx))
 		-> attribute<float64> (Dx) := v / 2.0;
 
 		// higher-order: a function-valued parameter, applied twice
-		function ApplyTwice(unit<uint32> Dx; f: function; attribute<float64> x (Dx))
+		function ApplyTwice(unit<uint32> Dx; f: unary_fn; attribute<float64> x (Dx))
 		-> attribute<float64> (Dx) := f(Dx, f(Dx, x));
 
 		// two function-valued parameters, composed
-		function Compose2(unit<uint32> Dx; f: function; g: function; attribute<float64> x (Dx))
+		function Compose2(unit<uint32> Dx; f: unary_fn; g: unary_fn; attribute<float64> x (Dx))
 		-> attribute<float64> (Dx) := f(Dx, g(Dx, x));
 
 		// passing a sibling function (resolved via import) onward from inside a body

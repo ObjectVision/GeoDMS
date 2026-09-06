@@ -341,62 +341,20 @@ static const TreeItem* FindSubItemRaw(const TreeItem* parent, TokenID id)
 	return nullptr;
 }
 
-// walk the '/'-separated segments in [b, e) down from cursor; an empty range yields cursor
-static const TreeItem* FollowSubPathRaw(const TreeItem* cursor, CharPtr b, CharPtr e)
-{
-	while (cursor && b != e)
-	{
-		CharPtr segEnd = std::find(b, e, '/');
-		cursor = FindSubItemRaw(cursor, GetTokenID_mt(b, segEnd));
-		b = (segEnd == e) ? e : segEnd + 1;
-	}
-	return cursor;
-}
-
 const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 {
-	// parse-time type resolution: declared-before-use, walking the parent chain of the
-	// current context; using-directives are deliberately not consulted (their lazy
-	// resolution must not be forced mid-parse)
+	// parse-time type resolution: declared-before-use, against the namespace the declaration
+	// sits in. The rule itself lives in tic (TreeItem_ResolveTypeRefRaw), because the deferred
+	// resolution at UpdateMetaInfo time (#1252) must apply exactly the same one.
 	SharedStr refStr(GetTokenStrLock(refID));
-	CharPtr b = refStr.begin(), e = refStr.send();
-	if (b == e)
-		return nullptr;
-
-	// #1252: an absolute path from the root of the tree under construction is the one path
-	// form with an unambiguous base, so it resolves here. A dot-relative path does not: a
-	// parameter is declared INSIDE the function item while a written relative name is based
-	// on the function's parent, so the two readings differ by one level. DoRefTypeSignature
-	// reports such a reference instead of letting it degrade into a container.
-	if (*b == '/')
-	{
-		const TreeItem* root = GetContextItem();
-		if (!root)
-			return nullptr;
-		while (const TreeItem* parent = root->GetTreeParent().get())
-			root = parent;
-		return FollowSubPathRaw(root, b + 1, e);
-	}
-	if (*b == '.')
-		return nullptr;
-
-	CharPtr slash = std::find(b, e, '/');
-	TokenID firstTok = (slash == e) ? refID : GetTokenID_mt(b, slash);
-
-	for (const TreeItem* scope = GetContextItem(); scope; scope = scope->GetTreeParent().get())
-	{
-		const TreeItem* found = FindSubItemRaw(scope, firstTok);
-		if (!found)
-			continue;
-		return FollowSubPathRaw(found, (slash == e) ? e : slash + 1, e); // nearest scope wins; no fall-through on partial resolution
-	}
-	return nullptr;
+	return TreeItem_ResolveTypeRefRaw(GetContextItem(), refStr.begin(), refStr.send());
 }
 
 void ConfigProd::DoRefTypeSignature()
 {
 	m_PendingFunctionParamSig = nullptr;
 	m_PendingTypeRefName = m_strIdentifierID; // #1252: keep the reference as written, for the config dump
+	m_PendingTypeRefUnresolved = false;
 	m_PendingTypeArgs.clear(); // a fresh typeref: type-application args follow, if any
 
 	if (auto exemplar = ResolveTypeRef(m_strIdentifierID))
@@ -442,23 +400,21 @@ void ConfigProd::DoRefTypeSignature()
 		return;
 	}
 
-	// #1252: a PATH is explicit -- when it does not resolve it is a typo or a stale path,
-	// never the 'f: function' or declared-further-down case that the permissive fallback
-	// below exists for. Such a reference used to become a plain container without a word.
+	// #1252: 'function' names no type. What a parameter or a result must state is the
+	// signature itself, which is what a signature alias declares.
 	SharedStr refStr(GetTokenStrLock(m_strIdentifierID));
-	CharPtr rb = refStr.begin(), re = refStr.send();
-	if (rb != re && *rb == '.')
-		throwSemanticError(mgFormat2string("a dot-relative path ({}) is not supported as a type reference; write the item's name, or an absolute path starting at '/'"
-			, refStr).c_str());
-	if (std::find(rb, re, '/') != re)
-		throwSemanticError(mgFormat2string("unknown type: the path {} does not resolve to a previously declared item"
-			, refStr).c_str());
+	if (!stricmp(refStr.c_str(), "function"))
+		throwSemanticError("'function' is not a type: declare the signature, 'name = (params) -> result;' or 'name = function<vars>(params) -> result;', and write that name here");
 
-	// unresolved reference: allowed inside function declarations only (binds by
-	// reference, e.g. 'f: function' or a composite type declared further down)
 	if (m_FuncStates.empty())
 		throwSemanticError("unknown type: an item reference used as type must resolve to a previously declared item (outside function declarations)");
+
+	// #1252: inside a function declaration the type may still be declared further down, so the
+	// reference is kept as written and resolved when this function item's meta info is updated;
+	// a reference that does not resolve there fails that declaration with FailType::MetaInfo,
+	// rather than turning into a plain container without a word.
 	SetSignature(SignatureType::TreeItem);
+	m_PendingTypeRefUnresolved = true;
 }
 
 void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
@@ -481,6 +437,8 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 		bool topLevel = inParams && IsTopLevelFunctionParam();
 		if (m_PendingFunctionParamSig && topLevel)
 			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig, m_PendingTypeArgs, m_PendingTypeRefName);
+		else if (m_PendingTypeRefUnresolved && topLevel) // #1252: resolve when the meta info of this function is updated
+			m_FuncStates.back().pendingParamSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingTypeRefName, m_PendingTypeArgs);
 		// K11a by-example: 'nw: network_links' / 'cfg: Settings' -- retain the UNIT or
 		// CONTAINER exemplar so the definition-time checker can type the parameter's
 		// members from ITS declared sub-items (the class clone above carries no
@@ -497,6 +455,7 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 	m_PendingNames.clear();
 	m_PendingFunctionParamSig = nullptr;
 	m_PendingTypeRefName = TokenID();
+	m_PendingTypeRefUnresolved = false;
 
 	ClearSignature();
 	ClearPropData();
@@ -743,6 +702,17 @@ void ConfigProd::OnFunctionResultSig()
 		m_PendingTypeArgs.clear();
 		m_PendingFunctionParamSig = nullptr;
 		m_PendingTypeRefName = TokenID();
+		m_PendingTypeRefUnresolved = false;
+		m_FuncStates.back().resultIsFunction = true;
+	}
+	else if (m_PendingTypeRefUnresolved)
+	{
+		// #1252: '-> sig' with sig declared further down; resolved at UpdateMetaInfo
+		m_FuncStates.back().pendingResultSigName = m_PendingTypeRefName;
+		m_FuncStates.back().pendingResultSigTypeArgs = std::move(m_PendingTypeArgs);
+		m_PendingTypeArgs.clear();
+		m_PendingTypeRefName = TokenID();
+		m_PendingTypeRefUnresolved = false;
 		m_FuncStates.back().resultIsFunction = true;
 	}
 	auto& fs = m_FuncStates.back();
@@ -769,6 +739,10 @@ void ConfigProd::OnFunctionResultExpr(iterator_t first, iterator_t last)
 
 void ConfigProd::OnFunctionResultIsFunction()
 {
+	// #1252: 'function' names no type in either position. A function-valued result states the
+	// signature it returns, which is what a signature alias declares.
+	throwSemanticError("'function' is not a result type: declare the signature, 'name = (params) -> result;' or 'name = function<vars>(params) -> result;', and write '-> name' here");
+
 	// §5.10 '-> function': the result is a nested function, designated by name
 	// (default 'result') from the body block; no data signature applies
 	dms_assert(!m_FuncStates.empty());
@@ -786,7 +760,7 @@ void ConfigProd::OnAnonResultFunction()
 	dms_assert(!m_FuncStates.empty());
 	auto& fs = m_FuncStates.back();
 	if (!fs.resultIsFunction)
-		throwSemanticError("an anonymous function result requires a '-> function' or signature-typed result specification");
+		throwSemanticError("an anonymous function result requires a signature-typed result specification, '-> name' with name a declared signature");
 	m_ItemNameID = fs.resultName ? fs.resultName : t_Result;
 }
 
@@ -902,6 +876,10 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	TreeItem_SetFunctionSpec(func, fs.paramCount, designated);
 	for (const auto& paramSig : fs.paramSigs)
 		TreeItem_AddFunctionParamSignature(func, std::get<0>(paramSig), std::get<1>(paramSig), std::get<2>(paramSig), std::get<3>(paramSig));
+	for (const auto& pending : fs.pendingParamSigs) // #1252: resolved at UpdateMetaInfo, failing there when it stays unresolved
+		TreeItem_AddPendingFunctionParamSig(func, std::get<0>(pending), std::get<1>(pending), std::get<2>(pending));
+	if (fs.pendingResultSigName)
+		TreeItem_SetPendingFunctionResultSig(func, fs.pendingResultSigName, fs.pendingResultSigTypeArgs);
 	for (const auto& paramEx : fs.paramExemplars)
 		TreeItem_AddFunctionParamTypeExemplar(func, paramEx.first, paramEx.second); // K11a by-example member source
 	for (const auto& genericParam : fs.genericParams)

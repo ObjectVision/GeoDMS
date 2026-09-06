@@ -854,6 +854,15 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 		FencedInterestRetainContext retainLocalInterestUntilThisDies("UpdateMetaInfo");
 
+		// #1252: a signature reference that did not resolve while parsing (a type declared
+		// further down) is resolved here, where the whole configuration is in place. A
+		// reference that still does not resolve throws, and the catch below fails this very
+		// declaration with FailType::MetaInfo. Before the passor test: a function item is a
+		// passor (SetIsFunction -> SetIsTemplate -> SetInTemplate -> SetPassor), so nothing
+		// past that return runs for one.
+		if (IsFunctionItem() && TreeItem_HasPendingFunctionSigs(this))
+			TreeItem_ResolvePendingFunctionSigs(this);
+
 		// DetermineState() -> DoInvalidate() could reset TSF_MetaInfoReady
 		if (IsPassor())
 		{

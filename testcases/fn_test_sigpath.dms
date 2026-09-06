@@ -1,0 +1,45 @@
+container fn_test_sigpath
+{
+	// GeoDMS #1252. A parameter typed by a function signature may name that signature by a
+	// PATH, not only by a name the scope walk happens to find. The base is the namespace the
+	// declaration sits in, which for a parameter is the function item itself, so from a
+	// function inside 'lib' the signature at the top level is '...' (one dot for the function,
+	// one per level up), and '/unary_fn' says the same thing from the root. All three
+	// spellings below must declare the SAME type, so all three calls type check and compute.
+
+	unary_fn = (unit<uint32> Dx; attribute<float64> v (Dx)) -> attribute<float64> (Dx);
+
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0, 50.0, 400.0 ];
+	}
+
+	container lib
+	{
+		function Halve(unit<uint32> Dx; attribute<float64> v (Dx))
+		-> attribute<float64> (Dx) := v / 2.0;
+
+		// the plain name, found by the scope walk (this is what worked before)
+		function ApplyByName(unit<uint32> Dx; f: unary_fn; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(Dx, x);
+
+		// dots on the declaring namespace: '..' is lib, '...' is the container above it
+		function ApplyByDots(unit<uint32> Dx; f: .../unary_fn; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(Dx, x);
+
+		// absolute, from the configuration root
+		function ApplyByRoot(unit<uint32> Dx; f: /unary_fn; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(Dx, x);
+	}
+
+	attribute<float64> byName (Road) := lib/ApplyByName(Road, lib/Halve, Road/flow);
+	attribute<float64> byDots (Road) := lib/ApplyByDots(Road, lib/Halve, Road/flow);
+	attribute<float64> byRoot (Road) := lib/ApplyByRoot(Road, lib/Halve, Road/flow);
+
+	container checks
+	{
+		parameter<float64> byNameSum := sum(byName), IntegrityCheck = "byNameSum == 375.0";
+		parameter<float64> byDotsSum := sum(byDots), IntegrityCheck = "byDotsSum == 375.0";
+		parameter<float64> byRootSum := sum(byRoot), IntegrityCheck = "byRootSum == 375.0";
+	}
+}

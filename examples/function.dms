@@ -117,17 +117,10 @@ container function_example
 	// compose takes two unary functions as VALUES and applies g after f: g(f(x)).
 	// pow4 = sqr-after-sqr, with sqr taken from the auto-imported standard prelude;
 	// its reduced key is mul(mul(x,x), mul(x,x)) — identical to pow(x, 4).
-
-	container hof
-	{
-		function compose<V: numerics>(f: function; g: function; attribute<V> x)
-		-> attribute<V> := g(f(x));
-
-		// 'compose' is visible from pow4's definition point (lexical scope, §4.6)
-		function pow4<V: numerics>(attribute<V> x)
-		-> attribute<V> := compose(sqr, sqr, x);
-	}
-	// WP3.2 Stage 2 (typed form): a generic function-signature alias types the
+	// A function-valued parameter states the signature it accepts (#1252): 'function' on its
+	// own is not a type, a declared signature alias is.
+	//
+	// A generic function-signature alias types the
 	// function-valued parameters and result; D is a domain variable, bound from the
 	// argument's domain and checked for consistency at each application. The nested
 	// 'result' closes over f and g (captured by value); a call result is applied
@@ -168,16 +161,13 @@ container function_example
 		                function<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x / 2.0)(Road/flow);
 	// compose: f(g(x)) = twice(half(x)) = x -> identity
 
-	attribute<float64> flow4  (Road) := hof/pow4(Road/flow);
-	attribute<float64> flow4b (Road) := hof/compose(sqr, sqr, Road/flow); // same, spelled directly
-
 	// ------------------------------------------------------------- checks
 	//
 	// congestion         = min_elem([0.5, 2.0, 0.5, 4/3], 1) = [0.5, 1, 0.5, 1]
 	// rail_load/result   = min_elem([0.5, 2.0        ], 1) = [0.5, 1]
 	// inline_load        = min_elem([0, .5, 1, 1.5, 2  ], 1) = [0, .5, 1, 1, 1]
 	// evening2           = congestion
-	// flow4              = flow^4 = [1e8, 1.6e9, 6.25e6, 2.56e10]; sum = 27306250000
+	// flow4c             = flow^4 = [1e8, 1.6e9, 6.25e6, 2.56e10]; sum = 27306250000
 
 	container checks
 	{
@@ -185,8 +175,6 @@ container function_example
 		parameter<float64> rail_sum   := sum(rail_load/result),  IntegrityCheck = "rail_sum == 1.5";
 		parameter<float64> inline_sum := sum(inline_load),       IntegrityCheck = "inline_sum == 3.5";
 		parameter<float64> road_sum2  := sum(evening2),          IntegrityCheck = "road_sum2 == 3.0";
-		parameter<float64> pow4_sum   := sum(flow4),             IntegrityCheck = "pow4_sum == 27306250000.0";
-		parameter<float64> pow4_sumb  := sum(flow4b),            IntegrityCheck = "pow4_sumb == 27306250000.0";
 		parameter<float64> road_tot   := road_total,             IntegrityCheck = "road_tot == 3.0";
 		parameter<float64> rail_tot   := rail_total,             IntegrityCheck = "rail_tot == 1.5";
 		parameter<float64> pow4_sumc  := sum(flow4c),            IntegrityCheck = "pow4_sumc == 27306250000.0";

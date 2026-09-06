@@ -29,6 +29,7 @@
 
 #include "set/StaticQuickAssoc.h"
 
+#include <algorithm>
 #include <bitset>
 #include <tuple>
 #include <vector>
@@ -44,6 +45,7 @@ namespace {
 		TokenID resultName;
 		std::vector<std::tuple<UInt32, std::weak_ptr<const TreeItem>, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
 		std::vector<std::pair<UInt32, TokenID>> paramSigNames = {}; // #1252: (param index, the reference as the source wrote it)
+		std::vector<std::tuple<UInt32, TokenID, std::vector<TokenID>>> pendingParamSigs = {}; // #1252: not resolved while parsing; resolved at UpdateMetaInfo
 		// the `= {}` on the members below keeps `FunctionSpecData{ nrParams, resultName, {} }`
 		// out of -Wmissing-field-initializers, like the bool members further down
 		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramTypeExemplars = {}; // K11a by-example: (param index, UNIT exemplar whose declared members type the parameter)
@@ -59,8 +61,10 @@ namespace {
 		std::weak_ptr<const TreeItem> resultSig = {}; // the '-> sigAlias<...>' result-signature exemplar, if any (else expired)
 		std::vector<TokenID> resultSigTypeArgs = {};  // the result signature's type-application args
 		TokenID resultSigName = {};                   // #1252: the result signature reference as the source wrote it
+		TokenID pendingResultSigName = {};            // #1252: idem, not resolved while parsing
+		std::vector<TokenID> pendingResultSigTypeArgs = {};
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet && !v.signatureOnly && !v.resultIsFunction && !v.resultIsGenericUnit && v.resultSig.expired() && v.resultSigTypeArgs.empty() && v.paramSigNames.empty() && !v.resultSigName; }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet && !v.signatureOnly && !v.resultIsFunction && !v.resultIsGenericUnit && v.resultSig.expired() && v.resultSigTypeArgs.empty() && v.paramSigNames.empty() && !v.resultSigName && v.pendingParamSigs.empty() && !v.pendingResultSigName; }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -296,6 +300,140 @@ TokenID TreeItem_GetFunctionResultSigName(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	return specPtr ? specPtr->resultSigName : TokenID();
+}
+
+// ===================================== #1252: type references and deferred resolution
+
+namespace {
+	// raw (non-updating) child lookup: this runs under the parser's no-UpdateMetaInfo lock
+	const TreeItem* FindSubItemRaw(const TreeItem* parent, TokenID id)
+	{
+		for (const TreeItem* c = parent->_GetFirstSubItem(); c; c = c->GetNextItem())
+			if (c->GetNameID() == id)
+				return c;
+		return nullptr;
+	}
+
+	// follow the '/'-separated segments in [b, e) below cursor; an empty range yields cursor
+	const TreeItem* FollowSubPathRaw(const TreeItem* cursor, CharPtr b, CharPtr e)
+	{
+		while (cursor && b != e)
+		{
+			CharPtr segEnd = std::find(b, e, '/');
+			cursor = FindSubItemRaw(cursor, GetTokenID_mt(b, segEnd));
+			b = (segEnd == e) ? e : segEnd + 1;
+		}
+		return cursor;
+	}
+}
+
+const TreeItem* TreeItem_ResolveTypeRefRaw(const TreeItem* context, CharPtr b, CharPtr e)
+{
+	if (!context || b == e)
+		return nullptr;
+
+	if (*b == '/') // absolute: from the root of the tree that context lives in
+	{
+		const TreeItem* root = context;
+		while (const TreeItem* parent = root->GetTreeParent().get())
+			root = parent;
+		return FollowSubPathRaw(root, b + 1, e);
+	}
+
+	if (*b == '.') // dots on the declaring namespace, as FollowDots reads them
+	{
+		CharPtr dotsEnd = b;
+		while (dotsEnd != e && *dotsEnd == '.')
+			++dotsEnd;
+		const TreeItem* cursor = context;
+		for (CharPtr dot = b + 1; dot != dotsEnd && cursor; ++dot) // the first dot is the namespace itself
+			cursor = cursor->GetTreeParent().get();
+		if (!cursor)
+			return nullptr; // ascended above the root
+		if (dotsEnd == e)
+			return cursor;
+		if (*dotsEnd != '/')
+			return nullptr; // '..x' is not a path
+		return FollowSubPathRaw(cursor, dotsEnd + 1, e);
+	}
+
+	CharPtr slash = std::find(b, e, '/');
+	TokenID firstTok = GetTokenID_mt(b, slash);
+	for (const TreeItem* scope = context; scope; scope = scope->GetTreeParent().get())
+	{
+		const TreeItem* found = FindSubItemRaw(scope, firstTok);
+		if (!found)
+			continue;
+		return FollowSubPathRaw(found, (slash == e) ? e : slash + 1, e); // nearest scope wins, no fall-through
+	}
+	return nullptr;
+}
+
+TIC_CALL void TreeItem_AddPendingFunctionParamSig(const TreeItem* functionItem, UInt32 paramIndex, TokenID sourceName, std::vector<TokenID> typeArgs)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	assert(sourceName);
+	auto& spec = s_FunctionSpecAssoc[functionItem];
+	spec.pendingParamSigs.emplace_back(paramIndex, sourceName, std::move(typeArgs));
+	spec.paramSigNames.emplace_back(paramIndex, sourceName); // the dump keeps writing what the source wrote
+}
+
+TIC_CALL void TreeItem_SetPendingFunctionResultSig(const TreeItem* functionItem, TokenID sourceName, std::vector<TokenID> typeArgs)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	assert(sourceName);
+	auto& spec = s_FunctionSpecAssoc[functionItem];
+	spec.pendingResultSigName = sourceName;
+	spec.pendingResultSigTypeArgs = std::move(typeArgs);
+	spec.resultSigName = sourceName;
+}
+
+bool TreeItem_HasPendingFunctionSigs(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr && (!specPtr->pendingParamSigs.empty() || specPtr->pendingResultSigName);
+}
+
+void TreeItem_ResolvePendingFunctionSigs(const TreeItem* functionItem)
+{
+	if (!TreeItem_HasPendingFunctionSigs(functionItem))
+		return;
+	auto& spec = s_FunctionSpecAssoc[functionItem]; // mutable: the pending references are consumed here
+
+	// the base is the function item: that is the namespace its parameters are declared in
+	auto resolve = [functionItem](TokenID name) -> const TreeItem*
+	{
+		SharedStr nameStr(name); // materialized: the walk below takes the token registry lock itself
+		return TreeItem_ResolveTypeRefRaw(functionItem, nameStr.begin(), nameStr.send());
+	};
+
+	auto pendingParams = std::move(spec.pendingParamSigs);
+	spec.pendingParamSigs.clear(); // resolved or reported, never a second attempt
+	for (const auto& pending : pendingParams)
+	{
+		auto name = std::get<1>(pending);
+		auto found = resolve(name);
+		if (!found)
+			functionItem->throwItemErrorF("parameter {}: the type '{}' does not resolve to a declared item"
+				, std::get<0>(pending) + 1, name);
+		if (!found->IsFunctionItem())
+			functionItem->throwItemErrorF("parameter {}: the type '{}' is not a function signature; a type by example must be declared before the function that uses it"
+				, std::get<0>(pending) + 1, name);
+		spec.paramSigs.emplace_back(std::get<0>(pending), found->weak_from_this(), std::get<2>(pending));
+	}
+
+	if (auto name = spec.pendingResultSigName)
+	{
+		spec.pendingResultSigName = {};
+		auto found = resolve(name);
+		if (!found)
+			functionItem->throwItemErrorF("result type: '{}' does not resolve to a declared item", name);
+		if (!found->IsFunctionItem())
+			functionItem->throwItemErrorF("result type: '{}' is not a function signature", name);
+		spec.resultSig = found->weak_from_this();
+		spec.resultSigTypeArgs = std::move(spec.pendingResultSigTypeArgs);
+		spec.resultIsFunction = true;
+	}
 }
 
 // ===================================== §5.7 v2: variant specificity / disjointness

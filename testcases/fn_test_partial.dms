@@ -5,6 +5,11 @@ container fn_test_partial
 		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
 	}
 
+	// #1252: the signatures the function-valued parameters must match. A partial application
+	// binds against these by its residual arity.
+	un1  = (attribute<float64> x) -> attribute<float64>;
+	bin2 = (attribute<float64> p; attribute<float64> q) -> attribute<float64>;
+
 	container lib
 	{
 		function Add2(unit<uint32> Dx; attribute<float64> a (Dx); attribute<float64> b (Dx))
@@ -14,7 +19,7 @@ container fn_test_partial
 		-> attribute<float64> (Dx) := x * k;
 
 		// higher-order: applies a unary function twice
-		function ApplyTwice(unit<uint32> Dx; f: function; attribute<float64> x (Dx))
+		function ApplyTwice(unit<uint32> Dx; f: un1; attribute<float64> x (Dx))
 		-> attribute<float64> (Dx) := f(f(x));
 	}
 
@@ -27,7 +32,7 @@ container fn_test_partial
 	// partial application bound directly is an error (tested separately);
 	// but a full application built from a partial-in-argument works:
 	// doubler = Add2(Road, _, _) applied with (flow, flow)
-	function ApplyBin(unit<uint32> Dx; g: function; attribute<float64> p (Dx); attribute<float64> q (Dx))
+	function ApplyBin(unit<uint32> Dx; g: bin2; attribute<float64> p (Dx); attribute<float64> q (Dx))
 	-> attribute<float64> (Dx) := g(p, q);
 	attribute<float64> doubled (Road) := ApplyBin(Road, lib/Add2(Road, _, _), Road/flow, Road/flow);
 

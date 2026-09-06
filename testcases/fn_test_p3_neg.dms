@@ -1,6 +1,8 @@
 container fn_test_p3_neg
 {
-	function Bad(f: function)
+	nullary = () -> parameter<float64>;
+
+	function Bad(f: nullary)
 	-> parameter<float64> := f + 1.0;   // value misuse of a function-valued parameter
 
 	function Unity() -> parameter<float64> := 1.0;

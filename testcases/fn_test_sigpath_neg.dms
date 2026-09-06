@@ -1,0 +1,23 @@
+container fn_test_sigpath_neg
+{
+	// GeoDMS #1252. A path that resolves to nothing is a typo, not a type. The reference is
+	// kept while parsing, because the type may be declared further down, and resolved when the
+	// function's meta info is updated. There it must fail this declaration, rather than turn
+	// the parameter into a plain container without a word.
+
+	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; }
+
+	container lib
+	{
+		function Halve(unit<uint32> Dx; attribute<float64> v (Dx))
+		-> attribute<float64> (Dx) := v / 2.0;
+
+		function Apply(unit<uint32> Dx; f: /nosuch/unary_fn; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(Dx, x);
+	}
+
+	container checks
+	{
+		parameter<float64> use := sum(lib/Apply(Road, lib/Halve, Road/flow));
+	}
+}

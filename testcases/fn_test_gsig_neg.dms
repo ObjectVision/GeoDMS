@@ -2,12 +2,13 @@ container fn_test_gsig_neg
 {
 	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; }
 
-	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
+	nuf  = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
+	nuf1 = function<Vx: numerics>(attribute<Vx> x) -> attribute<Vx>; // #1252: the result type of twice
 
 	// a binary function cannot bind to a unary signature
 	function add2<Vx: numerics>(attribute<Vx> a; attribute<Vx> b) -> attribute<Vx> := a + b;
 
-	function twice(h: nuf) -> function
+	function twice(h: nuf) -> nuf1
 	{
 		function result<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := h(h(x));
 	}

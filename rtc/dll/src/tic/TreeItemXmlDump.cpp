@@ -223,15 +223,24 @@ void DMS_WriteFunctionParam(OutStreamBase& out, const TreeItem* fn, const TreeIt
 	SharedStr pname(param->GetName());
 	if (idx + 1 == nrParams && TreeItem_HasFunctionRestParam(fn)) { out << "..."; out << pname.c_str(); return; }
 	if (TreeItem_IsFunctionMetaRefParam(fn, idx)) { out << "item "; out << pname.c_str(); return; }
+	// #1252: the reference AS THE SOURCE WROTE IT, like the data-item types above. The fallback
+	// names the signature from the function item, which is the namespace the parameter is
+	// declared in and the base the reader resolves a path against; GetScriptName(fn) would name
+	// it from the function's PARENT, one level off. A reference that has not been resolved yet
+	// (the type is declared further down, and nothing applied this function) has the token but
+	// no exemplar, and must still be written as the type it is.
+	auto srcName = TreeItem_GetFunctionParamSigName(fn, idx);
 	if (auto sig = TreeItem_GetFunctionParamSignature(fn, idx))
 	{
 		out << pname.c_str(); out << ": ";
-		// #1252: the reference AS THE SOURCE WROTE IT, like the data-item types above.
-		// GetScriptName(fn) renders a path relative to the function's PARENT ('../unary_fn'),
-		// and the reader's parse-time type resolution does not take a dotted path, so the
-		// reloaded parameter silently became 'container f'.
-		auto srcName = TreeItem_GetFunctionParamSigName(fn, idx);
-		out << (srcName ? SharedStr(srcName) : SharedStr(sig->GetScriptName(fn))).c_str();
+		out << (srcName ? SharedStr(srcName) : SharedStr(fn->GetFindableName(sig.get()))).c_str();
+		DMS_WriteTypeArgs(out, TreeItem_GetFunctionParamSigTypeArgs(fn, idx));
+		return;
+	}
+	if (srcName)
+	{
+		out << pname.c_str(); out << ": ";
+		out << SharedStr(srcName).c_str();
 		DMS_WriteTypeArgs(out, TreeItem_GetFunctionParamSigTypeArgs(fn, idx));
 		return;
 	}
@@ -271,7 +280,7 @@ void DMS_WriteResultType(OutStreamBase& out, const TreeItem* fn, const TreeItem*
 		if (auto rsig = TreeItem_GetFunctionResultSig(fn))
 		{
 			auto srcName = TreeItem_GetFunctionResultSigName(fn); // #1252: as the source wrote it
-			out << (srcName ? SharedStr(srcName) : SharedStr(rsig->GetScriptName(fn))).c_str();
+			out << (srcName ? SharedStr(srcName) : SharedStr(fn->GetFindableName(rsig.get()))).c_str();
 			DMS_WriteTypeArgs(out, TreeItem_GetFunctionResultSigTypeArgs(fn));
 		}
 		else

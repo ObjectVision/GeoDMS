@@ -35,6 +35,27 @@ TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem
 // config dump; a resolve-then-GetScriptName rendering yields '../unary_fn', which the config
 // reader's parse-time type resolution does not accept
 TokenID TreeItem_GetFunctionParamSigName(const TreeItem* functionItem, UInt32 paramIndex);
+
+// #1252: resolve a TYPE reference written in a declaration whose enclosing namespace is
+// `context`, with raw child scans only, so that the config parser (which runs under a
+// no-UpdateMetaInfo lock) and the deferred resolution below share one rule:
+//   /a/b   from the root of context's tree
+//   ../a   dots as TreeItem::FollowDots reads them: one dot is the namespace itself, each
+//          further dot one level up. This is the base the calculator uses for a rule written
+//          on an item as well (AbstrCalculator::GetSearchContext takes the holder's parent,
+//          and a parameter's holder is the function item)
+//   a/b    the first segment in `context` or, failing that, in an ancestor, nearest first
+// using-directives are deliberately not consulted: forcing their lazy resolution mid-parse
+// is not allowed.
+TIC_CALL const TreeItem* TreeItem_ResolveTypeRefRaw(const TreeItem* context, CharPtr refBegin, CharPtr refEnd);
+
+// #1252: a signature reference that did not resolve while parsing (a type declared further
+// down). It is resolved when the function item's meta info is updated; when it still does not
+// resolve there, that update throws and the item fails with FailType::MetaInfo.
+TIC_CALL void    TreeItem_AddPendingFunctionParamSig(const TreeItem* functionItem, UInt32 paramIndex, TokenID sourceName, std::vector<TokenID> typeArgs = {});
+TIC_CALL void    TreeItem_SetPendingFunctionResultSig(const TreeItem* functionItem, TokenID sourceName, std::vector<TokenID> typeArgs = {});
+bool    TreeItem_HasPendingFunctionSigs(const TreeItem* functionItem);
+void    TreeItem_ResolvePendingFunctionSigs(const TreeItem* functionItem); // throws when a reference stays unresolved
 // meta-reference parameters ('item x'): the argument binds as a raw item reference
 // (sourceDescr key), like PropValue's item argument in a direct call -- never as the
 // argument's calculation/range key

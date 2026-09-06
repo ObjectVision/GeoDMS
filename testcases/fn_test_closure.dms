@@ -5,7 +5,11 @@ container fn_test_closure
 	function double_<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := x + x;
 	function inc<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := x + 1.0;
 
-	function compose(f: function; g: function) -> function
+	// #1252: the type of double_ and inc, named once and used for the parameters, the result
+	// and the closure that apply1 receives
+	nuf = function<Vx: numerics>(attribute<Vx> x) -> attribute<Vx>;
+
+	function compose(f: nuf; g: nuf) -> nuf
 	{
 		function result<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := f(g(x));
 	}
@@ -16,7 +20,7 @@ container fn_test_closure
 	attribute<float64> id2 (Road) := compose(inc, double_)(Road/flow);     // [3,5,7]
 
 	// closure as an argument: pass the composed function into another HOF
-	function apply1(h: function; attribute<float64> y) -> attribute<float64> := h(y);
+	function apply1(h: nuf; attribute<float64> y) -> attribute<float64> := h(y);
 	attribute<float64> viaArg (Road) := apply1(compose(double_, inc), Road/flow); // [4,6,8]
 
 	// nested composition: a closure composed with a closure-producing call

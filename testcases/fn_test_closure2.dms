@@ -6,7 +6,9 @@ container fn_test_closure2
 	// not reject it via the FindItem parent-chain ascension.
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 
-	function adder(parameter<float64> a) -> function
+	f64un = (attribute<float64> x) -> attribute<float64>;
+
+	function adder(parameter<float64> a) -> f64un
 	{
 		function result(attribute<float64> x) -> attribute<float64> := x + a;
 	}

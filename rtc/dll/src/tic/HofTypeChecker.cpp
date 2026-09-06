@@ -1868,6 +1868,13 @@ namespace hof {
 		} eraser{ &s_CheckInProgress, funcItem };
 		try
 		{
+			// #1252: bind the signature references that did not resolve while parsing (a type
+			// declared further down). One that still does not resolve throws, and the catch
+			// below records it on this definition as FailType::MetaInfo, like any other wrong
+			// definition; every later application re-raises that verdict.
+			if (TreeItem_HasPendingFunctionSigs(funcItem))
+				TreeItem_ResolvePendingFunctionSigs(funcItem);
+
 			TokenID resultName = TreeItem_GetFunctionResultName(funcItem);
 			auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
 			if (!resultChild)
