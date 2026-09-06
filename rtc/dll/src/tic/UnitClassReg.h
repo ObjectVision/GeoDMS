@@ -59,6 +59,28 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 		u->SetTSF(USF_HasConfigRange);
 		u->AssignTSF(TSF_Categorical, m_IsCategorical);
 	}
+	// #1256: a configuration dump writes a property through GetRawValueAsSharedStr, and that
+	// dump is read back, so the range must carry no thousand separators. AsString asks for them
+	// by default and FormattedOutStream keeps them when the display option is on, which turned a
+	// range up to 300000 into "[xy(0; 300,000), xy(280,000; 625,000))" and made the reader stop
+	// at the first comma ("PointStream Error: expected ')' but got ','"). Grouping is display
+	// formatting: it belongs to GetValueAsSharedStr and to the detail pages (whose Range row has
+	// its own formatter, GetStrRange), not to the raw value a configuration is written from.
+	SharedStr GetRawValueAsSharedStr(const Object* self) const override
+	{
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // as in the base implementation
+		typename ValueWrap<range_t>::value_type propValue = this->GetRawValue(debug_cast<const unit_t*>(self));
+		SharedStr result = ::AsString(propValue, FormattingFlags::None);
+
+		// the shared Range formatter ends its rendering with a space (RangeStream.h); a
+		// configuration keeps the value as it was written, so drop it here rather than in that
+		// operator, which error messages, .mmd dictionaries and detail pages also go through
+		CharPtr b = result.begin(), e = result.send();
+		while (e != b && e[-1] == ' ')
+			--e;
+		return (e == result.send()) ? result : SharedStr(CharPtrRange(b, e));
+	}
+
 	bool HasNonDefaultValue(const Object* self) const
 	{
 		const unit_t* u = debug_cast<const unit_t*>(self);
