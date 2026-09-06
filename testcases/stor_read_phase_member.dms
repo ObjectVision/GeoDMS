@@ -1,0 +1,33 @@
+// #587 verification: a PhaseContainer over a container that holds stored attributes, with a
+// consumer that demands one of them.
+//
+// This is one of the shapes that motivated the issue. A PhaseContainer copies the members of the
+// container it fences and calculates the copies behind the fence, so every member needs a
+// calculation rule. A stored item had none before #587: it was filled by the item-writer read path,
+// which the phase knows nothing about, and fencing it failed with "Source ... has no calculation
+// rule". Since the read is an operator application in the item's key expression, the copy has a rule
+// like any other member and the fence calculates it.
+//
+// The fixture is read_table.csv (5 rows; oppervlak 10..50, sum 150; name one..five), read through a
+// container holder over a domain declared beside it, the same shape as stor_read_container_attr.
+container stor_read_phase_member
+{
+	unit<uint32> D : nrofrows = 5;
+
+	container src
+	:	StorageName     = "%currDir%/read_table.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<uint32> oppervlak (D);
+		attribute<string> name      (D);
+	}
+
+	container phase := PhaseContainer(src, 'phase: the stored attributes are read');
+
+	container checks
+	{
+		parameter<uint32> c_sum   := sum(phase/oppervlak),      IntegrityCheck = "c_sum == 150";
+		parameter<string> c_names := asList(phase/name, ','),   IntegrityCheck = "c_names == 'one,two,three,four,five'";
+	}
+}

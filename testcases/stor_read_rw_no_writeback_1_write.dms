@@ -1,0 +1,22 @@
+// #587 verification, write half: a .dbf with two columns, for the write-back guard that
+// stor_read_rw_no_writeback_2.dms and _3_check.dms exercise. Its own fixture rather than the one of
+// stor_dbf_1_write.dms, so that a write-back, if the guard ever fails, cannot corrupt a file that
+// another case depends on. Run item: /export (fnrun_itemmap.txt).
+container stor_read_rw_no_writeback_1_write
+{
+	unit<uint32> obj : nrofrows = 3
+	{
+		attribute<int32>  a : [1, 2, 3];
+		attribute<string> s : ['x', 'y', 'z'];
+	}
+	container export
+	{
+		unit<uint32> tab := obj
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_rw_nowb.dbf"
+		,	StorageType = "gdalwrite.vect"
+		{
+			attribute<int32>  a := obj/a;
+			attribute<string> s := obj/s;
+		}
+	}
+}

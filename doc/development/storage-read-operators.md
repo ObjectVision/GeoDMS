@@ -1118,12 +1118,16 @@ Offline battery (`testcases/`, cheap, no network):
 - `stor_read_icheck_holder.dms`: a check on the table unit referring to its own attribute,
   and the #587 shape on a `gdal.vect` attribute.
 - `stor_read_phase_member.dms`: a PhaseContainer over a container with a stored member
-  that a consumer demands (fails today with "Source ... has no calculation rule").
-- `stor_read_rw_no_writeback.dms`: the writable-dbf guard.
+  that a consumer demands (failed with "Source ... has no calculation rule" before the read
+  became a calculation rule of its own).
+- `stor_read_rw_no_writeback_1_write.dms` / `_2.dms` / `_3_check.dms`: the writable-dbf
+  guard. The middle one opens the written .dbf without StorageReadOnly, declares one of its
+  two columns and is committed; the third reads both columns back, so a write-back that
+  rewrote the table from the single column it knew about is what fails the check.
 - `stor_read_explicit_supplier.dms`: an `ExplicitSuppliers` producer and a tree-level
   update that must not run it (the `calc_as_result` pin).
 - `stor_read_shared_table.dms` (S4): two holders reading one table unify.
-- `stor_strfiles_filename_arg.dms` (S2).
+- `stor_strfiles_read.dms` (S2): the strfiles FileName attribute as an extra argument.
 - Existing: `fn_test_icheck_storage*`, `stor_shp_ringclose_2_read`, `stor_mmd_*`,
   `fn_test_opsigK13_stor`, `fn_test_fe_stor_neg` unchanged.
 

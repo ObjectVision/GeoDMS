@@ -1,0 +1,22 @@
+// #587 verification, check half: the .dbf that stor_read_rw_no_writeback_2.dms opened writable and
+// committed must be untouched. Both columns are read back here, including the one that case did not
+// declare: a write-back would have rewritten the table from the single column it knew about, so a
+// missing or emptied 's' is how the guard's failure shows itself. The battery runs its configs
+// sorted by file name, so the write, the commit and this check run in that order.
+container stor_read_rw_no_writeback_3_check
+{
+	unit<uint32> tab
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_rw_nowb.dbf"
+	,	StorageType     = "dbf"
+	,	StorageReadOnly = "True"
+	{
+		attribute<int32>  a;
+		attribute<string> s;
+	}
+	container checks
+	{
+		parameter<uint32> c_n := #tab,               IntegrityCheck = "c_n == 3";
+		parameter<int32>  c_a := sum(tab/a),         IntegrityCheck = "c_a == 6i";
+		parameter<string> c_s := asList(tab/s, ''),  IntegrityCheck = "c_s == 'xyz'";
+	}
+}

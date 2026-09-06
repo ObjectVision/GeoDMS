@@ -1,0 +1,19 @@
+// #587 verification: an item read from a storage is never written back to it, also when the storage
+// is not StorageReadOnly.
+//
+// The dbf written by stor_read_rw_no_writeback_1_write.dms is opened here WITHOUT StorageReadOnly,
+// so the storage is writable, and only one of its two columns is declared. The run item is the table
+// itself (fnrun_itemmap.txt), so the run updates and commits it. Since #587 a stored item carries a
+// calculator, which is what decides whether an item is storable, so without the guard in
+// TreeItem::PrepareDataUsage the commit would write the read values straight back into the file they
+// came from. The guard makes that commit a no-op: the run must succeed, and
+// stor_read_rw_no_writeback_3_check.dms must still find both columns with their original values.
+container stor_read_rw_no_writeback_2
+{
+	unit<uint32> tab
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_rw_nowb.dbf"
+	,	StorageType = "dbf"
+	{
+		attribute<int32> a;
+	}
+}
