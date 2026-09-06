@@ -864,8 +864,19 @@ with 3 owners, an unnamed item, `/xmlpart/xb`); a fragment whose parse fails doe
 `container xmlpart { #include <../data/f.xml> }` with `f.xml` holding `<? xml version = "1.0" ? >`,
 `< TreeItem name = "xb" >`, `< Descr > a &amp; b < / Descr >`, `< / TreeItem >`. The grammar is
 whitespace-tokenised (`FormattedInpStream::NextWord`: spaces around `=`, `/`, `?`, `>`) and decodes
-entities in element text only; an error inside an included fragment is reported, not fatal. Not
-investigated further; the XML positives are therefore not battery cases.
+entities in element text only; an error inside an included fragment is reported, not fatal. Filed
+as #1254 and fixed there: it was not a leak. The ancient assertion
+`parentItem == m_CurrItem->GetTreeParent()` in `rtc/dll/src/tic/Xml/XmlTreeParser.cpp` read the
+expected parent off the parent ELEMENT, which the outermost element of a fragment does not have,
+so every fragment included into a container tripped it; the headless assert hook then killed the
+load mid-parse and the TreeItem registry, running at DLL detach, reported the half-built tree as
+leaked. The XML positive is now a battery case: `testcases/xml_entity.dms`. Verifying it turned up a
+separate defect, not among RTC-01/03/04 above: the character right after an entity's `;` is eaten, so
+`a &amp; b &lt;c&gt;` decodes to `a &b <>` and not to `a & b <c>` as the #1254 repro assumed.
+`TransformChar` ends with a `ReadChar()` that leaves the stream one past the `;`, and the loop in
+`ReadText` then advances again. Not fixed here; the new fixture keeps every entity at the end of its
+text, where the eaten character is the trailing space `ReadText` drops anyway, so the case does not
+depend on it either way.
 
 **Battery, 2026-09-05, after Phase 5 and the RTC-27 correction:** `testcases\run_testcases.bat` on the
 Release x64 build: 262 of 262 cases as expected (BAD=0). The two runs before the

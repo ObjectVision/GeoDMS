@@ -66,6 +66,7 @@ private:
 SharedMutableTreeItem XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstItem)
 {
 	m_CurrItem = root;
+	m_EnclosingItems.clear(); // the outermost element pushes root as its enclosing item
 	m_RootIsFirstItem = rootIsFirstItem;
 
 	DMS_CALL_BEGIN
@@ -145,6 +146,10 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 				propDef->SetValueAsCharRange(thisItem, (*avIter).second.begin(), (*avIter).second.send());
 			XmlElement::Inc(avIter);
 		}
+		// Descend, remembering what to come back to. Pushed here, beside the m_ClientData that
+		// makes ReadElemCallback pop, so the two stay in step: a throw earlier in this function
+		// leaves both unset, and the parser is abandoned anyway.
+		m_EnclosingItems.push_back(m_CurrItem);
 		m_CurrItem = thisItem;
 		element.m_ClientData = thisItem;
 	}
@@ -156,10 +161,32 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 	--m_CurrElemLevel;
 
 	TreeItem* thisItem = reinterpret_cast<TreeItem*>(element.m_ClientData);
+	if (thisItem)
+	{
+		assert(thisItem == m_CurrItem);
+		// Pop back to the item that was current when this element opened, which ReadAttrCallback
+		// pushed. NOT the item of the parent ELEMENT: the outermost element of a fragment has no
+		// parent element, so what its item hangs on is the context of an #include, and an element
+		// that maps to no MetaClass creates no item to point back to either. Reading the parent
+		// element made both of those look like "no parent", which asserted on every .xml fragment
+		// included into a container and, in a headless Debug run, killed the load (#1254).
+		assert(!m_EnclosingItems.empty());
+		TreeItem* enclosingItem = m_EnclosingItems.back();
+		m_EnclosingItems.pop_back();
+		assert(enclosingItem == m_CurrItem->GetTreeParent().get());
+		if (enclosingItem) // don't loose the root: ReadTree hands m_CurrItem back as the new root
+			m_CurrItem = enclosingItem;
+		return false;
+	}
+
+	// No item of its own: the element names a property of the item its parent ELEMENT created.
+	// Still keyed on that element rather than on m_CurrItem, deliberately: a property element
+	// directly under the fragment root, or under an element that created no item, is ignored
+	// today, and applying it to the enclosing item instead is a separate decision.
 	TreeItem* parentItem =0;
 	if (element.m_Parent)
 		parentItem = reinterpret_cast<TreeItem*>(element.m_Parent->m_ClientData);
-	if (parentItem && !thisItem)
+	if (parentItem)
 	{
 		dms_assert(parentItem == m_CurrItem);
 		const Class* cls = m_CurrItem->GetDynamicClass();
@@ -184,15 +211,6 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 		}
 		else if (propDef->GetSetMode() > set_mode::construction)
 			propDef->SetValueAsCharArray(parentItem, &*element.m_EnclText.begin());
-		
-	}
-	else if (thisItem)
-	{
-		assert(thisItem == m_CurrItem);
-		// Pop m_CurrItem if curr element is related to item.
-		assert(parentItem == m_CurrItem->GetTreeParent().get());
-		if (parentItem) // don't loose the root
-			m_CurrItem = parentItem;
 	}
 	return false;
 }

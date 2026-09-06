@@ -120,10 +120,16 @@ def xml(name, text):
 # The XML configuration grammar (rtc/dll/src/xml/XmlParser.cpp ReadAttr, FormattedInpStream::NextWord) is
 # whitespace-tokenised: '<', '/', '?', '>', names, '=' and quoted values must be separated by spaces, a
 # version header comes first, and entities are decoded in element TEXT only (ReadText), not in attribute
-# values. A fragment that loads leaks its items at exit in a Debug build (see doc/code-fixes.md, XML
-# finding of 2026-09-05), so only the two negatives are battery cases.
+# values.
 HEADER = '<? xml version = "1.0" ? >\n'
 # exceeds MAX_TOKEN_LEN (32): a clean error; the element after it must then not exist
 xml('xml_entity_long.xml', HEADER + '< TreeItem name = "xc" >\n< Descr > a &thisentitynameislongerthanthirtytwocharacters; b < / Descr >\n< / TreeItem >\n< TreeItem name = "xe" / >\n')
 # unterminated entity at end of file: a clean error; the Descr never reaches the item
 xml('xml_entity_eof.xml', HEADER + '< TreeItem name = "xd" >\n< Descr > a &amp')
+# RTC-03 positive: a fragment that loads completely, with a nested item element and an entity decoded
+# into each Descr. Not a battery case until #1254 fixed the parse-context assertion that killed such
+# a load in Debug. Every entity sits at the END of its text on purpose: the character right after a
+# ';' is eaten (the ReadChar after the loop in TransformChar, on top of the one in ReadText), and
+# there that character is the trailing space, which ReadText drops anyway. So the expected values
+# hold both with and without a fix for that.
+xml('xml_entity.xml', HEADER + '< TreeItem name = "xb" >\n< Descr > a &amp; < / Descr >\n< TreeItem name = "xc" >\n< Descr > b &lt; < / Descr >\n< / TreeItem >\n< / TreeItem >\n')

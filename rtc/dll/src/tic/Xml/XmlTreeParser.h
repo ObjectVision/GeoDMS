@@ -7,6 +7,8 @@
 #ifndef __XML_XMLTREEPARSER_H
 #define __XML_XMLTREEPARSER_H
 
+#include <vector>
+
 #include "xml/XmlParser.h"
 #include "TicBase.h" // for SharedMutableTreeItem
 
@@ -24,6 +26,14 @@ protected: // override XmlParser
 
 private:
 	TreeItem*             m_CurrItem = nullptr;
+
+	// The item that was current when each still-open item-creating element opened, so that
+	// ReadElemCallback can restore it. The bottom entry is therefore what ReadTree was handed:
+	// the #include context, or null when this parse creates the root. The XML element tree
+	// cannot answer this: the outermost element has no parent element at all, and an element
+	// that maps to no MetaClass creates no item to point back to (#1254).
+	std::vector<TreeItem*> m_EnclosingItems;
+
 	SharedMutableTreeItem m_RootHolder; // owns a brand-new (parentless) root for the parse lifetime
 	bool                  m_RootIsFirstItem = false;
 

@@ -1,0 +1,10 @@
+// RTC-03 positive: an included .xml fragment that loads completely, creating an item at the fragment top level and one nested inside it, each with an entity decoded into its Descr. Blocked until #1254 fixed the parse-context assertion in XmlTreeParser::ReadElemCallback, which read the expected parent off the parent ELEMENT and so tripped on the outermost element of every fragment included into a container
+container xml_entity
+{
+	container xmlpart { #include <../data/xml_entity.xml> }
+	container checks
+	{
+		parameter<string> outer := PropValue(xmlpart/xb,    'descr'), IntegrityCheck = "outer == 'a &'";
+		parameter<string> inner := PropValue(xmlpart/xb/xc, 'descr'), IntegrityCheck = "inner == 'b <'";
+	}
+}
