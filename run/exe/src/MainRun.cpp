@@ -338,9 +338,19 @@ int main2_without_SE(int argc, char** argv)
 	}
 
 	// execute all specified items
-	for (const auto& itemPair: items)
+	//
+	// #1259: the interest moves OUT of the vector, so that it is released when this iteration ends
+	// rather than when the process does. Interest on an item keeps its whole source closure
+	// resident: an attribute holds its domain unit (AbstrDataItem::StartInterest), a unit holds its
+	// mc_RefItem, and where that domain resolves into a per-fileset cache tree -- the parse_xml
+	// result of the BAG import -- the tree is PartOfInterest through its ancestor and no part of it
+	// can be cleaned. A command line naming N items therefore used to hold N such closures at once,
+	// however unrelated the items. Measured on a synthetic BAG set of 10 filesets (1.7 GB of XML):
+	// the ten stores in one process peak at 2423 MB, one fileset per process at 374 MB each.
+	for (auto& itemPair: items)
 	{
-		const TreeItem* item = itemPair.second;
+		auto item = std::move(itemPair.second); // released at the end of this iteration
+		MG_CHECK(itemPair.second.is_null());
 		assert(item);
 		SharedStr itemSourceName = item->GetSourceName();
 		CDebugContextHandle ch("Updating", itemSourceName.c_str(), true);
@@ -377,8 +387,6 @@ int main2_without_SE(int argc, char** argv)
 			DumpValueInfo(*dataOut, item, valueInfoIndex);
 			break;
 		}
-
-//		itemPair.second = nullptr; // release InterestCount
 	}
 	return result;
 }
