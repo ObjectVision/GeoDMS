@@ -241,6 +241,10 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 	if (auto nrOwnUsages = td_TokenRegistrySharedUsages)
 		throwTokenRegistrySelfDeadlock(CharPtrRange(keyFirst, keyLast), nrOwnUsages);
 
+	auto tryExisting = GetExisting_mt(keyFirst, keyLast);
+	if (tryExisting != UNDEFINED_VALUE(index_type))
+		return tryExisting;
+
 	// Declared after the self-deadlock check above, so that case keeps its named report in Debug
 	// too; a ceiling admits its own declared acquire, so this is exactly what the section takes.
 	DMS_ENTERS(ord_level_type::IndexedString, dms_exclusive_v);
