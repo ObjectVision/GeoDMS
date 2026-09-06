@@ -1392,6 +1392,58 @@ bool IsDumpingToFolder()
 	return !s_gDumpFolder.empty();
 }
 
+// #1251: the config parser reads its source through a raw mapped view (ConfigProd::ParseFile),
+// so a source with CRLF line ends stores '\r\n' inside every multi-line expression and data
+// block; ItemSave writes that stored text out verbatim through a TEXT-mode ofstream, which turns
+// its '\n' into a second '\r\n'. The first dump of a CRLF source therefore already carried
+// '\r\r\n' and every further round trip added one more '\r'. This buffer normalizes every line
+// end in the outgoing bytes to a single '\n' and leaves it to the platform translation to put
+// the '\r' back on Windows, which makes the dump idempotent whatever the source's line ends were.
+class TextLineEndOutStreamBuff : public OutStreamBuff
+{
+public:
+	TextLineEndOutStreamBuff(OutStreamBuff& target) : m_Target(target) {}
+	~TextLineEndOutStreamBuff() noexcept
+	{
+		try { if (m_PendingCR) WriteLF(); } // a trailing lone '\r' is a line end of its own
+		catch (...) {} // a destructor must not throw and the stream is going away anyway
+	}
+
+	void WriteBytes(CBytePtr data, streamsize_t size) override
+	{
+		CBytePtr b = data, e = data + size;
+		while (b != e)
+		{
+			if (m_PendingCR) // a '\r' ended the previous run: a following '\n' completes it, else it was a lone '\r'
+			{
+				m_PendingCR = false;
+				if (*b != '\n')
+					WriteLF();
+			}
+			CBytePtr runEnd = b;
+			while (runEnd != e && *runEnd != '\r')
+				++runEnd;
+			if (runEnd != b)
+				m_Target.WriteBytes(b, runEnd - b);
+			b = runEnd;
+			if (b != e)
+			{
+				++b; // swallow the '\r'; the next byte says what it was
+				m_PendingCR = true;
+			}
+		}
+	}
+	streamsize_t CurrPos() const override { return m_Target.CurrPos(); }
+	WeakStr      FileName()       override { return m_Target.FileName(); }
+	bool         AtEnd()    const override { return m_Target.AtEnd(); }
+
+private:
+	void WriteLF() { Byte lf = '\n'; m_Target.WriteBytes(&lf, 1); }
+
+	OutStreamBuff& m_Target;
+	bool           m_PendingCR = false;
+};
+
 void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 {
 	CharPtr fileExt = getFileNameExtension(fileName);
@@ -1435,10 +1487,11 @@ void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 	}
 
 	FileOutStreamBuff fileOut(fileNameStr, true);
-	FormattedOutStream fout(&fileOut, FormattingFlags::None);
+	TextLineEndOutStreamBuff textOut(fileOut); // #1251: one line end per line end, whatever the stored text carries
+	FormattedOutStream fout(&textOut, FormattingFlags::None);
 	fout << commentedHeader;
 
-	auto xmlOutStr = XML_OutStream_Create(&fileOut, syntax, "DMS", calcRulePropDefPtr);
+	auto xmlOutStr = XML_OutStream_Create(&textOut, syntax, "DMS", calcRulePropDefPtr);
 	TreeItem_XML_DumpOrThrow(self, xmlOutStr.get(), true);
 }
 
