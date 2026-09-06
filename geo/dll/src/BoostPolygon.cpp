@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif
 
+#include "DMS_Traits.h" // the dms_ sweep: the fifth geometry_library, and the fold it is folded with
+
 #include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
 
 #include <numbers>
@@ -493,6 +495,35 @@ public:
 
 						if constexpr (MustProduceGeometries)
 							geos_assign_geometry(lastResGeometry, res.get());
+
+						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+						resTileData->push_back(orgRels);
+						if constexpr (MustProduceGeometries)
+							resTileData->back().m_Geometry = std::move(lastResGeometry);
+					}
+				}
+				else if constexpr (GL == geometry_library::dms)
+				{
+					// One engine per first-argument element, reused over its candidate pairs: its
+					// scratch is what the sweep allocates, and the pairs of one element are of a
+					// size. Each pair is an independent binary intersection, so it derives its own
+					// frame, exactly as dms_intersect does.
+					dms_overlay::DmsOverlayEngine<P> engine(dms_overlay::BoolOp::Intersection, "dms_overlay_polygon");
+
+					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+					{
+						orgRels.first = p1_rel;
+						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && orgRels.first >= orgRels.second)
+							continue;
+
+						// Compute keeps the rings and says whether they enclose anything, so the
+						// connectivity variant never pays for a geometry it would throw away.
+						if (!engine.Compute(dms_overlay::BoolOp::Intersection, *polyPtr, *((*iter)->get_ptr())))
+							continue;
+
+						if constexpr (MustProduceGeometries)
+							engine.Store(lastResGeometry);
 
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
 						resTileData->push_back(orgRels);
@@ -1595,6 +1626,166 @@ public:
 };
 
 // *****************************************************************************
+//	dms_polygon, dms_union_polygon and their split_ variants
+// *****************************************************************************
+
+// The sweep of DMS_Traits.h as the fifth backend. Two things differ from the four library ones.
+//
+// It has a Calculate of its own instead of calling the shared UnionPolygon: the sweep derives its
+// grid cell from the operands it is handed, which is right for a binary operation and wrong for a
+// fold, where a cell that coarsens as the accumulated result grows would make the answer depend on
+// the order the operands were folded in. The cell is derived once, over the whole tile, and
+// travels with the operands inside DmsPolySet; UnionPolygon has nowhere to put that.
+//
+// And reading an element cleans it: dms_clean_into runs the sweep over the operand alone, which is
+// the even-odd reading of whatever the source contains. That is what dms_polygon is, and it is
+// what lets the fold, the split and the store downstream assume canonical geometry, exactly as
+// geos_create_polygons followed by normalize() does on the GEOS side.
+template <typename P>
+class DMS_PolygonOperator : public AbstrPolygonOperator
+{
+	using SequenceType = typename sequence_traits<P>::container_type;
+	using PolySet = dms_overlay::DmsPolySet<P>;
+	using PolygonTower = assoc_tower<PolySet, dms_overlay::union_dms_polygons<P>>;
+	using NumType = Float64;
+
+	typedef DataArray<SequenceType> ArgPolyType;
+	typedef DataArray<NumType>      ArgNumType;
+
+public:
+	DMS_PolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
+		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
+	{}
+
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	{
+		auto polyData = const_array_cast<SequenceType>(polyDataA);
+		assert(polyData);
+
+		std::unique_ptr<IndexGetter> vg;
+		if (partitionDataA)
+			vg.reset(IndexGetterCreator::Create(partitionDataA, t));
+
+		auto polyArray = polyData->GetTile(t);
+
+		if (!r)
+			r.reset(ResourceArray<PolygonTower>::create(domainCount));
+		auto towerResourcePtr = debug_cast<ResourceArray<PolygonTower>*>(r.get());
+		assert(towerResourcePtr->size() == domainCount);
+
+		// one lattice for every reduction of this tile; zero for integer coordinates, where the
+		// lattice is the integer grid whatever the extent
+		Float64 cell = dms_overlay::DeriveFoldCell<P>(polyArray);
+
+		PolygonFlags unionPermState =
+			(partitionDataA)   ? PolygonFlags::F_DoPartUnion :
+			(domainCount == 1) ? PolygonFlags::F_DoUnion     : PolygonFlags::none;
+
+		CharPtr operName = GetGroup()->GetNameStr();
+
+		for (auto pb = polyArray.begin(), pi = pb, pe = polyArray.end(); pi != pe; ++pi)
+		{
+			auto towerPtr = towerResourcePtr->begin();
+			if (unionPermState != PolygonFlags::F_DoUnion)
+			{
+				SizeT i = pi - pb;
+				if (unionPermState != PolygonFlags::none)
+				{
+					assert(unionPermState == PolygonFlags::F_DoPartUnion);
+					SizeT ri = vg->Get(i);
+					if (ri >= domainCount)
+					{
+						if (!IsDefined(ri))
+							continue;
+						throwErrorF(operName, "Unexpected partition index {} at row {}", ri, i);
+					}
+					i = ri;
+				}
+				assert(i < domainCount);
+				towerPtr += i;
+			}
+
+			PolySet geometry;
+			dms_overlay::dms_clean_into(geometry, *pi, cell, operName);
+			towerPtr->add(std::move(geometry));
+
+			if (processTimer.PassedSecs())
+			{
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
+					, itemRef
+					, operName
+					, AsString(pi - pb), AsString(pe - pb)
+					, AsString(t), AsString(polyDataA->GetAbstrDomainUnit()->GetNrTiles())
+				);
+			}
+		}
+	}
+
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	{
+		SizeT domainCount = 0;
+		auto towerResourcePtr = debug_cast<ResourceArray<PolygonTower>*>(r.get());
+		PolygonTower* towerPtr = nullptr;
+		if (towerResourcePtr)
+		{
+			domainCount = towerResourcePtr->size();
+			towerPtr = towerResourcePtr->begin();
+		}
+
+		if (m_Flags & PolygonFlags::F_DoSplit)
+		{
+			assert(resUnit);
+			SizeT splitCount = 0;
+			auto towerIter = towerPtr;
+			for (SizeT i = 0; i != domainCount; ++i, ++towerIter)
+				if (!towerIter->empty())
+					splitCount += dms_overlay::dms_split_count<P>(towerIter->front().m_Poly);
+
+			resUnit->SetCount(splitCount); // we must be in delayed store now
+			if (resNrOrgEntity)
+			{
+				DataWriteLock resRelLock(resNrOrgEntity);
+				SizeT splitCount2 = 0;
+				towerIter = towerPtr;
+				for (SizeT i = 0; i != domainCount; ++i, ++towerIter)
+				{
+					if (!towerIter->empty())
+					{
+						SizeT nrSplits = dms_overlay::dms_split_count<P>(towerIter->front().m_Poly);
+						SizeT nextCount = splitCount2 + nrSplits;
+						while (splitCount2 != nextCount)
+							resRelLock->SetValueAsSizeT(splitCount2++, i);
+					}
+				}
+				resRelLock.Commit();
+			}
+		}
+		if (DoDelayStore())
+		{
+			assert(resGeometry);
+			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
+		}
+		assert(resGeometryLock);
+
+		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
+		auto resIter = resArray.begin();
+
+		for (SizeT i = 0; i != domainCount; ++i, ++towerPtr)
+		{
+			auto result = towerPtr->get_result();
+			if (m_Flags & PolygonFlags::F_DoSplit)
+				resIter = dms_overlay::dms_split_assign<P>(resIter, result.m_Poly);
+			else
+			{
+				dms_overlay::dms_store_polygon(*resIter, result.m_Poly);
+				++resIter;
+			}
+		}
+		MG_CHECK(resIter == resArray.end() || domainCount == 0);
+	}
+};
+
+// *****************************************************************************
 //	PolygonOverlay
 // *****************************************************************************
 
@@ -2060,6 +2251,29 @@ namespace
 			m_Instances;
 	};
 
+	struct DMS_PolyOperatorGroup : CommonOperGroup
+	{
+		DMS_PolyOperatorGroup(CharPtr name, PolygonFlags flags)
+			: CommonOperGroup(name)
+			, m_Instances(this, flags)
+		{
+			SetBetterNotInMetaScripting();
+		}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, DMS_PolygonOperator> // the sweep has no coordinate restriction
+			m_Instances;
+	};
+
+	struct DMS_PartitionedAlternatives
+	{
+		DMS_PartitionedAlternatives(AbstrOperGroup* cog, PolygonFlags flags)
+			: m_Instances(cog, flags)
+		{}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, DMS_PolygonOperator>
+			m_Instances;
+	};
+
 	struct BpPolyOperatorGroups
 	{
 		BpPolyOperatorGroup simplePO, unionPO;
@@ -2104,6 +2318,17 @@ namespace
 			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
+	struct DMS_PolyOperatorGroups
+	{
+		DMS_PolyOperatorGroup simplePO, unionPO;
+		DMS_PartitionedAlternatives partitionedPO;
+
+		DMS_PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
+			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+		{}
+	};
 	struct BpPolyOperatorGroupss
 	{
 		SharedStr m_ObsMsg; // declared first: simple and split are initialised from it
@@ -2136,6 +2361,13 @@ namespace
 			, split = GEOS_PolyOperatorGroups(SharedStr("geos_split_{}polygon"), PolygonFlags::F_DoSplit)
 			;
 	};
+	struct DMS_PolyOperatorGroupss
+	{
+		DMS_PolyOperatorGroups
+			simple = DMS_PolyOperatorGroups(SharedStr("dms_{}polygon"), PolygonFlags())
+			, split = DMS_PolyOperatorGroups(SharedStr("dms_split_{}polygon"), PolygonFlags::F_DoSplit)
+			;
+	};
 
 	//static CommonOperGroup grOverlayPolygon("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBgOverlayPolygon("bg_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
@@ -2146,6 +2378,8 @@ namespace
 	static CommonOperGroup grBpPolygonConnectivity  ("bp_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grCGALPolygonConnectivity("cgal_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grGEOSPolygonConnectivity("geos_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grDMSOverlayPolygon("dms_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grDMSPolygonConnectivity("dms_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 
 	template <typename P> using BoostPolygonOverlayOperator  = PolygonOverlayOperator<P, geometry_library::boost_polygon, true>;
@@ -2156,6 +2390,8 @@ namespace
 	template <typename P> using BoostGeometryConnectivityOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry, false>;
 	template <typename P> using CGAL_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::cgal, false>;
 	template <typename P> using GEOS_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::geos, false>;
+	template <typename P> using DMS_OverlayOperator = PolygonOverlayOperator<P, geometry_library::dms, true>;
+	template <typename P> using DMS_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::dms, false>;
 
 //	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator > boostPolygonOverlayOperators   (grOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator > boostPolygonBpOverlayOperators (grBpOverlayPolygon, false);
@@ -2171,6 +2407,8 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator> boostGeometryConnectivityOperators(grBgPolygonConnectivity, false);
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator> cgalConnectivityOperators(grCGALPolygonConnectivity, false);
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator> geosConnectivityOperators(grGEOSPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_OverlayOperator> dmsOverlayOperators(grDMSOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConnectivityOperator> dmsConnectivityOperators(grDMSPolygonConnectivity, false);
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator> boostPolygonBpOverlay1Operators(grBpOverlayPolygon, true);
 	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryOverlayOperator> boostGeometryBgOverlay1Operators(grBgOverlayPolygon, true);
@@ -2180,6 +2418,8 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator> boostGeometryConnectivity1Operators(grBgPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator> cgalConnectivity1Operators(grCGALPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator> geosConnectivity1Operators(grGEOSPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_OverlayOperator> dmsOverlay1Operators(grDMSOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConnectivityOperator> dmsConnectivity1Operators(grDMSPolygonConnectivity, true);
 
 
 	// The obsolete UNPREFIXED boost::polygon operators (was: PolyOperatorGroupss simple) have been
@@ -2210,6 +2450,9 @@ namespace
 	BgPolyOperatorGroupss bg_simple;
 	CGAL_PolyOperatorGroupss cgal_simple;
 	GEOS_PolyOperatorGroupss geos_simple;
+	// dms_polygon, dms_union_polygon (with and without a partitioning), dms_split_polygon and
+	// dms_split_union_polygon: the sweep of DMS_Traits.h, which does not require valid operands.
+	DMS_PolyOperatorGroupss dms_simple;
 
 	// The obsolete UNPREFIXED filtered/inflated/deflated boost::polygon operators (PolyOperatorGroupsss
 	// f2..f2f) have been removed; they were deprecated in v20. Use the bp_*/bg_*/cgal_*/geos_* variants above.

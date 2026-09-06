@@ -36,7 +36,9 @@
 #include "vt/SequenceTraits.h"
 
 
-enum class geometry_library { boost_polygon, boost_geometry, cgal, geos };
+// The fifth, dms, is not a library binding but the sweep of DMS_Traits.h (issue #1214), which is
+// what makes it the one that accepts operands that are not valid polygons.
+enum class geometry_library { boost_polygon, boost_geometry, cgal, geos, dms };
 
 namespace bp = boost::polygon;
 

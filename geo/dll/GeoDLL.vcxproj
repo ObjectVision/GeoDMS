@@ -94,6 +94,7 @@
     <ClInclude Include="src\GeoInterface.h" />
     <ClInclude Include="src\GeoPCH.h" />
     <ClInclude Include="src\GEOS_Traits.h" />
+    <ClInclude Include="src\DMS_Traits.h" />
     <ClInclude Include="src\minkowski.h" />
     <ClInclude Include="src\PolyOper.h" />
     <ClInclude Include="src\Potential.h" />
@@ -114,6 +115,7 @@
     <ClCompile Include="src\BoostGeometry_bp.cpp" />
     <ClCompile Include="src\BoostGeometry_cgal.cpp" />
     <ClCompile Include="src\BoostGeometry_geos.cpp" />
+    <ClCompile Include="src\BoostGeometry_dms.cpp" />
     <ClCompile Include="src\PolygonOper.cpp" />
     <ClCompile Include="src\WindingOrder.cpp" />
     <ClCompile Include="src\BoostPolygon.cpp" />

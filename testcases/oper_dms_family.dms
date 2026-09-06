@@ -1,0 +1,159 @@
+// Pins the rest of the dms_ family (issue #1214), the operators built on the sweep of
+// geo/dll/src/DMS_Traits.h: dms_polygon, dms_union_polygon with and without a partitioning,
+// dms_split_polygon, dms_split_union_polygon, dms_overlay_polygon, dms_polygon_connectivity,
+// dms_minkowski_sum and dms_minkowski_difference.
+//
+// The four binary operators they are folded from are pinned by oper_dms_overlay*.dms; what is new
+// here is the plumbing into the shared machinery: the fold of an assoc_tower (dissolve), the
+// partitioning, the split into single polygons, the pairing through the spatial index, and the
+// convex cells of a Minkowski sum.
+//
+// The distinguishing property is checked too: unlike the four library backends, these accept a
+// ring that is not a valid polygon, read under the even-odd rule.
+//
+// Offline and cheap by design (testcases/ rule): a handful of literal polygons.
+container oper_dms_family
+{
+	// ---- four 2 x 2 squares in a row, with a gap of 1 between them ------------------------
+	// square k spans [3k, 3k+2] x [0, 2], so each has area 4 and they are pairwise disjoint.
+	unit<uint32> Sq4 : nrofrows = 4;
+	unit<uint32> Sq4Pt : nrofrows = 20;
+
+	attribute<int32>  sx   (Sq4Pt) : [ 0,0,2,2,0,   3,3,5,5,3,   6,6,8,8,6,   9,9,11,11,9 ];
+	attribute<int32>  sy   (Sq4Pt) : [ 0,2,2,0,0,   0,2,2,0,0,   0,2,2,0,0,   0,2,2, 0,0 ];
+	attribute<Sq4>    sseq (Sq4Pt) : [ 0,0,0,0,0,   1,1,1,1,1,   2,2,2,2,2,   3,3,3,3,3 ];
+	attribute<uint32> sord (Sq4Pt) : [ 0,1,2,3,4,   0,1,2,3,4,   0,1,2,3,4,   0,1,2,3,4 ];
+
+	attribute<ipoint> squares (Sq4, polygon) := points2polygon(point_xy(sx, sy, ipoint), sseq, sord);
+
+	// two partitions: the first two squares and the last two
+	unit<uint32> Part2 : nrofrows = 2;
+	attribute<Part2> part_rel (Sq4) : [ 0, 0, 1, 1 ];
+
+	// ---- one rectangle [1,7] x [0,2] to overlay the squares with -------------------------
+	unit<uint32> Solo : nrofrows = 1;
+	unit<uint32> RPt  : nrofrows = 5;
+	attribute<Solo>   rseq (RPt) : [ 0, 0, 0, 0, 0 ];
+	attribute<uint32> rord (RPt) : [ 0, 1, 2, 3, 4 ];
+
+	attribute<int32>  bx (RPt) : [ 1, 1, 7, 7, 1 ];
+	attribute<int32>  by (RPt) : [ 0, 2, 2, 0, 0 ];
+	attribute<ipoint> band (Solo, polygon) := points2polygon(point_xy(bx, by, ipoint), rseq, rord);
+
+	// ---- invalid input: a bow tie, and the left half plane that holds one of its triangles --
+	// the ring crosses itself at (50, 50), so even-odd it is two triangles of 2500 each
+	unit<uint32> BowPt : nrofrows = 4;
+	attribute<int32>  wx   (BowPt) : [ 0, 100, 100,   0 ];
+	attribute<int32>  wy   (BowPt) : [ 0, 100,   0, 100 ];
+	attribute<Solo>   wseq (BowPt) : [ 0, 0, 0, 0 ];
+	attribute<uint32> word (BowPt) : [ 0, 1, 2, 3 ];
+	attribute<ipoint> bowtie (Solo, polygon) := points2polygon(point_xy(wx, wy, ipoint), wseq, word);
+
+	attribute<int32>  hx (RPt) : [ 0,  0, 50, 50, 0 ];
+	attribute<int32>  hy (RPt) : [ 0, 100, 100, 0, 0 ];
+	attribute<ipoint> left_half (Solo, polygon) := points2polygon(point_xy(hx, hy, ipoint), rseq, rord);
+
+	// the two of them as one two-element attribute, to dissolve together
+	unit<uint32> Mix2 : nrofrows = 2;
+	unit<uint32> MixPt : nrofrows = 9;
+	attribute<int32>  mx   (MixPt) : [ 0, 100, 100,   0,    0,   0, 50, 50, 0 ];
+	attribute<int32>  my   (MixPt) : [ 0, 100,   0, 100,    0, 100, 100, 0, 0 ];
+	attribute<Mix2>   mseq (MixPt) : [ 0, 0, 0, 0,          1, 1, 1, 1, 1 ];
+	attribute<uint32> mord (MixPt) : [ 0, 1, 2, 3,          0, 1, 2, 3, 4 ];
+	attribute<ipoint> mixed (Mix2, polygon) := points2polygon(point_xy(mx, my, ipoint), mseq, mord);
+
+	// ---- the square that the Minkowski operators grow and shrink ---------------------------
+	attribute<int32>  qx (RPt) : [ 0,   0, 100, 100, 0 ];
+	attribute<int32>  qy (RPt) : [ 0, 100, 100,   0, 0 ];
+	attribute<ipoint> square (Solo, polygon) := points2polygon(point_xy(qx, qy, ipoint), rseq, rord);
+
+	container checks
+	{
+		// ---- 1. dms_polygon: the clean-up, per element ------------------------------------
+		// The bow tie read even-odd is two triangles: 2 x 2500. A library backend needs its input
+		// repaired first; this one does not.
+		attribute<ipoint>  cleaned (Solo, polygon) := dms_polygon(bowtie);
+		parameter<float64> a_cleaned := sum(float64(area(cleaned)));
+		parameter<bool>    clean_ok := a_cleaned == 5000.0, IntegrityCheck = "clean_ok == true";
+
+		// a value that is already valid comes back unchanged in area and vertex count
+		attribute<ipoint>  cleaned_sq (Sq4, polygon) := dms_polygon(squares);
+		parameter<bool>    clean_valid_ok := sum(float64(area(cleaned_sq))) == 16.0
+			&& sum(sequence_element_count(cleaned_sq)) == 20
+			, IntegrityCheck = "clean_valid_ok == true";
+
+		// ---- 2. dms_union_polygon: the dissolve --------------------------------------------
+		// four disjoint squares of 4: one value, four shells, 4 x 5 points plus 3 back-track points
+		parameter<ipoint>  dissolved (polygon) := dms_union_polygon(squares);
+		parameter<float64> a_dissolved := float64(area(dissolved));
+		parameter<bool>    union_ok := a_dissolved == 16.0, IntegrityCheck = "union_ok == true";
+		parameter<bool>    union_layout_ok := sequence_element_count(dissolved) == 23, IntegrityCheck = "union_layout_ok == true";
+
+		// the partitioned form: two groups of two squares, 8 each
+		attribute<ipoint>  per_part (Part2, polygon) := dms_union_polygon(squares, part_rel);
+		parameter<bool>    part_ok := all(float64(area(per_part)) == 8.0), IntegrityCheck = "part_ok == true";
+
+		// the dissolve accepts an invalid operand: the bow tie's left triangle lies inside the
+		// left half plane, its right triangle (2500) does not, so the union is 5000 + 2500
+		parameter<ipoint>  dissolved_mixed (polygon) := dms_union_polygon(mixed);
+		parameter<bool>    union_invalid_ok := float64(area(dissolved_mixed)) == 7500.0, IntegrityCheck = "union_invalid_ok == true";
+
+		// ---- 3. the split variants ---------------------------------------------------------
+		unit<uint32> parts := dms_split_polygon(squares)
+		{
+			attribute<float64> a := float64(area(geometry));
+		}
+		parameter<bool> split_ok := #parts == 4 && sum(parts/a) == 16.0, IntegrityCheck = "split_ok == true";
+
+		unit<uint32> union_parts := dms_split_union_polygon(squares)
+		{
+			attribute<float64> a := float64(area(geometry));
+		}
+		parameter<bool> split_union_ok := #union_parts == 4 && sum(union_parts/a) == 16.0, IntegrityCheck = "split_union_ok == true";
+
+		// ---- 4. dms_overlay_polygon and dms_polygon_connectivity ---------------------------
+		// the band [1,7] x [0,2] meets three of the four squares: [1,2] gives 2, [3,5] gives 4,
+		// [6,7] gives 2, and the fourth square is beyond it
+		unit<uint32> overlay := dms_overlay_polygon(squares, band)
+		{
+			attribute<float64> a := float64(area(geometry));
+		}
+		parameter<bool> overlay_ok := #overlay == 3 && sum(overlay/a) == 8.0, IntegrityCheck = "overlay_ok == true";
+
+		unit<uint32> pairs := dms_polygon_connectivity(squares, band);
+		parameter<bool> connectivity_ok := #pairs == 3, IntegrityCheck = "connectivity_ok == true";
+
+		// within one set the four squares are pairwise disjoint, so there is no pair at all
+		unit<uint32> self_pairs := dms_polygon_connectivity(squares);
+		parameter<bool> self_connectivity_ok := #self_pairs == 0, IntegrityCheck = "self_connectivity_ok == true";
+
+		// ---- 5. dms_minkowski_sum and dms_minkowski_difference ------------------------------
+		// [0,100]^2 grown by the 4HV kernel at size 10 is [-10,110]^2 = 14400, the number
+		// oper_minkowski.dms pins for the other four backends
+		attribute<ipoint>  grown (Solo, polygon) := dms_minkowski_sum(square, float64(10), '4HV');
+		parameter<bool>    minkowski_sum_ok := sum(float64(area(grown))) == 14400.0, IntegrityCheck = "minkowski_sum_ok == true";
+
+		// and shrunk by the same kernel at size 5 it is [5,95]^2 = 8100
+		attribute<ipoint>  shrunk (Solo, polygon) := dms_minkowski_difference(square, float64(5), '4HV');
+		parameter<bool>    minkowski_diff_ok := sum(float64(area(shrunk))) == 8100.0, IntegrityCheck = "minkowski_diff_ok == true";
+
+		// the kernel as a polygon argument, the other signature of #917: the same square kernel
+		unit<uint32> KPt : nrofrows = 5;
+		attribute<int32>  kx (KPt) : [ 10, 10, -10, -10, 10 ];
+		attribute<int32>  ky (KPt) : [ 10, -10, -10, 10, 10 ];
+		attribute<Solo>   kseq (KPt) : [ 0, 0, 0, 0, 0 ];
+		attribute<uint32> kord (KPt) : [ 0, 1, 2, 3, 4 ];
+		attribute<ipoint> kernel_row (Solo, polygon) := points2polygon(point_xy(kx, ky, ipoint), kseq, kord);
+		parameter<ipoint> kernel (polygon) := dms_union_polygon(kernel_row);
+
+		attribute<ipoint>  grown_by_kernel (Solo, polygon) := dms_minkowski_sum(square, kernel);
+		parameter<bool>    minkowski_kernel_ok := sum(float64(area(grown_by_kernel))) == 14400.0, IntegrityCheck = "minkowski_kernel_ok == true";
+
+		// ---- 6. agreement with the geos_ family on valid input ------------------------------
+		// the same dissolve and the same overlay, on float64 coordinates, through geos
+		attribute<dpoint> squares_d (Sq4, polygon) := points2polygon(point_xy(float64(sx), float64(sy), dpoint), sseq, sord);
+		parameter<dpoint> dissolved_d (polygon) := dms_union_polygon(squares_d);
+		parameter<dpoint> dissolved_geos (polygon) := geos_union_polygon(squares_d);
+		parameter<bool>   geos_union_ok := area(geos_xor(dissolved_d, dissolved_geos)) < 0.001, IntegrityCheck = "geos_union_ok == true";
+	}
+}

@@ -156,6 +156,9 @@
     <ClCompile Include="src\BoostGeometry_geos.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\BoostGeometry_dms.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\PolygonOper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
