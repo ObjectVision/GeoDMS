@@ -898,6 +898,48 @@ namespace { // #587 helpers for NonmappableStorageManager::DescribeReadCall
 		return LispRef(spec, tail);
 	}
 
+	// Does the table's read name this member? A table read lists its stored attributes by relative
+	// name in its key (with an optional ':poly' composition suffix, and a trailing '@' for a relation
+	// to the table itself), and the cache-root merge hands each of them subitem(<table key>, name).
+	// A member that did not exist when that key was built is not in it and never gets that share: the
+	// members of a container with a calculation rule, which CollectStoredMembers walks while it is
+	// still empty (a container assigned for_each_ndv(...) under a stored unit, as the BAG and the GTFS
+	// configurations write it). Such a member reads on its own instead. A table with no read installed
+	// yet gives no answer here, and the structural test below stands.
+	bool TableReadNamesMember(const AbstrUnit* table, CharPtrRange relName)
+	{
+		const auto& calc = table->GetCalculatorMember();
+		if (!calc || !calc->IsStorageRead())
+			return true;
+		auto key = calc->GetLispExprOrg();
+		if (!key.IsRealList())
+			return true;
+		auto args = key.Right(); // past the operator symbol
+		for (int skipped = 0; skipped != 2; ++skipped) // past the spec and the domain value type
+		{
+			if (args.EndP())
+				return false; // not a table read: an attribute or a value read names no members
+			args = args.Right();
+		}
+		for (; !args.EndP(); args = args.Right())
+		{
+			auto nameRef = args.Left();
+			if (nameRef.IsStrn())
+			{
+				CharPtr first = nameRef.GetStrnBeg(), last = nameRef.GetStrnEnd();
+				if (first != last && last[-1] == '@')
+					--last;
+				auto colon = std::find(first, last, ':');
+				if (colon - first == relName.second - relName.first && std::equal(first, colon, relName.first))
+					return true;
+			}
+			args = args.Right(); // the member's values unit
+			if (args.EndP())
+				break;
+		}
+		return false;
+	}
+
 	// Is du a table that this storage reads, so that an attribute over it is a member of that read
 	// (cache-root merge) rather than a read of its own? Raw members only: du may not be updated yet.
 	bool IsTableReadFromStorage(const AbstrUnit* du, const TreeItem* storageHolder)
@@ -1040,7 +1082,12 @@ ReadCallSpec NonmappableStorageManager::DescribeReadCall(const TreeItem* storage
 	if (!adu)
 		return {};
 	if (adu->GetValueType() != ValueWrap<Void>::GetStaticClass() && IsTableReadFromStorage(adu, storageHolder) && adu->DoesContain(adi))
-		return {}; // a member of its table's read: the cache-root merge gives it subitem(<table key>, name)
+	{
+		// GetRelativeName asserts that the context contains the item, which the test above establishes
+		auto relName = adi->GetRelativeName(adu);
+		if (TableReadNamesMember(adu, relName.AsRange()))
+			return {}; // a member of its table's read: the cache-root merge gives it subitem(<table key>, name)
+	}
 	// an attribute over a table it is not below (shp puts PointData beside its ShapeID) reads on its own
 	return DescribeAttrRead(storageHolder, adi);
 }

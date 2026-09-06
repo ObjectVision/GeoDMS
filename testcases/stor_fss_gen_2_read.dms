@@ -1,0 +1,26 @@
+// #587: the stored attributes of a table can be generated rather than configured. Here the container
+// holding them is the result of for_each_ndv, the idiom the BAG and the GTFS regression
+// configurations use (gebruiksdoelen, ReadFSS/data). Such members do not exist when the table's read
+// key is built, so they are not members of that read and must read on their own; they used to end up
+// with no calculator at all and failed with "No calculation rule or storage manager was specified".
+container stor_fss_gen_2_read
+{
+	unit<uint32> names : nrofrows = 2
+	{
+		attribute<string> n : ['a', 'b'];
+	}
+
+	unit<uint32> store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_fss_gen.fss"
+	,	StorageReadOnly = "True"
+	{
+		container g := for_each_ndv(names/n, store, int32);
+	}
+
+	container checks
+	{
+		parameter<uint32> c_n := #store,          IntegrityCheck = "c_n == 3";
+		parameter<int32>  c_a := sum(store/g/a),  IntegrityCheck = "c_a == 6i";
+		parameter<int32>  c_b := sum(store/g/b),  IntegrityCheck = "c_b == 60i";
+	}
+}

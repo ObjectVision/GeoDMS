@@ -1,0 +1,20 @@
+// #587: write half of the generated-member round trip. An FSS with a nested container of
+// attributes, written the ordinary way; stor_fss_gen_2_read.dms reads it back through a container
+// that is GENERATED. Run item: /store (fnrun_itemmap.txt).
+container stor_fss_gen_1_write
+{
+	unit<uint32> src : nrofrows = 3
+	{
+		attribute<int32> a : [1, 2, 3];
+		attribute<int32> b : [10, 20, 30];
+	}
+	unit<uint32> store := src
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_fss_gen.fss"
+	{
+		container g
+		{
+			attribute<int32> a := src/a;
+			attribute<int32> b := src/b;
+		}
+	}
+}

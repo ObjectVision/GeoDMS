@@ -67,3 +67,4 @@ stor_mmd_group_1_write.dms /store
 stor_fss_1_write.dms /store
 stor_dbf_1_write.dms /export
 stor_gpkg_1_write.dms /export
+stor_fss_gen_1_write.dms /store
