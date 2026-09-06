@@ -115,6 +115,22 @@ struct IndexedStrings : IndexedStringsBase
 
 	index_type GetOrCreateID_st(CharPtr keyFirst, CharPtr keyLast); // range of chars excluding null terminator
 	RTC_CALL index_type GetOrCreateID_mt(CharPtr keyFirst, CharPtr keyLast); // range of chars excluding null terminator
+
+	// #1259: for an instance that ONE thread owns for its whole lifetime, so that no section is
+	// needed at all. The caller warrants that ownership; nothing here can check it.
+	//
+	// It exists because GetCS() hands the same process wide critical section to every instance, so a
+	// table that nobody else can reach still serialises against every other table and against the
+	// token registry. That is right for the registry, which is genuinely shared, and pure loss for a
+	// private one: parse_xml gives each parsed entity its own value table and fills it with primary
+	// data, one acquire per parsed value, which is a large part of what keeps two parses from
+	// running side by side.
+	//
+	// GetOrCreateID_st cannot serve: its dms_assert(NoOtherThreadsStarted()) is a statement about
+	// the process, not about who owns this table, and it is meant for static initialisation. Never
+	// use this for the token registry or for any table a second thread can reach.
+	RTC_CALL index_type GetOrCreateID_private(CharPtr keyFirst, CharPtr keyLast); // range of chars excluding null terminator
+
 	index_type GetExisting_st (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
 	index_type GetExisting_mt (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
 	index_type GetOrCreateID_st(CharPtr key) { return GetOrCreateID_st(key, key+StrLen(key)); }

@@ -261,6 +261,18 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 	return GetOrCreateID_impl(keyFirst, keyLast);
 }
 
+// #1259: no section, because the instance is private to the calling thread. See the header for the
+// contract and for why GetOrCreateID_st cannot be used instead. Nothing may be added here that
+// reaches shared state: GetOrCreateID_impl's case mix-up report is the one thing that would, and it
+// is compiled out for a comparer other than AsciiFoldedCaseInsensitiveEqual, which the registry uses
+// and a private table does not.
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
+IndexedStringsBase::index_type
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_private(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
+{
+	return GetOrCreateID_impl(keyFirst, keyLast);
+}
+
 template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_impl(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator

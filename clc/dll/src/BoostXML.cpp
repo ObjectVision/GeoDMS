@@ -12,6 +12,10 @@
 
 #include <boost/property_tree/detail/rapidxml.hpp>
 
+#include <map>
+#include <string>
+#include <string_view>
+
 #include "mci/ValueClass.h"
 #include "set/IndexedStrings.h"
 #include "utl/StrFormat.h"
@@ -63,20 +67,26 @@ struct Element : SharedBase
 		:	m_Parent(parent)
 		,	m_EntityIndex(entityIndex)
 	{
-		if (!item) 
+		if (!item)
 			return;
 		m_DmsFullName = item->GetFullName();
+		// #1259: interned once here rather than on every GetNameID(). ProcessBase asks the context
+		// element for its name id once per XML NODE, and resolving a name is an acquire of the one
+		// process wide IndexedStrings section (GetCS()), so that was a lock per node for a value
+		// that never changes.
+		m_NameID = GetTokenID(CharPtrRange(m_DmsFullName.begin() + 1, m_DmsFullName.send()));
 	}
 	virtual ~Element() {}
 	void Release() const { delete this;	}
 	virtual void AddValue(entity_id parentID, CharPtr begin, CharPtr end) {}
 
 	SharedStr GetNameStr() const { return m_DmsFullName.empty() ? SharedStr() : SharedStr(CharPtrRange(m_DmsFullName.begin()+1, m_DmsFullName.send())); }
-	TokenID   GetNameID() const { return m_DmsFullName.empty() ? TokenID::GetEmptyID() : GetTokenID(CharPtrRange(m_DmsFullName.begin() + 1, m_DmsFullName.send())); }
+	TokenID   GetNameID() const { return m_NameID; }
 
 	Entity*      m_Parent = nullptr;
 	entity_index m_EntityIndex = UNDEFINED_VALUE(entity_index);
 	SharedStr    m_DmsFullName;
+	TokenID      m_NameID = TokenID::GetEmptyID(); // empty while m_DmsFullName is, as GetNameID used to return
 };
 
 struct Entity : Element
@@ -92,7 +102,12 @@ struct Entity : Element
 		if(!m_Parent)
 			m_ParentEntityTableRel.push_back(parentID.first);
 		m_ParentRel.push_back(parentID.second);
-		m_ValueIndex.push_back( m_Values.GetOrCreateID_mt(begin, end) );
+		// #1259: m_Values is this Entity's own table, reachable only from the ParseContext of the one
+		// CalcResult that is filling it, and it holds parsed values rather than names. _mt put every
+		// one of them through the process wide section that the token registry also uses, so for the
+		// BAG pand schema, whose posList values are unique per object, that was an EXCLUSIVE acquire
+		// per parsed object.
+		m_ValueIndex.push_back( m_Values.GetOrCreateID_private(begin, end) );
 	}
 
 	SizeT GetCount() const { return m_ValueIndex.size(); }
@@ -147,6 +162,25 @@ struct ParseContext
 	StringVector m_EntityNames;
 	std::map<TokenID, const Element*> m_KnownEntities;
 
+	// #1259: one registry acquire per DISTINCT element name instead of one per node. ProcessBase
+	// interns the node's name only to key m_Map with it, and a document repeats the same handful of
+	// names once per object: a BAG pand fileset of 500 000 objects asks for the same dozen names a
+	// few million times. Every one of those went through IndexedStrings::GetOrCreateID_mt, which
+	// acquires the single process wide section that GetCS() hands to every instance, so this was the
+	// bulk of what stopped two parses from running side by side.
+	std::map<std::string, TokenID, std::less<> > m_NameIds;
+
+	TokenID NameID(CharPtr first, CharPtr last)
+	{
+		std::string_view key(first, last - first);
+		auto i = m_NameIds.find(key);
+		if (i != m_NameIds.end())
+			return i->second;
+		auto id = GetTokenID_mt(first, last);
+		m_NameIds.emplace(key, id);
+		return id;
+	}
+
 	Element* CreateElement(TreeItemDualRef& resultHolder, Entity* parent, TokenID id, char* name, char* nameEnd, entity_index entityIndex)
 	{
 		std::vector<char> nameBuffer;
@@ -183,7 +217,7 @@ struct ParseContext
 		char* name = basePtr->name();
 		char* nameEnd = name+basePtr->name_size();
 		TokenID ns = context ? context->GetNameID() : TokenID::GetEmptyID();
-		TokenID id = GetTokenID_mt(name, nameEnd);
+		TokenID id = NameID(name, nameEnd);
 
 		entity_map::key_type key(ns, id);
 		auto iter = m_Map.lower_bound(key);
