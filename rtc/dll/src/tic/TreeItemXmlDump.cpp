@@ -81,6 +81,7 @@
 #include <time.h>
 
 bool IsDumpingToFolder();
+bool AreIncludesWrittenAsFiles(); // #1253: false; the dump is self-contained
 
 // =============================================================================
 // DMS-syntax serialization of FUNCTION items as 'function name<tvs>(params) -> result'
@@ -358,7 +359,7 @@ void TreeItem::XML_DumpFunctionDecl(OutStreamBase* out, bool notWritingDictionar
 void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) const
 {
 	// write #include <filename> if configStore defined
-	if (xmlOutStr->GetLevel() > 0 && IsDumpingToFolder())
+	if (xmlOutStr->GetLevel() > 0 && AreIncludesWrittenAsFiles())
 	{
 		SharedStr dirName = SharedStr( configStorePropDefPtr->GetValue(this) );
 		if (!dirName.empty())

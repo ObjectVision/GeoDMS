@@ -1392,6 +1392,24 @@ bool IsDumpingToFolder()
 	return !s_gDumpFolder.empty();
 }
 
+// #1253: may an item that came from an included configuration file be written back as a
+// '#include' directive plus a file of its own, instead of inline? No, and no caller turns
+// this on: the bookkeeping behind it is broken. AppendTreeFromConfiguration marks ONE item
+// per included file with the configStore property (ParseFile returns the LAST item the
+// include created), so the dump replaced exactly that item by a directive and wrote every
+// other item of the same file inline. The result defined those items twice and did not read
+// back ("SubItem 'sqr' is already defined"), and IncludeFileSave wrote the single marked item
+// into a folder named after the unexpanded path, literally '%exeDir%'. So the dump is
+// self-contained: every item inline, no directives, no side files. Reinstating the file-per-
+// include form needs every item of an include to be marked and a directive written once per
+// run of them; see the issue.
+static bool s_gWriteIncludeFiles = false;
+
+bool AreIncludesWrittenAsFiles()
+{
+	return s_gWriteIncludeFiles;
+}
+
 // #1251: the config parser reads its source through a raw mapped view (ConfigProd::ParseFile),
 // so a source with CRLF line ends stores '\r\n' inside every multi-line expression and data
 // block; ItemSave writes that stored text out verbatim through a TEXT-mode ofstream, which turns
