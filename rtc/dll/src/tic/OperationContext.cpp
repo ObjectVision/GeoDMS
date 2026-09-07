@@ -1436,6 +1436,27 @@ static bool UpdateLedgerCommitPressure()
 	return sd_LedgerCommitPressure;
 }
 
+// #1259 Whether the update walk may DEFER one more stored item's commit (schedule its producer
+// and move on) or must wait for the current one as before. Deferring everything schedules the
+// whole run at once (measured on the BAG extract: 50 filesets in flight, 96 GB commit, a stall);
+// waiting for each one serialises the run. So: defer while the process commit is under the
+// budget (/SB<MB>, else the derived one), wait when it is not -- a wait completes the item at
+// hand, its store is written and released, and the budget opens again. Meta thread only,
+// re-measured at most five times a second.
+bool LedgerHasRoomForDeferral()
+{
+	assert(IsMetaThread());
+	static Int64 s_LastCheckNs = 0;
+	static bool  s_HasRoom = true;
+	auto nowNs = std::chrono::steady_clock::now().time_since_epoch().count();
+	if (nowNs - s_LastCheckNs > 200'000'000)
+	{
+		s_LastCheckNs = nowNs;
+		s_HasRoom = GetProcessCommitBytes() < LedgerBudgetBytes();
+	}
+	return s_HasRoom;
+}
+
 // The ledger's own sum counts only what the DMS allocator hands out. Memory a third-party library
 // takes straight from malloc is invisible to it -- and on a geometry workload that is most of the
 // footprint. Measured on t301 (§8.1.34): the ledger read 706 MB while the process held 18 037 MB,

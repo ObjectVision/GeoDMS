@@ -20,6 +20,8 @@
 #include "act/InterestRetainContext.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
+
+bool LedgerHasRoomForDeferral(); // tic/OperationContext.cpp, same module (#1259)
 #include "act/UpdateMark.h"
 
 #include "dbg/DmsCatch.h"
@@ -451,7 +453,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     ActorVisitState updateRes = UpdateSuppliers(); 
     // ===========================
 
-    assert(updateRes || WasFailed() || SuspendTrigger::DidSuspend());
+    assert(updateRes || WasFailed() || SuspendTrigger::DidSuspend() || SuspendTrigger::DeferScope::IsAllowed());
     // don't leave now on !updateRes since a failed supplier will have to cause CheckInvalidate to fail this
 
     // UpdateSuppliers may have resulted in a (new) fail reason: supplier failed, or any other fail
@@ -466,7 +468,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
 
     if (updateRes == AVS_SuspendedOrFailed)
     {
-        assert(SuspendTrigger::DidSuspend());
+        assert(SuspendTrigger::DidSuspend() || SuspendTrigger::DeferScope::IsAllowed()); // suspended, or a supplier's commit was deferred (#1259)
         return AVS_SuspendedOrFailed;
     }
     if (m_State.GetProgress() >= ProgressState::Committed)
@@ -523,7 +525,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
         }
         else
         {
-            assert(SuspendTrigger::DidSuspend() || WasFailed());
+            assert(SuspendTrigger::DidSuspend() || WasFailed() || SuspendTrigger::DeferScope::IsAllowed()); // or this item's own commit was deferred (#1259)
         }
     }
     catch (const DmsException& x)
@@ -723,21 +725,39 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
     assert(!WasFailed()); // precondition
     assert(DoesHaveSupplInterest() || !GetInterestCount());
 
+    // #1259 A supplier whose commit was deferred (its producer is in flight) does not stop the
+    // walk while the memory budget has room: the next suppliers are updated too, so that their
+    // producers get scheduled alongside. Once the budget is used up the walk stops at the first
+    // incomplete supplier instead, so that the retries finish what is in flight, in order, and
+    // release it, before anything further is started. Without that stop every supplier advanced
+    // one stage per retry in lockstep and nothing was released before the end (measured on the
+    // BAG extract: 68 GB live under a 16 GB budget). Either way a deferral stops this item from
+    // committing below, until a retry finds nothing deferred.
+    bool anyDeferred = false;
     ActorVisitState updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
-            [this](const Actor* supplier) -> ActorVisitState
+            [this, &anyDeferred](const Actor* supplier) -> ActorVisitState
             {
                 if (!supplier->IsPassor())
                 {
+                    auto deferredBefore = SuspendTrigger::DeferScope::Count();
                     supplier->SuspendibleUpdate();
                     if (SuspendTrigger::DidSuspend())
                         return AVS_SuspendedOrFailed;
+                    if (SuspendTrigger::DeferScope::Count() != deferredBefore)
+                    {
+                        anyDeferred = true;
+                        if (!LedgerHasRoomForDeferral())
+                            return AVS_SuspendedOrFailed; // stop the walk here; retried after in-flight work has progressed
+                    }
                 }
                 return AVS_Ready;
             }
         );
     if (updateRes == AVS_SuspendedOrFailed)
         return updateRes;
+    if (anyDeferred)
+        return AVS_SuspendedOrFailed;
 
     updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::UpdateForDataPrep,
