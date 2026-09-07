@@ -1443,18 +1443,61 @@ static bool UpdateLedgerCommitPressure()
 // budget (/SB<MB>, else the derived one), wait when it is not -- a wait completes the item at
 // hand, its store is written and released, and the budget opens again. Meta thread only,
 // re-measured at most five times a second.
+static SizeT LedgerChargeOf(const PerformanceEstimationData& e); // defined below, beside the charge policy
+
+// Deferred work in flight, by deferring item: the ledger charge of the producer's estimate,
+// registered when the commit is deferred and dropped when the item's data is ready, since from
+// then on the memory is in the process commit itself. Meta thread only.
+static std::map<const TreeItem*, SizeT> s_DeferredInFlight;
+static SizeT s_DeferredInFlightBytes = 0;
+static std::atomic<UInt32> s_DeferredCommitsPending = 0; // published by the update loop, read by the gate
+
+void LedgerNoteDeferral(const TreeItem* item)
+{
+	assert(IsMetaThread() && item);
+	if (s_DeferredInFlight.contains(item))
+		return;
+	SizeT charge = 0;
+	if (auto oc = GetOperationContext(item->GetCurrRangeItem().get()))
+		if (oc->m_Estimate)
+			charge = LedgerChargeOf(*oc->m_Estimate);
+	s_DeferredInFlight[item] = charge;
+	s_DeferredInFlightBytes += charge;
+}
+
+void LedgerNoteReady(const TreeItem* item)
+{
+	assert(IsMetaThread());
+	auto i = s_DeferredInFlight.find(item);
+	if (i == s_DeferredInFlight.end())
+		return;
+	s_DeferredInFlightBytes -= Min<SizeT>(s_DeferredInFlightBytes, i->second);
+	s_DeferredInFlight.erase(i);
+}
+
+void LedgerSetDeferredCommitsPending(UInt32 nr)
+{
+	s_DeferredCommitsPending.store(nr, std::memory_order_relaxed);
+	if (!nr && IsMetaThread())
+	{
+		s_DeferredInFlight.clear(); // the loop ended: nothing is in flight any more
+		s_DeferredInFlightBytes = 0;
+	}
+}
+
 bool LedgerHasRoomForDeferral()
 {
 	assert(IsMetaThread());
 	static Int64 s_LastCheckNs = 0;
-	static bool  s_HasRoom = true;
+	static SizeT s_Commit = 0;
 	auto nowNs = std::chrono::steady_clock::now().time_since_epoch().count();
 	if (nowNs - s_LastCheckNs > 200'000'000)
 	{
 		s_LastCheckNs = nowNs;
-		s_HasRoom = GetProcessCommitBytes() < LedgerBudgetBytes();
+		s_Commit = GetProcessCommitBytes();
 	}
-	return s_HasRoom;
+	// what is already in the process plus what the deferred producers will still add
+	return s_Commit + s_DeferredInFlightBytes < LedgerBudgetBytes();
 }
 
 // The ledger's own sum counts only what the DMS allocator hands out. Memory a third-party library
@@ -1794,7 +1837,12 @@ static bool AdmitOrRequeue(OperationContext* self)
 	// attempt in between; an unchanged ADMIT generation since its previous refusal means that
 	// whole cycle admitted no compressor -- the available operations cannot drain, so waiting
 	// longer is pointless even while other work still runs.
-	if (!fits && isClaimant && admitGen == sd_LedgerClaimSeenAdmitGeneration)
+	// #1259: not while the update loop has deferred commits pending. Those commits release the
+	// memory of every fileset they write, so a drain IS coming, from the meta thread rather than
+	// from a compressor in the queue; lifting here would let every parse of the run start on top
+	// of it. Lift (a) still fires when nothing runs, so this cannot deadlock.
+	if (!fits && isClaimant && admitGen == sd_LedgerClaimSeenAdmitGeneration
+		&& !s_DeferredCommitsPending.load(std::memory_order_relaxed))
 		fits = lifted = true;
 
 	// Drain policy: work that ADDS retained memory is deferred even when it fits, while either

@@ -29,6 +29,8 @@
 #include "act/TriggerOperator.h"
 
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
+void LedgerNoteDeferral(const TreeItem* item);
+void LedgerNoteReady(const TreeItem* item);
 #include "act/UpdateMark.h"
 #include "act/Waiter.h"
 #include "dbg/debug.h"
@@ -578,11 +580,18 @@ bool TreeItem::CommitDataChanges() const
 	// scheduled until it was written. Inside a DeferScope the commit is deferred instead: this
 	// item stays below Committed, the walk goes on to schedule the next supplier's producer, and
 	// the update loop comes back for the write once the data is ready.
-	if (SuspendTrigger::DeferScope::IsAllowed() && LedgerHasRoomForDeferral() && !IsDataReady(GetCurrRangeItem().get()) && !GetCurrRangeItem()->WasFailed())
+	if (SuspendTrigger::DeferScope::IsAllowed() && !IsDataReady(GetCurrRangeItem().get()) && !GetCurrRangeItem()->WasFailed())
 	{
-		SuspendTrigger::DeferScope::Register();
-		return false; // deferred, not failed
+		if (LedgerHasRoomForDeferral() || IsCalculating(GetCurrRangeItem().get()))
+		{
+			// room for one more, or the producer already runs: waiting for it here would only
+			// idle the meta thread; either way the memory is counted as in flight until ready
+			LedgerNoteDeferral(this);
+			SuspendTrigger::DeferScope::Register();
+			return false; // deferred, not failed
+		}
 	}
+	LedgerNoteReady(this); // ready, or about to be waited for: no longer in flight
 
 	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem().get()) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in {}", DMS_TreeItem_GetAssociatedFilename(this)); });

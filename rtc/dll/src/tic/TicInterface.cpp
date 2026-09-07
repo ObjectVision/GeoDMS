@@ -20,6 +20,9 @@
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
 #include "OperationContext.h"
+#include <chrono>
+#include <thread>
+void LedgerSetDeferredCommitsPending(UInt32 nr); // OperationContext.cpp, same module (#1259)
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
@@ -622,16 +625,33 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 	// deferred any more, pumping the meta thread's own work and waiting for a task to finish in
 	// between, so that the producers run side by side instead of one per commit.
 	SuspendTrigger::DeferScope deferScope; // one scope for all retries: what a deferral keeps alive must outlive the retry
+	UInt32 nrRetries = 0;
+	auto loopStart = std::chrono::steady_clock::now();
 	for (;;)
 	{
 		deferScope.m_NrDeferred = 0;
-		if (self->Update(false, context))
+		bool done = self->Update(false, context);
+		LedgerSetDeferredCommitsPending(done ? 0 : deferScope.m_NrDeferred);
+		if (done)
 			return true;
 		if (SuspendTrigger::DidSuspend())
 			return false;
 		if (!deferScope.m_NrDeferred || self->IsFailed())
 			return true;
+		if (++nrRetries % 100 == 0)
+			reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace, "deferred commits: retry {} of the update of {}, {} deferred, {} s"
+				, nrRetries, self->GetSourceName(), deferScope.m_NrDeferred
+				, std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - loopStart).count());
+		// DoWorkWhileWaiting returns on ANY task completion, and a run with thousands of small operations
+		// completes one every few microseconds: measured 19000 re-walks per second on ten synthetic
+		// filesets, each walking every deferred subtree. A commit becomes possible only when a producer
+		// has finished, which is rare by comparison, so the retries are paced to at most one per 25 ms;
+		// the meta thread's own work is still pumped first by DoWorkWhileWaiting.
+		auto retryStart = std::chrono::steady_clock::now();
 		DoWorkWhileWaiting();
+		auto spent = std::chrono::steady_clock::now() - retryStart;
+		if (spent < std::chrono::milliseconds(25))
+			std::this_thread::sleep_for(std::chrono::milliseconds(25) - spent);
 	}
 }
 
