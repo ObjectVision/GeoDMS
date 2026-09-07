@@ -178,8 +178,14 @@ struct PhaseContainerOperator : BinaryOperator
 			// previous CalcResult released, so that source RECALCULATES: measured in t641_2 as the
 			// same StateNaAllocatie2 members reconverting on every re-entry, ~90 s per pass, 19
 			// passes deep into the first of its 129 phases.
-			if ((IsDataItem(resWalker) || IsUnit(resWalker)) && IsDataReady(resWalker.get()))
-				continue;
+			// Ask the item that carries the data: a member that refers elsewhere for it -- an item
+			// read from a storage refers to the result of its read (#587) -- is ready when THAT item
+			// is, and IsDataReady asserts as much. For an ordinary member the range item is itself.
+			// A range item without interest is not answered about and the member is collected as
+			// before, which costs a pass and never a wrong answer.
+			if (IsDataItem(resWalker) || IsUnit(resWalker))
+				if (auto rangeItem = resWalker->GetCurrRangeItem(); rangeItem && rangeItem->HasInterest() && IsDataReady(rangeItem.get()))
+					continue;
 
 			auto srcItem = sourceContainer->ResolveItemPath(resWalker->GetRelativeName(resultRoot));
 			assert(srcItem);
