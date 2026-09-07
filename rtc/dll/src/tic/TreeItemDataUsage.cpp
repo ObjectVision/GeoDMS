@@ -27,6 +27,8 @@
 #include "act/InterestRetainContext.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
+
+bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
 #include "act/UpdateMark.h"
 #include "act/Waiter.h"
 #include "dbg/debug.h"
@@ -570,6 +572,17 @@ bool TreeItem::CommitDataChanges() const
 	if ((!IsCalculatingOrReady(GetCurrRangeItem().get()) && !PrepareDataUsage(DrlType::Suspendible)) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in {}", DMS_TreeItem_GetAssociatedFilename(this)); });
+
+	// #1259 The producer is in flight. Waiting for it here, on the meta thread and inside the
+	// supplier walk, is what serialised every stored item of a run: nothing after this item was
+	// scheduled until it was written. Inside a DeferScope the commit is deferred instead: this
+	// item stays below Committed, the walk goes on to schedule the next supplier's producer, and
+	// the update loop comes back for the write once the data is ready.
+	if (SuspendTrigger::DeferScope::IsAllowed() && LedgerHasRoomForDeferral() && !IsDataReady(GetCurrRangeItem().get()) && !GetCurrRangeItem()->WasFailed())
+	{
+		SuspendTrigger::DeferScope::Register();
+		return false; // deferred, not failed
+	}
 
 	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem().get()) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in {}", DMS_TreeItem_GetAssociatedFilename(this)); });

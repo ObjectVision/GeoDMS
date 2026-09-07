@@ -19,6 +19,7 @@
 #include "act/ActorVisitor.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
+#include "OperationContext.h"
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
@@ -615,10 +616,23 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 		return true;
 
 	holder = self;
-	if (!self->Update(false, context) && SuspendTrigger::DidSuspend())
-		return false;
-
-	return true;
+	// #1259 Inside a DeferScope a stored item whose producer is in flight is not waited for by
+	// its commit; the update returns with that item below Committed and the walk has scheduled
+	// the producers of the suppliers after it as well. Come back for the writes until nothing is
+	// deferred any more, pumping the meta thread's own work and waiting for a task to finish in
+	// between, so that the producers run side by side instead of one per commit.
+	SuspendTrigger::DeferScope deferScope; // one scope for all retries: what a deferral keeps alive must outlive the retry
+	for (;;)
+	{
+		deferScope.m_NrDeferred = 0;
+		if (self->Update(false, context))
+			return true;
+		if (SuspendTrigger::DidSuspend())
+			return false;
+		if (!deferScope.m_NrDeferred || self->IsFailed())
+			return true;
+		DoWorkWhileWaiting();
+	}
 }
 
 void BlockedItemUpdate(const TreeItem* self)

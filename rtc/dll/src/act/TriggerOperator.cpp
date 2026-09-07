@@ -12,6 +12,10 @@
 #include "act/InterestRetainContext.h"
 #include "act/TriggerOperator.h"
 
+#include <any>
+#include <map>
+#include <vector>
+
 #include "dbg/Timer.h"
 #include "utl/Environment.h"
 #include "utl/FixedBufferFormat.h"
@@ -491,6 +495,64 @@ namespace SuspendTrigger {
 	bool BlockerBase::IsBlocked()
 	{
 		return IsMetaThread() ? s_SuspendBlockLevel : true;
+	}
+
+//  -----------------------------------------------------------------------
+//  SuspendTrigger::DeferScope (#1259)
+//  -----------------------------------------------------------------------
+
+	static DeferScope* s_CurrDeferScope = nullptr; // meta thread only
+	static std::map<const void*, std::vector<std::any>> s_DeferKeepAlive; // interest holders of deferred work, per deferring item
+
+	DeferScope::DeferScope()
+		:	m_BlockLevel(s_SuspendBlockLevel)
+		,	m_Prev(s_CurrDeferScope)
+	{
+		assert(IsMetaThread());
+		s_CurrDeferScope = this;
+	}
+
+	DeferScope::~DeferScope()
+	{
+		assert(IsMetaThread());
+		assert(s_CurrDeferScope == this); // scopes nest
+		s_CurrDeferScope = m_Prev;
+		if (!m_Prev)
+			s_DeferKeepAlive.clear();
+	}
+
+	bool DeferScope::IsAllowed()
+	{
+		return IsMetaThread() && s_CurrDeferScope && s_CurrDeferScope->m_BlockLevel == s_SuspendBlockLevel;
+	}
+
+	void DeferScope::Register()
+	{
+		assert(IsAllowed());
+		++s_CurrDeferScope->m_NrDeferred;
+	}
+
+	// A deferred evaluation must keep the interest it took, or its OperationContext is cancelled
+	// on return and re-created on every retry without ever completing (measured on the real BAG
+	// extract: a livelock). The holder is type-erased here, since this module does not know the
+	// tic types. It is keyed by the deferring item and released the moment that item takes its
+	// verdict, or when the update loop ends: kept until the loop ends it pinned every fileset's
+	// parse result for the whole run (measured: 23 GB live under a 16 GB budget, then serial).
+	void DeferScope_KeepAlive(const void* key, std::any keepAlive)
+	{
+		assert(IsMetaThread() && s_CurrDeferScope);
+		s_DeferKeepAlive[key].push_back(std::move(keepAlive));
+	}
+
+	void DeferScope_Release(const void* key)
+	{
+		assert(IsMetaThread());
+		s_DeferKeepAlive.erase(key);
+	}
+
+	UInt32 DeferScope::Count()
+	{
+		return (IsMetaThread() && s_CurrDeferScope) ? s_CurrDeferScope->m_NrDeferred : 0;
 	}
 
 	SilentBlocker::SilentBlocker(CharPtr blockingAction)

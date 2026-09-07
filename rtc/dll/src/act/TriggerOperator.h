@@ -73,6 +73,27 @@ namespace SuspendTrigger
 	RTC_CALL void IncSuspendLevel() noexcept;
 	RTC_CALL void DecSuspendLevel() noexcept;
 
+	// #1259 A scope in which a stored item's commit may be DEFERRED instead of joined.
+	// TreeItem::CommitDataChanges schedules the item's calculation and then waits for it on the
+	// meta thread, inside Actor::UpdateSuppliers' sequential walk, so no later supplier is even
+	// scheduled until the current one is written. Inside a DeferScope, opened by the update loop
+	// of ItemUpdateImpl, a commit whose producer is in flight registers itself here and returns
+	// without waiting; the walk goes on, the consumer stays below Committed with its supplier
+	// interest, and the loop retries until nothing is deferred. Only at the blocker depth the
+	// scope was opened at: a nested FencedBlocker (CertainUpdate) keeps the waiting behaviour.
+	struct DeferScope
+	{
+		RTC_CALL DeferScope();
+		RTC_CALL ~DeferScope();
+		RTC_CALL static bool IsAllowed();
+		RTC_CALL static void Register();
+		RTC_CALL static UInt32 Count(); // deferrals registered in the innermost scope, 0 without one
+
+		UInt32 m_NrDeferred = 0;
+		UInt32 m_BlockLevel;
+		DeferScope* m_Prev;
+	};
+
 	struct TryFrame { //: InterestRetainContextBase {
 		TryFrame() noexcept;
 		~TryFrame() noexcept;
