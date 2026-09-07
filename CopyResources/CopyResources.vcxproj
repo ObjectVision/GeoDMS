@@ -38,15 +38,35 @@
   <PropertyGroup Condition="'$(Configuration)'=='Debug' and '$(GeoDmsGlobio)' != 'true'">
     <_VcpkgRuntimeBin>$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin</_VcpkgRuntimeBin>
   </PropertyGroup>
+  <!-- The three resource trees are MIRRORED, not merely topped up: /PURGE deletes files and
+       folders that no longer exist in the source. Without it robocopy only ever adds, so a
+       .dms file deleted from (or never committed to) the source tree kept a copy in
+       bin\<cfg>\x64 forever - and batch\TestShippedContent.bat, the issue #1031 release test,
+       runs the SHIPPED examples\testcases battery from there. Three uncommitted drafts left
+       behind on 2026-09-05 made it exit 1 on 2026-09-07 while the engine was green.
+
+       Two exclusions carry the whole design, and /XD keeps a directory out of the purge as
+       well as out of the copy (an excluded folder is never reported EXTRA):
+
+       * testcases is copied INTO $(OutDir)examples\testcases, but the source examples\ has no
+         testcases subfolder - so without /XD the examples mirror would see the entire battery
+         as extra and delete it, _out and all, on every build.
+       * _out* are the battery's own run artifacts, written next to the shipped configs by
+         run_testcases.ps1. They exist only in the output and must survive.
+
+       /PURGE reports the extras it removes, which sets robocopy's exit bit 2; the guards below
+       test errorlevel 8 (copy failures) and are unaffected. The vcpkg DLL copy further down
+       must NEVER get /PURGE: its destination is $(OutDir) itself, so mirroring it would delete
+       every binary the build just produced. -->
   <PropertyGroup>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <NMakeBuildCommandLine>
 echo copying files to $(OutDir)
-robocopy "$(SolutionDir)library" "$(OutDir)library" /E /NJH /NJS /NP /R:2 /W:2 /XO
+robocopy "$(SolutionDir)library" "$(OutDir)library" /E /PURGE /NJH /NJS /NP /R:2 /W:2 /XO
 if errorlevel 8 ( echo *** CopyResources: robocopy library FAILED *** &amp; exit /b 1 )
-robocopy "$(SolutionDir)examples" "$(OutDir)examples" /E /NJH /NJS /NP /R:2 /W:2 /XO
+robocopy "$(SolutionDir)examples" "$(OutDir)examples" /E /PURGE /NJH /NJS /NP /R:2 /W:2 /XO /XD "$(OutDir)examples\testcases"
 if errorlevel 8 ( echo *** CopyResources: robocopy examples FAILED *** &amp; exit /b 1 )
-robocopy "$(SolutionDir)testcases" "$(OutDir)examples\testcases" /E /NJH /NJS /NP /R:2 /W:2 /XO /XD _out*
+robocopy "$(SolutionDir)testcases" "$(OutDir)examples\testcases" /E /PURGE /NJH /NJS /NP /R:2 /W:2 /XO /XD _out*
 if errorlevel 8 ( echo *** CopyResources: robocopy testcases FAILED *** &amp; exit /b 1 )
 if not exist "$(_VcpkgRuntimeBin)\*.dll" ( echo *** CopyResources: vcpkg runtime bin not found or empty - "$(_VcpkgRuntimeBin)" *** &amp; exit /b 1 )
 robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /XF python*.dll /NJH /NJS /NP /R:2 /W:2 /XO
