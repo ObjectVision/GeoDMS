@@ -1,0 +1,128 @@
+// Pins the dissolve of the dms_ family in its single-noding form (doc/development/
+// dms-dissolve-single-noding.md): every element is cleaned alone under the even-odd rule, its
+// rings go into one bag on one fixed lattice, and the bag is noded and swept once, by coverage
+// COUNT under the nonzero rule. What this checks is exactly what a parity sweep over one bag
+// would get wrong: where two elements overlap, the result is their union, not their symmetric
+// difference.
+//
+// Identifiers are case-insensitive, so no unit shares a name with an attribute here, and none
+// is called one, two or three, which the prelude's variants claim.
+//
+// Offline and cheap by design (testcases/ rule): literal squares.
+container oper_dms_union_counts
+{
+	// ---- two 10 x 10 squares overlapping in a 5 x 5 corner: [0,10]^2 and [5,15]^2 -----------
+	// union 175; a parity sweep over both would cancel the overlap and give 150
+	unit<uint32> Duo   : nrofrows = 2;
+	unit<uint32> DuoPt : nrofrows = 10;
+	attribute<int32>  ax   (DuoPt) : [ 0,0,10,10,0,   5,5,15,15,5 ];
+	attribute<int32>  ay   (DuoPt) : [ 0,10,10,0,0,   5,15,15,5,5 ];
+	attribute<Duo>    aseq (DuoPt) : [ 0,0,0,0,0,     1,1,1,1,1 ];
+	attribute<uint32> aord (DuoPt) : [ 0,1,2,3,4,     0,1,2,3,4 ];
+	attribute<ipoint> overlap (Duo, polygon) := points2polygon(point_xy(ax, ay, ipoint), aseq, aord);
+
+	// the same two in the other order, to pin that the answer does not depend on element order
+	attribute<Duo>    bseq (DuoPt) : [ 1,1,1,1,1,     0,0,0,0,0 ];
+	attribute<ipoint> overlap_rev (Duo, polygon) := points2polygon(point_xy(ax, ay, ipoint), bseq, aord);
+
+	// the first square wound the other way round, as 105,051 BAG buildings are (#1230): still 175
+	attribute<int32>  rx   (DuoPt) : [ 0,10,10,0,0,   5,5,15,15,5 ];
+	attribute<int32>  ry   (DuoPt) : [ 0,0,10,10,0,   5,15,15,5,5 ];
+	attribute<ipoint> overlap_ccw (Duo, polygon) := points2polygon(point_xy(rx, ry, ipoint), aseq, aord);
+
+	// ---- three squares in a row, each overlapping the next by 5 x 10: [0,10], [5,15], [10,20] --
+	// union 20 x 10 = 200; the middle square is covered twice at both ends
+	unit<uint32> Trio   : nrofrows = 3;
+	unit<uint32> TrioPt : nrofrows = 15;
+	attribute<int32>  cx   (TrioPt) : [ 0,0,10,10,0,   5,5,15,15,5,   10,10,20,20,10 ];
+	attribute<int32>  cy   (TrioPt) : [ 0,10,10,0,0,   0,10,10,0,0,   0,10,10,0,0 ];
+	attribute<Trio>   cseq (TrioPt) : [ 0,0,0,0,0,     1,1,1,1,1,     2,2,2,2,2 ];
+	attribute<uint32> cord (TrioPt) : [ 0,1,2,3,4,     0,1,2,3,4,     0,1,2,3,4 ];
+	attribute<ipoint> row3 (Trio, polygon) := points2polygon(point_xy(cx, cy, ipoint), cseq, cord);
+
+	// ---- four bars that together enclose a hole: the frame [0,5]^2 minus [1,4]^2 ------------
+	// bottom [0,5]x[0,1], top [0,5]x[4,5], left [0,1]x[0,5], right [4,5]x[0,5]; the corners are
+	// covered twice. Union 25 - 9 = 16, one shell with one hole.
+	unit<uint32> Quad   : nrofrows = 4;
+	unit<uint32> QuadPt : nrofrows = 20;
+	attribute<int32>  fx   (QuadPt) : [ 0,0,5,5,0,   0,0,5,5,0,   0,0,1,1,0,   4,4,5,5,4 ];
+	attribute<int32>  fy   (QuadPt) : [ 0,1,1,0,0,   4,5,5,4,4,   0,5,5,0,0,   0,5,5,0,0 ];
+	attribute<Quad>   fseq (QuadPt) : [ 0,0,0,0,0,   1,1,1,1,1,   2,2,2,2,2,   3,3,3,3,3 ];
+	attribute<uint32> ford (QuadPt) : [ 0,1,2,3,4,   0,1,2,3,4,   0,1,2,3,4,   0,1,2,3,4 ];
+	attribute<ipoint> bars (Quad, polygon) := points2polygon(point_xy(fx, fy, ipoint), fseq, ford);
+
+	// ---- a square inside a square: [0,20]^2 around [5,15]^2, the inside covered twice --------
+	attribute<int32>  nx   (DuoPt) : [ 0,0,20,20,0,   5,5,15,15,5 ];
+	attribute<int32>  ny   (DuoPt) : [ 0,20,20,0,0,   5,15,15,5,5 ];
+	attribute<ipoint> nested (Duo, polygon) := points2polygon(point_xy(nx, ny, ipoint), aseq, aord);
+
+	// ---- two squares sharing an edge: [0,10]x[0,10] and [10,20]x[0,10] -----------------------
+	// the shared edge cancels (its two weights sum to zero), leaving one rectangle of 200 with
+	// 4 corners: the two collinear vertices on the former edge are dropped at write time
+	attribute<int32>  tx   (DuoPt) : [ 0,0,10,10,0,   10,10,20,20,10 ];
+	attribute<int32>  ty   (DuoPt) : [ 0,10,10,0,0,   0,10,10,0,0 ];
+	attribute<ipoint> touching (Duo, polygon) := points2polygon(point_xy(tx, ty, ipoint), aseq, aord);
+
+	// ---- partitions: both squares in one, or one square in each -----------------------------
+	unit<uint32> Part1 : nrofrows = 1;
+	unit<uint32> Part2 : nrofrows = 2;
+	attribute<Part1> same_part (Duo) : [ 0, 0 ];
+	attribute<Part2> own_part  (Duo) : [ 0, 1 ];
+
+	// ---- the float form: the frame from the values unit's declared range, and from the data --
+	unit<dpoint> crd_ranged := range(dpoint, point_xy(-1000.0, -1000.0), point_xy(1000.0, 1000.0));
+	unit<dpoint> crd_free;
+	attribute<crd_ranged> overlap_ranged (Duo, polygon) := points2polygon(point_xy(float64(ax), float64(ay), crd_ranged), aseq, aord);
+	attribute<crd_free>   overlap_free   (Duo, polygon) := points2polygon(point_xy(float64(ax), float64(ay), crd_free),   aseq, aord);
+
+	container checks
+	{
+		// ---- overlap is union, not symmetric difference ---------------------------------------
+		parameter<ipoint>  u_overlap (polygon) := dms_union_polygon(overlap);
+		parameter<bool>    overlap_ok := float64(area(u_overlap)) == 175.0, IntegrityCheck = "overlap_ok == true";
+
+		// order independence: the same value, not merely the same area
+		parameter<ipoint>  u_overlap_rev (polygon) := dms_union_polygon(overlap_rev);
+		parameter<bool>    order_ok := float64(area(dms_xor(u_overlap, u_overlap_rev))) == 0.0 && float64(area(u_overlap_rev)) == 175.0
+			, IntegrityCheck = "order_ok == true";
+
+		// a ring wound the wrong way still adds, it does not subtract
+		parameter<ipoint>  u_overlap_ccw (polygon) := dms_union_polygon(overlap_ccw);
+		parameter<bool>    winding_ok := float64(area(u_overlap_ccw)) == 175.0 && float64(area(dms_xor(u_overlap, u_overlap_ccw))) == 0.0
+			, IntegrityCheck = "winding_ok == true";
+
+		// a face covered three times stays inside
+		parameter<ipoint>  u_row3 (polygon) := dms_union_polygon(row3);
+		parameter<bool>    row3_ok := float64(area(u_row3)) == 200.0 && sequence_element_count(u_row3) == 5
+			, IntegrityCheck = "row3_ok == true";
+
+		// four bars make one shell with one hole: shell 5 points, hole 5 points, one point back
+		parameter<ipoint>  u_bars (polygon) := dms_union_polygon(bars);
+		unit<uint32>       bar_parts := dms_split_union_polygon(bars);
+		parameter<bool>    bars_ok := float64(area(u_bars)) == 16.0 && sequence_element_count(u_bars) == 11 && #bar_parts == 1
+			, IntegrityCheck = "bars_ok == true";
+
+		// a square inside a square is the outer square: coverage two is still inside
+		parameter<ipoint>  u_nested (polygon) := dms_union_polygon(nested);
+		parameter<bool>    nested_ok := float64(area(u_nested)) == 400.0 && sequence_element_count(u_nested) == 5
+			, IntegrityCheck = "nested_ok == true";
+
+		// a shared edge cancels: one rectangle, its former shared edge gone with its two vertices
+		parameter<ipoint>  u_touching (polygon) := dms_union_polygon(touching);
+		unit<uint32>       touching_parts := dms_split_union_polygon(touching);
+		parameter<bool>    touching_ok := float64(area(u_touching)) == 200.0 && sequence_element_count(u_touching) == 5 && #touching_parts == 1
+			, IntegrityCheck = "touching_ok == true";
+
+		// ---- partitioned: the same bag machinery, one bag per partition ----------------------
+		attribute<ipoint>  u_same (Part1, polygon) := dms_union_polygon(overlap, same_part);
+		attribute<ipoint>  u_own  (Part2, polygon) := dms_union_polygon(overlap, own_part);
+		parameter<bool>    part_ok := sum(float64(area(u_same))) == 175.0 && all(float64(area(u_own)) == 100.0)
+			, IntegrityCheck = "part_ok == true";
+
+		// ---- the float form, both ways of deriving the frame ---------------------------------
+		parameter<crd_ranged> u_ranged (polygon) := dms_union_polygon(overlap_ranged);
+		parameter<crd_free>   u_free   (polygon) := dms_union_polygon(overlap_free);
+		parameter<bool>       float_ok := abs(area(u_ranged) - 175.0) < 1e-9 && abs(area(u_free) - 175.0) < 1e-9
+			, IntegrityCheck = "float_ok == true";
+	}
+}

@@ -1,0 +1,107 @@
+// Pins the crossing sweep of the dms_ family (CrossingSweep, geo/dll/src/DMS_Traits.h): the
+// configurations that a candidate search over bounding boxes never had to think about and a
+// plane sweep must get exactly right. Four edges through one crossing that is not a lattice
+// point; crossings that fall on lattice points; vertical edges crossed at rational heights, two
+// crossings in one column; identical edges and collinear overlapping edges; and a ring that
+// crosses itself. The expected areas are exact on the fine lattice of a ranged dpoint unit,
+// which puts a crossing within 3e-8 of where it is, and on ipoint where the snapped crossing
+// pixel is known.
+//
+// Offline and cheap by design (testcases/ rule): literal coordinates.
+container oper_dms_crossings
+{
+	unit<dpoint> crd := range(dpoint, point_xy(-1000.0, -1000.0), point_xy(1000.0, 1000.0));
+	unit<uint32> Solo : nrofrows = 1;
+
+	// ---- four triangles whose hypotenuses all pass through (0.5, 0.5): slopes 1, -1, 1/3, -1/3
+	// T1 is the square [-10,11]^2 below y = x, T2 the square above y = 1 - x; together they leave
+	// the wedge left of (0.5, 0.5) uncovered: 441 - 110.25. T3, below y = (x + 1) / 3 and above
+	// y = -3, and T4, above y = (2 - x) / 3 and below y = 4, each take 12.25 of that wedge and do
+	// not meet each other inside it: 355.25. The four verticals at x = 11 are two identical edges
+	// (T1, T2) and two collinear overlaps (T3, T4); T3's and T4's horizontals cross the diagonals
+	// at the lattice points (-3, -3), (4, -3), (4, 4) and (-3, 4). T1 and T3 are clockwise, T2 and
+	// T4 counter-clockwise.
+	unit<uint32> Quart   : nrofrows = 4;
+	unit<uint32> QuartPt : nrofrows = 16;
+	attribute<int32>  tx   (QuartPt) : [ -10,11,11,-10,   -10,11,11,-10,   -10,11,11,-10,   -10,11,11,-10 ];
+	attribute<int32>  ty   (QuartPt) : [ -10,11,-10,-10,   11,-10,11,11,   -3,4,-3,-3,   4,-3,4,4 ];
+	attribute<Quart>   tseq (QuartPt) : [ 0,0,0,0,   1,1,1,1,   2,2,2,2,   3,3,3,3 ];
+	attribute<uint32> tord (QuartPt) : [ 0,1,2,3,   0,1,2,3,   0,1,2,3,   0,1,2,3 ];
+	attribute<crd>    tri4   (Quart, polygon) := points2polygon(point_xy(float64(tx), float64(ty), crd), tseq, tord);
+	attribute<ipoint> tri4_i (Quart, polygon) := points2polygon(point_xy(tx, ty, ipoint), tseq, tord);
+
+	// the same four one by one, for the parity path
+	unit<uint32> TPt : nrofrows = 4;
+	attribute<Solo>   s4  (TPt) : [ 0,0,0,0 ];
+	attribute<uint32> o4  (TPt) : [ 0,1,2,3 ];
+	attribute<int32>  t1x (TPt) : [ -10,11,11,-10 ];
+	attribute<int32>  t1y (TPt) : [ -10,11,-10,-10 ];
+	attribute<int32>  t2y (TPt) : [ 11,-10,11,11 ];
+	attribute<int32>  t3y (TPt) : [ -3,4,-3,-3 ];
+	attribute<int32>  t4y (TPt) : [ 4,-3,4,4 ];
+	attribute<crd> t1 (Solo, polygon) := points2polygon(point_xy(float64(t1x), float64(t1y), crd), s4, o4);
+	attribute<crd> t2 (Solo, polygon) := points2polygon(point_xy(float64(t1x), float64(t2y), crd), s4, o4);
+	attribute<crd> t3 (Solo, polygon) := points2polygon(point_xy(float64(t1x), float64(t3y), crd), s4, o4);
+	attribute<crd> t4 (Solo, polygon) := points2polygon(point_xy(float64(t1x), float64(t4y), crd), s4, o4);
+
+	// ---- two bands of slope 1 and -1, both 3 high: their crossings are the lattice points
+	// (0, 2) and (0, -1) and the half points (-1.5, 0.5) and (1.5, 0.5), a rhombus of 4.5 inside
+	// two parallelograms of 60: 115.5 ---------------------------------------------------------
+	unit<uint32> Duo   : nrofrows = 2;
+	unit<uint32> DuoPt : nrofrows = 10;
+	attribute<Duo>    dseq (DuoPt) : [ 0,0,0,0,0,   1,1,1,1,1 ];
+	attribute<uint32> dord (DuoPt) : [ 0,1,2,3,4,   0,1,2,3,4 ];
+	attribute<int32>  bx (DuoPt) : [ -10,10,10,-10,-10,   -10,10,10,-10,-10 ];
+	attribute<int32>  by (DuoPt) : [ -11,9,12,-8,-11,   9,-11,-8,12,9 ];
+	attribute<crd>    bands (Duo, polygon) := points2polygon(point_xy(float64(bx), float64(by), crd), dseq, dord);
+
+	// ---- a vertical bar [0,1] x [-10,10] under a band of slope 1/3, 2 high: the bar's two
+	// verticals are crossed at the heights 1/3 and 7/3, 2/3 and 8/3, two crossings per column,
+	// none on the lattice: 20 + 42 - 2 = 60 -----------------------------------------------------
+	attribute<int32>  vx (DuoPt) : [ 0,0,1,1,0,   -10,11,11,-10,-10 ];
+	attribute<int32>  vy (DuoPt) : [ -10,10,10,-10,-10,   -3,4,6,-1,-3 ];
+	attribute<crd>    barband (Duo, polygon) := points2polygon(point_xy(float64(vx), float64(vy), crd), dseq, dord);
+
+	// ---- a ring that crosses itself at (5.5, 5): two triangles of 27.5 under the even-odd rule;
+	// on ipoint the crossing snaps to the pixel (6, 5) and the triangles become 30 and 25 -------
+	unit<uint32> BowPt : nrofrows = 5;
+	attribute<Solo>   s5 (BowPt) : [ 0,0,0,0,0 ];
+	attribute<uint32> o5 (BowPt) : [ 0,1,2,3,4 ];
+	attribute<int32>  wx (BowPt) : [ 0,11,11,0,0 ];
+	attribute<int32>  wy (BowPt) : [ 0,10,0,10,0 ];
+	attribute<crd>    bow   (Solo, polygon) := points2polygon(point_xy(float64(wx), float64(wy), crd), s5, o5);
+	attribute<ipoint> bow_i (Solo, polygon) := points2polygon(point_xy(wx, wy, ipoint), s5, o5);
+
+	container checks
+	{
+		// ---- the four triangles: the dissolve, the parity fold of the same four, and geos --------
+		parameter<crd>  u_tri4 (polygon) := dms_union_polygon(tri4);
+		parameter<bool> tri4_ok := abs(area(u_tri4) - 355.25) < 1e-4, IntegrityCheck = "tri4_ok == true";
+
+		attribute<crd>  f_tri4 (Solo, polygon) := dms_union(dms_union(t1, t2), dms_union(t3, t4));
+		attribute<crd>  d_tri4 (Solo, polygon) := dms_xor(f_tri4, u_tri4);
+		parameter<bool> tri4_fold_ok := abs(sum(area(f_tri4)) - 355.25) < 1e-4 && sum(area(d_tri4)) < 1e-4
+			, IntegrityCheck = "tri4_fold_ok == true";
+
+		parameter<crd>  g_tri4 (polygon) := geos_union_polygon(tri4);
+		parameter<bool> tri4_geos_ok := abs(area(u_tri4) - area(g_tri4)) < 1e-4, IntegrityCheck = "tri4_geos_ok == true";
+
+		// on the integer lattice the common crossing snaps to (1, 1); the area moves by less than
+		// the perimeter times half a cell
+		parameter<ipoint> u_tri4_i (polygon) := dms_union_polygon(tri4_i);
+		parameter<bool>   tri4_i_ok := abs(float64(area(u_tri4_i)) - 355.25) < 3.0, IntegrityCheck = "tri4_i_ok == true";
+
+		// ---- the bands and the bar ---------------------------------------------------------------
+		parameter<crd>  u_bands (polygon) := dms_union_polygon(bands);
+		parameter<bool> bands_ok := abs(area(u_bands) - 115.5) < 1e-4, IntegrityCheck = "bands_ok == true";
+
+		parameter<crd>  u_barband (polygon) := dms_union_polygon(barband);
+		parameter<bool> barband_ok := abs(area(u_barband) - 60.0) < 1e-4, IntegrityCheck = "barband_ok == true";
+
+		// ---- the bow tie, cleaned -------------------------------------------------------------------
+		attribute<crd>    c_bow   (Solo, polygon) := dms_polygon(bow);
+		attribute<ipoint> c_bow_i (Solo, polygon) := dms_polygon(bow_i);
+		parameter<bool>   bow_ok := abs(sum(area(c_bow)) - 55.0) < 1e-4 && sum(float64(area(c_bow_i))) == 55.0
+			, IntegrityCheck = "bow_ok == true";
+	}
+}

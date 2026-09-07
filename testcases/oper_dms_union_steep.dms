@@ -1,0 +1,86 @@
+// Pins the case that broke the count sweep of the dissolve on the BAG buildings (doc/development/
+// dms-dissolve-single-noding.md): a steep edge whose snapped chain takes a VERTICAL step.
+//
+// Triangle A has an edge from (0, 1000) down to (3, 100): 300 rows per column, so in column 1 it
+// meets every pixel from row 850 down to 550. The small triangles B1 and B2 each put one vertex
+// in that column, at rows 800 and 600, both on the edge's span, so the snapping pass routes A's
+// edge through them, and the piece between them is a vertical fragment created travelling
+// DOWNWARD, in the parent's direction. The noder then turns it upward to its lexicographic
+// orientation, and unless the coverage weight turns with it, the fragment claims the wrong side
+// of itself as covered.
+//
+// Whether that shows depends on the counts. Alone, the wrong sign only makes a covered face
+// count -1 instead of +1, which the nonzero rule reads the same, and the union comes out right by
+// luck. Rectangle C covers the region west of the step as well, so the true count there is 2 and
+// the wrong sign makes it 0: the step is then kept where nothing arrives to meet it, and the
+// boundary does not close at (1, 600). On the real buildings that surfaced as "the boundary walk
+// re-used an edge".
+//
+// The reference is the binary dms_union of the same polygons, the parity path, which XOR cannot
+// get wrong this way, on the same integer lattice, so the two must be the same value. The
+// mirrored set, with the edge going down to the left, covers the other direction.
+//
+// Offline and cheap by design (testcases/ rule): four literal polygons per case.
+container oper_dms_union_steep
+{
+	unit<uint32> Quad : nrofrows = 4;
+	unit<uint32> Solo : nrofrows = 1;
+
+	// ---- the four as one attribute, to dissolve: A, C, B1, B2 -------------------------------
+	unit<uint32> QPt : nrofrows = 17;
+	attribute<int32>  qx   (QPt) : [ 0,0,3,0,   0,0,2,2,0,   1,2,2,1,   1,2,2,1 ];
+	attribute<int32>  qy   (QPt) : [ 100,1000,100,100,   500,900,900,500,500,   800,790,810,800,   600,590,610,600 ];
+	attribute<Quad>   qseq (QPt) : [ 0,0,0,0,   1,1,1,1,1,   2,2,2,2,   3,3,3,3 ];
+	attribute<uint32> qord (QPt) : [ 0,1,2,3,   0,1,2,3,4,   0,1,2,3,   0,1,2,3 ];
+	attribute<ipoint> right_set (Quad, polygon) := points2polygon(point_xy(qx, qy, ipoint), qseq, qord);
+
+	// ---- the same four as single polygons, for the parity reference -------------------------
+	unit<uint32> APt : nrofrows = 4;
+	attribute<Solo>   s4 (APt) : [ 0,0,0,0 ];
+	attribute<uint32> o4 (APt) : [ 0,1,2,3 ];
+	attribute<int32>  ax (APt) : [ 0,0,3,0 ];
+	attribute<int32>  ay (APt) : [ 100,1000,100,100 ];
+	attribute<ipoint> a (Solo, polygon) := points2polygon(point_xy(ax, ay, ipoint), s4, o4);
+	attribute<int32>  b1x (APt) : [ 1,2,2,1 ];
+	attribute<int32>  b1y (APt) : [ 800,790,810,800 ];
+	attribute<ipoint> b1 (Solo, polygon) := points2polygon(point_xy(b1x, b1y, ipoint), s4, o4);
+	attribute<int32>  b2x (APt) : [ 1,2,2,1 ];
+	attribute<int32>  b2y (APt) : [ 600,590,610,600 ];
+	attribute<ipoint> b2 (Solo, polygon) := points2polygon(point_xy(b2x, b2y, ipoint), s4, o4);
+	unit<uint32> CPt : nrofrows = 5;
+	attribute<Solo>   s5 (CPt) : [ 0,0,0,0,0 ];
+	attribute<uint32> o5 (CPt) : [ 0,1,2,3,4 ];
+	attribute<int32>  cx (CPt) : [ 0,0,2,2,0 ];
+	attribute<int32>  cy (CPt) : [ 500,900,900,500,500 ];
+	attribute<ipoint> c (Solo, polygon) := points2polygon(point_xy(cx, cy, ipoint), s5, o5);
+
+	// ---- mirrored: the edge from (3, 1000) down to (0, 100), the vertices in column 2 --------
+	attribute<int32>  mx   (QPt) : [ 3,3,0,3,   1,1,3,3,1,   2,1,1,2,   2,1,1,2 ];
+	attribute<int32>  my   (QPt) : [ 100,1000,100,100,   500,900,900,500,500,   800,790,810,800,   600,590,610,600 ];
+	attribute<ipoint> left_set (Quad, polygon) := points2polygon(point_xy(mx, my, ipoint), qseq, qord);
+	attribute<int32>  lax (APt) : [ 3,3,0,3 ];
+	attribute<ipoint> la (Solo, polygon) := points2polygon(point_xy(lax, ay, ipoint), s4, o4);
+	attribute<int32>  lb1x (APt) : [ 2,1,1,2 ];
+	attribute<ipoint> lb1 (Solo, polygon) := points2polygon(point_xy(lb1x, b1y, ipoint), s4, o4);
+	attribute<int32>  lb2x (APt) : [ 2,1,1,2 ];
+	attribute<ipoint> lb2 (Solo, polygon) := points2polygon(point_xy(lb2x, b2y, ipoint), s4, o4);
+	attribute<int32>  lcx (CPt) : [ 1,1,3,3,1 ];
+	attribute<ipoint> lc (Solo, polygon) := points2polygon(point_xy(lcx, cy, ipoint), s5, o5);
+
+	container checks
+	{
+		// the dissolve (a parameter) against the binary unions (attributes over Solo); the second
+		// argument of a binary dms_ operator may be a parameter, so the xor is taken that way round
+		parameter<ipoint>  u_right     (polygon)       := dms_union_polygon(right_set);
+		attribute<ipoint>  u_right_ref (Solo, polygon) := dms_union(dms_union(a, c), dms_union(b1, b2));
+		attribute<ipoint>  d_right     (Solo, polygon) := dms_xor(u_right_ref, u_right);
+		parameter<bool>    right_ok := float64(area(u_right)) > 0.0 && sum(float64(area(d_right))) == 0.0
+			, IntegrityCheck = "right_ok == true";
+
+		parameter<ipoint>  u_left     (polygon)       := dms_union_polygon(left_set);
+		attribute<ipoint>  u_left_ref (Solo, polygon) := dms_union(dms_union(la, lc), dms_union(lb1, lb2));
+		attribute<ipoint>  d_left     (Solo, polygon) := dms_xor(u_left_ref, u_left);
+		parameter<bool>    left_ok := float64(area(u_left)) > 0.0 && sum(float64(area(d_left))) == 0.0
+			, IntegrityCheck = "left_ok == true";
+	}
+}

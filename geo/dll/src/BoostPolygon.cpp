@@ -1647,6 +1647,8 @@ class DMS_PolygonOperator : public AbstrPolygonOperator
 	using SequenceType = typename sequence_traits<P>::container_type;
 	using PolySet = dms_overlay::DmsPolySet<P>;
 	using PolygonTower = assoc_tower<PolySet, dms_overlay::union_dms_polygons<P>>;
+	using Bag = dms_overlay::DmsSegmentBag;
+	using Engine = dms_overlay::DmsOverlayEngine<P>;
 	using NumType = Float64;
 
 	typedef DataArray<SequenceType> ArgPolyType;
@@ -1656,6 +1658,55 @@ public:
 	DMS_PolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
+
+	// A dissolve, plain or partitioned, goes through a segment bag per result element and is noded
+	// once at store time (doc/development/dms-dissolve-single-noding.md). The per-element forms,
+	// dms_polygon and dms_split_polygon, keep the tower: one element per slot, cleaned once and
+	// stored, and they run tile-parallel with a store per tile, which the bag path does not need.
+	bool UsesBags() const { return m_Flags & PolygonFlags::F_DoUnion; }
+
+	// The frame of one dissolve: from the values unit's declared range when it has one, which is
+	// deterministic and needs no pass over the data; otherwise from the extent of all the tiles,
+	// read once before the first element is cleaned. Either way every element and every
+	// intermediate lands on one lattice, so the answer does not depend on the tiling.
+	dms_overlay::DmsFrame DeriveFrame(const AbstrDataItem* polyDataA, CharPtr operName) const
+	{
+		auto valuesUnit = debug_cast<const Unit<P>*>(polyDataA->GetAbstrValuesUnit());
+		assert(valuesUnit);
+		auto range = valuesUnit->GetRange();
+		dms_overlay::DmsFrame frame;
+
+		// A range counts as declared only when it could have been written in a configuration: not
+		// empty, finite in every corner, and of an extent a coordinate system can have. The value
+		// type's own unit reports its whole domain as a range, which is none of those things for
+		// dpoint (its extent overflows to infinity) and, for the integer types, would be a lattice
+		// of 2^32 cells anyway; both go to the data instead.
+		Float64 loX = Float64(range.first.X()),  loY = Float64(range.first.Y());
+		Float64 hiX = Float64(range.second.X()), hiY = Float64(range.second.Y());
+		constexpr Float64 maxDeclaredExtent = 1e12; // a planet in millimetres is 1e11
+		bool declared = !range.empty()
+			&& std::isfinite(loX) && std::isfinite(loY) && std::isfinite(hiX) && std::isfinite(hiY)
+			&& std::isfinite(hiX - loX) && std::isfinite(hiY - loY)
+			&& hiX - loX <= maxDeclaredExtent && hiY - loY <= maxDeclaredExtent;
+		if (declared)
+			frame = dms_overlay::DmsFrameFor<P>(loX, loY, hiX, hiY);
+		if (!frame.defined())
+		{
+			typename Engine::CoordStats stats;
+			auto polyData = const_array_cast<SequenceType>(polyDataA);
+			for (tile_id u = 0, ue = polyDataA->GetAbstrDomainUnit()->GetNrTiles(); u != ue && stats.usable; ++u)
+			{
+				auto tileData = polyData->GetTile(u);
+				for (auto pi = tileData.begin(), pe = tileData.end(); pi != pe && stats.usable; ++pi)
+					stats.Add(*pi);
+			}
+			if (stats.usable && stats.any)
+				frame = dms_overlay::DmsFrameFor<P>(stats.minX, stats.minY, stats.maxX, stats.maxY);
+		}
+		if (!frame.defined())
+			throwErrorF(operName, "no lattice can be derived for this dissolve: the values unit declares no range and the data has no defined finite coordinates");
+		return frame;
+	}
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
@@ -1667,6 +1718,74 @@ public:
 			vg.reset(IndexGetterCreator::Create(partitionDataA, t));
 
 		auto polyArray = polyData->GetTile(t);
+		CharPtr operName = GetGroup()->GetNameStr();
+
+		PolygonFlags unionPermState =
+			(partitionDataA)   ? PolygonFlags::F_DoPartUnion :
+			(domainCount == 1) ? PolygonFlags::F_DoUnion     : PolygonFlags::none;
+
+		// the slot of an element: the one slot of a plain dissolve, its partition's slot, or its own
+		auto slotOf = [&](SizeT i, bool& skip) -> SizeT
+		{
+			skip = false;
+			if (unionPermState == PolygonFlags::F_DoUnion)
+				return 0;
+			if (unionPermState == PolygonFlags::F_DoPartUnion)
+			{
+				SizeT ri = vg->Get(i);
+				if (ri >= domainCount)
+				{
+					if (!IsDefined(ri))
+					{
+						skip = true;
+						return 0;
+					}
+					throwErrorF(operName, "Unexpected partition index {} at row {}", ri, i);
+				}
+				return ri;
+			}
+			assert(i < domainCount);
+			return i;
+		};
+
+		if (UsesBags())
+		{
+			// phase A: every element cleaned alone on the one frame, its rings into its slot's bag
+			if (!r)
+			{
+				auto frame = DeriveFrame(polyDataA, operName);
+				r.reset(ResourceArray<Bag>::create(domainCount));
+				auto bags = debug_cast<ResourceArray<Bag>*>(r.get());
+				for (Bag* b = bags->begin(), *be = bags->end(); b != be; ++b)
+					b->frame = frame;
+			}
+			auto bagResourcePtr = debug_cast<ResourceArray<Bag>*>(r.get());
+			assert(bagResourcePtr->size() == domainCount);
+			const auto& frame = bagResourcePtr->begin()->frame;
+
+			Engine engine(dms_overlay::BoolOp::Union, operName);
+			engine.SetFixedFrame(frame.cell, frame.originX, frame.originY);
+
+			for (auto pb = polyArray.begin(), pi = pb, pe = polyArray.end(); pi != pe; ++pi)
+			{
+				bool skip;
+				SizeT slot = slotOf(pi - pb, skip);
+				if (skip)
+					continue;
+				dms_overlay::dms_append_rings(bagResourcePtr->begin()[slot], engine.CleanToRings(*pi));
+
+				if (processTimer.PassedSecs())
+				{
+					reportF(SeverityTypeID::ST_MajorTrace, "{}{}: read {} / {} sequences of tile {} / {}"
+						, itemRef
+						, operName
+						, AsString(pi - pb), AsString(pe - pb)
+						, AsString(t), AsString(polyDataA->GetAbstrDomainUnit()->GetNrTiles())
+					);
+				}
+			}
+			return;
+		}
 
 		if (!r)
 			r.reset(ResourceArray<PolygonTower>::create(domainCount));
@@ -1677,33 +1796,13 @@ public:
 		// lattice is the integer grid whatever the extent
 		Float64 cell = dms_overlay::DeriveFoldCell<P>(polyArray);
 
-		PolygonFlags unionPermState =
-			(partitionDataA)   ? PolygonFlags::F_DoPartUnion :
-			(domainCount == 1) ? PolygonFlags::F_DoUnion     : PolygonFlags::none;
-
-		CharPtr operName = GetGroup()->GetNameStr();
-
 		for (auto pb = polyArray.begin(), pi = pb, pe = polyArray.end(); pi != pe; ++pi)
 		{
-			auto towerPtr = towerResourcePtr->begin();
-			if (unionPermState != PolygonFlags::F_DoUnion)
-			{
-				SizeT i = pi - pb;
-				if (unionPermState != PolygonFlags::none)
-				{
-					assert(unionPermState == PolygonFlags::F_DoPartUnion);
-					SizeT ri = vg->Get(i);
-					if (ri >= domainCount)
-					{
-						if (!IsDefined(ri))
-							continue;
-						throwErrorF(operName, "Unexpected partition index {} at row {}", ri, i);
-					}
-					i = ri;
-				}
-				assert(i < domainCount);
-				towerPtr += i;
-			}
+			bool skip;
+			SizeT slot = slotOf(pi - pb, skip);
+			if (skip)
+				continue;
+			auto towerPtr = towerResourcePtr->begin() + slot;
 
 			PolySet geometry;
 			dms_overlay::dms_clean_into(geometry, *pi, cell, operName);
@@ -1723,35 +1822,53 @@ public:
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
-		SizeT domainCount = 0;
-		auto towerResourcePtr = debug_cast<ResourceArray<PolygonTower>*>(r.get());
-		PolygonTower* towerPtr = nullptr;
-		if (towerResourcePtr)
+		// The value of every result element first, from whichever accumulator this operator uses:
+		// a bag noded once here (phase B, the dissolve), or a tower reduced to its front (the
+		// per-element forms). What follows, the split count and the writing, sees only values.
+		SizeT domainCount = r ? r->size() : 0;
+		std::vector<SequenceType> results(domainCount);
+		if (UsesBags())
 		{
-			domainCount = towerResourcePtr->size();
-			towerPtr = towerResourcePtr->begin();
+			auto bagResourcePtr = debug_cast<ResourceArray<Bag>*>(r.get());
+			Bag* bagPtr = bagResourcePtr ? bagResourcePtr->begin() : nullptr;
+			CharPtr operName = GetGroup()->GetNameStr();
+			for (SizeT i = 0; i != domainCount; ++i, ++bagPtr)
+			{
+				if (bagPtr->empty())
+					continue;
+				Engine engine(dms_overlay::BoolOp::Union, operName);
+				engine.SetFixedFrame(bagPtr->frame.cell, bagPtr->frame.originX, bagPtr->frame.originY);
+				engine.UnionBag(bagPtr->segs);
+				engine.Store(results[i]);
+			}
+		}
+		else
+		{
+			auto towerResourcePtr = debug_cast<ResourceArray<PolygonTower>*>(r.get());
+			PolygonTower* towerPtr = towerResourcePtr ? towerResourcePtr->begin() : nullptr;
+			for (SizeT i = 0; i != domainCount; ++i, ++towerPtr)
+				if (!towerPtr->empty())
+					results[i] = std::move(towerPtr->get_result().m_Poly);
 		}
 
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			assert(resUnit);
 			SizeT splitCount = 0;
-			auto towerIter = towerPtr;
-			for (SizeT i = 0; i != domainCount; ++i, ++towerIter)
-				if (!towerIter->empty())
-					splitCount += dms_overlay::dms_split_count<P>(towerIter->front().m_Poly);
+			for (SizeT i = 0; i != domainCount; ++i)
+				if (!results[i].empty())
+					splitCount += dms_overlay::dms_split_count<P>(results[i]);
 
 			resUnit->SetCount(splitCount); // we must be in delayed store now
 			if (resNrOrgEntity)
 			{
 				DataWriteLock resRelLock(resNrOrgEntity);
 				SizeT splitCount2 = 0;
-				towerIter = towerPtr;
-				for (SizeT i = 0; i != domainCount; ++i, ++towerIter)
+				for (SizeT i = 0; i != domainCount; ++i)
 				{
-					if (!towerIter->empty())
+					if (!results[i].empty())
 					{
-						SizeT nrSplits = dms_overlay::dms_split_count<P>(towerIter->front().m_Poly);
+						SizeT nrSplits = dms_overlay::dms_split_count<P>(results[i]);
 						SizeT nextCount = splitCount2 + nrSplits;
 						while (splitCount2 != nextCount)
 							resRelLock->SetValueAsSizeT(splitCount2++, i);
@@ -1770,14 +1887,13 @@ public:
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
 		auto resIter = resArray.begin();
 
-		for (SizeT i = 0; i != domainCount; ++i, ++towerPtr)
+		for (SizeT i = 0; i != domainCount; ++i)
 		{
-			auto result = towerPtr->get_result();
 			if (m_Flags & PolygonFlags::F_DoSplit)
-				resIter = dms_overlay::dms_split_assign<P>(resIter, result.m_Poly);
+				resIter = dms_overlay::dms_split_assign<P>(resIter, results[i]);
 			else
 			{
-				dms_overlay::dms_store_polygon(*resIter, result.m_Poly);
+				dms_overlay::dms_store_polygon(*resIter, results[i]);
 				++resIter;
 			}
 		}

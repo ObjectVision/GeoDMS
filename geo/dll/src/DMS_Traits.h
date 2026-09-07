@@ -119,7 +119,7 @@
 #include "dbg/Diagnostics.h"    // throwErrorF and MG_CHECK2
 #include "geom/Area.h"         // Area: the sign that tells a shell from a hole when splitting
 #include "geom/RingIterator.h" // SA_ConstRingIterator: walking the rings of a polygon value
-#include "geom/SpatialIndex.h" // the quadtree over segment boxes and over hot pixels
+#include "geom/SpatialIndex.h" // the quadtree over hot pixels
 #include "ptr/IterCast.h"      // begin_ptr, which SA_ConstRingIterator takes its base from
 #include "vt/GeoSequence.h"    // the polygon container types
 #include "vt/MinMax.h"         // MakeMin, MakeMax, Max
@@ -129,8 +129,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <format>
 #include <limits>
 #include <set>
+#include <string>
 #include <vector>
 
 namespace dms_overlay
@@ -226,11 +228,22 @@ inline bool AngleLess(Int64 ax, Int64 ay, Int64 bx, Int64 by)
 //	segments and pixels
 // *****************************************************************************
 
-// A segment of the noding stage. mask bit 0 is the parity contribution to operand A, bit 1 to B.
+// A segment of the noding stage, with two payloads that the noder carries without looking at
+// either. mask is the even-odd payload of the binary operators: bit 0 the parity contribution to
+// operand A, bit 1 to B. weight is the coverage payload of a dissolve: the change of the number
+// of elements covering a face when crossing the segment from the face on its right to the face
+// on its left, RELATIVE TO THE STORED DIRECTION a -> b. That contract is what keeps it honest
+// through the noder: MergeSegments negates the weight whenever it turns a segment round to its
+// lexicographic orientation, and SnapSegments hands a parent's weight unchanged to the pieces it
+// makes in the parent's travel direction, which a later MergeSegments turns round as needed.
+// The mask is symmetric and needs neither. Identical fragments merge by XOR of the masks and by
+// sum of the weights, and a fragment whose mask and weight are both zero affects no face and
+// disappears.
 struct Segment
 {
 	GPoint a, b;
-	UInt8  mask;
+	UInt8  mask   = 0;
+	Int32  weight = 0;
 };
 
 inline bool ProperCrossing(const Segment& s, const Segment& t)
@@ -337,6 +350,398 @@ inline void SortUnique(std::vector<GPoint>& pts)
 }
 
 // *****************************************************************************
+//	the crossing sweep
+// *****************************************************************************
+
+// Bentley and Ottmann in exact arithmetic: the proper crossings of a set of segments, each
+// reported once as the pixel that contains it. The sweep line is the vertical line with the
+// symbolic tilt that orders points by (x, y). A segment enters the active set at its lower
+// endpoint and leaves at its upper one; the active set is ordered by height at the sweep
+// position, and whenever two segments become neighbours in it they are tested for a proper
+// crossing, whose exact position joins an event heap. At a crossing event the segments through
+// the crossing point reverse their order and the two new neighbourhoods are tested. Every
+// crossing is found, because the two segments of a crossing are neighbours just before it; and
+// every test is between two segments that could cross, there being no bounding box to filter by.
+// Cost O((n + k) log n) for n segments and k crossings, whatever the shape of the segments.
+//
+// Two things keep the arithmetic exact. The active set only ever compares a segment that starts
+// at the current position, an integer point, against active segments, which is a question of
+// orientation: on which side of the active segment does the point lie, or, when it lies on it,
+// which of the two directions is steeper. Nothing is compared at a rational position: at a
+// crossing event the segments through the crossing point are not re-inserted but re-assigned to
+// the tree nodes they occupy, which are consecutive, so the tree never sees the swap. The exact
+// crossing position, a rational with numerators below 2^111 over a denominator below 2^74,
+// orders the event heap; it is compared by its column first and with 256-bit products only when
+// two events share a column, and whether a segment passes through such a point, which finds the
+// ends of the run that reverses, is a 256-bit orientation as well.
+//
+// Degeneracies that need no case of their own: a segment starting on the interior of another
+// (orientation zero, then the direction decides), two segments sharing an endpoint, and a
+// crossing on an integer point where a third segment starts or ends. Collinear overlapping
+// segments never cross properly; they are equal in height, ordered by their index, and a
+// reversal keeps that order because it sorts the run by direction and index rather than
+// reversing it.
+struct CrossingSweep
+{
+	using Int256 = boost::multiprecision::int256_t;
+	using SlotId = UInt32;
+	static constexpr SlotId NO_SLOT = ~SlotId(0);
+
+	// A point of the plane with rational coordinates (nx / d, ny / d), d > 0: an integer point
+	// when d == 1, the crossing of two segments otherwise. fx is its column, floor(nx / d).
+	struct ExactPoint
+	{
+		Int128 nx, ny, d;
+		Int64  fx;
+	};
+
+	static ExactPoint FromGrid(const GPoint& p) { return ExactPoint{ p.X(), p.Y(), 1, p.X() }; }
+
+	// The crossing of two properly crossing segments; CrossingPixel has the derivation.
+	static ExactPoint CrossingOf(const Segment& s, const Segment& t)
+	{
+		Int64 rx = s.b.X() - s.a.X(), ry = s.b.Y() - s.a.Y();
+		Int64 sx = t.b.X() - t.a.X(), sy = t.b.Y() - t.a.Y();
+		Int128 den = Cross128(rx, ry, sx, sy);
+		Int128 num = Cross128(t.a.X() - s.a.X(), t.a.Y() - s.a.Y(), sx, sy);
+		assert(den != 0);
+		if (den < 0)
+		{
+			den = -den;
+			num = -num;
+		}
+		ExactPoint c;
+		c.d  = den;
+		c.nx = Int128(s.a.X()) * den + Int128(rx) * num;
+		c.ny = Int128(s.a.Y()) * den + Int128(ry) * num;
+		c.fx = FloorDiv(c.nx, den);
+		return c;
+	}
+
+	static GPoint PixelOf(const ExactPoint& c)
+	{
+		Int128 den2 = c.d * 2;
+		return MakeGPoint(FloorDiv(c.nx * 2 + c.d, den2), FloorDiv(c.ny * 2 + c.d, den2));
+	}
+
+	// The (x, y) order of two exact points. The columns differ for nearly every pair; within a
+	// column the products need 256 bits unless one of the points is an integer point.
+	static int Compare(const ExactPoint& p, const ExactPoint& q)
+	{
+		if (p.fx != q.fx)
+			return p.fx < q.fx ? -1 : +1;
+		if (p.d == 1 || q.d == 1)
+		{
+			Int128 l = p.nx * q.d, r = q.nx * p.d;
+			if (l != r)
+				return l < r ? -1 : +1;
+			l = p.ny * q.d;
+			r = q.ny * p.d;
+			return (l > r) - (l < r);
+		}
+		Int256 l = Int256(p.nx) * Int256(q.d), r = Int256(q.nx) * Int256(p.d);
+		if (l != r)
+			return l < r ? -1 : +1;
+		l = Int256(p.ny) * Int256(q.d);
+		r = Int256(q.ny) * Int256(p.d);
+		return (l > r) - (l < r);
+	}
+
+	// +1 when c lies to the left of the directed segment s, -1 to the right, 0 on its line.
+	static int SideOf(const Segment& s, const ExactPoint& c)
+	{
+		Int64 dx = s.b.X() - s.a.X(), dy = s.b.Y() - s.a.Y();
+		Int128 ex = c.nx - Int128(s.a.X()) * c.d;
+		Int128 ey = c.ny - Int128(s.a.Y()) * c.d;
+		Int256 v = Int256(dx) * Int256(ey) - Int256(dy) * Int256(ex);
+		return (v > 0) - (v < 0);
+	}
+
+	// Of two segments through one point, s is below t just after it when t's direction is
+	// counter-clockwise of s's. Equal directions order by index, so that two overlapping
+	// segments are in the same order wherever the question is asked.
+	static bool BelowByDirection(const Segment& s, EdgeId si, const Segment& t, EdgeId ti)
+	{
+		int c = CrossSign(s.b.X() - s.a.X(), s.b.Y() - s.a.Y(), t.b.X() - t.a.X(), t.b.Y() - t.a.Y());
+		return c ? c > 0 : si < ti;
+	}
+
+	struct Below
+	{
+		const CrossingSweep* m_Sweep = nullptr;
+		bool operator()(SlotId i, SlotId j) const { return i != j && m_Sweep->IsBelow(i, j); }
+	};
+	using ActiveSet  = std::set<SlotId, Below>;
+	using ActiveIter = ActiveSet::iterator;
+
+	struct Event
+	{
+		ExactPoint c;
+		EdgeId     e; // one of the segments through c
+	};
+	struct EventAfter // the heap order: the front is the least position
+	{
+		bool operator()(const Event& l, const Event& r) const { return Compare(l.c, r.c) > 0; }
+	};
+
+	SizeT m_NrCrossings = 0; // crossing points found by the last Run
+
+	// Appends the pixel of every proper crossing among segs to hot. The segments are oriented
+	// from their lexicographically smaller endpoint and sorted by it, as MergeSegments leaves them.
+	void Run(const std::vector<Segment>& segs, std::vector<GPoint>& hot)
+	{
+		assert(std::is_sorted(segs.begin(), segs.end(), [](const Segment& l, const Segment& r) { return LexLess(l.a, r.a); }));
+		m_Segs = &segs;
+		m_Hot  = &hot;
+		m_NrCrossings = 0;
+		EdgeId n = EdgeId(segs.size());
+
+		m_ByHi.resize(n);
+		for (EdgeId e = 0; e != n; ++e)
+			m_ByHi[e] = e;
+		std::sort(m_ByHi.begin(), m_ByHi.end(), [&segs](EdgeId i, EdgeId j) { return LexLess(segs[i].b, segs[j].b); });
+
+		m_EdgeSlot.assign(n, NO_SLOT);
+		m_SlotEdge.clear();
+		m_SlotWhere.clear();
+		m_FreeSlots.clear();
+		m_Events.clear();
+
+		ActiveSet active(Below{ this });
+		m_Active = &active;
+
+		EdgeId posLo = 0, posHi = 0;
+		while (posLo != n || posHi != n || !m_Events.empty())
+		{
+			// the position: the least of the next start, the next end and the next crossing
+			bool   haveGrid = false;
+			GPoint g;
+			if (posLo != n)
+			{
+				g = segs[posLo].a;
+				haveGrid = true;
+			}
+			if (posHi != n)
+			{
+				const GPoint& h = segs[m_ByHi[posHi]].b;
+				if (!haveGrid || LexLess(h, g))
+					g = h;
+				haveGrid = true;
+			}
+			if (!m_Events.empty() && (!haveGrid || Compare(m_Events.front().c, FromGrid(g)) < 0))
+			{
+				m_Pos    = m_Events.front().c;
+				m_AtGrid = false;
+			}
+			else
+			{
+				m_Pos     = FromGrid(g);
+				m_PosGrid = g;
+				m_AtGrid  = true;
+			}
+
+			// the segments ending here leave; each departure makes two segments neighbours
+			SlotId seed = NO_SLOT;
+			if (m_AtGrid)
+				for (; posHi != n && segs[m_ByHi[posHi]].b == g; ++posHi)
+					Leave(m_ByHi[posHi], &seed);
+
+			// the segments through a crossing here reverse; the heap holds the crossing as many
+			// times as its pairs were neighbours, and one reversal serves them all
+			while (!m_Events.empty() && Compare(m_Events.front().c, m_Pos) == 0)
+			{
+				EdgeId e = m_Events.front().e;
+				std::pop_heap(m_Events.begin(), m_Events.end(), EventAfter());
+				m_Events.pop_back();
+				assert(m_EdgeSlot[e] != NO_SLOT); // a crossing is interior to both its segments
+				seed = m_EdgeSlot[e];
+			}
+			if (seed != NO_SLOT)
+				Reverse(seed);
+
+			// the segments starting here enter
+			if (m_AtGrid)
+				for (; posLo != n && segs[posLo].a == g; ++posLo)
+					Enter(posLo);
+		}
+		assert(active.empty());
+		m_Active = nullptr;
+	}
+
+private:
+	// The order of two active segments at the current position, an integer point that one of
+	// them starts at: the point lies on one of them at least, and the side of the other decides,
+	// or the direction when it lies on both.
+	bool IsBelow(SlotId i, SlotId j) const
+	{
+		assert(m_AtGrid);
+		EdgeId ei = m_SlotEdge[i], ej = m_SlotEdge[j];
+		const Segment& s = (*m_Segs)[ei];
+		const Segment& t = (*m_Segs)[ej];
+		int os = s.a == m_PosGrid ? 0 : Orient(s.a, s.b, m_PosGrid);
+		int ot = t.a == m_PosGrid ? 0 : Orient(t.a, t.b, m_PosGrid);
+		if (os == 0 && ot == 0)
+			return BelowByDirection(s, ei, t, ej);
+		if (os == 0)
+			return ot < 0; // the position, on s, lies below t
+		if (ot == 0)
+			return os > 0; // the position, on t, lies above s
+		return HeightBelow(s, ei, t, ej);
+	}
+
+	// Two active segments neither of which passes through the position, by height at its
+	// column. The tree never asks this, since every comparison involves the segment being
+	// inserted, which starts at the position; it is here so that the order is total whatever is
+	// asked. Both are non-vertical: a vertical segment active at this column passes through the
+	// position.
+	bool HeightBelow(const Segment& s, EdgeId si, const Segment& t, EdgeId ti) const
+	{
+		Int64 x = m_PosGrid.X();
+		Int64 dsx = s.b.X() - s.a.X(), dsy = s.b.Y() - s.a.Y();
+		Int64 dtx = t.b.X() - t.a.X(), dty = t.b.Y() - t.a.Y();
+		assert(dsx > 0 && dtx > 0);
+		Int128 hs = Int128(s.a.Y()) * dsx + Int128(x - s.a.X()) * dsy; // the height times dsx
+		Int128 ht = Int128(t.a.Y()) * dtx + Int128(x - t.a.X()) * dty;
+		Int128 l = hs * dtx, r = ht * dsx;
+		if (l != r)
+			return l < r;
+		return BelowByDirection(s, si, t, ti);
+	}
+
+	bool Through(SlotId slot) const
+	{
+		const Segment& s = (*m_Segs)[m_SlotEdge[slot]];
+		return m_AtGrid ? Orient(s.a, s.b, m_PosGrid) == 0 : SideOf(s, m_Pos) == 0;
+	}
+
+	SlotId NewSlot(EdgeId e)
+	{
+		SlotId slot;
+		if (!m_FreeSlots.empty())
+		{
+			slot = m_FreeSlots.back();
+			m_FreeSlots.pop_back();
+		}
+		else
+		{
+			slot = SlotId(m_SlotEdge.size());
+			m_SlotEdge.push_back(e);
+			m_SlotWhere.emplace_back();
+		}
+		m_SlotEdge[slot] = e;
+		return slot;
+	}
+
+	void Enter(EdgeId e)
+	{
+		const Segment& s = (*m_Segs)[e];
+		if (s.a == s.b)
+			return; // no length, no crossing
+		SlotId slot = NewSlot(e);
+		auto ins = m_Active->insert(slot);
+		assert(ins.second);
+		ActiveIter it = ins.first;
+		m_SlotWhere[slot] = it;
+		m_EdgeSlot[e] = slot;
+		if (it != m_Active->begin())
+			TestPair(*std::prev(it), slot, nullptr);
+		ActiveIter nx = std::next(it);
+		if (nx != m_Active->end())
+			TestPair(slot, *nx, nullptr);
+	}
+
+	void Leave(EdgeId e, SlotId* seed)
+	{
+		SlotId slot = m_EdgeSlot[e];
+		if (slot == NO_SLOT)
+			return; // no length, never entered
+		ActiveIter it = m_SlotWhere[slot];
+		ActiveIter nx = std::next(it);
+		bool   hasPrev = it != m_Active->begin();
+		SlotId prev = hasPrev ? *std::prev(it) : NO_SLOT;
+		m_Active->erase(it);
+		m_EdgeSlot[e] = NO_SLOT;
+		m_FreeSlots.push_back(slot);
+		if (hasPrev && nx != m_Active->end())
+			TestPair(prev, *nx, seed);
+	}
+
+	// lo lies just below hi in the active set. Their proper crossing, if any, is ahead of the
+	// sweep and joins the heap; or behind it, which happens when two segments that crossed
+	// become neighbours again after whatever separated them has left, and then it was reversed
+	// and reported when the sweep passed it; or at the current position, which only a departure
+	// at an integer point can bring about, and then it is the seed of the reversal there.
+	void TestPair(SlotId lo, SlotId hi, SlotId* seed)
+	{
+		const Segment& s = (*m_Segs)[m_SlotEdge[lo]];
+		const Segment& t = (*m_Segs)[m_SlotEdge[hi]];
+		if (!ProperCrossing(s, t))
+			return;
+		ExactPoint c = CrossingOf(s, t);
+		int cmp = Compare(c, m_Pos);
+		if (cmp < 0)
+			return;
+		if (cmp == 0)
+		{
+			MG_CHECK2(seed, "crossing sweep: a crossing at the sweep position where none can be");
+			*seed = lo;
+			return;
+		}
+		m_Events.push_back(Event{ c, m_SlotEdge[lo] });
+		std::push_heap(m_Events.begin(), m_Events.end(), EventAfter());
+	}
+
+	// The run of active segments through the current position, a crossing, reverses: just after
+	// the point they are ordered by direction, the steepest on top, and where directions coincide
+	// by index. The tree keeps its nodes; only which segment sits in which node changes.
+	void Reverse(SlotId seed)
+	{
+		ActiveIter first = m_SlotWhere[seed], last = first;
+		while (first != m_Active->begin() && Through(*std::prev(first)))
+			--first;
+		for (ActiveIter nx = std::next(last); nx != m_Active->end() && Through(*nx); nx = std::next(last))
+			last = nx;
+		ActiveIter end = std::next(last);
+
+		m_Run.clear();
+		for (ActiveIter it = first; it != end; ++it)
+			m_Run.push_back(m_SlotEdge[*it]);
+		assert(m_Run.size() >= 2);
+		const std::vector<Segment>& segs = *m_Segs;
+		std::sort(m_Run.begin(), m_Run.end(), [&segs](EdgeId i, EdgeId j) { return BelowByDirection(segs[i], i, segs[j], j); });
+		SizeT k = 0;
+		for (ActiveIter it = first; it != end; ++it, ++k)
+		{
+			m_SlotEdge[*it] = m_Run[k];
+			m_EdgeSlot[m_Run[k]] = *it;
+		}
+
+		m_Hot->push_back(PixelOf(m_Pos));
+		++m_NrCrossings;
+
+		if (first != m_Active->begin())
+			TestPair(*std::prev(first), *first, nullptr);
+		if (end != m_Active->end())
+			TestPair(*last, *end, nullptr);
+	}
+
+	const std::vector<Segment>* m_Segs   = nullptr;
+	std::vector<GPoint>*        m_Hot    = nullptr;
+	ActiveSet*                  m_Active = nullptr;
+	ExactPoint m_Pos{};
+	GPoint     m_PosGrid;
+	bool       m_AtGrid = false;
+
+	std::vector<EdgeId>     m_ByHi;      // the segments by upper endpoint
+	std::vector<SlotId>     m_EdgeSlot;  // per segment, its slot while active
+	std::vector<EdgeId>     m_SlotEdge;  // per slot, its segment
+	std::vector<ActiveIter> m_SlotWhere; // per slot, its node
+	std::vector<SlotId>     m_FreeSlots;
+	std::vector<Event>      m_Events;    // a heap by position, see EventAfter
+	std::vector<EdgeId>     m_Run;
+};
+
+// *****************************************************************************
 //	noding by iterated snap rounding
 // *****************************************************************************
 
@@ -345,14 +750,24 @@ struct Noder
 	SizeT m_NrCrossingPixels = 0; // pixels that a proper crossing was snapped to
 	SizeT m_NrExtraRounds    = 0; // noding rounds beyond the first, i.e. snapping created new incidences
 
-	// Orient every segment from its lexicographically smaller endpoint, merge identical segments and
-	// keep their operand multiplicities modulo 2. A segment that cancels (both parities zero, such as
-	// the two directions of a corridor) disappears.
+	// Orient every segment from its lexicographically smaller endpoint, merge identical segments,
+	// keep their operand multiplicities modulo 2 and sum their coverage weights. A segment that
+	// cancels (both parities zero and weight zero, such as the two directions of a corridor, or the
+	// shared edge of two dissolved neighbours) disappears.
+	//
+	// The weight is relative to the stored direction a -> b (see Segment), so turning a segment
+	// round negates it. The parity mask is symmetric and needs nothing. This is where the count
+	// sweep first went wrong on real data: a steep edge whose snapped chain takes a vertical step
+	// gets that step as a fragment travelling downward, which is then turned upward here, and
+	// with its weight unchanged it claimed the wrong side of itself as covered.
 	static void MergeSegments(std::vector<Segment>& segs)
 	{
 		for (auto& s : segs)
 			if (LexLess(s.b, s.a))
+			{
 				std::swap(s.a, s.b);
+				s.weight = -s.weight;
+			}
 
 		std::sort(segs.begin(), segs.end(), [](const Segment& l, const Segment& r)
 			{
@@ -365,12 +780,18 @@ struct Noder
 		{
 			SizeT j = i;
 			UInt8 mask = 0;
+			Int32 weight = 0;
 			while (j != n && segs[j].a == segs[i].a && segs[j].b == segs[i].b)
-				mask ^= segs[j++].mask;
-			if (mask)
+			{
+				mask   ^= segs[j].mask;
+				weight += segs[j].weight;
+				++j;
+			}
+			if (mask || weight)
 			{
 				segs[w] = segs[i];
-				segs[w].mask = mask;
+				segs[w].mask   = mask;
+				segs[w].weight = weight;
 				++w;
 			}
 			i = j;
@@ -405,8 +826,6 @@ struct Noder
 	}
 
 private:
-	using BoxIndex   = SpatialIndex<Int64, const GRect*>;
-	using BoxIter    = BoxIndex::iterator<GRect>;
 	using PointIndex = SpatialIndex<Int64, const GPoint*>;
 	using PointIter  = PointIndex::iterator<GRect>;
 
@@ -421,26 +840,8 @@ private:
 	// already, and the snapping pass splits the other segment there.
 	void CollectCrossings(const std::vector<Segment>& segs)
 	{
-		m_Boxes.clear();
-		m_Boxes.reserve(segs.size());
-		for (const auto& s : segs)
-			m_Boxes.emplace_back(s.a, s.b);
-
-		BoxIndex index(m_Boxes.data(), m_Boxes.data() + m_Boxes.size());
-
-		for (SizeT i = 0, n = segs.size(); i != n; ++i)
-		{
-			for (BoxIter it = index.begin(m_Boxes[i]); it; ++it)
-			{
-				SizeT j = (*it)->get_ptr() - m_Boxes.data();
-				if (j <= i)
-					continue;
-				if (!ProperCrossing(segs[i], segs[j]))
-					continue;
-				m_Hot.push_back(CrossingPixel(segs[i].a, segs[i].b, segs[j].a, segs[j].b));
-				++m_NrCrossingPixels;
-			}
-		}
+		m_Sweep.Run(segs, m_Hot);
+		m_NrCrossingPixels += m_Sweep.m_NrCrossings;
 	}
 
 	// Replace every segment by the chain through the centres of the hot pixels it meets. The chain
@@ -496,14 +897,14 @@ private:
 			}
 			anySplit = true;
 			for (SizeT k = 1, n = m_Keys.size(); k != n; ++k)
-				m_Next.push_back(Segment{ m_Keys[k - 1].c, m_Keys[k].c, s.mask });
+				m_Next.push_back(Segment{ m_Keys[k - 1].c, m_Keys[k].c, s.mask, s.weight });
 		}
 		segs.swap(m_Next);
 		return anySplit;
 	}
 
 	std::vector<GPoint>   m_Hot;   // sorted and unique between rounds
-	std::vector<GRect>    m_Boxes;
+	CrossingSweep         m_Sweep;
 	std::vector<Segment>  m_Next;
 	std::vector<PixelKey> m_Keys;
 };
@@ -668,6 +1069,40 @@ inline void ComputeFaceParity(const std::vector<SweepEdge>& edges, std::vector<P
 	}
 }
 
+// The coverage counts of every edge, for a dissolve: below is the number of elements covering the
+// face on the edge's right, and below + delta the number covering the face on its left, delta
+// being the edge's summed weight (see Segment). The propagation is the parity sweep's with a sum
+// in place of an XOR: the unbounded face has count 0, and the count on the right of an edge is
+// the count on the left of the active edge just below it. Nothing here assumes the counts stay
+// non-negative; a ring wound the wrong way subtracts, and the caller's membership test decides
+// what that means.
+struct CountEdge
+{
+	Int32 delta;
+	Int32 below;
+};
+
+inline void ComputeFaceCounts(const std::vector<SweepEdge>& edges, std::vector<CountEdge>& counts)
+{
+	assert(edges.size() == counts.size());
+	SweepLine sweep(edges);
+	while (!sweep.AtEnd())
+	{
+		GPoint v = sweep.NextVertex();
+		sweep.ProcessVertex(v, [&](EdgeId e, SweepLine::ActiveIter it)
+			{
+				if (it == sweep.m_Active.begin())
+					counts[e].below = 0; // the unbounded face
+				else
+				{
+					EdgeId p = *std::prev(it);
+					counts[e].below = counts[p].below + counts[p].delta;
+				}
+			}
+		);
+	}
+}
+
 inline bool IsInside(BoolOp op, UInt8 mask)
 {
 	bool a = (mask & 1) != 0, b = (mask & 2) != 0;
@@ -801,7 +1236,9 @@ private:
 	UInt32 FindVertex(const GPoint& p) const
 	{
 		auto it = std::lower_bound(m_Vertices.begin(), m_Vertices.end(), p, LexLess);
-		assert(it != m_Vertices.end() && *it == p);
+		// In a Release build a miss here used to map the point to whatever vertex sorts next and
+		// let the walk run on from the wrong place; the failures that followed named nothing.
+		MG_CHECK2(it != m_Vertices.end() && *it == p, "dms overlay: a boundary edge ends at a vertex where no boundary edge begins");
 		return UInt32(it - m_Vertices.begin());
 	}
 
@@ -968,6 +1405,35 @@ struct DmsOverlayEngine
 	// each operand pair, which is what the binary operators want.
 	void SetFixedCell(Float64 cell) { m_FixedCell = cell; }
 
+	// One frame for a whole fold, cell and origin both: every element and every intermediate of a
+	// dissolve is quantized into the same integer lattice, so that the rings of one element can be
+	// appended to those of another without any coordinate conversion, and so that the answer does
+	// not depend on how the elements were grouped or tiled. The origin is a lattice line at or
+	// below the extent the frame covers, and that extent must fit the 2^36 internal cells, which
+	// DmsFrameFor checks when it makes the frame; SetFrame checks every operand against it. For
+	// integer coordinates the cell is 1 and the origin integral. The current frame is set at once,
+	// so that Store can dequantize after UnionBag, which frames nothing itself.
+	void SetFixedFrame(Float64 cell, Float64 originX, Float64 originY)
+	{
+		MG_CHECK2(cell > 0.0, "dms overlay: a fixed frame needs a positive cell");
+		m_FixedCell = cell;
+		m_HasFixedOrigin = true;
+		m_FixedOriginX = originX;
+		m_FixedOriginY = originY;
+		if constexpr (is_float)
+		{
+			m_Cell = cell;
+			m_OriginX = originX;
+			m_OriginY = originY;
+		}
+		else
+		{
+			m_ICell = Int64(cell);
+			m_IOriginX = Int64(originX);
+			m_IOriginY = Int64(originY);
+		}
+	}
+
 	// The entry point of the binary operators: an undefined operand gives an undefined result.
 	template <typename E>
 	void Apply(E&& res, SA_ConstReference<P> a, SA_ConstReference<P> b)
@@ -996,6 +1462,111 @@ struct DmsOverlayEngine
 	bool Clean(E&& res, const RA& a)
 	{
 		return ApplyRanges(std::forward<E>(res), BoolOp::Union, a, EmptyRange());
+	}
+
+	// Phase A of a dissolve: the even-odd reading of one element as rings on the lattice, without
+	// writing them out. Empty when the element cannot be framed or encloses no area. The rings are
+	// the engine's own and are valid until its next call; dms_append_rings copies what it needs.
+	template <typename RA>
+	const std::vector<Ring>& CleanToRings(const RA& a)
+	{
+		if (!Compute(BoolOp::Union, a, EmptyRange()))
+			m_Rings.clear();
+		return m_Rings;
+	}
+
+	// Phase B of a dissolve: the union of a bag of segments that already lie on this engine's fixed
+	// frame (SetFixedFrame) and carry coverage weights (see Segment and dms_append_rings). Nodes
+	// them once, sweeps once for the coverage counts, keeps every fragment where the count changes
+	// between zero and nonzero, directed with the covered side on its right, and chains those into
+	// rings, which Store then writes. The nonzero rule, rather than count > 0, keeps a ring that
+	// arrived wound the wrong way on the inside instead of subtracting it; after phase A the two
+	// agree, since every ring it produces is canonically wound. The bag is consumed. Returns whether
+	// any area came out.
+	bool UnionBag(std::vector<Segment>& bag)
+	{
+		MG_CHECK2(m_HasFixedOrigin, "dms overlay: UnionBag needs a fixed frame");
+		m_Rings.clear();
+		m_Framed = true;
+		m_Segments.swap(bag);
+		bag.clear();
+
+		m_Noder.Run(m_Segments);
+
+		SizeT n = m_Segments.size();
+		m_Edges.resize(n);
+		m_Counts.resize(n);
+		for (SizeT i = 0; i != n; ++i)
+		{
+			m_Edges[i]  = SweepEdge{ m_Segments[i].a, m_Segments[i].b }; // merged: a is the lexicographic lower
+			m_Counts[i] = CountEdge{ m_Segments[i].weight, 0 };
+		}
+		ComputeFaceCounts(m_Edges, m_Counts);
+
+		m_Kept.clear();
+		for (SizeT i = 0; i != n; ++i)
+		{
+			bool inRight = m_Counts[i].below != 0;
+			bool inLeft  = (m_Counts[i].below + m_Counts[i].delta) != 0;
+			if (inRight == inLeft)
+				continue;
+			if (inRight)
+				m_Kept.push_back(DirEdge{ m_Edges[i].lo, m_Edges[i].hi });
+			else
+				m_Kept.push_back(DirEdge{ m_Edges[i].hi, m_Edges[i].lo });
+		}
+		CheckKeptClosed(n);
+
+		m_Polygonizer.Run(m_Kept, m_Rings);
+		m_HoleAssigner.Run(m_Rings);
+		return !m_Rings.empty();
+	}
+
+	// The boundary of a region is closed: at every vertex as many kept edges leave as arrive. When
+	// that fails, the counts around some vertex were inconsistent, and the polygonizer downstream
+	// can only fail in ways that name nothing (a walk that re-uses an edge, a ring of two
+	// vertices). So it is checked here, and the first offending vertex is reported with every
+	// fragment that touches it: its endpoints, its weight, the count on its right and on its left,
+	// and whether it was kept. That is the whole local configuration, enough to reason from.
+	void CheckKeptClosed(SizeT nrFragments) const
+	{
+		std::vector<std::pair<GPoint, int>> ends;
+		ends.reserve(2 * m_Kept.size());
+		for (const auto& e : m_Kept)
+		{
+			ends.emplace_back(e.from, +1);
+			ends.emplace_back(e.to,   -1);
+		}
+		std::sort(ends.begin(), ends.end(), [](const auto& l, const auto& r) { return LexLess(l.first, r.first); });
+		for (SizeT i = 0, n = ends.size(); i != n; )
+		{
+			SizeT j = i;
+			int balance = 0;
+			while (j != n && ends[j].first == ends[i].first)
+				balance += ends[j++].second;
+			if (balance != 0)
+			{
+				const GPoint& v = ends[i].first;
+				P w = Dequantize(v);
+				std::string msg = std::format("dms overlay: the boundary is not closed at vertex ({}, {}), internal ({}, {}): {} more kept edges leave than arrive. Fragments at that vertex:"
+					, w.X(), w.Y(), v.X(), v.Y(), balance);
+				SizeT listed = 0;
+				for (SizeT f = 0; f != nrFragments && listed != 24; ++f)
+				{
+					if (m_Edges[f].lo != v && m_Edges[f].hi != v)
+						continue;
+					++listed;
+					bool inRight = m_Counts[f].below != 0;
+					bool inLeft  = (m_Counts[f].below + m_Counts[f].delta) != 0;
+					msg += std::format("\n  lo ({}, {}) hi ({}, {}) weight {} below {} above {} {}"
+						, m_Edges[f].lo.X(), m_Edges[f].lo.Y(), m_Edges[f].hi.X(), m_Edges[f].hi.Y()
+						, m_Counts[f].delta, m_Counts[f].below, m_Counts[f].below + m_Counts[f].delta
+						, inRight == inLeft ? "dropped" : inRight ? "kept lo->hi" : "kept hi->lo");
+				}
+				throwErrorD(m_OperName, msg.c_str());
+			}
+			i = j;
+		}
 	}
 
 	// Run the sweep and keep its rings. Returns whether the result encloses any area, which is
@@ -1139,17 +1710,56 @@ private:
 			else
 				m_Cell = CellFor(extent, stats.MaxAbs());
 
-			m_OriginX = std::floor(minX / m_Cell) * m_Cell;
-			m_OriginY = std::floor(minY / m_Cell) * m_Cell;
+			if (m_HasFixedOrigin)
+			{
+				// one frame for a whole fold, see SetFixedFrame: the operands must lie inside it
+				m_OriginX = m_FixedOriginX;
+				m_OriginY = m_FixedOriginY;
+				if (stats.any && !FitsFrame(stats.minX, stats.minY, stats.maxX, stats.maxY))
+					throwErrorF(m_OperName, "an operand spanning [{}, {}] to [{}, {}] lies outside the fixed frame of this fold; its coordinates are not within the declared range of the values unit"
+						, stats.minX, stats.minY, stats.maxX, stats.maxY);
+			}
+			else
+			{
+				m_OriginX = std::floor(minX / m_Cell) * m_Cell;
+				m_OriginY = std::floor(minY / m_Cell) * m_Cell;
+			}
 		}
 		else
 		{
-			m_ICell = m_ExplicitGrid > 0.0 ? Int64(m_ExplicitGrid) : 1;
-			m_IOriginX = FloorDivInt(Int64(minX), m_ICell) * m_ICell; // Int64(minX) is exact: 32-bit coordinates at most
-			m_IOriginY = FloorDivInt(Int64(minY), m_ICell) * m_ICell;
-			// the full Int32 range spans 2^32 cells at grid 1, within the budget of 2^36
+			m_ICell = m_ExplicitGrid > 0.0 ? Int64(m_ExplicitGrid) : (m_FixedCell > 0.0 ? Int64(m_FixedCell) : 1);
+			if (m_HasFixedOrigin)
+			{
+				m_IOriginX = Int64(m_FixedOriginX); // integral by construction, see SetFixedFrame
+				m_IOriginY = Int64(m_FixedOriginY);
+				if (stats.any && !FitsFrame(stats.minX, stats.minY, stats.maxX, stats.maxY))
+					throwErrorF(m_OperName, "an operand spanning [{}, {}] to [{}, {}] lies outside the fixed frame of this fold; its coordinates are not within the declared range of the values unit"
+						, stats.minX, stats.minY, stats.maxX, stats.maxY);
+			}
+			else
+			{
+				m_IOriginX = FloorDivInt(Int64(minX), m_ICell) * m_ICell; // Int64(minX) is exact: 32-bit coordinates at most
+				m_IOriginY = FloorDivInt(Int64(minY), m_ICell) * m_ICell;
+				// the full Int32 range spans 2^32 cells at grid 1, within the budget of 2^36
+			}
 		}
 		return true;
+	}
+
+	// Whether a box of world coordinates quantizes into the current frame's [0, 2^36] internal
+	// range on both axes.
+	bool FitsFrame(Float64 minX, Float64 minY, Float64 maxX, Float64 maxY) const
+	{
+		if constexpr (is_float)
+		{
+			Float64 span = m_Cell * Float64(COORD_LIMIT);
+			return minX >= m_OriginX && minY >= m_OriginY && maxX <= m_OriginX + span && maxY <= m_OriginY + span;
+		}
+		else
+		{
+			Int64 span = m_ICell * COORD_LIMIT;
+			return Int64(minX) >= m_IOriginX && Int64(minY) >= m_IOriginY && Int64(maxX) <= m_IOriginX + span && Int64(maxY) <= m_IOriginY + span;
+		}
 	}
 
 	GPoint Quantize(const P& p) const
@@ -1324,12 +1934,15 @@ private:
 	CharPtr m_OperName;
 	Float64 m_ExplicitGrid;
 	Float64 m_FixedCell = 0; // > 0: one lattice for a whole fold, see DeriveFoldCell
+	bool    m_HasFixedOrigin = false; // one frame for a whole fold, see SetFixedFrame
+	Float64 m_FixedOriginX = 0, m_FixedOriginY = 0;
 	bool    m_Framed = false; // whether the last Compute could frame its operands
 
 	std::vector<Segment>    m_Segments;
 	Noder                   m_Noder;
 	std::vector<SweepEdge>  m_Edges;
 	std::vector<ParityEdge> m_Parity;
+	std::vector<CountEdge>  m_Counts;
 	std::vector<DirEdge>    m_Kept;
 	Polygonizer             m_Polygonizer;
 	std::vector<Ring>       m_Rings;
@@ -1371,6 +1984,109 @@ Float64 DeriveFoldCell(const PolyRange& polys, Float64 grow = 0.0)
 			return 0.0;
 		return DmsOverlayEngine<P>::CellFor(stats.Extent() + 2 * grow, stats.MaxAbs() + grow);
 	}
+}
+
+// *****************************************************************************
+//	the dissolve in one noding
+// *****************************************************************************
+
+// The frame of a dissolve: one cell and one origin for every element and every intermediate of
+// one operator call, so that all of them share a single integer lattice. Derived once, before the
+// first element is read, from the values unit's declared range or, failing that, from the extent
+// of the data, by DmsFrameFor. A zero cell means none could be derived.
+struct DmsFrame
+{
+	Float64 cell = 0, originX = 0, originY = 0;
+	bool defined() const { return cell > 0.0; }
+};
+
+// The frame that covers the box [lo, hi] of world coordinates: the cell CellFor gives, so that the
+// box spans at most 2^36 cells, and the origin on the lattice line at or below the box. Flooring
+// the origin can push the far corner past the 2^36th cell by less than one cell, in which case the
+// cell doubles once. For integer coordinates the cell is 1 and the origin the box's lower corner:
+// the full Int32 range spans 2^32 cells, within the budget.
+template <typename P>
+DmsFrame DmsFrameFor(Float64 loX, Float64 loY, Float64 hiX, Float64 hiY)
+{
+	DmsFrame f;
+	if (!std::isfinite(loX) || !std::isfinite(loY) || !std::isfinite(hiX) || !std::isfinite(hiY))
+		return f;
+	if (!(hiX >= loX) || !(hiY >= loY))
+		return f;
+	if constexpr (std::is_floating_point_v<scalar_of_t<P>>)
+	{
+		Float64 extent = Max<Float64>(hiX - loX, hiY - loY);
+		Float64 maxAbs = Max<Float64>(Max<Float64>(std::fabs(loX), std::fabs(hiX)), Max<Float64>(std::fabs(loY), std::fabs(hiY)));
+		if (!std::isfinite(extent))
+			return f; // the type's own full range, not a declared one: nothing can be framed
+		f.cell = DmsOverlayEngine<P>::CellFor(extent, maxAbs);
+		// Never an unbounded loop on floating point: the first cell already spans the extent
+		// within 2^36 cells, and flooring the origin adds less than one cell, so one doubling
+		// settles it. Anything that does not settle in a few is unframeable and says so.
+		for (int attempt = 0; attempt != 4; ++attempt)
+		{
+			if (!std::isfinite(f.cell) || !(f.cell > 0.0))
+				return DmsFrame();
+			f.originX = std::floor(loX / f.cell) * f.cell;
+			f.originY = std::floor(loY / f.cell) * f.cell;
+			Float64 span = f.cell * Float64(COORD_LIMIT);
+			if (std::isfinite(f.originX) && std::isfinite(f.originY) && hiX - f.originX <= span && hiY - f.originY <= span)
+				return f;
+			f.cell *= 2.0;
+		}
+		return DmsFrame();
+	}
+	else
+	{
+		f.cell = 1.0;
+		f.originX = std::floor(loX);
+		f.originY = std::floor(loY);
+	}
+	return f;
+}
+
+// The accumulator of a dissolve: the ring edges of every element read so far, each with its
+// coverage weight, all on the frame the bag carries. Filled by dms_append_rings as the tiles come
+// in, consumed by DmsOverlayEngine::UnionBag at store time, so the dissolve nodes its input once
+// whatever the number of elements or tiles it arrived in.
+struct DmsSegmentBag
+{
+	DmsFrame             frame;
+	std::vector<Segment> segs;
+	SizeT                nrElements = 0;
+
+	bool empty() const { return segs.empty(); }
+};
+
+// Phase A's output into the bag: every edge of every ring, in the direction the ring runs, with
+// coverage weight -1. A ring the sweep wrote is canonically wound, shells clockwise with the
+// covered side on the right of each edge and holes the other way round with the covered side
+// again on the right, so crossing any ring edge from its right to its left leaves one element's
+// coverage: -1, relative to the stored direction, which is what Segment's contract asks for. The
+// noder turns the weight round with the fragment whenever it re-orients one, so no rule about
+// lo and hi is needed here, and holes need no special case.
+inline void dms_append_rings(DmsSegmentBag& bag, const std::vector<Ring>& rings)
+{
+	for (const auto& ring : rings)
+	{
+		const auto& pts = ring.pts; // open: the last point connects back to the first
+		SizeT n = pts.size();
+		if (n < 3)
+			continue;
+		// No reserve here: reserve(size + n) grows to exactly that, so with a bag that grows by a
+		// few segments per element it reallocates and copies the whole bag on EVERY append, which
+		// is quadratic in the number of elements: 124,662 buildings cost six minutes of memcpy.
+		// push_back grows geometrically, which is what a bag that is appended to wants.
+		for (SizeT i = 0; i != n; ++i)
+		{
+			const GPoint& from = pts[i];
+			const GPoint& to   = pts[i + 1 == n ? 0 : i + 1];
+			if (from == to)
+				continue;
+			bag.segs.push_back(Segment{ from, to, 0, -1 });
+		}
+	}
+	++bag.nrElements;
 }
 
 // The accumulator of a fold: a polygon value plus the cell it was snapped to, so that the cell
