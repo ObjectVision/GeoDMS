@@ -434,7 +434,17 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	else if (IsUnit(this) && !notWritingDictionary)
 	{
 		auto au = AsUnit(this);
-		if (au->HasVarRange() && IsCalculatingOrReady(au->GetCurrRangeItem().get()))
+		// #1266: hold interest in the range item while asking whether it is calculating or ready, and while
+		// the Range is emitted. IsDataReady (and IsDataCurrReady under it) assert HasInterest(), because
+		// without interest the answer is volatile; the dictionary is re-emitted at every unit commit under
+		// the store (#1155), so a unit further down the store may be dumped before anything holds interest
+		// in its range item, and that asked-without-interest assertion stopped every Debug write of an MMD
+		// store with an alias. Holding the interest, rather than skipping such a unit, keeps what Release
+		// always did: a range that is already complete is emitted now, not only at that unit's own commit
+		// -- which an externally declared domain never has (#1154).
+		auto rangeItem = au->HasVarRange() ? au->GetCurrRangeItem() : nullptr;
+		TreeItemInterestPtr rangeHolder(rangeItem.get());
+		if (rangeItem && IsCalculatingOrReady(rangeItem.get()))
 		{
 			// when the dictionary is written at OpenForWrite time, the range of this unit may not have been
 			// calculated yet (issue #1130: we can be inside PrepareDataUsage of this very unit);
