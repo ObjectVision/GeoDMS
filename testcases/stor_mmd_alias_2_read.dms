@@ -5,9 +5,15 @@
 //
 // The reader declares nothing but the storage: every unit and attribute comes from the dictionary.
 // Before the fix, store/stand/Label and store/adr/postcode failed with `Data not found in .MMD
-// storage folder`; they now resolve through the store-local references the dictionary carries.
-// The last check is the one that needs the aliased UNIT as well: combining an aliased table with
-// the table it aliases only unifies if the dictionary declared `adr` as a reference to `na`.
+// storage folder`, because the writer stored their content once under the name of whichever item
+// claimed it first and declared both. They now each have a file of their own.
+//
+// Note what a store does NOT preserve. An aliased table is materialised, so store/adr and store/na
+// are two INDEPENDENT domains once read back, even though the writing configuration derived both
+// from one unit. Combining them elementwise is a domain mismatch by design ("different
+// CheckedKeyExpr"), and a reader that needs them related must relate them itself. What the store
+// guarantees is that each declared attribute delivers its own faithful copy, which is what the
+// checks below pin.
 container stor_mmd_alias_2_read
 {
 	container store
@@ -18,17 +24,18 @@ container stor_mmd_alias_2_read
 
 	container checks
 	{
-		parameter<uint32> n_lig    := #store/lig,                          IntegrityCheck = "n_lig  == 2";
-		parameter<uint32> n_adr    := #store/adr,                          IntegrityCheck = "n_adr  == 3";
+		parameter<uint32> n_lig    := #store/lig,                          IntegrityCheck = "n_lig   == 2";
+		parameter<uint32> n_stand  := #store/stand,                        IntegrityCheck = "n_stand == 2";
+		parameter<uint32> n_na     := #store/na,                           IntegrityCheck = "n_na    == 3";
+		parameter<uint32> n_adr    := #store/adr,                          IntegrityCheck = "n_adr   == 3";
+
 		parameter<string> s_lig    := AsList(store/lig/Label, ' '),        IntegrityCheck = "s_lig   == 'aangewezen ingetrokken'";
-		parameter<string> s_stand  := AsList(store/stand/Label, ' '),      IntegrityCheck = "s_stand == 'aangewezen ingetrokken'";
 		parameter<string> s_na     := AsList(store/na/postcode, ' '),      IntegrityCheck = "s_na    == '1000AA 2000BB 3000CC'";
-		parameter<string> s_adr    := AsList(store/adr/postcode, ' '),     IntegrityCheck = "s_adr   == '1000AA 2000BB 3000CC'";
 		parameter<string> s_eigen  := AsList(store/adr/eigen_veld, ' '),   IntegrityCheck = "s_eigen == 'n1! n2! n3!'";
 
-		// the aliased table combined with the table it aliases: a domain mismatch unless the
-		// dictionary declared adr as a reference to na
-		parameter<string> s_comb   := AsList(store/adr/postcode + '/' + store/na/identificatie, ' ')
-		,	IntegrityCheck = "s_comb == '1000AA/n1 2000BB/n2 3000CC/n3'";
+		// the two that had no file at all before: each must now carry the same content as the item
+		// it was written from, compared as a whole rather than elementwise, since the domains differ
+		parameter<string> s_stand  := AsList(store/stand/Label, ' '),      IntegrityCheck = "s_stand == s_lig";
+		parameter<string> s_adr    := AsList(store/adr/postcode, ' '),     IntegrityCheck = "s_adr   == s_na";
 	}
 }

@@ -10,6 +10,7 @@
 #define __STG_MMD_STORAGEMANAGER_H
 
 
+#include <map>
 #include <set>
 
 #include "ser/FileMapHandle.h"
@@ -39,6 +40,18 @@ public:
 	// the dictionary written at OpenForWrite time lacks the Range of units not calculated yet
 	void UpdateDictionary(const TreeItem* storageHolder);
 
+	// #1247: give a stored item that shares its content with another item a file of its own.
+	//
+	// A stored reference does not keep its config item as referred item: TreeItem::SetReferredItem
+	// swaps in a DataController over 'convert(<source key>, <values unit key>)' so the produced
+	// array can be mapped into the store, and GetOrCreateDataController interns those by key
+	// expression. Two stored items over one source therefore share ONE cache item, whose single
+	// back reference is what DataWriteLock names the file from, so only the first claimant got a
+	// file while the dictionary declared both, and the store promised data it did not have.
+	// Everything a store declares must be in it, so the other claimants get a copy here.
+	// Called from TreeItem::CommitDataChanges once the data is ready, before UpdateDictionary.
+	void MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi);
+
 protected:
 //	implement AbstrStorageManager interface
 //	void DropStream(const TreeItem* item, CharPtr path) override;
@@ -59,6 +72,15 @@ protected:
 	// DoUpdateTree idempotent -- after the merge the holder HAS sub-items, which must not trip
 	// the reader-declared-sub-items refusal on a revisit. Pointers are keys, never dereferenced.
 	mutable std::set<const TreeItem*> m_MergedReadHolders;
+
+	// #1247: the items this manager has already copied, with the change stamp they were copied at.
+	// NOT a bare presence set: within one session an item can be invalidated and recommitted -- a
+	// source change, a GUI edit, #1155's re-emission after a later attribute moves a unit's range --
+	// and the file then has to be rewritten. Skipping that would leave a stale file declared as
+	// current, which is the very defect this fixes. The stamp is the CONFIG item's
+	// Actor::GetLastChangeTS, which covers the item and its suppliers: a recommit produces a FRESH
+	// cache item, so a cache-keyed guard could only ever say "unknown" and would never skip at all.
+	mutable std::map<const TreeItem*, TimeStamp> m_MaterializedAt;
 
 	DECL_RTTI(, StorageClass)
 };

@@ -172,105 +172,6 @@ auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedS
 }
 
 //////////////////////////////////////////////////////////////////////
-// #1247: two items of one store that are the same content
-//
-// A stored reference does not keep its config item as referred item: TreeItem::SetReferredItem
-// swaps in a DataController over 'convert(<source key>, <values unit key>)', so that the produced
-// array can be mapped into the store, and GetOrCreateDataController interns those by key
-// expression. Two store items that resolve to the same source therefore share ONE cache item; its
-// back reference is claimed by whichever item got there first, and DataWriteLock names the store
-// file from exactly that back reference. So the content was written once while the dictionary
-// declared every claimant, and a reader failed on first use of one that never got a file, with
-// "Data not found in .MMD storage folder" -- while the write itself had reported nothing.
-//
-// The dump now declares such an item as a reference to the store-local item that does carry the
-// content, which is a rule the reader can re-evaluate against suppliers inside the store. UNITS are
-// mapped as well as attributes: the unit alias is what lets a reader unify an aliased attribute
-// with its own declared domain, since AbstrUnit::UnifyDomain compares GetCurrUltimateItem() and
-// then the DataController of GetCheckedKeyExpr(), on both of which two separately declared units of
-// equal range differ ("Domain mismatch ... (different CheckedKeyExpr)").
-//
-// This is deliberately only the case that identity decides. An item whose rule merely MENTIONS
-// something outside the store keeps a file of its own, as before; rewriting such a rule in terms of
-// store-local suppliers is the open question of #1247 and is not attempted here.
-//
-// The map is thread_local and lives for one dump, like t_MmdDictionaryRoot above. It stays out of
-// the header on purpose: that header is included by clc/dll/include/CastedUnaryAttrOper.h and so
-// reaches most of Clc, while this is private to the dictionary dump. TreeItem::XML_Dump declares
-// the one accessor it needs, as it already declares IsDumpingToFolder.
-//////////////////////////////////////////////////////////////////////
-
-namespace {
-
-	using MmdAliasMap = std::map<const TreeItem*, SharedTreeItem>;
-	thread_local const MmdAliasMap* t_MmdAliasMap = nullptr;
-
-	// What an item's content IS, as an identity to compare on: for a data item the shared cache
-	// result whose bytes the store file holds, for a unit the item it refers to. An item that
-	// refers to nothing is its own content and can never be the alias.
-	auto Mmd_ContentIdentity(const TreeItem* ti) -> const TreeItem*
-	{
-		auto ultimate = ti->GetCurrUltimateItem();
-		return (ultimate && ultimate.get() != ti) ? ultimate.get() : nullptr;
-	}
-
-	// Pre-order, first sub-item first: the order TreeItem::XML_Dump writes the dictionary in, with
-	// the same skip of the engine's own shadows (#1245). "The first one declared" is then a
-	// statement about the dictionary and not about the walk.
-	void Mmd_CollectByIdentity(const TreeItem* ti, std::map<const TreeItem*, std::vector<SharedTreeItem>>& byIdentity)
-	{
-		for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
-		{
-			if (sub->IsDisabledStorage())
-				continue;
-			if (IsDataItem(sub) || IsUnit(sub))
-				if (auto identity = Mmd_ContentIdentity(sub))
-					byIdentity[identity].push_back(make_shared_tree(sub, existing_obj{}));
-			Mmd_CollectByIdentity(sub, byIdentity);
-		}
-	}
-
-	auto Mmd_BuildAliasMap(const TreeItem* dictRoot) -> MmdAliasMap
-	{
-		std::map<const TreeItem*, std::vector<SharedTreeItem>> byIdentity;
-		Mmd_CollectByIdentity(dictRoot, byIdentity);
-
-		MmdAliasMap result;
-		for (const auto& [identity, sharers] : byIdentity)
-		{
-			if (sharers.size() < 2)
-				continue;
-
-			// Which sharer keeps a stored declaration: the item the produced array was filed
-			// under, so that the declaration and the file agree by construction rather than by
-			// both happening to follow the same order. DataWriteLock takes the file name from the
-			// cache item's back reference; a unit has no file and no back reference, and there the
-			// first item the dictionary declares carries it.
-			SharedTreeItem owner;
-			if (identity->IsCacheItem())
-				owner = identity->GetBackRef();
-			if (!owner || std::find(sharers.begin(), sharers.end(), owner) == sharers.end())
-				owner = sharers.front();
-
-			for (const auto& sharer : sharers)
-				if (sharer != owner)
-					result.emplace(sharer.get(), owner);
-		}
-		return result;
-	}
-
-} // anonymous namespace
-
-// Defined here, declared at its one use in TreeItemXmlDump.cpp, as IsDumpingToFolder is.
-auto Mmd_DictionaryAliasOf(const TreeItem* item) -> SharedTreeItem
-{
-	if (!t_MmdAliasMap)
-		return {};
-	auto i = t_MmdAliasMap->find(item);
-	return (i == t_MmdAliasMap->end()) ? SharedTreeItem() : i->second;
-}
-
-//////////////////////////////////////////////////////////////////////
 // MmdStorageManager implementation
 //////////////////////////////////////////////////////////////////////
 
@@ -373,44 +274,6 @@ namespace {
 		}
 	}
 
-	// #1247: the content of this item was filed under an item OUTSIDE this store -- another MMD
-	// store that got there first, or an item elsewhere in the configuration whose expression
-	// interned to the same key. Its data went there, so this store would declare an item it does
-	// not hold, and no store-local rule can point at the twin. Two items that are the same content
-	// can share ONE store, where the second is declared as a reference to the first; they cannot be
-	// split over two. Refuse, as #1247 asked: the writer knows it here, the reader learns it much
-	// later and elsewhere.
-	void Mmd_RefuseForeignlyOwnedContent(const TreeItem* storageHolder, WeakStr storageName)
-	{
-		std::vector<const TreeItem*> stack{ storageHolder };
-		while (!stack.empty())
-		{
-			auto ti = stack.back();
-			stack.pop_back();
-			for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
-			{
-				if (sub->IsDisabledStorage())
-					continue;
-				stack.push_back(sub);
-				if (!IsDataItem(sub))
-					continue; // a unit has no file of its own; its range is in the dictionary
-				auto ultimate = sub->GetCurrUltimateItem();
-				if (!ultimate || !ultimate->IsCacheItem())
-					continue;
-				auto owner = ultimate->GetBackRef();
-				if (!owner || owner.get() == sub || storageHolder->DoesContain(owner.get()))
-					continue;
-				sub->throwItemErrorF(
-					"this item shares its data with {}, which lies outside the MMD storage {} that is being written, "
-					"so the data is written there and this store would declare an item it does not hold. "
-					"Two items that resolve to the same source can share one store, where the second is written "
-					"as a reference to the first, but they cannot be written to two stores. "
-					"Give this item a calculation rule of its own, or write it to only one store."
-					, owner->GetFullName(), storageName);
-			}
-		}
-	}
-
 } // anonymous namespace
 
 void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
@@ -421,7 +284,6 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	ExportMetaInfo(storageHolder, storageHolder);
 
 	Mmd_RefuseDisabledStorage(storageHolder, GetNameStr());
-	Mmd_RefuseForeignlyOwnedContent(storageHolder, GetNameStr()); // #1247
 
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
@@ -431,12 +293,6 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	// #1154: let XML_Dump synthesize the external-unit restrictions at this root
 	t_MmdDictionaryRoot = storageHolder;
 	auto resetRoot = make_scoped_exit([] { t_MmdDictionaryRoot = nullptr; });
-
-	// #1247: which items of this dictionary are declared as references to the twin that carries
-	// their content. Built once, here, from the state the dump is about to describe.
-	auto aliasMap = Mmd_BuildAliasMap(storageHolder);
-	t_MmdAliasMap = &aliasMap;
-	auto resetAliases = make_scoped_exit([] { t_MmdAliasMap = nullptr; });
 
 	TreeItem_XML_DumpOrThrow(storageHolder, &out, false);
 
@@ -471,6 +327,73 @@ ReadCallSpec MmdStorageManager::DescribeReadCall(const TreeItem* storageHolder, 
 	if (!IsDataItem(item))
 		return {};
 	return DescribeAttrRead(storageHolder, AsDataItem(item));
+}
+
+// #1247: see the declaration for why a stored item can end up without a file of its own.
+void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi)
+{
+	assert(IsMetaThread()); // what lets the lock be dropped for the copy: only this thread writes m_MaterializedAt
+	assert(storageHolder);
+	assert(adi);
+
+	// Whose file holds this content? The produced array was filed under the back reference of the
+	// shared cache item (see DataWriteLock in DataLocks.cpp), so when that is another item, this
+	// item has no file and the dictionary would declare data that is not there.
+	auto ultimate = adi->GetCurrUltimateItem();
+	if (!ultimate || !ultimate->IsCacheItem())
+		return; // nothing shared: this item produced its own array, write-through already wrote it
+	auto owner = ultimate->GetBackRef();
+	if (!owner || owner.get() == adi)
+		return; // this item IS the one the array was filed under
+
+	auto stamp = adi->GetLastChangeTS();
+
+	auto relName = adi->GetRelativeName(storageHolder);
+	if (relName.empty())
+		relName = SharedStr("@main"); // the same name DataWriteLock gives the holder itself
+	auto fileName = DelimitedConcat(GetNameStr().c_str(), relName.c_str());
+
+	{
+		// m_CriticalSection is a binary_semaphore, not recursive, and OpenForWrite asserts that the
+		// caller already holds it. Held for the guard check and the open only: a worker running a
+		// storage_read_* CalcResult of this store holds the same semaphore, so keeping it across a
+		// copy that can be gigabytes would block every read of the store for that whole time.
+		// Releasing it for the copy costs no safety, because the ordinary write-through path holds
+		// no such lock at all -- an operator fills its FileTileArray with this section untaken.
+		auto lock = lock_t(m_CriticalSection);
+		if (auto i = m_MaterializedAt.find(adi); i != m_MaterializedAt.end() && i->second == stamp)
+			return; // already copied, and neither this item nor a supplier has changed since
+
+		// The store may never have been opened: TreeItem::PrepareDataUsage takes its
+		// CheckCalculatingOrReady short cut before the arm that calls OpenForWrite, so a store whose
+		// every item is already ready produced no folder and no dictionary at all, silently and with
+		// exit 0. Opening it here rather than there keeps that hot path untouched.
+		if (!IsOpenForWrite())
+		{
+			auto smi = StorageMetaInfo(storageHolder, const_cast<AbstrDataItem*>(adi));
+			OpenForWrite(smi);
+		}
+	}
+
+	{
+		DataReadLock readLock(adi); // nests with the one CommitDataChanges holds: lock_shared only counts
+		auto adu = adi->GetAbstrDomainUnit();
+		assert(adu && adu->HasInterest()); // CreateFileTileArray needs a defined, interested domain;
+		                                   // both hold here: the domain IS the ready source's
+
+		// An AbstrDataObject is a SharedObj, counted intrusively, so it must be held in a
+		// SharedPtr and never in the bare unique_ptr the factory hands back: CopyData takes a
+		// counted reference of its own, and letting that be the FIRST one drives the count 0->1->0,
+		// which destroys the object while the unique_ptr still owns it and deletes it again. This
+		// release-into-a-SharedPtr is the same handoff DataWriteLock makes (DataLocks.cpp).
+		SharedPtr<AbstrDataObject> target;
+		target.reset(CreateFileTileArray(adi, nullptr, dms_rw_mode::write_only_all, fileName, false).release());
+		MG_CHECK(target);
+		CopyData(adi->GetRefObj().get(), target.get());
+	} // mapping closed here, before the caller's UpdateDictionary declares the file
+
+	auto lock = lock_t(m_CriticalSection);
+	m_MaterializedAt[adi] = stamp; // only after the copy returned: a throw or a suspension leaves no mark
 }
 
 bool IsInMMD(const AbstrDataItem* cacheItem)

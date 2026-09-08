@@ -1,19 +1,21 @@
 // Two items of one MMD store that resolve to the SAME source item (issue #1247). A store item
 // whose calculation rule is a reference does not keep that reference: TreeItem::SetReferredItem
 // swaps in a DataController so the produced array can be mapped into the store, and those are
-// interned by key expression -- so two store items over one source share one cache item, one back
+// interned by key expression -- so two store items over one source shared one cache item, one back
 // reference and therefore ONE file. The dictionary declared both, and the reader failed on first
 // use of the one that got no file, with `Data not found in .MMD storage folder`.
 //
-// Since GeoDMS 20.20.0 the dictionary declares such an item as a reference to the item that does
-// carry the content, so the store holds it once and the reader re-derives the other name from it.
-// Both shapes are here: `stand` aliases a whole table (`status_standplaats := status_ligplaats`),
-// and `adr/postcode` aliases a single attribute of another table (`adres := nummeraanduiding`),
-// beside `adr/eigen_veld`, which has an expression of its own and must stay stored.
+// Since GeoDMS 20.20.0 every stored attribute is MATERIALISED: an item whose rule names anything
+// outside the store gets a file of its own, so the store holds the content once per declaration
+// and never promises data it does not have. Both shapes are here: `stand` aliases a whole table
+// (`status_standplaats := status_ligplaats`), and `adr/postcode` aliases a single attribute of
+// another table (`adres := nummeraanduiding`), beside `adr/eigen_veld`, which has an expression of
+// its own. All six attributes must end up with a file.
 //
-// This config only WRITES the store; stor_mmd_alias_2_read.dms reads it back and checks it. THE
-// TWO BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file
-// name, and the `_1_write` / `_2_read` in the names is what orders them.
+// This config only WRITES the store; stor_mmd_alias_2_read.dms reads it back and checks it, and
+// carries the note about what a store does not preserve. THE TWO BELONG TOGETHER AND RUN IN THIS
+// ORDER: run_testcases.ps1 walks the configs sorted by file name, and the `_1_write` / `_2_read`
+// in the names is what orders them.
 container stor_mmd_alias_1_write
 {
 	unit<uint8> status_ligplaats : nrofrows = 2

@@ -609,6 +609,9 @@ bool TreeItem::CommitDataChanges() const
 		if (IsDataItem(this))
 		{
 			DataReadLock lock(AsDataItem(this)); // make sure data is calculated and stored
+			// #1247: an item whose content another store item produced has no file of its own;
+			// give it one before the dictionary below declares it.
+			mmd->MaterializeSharedContent(storageHolder.get(), AsDataItem(this));
 			// #1154: writing the data required the domain's range, so here -- and not at
 			// OpenForWrite, where the dictionary was first emitted -- the extent of a domain
 			// declared OUTSIDE this storage is finally readable and can be recorded.

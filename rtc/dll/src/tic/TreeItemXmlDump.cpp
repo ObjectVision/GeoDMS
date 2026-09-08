@@ -83,11 +83,6 @@
 bool IsDumpingToFolder();
 bool AreIncludesWrittenAsFiles(); // #1253: false; the dump is self-contained
 
-// #1247: the store-local item that carries this one's content, empty unless the item aliases
-// another item of the dictionary being dumped. Defined in stg/MemoryMappedDataStorageManager.cpp
-// and declared here rather than in that header, which reaches most of Clc.
-auto Mmd_DictionaryAliasOf(const TreeItem* item) -> SharedTreeItem;
-
 // =============================================================================
 // DMS-syntax serialization of FUNCTION items as 'function name<tvs>(params) -> result'
 // declarations (rather than the generic 'container ...: IsTemplate' form). All helpers
@@ -406,24 +401,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 
 	XML_OutElement xmlElem(*xmlOutStr, tagName.c_str(), GetName().c_str());
 
-	// #1247: an item of this dictionary whose content another item of it carries is declared as a
-	// reference to that item instead of as a stored item of its own -- the store holds the content
-	// once, under one name, and the reader re-derives the other names from it. GetScriptName is the
-	// same relative-name path the DomainUnit/ValuesUnit declarations beside it take, and
-	// TreeItem_XML_DumpOrThrow has set s_RelativeScope to the dictionary root, so the path stays
-	// inside the store.
-	SharedTreeItem mmdAlias;
-	if (!notWritingDictionary)
-		mmdAlias = Mmd_DictionaryAliasOf(this);
-
 	xmlOutStr->DumpPropList(this);
-
-	// CALCRULE_NAME, not calcRulePropDefPtr: the propDef overload of DumpSubTag is private to the
-	// DumpSubTags machinery. As the primary tag the name is not written in DMS syntax anyway --
-	// OutStream_DMS emits ': = <value>' -- and this is the same public call the #1154 restrictions
-	// below use with ICHECK_NAME.
-	if (mmdAlias)
-		xmlOutStr->DumpSubTag(CALCRULE_NAME, mmdAlias->GetScriptName(this).c_str(), true);
 
 	if (notWritingDictionary)
 		xmlOutStr->DumpSubTags(this);
@@ -453,7 +431,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 			}
 		}
 	}
-	else if (IsUnit(this) && !notWritingDictionary && !mmdAlias) // #1247: an aliased unit takes its range from the item it refers to
+	else if (IsUnit(this) && !notWritingDictionary)
 	{
 		auto au = AsUnit(this);
 		if (au->HasVarRange() && IsCalculatingOrReady(au->GetCurrRangeItem().get()))
