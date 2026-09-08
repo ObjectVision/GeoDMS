@@ -344,6 +344,21 @@ struct NewBreakAttrItems {
 
 NewBreakAttrItems CreateBreakAttr(DataView* dv, const AbstrUnit* thematicUnit, const TreeItem* themeIndicator, SizeT n);
 
+// #1248: the desktop items of a generated classification, with calculation rules instead of an
+// item-writer task: a weeded_counts table over the thematic attribute, a palette domain of at most
+// n classes, and a ClassBreaks attribute applying ClassifyNonzeroJenksFisher to the two. The
+// palette domain is created with n classes and sized down to what the data supports by
+// Theme::PrepareThemeData, which is also where the palettes are built. Its own type rather than
+// NewBreakAttrItems, whose two members several callers take apart with a structured binding.
+// See doc/development/class-break-operator.md.
+struct GeneratedClassificationItems {
+	SharedMutableUnitInterestPtr     paletteDomain;
+	SharedMutableDataItemInterestPtr breakAttr;
+	SharedMutableUnitInterestPtr     classCounts;
+};
+
+GeneratedClassificationItems CreateNonzeroJenksFisherBreakItems(DataView* dv, const AbstrDataItem* thematicAttr, SizeT n);
+
 SharedDataItemInterestPtr CreateSystemColorPalette(DataView*, const AbstrUnit* paletteDomain, AspectNr aNr, bool ramp, bool always, bool unique, const Float64* first, const Float64* last);
 SharedDataItemInterestPtr CreateColorPalette(DataView*, const AbstrUnit* paletteDomain, AspectNr aNr, DmsColor clr);
 const AbstrDataItem*      GetSystemPalette        (const AbstrUnit* paletteDomain, AspectNr aNr);

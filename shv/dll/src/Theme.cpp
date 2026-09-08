@@ -398,16 +398,16 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 	dms_assert(dv);
 
 	SharedDataItemInterestPtr thematicAttrHolder(thematicAttr);
-	NewBreakAttrItems nbai;
+	GeneratedClassificationItems nbai;
 	SharedUnit paletteDomain;
-	bool mustScheduleBreakCalculator = false;
+	bool hasGeneratedClassification = false;
 
 	if (!layerInfo.IsComplete())
 	{
 		paletteDomain = make_shared_tree(layerInfo.GetPaletteDomain(), existing_obj{});
 		switch (layerInfo.m_State) {
 			case LayerInfo::ClassificationMissing:
-				nbai = CreateBreakAttr(dv, thematicAttr->GetAbstrValuesUnit(), thematicAttr, DEFAULT_MAX_NR_BREAKS);
+				nbai = CreateNonzeroJenksFisherBreakItems(dv, thematicAttr, DEFAULT_MAX_NR_BREAKS);
 				dms_assert(nbai.breakAttr);
 				layerInfo.m_diClassBreaksOrExtKey = nbai.breakAttr.get_ptr();
 				paletteDomain = make_shared_tree(nbai.paletteDomain.get_ptr(), existing_obj{});
@@ -416,7 +416,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 					thematicAttr->ThrowFail();
 				dms_assert(CheckCalculatingOrReady(thematicAttr->GetCurrRangeItem().get()));
 
-				mustScheduleBreakCalculator = true;
+				hasGeneratedClassification = true;
 
 			[[fallthrough]];
 			case LayerInfo::PaletteMissing:
@@ -441,60 +441,25 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		layerInfo.m_diAspectOrFeature
 	);
 	assert(result);
-	if (mustScheduleBreakCalculator)
+	if (hasGeneratedClassification)
 	{
 		assert(nbai.breakAttr);
+		assert(nbai.classCounts);
 		assert(layerInfo.m_diAspectOrFeature);
-		std::weak_ptr<Theme> result_wptr = result;
 
-
-		std::weak_ptr<DataView> dv_wptr = dv->shared_from_this();
-
-		TimeStamp ts = thematicAttr->GetLastChangeTS();
-		MakeMax<TimeStamp>(ts, nbai.breakAttr->GetLastChangeTS());
-		MakeMax<TimeStamp>(ts, layerInfo.m_diAspectOrFeature->GetLastChangeTS());
-		UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
-
+		// #1248: nothing is scheduled here any more, and no item writer is created. The break
+		// attribute is an ordinary calculated item -- ClassifyNonzeroJenksFisher over the
+		// weeded_counts table -- so the map view demands it like any other item. What the view
+		// still owes it is done once, in settleGeneratedClassification: sizing the palette domain
+		// to the number of classes the data supports, and building the palettes from the breaks.
 		SharedUnitInterestPtr thematicDomainUnit = thematicAttrHolder->GetAbstrDomainUnit();
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetPhaseNumber());
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicDomainUnit->GetPhaseNumber());
+		MakeMax<phase_number>(nbai.classCounts->m_PhaseNumber, thematicAttrHolder->GetPhaseNumber());
+		MakeMax<phase_number>(nbai.classCounts->m_PhaseNumber, thematicDomainUnit->GetPhaseNumber());
 
-		auto sdw = SessionData::GetItWeak(dynamic_cast<const TreeItem*>(thematicAttr->GetRoot()));
-		PostMainThreadOper([result_wptr, thematicAttrHolder, thematicDomainUnit, dv_wptr, ts, nbai, aNr, sdw]
-			{
-				if (sdw.expired())
-					return;
-				auto result = result_wptr.lock(); if (!result) return;
-
-				UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
-
-				thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
-				thematicDomainUnit->PrepareDataUsage(DrlType::Certain);
-				FutureData fta = thematicAttrHolder->GetCheckedDC(); if (fta) fta = fta->CalcResultWithValuesUnits();
-				FutureData fdu = thematicDomainUnit->GetCheckedDC(); if (fdu) fdu = fdu->CallCalcResult();
-				FutureSuppliers fs; fs.reserve(2);
-				if (fta) fs.emplace_back(std::move(fta));
-				if (fdu) fs.emplace_back(std::move(fdu));
-
-				auto etc = OperationContext::CreateItemWriter(nbai.breakAttr.get_ptr(),
-					[dv_wptr, ts, thematicAttrHolder
-					, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr())
-					, breakAttr = nbai.breakAttr
-					, result_wptr, aNr
-					](OperationContext* self, explain_context_ptr_t context)
-					{
-						UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
-						CreateNonzeroJenksFisherBreakAttr(dv_wptr, thematicAttrHolder, std::move(*iwlPaletteDomain), breakAttr, std::move(self->m_WriteLock), aNr); // async
-						auto r = result_wptr.lock();
-						if (r) r->m_ClassTask.Clear();
-					}
-					, std::move(fs)
-					, false
-				);
-
-				result->m_ClassTask.emplace<std::shared_ptr<OperationContext>>(etc);
-			}
-		);
+		result->m_ClassCounts = nbai.classCounts.get_ptr();
+		result->m_ClassDataView = dv->shared_from_this();
 	}
 
 	return result;
@@ -584,8 +549,97 @@ ActorVisitState PrepareThemeData(const AbstrDataItem* adi, const Actor* act)
 	return act->WasFailed(FailType::Data) ? AVS_SuspendedOrFailed : AVS_Ready;
 }
 
+// The unit-flavoured twin of ::PrepareThemeData above: a calculated unit is ready when its range
+// is, which is what PrepareDataUsage produces.
+static ActorVisitState PrepareThemeUnit(const AbstrUnit* au, const Actor* act)
+{
+	assert(act);
+	if (!au)
+		return AVS_Ready;
+
+	au->UpdateMetaInfo();
+	au->SuspendibleUpdate();
+	if (SuspendTrigger::DidSuspend())
+		return AVS_SuspendedOrFailed;
+
+	if (!au->WasFailed(FailType::Data))
+	{
+		if (au->PrepareDataUsage(DrlType::Certain))
+			return AVS_Ready;
+		if (SuspendTrigger::DidSuspend())
+			return AVS_SuspendedOrFailed;
+	}
+	assert(au->WasFailed());
+	act->Fail(au);
+	return act->WasFailed(FailType::Data) ? AVS_SuspendedOrFailed : AVS_Ready;
+}
+
+// #1248: what is left of the generated classification once the computation itself is an operator
+// application. Two steps, both once, both here because this is where a theme may tell the view to
+// come back later:
+//
+//  - the palette domain is created with DEFAULT_MAX_NR_BREAKS classes, because the number the data
+//    supports is only known once the value-count table is in, and an operator may not resize the
+//    unit it is handed. So the view sizes it, before the break attribute is demanded, and marks it
+//    so that anything already derived from the provisional size is recomputed;
+//  - the palettes are rebuilt from the computed breaks, which is what anchors a diverging ramp on
+//    zero (#1146); the ones Theme::Create made were built on the provisional size.
+ActorVisitState Theme::settleGeneratedClassification(const Actor* act) const
+{
+	assert(m_ClassCounts);
+
+	auto dv = m_ClassDataView.lock();
+	auto paletteDomain = make_shared_tree(const_cast<AbstrUnit*>(GetPaletteDomain()), existing_obj{});
+	if (!dv || !paletteDomain)
+	{
+		m_ClassCounts = nullptr; // the view or the domain that owned this is gone; nothing to settle
+		return AVS_Ready;
+	}
+
+	if (PrepareThemeUnit(m_ClassCounts, act) == AVS_SuspendedOrFailed)
+		return AVS_SuspendedOrFailed;
+
+	SizeT nrBreaks = Min<SizeT>(m_ClassCounts->GetCount(), DEFAULT_MAX_NR_BREAKS);
+
+	auto ts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("settleGeneratedClassification"));
+	UpdateMarker::ChangeSourceLock changeStamp(ts, "settleGeneratedClassification");
+
+	if (paletteDomain->GetCount() != nrBreaks)
+	{
+		// SetCount on a domain that already carries attributes is a main-thread operation, which
+		// this is. Narrow scope: the palettes below read this domain.
+		ItemWriteLock iwl(paletteDomain.get());
+		paletteDomain->SetCount(nrBreaks);
+		paletteDomain->MarkTS(ts);
+	}
+
+	if (::PrepareThemeData(m_Classification, act) == AVS_SuspendedOrFailed)
+		return AVS_SuspendedOrFailed;
+
+	break_array breaks(nrBreaks);
+	if (nrBreaks)
+	{
+		DataReadLock breakLock(m_Classification);
+		breakLock->GetValuesAsFloat64Array(tile_loc(no_tile, 0), nrBreaks, begin_ptr(breaks));
+	}
+
+	if (m_AspectNr != AN_AspectCount)
+		CreatePaletteData(dv.get(), paletteDomain.get(), m_AspectNr, true, true, begin_ptr(breaks), end_ptr(breaks));
+	if (m_AspectNr != AN_LabelText)
+		CreatePaletteData(dv.get(), paletteDomain.get(), AN_LabelText, true, true, begin_ptr(breaks), end_ptr(breaks));
+
+	// Done: drop the interest on the counts table, so the (up to MAX_PAIR_COUNT) value-count pairs
+	// need not stay resident for the life of the theme. This is also what marks the theme settled.
+	m_ClassCounts = nullptr;
+	return AVS_Ready;
+}
+
 ActorVisitState Theme::PrepareThemeData(const Actor* act) const
 {
+	if (m_ClassCounts)
+		if (settleGeneratedClassification(act) == AVS_SuspendedOrFailed)
+			return AVS_SuspendedOrFailed;
+
 	if (::PrepareThemeData(m_ThemeAttr     , act) == AVS_SuspendedOrFailed)
 		return AVS_SuspendedOrFailed;
 	if (::PrepareThemeData(m_Classification, act) == AVS_SuspendedOrFailed)

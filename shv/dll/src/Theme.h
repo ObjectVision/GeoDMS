@@ -128,9 +128,24 @@ protected: friend struct ThemeSet;
 	void DoInvalidate () const override;
 	TokenID GetNameID() const override;
 
-private: 
+private:
 	friend class DataItemColumn;
-	rtc::any::Any m_ClassTask;
+
+	// #1248: a generated classification. Both items that carry it are calculated -- a
+	// weeded_counts table and a ClassifyNonzeroJenksFisher over it -- so nothing is scheduled here
+	// and no OperationContext item writer exists any more. Two things stay with the view and
+	// happen once, in settleGeneratedClassification: sizing the palette domain to the number of
+	// classes the data supports, and building the palettes from the computed breaks.
+	ActorVisitState settleGeneratedClassification(const Actor* act) const;
+
+	// The weeded_counts table of a generated classification, held only until the palette domain has
+	// been sized from it and the palettes have been built from the breaks. Cleared there, the way
+	// the item-writer task it replaces cleared m_ClassTask on completion: the ClassBreaks rule
+	// names the table by full name, so the desktop item stays and its data is recomputed on demand
+	// if it is ever wanted again. Non-null therefore means "still to settle".
+	mutable SharedUnitInterestPtr m_ClassCounts;
+	std::weak_ptr<DataView>       m_ClassDataView; // the view that owns those desktop items
+
 	SharedDataItemInterestPtr
 		m_ThemeAttr      // E     -> V
 	,	m_Classification // ClsID -> V

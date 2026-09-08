@@ -23,7 +23,7 @@ Thread-safety:
 - Scoped helpers (tg_maintainer, CancelableFrame) manage thread-global and thread-local execution state.
 
 Lifecycle (typical):
-1) Create (CreateFuncDC/CreateItemWriter).
+1) Create (CreateFuncDC).
 2) Schedule: register suppliers, set up locks, possibly run inline if policy allows.
 3) Await: Join/JoinSupplOrSuspendTrigger while optionally doing other work.
 4) Complete: transition to done/cancelled/exception via OnEnd; notify waiters and release resources.
@@ -135,24 +135,15 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 		return std::make_shared<OperationContext>(self);
 	}
 
-	// Factory: create a writer task for an item and schedule it (may run inline if allowed).
-	// Since #587 only the class-break writer uses it: storage reads are operator applications
-	// (StorageReadOperators.cpp) and take the FuncDC route.
-	// - item:           target TreeItem to write/update.
-	// - func:           task body to execute.
-	// - allArgInterests:suppliers this task depends on.
-	// - runDirect:      if true, may execute on the caller thread if licensing allows.
-	// requiredStorageManager (#933): if set, the run-gate cooperatively try-acquires its
-	// critical section before running, instead of blocking a worker inside the payload.
-	TIC_CALL static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, SharedPtr<NonmappableStorageManager> requiredStorageManager = {});
+	// #1248: there is no second factory any more. Storage reads became operator applications in
+	// #587, the map view's class-break computation in #1248, so every OperationContext is bound to
+	// a FuncDC and the scheduler has one kind of task to reason about.
 
 	~OperationContext();
 
 	// Constructors
 	// - FuncDC-bound constructor used for operator evaluations via data controllers.
 	OperationContext(const FuncDC* self);
-	// - Task-func constructor used for ad-hoc writer contexts and other runnable work.
-	OperationContext(task_func_type func);
 
 	OperationContext(const OperationContext&) = delete;
 	void operator =(const OperationContext&) = delete;
@@ -373,14 +364,14 @@ public:
 	// Waiters that depend on this context (weak references to avoid cycles).
 	WaiterSet             m_Waiters;
 
-	// Item-writer path only (since #587 the class-break writer; storage reads are operator
-	// applications on the calc path): keep the argument suppliers of-interest -- and their result
-	// data ready -- for this OC's whole lifetime. The calc path keeps its args alive via the FuncDC's
-	// SupplInterest and OC_CalcResultFunc::allInterests; an item writer (CreateItemWriter) has no such
-	// holder, so its arg futures would be dropped the moment its creator returned. A supplier that
-	// became 'done' before this waiter ran could then have its (cache / FreeData) data freed in the
-	// gap, tripping disconnect_supplier's IsDataReady assert. Retaining the DC futures keeps the
-	// suppliers of-interest; retaining an item interest keeps their data resident.
+	// Keep the argument suppliers of-interest -- and their result data ready -- for this OC's whole
+	// lifetime. Introduced in df732ab7 for the item writer, whose hand-collected arg futures were
+	// dropped the moment its creator returned; ScheduleCalcResult passes its own arg interests
+	// through the same Schedule(), so this retention outlives the item writer (#1248) and covers
+	// every task. A supplier that became 'done' before this waiter ran could otherwise have its
+	// (cache / FreeData) data freed in the gap, tripping disconnect_supplier's IsDataReady assert.
+	// Retaining the DC futures keeps the suppliers of-interest; retaining an item interest keeps
+	// their data resident.
 	FutureSuppliers                        m_KeptArgInterests; // arg DCs of-interest for our lifetime
 	std::vector<SharedTreeItemInterestPtr> m_KeptArgItems;     // arg result items: keep data ready
 

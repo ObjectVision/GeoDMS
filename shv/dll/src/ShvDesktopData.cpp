@@ -344,6 +344,53 @@ NewBreakAttrItems CreateBreakAttr(DataView* dv, const AbstrUnit* thematicUnit, c
 	return result;
 }
 
+static StaticLateTokenID classCountsID("ClassBreakCounts");
+static StaticLateTokenID classBreaksID("ClassBreaks");
+
+GeneratedClassificationItems CreateNonzeroJenksFisherBreakItems(DataView* dv, const AbstrDataItem* thematicAttr, SizeT n)
+{
+	assert(thematicAttr);
+	TreeItem* themeContainer = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(thematicAttr));
+
+	GeneratedClassificationItems result;
+
+	// The value-count table as an item of its own (#1248). Both consumers name it, so the thematic
+	// attribute is scanned once: Theme::PrepareThemeData reads its count to size the palette
+	// domain, and the ClassBreaks rule below reads its two members to classify.
+	//
+	// CreateUnit and CreateDataItem hand back an item that is already there, so each rule is set
+	// on the first call only -- the same reason CreatePaletteDomain guards its SetCount with
+	// USF_HasConfigRange.
+	result.classCounts = Unit<UInt32>::GetStaticClass()->CreateUnit(themeContainer, classCountsID);
+	if (!result.classCounts->HasCalculator())
+	{
+		result.classCounts->DisableStorage();
+		result.classCounts->SetExpr(mySSPrintF("weeded_counts({})", thematicAttr->GetFullName().c_str()));
+	}
+
+	// n classes provisionally: the number the data supports is only known once the counts are in,
+	// and an operator may not resize the unit it is handed. Theme::PrepareThemeData sizes it down.
+	result.paletteDomain = CreatePaletteDomain(themeContainer, n);
+
+	result.breakAttr = CreateDataItem(
+		result.paletteDomain.get_ptr()
+	,	classBreaksID
+	,	result.paletteDomain
+	,	thematicAttr->GetAbstrValuesUnit()
+	);
+	if (!result.breakAttr->HasCalculator())
+	{
+		result.breakAttr->DisableStorage();
+		result.breakAttr->SetExpr(mySSPrintF("ClassifyNonzeroJenksFisher({}/Values, {}/Count, {})"
+		,	result.classCounts->GetFullName().c_str()
+		,	result.classCounts->GetFullName().c_str()
+		,	result.paletteDomain->GetFullName().c_str()
+		));
+		MakeClassBreakAttr(result.breakAttr);
+	}
+	return result;
+}
+
 SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView> dv_wptr, const AbstrUnit* themeUnit)
 {
 	auto dv = dv_wptr.lock(); if (!dv) return nullptr;

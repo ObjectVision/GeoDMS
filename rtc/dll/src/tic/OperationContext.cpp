@@ -842,22 +842,6 @@ OperationContext::OperationContext(const FuncDC* self)
 	OperationContext_AddOcCount(this);
 }
 
-// Construct for a raw task_func-based operation (custom tasks).
-OperationContext::OperationContext(task_func_type func)
-	: m_TaskFunc( std::move(func) )
-{
-	OperationContext_AddOcCount(this);
-}
-
-// #933: out-of-line so the SharedPtr<NonmappableStorageManager> member sees the complete type.
-std::shared_ptr<OperationContext> OperationContext::CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, SharedPtr<NonmappableStorageManager> requiredStorageManager)
-{
-	auto result = std::make_shared<OperationContext>(func);
-	result->m_RequiredStorageManager = std::move(requiredStorageManager); // set BEFORE Schedule so the gate sees it
-	result->Schedule(item, allArgInterests, runDirect); // might run inline
-	return result;
-}
-
 // #933: release a storage critical section acquired at the gate but not adopted by a read payload
 // (e.g. the payload threw before adopting, or the task was cancelled). No-op on the normal path.
 void OperationContext::releaseStorageLockIfHeld() noexcept
@@ -1043,7 +1027,9 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 	bool connectedArgs = (!allArgInterest.empty()) && OperationContext_ConnectArgs(this, allArgInterest);
 
-	// Item-writer (storage read/write) path: retain the arg suppliers for this OC's whole lifetime.
+	// Retain the arg suppliers for this OC's whole lifetime (df732ab7, for the item writer that
+	// #1248 removed; ScheduleCalcResult passes its arg interests through here too, so this now
+	// covers every task).
 	// connectArgs only wires waiter/supplier OC edges; it does not keep the suppliers of-interest or
 	// their data resident. Without this, a supplier whose OC finishes before this (waiting) OC runs
 	// could have its (cache / FreeData) data freed in the gap, tripping disconnect_supplier's
@@ -2000,7 +1986,8 @@ void OperationContext::RefreshEstimateForAdmission()
 			return;
 	}
 	auto funcDC = GetFuncDC();
-	if (!funcDC || !funcDC->m_Operator)
+	assert(funcDC); // #1248: every OperationContext is FuncDC-bound now that the item writer is gone
+	if (!funcDC->m_Operator)
 		return;
 	auto args = funcDC->GetArgs(false, false);
 	if (!args)

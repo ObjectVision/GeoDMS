@@ -25,6 +25,11 @@
 #include "ValueGetter.h"
 #include "ValuesTable.h"
 
+#include "DataArray.h"
+#include "DataItemClass.h"
+#include "OperSignature.h"
+#include "TileChannel.h"
+
 struct ClassifyFixedOperator: public BinaryOperator
 {
 	ClassifyFixedOperator(AbstrOperGroup* og, ClassBreakFunc classBreakFunc, const DataItemClass* dic)
@@ -68,6 +73,177 @@ private:
 	ClassBreakFunc m_ClassBreakFunc;
 };
 
+static StaticLateTokenID s_CB_Values("Values");
+static StaticLateTokenID s_CB_Count("Count");
+
+// *****************************************************************************
+// weeded_counts(A: D->V) -> unit U { Values: U->V ; Count: U->UInt64 }
+//
+// The value-count table every classification starts from, as a result of its own, so that its two
+// consumers -- the class count that sizes the palette domain and the classification that fills the
+// break attribute -- name the same subexpression, share one DataController and therefore scan the
+// argument once (#1248).
+//
+// The pair count is capped at MAX_PAIR_COUNT, the cap the map view has always applied; above it
+// adjacent values are merged. That is a property of the operator, not an argument: no caller
+// varies it, and making it settable would make the result depend on a number nobody sets.
+// *****************************************************************************
+
+class AbstrWeededCountsOperator : public UnaryOperator
+{
+public:
+	AbstrWeededCountsOperator(AbstrOperGroup& og, ClassCPtr argCls)
+		: UnaryOperator(&og, AbstrUnit::GetStaticClass(), argCls)
+	{}
+
+	// K6: weeded_counts(values: attribute<V>(D)) -> a FRESH unit U [new] of value class uint32.
+	// The two members are a described, complete member set: both are attributes over U, Values
+	// carrying the argument's value class and Count a plain uint64 tally.
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		if (!argCls)
+			return false;
+		sig_var V = sb.UnitVar("V"), D = sb.UnitVar("D"), U = sb.GeneratedUnit("U"), C = sb.UnitVar("C");
+		sb.MemberValueClass(V, argCls->GetValuesType());
+		sb.MemberValueClass(U, Unit<UInt32>::GetStaticClass()->GetValueType());
+		sb.MemberValueClass(C, Unit<UInt64>::GetStaticClass()->GetValueType());
+		sb.ArgName(0, "values");
+		sb.ArgAttr(0, V, D, ValueComposition::Single);
+		sb.ResultUnit(U);
+		sb.ResultContainerMember("Values", V, U, ValueComposition::Single);
+		sb.ResultContainerMember("Count", C, U, ValueComposition::Single);
+		sb.ResultMembersComplete();
+		return true;
+	}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 1);
+
+		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
+		assert(arg1A);
+		const AbstrUnit* arg1Values = arg1A->GetAbstrValuesUnit();
+
+		auto res_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
+		assert(res);
+		resultHolder = res;
+
+		AbstrDataItem* resValues = CreateDataItem(res, s_CB_Values, res, arg1Values).get(); // owned by res
+		MG_PRECONDITION(resValues);
+		resValues->m_StatusFlags.SetHasSortedValues(); // ascending by construction
+
+		AbstrDataItem* resCount = CreateDataItem(res, s_CB_Count, res, Unit<UInt64>::GetStaticClass()->CreateDefault()).get(); // owned by res
+		MG_PRECONDITION(resCount);
+
+		if (mustCalc)
+		{
+			// GetWeededCounts takes its own DataReadLock and hands back the values-unit range data
+			// that converts the Float64 pair values back on write: the same round trip
+			// FillBreakAttrFromArray performs for a break attribute.
+			auto wc = GetWeededCounts<ClassBreakValueType, typelists::num_objects, CountType>(arg1A, MAX_PAIR_COUNT);
+			SizeT n = wc.first.size();
+
+			res->SetCount(n);
+
+			std::vector<Float64> values; values.reserve(n);
+			std::vector<UInt64>  counts; counts.reserve(n);
+			for (const auto& vcp : wc.first)
+			{
+				values.push_back(vcp.first);
+				counts.push_back(vcp.second);
+			}
+
+			DataWriteLock valuesLock(resValues, dms_rw_mode::write_only_all, wc.second.get());
+			valuesLock->SetValuesAsFloat64Array(tile_loc(no_tile, 0), n, begin_ptr(values));
+			valuesLock.Commit();
+
+			locked_tile_write_channel<UInt64> countWriter(resCount);
+			countWriter.Write(counts.begin(), counts.end());
+			assert(countWriter.IsEndOfChannel());
+			countWriter.Commit();
+		}
+		return true;
+	}
+};
+
+template <typename V>
+class WeededCountsOperator : public AbstrWeededCountsOperator
+{
+public:
+	WeededCountsOperator(AbstrOperGroup& og)
+		: AbstrWeededCountsOperator(og, DataArray<V>::GetStaticClass())
+	{}
+};
+
+// *****************************************************************************
+// Classify*(values: U->W, count: U->UInt64, C: unit) -> (C->W)
+//
+// The ternary sibling of ClassifyFixedOperator: same groups, same ClassBreakFunc, but the
+// value-count table arrives as two attributes instead of being scanned here. That is what lets a
+// palette domain's size and its break attribute share one weeded_counts result (#1248).
+// *****************************************************************************
+
+struct ClassifyCountsOperator : TernaryOperator
+{
+	ClassifyCountsOperator(AbstrOperGroup* og, ClassBreakFunc classBreakFunc, const DataItemClass* dic)
+		:	TernaryOperator(og, dic
+			,	dic                                   // values: U->W, of the result's own class
+			,	DataArray<UInt64>::GetStaticClass()   // count : U->UInt64
+			,	AbstrUnit::GetStaticClass())          // C     : the class unit
+		,	m_ClassBreakFunc(classBreakFunc)
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 3);
+
+		const AbstrDataItem* valuesA = debug_cast<const AbstrDataItem*>(args[0]);
+		const AbstrDataItem* countA = debug_cast<const AbstrDataItem*>(args[1]);
+		assert(valuesA && countA);
+		assert(valuesA->GetDynamicObjClass() == GetResultClass());
+
+		const AbstrUnit* valuesUnit = valuesA->GetAbstrValuesUnit();
+		assert(valuesUnit);
+		const AbstrUnit* classUnit = AsUnit(args[2]);
+
+		if (!resultHolder)
+		{
+			resultHolder = CreateCacheDataItem(classUnit, valuesUnit);
+			resultHolder->m_StatusFlags.SetHasSortedValues();
+		}
+
+		if (mustCalc)
+		{
+			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+
+			valuesA->GetAbstrDomainUnit()->UnifyDomain(countA->GetAbstrDomainUnit()
+			,	"values of a classification", "counts of a classification", UnifyMode(UM_Throw));
+
+			DataReadLock valuesLock(valuesA);
+			DataReadLock countLock(countA);
+
+			SizeT n = valuesA->GetAbstrDomainUnit()->GetCount();
+
+			std::vector<Float64> values(n);
+			if (n)
+				valuesLock->GetValuesAsFloat64Array(tile_loc(no_tile, 0), n, begin_ptr(values));
+			auto countData = const_array_cast<UInt64>(countA)->GetDataRead();
+
+			ValueCountPairContainer vcpc;
+			vcpc.reserve(n MG_DEBUG_ALLOCATOR_SRC("ClassifyCountsOperator"));
+			for (SizeT i = 0; i != n; ++i)
+				vcpc.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("ClassifyCountsOperator") values[i], countData[i]);
+
+			m_ClassBreakFunc(res, vcpc, valuesA->GetCurrRefObj()->GetAbstrValuesRangeData().get());
+		}
+		return true;
+	}
+
+private:
+	ClassBreakFunc m_ClassBreakFunc;
+};
+
 // *****************************************************************************
 //                               INSTANTIATION
 // *****************************************************************************
@@ -83,6 +259,11 @@ namespace
 	CommonOperGroup cog_CRJenksFisher("ClassifyJenksFisher", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_NZJenksFisher("ClassifyNonzeroJenksFisher", oper_policy::dynamic_result_class);
 
+	// dynamic_result_class, as for cog_unique: the registered result class is the abstract
+	// AbstrUnit, so MakeResult has to run before a consumer -- nrofrows(weeded_counts(x)), say --
+	// can find a signature for the concrete uint32 unit this produces.
+	CommonOperGroup cog_WeededCounts("weeded_counts", oper_policy::dynamic_result_class);
+
 	template <typename V>
 	struct ClassBreakOperators
 	{
@@ -96,6 +277,17 @@ namespace
 			,	cfoUV(&cog_UniqueValues,  ClassifyUniqueValues , DataArray<V>::GetStaticClass())
 			,	cfoNZJF(&cog_NZJenksFisher, ClassifyNZJenksFisher, DataArray<V>::GetStaticClass())
 			,   cfoCRJF(&cog_CRJenksFisher, ClassifyCRJenksFisher, DataArray<V>::GetStaticClass())
+
+			,	ccoEI(&cog_EqualInterval, ClassifyEqualInterval, DataArray<V>::GetStaticClass())
+			,	ccoNZEI(&cog_NZEqualInterval, ClassifyNZEqualInterval, DataArray<V>::GetStaticClass())
+			,	ccoLI(&cog_LogInterval,   ClassifyLogInterval  , DataArray<V>::GetStaticClass())
+			,	ccoEC(&cog_EqualCount,    ClassifyEqualCount   , DataArray<V>::GetStaticClass())
+			,	ccoNZEC(&cog_NZEqualCount, ClassifyNZEqualCount, DataArray<V>::GetStaticClass())
+			,	ccoUV(&cog_UniqueValues,  ClassifyUniqueValues , DataArray<V>::GetStaticClass())
+			,	ccoNZJF(&cog_NZJenksFisher, ClassifyNZJenksFisher, DataArray<V>::GetStaticClass())
+			,   ccoCRJF(&cog_CRJenksFisher, ClassifyCRJenksFisher, DataArray<V>::GetStaticClass())
+
+			,	wco(cog_WeededCounts)
 		{}
 
 		ClassifyFixedOperator cfoEI, cfoNZEI;
@@ -103,6 +295,14 @@ namespace
 		ClassifyFixedOperator cfoEC, cfoNZEC;
 		ClassifyFixedOperator cfoUV;
 		ClassifyFixedOperator cfoNZJF, cfoCRJF;
+
+		ClassifyCountsOperator ccoEI, ccoNZEI;
+		ClassifyCountsOperator ccoLI;
+		ClassifyCountsOperator ccoEC, ccoNZEC;
+		ClassifyCountsOperator ccoUV;
+		ClassifyCountsOperator ccoNZJF, ccoCRJF;
+
+		WeededCountsOperator<V> wco;
 	};
 
 	tl_oper::inst_tuple_templ<typelists::num_objects, ClassBreakOperators> classBreakInstances;

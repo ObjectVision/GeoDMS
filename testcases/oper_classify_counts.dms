@@ -1,0 +1,58 @@
+// #1248: weeded_counts, and the ternary Classify* signature that takes its result instead of
+// scanning the attribute itself. The map view's generated classification is built from these two
+// so that sizing the palette domain and filling the break attribute share one scan.
+//
+// The check that matters is the last one in each block: the ternary form must produce the same
+// breaks as the binary form, which means the Float64 pair values survive the round trip through
+// an attribute typed over the thematic values unit (SetValuesAsFloat64Array on the way in,
+// GetValuesAsFloat64Array on the way out). The second block runs that round trip through an
+// integral values unit with a non-zero lower bound, where GetWeededCountsOfV converts every value
+// through the unit's range -- the branch where a lossy round trip would show up.
+//
+// Note the two forms are equivalent only below MAX_PAIR_COUNT distinct values: the binary form
+// counts every value (GetCounts), weeded_counts merges adjacent pairs above that cap. Both
+// fixtures here have five.
+// Expected: exit 0 on /checks.
+container oper_classify_counts
+{
+	//	=========================================	float values, plain range
+
+	unit<uint32> D : nrofrows = 12;
+	attribute<float32> v (D) : [1, 1, 2, 2, 2, 5, 5, 9, 9, 9, 9, 20];
+
+	unit<uint32> wc := weeded_counts(v);
+
+	unit<uint8> cls4 : nrofrows = 4;
+	attribute<float32> breaks_binary (cls4) := ClassifyNonzeroJenksFisher(v, cls4);
+	attribute<float32> breaks_counts (cls4) := ClassifyNonzeroJenksFisher(wc/Values, wc/Count, cls4);
+
+	//	=========================================	integral values, non-zero lower bound
+
+	unit<uint16> R10 := range(uint16, uint16(1000), uint16(1010)); // untyped literals here would make it a uint32 unit
+	attribute<R10> vr (D) : [1000, 1000, 1001, 1003, 1003, 1003, 1007, 1007, 1009, 1009, 1009, 1009];
+
+	unit<uint32> wcr := weeded_counts(vr);
+
+	unit<uint8> cls3 : nrofrows = 3;
+	attribute<R10> breaks_r_binary (cls3) := ClassifyNonzeroJenksFisher(vr, cls3);
+	attribute<R10> breaks_r_counts (cls3) := ClassifyNonzeroJenksFisher(wcr/Values, wcr/Count, cls3);
+
+	container checks
+	{
+		// the counts table: five distinct values, every element accounted for
+		parameter<uint32>  nrPairs     := #wc,                        IntegrityCheck = "nrPairs == 5";
+		parameter<float64> totalCount  := sum(float64(wc/Count)),     IntegrityCheck = "totalCount == 12.0";
+		parameter<float64> sumValues   := sum(float64(wc/Values)),    IntegrityCheck = "sumValues == 37.0"; // 1+2+5+9+20
+
+		// the two signatures agree, elementwise
+		parameter<float64> breakDiff   := sum(abs(float64(breaks_binary) - float64(breaks_counts)))
+		,	IntegrityCheck = "breakDiff == 0.0";
+
+		// and again with the values unit's range offset in play
+		parameter<uint32>  nrPairsR    := #wcr,                       IntegrityCheck = "nrPairsR == 5";
+		parameter<float64> totalCountR := sum(float64(wcr/Count)),    IntegrityCheck = "totalCountR == 12.0";
+		parameter<float64> sumValuesR  := sum(float64(wcr/Values)),   IntegrityCheck = "sumValuesR == 5020.0"; // 1000+1001+1003+1007+1009
+		parameter<float64> breakDiffR  := sum(abs(float64(breaks_r_binary) - float64(breaks_r_counts)))
+		,	IntegrityCheck = "breakDiffR == 0.0";
+	}
+}
