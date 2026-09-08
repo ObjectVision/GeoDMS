@@ -1137,14 +1137,20 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
 	{
 		BestItemRef result = { make_shared_tree(AsDataItem(src)->GetAbstrDomainUnit(), existing_obj{}), {} };
 		if (!result.first)
-			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRangeLock());
+		{
+			SharedStr domainUnitName(AsDataItem(src)->m_tDomainUnit.AsStrRangeLock()); // materialized (#1233 P16/B6): a TokenStr temporary as an argument lives to the end of the full expression, i.e. across the call
+			result = src->FindBestItem(domainUnitName);
+		}
 
 		if (result.first && WasInFailed(result.first.get()))
 			return result;
 
 		result = { make_shared_tree(AsDataItem(src)->GetAbstrValuesUnit(), existing_obj{}), {} };
 		if (!result.first)
-			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRangeLock());
+		{
+			SharedStr valuesUnitName(AsDataItem(src)->m_tValuesUnit.AsStrRangeLock()); // materialized (#1233 P16/B6): a TokenStr temporary as an argument lives to the end of the full expression, i.e. across the call
+			result = src->FindBestItem(valuesUnitName);
+		}
 		if (result.first && WasInFailed(result.first.get()))
 			return result;
 	}

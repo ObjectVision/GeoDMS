@@ -29,7 +29,7 @@ struct MsgData;
 // to the token registry -- so the callback may not even read a token (a TokenStr, GetName, or
 // GetFullName is already outer). Copy the CharPtr out and post; take nothing but the levels
 // inner to NotifyTargetCount (ObjectRegister, DebugOutStream, OperationQueue).
-typedef void (DMS_CONV *TContextNotification DMS_CALLEE_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v))(ClientHandle clientHandle, CharPtr description);
+typedef void (DMS_CONV *TContextNotification DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v))(ClientHandle clientHandle, CharPtr description);
 
 void ProgressMsg(CharPtr msg);
 

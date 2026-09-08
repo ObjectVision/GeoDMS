@@ -457,7 +457,8 @@ namespace hof {
 			LispPtr ae = a.Left();
 			if (!ae.IsSymb())
 				continue; // expression argument: defers, as at the inline site
-			auto argItem = bindScope->ResolveItemPath(SharedStr(ae.GetSymbID().AsStrRangeLock()));
+			SharedStr argName(ae.GetSymbID().AsStrRangeLock()); // materialized (#1233 P16/B6): a TokenStr temporary as an argument lives to the end of the full expression, i.e. across the call
+			auto argItem = bindScope->ResolveItemPath(argName);
 			if (!argItem)
 				continue; // an unresolvable argument fails through the ordinary path
 			CheckStructuredParamContract(applyItem, param, memberSrc, argItem.get());

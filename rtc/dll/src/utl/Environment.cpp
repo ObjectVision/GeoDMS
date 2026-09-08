@@ -682,7 +682,9 @@ bool EventLog_HideDeprecatedCaseMixupWarnings()
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
-	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
+	// registry-shared, not RegisterAccess: an unknown flag is REPORTED (reportD reads the token registry, 90), and
+	// SetCachedStatusFlag takes RegisterAccess (93) on its own, sequentially. Found by the static pass (#1233 3.9).
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	dms_assert(param);
 
 	if (param[0] != '/')
@@ -2820,7 +2822,9 @@ bool EventLog_HideDeprecatedCaseMixupWarnings() { return GetRegStatusFlags() & R
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
-	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
+	// registry-shared, not RegisterAccess: an unknown flag is REPORTED (reportD reads the token registry, 90), and
+	// SetCachedStatusFlag takes RegisterAccess (93) on its own, sequentially. Found by the static pass (#1233 3.9).
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	assert(param);
 	if (param[0] != '/') return false;
 	char cmd = param[1];

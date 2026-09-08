@@ -68,6 +68,7 @@ enum class ord_level_type : UInt32
 	ActiveProducerSet = 81,
 	TreeItemFlags = 82,
 	GDALComponent = 83,				// gdalSection; the GDAL error handler may read tokens and report: outer to IndexedString
+	ExplainAccess = 84,				// scs_ExplainAccess: a leaf (AddQueueEntry); moved from 89 to free that slot for NotifyTargetCount
 
 	// the former 99 family; IndexedString is the INNERMOST of them so that a token can be read under any of the
 	// others, and none of them may be taken while a TokenStr is held
@@ -75,12 +76,14 @@ enum class ord_level_type : UInt32
 	OperationContext = 86,			// cs_OcAdm
 	TileAccessMap = 87,
 	MoveSupplInterest = 88,			// sc_MoveSupplInterestSection; takes NotifyTargetCount inside
-	ExplainAccess = 89,				// scs_ExplainAccess
+	NotifyTargetCount = 89,			// sc_NotifyTargetCount: the TContextNotification callback runs UNDER it (ProgressNotifyMsg asserts
+									// so) and it reports, which reads the token registry -- so it is OUTER to IndexedString, like
+									// GDALComponent, and inner to MoveSupplInterest which takes it. It sat at 92 until the first
+									// battery config that reached a progress report in Debug refused it (#1233 P16).
 	IndexedString = 90,				// the token registry (counted): shared to read, exclusive to register
 
 	// the former 100 family; CountedMutexSection innermost because every counted_mutex op -- the registry's
 	// and the session counter's -- takes it
-	NotifyTargetCount = 92,			// sc_NotifyTargetCount; the TContextNotification callback runs under it
 	RegisterAccess = 93,				// s_RegAccess
 	LispObjCache = 94,
 	CountedMutexSection = 95,		// s_CountedMutexSection

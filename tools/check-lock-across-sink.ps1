@@ -45,7 +45,13 @@ $sinks = 'reportF','reportD','reportF_without_cancellation_check','reportD_witho
          'DBG_TRACE','DBG_TraceStr','ProgressMsg','SetStatusText','SendStatusText',
          'throwErrorF','throwDmsErrF','throwItemErrorF','throwOperErrorF','throwErrorD','throwDmsErrD',
          'throwItemErrorD','throwCheckFailed','throwPreconditionFailed','mySSPrintF','mgFormat2SharedStr'
-$sinkRe = [regex]('\b(' + ($sinks -join '|') + ')\s*\(')
+# lock-taking callees (#1233 P16): a registry temporary passed INTO one of these lives across the call, and the
+# call reaches suspend blockers, meta-info updates and item production -- everything a TokenStr must not span.
+# Same lifetime rule as the sinks, one class wider; found when NotifyTargetCount moved outer to the registry
+# and 41 fn_test_* cases refused at ~SilentBlocker under a live TokenStr.
+$lockingCallees = 'ResolveItemPath','FindItem','FindBestItem','CheckFunctionSignature','GetSubTreeItemByID','UpdateMetaInfo',
+                  'PrepareDataUsage','PrepareData','InstantiateTemplate','ApplyAsMetaFunction','GetItem','CreateItem'
+$sinkRe = [regex]('\b(' + (($sinks + $lockingCallees) -join '|') + ')\s*\(')
 $lockRe = [regex]'\b\w*Lock\s*\('
 # accessors that end in Lock( but are not registry usages: data, item and tile locks, and the
 # lock-taking primitives themselves
@@ -97,9 +103,9 @@ foreach ($f in $files) {
 }
 
 if ($fails.Count -gt 0) {
-    Write-Host ("FAIL: {0} format sink(s) hold a token-registry usage across the call; pass the TokenID instead of ...Lock():" -f $fails.Count) -ForegroundColor Red
+    Write-Host ("FAIL: {0} call(s) hold a token-registry usage across a format sink or a lock-taking callee; pass the TokenID, or materialize a SharedStr first:" -f $fails.Count) -ForegroundColor Red
     $fails | ForEach-Object { Write-Host $_ }
     exit 1
 }
-Write-Host "OK: no format sink holds a token-registry usage across the call." -ForegroundColor Green
+Write-Host "OK: no format sink or lock-taking callee holds a token-registry usage across the call." -ForegroundColor Green
 exit 0

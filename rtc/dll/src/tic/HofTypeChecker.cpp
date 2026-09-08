@@ -1739,11 +1739,12 @@ namespace hof {
 				if (m_Params[i]->GetNameID() == headID)
 					return InferApplication(refScope, ParamType(i), expr.Right(), headName.c_str());
 
-			// a direct function/import call: resolve, then type the application
-			auto callee = m_FuncItem->ResolveItemPath(SharedStr(headID.AsStrRangeLock()));
+			// a direct function/import call: resolve, then type the application (headName: the
+			// materialized name above; a TokenStr temporary here would span the resolve, #1233 P16/B6)
+			auto callee = m_FuncItem->ResolveItemPath(headName);
 			if (!callee || !callee->IsFunctionItem())
 				if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-					if (auto lex = defParent->ResolveItemPath(SharedStr(headID.AsStrRangeLock())); lex && lex->IsFunctionItem())
+					if (auto lex = defParent->ResolveItemPath(headName); lex && lex->IsFunctionItem())
 						callee = lex;
 			if (!callee || !callee->IsFunctionItem())
 				if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())

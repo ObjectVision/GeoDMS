@@ -172,7 +172,10 @@ namespace hof {
 				UInt32 residualArity = m_ArgBindings[i]->NrHoles();
 				UInt32 requiredArity = TreeItem_GetFunctionParamCount(declaredSig.get());
 				if (residualArity == TreeItem_GetFunctionParamCount(m_ArgBindings[i]->funcItem.get()))
-					CheckFunctionSignature(m_ArgBindings[i]->funcItem.get(), declaredSig.get(), child->GetNameID().GetStrLock().c_str());
+				{
+					SharedStr childName(child->GetNameID()); // materialized (#1233 P16/B6): a TokenStr temporary as an argument lives to the end of the full expression, i.e. across the call
+					CheckFunctionSignature(m_ArgBindings[i]->funcItem.get(), declaredSig.get(), childName.c_str());
+				}
 				else if (residualArity != requiredArity)
 					throwErrorF("ExprParser", "'{}': partial application bound to parameter '{}' has {} remaining argument(s); signature '{}' requires {}"
 						, m_FuncItem->GetFullName().c_str(), child->GetNameID()
@@ -897,10 +900,11 @@ namespace hof {
 			}
 		}
 
-		auto callee = m_FuncItem->ResolveItemPath(SharedStr(headID.AsStrRangeLock()));
+		SharedStr headName(headID.AsStrRangeLock()); // materialized (#1233 P16/B6): a TokenStr temporary as an argument lives to the end of the full expression, i.e. across the call
+		auto callee = m_FuncItem->ResolveItemPath(headName);
 		if (!callee || !callee->IsFunctionItem())
 			if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-				if (auto lex = defParent->ResolveItemPath(SharedStr(headID.AsStrRangeLock())); lex && lex->IsFunctionItem())
+				if (auto lex = defParent->ResolveItemPath(headName); lex && lex->IsFunctionItem())
 					callee = lex;
 		if (!callee || !callee->IsFunctionItem())
 			// the auto-imported prelude is the implicit outermost namespace for call heads
