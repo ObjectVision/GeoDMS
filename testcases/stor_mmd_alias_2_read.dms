@@ -1,0 +1,34 @@
+// The read half of the same-source-item MMD case (issue #1247); stor_mmd_alias_1_write.dms writes
+// the store and carries the description of what is being pinned. run_testcases.ps1 walks the
+// configs sorted by file name, so `_1_write` runs before this one; on its own this config fails
+// because the store does not exist yet.
+//
+// The reader declares nothing but the storage: every unit and attribute comes from the dictionary.
+// Before the fix, store/stand/Label and store/adr/postcode failed with `Data not found in .MMD
+// storage folder`; they now resolve through the store-local references the dictionary carries.
+// The last check is the one that needs the aliased UNIT as well: combining an aliased table with
+// the table it aliases only unifies if the dictionary declared `adr` as a reference to `na`.
+container stor_mmd_alias_2_read
+{
+	container store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_alias.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n_lig    := #store/lig,                          IntegrityCheck = "n_lig  == 2";
+		parameter<uint32> n_adr    := #store/adr,                          IntegrityCheck = "n_adr  == 3";
+		parameter<string> s_lig    := AsList(store/lig/Label, ' '),        IntegrityCheck = "s_lig   == 'aangewezen ingetrokken'";
+		parameter<string> s_stand  := AsList(store/stand/Label, ' '),      IntegrityCheck = "s_stand == 'aangewezen ingetrokken'";
+		parameter<string> s_na     := AsList(store/na/postcode, ' '),      IntegrityCheck = "s_na    == '1000AA 2000BB 3000CC'";
+		parameter<string> s_adr    := AsList(store/adr/postcode, ' '),     IntegrityCheck = "s_adr   == '1000AA 2000BB 3000CC'";
+		parameter<string> s_eigen  := AsList(store/adr/eigen_veld, ' '),   IntegrityCheck = "s_eigen == 'n1! n2! n3!'";
+
+		// the aliased table combined with the table it aliases: a domain mismatch unless the
+		// dictionary declared adr as a reference to na
+		parameter<string> s_comb   := AsList(store/adr/postcode + '/' + store/na/identificatie, ' ')
+		,	IntegrityCheck = "s_comb == '1000AA/n1 2000BB/n2 3000CC/n3'";
+	}
+}

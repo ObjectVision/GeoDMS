@@ -1,0 +1,48 @@
+// Two items of one MMD store that resolve to the SAME source item (issue #1247). A store item
+// whose calculation rule is a reference does not keep that reference: TreeItem::SetReferredItem
+// swaps in a DataController so the produced array can be mapped into the store, and those are
+// interned by key expression -- so two store items over one source share one cache item, one back
+// reference and therefore ONE file. The dictionary declared both, and the reader failed on first
+// use of the one that got no file, with `Data not found in .MMD storage folder`.
+//
+// Since GeoDMS 20.20.0 the dictionary declares such an item as a reference to the item that does
+// carry the content, so the store holds it once and the reader re-derives the other name from it.
+// Both shapes are here: `stand` aliases a whole table (`status_standplaats := status_ligplaats`),
+// and `adr/postcode` aliases a single attribute of another table (`adres := nummeraanduiding`),
+// beside `adr/eigen_veld`, which has an expression of its own and must stay stored.
+//
+// This config only WRITES the store; stor_mmd_alias_2_read.dms reads it back and checks it. THE
+// TWO BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file
+// name, and the `_1_write` / `_2_read` in the names is what orders them.
+container stor_mmd_alias_1_write
+{
+	unit<uint8> status_ligplaats : nrofrows = 2
+	{
+		attribute<string> Label : ['aangewezen','ingetrokken'];
+	}
+	unit<uint8> status_standplaats := status_ligplaats;   // the two object types share a code list
+
+	unit<uint32> nummeraanduiding : nrofrows = 3
+	{
+		attribute<string> identificatie : ['n1','n2','n3'];
+		attribute<string> postcode      : ['1000AA','2000BB','3000CC'];
+	}
+	unit<uint32> adres := nummeraanduiding;               // an address table beside the nummeraanduiding
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_alias.mmd"
+	{
+		unit<uint8> lig   := status_ligplaats    { attribute<string> Label := status_ligplaats/Label; }
+		unit<uint8> stand := status_standplaats  { attribute<string> Label := status_standplaats/Label; }
+
+		unit<uint32> na  := nummeraanduiding
+		{
+			attribute<string> identificatie := nummeraanduiding/identificatie;
+			attribute<string> postcode      := nummeraanduiding/postcode;
+		}
+		unit<uint32> adr := adres
+		{
+			attribute<string> postcode   := adres/postcode;              // the same item as na/postcode
+			attribute<string> eigen_veld := adres/identificatie + '!';    // an expression of its own
+		}
+	}
+}
