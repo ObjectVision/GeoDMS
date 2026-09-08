@@ -54,13 +54,13 @@ unenforced in exactly the builds users run.
 | 81 | ActiveProducerSet (was 98) | `s_ActiveProducerSetMutex` | tic/ItemLocks.cpp |
 | 82 | TreeItemFlags (was 98) | | |
 | 83 | GDALComponent (was 98) | `gdalSection`; its error handler may read tokens and report | stg/gdal/gdal_base.cpp |
+| 84 | ExplainAccess (was 99, then 89) | `scs_ExplainAccess`, a leaf; moved to free 89 for NotifyTargetCount | tic/Explain.cpp |
 | 85 | UpdatingInterestSet (was 99) | `sd_UpdatingInterestSet`; taken under CountSection | act/TriggerOperator.cpp |
 | 86 | OperationContext (was 99) | `cs_OcAdm` | tic/OperationContext.cpp |
 | 87 | TileAccessMap (was 99) | | |
 | 88 | MoveSupplInterest (was 99) | `sc_MoveSupplInterestSection`; takes NotifyTargetCount inside | act/Actor.cpp |
-| 89 | ExplainAccess (was 99) | `scs_ExplainAccess` | tic/Explain.cpp |
+| 89 | NotifyTargetCount (was 100, then 92) | `sc_NotifyTargetCount`; the TContextNotification callback runs under it and **reports**, so it is outer to the registry (P16) | act/TriggerOperator.cpp |
 | 90 | IndexedString (was 99) | the token registry (counted): shared to read, exclusive to register — innermost of its former family, so a token can be read under any of them | set/IndexedStrings.cpp |
-| 92 | NotifyTargetCount (was 100) | `sc_NotifyTargetCount`; the TContextNotification callback runs under it | act/TriggerOperator.cpp |
 | 93 | RegisterAccess (was 100) | `s_RegAccess` | utl/Environment.cpp |
 | 94 | LispObjCache (was 100) | LispObjRegister CS | sym |
 | 95 | CountedMutexSection (was 100) | `s_CountedMutexSection`; every `counted_mutex` op takes it | ptr/SharedBase.cpp |
@@ -292,10 +292,11 @@ established). The two that carry the semantics worth knowing by heart:
   (`AbstrMsgGenerator::Describe`, `MsgGeneratorPolicy::GetDescription`, `ConfigProd::Describe`),
   `Object::GetFullName` and the raw `AbstrPropDef` accessors. With `IndexedString` at 90: reading a
   token (90 shared) is allowed, **registering** one (90 exclusive, i.e. `GetOrCreateID_mt`) is
-  refused, everything from 92 up is allowed (`NotifyTargetCount`, `RegisterAccess`, `LispObjCache`,
+  refused, everything from 93 up is allowed (`RegisterAccess`, `LispObjCache`,
   `CountedMutexSection`, `ObjectRegister` 97, `ItemCounter` 98, `DebugOutStream` 100), and
-  everything ≤ 89 is refused — `ExplainAccess` 89 down through `MoveSupplInterest` 88, GDAL 83,
-  count/fail 78/79, thread-messing 75, tile 73, storage 65 — as is any per-item lock.
+  everything ≤ 89 is refused — `NotifyTargetCount` 89 (P16) down through `MoveSupplInterest` 88,
+  `ExplainAccess` 84, GDAL 83, count/fail 78/79, thread-messing 75, tile 73, storage 65 — as is
+  any per-item lock.
   That is precisely "may name things and may report; may not compute, store or intern".
 - **`DMS_ENTERS_NOTHING`** — currently declared only as a callee contract
   (`DMS_CALLEE_ENTERS_NOTHING` on `Object::GetNameID`, `GetLocation`, `PersistentObject::GetParent`),
@@ -414,15 +415,30 @@ a global caller refuses a per-item callee; a global caller admits a global calle
 at the same level when the callee is shared or the caller exclusive; `EntersNothing` is admitted
 by all. A refusal prints caller, callee and both ceilings with file and line, and exits 1.
 
-What it sees today: 208 declarations, 177 call sites, all admitted. What it deliberately does not
-see, and reports as such: a name declared at different levels in different bodies (virtual
-overrides, overloads, unrelated same-named members — today only the two `ItemReadLock`
-constructors) is listed as ambiguous and skipped, since resolving the dynamic type is the
-runtime's job; a handful of generic member names (`Add`, `Del`, `lock`, `release`, …) are never
-tied to a callee; and a call made while the caller *holds* a section taken earlier in the same
-body is checked against the caller's ceiling, not against that section. The `DMS_CALLEE_ENTERS`
-contracts on virtuals, callbacks and function-pointer parameters are not consumed yet; that is
-the natural next step, with the call sites of those parameters as the frontier.
+Since `eab00bb01` the pass is transitive: it indexes every function definition in the tree (about 8 000)
+and follows a call from a declared function through any chain of *undeclared* functions until it
+meets a declaration — so `IncRemainingTargetCount → CheckInc → reportD → reportD_impl →
+reportD_without_cancellation_check_impl` is one checked reach, not a blind spot. An undeclared
+name is followed when it has one definition, or an overload set of unqualified definitions in at
+most two files (`reportD`: a header of inline forwarders and the .cpp); same-named `Class::`
+definitions are different functions and are not followed. And it consumes the first kind of
+`DMS_CALLEE_ENTERS` contract: a `typedef` of a function-pointer type that carries one gives every
+call through a variable of that type — `(*s_clientFunc)(...)` in `ProgressMsg`, of type
+`TContextNotification` — the contract's ceiling as its declaration. That is how the GUI half of
+P16 is visible without the GUI: the contract says what the callback may do, and the caller's
+ceiling is checked against it.
+
+What it sees today: 210 declarations, 372 reaches, all admitted. Put `NotifyTargetCount` back at
+92 and it names all six P16 sites with their chains (the proof it is run with). It caught one
+mislabel of the second wave on the way: `RTC_ParseRegStatusFlag` declared `RegisterAccess` (93)
+and reaches `reportD` (90) for an unknown flag, so it is registry-shared. What it deliberately
+does not see, and reports as such: a name declared at different levels in different bodies
+(today only the two `ItemReadLock` constructors) is listed as ambiguous and skipped, since
+resolving the dynamic type is the runtime's job; a handful of generic member names are never
+tied to a callee; a call made while the caller *holds* a section taken earlier in the same body
+is checked against the caller's ceiling, not against that section; and the contracts on
+virtuals and on function-pointer *parameters* (as opposed to typed variables) are not consumed
+yet.
 
 Three things learned building it, so nobody rebuilds them: the header pattern must accept a space
 before the parameter list (`Actor::~Actor ()`) and a template class path
@@ -430,7 +446,14 @@ before the parameter list (`Actor::~Actor ()`) and a template class path
 statement line makes the regex backtrack for minutes; comment blanking must keep newline
 characters, or every line number after the first block comment is off; and the backward walk from
 a declaration to its header must stop at the previous function's closing brace rather than adopt
-the header above it. Set `CEIL_TRACE=<function>` to print the body range the pass computed.
+the header above it. Three more from the transitive version: a member *declaration* inside a
+class body reads as a call unless skipped, and a one-line inline getter then appears to reach
+everything declared below it; a call with a lambda argument, `f(x, [=] { ... })`, reads as a
+one-line definition unless the parameter list before the `{` is required to be closed; and a
+reach computed while the cycle guard cut a branch must not be memoized. Set
+`CEIL_TRACE=<function>` to print the body range the pass computed, `CEIL_TRACE_REACH=<function>`
+the calls it extracted from an undeclared body and what they reach, and `-ListDeclared` the
+declarations by name.
 
 ## 4. Findings — potential deadlocks
 
@@ -547,14 +570,15 @@ generalizes P2 beyond item locks to *any* lock held while calling `GetTokenID_mt
 checker covers the leveled cases in Debug (the registry is 99; holding anything ≤ 99 while
 registering is rejected) — B3/B5 are the gaps.
 
-### P8 — `TContextNotification` runs inner to the registry — **verified, contract now annotated**
+### P8 — `TContextNotification` runs under `sc_NotifyTargetCount` — **superseded by P16**
 
-The progress callback is invoked from `ProgressMsg` while the caller holds
-`sc_NotifyTargetCount(100)` ([TriggerOperator.cpp:53](../rtc/dll/src/act/TriggerOperator.cpp)) —
-*inner* to the registry. A GUI implementation that reads a token, names an item, or synchronously
-waits on the meta thread deadlocks or violates the order. Since `182e66e9` the typedef in
-`DbgInterface.h` carries `DMS_CALLEE_ENTERS(ObjectRegister, exclusive)` and the rule: copy the
-`CharPtr` out and post. Any regression here is a GUI-side review item, not detectable from rtc.
+The progress callback is invoked from `ProgressMsg` while the caller holds `sc_NotifyTargetCount`
+(`ProgressNotifyMsg` asserts it). Until `eab00bb01` that section sat inner to the registry, and the
+contract on the typedef said so: `(ObjectRegister, exclusive)`, "copy the `CharPtr` out and post".
+P16 found that the engine itself does not keep that contract — it reports under the section — so
+the section moved outer to the registry and the contract is now `(IndexedString, shared)`: the
+callback may read tokens and report; it may not take anything at 89 or below, wait on production,
+or register a token. The static pass checks every caller of the callback against that contract.
 
 ### P9 — `tile_task_group::AwaitRunningSlots` cannot steal — **noted limitation, low**
 
@@ -672,6 +696,45 @@ lock-level checker refuses the `DMS_ENTERS(IndexedString, shared)` of any report
 exclusive hold before these guards are reached, which is the same verdict one level earlier.
 
 ---
+### P16 — `sc_NotifyTargetCount` sat inner to the registry while its holders report — **FIXED (`eab00bb01`)**
+
+Found by #1247's `stor_mmd_alias_1_write` testcase, the first battery config to reach a progress
+report in Debug: `IncRemainingTargetCount` opens with the `NotifyTargetCount` ceiling (then 92)
+and, before it takes the section, calls `IncInterestDetector::CheckInc` (a `MG_DEBUG_INTERESTSOURCE`
+diagnostic) which reports — `reportD` declares `(IndexedString, shared)`, 90, outer to 92 — and
+the checker refused it, twice per run (the second from `CheckPtr` on the same path). P5 had placed
+`NotifyTargetCount` in its former family by the one nesting that was known, `MoveSupplInterest`
+taking it, and left the rest of the order to the first Debug run to nest the other way; this is
+that run. The GUI has the same shape under the section itself: `NotifyRemainingTargetCount →
+ProgressNotifyMsg → ProgressMsg → (*s_clientFunc)`, the `TContextNotification` callback, which
+the Qt GUI implements and which reports. Notifying outside the section — the fix #1247 proposed —
+does not fit: `ProgressNotifyMsg` asserts the section is held and hands the message between
+threads under it; the design holds the section across a reporting callback on purpose, exactly
+like `GDALComponent`, which was placed outer to the registry for that reason.
+
+*Fixed:* `NotifyTargetCount` moves to 89 — outer to `IndexedString` 90, still inner to
+`MoveSupplInterest` 88 — and `ExplainAccess`, a leaf, to the free 84 to make room; the
+`TContextNotification` contract becomes `(IndexedString, shared)` (P8). The three sites and
+`ProcessLastMsg` are unchanged. The static pass, made transitive and contract-aware in the same
+commit (3.9), names all six sites at the old ordinal and is green at the new one.
+
+*What the move exposed, and the second half of the fix:* with `NotifyTargetCount` outer to the
+registry, taking it under a live `TokenStr` is refused -- and the first battery refused 41 `fn_test_*`
+cases at `~SilentBlocker`, held `IndexedStringsComponent` shared. The holder was never a named
+local: `ResolveItemPath(SharedStr(headID.AsStrRangeLock()))` in `HofApplication.cpp`,
+`HofTypeChecker.cpp` and `HofTypeUnifier.cpp`, `FindBestItem(unit.AsStrRangeLock())` in
+`TicInterface.cpp`, `CheckFunctionSignature(..., GetNameID().GetStrLock().c_str())` -- a
+`TokenStrRange` *temporary* as an argument lives to the end of the full expression, across a call
+that resolves items and reaches a suspend blocker (cdb, at the refusal: `~SilentBlocker` <-
+`~FencedBlocker` <- `~FencedInterestRetainContext` <- `UpdateMetaInfoImpl2` <- `GetConstSubTreeItemByID`
+<- `hof::CheckFunctionSignature` <- `FunctionApplication::ReduceValue`, the `GetStrLock().c_str()`
+argument of `CheckFunctionSignature`). That is B6 one class wider than format sinks.
+All seven now materialize a named `SharedStr` first, and `tools/check-lock-across-sink.ps1` treats
+`ResolveItemPath`, `FindItem`, `FindBestItem`, `CheckFunctionSignature`, `UpdateMetaInfo`,
+`PrepareDataUsage` and their kin as sinks for this purpose, so the shape is refused statically.
+Whether the registry could deadlock through such a span at all depends on `counted_mutex` being
+reader-preferring (a reader never waits for a pending writer), which it is; the ordinal rule is
+stricter than that, and the materializations are cheap, so the rule stands. Debug battery 322/324 — no lock refusal left in the run; the two `stor_mmd_alias_*` canaries now reach, and stop at, an assertion of #1247's own MMD-alias shape (`ItemLocks.cpp:654` `item->HasInterest()` on the write, `DmsException.cpp:412` on the read) instead of the ceiling, which is exactly the Debug diagnosis that shape was blocked on; handed to #1247.
 
 ## 5. Verified non-findings
 
@@ -765,6 +828,7 @@ Recorded so the next reader does not re-suspect them:
 4. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §6 leaves open.
 5. ~~The syntactic pass over `DMS_ENTERS` declarations~~ — done in `fc9a5791`:
-   `tools/check-lock-ceilings.ps1` (§3.9), run by `analyze.bat`. Left: consuming the
-   `DMS_CALLEE_ENTERS` contracts (virtuals, callbacks, function-pointer parameters) so their call
-   sites are checked too, and modelling a section held earlier in the caller's body.
+   `tools/check-lock-ceilings.ps1` (§3.9), run by `analyze.bat`; transitive through undeclared
+   bodies and consuming the contracts on function-pointer *typedefs* since `eab00bb01` (P16 is the
+   case it now catches). Left: the contracts on virtuals and on function-pointer parameters, and
+   modelling a section held earlier in the caller's body.
