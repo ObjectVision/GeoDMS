@@ -197,7 +197,7 @@ namespace DemandManagement {
 		IncInterestFence();
 		~IncInterestFence();
 
-		std::map<const SharedActor*, UInt32> m_TempTargets;
+		std::map<const Actor*, UInt32> m_TempTargets; // #1249: Actor, so that TreeItem targets are tracked again
 		IncInterestFence*  m_PrevFence;
 	};
 
@@ -253,7 +253,7 @@ namespace DemandManagement {
 		s_CurrFence = m_PrevFence;
 	}
 
-	void AddTempTarget(const SharedActor* a)
+	void AddTempTarget(const Actor* a)
 	{
 		assert(IsMetaThread());
 
@@ -267,7 +267,7 @@ namespace DemandManagement {
 		sd_InterestSet.insert(a);
 	}
 
-	void ReleaseTempTarget(const SharedActor* a)
+	void ReleaseTempTarget(const Actor* a)
 	{
 		if (!a)
 			return;

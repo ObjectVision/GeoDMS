@@ -154,7 +154,12 @@ protected:
 	template <typename QueryType> void UpdateItems(ItemSchemaView* isv);
 
 	std::vector<SharedTreeItemInterestPtr> m_RootItems;
-	std::vector<SharedActorInterestPtr>    m_AllItems;
+
+	// #1249: was std::vector<SharedActorInterestPtr>, which WriteNode could only fill through a
+	// dynamic_cast<const SharedActor*> that is null for every TreeItem since the std-ptr migration.
+	// Both QueryType::pointer typedefs are const TreeItem*, so the nodes are TreeItems like the
+	// roots and are held the same way.
+	std::vector<SharedTreeItemInterestPtr> m_AllItems;
 
 	friend class ItemSchemaView;
 	friend struct ItemSchemaControllerWriter;
@@ -187,16 +192,19 @@ struct ItemSchemaControllerWriter: ItemSchemaControllerWriterBase
 		m_ISC->m_AllItems.reserve(nrItems);
 	}
 
-	void WriteNode(const Actor* item)
+	// #1249: takes the const TreeItem* that both queries produce. It used to take a const Actor* and
+	// write nothing unless it passed a SharedActor cast, which no TreeItem does since the std-ptr
+	// migration -- so every node was skipped, m_AllItems stayed empty, UpdateItems' size assert
+	// failed in Debug for any non-empty schema, and in Release the nodes were drawn without the
+	// interest that keeps them alive for the view.
+	void WriteNode(const TreeItem* item)
 	{
-		if (auto sa = dynamic_cast<const SharedActor*>(item))
-		{
-			locationLock->SetValue<SPoint   >(nodeIndex, loc);
-			labelTextLock->SetValue<SharedStr>(nodeIndex, SharedStr(sa->GetNameID()));
-			assert(m_ISC->m_AllItems.size() < m_ISC->m_AllItems.capacity()); // nrItems at construction is assumed to perfectly predict 
-			m_ISC->m_AllItems.push_back(SharedPtr<const SharedActor>(sa));
-			++nodeIndex;
-		}
+		assert(item);
+		locationLock->SetValue<SPoint   >(nodeIndex, loc);
+		labelTextLock->SetValue<SharedStr>(nodeIndex, SharedStr(item->GetNameID()));
+		assert(m_ISC->m_AllItems.size() < m_ISC->m_AllItems.capacity()); // nrItems at construction is assumed to perfectly predict
+		m_ISC->m_AllItems.emplace_back(item);
+		++nodeIndex;
 	}
 	void WriteLink(UInt32 node1, UInt32 node2)
 	{

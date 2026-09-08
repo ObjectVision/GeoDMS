@@ -1029,6 +1029,11 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
         s_ActorFailReasonAssoc.assocOrErase(this, msg);
         m_State.SetFailure(ft);
         try {
+            // #1249: this cast is DELIBERATELY null for every TreeItem and must stay that way, even
+            // though TellWhere takes a const Object* that `this` would convert to. TreeItem::DoFail
+            // has already told the message where it was, but only for a non-cache item; naming a
+            // cache item here is exactly what that override avoids. Only the intrusively managed
+            // actors reach TellWhere from here.
             msg->TellWhere(dynamic_cast<const SharedActor*>(this));
             if (msg->MustReport())
             {
@@ -1098,6 +1103,8 @@ void Actor::ThrowFail(ErrMsgPtr why, FailType ft) const
 
 void Actor::ThrowFail(SharedStr str, FailType ft) const
 {
+    // #1249: null for a TreeItem on purpose, like the TellWhere in DoFail above -- DoFailCaller
+    // reaches TreeItem::DoFail, which names the item unless it is a cache item.
     ThrowFail(std::make_shared<ErrMsg>( str, dynamic_cast<const SharedActor*>(this) ), ft);
 }
 
@@ -1343,7 +1350,7 @@ void Actor::StartInterest() const
     assert(m_InterestCount == 0); // no recursion
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
-    DemandManagement::AddTempTarget(dynamic_cast<const SharedActor*>(this));
+    DemandManagement::AddTempTarget(this); // #1249: no SharedActor cast, which dropped every TreeItem
 #endif
 }
 
@@ -1353,7 +1360,7 @@ garbage_can Actor::StopInterest() const noexcept
 {
 	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 #if defined(MG_DEBUG_INTERESTSOURCE)
-    DemandManagement::ReleaseTempTarget(dynamic_cast<const SharedActor*>(this));
+    DemandManagement::ReleaseTempTarget(this); // #1249: no SharedActor cast, which dropped every TreeItem
 #endif
     if (SuspendTrigger::DidSuspend() && DoesHaveSupplInterest()) // suspension shouldn't cause losing interest
         try { ReportSuspension(); } catch (...) {} // noexcept: reportD's cancellation check throws task_canceled during teardown
@@ -1591,18 +1598,24 @@ item_level_type GetItemLevel(const Actor* act)
 #endif
 
 // Traverse up parent chain to see if any ancestor is failed.
+// #1249: the walk used to step through dynamic_cast<const SharedActor*>, which since the std-ptr
+// migration is null for every TreeItem (TreeItem derives from Actor directly, SharedActor is
+// SharedObjWrap<Actor>). That made this return false for an item that had not failed itself, so a
+// failure of an ancestor container was no longer found: the F2 'step to fail reason' and 'go to
+// causa prima' commands (DmsTreeView.cpp) stayed disabled and TreeItem_GetErrorSource skipped such
+// suppliers. PersistentObject::GetParent() is the hierarchy both actor families share -- it is the
+// tree parent for a TreeItem and null for an intrusively managed actor, which ends the walk there
+// exactly as before.
 bool WasInFailed(const Actor* a)
 {
     assert(a);
-    if (a->WasFailed())
-        return true;
-    auto po = dynamic_cast<const SharedActor*>(a);
-    if (!po)
-        return false;
-    auto p = po->GetParent();
-    if (!p)
-        return false;
-    return WasInFailed(dynamic_cast<const SharedActor*>(p));
+    while (a)
+    {
+        if (a->WasFailed())
+            return true;
+        a = dynamic_cast<const Actor*>(a->GetParent());
+    }
+    return false;
 }
 
 // Phase numbers provide a simple topological-like ordering among actors.

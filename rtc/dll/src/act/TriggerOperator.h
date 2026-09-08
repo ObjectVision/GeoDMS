@@ -26,8 +26,12 @@ void DecRemainingTargetCount();
 namespace DemandManagement {
 	using ActorSet = std::set<const Actor*>;
 
-	void AddTempTarget    (const SharedActor* a);
-	void ReleaseTempTarget(const SharedActor* a);
+	// #1249: const Actor*, not const SharedActor*. The callers in Actor::Start/StopInterest had to
+	// cast down to SharedActor, which is null for every TreeItem since the std-ptr migration, so
+	// this diagnostic silently tracked only the intrusively managed actors. sd_InterestSet is an
+	// ActorSet already.
+	void AddTempTarget    (const Actor* a);
+	void ReleaseTempTarget(const Actor* a);
 
 	struct IncInterestDetector // detect late expression of demand 
 	{
