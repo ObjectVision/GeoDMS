@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TreeItem name="xcw"><DATAITEM name="xcp" ValuesUnit='string'><CalcRule>&apos;a &amp; b&apos;</CalcRule><Descr>compact</Descr></DATAITEM><TreeItem name="xcq"><DATAITEM name="xcr" ValuesUnit="string"><CalcRule>&apos;nested&apos;</CalcRule></DATAITEM></TreeItem><TreeItem name="xcs"/></TreeItem>

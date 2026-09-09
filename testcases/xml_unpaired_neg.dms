@@ -1,0 +1,10 @@
+// #1261: a '/' inside a tag that is not followed by '>' must be a reported error, not an MG_CHECK
+// assertion; the read stops there, so the item that follows the bad tag is absent
+container xml_unpaired_neg
+{
+	container xmlpart { #include <../data/xml_unpaired.xml> }
+	container checks
+	{
+		parameter<string> after := xmlpart/xup/after, IntegrityCheck = "after == 'ok'";
+	}
+}

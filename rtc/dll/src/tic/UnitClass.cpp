@@ -175,6 +175,9 @@ std::shared_ptr<Actor> UnitClass::CreateFromXml(Object* context, struct XmlEleme
 	CharPtr itemName      = elem.GetAttrValue(nameTokenID);
 	CharPtr valueTypeName = elem.GetAttrValue(valueTypeID);
 
+	if (!*itemName) // #1261: user input, so a report rather than an unnamed item
+		throwDmsErrD("XML: a unit element requires a name attribute");
+
 	const ValueClass* vc = ValueClass::FindByScriptName(GetTokenID_mt(valueTypeName) );
 	if (!vc) throwDmsErrF("Unknown ValueType '{}' for Unit '{}'", valueTypeName, itemName);
 	const UnitClass* uc = UnitClass::Find(vc);

@@ -15,6 +15,7 @@
 #include "xml/XmlParser.h"
 #include "xml/XmlConst.h"
 #include "dbg/debug.h"
+#include "utl/StrFormat.h" // mgFormat2SharedStr, for the error messages of this reader
 
 // *****************************************************************************
 
@@ -79,10 +80,32 @@ static StaticTokenID t_xml("xml");
 XmlParser::XmlParser(InpStreamBuff* inpBuff)
 	: FormattedInpStream(inpBuff) 
 {
-	// read tagName + attr values
-	ReadElem(m_XmlVersionSpec);
-	MG_CHECK(m_XmlVersionSpec.m_NameID == t_xml);
-	MG_CHECK(m_XmlVersionSpec.m_ElementType == XmlElementType::Header);
+	// Only the header's own tag, not ReadElem: a document whose first element is an ordinary one is
+	// Paired, so ReadElem would read its whole subtree before the missing header could be reported.
+	// Nothing is lost by not calling the element callbacks here, since the derived parser does not
+	// exist yet during a base-class constructor and they resolve to the no-ops of this class.
+	ReadAttr(m_XmlVersionSpec);
+	if (m_XmlVersionSpec.m_ElementType != XmlElementType::Header)
+		ThrowXmlErr(mgFormat2SharedStr("the document must open with an '<?xml ... ?>' header, but it opens with the element '<{}>'"
+			, m_XmlVersionSpec.m_NameID).c_str());
+	if (m_XmlVersionSpec.m_NameID != t_xml)
+		ThrowXmlErr(mgFormat2SharedStr("the document header must be named 'xml', but it is named '{}'"
+			, m_XmlVersionSpec.m_NameID).c_str());
+	ReadText(m_XmlVersionSpec.m_TailText);
+}
+
+void XmlParser::ThrowXmlErr(CharPtr msg)
+{
+	throwErrorF("XML", "{}({}, {}): {}", Buffer().FileName(), GetLineNr(), GetColNr(), msg);
+}
+
+// What the reader ran into, for an error message. NextChar() answers 0 at the end of the input, so
+// the end of the file is a case of its own rather than a quoted NUL.
+static auto AsFoundText(char ch) -> SharedStr
+{
+	if (!ch)
+		return SharedStr("the end of the file");
+	return mgFormat2SharedStr("'{}'", ch);
 }
 
 XmlParser::~XmlParser()
@@ -182,7 +205,9 @@ void XmlParser::ReadEncl(XmlElement& rootEnclElement)
 	{
 		XmlElement& parent = *openStack.back();
 
-		MG_USERCHECK2(NextChar() == '<', "XML: '<' expected"); // external input, so a check rather than an assert
+		if (NextChar() != '<') // external input, so a reported error rather than an assert
+			ThrowXmlErr(mgFormat2SharedStr("'<' expected at the start of a tag inside the element '<{}>', but {} was found"
+				, parent.m_NameID, AsFoundText(NextChar())).c_str());
 		parent.m_SubElements.emplace_back(&parent);
 		XmlElement& subElement = parent.m_SubElements.back();
 
@@ -204,8 +229,12 @@ void XmlParser::ReadEncl(XmlElement& rootEnclElement)
 		bool keepElem = false;
 		if (isClosingTag)
 		{
-			MG_CHECK(subElement.m_NameID == parent.m_NameID);
-			MG_CHECK(subElement.GetNrAttrValues() == 0);
+			if (subElement.m_NameID != parent.m_NameID)
+				ThrowXmlErr(mgFormat2SharedStr("the closing tag '</{}>' does not match the open tag '<{}>'"
+					, subElement.m_NameID, parent.m_NameID).c_str());
+			if (subElement.GetNrAttrValues() != 0)
+				ThrowXmlErr(mgFormat2SharedStr("the closing tag '</{}>' carries an attribute; only an open tag may"
+					, subElement.m_NameID).c_str());
 		}
 		else
 		{
@@ -271,47 +300,155 @@ static void HtmlDecodeInPlace(SharedStr& token)
 	}
 }
 
+// The characters that end a name inside a tag. Anything else that is not white space belongs to
+// the name.
+static bool IsXmlTagPunct(char ch)
+{
+	return ch == '<' || ch == '>' || ch == '/' || ch == '?' || ch == '=';
+}
+
+void XmlParser::SkipSpace()
+{
+	while (!AtEnd() && isspace(UChar(NextChar())))
+		ReadChar();
+}
+
+SharedStr XmlParser::ReadName()
+{
+	std::vector<char> name;
+	while (!AtEnd())
+	{
+		char ch = NextChar();
+		if (isspace(UChar(ch)) || IsXmlTagPunct(ch) || ch == '"' || ch == '\'')
+			break;
+		name.push_back(ch);
+		ReadChar();
+	}
+	if (name.empty())
+		return SharedStr();
+	return SharedStr(CharPtrRange(name.data(), name.data() + name.size()));
+}
+
+SharedStr XmlParser::ReadAttrValue(TokenID tagNameID, WeakStr attrName)
+{
+	std::vector<char> value;
+	char quote = NextChar();
+	if (quote == '"' || quote == '\'')
+	{
+		ReadChar(); // past the opening quote
+		while (true)
+		{
+			if (AtEnd())
+				ThrowXmlErr(mgFormat2SharedStr("the value of attribute '{}' of the tag '<{}' is not closed before the end of the file"
+					, attrName, tagNameID).c_str());
+			char ch = NextChar();
+			ReadChar();
+			if (ch == quote)
+				break;
+			value.push_back(ch);
+		}
+	}
+	else
+	{
+		// Unquoted, which is not XML but is what the bool and UInt32 overloads of
+		// OutStream_XmlBase::WriteAttr emit ("name=TRUE"), so this reader accepts it.
+		while (!AtEnd() && !isspace(UChar(NextChar())) && !IsXmlTagPunct(NextChar()))
+		{
+			value.push_back(NextChar());
+			ReadChar();
+		}
+		if (value.empty())
+			ThrowXmlErr(mgFormat2SharedStr("a value expected after '{}=' in the tag '<{}', but {} was found"
+				, attrName, tagNameID, AsFoundText(NextChar())).c_str());
+	}
+	SharedStr result = value.empty()
+		? SharedStr()
+		: SharedStr(CharPtrRange(value.data(), value.data() + value.size()));
+	// An attribute value carries entity references, not backslash escapes. Reading it through the
+	// word reader ran it past ReadDQuote, which swallows a backslash and rewrites the character
+	// after it, so a StorageName spelled as an attribute lost its path separators; and it left the
+	// entities encoded, unlike element text, which TransformChar decodes.
+	HtmlDecodeInPlace(result);
+	return result;
+}
+
+// Reads one tag, from its '<' up to and including the '>' that ends it, character by character.
+//
+// It used to read through FormattedInpStream's word reader, which splits on white space and on its
+// own field separators (';', ',', tab, newline) and on nothing else. So '<', '=', '?' and '/' each
+// had to be surrounded by spaces, the way the fixtures in testcases\data still write them: '<?xml'
+// came back as one word named "?xml", and 'version="1.0"' as one word, after which the reader
+// demanded the '=' it had already swallowed. That is why this reader could not read back what the
+// XML writer of XMLOut.cpp emits -- ItemSave, so @dumpconfig with an .xml name -- and so why the
+// round trip that the testcases battery gets in DMS syntax could not be run in XML at all (#1261).
+// Both spellings are accepted now.
 void XmlParser::ReadAttr(XmlElement& element)
 {
-	SharedStr name;
-	// read tagName + attr values
-	(*this) >> "<" >> name;
-	if (name == "?")
+	SkipSpace();
+	if (NextChar() != '<')
+		ThrowXmlErr(mgFormat2SharedStr("'<' expected at the start of a tag, but {} was found", AsFoundText(NextChar())).c_str());
+	ReadChar();
+	SkipSpace();
+	if (NextChar() == '?')
 	{
-		(*this) >> name;		
 		element.m_ElementType = XmlElementType::Header;
+		ReadChar();
+		SkipSpace();
 	}
-	if (name == "/")
+	else if (NextChar() == '/')
 	{
-		(*this) >> name;
 		element.m_ElementType = XmlElementType::ClosingTag;
+		ReadChar();
+		SkipSpace();
 	}
+
+	SharedStr name = ReadName();
+	if (name.empty())
+		ThrowXmlErr(mgFormat2SharedStr("a tag name expected, but {} was found", AsFoundText(NextChar())).c_str());
 	element.m_NameID = GetTokenID_mt(name.c_str());
 
-	SharedStr nextToken;
 	while (true)
 	{
-		(*this) >> nextToken;
-		if (nextToken == "/")
+		SkipSpace();
+		char ch = NextChar();
+		if (ch == '>')
+		{
+			ReadChar();
+			return;
+		}
+		if (ch == '/' && element.m_ElementType == XmlElementType::Paired)
 		{
 			element.m_ElementType = XmlElementType::UnPaired;
-			(*this) >> nextToken;
-			MG_CHECK(nextToken == ">");
-		}
-		else if ((element.m_ElementType == XmlElementType::Header) && (nextToken == "?"))
-		{
-			(*this) >> nextToken;
-			MG_CHECK(nextToken == ">");
-		}
-
-		if (nextToken == ">")
+			ReadChar();
+			SkipSpace();
+			if (NextChar() != '>')
+				ThrowXmlErr(mgFormat2SharedStr("'>' expected after the '/' that ends the unpaired element '<{}/>', but {} was found"
+					, element.m_NameID, AsFoundText(NextChar())).c_str());
+			ReadChar();
 			return;
-		// Transform nextToken
+		}
+		if (ch == '?' && element.m_ElementType == XmlElementType::Header)
+		{
+			ReadChar();
+			SkipSpace();
+			if (NextChar() != '>')
+				ThrowXmlErr(mgFormat2SharedStr("'>' expected after the '?' that ends the header '<?{} ... ?>', but {} was found"
+					, element.m_NameID, AsFoundText(NextChar())).c_str());
+			ReadChar();
+			return;
+		}
 
-		HtmlDecodeInPlace(nextToken);
-
-		TokenID nextTokenID = GetTokenID_mt(nextToken.c_str());
-		(*this) >> "=" >> element.GetAttrValueRef(nextTokenID);
+		SharedStr attrName = ReadName();
+		if (attrName.empty())
+			ThrowXmlErr(mgFormat2SharedStr("an attribute name or the end of the tag '<{}' expected, but {} was found"
+				, element.m_NameID, AsFoundText(ch)).c_str());
+		SkipSpace();
+		if (NextChar() != '=')
+			ThrowXmlErr(mgFormat2SharedStr("'=' expected after the attribute name '{}' in the tag '<{}', but {} was found"
+				, attrName, element.m_NameID, AsFoundText(NextChar())).c_str());
+		ReadChar();
+		SkipSpace();
+		element.GetAttrValueRef(GetTokenID_mt(attrName.c_str())) = ReadAttrValue(element.m_NameID, attrName);
 	}
 }
 

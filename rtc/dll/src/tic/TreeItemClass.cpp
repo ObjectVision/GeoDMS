@@ -28,6 +28,8 @@ static StaticTokenID nameTokenID("name");
 std::shared_ptr<Actor> TreeItemClass::CreateFromXml(Object* context, struct XmlElement& elem)
 {
 	CharPtr name = elem.GetAttrValue(nameTokenID);
+	if (!*name) // #1261: user input, so a report rather than an unnamed item
+		throwDmsErrD("XML: a TreeItem element requires a name attribute");
 	if (!context)
 		return TreeItem::CreateConfigRoot(GetTokenID_mt(name)); // SharedMutableTreeItem -> owning std::shared_ptr<Actor>
 	CheckPtr(context, TreeItem::GetStaticClass(), "TreeItemClass::CreateFromXml");

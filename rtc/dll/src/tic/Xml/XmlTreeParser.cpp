@@ -89,10 +89,6 @@ SharedMutableTreeItem XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstIt
 	return make_shared_tree(root, existing_obj{});
 }
 
-static StaticTokenID nameTokenID("name");
-static StaticTokenID storageTypeID("StorageType");
-static StaticTokenID storageNameID("StorageName");
-
 // called when all attributes of elem has been read
 void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 {
@@ -113,11 +109,11 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 	}
 	if (thisItem)
 	{
-		CharPtr storageType = element.GetAttrValue(storageTypeID);
-		if (*storageType)
-		{
-			DMS_TreeItem_SetStorageManager(thisItem, element.GetAttrValue(storageNameID), storageType, StorageReadOnlySetting::Default);
-		}
+		// #1261: no StorageType/StorageName attribute handling here. Both are xml_mode::element
+		// properties, so the attribute loop right below refuses them as "seen as attribute"; the
+		// code that used to stand here, calling DMS_TreeItem_SetStorageManager from those two
+		// attributes, could therefore never run. They are written and read as child elements, which
+		// is what the wiki documents and what the battery covers.
 		const Class* thisCls = thisItem->GetDynamicClass();
 		XmlElement::AttrValuesConstIterator avIter = element.GetAttrValuesBegin();
 		XmlElement::AttrValuesConstIterator  avEnd  = element.GetAttrValuesEnd();
@@ -211,6 +207,22 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 		}
 		else if (propDef->GetSetMode() > set_mode::construction)
 			propDef->SetValueAsCharArray(parentItem, &*element.m_EnclText.begin());
+		else
+		{
+			// #1261: a property that is fixed at construction (name, ValueType, DomainUnit,
+			// ValuesUnit, ValueComposition) or is read-only (TableType) used to be dropped here
+			// without a word, so a configuration that spelled one as a child element loaded with
+			// that element having no effect at all. Say so instead; the construction ones belong in
+			// the open tag, where CreateFromXml reads them.
+			throwErrorF("XML", "{}({}, {}): XML element {} for {}: {} names a property that cannot be set here: it is {}",
+				Buffer().FileName(), GetLineNr(), GetColNr(),
+				element.m_NameID,
+				m_CurrItem->GetNameID(),
+				cls->GetNameID(),
+				propDef->GetSetMode() == set_mode::construction
+					? "set at construction, from an attribute of the open tag"
+					: "read-only");
+		}
 	}
 	return false;
 }

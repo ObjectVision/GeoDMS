@@ -1,0 +1,17 @@
+// #1261: an .xml fragment written the way XML is normally written -- no space around '<', '=', '?'
+// or '/', both quote characters, a self-closing tag. The reader used to tokenize a tag with the word
+// reader of FormattedInpStream, which splits on white space only, so '<?xml' came back as one name
+// and 'version="1.0"' as one word; every one of these lines was a parse error and the reader could
+// only read the spaced-out spelling of testcases\data\xml_entity.xml. This is also the spelling the
+// XML writer emits, so before this it could not read back what it had written
+container xml_compact
+{
+	container xmlpart { #include <../data/xml_compact.xml> }
+	container checks
+	{
+		parameter<string> text  := xmlpart/xcw/xcp,                     IntegrityCheck = "text == 'a & b'";
+		parameter<string> descr := PropValue(xmlpart/xcw/xcp, 'descr'), IntegrityCheck = "descr == 'compact'";
+		parameter<string> inner := xmlpart/xcw/xcq/xcr,                 IntegrityCheck = "inner == 'nested'";
+		parameter<string> empty := PropValue(xmlpart/xcw/xcs, 'name'),  IntegrityCheck = "empty == 'xcs'";
+	}
+}

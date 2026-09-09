@@ -67,6 +67,12 @@ protected:
 	virtual bool ReadElemCallback(XmlElement& element); // called when all sub-element have been read
 	                                                    // return true if element must be kept for the parent.
 
+	// Malformed input is user input: report it as an error that names the position in the file, the
+	// way XmlTreeParser already does. An MG_CHECK here would route through throwCheckFailed, which
+	// asserts before it throws, so a headless Debug run died on the assertion instead of reporting
+	// the error (#1261).
+	[[noreturn]] void ThrowXmlErr(CharPtr msg);
+
 private:
 	XmlParser(const XmlParser&); // forbidden to use
 	XmlParser();                 // forbidden to use
@@ -76,6 +82,13 @@ private:
 	void ReadEncl(XmlElement& element);
 	void ReadText(XmlElement::TextType& elementText);
 	void TransformChar(char& nextChar);
+
+	// Tag scanning, character by character. FormattedInpStream's word reader splits on white space
+	// and on its own field separators only, which is why every '<', '=', '?' and '/' used to need a
+	// space around it; see ReadAttr.
+	void      SkipSpace();
+	SharedStr ReadName();
+	SharedStr ReadAttrValue(TokenID tagNameID, WeakStr attrName);
 
 	XmlElement m_XmlVersionSpec;
 };

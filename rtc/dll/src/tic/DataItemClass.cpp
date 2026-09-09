@@ -215,13 +215,36 @@ std::shared_ptr<Actor> DataItemClass::CreateFromXml(Object* context, XmlElement&
 	CheckPtr(context, TreeItem::GetStaticClass(), "DataItemClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);
 
+	CharPtr itemName   = elem.GetAttrValue(nameTokenID);
+	CharPtr domainName = elem.GetAttrValue(domainUnitTokenID);
+	CharPtr valuesName = elem.GetAttrValue(valuesUnitTokenID);
+	CharPtr vcName     = elem.GetAttrValue(featureTypeID);
+
+	if (!*itemName)
+		throwDmsErrD("XML: a DATAITEM element requires a name attribute");
+	if (!*valuesName)
+		throwDmsErrF("XML: DATAITEM '{}' has no ValuesUnit attribute; a data item requires one", itemName);
+
+	// #1261: no DomainUnit attribute means the void domain -- a parameter -- which is what
+	// ConfigProd::CreateParameter passes for 'parameter<T> x'. The XML writer omits the attribute for
+	// exactly that case (DomainUnitPropDef::HasNonDefaultValue is !HasVoidDomainGuarantee), so every
+	// parameter of a written configuration arrived here with an EMPTY domain token. An empty token is
+	// not resolvable (AbstrDataItem::CanResolveUnitByName), so GetAbstrDomainUnit answered null
+	// without reporting anything and AbstrDataItem::CheckResultItem dereferenced that null: the first
+	// parameter to be computed took the process down with an access violation.
+	TokenID domainUnitID = *domainName ? GetTokenID_mt(domainName) : GetTokenID_mt("void");
+
+	auto vc = DetermineValueComposition(vcName);
+	if (vc == ValueComposition::Unknown)
+		throwDmsErrF("XML: DATAITEM '{}' has an unknown ValueComposition '{}'", itemName, vcName);
+
 	// CreateAbstrDataItem returns the owning std::shared_ptr (SharedMutableDataItem); return it upcast to
 	// Actor so the std control block flows through (co-owned with the parent container).
 	return CreateAbstrDataItem(container,
-		GetTokenID_mt(elem.GetAttrValue(nameTokenID)),
-		GetTokenID_mt(elem.GetAttrValue(domainUnitTokenID)),
-		GetTokenID_mt(elem.GetAttrValue(valuesUnitTokenID)),
-		DetermineValueComposition(elem.GetAttrValue(featureTypeID))
+		GetTokenID_mt(itemName),
+		domainUnitID,
+		GetTokenID_mt(valuesName),
+		vc
 	);
 }
 

@@ -1,0 +1,13 @@
+// #1261: a fragment without the '<?xml ... ?>' header must be a reported error, not an assertion.
+// The check used to be an MG_CHECK, which asserts before it throws, so a headless Debug run exited 3
+// mid-load and the TreeItem registry then reported the half-built tree as a memory leak. It also
+// fired only after ReadElem had read the whole first element, so the tree was built before the
+// missing header was noticed; the header tag is read on its own now and the fragment creates nothing
+container xml_no_header_neg
+{
+	container xmlpart { #include <../data/xml_no_header.xml> }
+	container checks
+	{
+		parameter<string> after := xmlpart/xnh/after, IntegrityCheck = "after == 'ok'";
+	}
+}

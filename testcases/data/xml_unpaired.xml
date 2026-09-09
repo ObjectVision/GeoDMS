@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TreeItem name="xup">
+	<TreeItem name="inner" / oops >
+	<DATAITEM name="after" ValuesUnit="string"><CalcRule>&apos;ok&apos;</CalcRule></DATAITEM>
+</TreeItem>

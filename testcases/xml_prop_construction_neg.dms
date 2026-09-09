@@ -1,0 +1,11 @@
+// #1261: a property that a tree item fixes when it is created ('name' here) or that is read-only
+// used to be dropped without a word when it was written as a child element, so the element simply
+// had no effect. It is refused now, and the item that follows it in the fragment is therefore absent
+container xml_prop_construction_neg
+{
+	container xmlpart { #include <../data/xml_prop_construction.xml> }
+	container checks
+	{
+		parameter<string> after := xmlpart/xpc/after, IntegrityCheck = "after == 'ok'";
+	}
+}

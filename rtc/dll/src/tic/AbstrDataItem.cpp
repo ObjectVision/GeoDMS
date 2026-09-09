@@ -492,15 +492,38 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 
 	SharedStr errMsgStr;
 	{
-		auto mydu = GetAbstrDomainUnit(); mydu->UpdateMetaInfo();
-		auto refdu = adi->GetAbstrDomainUnit(); refdu->UpdateMetaInfo();
+		auto mydu = GetAbstrDomainUnit();
+		auto refdu = adi->GetAbstrDomainUnit();
+		// #1261: a unit reference that never resolved answers null WITHOUT reporting anything --
+		// CanResolveUnitByName rejects an empty token outright -- and every dereference below then
+		// took the process down with an access violation. An .xml DATAITEM element without a
+		// DomainUnit attribute was the way to reach it; that is fixed at the source in
+		// DataItemClass::CreateFromXml, and this says which side is missing rather than crashing.
+		if (!mydu || !refdu)
+		{
+			errMsgStr = SharedStr(mydu
+				? "the domain of the results of the calculation is not available"
+				: "the specified Domain is not available");
+			goto failResultMsg;
+		}
+		mydu->UpdateMetaInfo();
+		refdu->UpdateMetaInfo();
 		if (!mydu->UnifyDomain(refdu, "the specified Domain", "the domain of the results of the calculation", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
 	}
 	dbg_assert(m_LastGetStateTS >= refItem->m_LastGetStateTS || refItem->IsPassor());
 	{
-		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
-		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
+		auto myvu = GetAbstrValuesUnit();
+		auto refvu = adi->GetAbstrValuesUnit();
+		if (!myvu || !refvu) // see the domain units above
+		{
+			errMsgStr = SharedStr(myvu
+				? "the values unit of the calculation results is not available"
+				: "the specified ValuesUnit is not available");
+			goto failResultMsg;
+		}
+		myvu->UpdateMetaInfo();
+		refvu->UpdateMetaInfo();
 		bool myvuIsCategorical = myvu->GetTSF(TSF_Categorical);
 		CharPtr myvuTypeStr = myvuIsCategorical
 			? "the specified categorical ValuesUnit"
