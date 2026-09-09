@@ -61,6 +61,17 @@ AbstrCalculatorRef CalcFactory::ConstructDBT(AbstrDataItem* context, const Abstr
 	);
 }
 
+// #1261: the same value array, but from its text rather than from another DataBlockTask, for the XML
+// configuration reader. The element count is what the .dms parser had counted while it read the
+// values; nothing reads it back (DataBlockTask::GetNrElems is only copied by the copy constructor)
+// and the values are parsed from the text at evaluation time, so this passes 0 rather than counting
+// them twice.
+AbstrCalculatorRef CalcFactory::ConstructDataBlock(AbstrDataItem* context, WeakStr dataBlockText)
+{
+	assert(context);
+	return new DataBlockTask(context, dataBlockText.begin(), dataBlockText.send(), 0);
+}
+
 LispRef CalcFactory::RewriteExprTop(LispPtr org)
 {
 	return ::RewriteExprTop(org);

@@ -87,6 +87,11 @@ struct AcConstructor
 {
 	virtual AbstrCalculatorRef ConstructExpr    (const TreeItem* context, WeakStr expr, CalcRole cr) =0;
 	virtual AbstrCalculatorRef ConstructDBT     (AbstrDataItem* context, const AbstrCalculator* src) =0;
+	// #1261: a value array ('[ 1, 2, 3 ]') from its configured text, for a reader that is not the
+	// .dms parser. The XML configuration reader lives here in rtc and cannot reach DataBlockTask,
+	// which is a stx type; the writer has always written the value array into the .xml, so without
+	// this the data was written and dropped on the way back in.
+	virtual AbstrCalculatorRef ConstructDataBlock(AbstrDataItem* context, WeakStr dataBlockText) =0;
 	virtual LispRef RewriteExprTop(LispPtr org) =0;
 };
 
@@ -110,6 +115,7 @@ public:
 	static AbstrCalculatorRef ConstructFromDirectStr(const TreeItem* context, WeakStr expr, CalcRole cr);
 	TIC_CALL static AbstrCalculatorRef ConstructFromLispRef  (const TreeItem* context, LispPtr lispExpr, CalcRole cr);
 	static AbstrCalculatorRef ConstructFromDBT      (AbstrDataItem* context, const AbstrCalculator* src);
+	TIC_CALL static AbstrCalculatorRef ConstructFromDataBlockStr(AbstrDataItem* context, WeakStr dataBlockText); // #1261
 
 	static bool MustEvaluate(CharPtr expr) { dms_assert(expr); return *expr == '='; }
 	static LispRef RewriteExprTop(LispPtr org) { return GetConstructor()->RewriteExprTop(org); }

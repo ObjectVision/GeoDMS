@@ -1,0 +1,35 @@
+// #1261: the XML round trip, on the writer's own output. data/xml_roundtrip.xml is not hand
+// written: it is what '@dumpconfig <name>.xml' produced for data/xml_roundtrip_source.dms, which is
+// kept beside it so the fixture can be regenerated when the writer changes. It covers what the
+// notation used to lose on the way back in:
+//   a template            -- always survived, IsTemplate is an ordinary property
+//   a function            -- came back as a plain container with IsTemplate and no parameters
+//   a generic function    -- idem, plus its type variables and generic parameters
+//   a value array         -- written into the item element as text and then dropped
+//   a multi-line rule     -- the writer wrote its line ends as <BR/>, so the reader kept line 1
+container xml_roundtrip
+{
+	container xmlpart { #include <../data/xml_roundtrip.xml> }
+	container src := xmlpart/xmlsrc;
+
+	container checks
+	{
+		// the value arrays, which is also what everything below depends on
+		parameter<float64> flow_sum := sum(src/Road/flow), IntegrityCheck = "flow_sum == 750.0";
+		parameter<float64> cap_sum  := sum(src/Road/cap),  IntegrityCheck = "cap_sum == 700.0";
+
+		// a rule that spans two lines in the source
+		parameter<float64> multiline := src/multiline,     IntegrityCheck = "multiline == 1450.0";
+
+		// the template, instantiated in the fragment itself
+		parameter<float64> tmpl := sum(src/d/result),      IntegrityCheck = "tmpl == 1500.0";
+
+		// the function: 'instantiate CongestionRatio(Road, Road/flow, Road/cap)', min_elem(raw, 1.0)
+		parameter<float64> fn := sum(src/cr/result),       IntegrityCheck = "fn == 3.0";
+
+		// the generic function 'Twice<Vx: numerics>(attribute<Vx> x)', called from the fragment. A
+		// call only dispatches to a FUNCTION item: read back as the plain template it used to become,
+		// this one does not resolve, so the check fails rather than quietly computing something else
+		parameter<float64> gen := sum(src/twice_flow),     IntegrityCheck = "gen == 1500.0";
+	}
+}

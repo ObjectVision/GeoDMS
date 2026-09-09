@@ -28,6 +28,8 @@
 #include "UsingCache.h"
 
 #include "set/StaticQuickAssoc.h"
+#include "utl/StrFormat.h"  // mgFormat2SharedStr, for the #1261 FunctionSpec text
+#include "vt/CharPtrRange.h"
 
 #include <algorithm>
 #include <bitset>
@@ -657,4 +659,314 @@ TIC_CALL void TreeItem_MakeStrictScope(TreeItem* functionItem)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
 	functionItem->GetUsingCache(); // initialize own items, declared usings, then definition namespace
+}
+
+// ===================================== #1261: the spec as one text, for the XML notation
+
+namespace {
+
+	// The text is a space separated list of 'key' or 'key=value' fields. Values never contain a
+	// space: they are token names, dotted or '/'-separated paths, and small numbers. That matters,
+	// because the reader of the XML notation collapses every run of white space in element text to
+	// one space (XmlParser::ReadText), so a field may not rely on any other layout.
+	void AppendField(SharedStr& out, CharPtr field)
+	{
+		if (!out.empty())
+			out += " ";
+		out += field;
+	}
+
+	void AppendTypeArgs(SharedStr& out, const std::vector<TokenID>* typeArgs)
+	{
+		if (!typeArgs || typeArgs->empty())
+			return;
+		out += ":";
+		bool first = true;
+		for (auto arg : *typeArgs)
+		{
+			if (!first)
+				out += ",";
+			first = false;
+			out += SharedStr(arg);
+		}
+	}
+
+	// the reference to write for a signature or type exemplar: what the source wrote when that was
+	// recorded (#1252), and otherwise a name that resolves from the function item itself
+	auto ExemplarRef(const TreeItem* functionItem, TokenID sourceName, const TreeItem* exemplar) -> SharedStr
+	{
+		if (sourceName)
+			return SharedStr(sourceName);
+		if (exemplar)
+			return functionItem->GetFindableName(exemplar);
+		return {};
+	}
+
+	// [b, e) split on `sep`, without allocating a string per piece
+	auto SplitOn(CharPtrRange range, char sep) -> std::vector<CharPtrRange>
+	{
+		std::vector<CharPtrRange> result;
+		CharPtr b = range.begin(), e = range.end();
+		while (b <= e)
+		{
+			CharPtr p = b;
+			while (p != e && *p != sep)
+				++p;
+			result.emplace_back(b, p);
+			if (p == e)
+				break;
+			b = p + 1;
+		}
+		return result;
+	}
+
+	auto ParseTypeArgs(CharPtrRange range) -> std::vector<TokenID>
+	{
+		std::vector<TokenID> result;
+		if (range.empty())
+			return result;
+		for (auto piece : SplitOn(range, ','))
+			if (!piece.empty())
+				result.push_back(GetTokenID_mt(SharedStr(piece).c_str()));
+		return result;
+	}
+
+	UInt32 ParseIndex(const TreeItem* functionItem, CharPtrRange range, CharPtr fieldName)
+	{
+		SharedStr text(range);
+		CharPtr b = text.c_str();
+		if (!*b)
+			functionItem->throwItemErrorF("FunctionSpec: '{}' has no parameter index", fieldName);
+		UInt32 result = 0;
+		for (CharPtr p = b; *p; ++p)
+		{
+			if (*p < '0' || *p > '9')
+				functionItem->throwItemErrorF("FunctionSpec: '{}' has a parameter index that is not a number: '{}'", fieldName, b);
+			result = result * 10 + UInt32(*p - '0');
+		}
+		return result;
+	}
+
+} // anonymous namespace
+
+TIC_CALL auto TreeItem_GetFunctionSpecAsStr(const TreeItem* functionItem) -> SharedStr
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	SharedStr result;
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (!specPtr)
+		return SharedStr("params=0"); // a function with no declaration of its own still is one
+	const auto& spec = *specPtr;
+
+	AppendField(result, mgFormat2SharedStr("params={}", spec.nrParams).c_str());
+	if (spec.resultName)
+		AppendField(result, mgFormat2SharedStr("result={}", spec.resultName).c_str());
+	if (spec.isVariantSet)
+		AppendField(result, "variantset");
+	if (spec.signatureOnly)
+		AppendField(result, "sigonly");
+	if (spec.hasRestParam)
+		AppendField(result, "rest");
+	if (spec.resultIsFunction)
+		AppendField(result, "resultfn");
+	if (spec.resultIsGenericUnit)
+		AppendField(result, "resultgenunit");
+
+	for (const auto& tv : spec.typeVars)
+		AppendField(result, mgFormat2SharedStr("typevar={}:{}", tv.first, tv.second).c_str());
+
+	for (const auto& gp : spec.genericParams)
+		AppendField(result, mgFormat2SharedStr("generic={}:{}:{}:{}"
+			, std::get<0>(gp), std::get<1>(gp), std::get<2>(gp), std::get<3>(gp) ? 1 : 0).c_str());
+
+	for (auto idx : spec.metaRefParams)
+		AppendField(result, mgFormat2SharedStr("metaref={}", idx).c_str());
+
+	// A parameter signature is written by REFERENCE, never by the exemplar's identity: the reader
+	// re-resolves it from the function item, so a signature declared further down the same file
+	// resolves exactly as a forward reference in .dms syntax does.
+	for (const auto& ps : spec.paramSigs)
+	{
+		UInt32 idx = std::get<0>(ps);
+		auto ref = ExemplarRef(functionItem, TreeItem_GetFunctionParamSigName(functionItem, idx), std::get<1>(ps).lock().get());
+		if (ref.empty())
+			continue;
+		SharedStr field = mgFormat2SharedStr("paramsig={}:{}", idx, ref);
+		AppendTypeArgs(field, &std::get<2>(ps));
+		AppendField(result, field.c_str());
+	}
+	// a signature that has not resolved yet carries no exemplar, so it is written from its name
+	for (const auto& pps : spec.pendingParamSigs)
+	{
+		SharedStr field = mgFormat2SharedStr("paramsig={}:{}", std::get<0>(pps), std::get<1>(pps));
+		AppendTypeArgs(field, &std::get<2>(pps));
+		AppendField(result, field.c_str());
+	}
+
+	for (const auto& pe : spec.paramTypeExemplars)
+	{
+		auto ref = ExemplarRef(functionItem, TokenID(), pe.second.lock().get());
+		if (!ref.empty())
+			AppendField(result, mgFormat2SharedStr("paramex={}:{}", pe.first, ref).c_str());
+	}
+
+	if (auto resultRef = ExemplarRef(functionItem, spec.resultSigName, spec.resultSig.lock().get()); !resultRef.empty())
+	{
+		SharedStr field = mgFormat2SharedStr("resultsig={}", resultRef);
+		AppendTypeArgs(field, spec.pendingResultSigName ? &spec.pendingResultSigTypeArgs : &spec.resultSigTypeArgs);
+		AppendField(result, field.c_str());
+	}
+	return result;
+}
+
+TIC_CALL void TreeItem_SetFunctionSpecFromStr(TreeItem* functionItem, CharPtr specStr)
+{
+	assert(functionItem);
+	assert(specStr);
+
+	// first, so that every setter below meets its IsFunctionItem precondition. SetIsFunction implies
+	// SetIsTemplate, so it does not matter whether the IsTemplate property element came first.
+	functionItem->SetIsFunction();
+
+	UInt32 nrParams = 0;
+	TokenID resultName;
+	bool variantSet = false, signatureOnly = false, hasRest = false;
+	bool resultIsFunction = false, resultIsGenericUnit = false;
+	std::vector<std::pair<TokenID, TokenID>> typeVars;
+	std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams;
+	std::vector<UInt32> metaRefParams;
+	std::vector<std::tuple<UInt32, TokenID, std::vector<TokenID>>> paramSigs;
+	std::vector<std::pair<UInt32, SharedStr>> paramExemplars;
+	TokenID resultSigName;
+	std::vector<TokenID> resultSigTypeArgs;
+
+	for (auto field : SplitOn(CharPtrRange(specStr, specStr + StrLen(specStr)), ' '))
+	{
+		if (field.empty())
+			continue;
+		CharPtr eq = field.begin();
+		while (eq != field.end() && *eq != '=')
+			++eq;
+		CharPtrRange key(field.begin(), eq);
+		CharPtrRange value(eq == field.end() ? eq : eq + 1, field.end());
+		SharedStr keyStr(key);
+
+		if (keyStr == "params")
+			nrParams = ParseIndex(functionItem, value, "params");
+		else if (keyStr == "result")
+			resultName = GetTokenID_mt(SharedStr(value).c_str());
+		else if (keyStr == "variantset")
+			variantSet = true;
+		else if (keyStr == "sigonly")
+			signatureOnly = true;
+		else if (keyStr == "rest")
+			hasRest = true;
+		else if (keyStr == "resultfn")
+			resultIsFunction = true;
+		else if (keyStr == "resultgenunit")
+			resultIsGenericUnit = true;
+		else if (keyStr == "typevar")
+		{
+			auto parts = SplitOn(value, ':');
+			if (parts.size() != 2)
+				functionItem->throwItemErrorF("FunctionSpec: 'typevar' expects '<var>:<constraint>', got '{}'", SharedStr(value));
+			typeVars.emplace_back(GetTokenID_mt(SharedStr(parts[0]).c_str()), GetTokenID_mt(SharedStr(parts[1]).c_str()));
+		}
+		else if (keyStr == "generic")
+		{
+			auto parts = SplitOn(value, ':');
+			if (parts.size() != 4)
+				functionItem->throwItemErrorF("FunctionSpec: 'generic' expects '<index>:<var>:<constraint>:<isDomainVar>', got '{}'", SharedStr(value));
+			genericParams.emplace_back(ParseIndex(functionItem, parts[0], "generic")
+				, GetTokenID_mt(SharedStr(parts[1]).c_str())
+				, GetTokenID_mt(SharedStr(parts[2]).c_str())
+				, SharedStr(parts[3]) == "1");
+		}
+		else if (keyStr == "metaref")
+			metaRefParams.push_back(ParseIndex(functionItem, value, "metaref"));
+		else if (keyStr == "paramsig")
+		{
+			auto parts = SplitOn(value, ':');
+			if (parts.size() < 2)
+				functionItem->throwItemErrorF("FunctionSpec: 'paramsig' expects '<index>:<name>[:<typeargs>]', got '{}'", SharedStr(value));
+			paramSigs.emplace_back(ParseIndex(functionItem, parts[0], "paramsig")
+				, GetTokenID_mt(SharedStr(parts[1]).c_str())
+				, parts.size() > 2 ? ParseTypeArgs(parts[2]) : std::vector<TokenID>{});
+		}
+		else if (keyStr == "paramex")
+		{
+			auto parts = SplitOn(value, ':');
+			if (parts.size() != 2)
+				functionItem->throwItemErrorF("FunctionSpec: 'paramex' expects '<index>:<name>', got '{}'", SharedStr(value));
+			paramExemplars.emplace_back(ParseIndex(functionItem, parts[0], "paramex"), SharedStr(parts[1]));
+		}
+		else if (keyStr == "resultsig")
+		{
+			auto parts = SplitOn(value, ':');
+			if (parts.empty() || parts[0].empty())
+				functionItem->throwItemErrorF("FunctionSpec: 'resultsig' expects '<name>[:<typeargs>]', got '{}'", SharedStr(value));
+			resultSigName = GetTokenID_mt(SharedStr(parts[0]).c_str());
+			if (parts.size() > 1)
+				resultSigTypeArgs = ParseTypeArgs(parts[1]);
+		}
+		else
+			functionItem->throwItemErrorF("FunctionSpec: unknown field '{}'", keyStr);
+	}
+
+	// the order of ConfigProd::OnFunctionDeclEnd: the spec first, because SetFunctionSpec replaces
+	// the whole record, then everything that adds to it
+	TreeItem_SetFunctionSpec(functionItem, nrParams, resultName);
+	if (variantSet)
+		TreeItem_SetFunctionVariantSet(functionItem);
+
+	// Resolve now when the reference already names a declared signature, and defer only when it does
+	// not, which is the order ConfigProd works in. It matters for more than speed: only a RESOLVED
+	// signature carries its type-application arguments where the config dump reads them
+	// (TreeItem_GetFunctionParamSigTypeArgs looks in paramSigs), so a spec that deferred everything
+	// wrote 'f: nuf' for what the source declared as 'f: nuf<Vx, Dx>'.
+	auto resolveSig = [functionItem](TokenID name) -> const TreeItem*
+	{
+		SharedStr nameStr(name); // materialized: the walk takes the token registry lock itself
+		auto found = TreeItem_ResolveTypeRefRaw(functionItem, nameStr.begin(), nameStr.send());
+		return (found && found->IsFunctionItem()) ? found : nullptr;
+	};
+	for (const auto& ps : paramSigs)
+	{
+		if (auto found = resolveSig(std::get<1>(ps)))
+			TreeItem_AddFunctionParamSignature(functionItem, std::get<0>(ps), found, std::get<2>(ps), std::get<1>(ps));
+		else
+			TreeItem_AddPendingFunctionParamSig(functionItem, std::get<0>(ps), std::get<1>(ps), std::get<2>(ps));
+	}
+	for (const auto& pe : paramExemplars)
+	{
+		// K11a by-example: resolved here rather than deferred, as ConfigProd resolves it; the dump
+		// preserves declaration order, so an exemplar that resolved for the .dms source resolves here
+		auto exemplar = TreeItem_ResolveTypeRefRaw(functionItem, pe.second.begin(), pe.second.send());
+		if (!exemplar)
+			functionItem->throwItemErrorF("FunctionSpec: parameter {}: the type example '{}' does not resolve to a declared item"
+				, pe.first + 1, pe.second);
+		TreeItem_AddFunctionParamTypeExemplar(functionItem, pe.first, exemplar);
+	}
+	for (const auto& gp : genericParams)
+		TreeItem_AddFunctionGenericParam(functionItem, std::get<0>(gp), std::get<1>(gp), std::get<2>(gp), std::get<3>(gp));
+	for (auto idx : metaRefParams)
+		TreeItem_AddFunctionMetaRefParam(functionItem, idx);
+	if (hasRest)
+		TreeItem_SetFunctionRestParam(functionItem);
+	if (signatureOnly)
+		TreeItem_SetFunctionSignatureOnly(functionItem);
+	if (resultSigName)
+	{
+		if (auto found = resolveSig(resultSigName))
+			TreeItem_SetFunctionResultSig(functionItem, true, found, resultSigTypeArgs, resultSigName);
+		else
+			TreeItem_SetPendingFunctionResultSig(functionItem, resultSigName, resultSigTypeArgs);
+	}
+	else if (resultIsFunction)
+		TreeItem_SetFunctionResultSig(functionItem, true, nullptr, {}, TokenID()); // a bare '-> function'
+	if (resultIsGenericUnit)
+		TreeItem_SetFunctionResultGenericUnit(functionItem);
+	if (!typeVars.empty())
+		TreeItem_SetFunctionTypeVars(functionItem, std::move(typeVars));
+	TreeItem_MakeStrictScope(functionItem);
 }

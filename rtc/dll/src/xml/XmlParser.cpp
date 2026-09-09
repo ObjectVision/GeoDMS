@@ -156,35 +156,51 @@ void XmlParser::TransformChar(char& nextChar)
 
 void XmlParser::ReadText(XmlElement::TextType& elementText)
 {
-	bool newToken = true; 
-	bool writeSpace = false;
+	// Element text is kept as it stands, and only the white space before the first and after the
+	// last non-space character is dropped. Runs of white space in between used to be collapsed to a
+	// single space, which is invisible in a Descr but flattened every multi-line expression and
+	// every aligned value array the config dump writes: a configuration written as XML and read
+	// back differed from its source on every one of them (#1261). Trimming the two ends is what
+	// makes the spaced-out markup of the older fixtures, '< Descr > a &amp; < / Descr >', still
+	// yield 'a &' rather than ' a & '.
+	bool seenNonSpace = false;
 	char nextChar = NextChar();
 	while (!AtEnd() && nextChar != '<') // not EOF: ReadChar answers 0 at the end, see TransformChar
 	{
-		if (isspace(UChar(nextChar)))
+		if (!isspace(UChar(nextChar)))
 		{
-			if (!newToken)
-			{
-				writeSpace = true;
-				newToken = true;
-			}
-		}
-		else
-		{
-			if (writeSpace)
-			{
-				elementText.push_back(' ');
-				writeSpace = false;
-			}
 			TransformChar(nextChar);
 			elementText.push_back(nextChar);
-			newToken = false;
+			seenNonSpace = true;
 		}
+		else if (seenNonSpace)
+			elementText.push_back(nextChar); // interior white space, verbatim
 		nextChar = ReadChar();
 	}
+
+	// XML line-end normalization (XML 1.0 section 2.11): a CRLF and a lone CR each count as one LF.
+	// The config dump is written through a text-mode stream, so on Windows its line ends arrive here
+	// as CRLF; without this an expression read back from an .xml would carry a CR that the .dms
+	// source it was written from never had, and every further round trip would add one more (#1251
+	// is the same defect on the writing side).
+	auto out = elementText.begin();
+	for (auto in = elementText.begin(), e = elementText.end(); in != e; ++in)
+	{
+		if (*in == '\r')
+		{
+			*out++ = '\n';
+			if (in + 1 != e && in[1] == '\n')
+				++in;
+		}
+		else
+			*out++ = *in;
+	}
+	elementText.erase(out, elementText.end());
+
+	while (!elementText.empty() && isspace(UChar(elementText.back())))
+		elementText.pop_back();
 	elementText.push_back(0);
 }
-
 void XmlParser::ReadEncl(XmlElement& rootEnclElement)
 {
 	// Iterative form of the original ReadElem <-> ReadEncl mutual recursion.

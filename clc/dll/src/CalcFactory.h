@@ -24,6 +24,7 @@ struct CalcFactory : AcConstructor
 
 	AbstrCalculatorRef ConstructExpr(const TreeItem* context, WeakStr expr, CalcRole cr) override;
 	AbstrCalculatorRef ConstructDBT(AbstrDataItem* context, const AbstrCalculator* src) override;
+	AbstrCalculatorRef ConstructDataBlock(AbstrDataItem* context, WeakStr dataBlockText) override; // #1261
 	LispRef RewriteExprTop(LispPtr org) override;
 };
 

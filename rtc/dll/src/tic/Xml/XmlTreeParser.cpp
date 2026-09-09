@@ -41,6 +41,13 @@ XmlTreeParser::~XmlTreeParser()
 #include "mci/ValueClass.h"
 #include "mci/PropDef.h"
 #include "mci/PropdefEnums.h"
+#include "TicPropDefConst.h"    // FUNCTIONSPEC_NAME, DATABLOCK_NAME
+#include "TreeItemFunctionSpec.h" // #1261: TreeItem_SetFunctionSpecFromStr
+#include "AbstrCalculator.h"      // #1261: ConstructFromDataBlockStr
+#include "AbstrDataItem.h"
+
+static StaticTokenID functionSpecID(FUNCTIONSPEC_NAME);
+static StaticTokenID dataBlockID(DATABLOCK_NAME);
 
 
 struct XmlContextHandle : AbstrContextHandle
@@ -67,6 +74,7 @@ SharedMutableTreeItem XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstIt
 {
 	m_CurrItem = root;
 	m_EnclosingItems.clear(); // the outermost element pushes root as its enclosing item
+	m_PendingFunctionSpecs.clear();
 	m_RootIsFirstItem = rootIsFirstItem;
 
 	DMS_CALL_BEGIN
@@ -166,6 +174,14 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 		// that maps to no MetaClass creates no item to point back to either. Reading the parent
 		// element made both of those look like "no parent", which asserted on every .xml fragment
 		// included into a container and, in a headless Debug run, killed the load (#1254).
+		// #1261: the function declaration, now that the parameters and the body are in place. Before
+		// the item is popped, so that a failing specification is reported against the function item.
+		if (!m_PendingFunctionSpecs.empty() && m_PendingFunctionSpecs.back().first == thisItem)
+		{
+			auto spec = std::move(m_PendingFunctionSpecs.back());
+			m_PendingFunctionSpecs.pop_back();
+			TreeItem_SetFunctionSpecFromStr(thisItem, spec.second.c_str());
+		}
 		assert(!m_EnclosingItems.empty());
 		TreeItem* enclosingItem = m_EnclosingItems.back();
 		m_EnclosingItems.pop_back();
@@ -185,6 +201,26 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 	if (parentItem)
 	{
 		dms_assert(parentItem == m_CurrItem);
+		// #1261: not a property, so not looked up as one: the function declaration of the item this
+		// element sits in. Held until that item's element closes, see m_PendingFunctionSpecs.
+		if (element.m_NameID == functionSpecID)
+		{
+			m_PendingFunctionSpecs.emplace_back(parentItem, SharedStr(CharPtrRange(&*element.m_EnclText.begin())));
+			return false;
+		}
+		// #1261: idem for a configured value array. Applied here rather than deferred: it needs
+		// nothing but the item it hangs on, and the calculator is built by the .dms side of the
+		// engine through the factory that stx installs, since DataBlockTask is not reachable here.
+		if (element.m_NameID == dataBlockID)
+		{
+			if (!IsDataItem(parentItem))
+				throwErrorF("XML", "{}({}, {}): a DataBlock element is only allowed on a DATAITEM, not on {}"
+					, Buffer().FileName(), GetLineNr(), GetColNr(), parentItem->GetNameID());
+			SharedStr dataBlockText(CharPtrRange(&*element.m_EnclText.begin()));
+			parentItem->GetOrCreateConfigProperties().mc_Calculator =
+				AbstrCalculator::ConstructFromDataBlockStr(AsDataItem(parentItem), dataBlockText);
+			return false;
+		}
 		const Class* cls = m_CurrItem->GetDynamicClass();
 		AbstrPropDef* propDef = cls->FindPropDef(element.m_NameID);
 		if (!propDef)

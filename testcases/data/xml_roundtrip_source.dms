@@ -1,0 +1,37 @@
+container xmlsrc
+{
+	unit<uint32> Road := range(uint32, 0, 4)
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+		attribute<float64> cap  : [ 200.0, 100.0, 100.0, 300.0 ];
+	}
+
+	parameter<float64> factor := 2.0;
+
+	template Doubler
+	{
+		unit<uint32>       Dx;
+		attribute<float64> x (Dx);
+		attribute<float64> result (Dx) := x * factor;
+	}
+
+	container d := Doubler(Road, Road/flow);
+
+	function CongestionRatio(
+		unit<uint32>       Rd;
+		attribute<float64> flow (Rd);
+		attribute<float64> cap  (Rd))
+	-> attribute<float64> (Rd) := min_elem(raw, 1.0);
+	{
+		attribute<float64> raw (Rd) := flow / cap;
+	}
+
+	container cr := instantiate CongestionRatio(Road, Road/flow, Road/cap);
+
+	function Twice<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := x + x;
+
+	attribute<float64> twice_flow (Road) := Twice(Road/flow);
+
+	parameter<float64> multiline := sum(Road/flow)
+		+ sum(Road/cap);
+}

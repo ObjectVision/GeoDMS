@@ -82,6 +82,17 @@ auto    TreeItem_GetFunctionResultSig(const TreeItem* functionItem) -> SharedTre
 const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem* functionItem);
 TokenID TreeItem_GetFunctionResultSigName(const TreeItem* functionItem); // #1252: as the source wrote it
 void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);
+
+// #1261: the whole specification as one text, for the XML configuration notation. That notation
+// writes a tree item as an element with its properties, and has no declaration grammar of its own,
+// so a function item used to be written as a plain container with IsTemplate and everything that
+// makes it a function was lost on the way out. The config dump writes this text into a
+// <FunctionSpec> element and XmlTreeParser hands it straight back, which is the round trip the DMS
+// notation gets from XML_DumpFunctionDecl plus the parser. Reading applies it in the order
+// ConfigProd::OnFunctionDeclEnd does, references to signature exemplars included, which resolve at
+// UpdateMetaInfo through the same pending mechanism a forward reference in .dms syntax uses.
+TIC_CALL auto TreeItem_GetFunctionSpecAsStr(const TreeItem* functionItem) -> SharedStr;
+TIC_CALL void TreeItem_SetFunctionSpecFromStr(TreeItem* functionItem, CharPtr specStr);
 // drop the spec of a function item that is being destroyed; called from ~TreeItem, which is
 // the only reader of the assoc outside this component
 void    TreeItem_EraseFunctionSpec(const TreeItem* functionItem);

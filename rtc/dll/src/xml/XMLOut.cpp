@@ -169,8 +169,18 @@ inline void OutStream_XmlBase_WriteChar(OutStream_XmlBase* self, char ch)
 		self->FormattingStream() << '&' << symb << ';';
 	else if (ch == '\n')
 	{
-		self->FormattingStream() << "<BR/>";
-		self->NewLine();
+		// #1261: a line end inside element text is a line end, not markup. <BR/> belongs to the HTML
+		// detail pages, which are read by people; in the XML configuration notation, which is read
+		// BACK, it made every multi-line expression unreadable: the reader took the text up to the
+		// <BR/> as the element's value and dropped what followed into the tail of an element that
+		// creates nothing, so a rule written over three lines came back as its first line.
+		if (self->GetSyntaxType() == OutStreamBase::ST_XML)
+			self->FormattingStream() << ch;
+		else
+		{
+			self->FormattingStream() << "<BR/>";
+			self->NewLine();
+		}
 	}
 	else
 		self->FormattingStream() << ch;

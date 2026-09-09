@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<DocType name="DMS">
+<TreeItem name="xmlsrc">
+	<FreeData>True
+	</FreeData>
+	<unit name="Road"
+		 ValueType="uint32">
+		<CalcRule>range(uint32, 0, 4)
+		</CalcRule>
+		<DATAITEM name="flow"
+			 DomainUnit="."
+			 ValuesUnit="float64">
+			<DataBlock>[ 100.0, 200.0,  50.0, 400.0 ]
+			</DataBlock>
+		</DATAITEM>
+		<DATAITEM name="cap"
+			 DomainUnit="."
+			 ValuesUnit="float64">
+			<DataBlock>[ 200.0, 100.0, 100.0, 300.0 ]
+			</DataBlock>
+		</DATAITEM>
+	</unit>
+	<DATAITEM name="factor"
+		 ValuesUnit="float64">
+		<CalcRule>2.0
+		</CalcRule>
+	</DATAITEM>
+	<TreeItem name="Doubler">
+		<IsTemplate>True
+		</IsTemplate>
+		<unit name="Dx"
+			 ValueType="uint32">
+		</unit>
+		<DATAITEM name="x"
+			 DomainUnit="Dx"
+			 ValuesUnit="float64">
+		</DATAITEM>
+		<DATAITEM name="result"
+			 DomainUnit="Dx"
+			 ValuesUnit="float64">
+			<CalcRule>x * factor
+			</CalcRule>
+		</DATAITEM>
+	</TreeItem>
+	<TreeItem name="d">
+		<CalcRule>Doubler(Road, Road/flow)
+		</CalcRule>
+	</TreeItem>
+	<TreeItem name="CongestionRatio">
+		<FunctionSpec>params=3 result=result
+		</FunctionSpec>
+		<IsTemplate>True
+		</IsTemplate>
+		<unit name="Rd"
+			 ValueType="uint32">
+		</unit>
+		<DATAITEM name="flow"
+			 DomainUnit="Rd"
+			 ValuesUnit="float64">
+		</DATAITEM>
+		<DATAITEM name="cap"
+			 DomainUnit="Rd"
+			 ValuesUnit="float64">
+		</DATAITEM>
+		<DATAITEM name="raw"
+			 DomainUnit="Rd"
+			 ValuesUnit="float64">
+			<CalcRule>flow / cap
+			</CalcRule>
+		</DATAITEM>
+		<DATAITEM name="result"
+			 DomainUnit="Rd"
+			 ValuesUnit="float64">
+			<CalcRule>min_elem(raw, 1.0)
+			</CalcRule>
+		</DATAITEM>
+	</TreeItem>
+	<TreeItem name="cr">
+		<CalcRule>instantiate CongestionRatio(Road, Road/flow, Road/cap)
+		</CalcRule>
+	</TreeItem>
+	<TreeItem name="Twice">
+		<FunctionSpec>params=1 result=result typevar=Vx:numerics generic=0:Vx:numerics:0
+		</FunctionSpec>
+		<IsTemplate>True
+		</IsTemplate>
+		<DATAITEM name="x"
+			 DomainUnit="."
+			 ValuesUnit="Vx">
+		</DATAITEM>
+		<DATAITEM name="result"
+			 DomainUnit="."
+			 ValuesUnit="Vx">
+			<CalcRule>x + x
+			</CalcRule>
+		</DATAITEM>
+	</TreeItem>
+	<DATAITEM name="twice_flow"
+		 DomainUnit="Road"
+		 ValuesUnit="float64">
+		<CalcRule>Twice(Road/flow)
+		</CalcRule>
+	</DATAITEM>
+	<DATAITEM name="multiline"
+		 ValuesUnit="float64">
+		<CalcRule>sum(Road/flow)
+		+ sum(Road/cap)
+		</CalcRule>
+	</DATAITEM>
+	<TreeItem name="ConfigSettings">
+		<IsHidden>True
+		</IsHidden>
+	</TreeItem>
+</TreeItem>
+</DocType>

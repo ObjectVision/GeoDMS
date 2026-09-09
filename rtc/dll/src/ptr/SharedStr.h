@@ -290,7 +290,13 @@ struct SharedCharArrayPtrWrap : protected BasePtr
 		auto sz = get_ptr()->size();
 		assert(sz);
 		assert(begin()[sz - 1] == char(0));
-		return strncmp(begin(), b, sz) == 0 && b[sz] == char(0); // ensure that b is also terminated with 0
+		// #1261: sz COUNTS the terminating zero (the assert above), so strncmp already compared it:
+		// equal over sz bytes means b carries a zero at sz-1 and is therefore exactly this string.
+		// The extra b[sz] test that used to stand here read the byte AFTER a string literal's own
+		// terminator, which is out of bounds; whether it answered zero depended on what the linker
+		// happened to place next, so a comparison that should hold could silently fail. Measured on
+		// SharedStr("sigonly") == "sigonly", which was false in a Release build.
+		return strncmp(begin(), b, sz) == 0;
 	}
 
 	bool operator !=(CharPtr b) const

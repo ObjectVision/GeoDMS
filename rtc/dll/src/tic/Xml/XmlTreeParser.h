@@ -37,6 +37,14 @@ private:
 	SharedMutableTreeItem m_RootHolder; // owns a brand-new (parentless) root for the parse lifetime
 	bool                  m_RootIsFirstItem = false;
 
+	// #1261: the text of a <FunctionSpec> element, held until the element of the item it belongs to
+	// closes. The dump writes it among the property elements, so it is read BEFORE the parameters
+	// and the body items exist, while ConfigProd applies the same specification at the end of the
+	// declaration, with the parameters in place. Applying it there rather than on sight keeps the
+	// two readers in step; entries stack and unstack with the item elements, so the one for the item
+	// that is closing is the last.
+	std::vector<std::pair<TreeItem*, SharedStr>> m_PendingFunctionSpecs;
+
 	UInt32 m_CurrItemLevel;
 	UInt32 m_CurrElemLevel;
 

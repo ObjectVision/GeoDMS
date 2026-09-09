@@ -40,6 +40,11 @@
 #define SIZE_EXPECTATION_NAME   "SizeExpectation"
 #define SIZE_UPPERBOUND_NAME    "SizeUpperbound"
 #define LABEL_NAME              "Label"
+// #1261: not a property but the element the XML notation carries a function item's declaration in;
+// there is no PropDef of this name, TreeItem::XML_Dump writes it and XmlTreeParser reads it.
+#define FUNCTIONSPEC_NAME       "FunctionSpec"
+// #1261: idem for a configured value array ('[ 1, 2, 3 ]') of a data item in the XML notation.
+#define DATABLOCK_NAME          "DataBlock"
 
 
 #define	NRSUBITEMS_NAME         "NrSubItems"

@@ -500,6 +500,11 @@ AbstrCalculatorRef AbstrCalculator::ConstructFromDBT(AbstrDataItem* context, con
 	return GetConstructor()->ConstructDBT(context, src);
 }
 
+AbstrCalculatorRef AbstrCalculator::ConstructFromDataBlockStr(AbstrDataItem* context, WeakStr dataBlockText)
+{
+	return GetConstructor()->ConstructDataBlock(context, dataBlockText);
+}
+
 SharedStr AbstrCalculator::GetAsFLispExprOrg(FormattingFlags ff) const
 {
 	return AsFLispSharedStr(GetLispExprOrg(), ff);

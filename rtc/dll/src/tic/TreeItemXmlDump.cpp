@@ -403,6 +403,16 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 
 	xmlOutStr->DumpPropList(this);
 
+	// #1261: the XML notation has no declaration grammar for the 'function' keyword, so a function
+	// item is written in the generic container form above plus this one element, which carries what
+	// makes it a function: the parameter count, the designated result, the type variables, the
+	// signature references and the variant flags. Without it a function came back from an XML dump
+	// as a plain container with IsTemplate, which is the rendering the DMS path avoids for being
+	// misleading and unpastable. ST_XML only: ST_DMS took XML_DumpFunctionDecl above, and the detail
+	// pages (ST_HTM, ST_MD) are read by people, not reloaded.
+	if (xmlOutStr->GetSyntaxType() == OutStreamBase::ST_XML && IsFunctionItem())
+		xmlOutStr->DumpSubTag(FUNCTIONSPEC_NAME, TreeItem_GetFunctionSpecAsStr(this).c_str(), false);
+
 	// #1264: a stored item whose rule names only items inside this store carries that rule into the
 	// dictionary instead of its bytes, and the reader re-applies it. Written VERBATIM: the reader
 	// merges the dictionary as a subtree under its own holder, so a store-relative identifier
@@ -430,7 +440,16 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	if (IsDataItem(this))
 	{
 		bool isDataBlock = GetCalculatorMember() && GetCalculatorMember()->IsDataBlock();
-		if (isDataBlock || HasConfigData())
+		// #1261: in the XML notation a configured value array goes into an element of its own rather
+		// than into the item element's text. It used to be written as text after the property
+		// elements, which put it in the tail of whichever element happened to come last, and the
+		// reader dropped it: a configuration written as XML came back with every value array gone,
+		// leaving "No calculation rule or storage manager was specified" on the first item that had
+		// one. An element is also what the rest of this notation uses for everything but the
+		// construction attributes.
+		if (isDataBlock && xmlOutStr->GetSyntaxType() == OutStreamBase::ST_XML)
+			xmlOutStr->DumpSubTag(DATABLOCK_NAME, GetCalculatorMember()->GetExpr().c_str(), false);
+		else if (isDataBlock || HasConfigData())
 		{
 			xmlOutStr->DumpSubTagDelim();
 			if (isDataBlock)
