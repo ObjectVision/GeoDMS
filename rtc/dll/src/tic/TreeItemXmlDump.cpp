@@ -466,7 +466,19 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 			TreeItemInterestPtr xholder(this);
 			this->PrepareDataUsage(DrlType::Certain);
 
-			xmlOutStr->DumpSubTag("Range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
+			// #1267: a Range says how many elements there are, not how they were cut into tiles, and the
+			// stored .dat and .seq layouts are per tile. A reader handed only a range tiles it the way it
+			// tiles any range, so a store written over a TiledUnit did not read back at all: the file-size
+			// guard rejected the fixed-size arrays outright, and the sequence arrays failed a chunk check.
+			// Where the tiling is not the one a reader arrives at by itself, the dictionary therefore
+			// carries the tiling as a RULE -- TiledUnit(...) over the same range, printed from the tile
+			// range data itself -- which reproduces the range as well, so the Range subtag would only
+			// restate it. Everything else keeps the Range it always had.
+			auto tilingRule = au->GetTilingAsCalcRuleStr();
+			if (!tilingRule.empty())
+				xmlOutStr->DumpSubTag(CALCRULE_NAME, tilingRule.c_str(), true);
+			else
+				xmlOutStr->DumpSubTag("Range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
 		}
 	}
 

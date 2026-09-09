@@ -349,7 +349,15 @@ LispRef slUnionDataLispExpr(LispPtr valueList, SizeT sz)
 		dms_assert(valueList.Right().EndP());
 		return valueList.Left();
 	}
-	static auto uint32Ref = ExprList(ValueWrap<UInt32>::GetStaticClass()->GetNameID());
+	// #1267: NOT a function-local static. AsLispRef takes the base by rvalue reference and the term
+	// does not survive being handed over, so the second call and every call after it built the union
+	// domain on an EMPTY base. It printed as "()" -- `cat_range(() , uint32(0 ), uint32(3 ))` --
+	// which was invisible while these terms were only cache keys and error text, and fatal as soon
+	// as the MMD dictionary began writing one as a calculation rule: the reader stops on
+	// "sub-expression expected after '('". The dictionary is re-emitted at every unit commit
+	// (#1155), so the file on disk is never the first emission and the fault was always present.
+	// Building the term costs one small list.
+	auto uint32Ref = ExprList(ValueWrap<UInt32>::GetStaticClass()->GetNameID());
 	auto unionRange = AsLispRef(Range<UInt32>(0, sz), std::move(uint32Ref), true);
 
 	return LispRef(LispRef(token::union_data), LispRef(unionRange, valueList));

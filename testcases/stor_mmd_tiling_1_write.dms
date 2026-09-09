@@ -1,0 +1,98 @@
+// MMD stores over domains with every kind of tiling (issue #1267). The dictionary of an .mmd store
+// used to record a domain by its Range only, and a Range says how many elements there are, not how
+// they were cut into tiles. Since the .dat and .seq layouts are per tile, a reader handed only a
+// range tiled it the way it tiles any range and could not read such a store back at all:
+//
+//   more than one write tile   `FileTileArray Error: stored array ... holds N bytes, but the domain
+//                              it is read into requires exactly M bytes`, for fixed-size AND for
+//                              sequence attributes;
+//   exactly one write tile     the fixed-size attributes read correctly and the sequence attributes
+//                              failed with `Check Failed Error: orgFreeChunk.second >= chunk.second`.
+//
+// Since GeoDMS 20.20.0 a tiling that a reader cannot derive from the range is recorded as a RULE:
+// the dictionary carries `TiledUnit(...)` over the same range instead of the Range subtag, printed
+// from the unit's own tile range data (AbstrTileRangeData::GetAsLispRef). A tiling a reader arrives
+// at by itself keeps the Range it always had.
+//
+// The four tilings the engine has are all here, each with one sequence attribute (string) and one
+// fixed-size attribute (dpoint), which is the split the two failures above follow:
+//
+//   def    the default tiling, 100,000 elements in 2 tiles of 65,536   -- control, worked before
+//   reg    a regular tiling, TiledUnit(30000[base]), 4 tiles           -- both attributes failed
+//   one    a regular tiling of exactly ONE tile over the same range    -- only the string failed
+//   irr    an irregular tiling, 3 unequal tiles covering the range     -- both attributes failed
+//   sml    a small-range domain (uint8), which has no tiling of its own -- control, worked before
+//
+// `def` and `sml` are not decoration: they are what pins that this change did not turn the ordinary
+// case into a rule. The reader's own default tiling of 100,000 elements is 2 tiles, so `one` and
+// `reg` disagree with it in both directions, one coarser and one finer.
+//
+// This config only WRITES the store; stor_mmd_tiling_2_read.dms reads it back and checks it. THE
+// TWO BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file
+// name, and the `_1_write` / `_2_read` in the names is what orders them. The coordinate unit is
+// declared OUTSIDE the store on purpose, as a real configuration has it: it makes the store carry
+// the #1154 external-unit restrictions beside the tiling, and the reader has to declare it too.
+container stor_mmd_tiling_1_write
+{
+	container geometries
+	{
+		unit<dpoint> rdc_base : SpatialReference = "EPSG:28992";
+		unit<dpoint> rdc := range(rdc_base, point_yx(300000d, 0d), point_yx(625000d, 280000d));
+	}
+
+	unit<uint32> base := range(uint32, 0, 100000);
+
+	unit<uint32> tiles : nrofrows = 3
+	{
+		attribute<base> lb : [     0, 10000,  55000];
+		attribute<base> ub : [ 10000, 55000, 100000];
+	}
+
+	unit<uint32> dom_def := range(uint32, 0, 100000);      // default tiling
+	unit<uint32> dom_reg := TiledUnit(30000[base]);        // regular, 4 tiles
+	unit<uint32> dom_one := TiledUnit(100000[base]);       // regular, exactly 1 tile
+	unit<uint32> dom_irr := TiledUnit(tiles/lb, tiles/ub); // irregular, 3 unequal tiles
+	unit<uint8>  dom_sml : nrofrows = 200;                 // small range data, no tiling
+
+	attribute<string>         id_def  (dom_def) := 'id_' + string(id(dom_def));
+	attribute<geometries/rdc> geo_def (dom_def) := point_yx(300000d + float64(id(dom_def) / 1000) * 100d, float64(id(dom_def) % 1000) * 100d, geometries/rdc);
+
+	attribute<string>         id_reg  (dom_reg) := 'id_' + string(id(dom_reg));
+	attribute<geometries/rdc> geo_reg (dom_reg) := point_yx(300000d + float64(id(dom_reg) / 1000) * 100d, float64(id(dom_reg) % 1000) * 100d, geometries/rdc);
+
+	attribute<string>         id_one  (dom_one) := 'id_' + string(id(dom_one));
+	attribute<geometries/rdc> geo_one (dom_one) := point_yx(300000d + float64(id(dom_one) / 1000) * 100d, float64(id(dom_one) % 1000) * 100d, geometries/rdc);
+
+	attribute<string>         id_irr  (dom_irr) := 'id_' + string(id(dom_irr));
+	attribute<geometries/rdc> geo_irr (dom_irr) := point_yx(300000d + float64(id(dom_irr) / 1000) * 100d, float64(id(dom_irr) % 1000) * 100d, geometries/rdc);
+
+	attribute<string>         naam_sml (dom_sml) := 'lab_' + string(id(dom_sml));
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiling.mmd"
+	{
+		unit<uint32> def := dom_def
+		{
+			attribute<string>         identificatie := id_def;
+			attribute<geometries/rdc> geometry      := geo_def;
+		}
+		unit<uint32> reg := dom_reg
+		{
+			attribute<string>         identificatie := id_reg;
+			attribute<geometries/rdc> geometry      := geo_reg;
+		}
+		unit<uint32> one := dom_one
+		{
+			attribute<string>         identificatie := id_one;
+			attribute<geometries/rdc> geometry      := geo_one;
+		}
+		unit<uint32> irr := dom_irr
+		{
+			attribute<string>         identificatie := id_irr;
+			attribute<geometries/rdc> geometry      := geo_irr;
+		}
+		unit<uint8> sml := dom_sml
+		{
+			attribute<string> naam := naam_sml;
+		}
+	}
+}

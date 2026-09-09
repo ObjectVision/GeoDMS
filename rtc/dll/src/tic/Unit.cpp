@@ -1422,6 +1422,45 @@ SharedStr Unit<V>::GetRangeAsStr(FormattingFlags ff) const
 		return AbstrUnit::GetRangeAsStr(ff);
 }
 
+// #1267: the tiling of this unit, as a rule that reproduces it.
+//
+// The tile range data already knows how to say what it is: GetAsLispRef is the very term the key
+// expression of a configured unit carries, so printing it yields an expression that rebuilds this
+// tiling and that the ordinary parser reads back. GetCurrSegmInfo, not m_RangeDataPtr: what must be
+// recorded is the tiling the data was laid out with, which for a unit that only refers to another
+// lives on that other one.
+//
+// Empty where the tiling needs no recording. SimpleRangeData, SmallRangeData, the default tiling and
+// a fixed range all answer with the plain range term, which the Range subtag already says and which
+// a reader reconstructs by itself; only the regular and the irregular form answer with a TiledUnit
+// application. That head symbol is the test, rather than GetTileTypeID, which is not virtual on the
+// abstract base and reports `simple` for the default tiling.
+//
+// NoLimitInLispExpr is not decoration: without it PrintAsFLisp stops at MAX_PRINT_LEVEL (5) and
+// writes "..." into the middle of the rule. No ThousandSeparator either, for the same reason -- the
+// text has to parse.
+template <class V>
+SharedStr Unit<V>::GetTilingAsCalcRuleStr() const
+{
+	if constexpr (ranged_unit_v<V> || fixed_range_unit_v<V>)
+	{
+		auto si = this->GetCurrSegmInfo();
+		if (!si)
+			return {};
+
+		auto expr = si->GetAsLispRef(ExprList(this->GetValueType()->GetNameID()), this->GetTSF(TSF_Categorical));
+		if (!expr.IsRealList())
+			return {};
+		auto head = expr.Left();
+		if (!head.IsSymb() || head.GetSymbID() != token::TiledUnit)
+			return {};
+
+		return AsFLispSharedStr(expr, FormattingFlags::NoLimitInLispExpr);
+	}
+	else
+		return {};
+}
+
 //----------------------------------------------------------------------
 // Unit member funcs implementations
 //----------------------------------------------------------------------

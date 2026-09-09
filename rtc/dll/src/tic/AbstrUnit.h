@@ -223,6 +223,15 @@ public:
 //	Generalization
 	virtual SharedStr GetRangeAsStr(FormattingFlags ff) const;
 
+	// #1267: this unit's TILING as a calculation rule, or empty when the tiling is the one a reader
+	// arrives at by itself from the range alone. The .mmd dictionary records a domain by its Range,
+	// and a range says nothing about how it was cut into tiles; since the .dat and .seq layouts are
+	// per tile, a store written over a TiledUnit could not be read back at all. Where the tiling is
+	// not derivable, the dictionary carries this rule instead of the Range subtag.
+	// Unit<V> answers it from GetCurrSegmInfo(), i.e. from the tiling the data was actually written
+	// with, not from a range this unit may only refer to.
+	virtual SharedStr GetTilingAsCalcRuleStr() const { return {}; }
+
 	void AddDataItemOut(const AbstrDataItem* item) const;
 	void DelDataItemOut(const AbstrDataItem* item) const;
 

@@ -72,3 +72,4 @@ stor_gpkg_1_write.dms /export
 stor_fss_gen_1_write.dms /store
 stor_read_rw_no_writeback_1_write.dms /export
 stor_read_rw_no_writeback_2.dms /tab
+stor_mmd_tiling_1_write.dms /store

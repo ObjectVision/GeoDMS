@@ -111,6 +111,7 @@ public:
 
 	TIC_CALL void SetMaxRange() override;
 	TIC_CALL SharedStr GetRangeAsStr(FormattingFlags ff) const override;
+	TIC_CALL SharedStr GetTilingAsCalcRuleStr() const override; // #1267
 	void ClearDataObject(garbage_can& g) const override;
 	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 	void LoadBlobStream (const InpStreamBuff* is) override;

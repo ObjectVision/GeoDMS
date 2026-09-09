@@ -1,0 +1,69 @@
+// The read half of the MMD tiling case (issue #1267); stor_mmd_tiling_1_write.dms writes the store
+// and carries the description of what is being pinned. run_testcases.ps1 walks the configs sorted
+// by file name, so `_1_write` runs before this one; on its own this config fails because the store
+// does not exist yet.
+//
+// The reader declares nothing but the storage and the coordinate unit the store was written
+// against: every domain and every attribute comes from the dictionary, including the tiling. Before
+// the fix `reg`, `one` and `irr` failed here -- `reg` and `irr` on the file-size guard of every
+// attribute, `one` on a chunk check inside the sequence file -- while `def` and `sml` read fine.
+// That asymmetry is the whole point of the case: what the reader gets wrong is the writer's tiling,
+// not its range, so the checks below compare CONTENT, which only comes out right when the elements
+// land in the tiles they were written into.
+//
+// Each domain is read twice over: a count, a sum over the fixed-size (dpoint) attribute and a
+// string aggregate over the sequence attribute, because the two file kinds failed differently. The
+// four 100,000-element domains hold identical content by construction, written through four
+// different tilings, so each one's aggregates must equal the control's -- an equality that a
+// misplaced tile boundary breaks even where the byte count happens to match.
+container stor_mmd_tiling_2_read
+{
+	container geometries
+	{
+		unit<dpoint> rdc_base : SpatialReference = "EPSG:28992";
+		unit<dpoint> rdc := range(rdc_base, point_yx(300000d, 0d), point_yx(625000d, 280000d));
+	}
+
+	container store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiling.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n_def := #store/def, IntegrityCheck = "n_def == 100000";
+		parameter<uint32> n_reg := #store/reg, IntegrityCheck = "n_reg == 100000";
+		parameter<uint32> n_one := #store/one, IntegrityCheck = "n_one == 100000";
+		parameter<uint32> n_irr := #store/irr, IntegrityCheck = "n_irr == 100000";
+		parameter<uint32> n_sml := #store/sml, IntegrityCheck = "n_sml ==    200";
+
+		// the fixed-size (dpoint) files: a sum over both coordinates, per domain
+		parameter<float64> x_def := sum(PointCol(store/def/geometry)), IntegrityCheck = "x_def > 0d";
+		parameter<float64> y_def := sum(PointRow(store/def/geometry)), IntegrityCheck = "y_def > 0d";
+		parameter<float64> x_reg := sum(PointCol(store/reg/geometry)), IntegrityCheck = "x_reg == x_def";
+		parameter<float64> y_reg := sum(PointRow(store/reg/geometry)), IntegrityCheck = "y_reg == y_def";
+		parameter<float64> x_one := sum(PointCol(store/one/geometry)), IntegrityCheck = "x_one == x_def";
+		parameter<float64> y_one := sum(PointRow(store/one/geometry)), IntegrityCheck = "y_one == y_def";
+		parameter<float64> x_irr := sum(PointCol(store/irr/geometry)), IntegrityCheck = "x_irr == x_def";
+		parameter<float64> y_irr := sum(PointRow(store/irr/geometry)), IntegrityCheck = "y_irr == y_def";
+
+		// the sequence (string) files: a total length plus one element read by position, so that a
+		// file which merely has the right size but the wrong tile layout still fails
+		parameter<uint32> l_def := uint32(sum(strlen(store/def/identificatie))), IntegrityCheck = "l_def > 0";
+		parameter<uint32> l_reg := uint32(sum(strlen(store/reg/identificatie))), IntegrityCheck = "l_reg == l_def";
+		parameter<uint32> l_one := uint32(sum(strlen(store/one/identificatie))), IntegrityCheck = "l_one == l_def";
+		parameter<uint32> l_irr := uint32(sum(strlen(store/irr/identificatie))), IntegrityCheck = "l_irr == l_def";
+
+		parameter<string> e_def := store/def/identificatie[99999], IntegrityCheck = "e_def == 'id_99999'";
+		parameter<string> e_reg := store/reg/identificatie[99999], IntegrityCheck = "e_reg == 'id_99999'";
+		parameter<string> e_one := store/one/identificatie[99999], IntegrityCheck = "e_one == 'id_99999'";
+		parameter<string> e_irr := store/irr/identificatie[99999], IntegrityCheck = "e_irr == 'id_99999'";
+
+		// an element from the middle of each tiling, where a boundary that moved shows up
+		parameter<string> m_reg := store/reg/identificatie[30000], IntegrityCheck = "m_reg == 'id_30000'";
+		parameter<string> m_irr := store/irr/identificatie[55000], IntegrityCheck = "m_irr == 'id_55000'";
+
+		parameter<string> s_sml := store/sml/naam[uint8(199)], IntegrityCheck = "s_sml == 'lab_199'";
+	}
+}
