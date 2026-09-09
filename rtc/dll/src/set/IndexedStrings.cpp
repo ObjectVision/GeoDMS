@@ -154,6 +154,40 @@ namespace {
 		);
 	}
 
+	// #1262: claim the right to report the case mix-up of one token, once for the whole run.
+	//
+	// The flags used to be a function static of GetOrCreateID_impl, which is only ever entered with
+	// the registry held EXCLUSIVELY (or before any second thread exists). The check now also runs on
+	// the lookup path, under a SHARED usage that several threads hold at once, so the bookkeeping
+	// needs a section of its own: two threads growing the same std::vector<bool> is not a duplicated
+	// warning but a corrupted vector.
+	//
+	// It is a leaf, and deliberately kept one: the claim is separated from the reporting so that
+	// nothing -- not the registry status flags, not the formatting, not PostMainThreadOper -- runs
+	// while it is held.
+	bool ClaimCaseMixupReport(TokenT foundIndex)
+	{
+		// Function-local, as RegAccessSection() in utl/Environment.cpp is and for the same reason:
+		// tokens are created during dynamic initialisation, so a namespace-scope section here could
+		// be used before its own constructor had run.
+		static leveled_critical_section s_cs(item_level_type(0), ord_level_type::CaseMixupReports, "CaseMixupReports");
+		static std::vector<bool> s_AlreadyReportedBitmap;
+
+		leveled_critical_section::scoped_lock lock(s_cs);
+
+		if (s_AlreadyReportedBitmap.size() <= foundIndex)
+		{
+			auto newSize = s_AlreadyReportedBitmap.size() * 2;
+			MakeMax(newSize, SizeT(foundIndex) + 1);
+			s_AlreadyReportedBitmap.resize(newSize);
+		}
+		else if (s_AlreadyReportedBitmap[foundIndex])
+			return false;
+
+		s_AlreadyReportedBitmap[foundIndex] = true;
+		return true;
+	}
+
 	[[noreturn]] void throwTokenRegistrySharedUnderOwnExclusiveHold()
 	{
 		// Nested as above: kept although GenerateContext no longer walks the context handles while
@@ -263,9 +297,9 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 
 // #1259: no section, because the instance is private to the calling thread. See the header for the
 // contract and for why GetOrCreateID_st cannot be used instead. Nothing may be added here that
-// reaches shared state: GetOrCreateID_impl's case mix-up report is the one thing that would, and it
-// is compiled out for a comparer other than AsciiFoldedCaseInsensitiveEqual, which the registry uses
-// and a private table does not.
+// reaches shared state: CheckCaseMixup is the one thing that would -- it reports, and since #1262 it
+// takes a section of its own -- and it is compiled out for a comparer other than
+// AsciiFoldedCaseInsensitiveEqual, which the registry uses and a private table does not.
 template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_private(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
@@ -281,39 +315,8 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 	index_iterator i = m_Idx.find(keyValue);
 	if (i != m_Idx.end() && m_Idx.key_eq()(keyValue, *i))
 	{
-		// warn for mixing up upper and lower case writngs of whatever
 		index_type foundIndex = *i;
-		if constexpr (std::is_same_v<CharPtrRangeEqCmp, AsciiFoldedCaseInsensitiveEqual>)
-		{
-			GenericEqual eq;
-			StringIndexer indexer(m_Vec);
-
-			auto foundValue = indexer.GetPtrs<MustZeroTerminate>(foundIndex);
-			if (not eq(foundValue, keyValue))
-			{
-				static std::vector<bool> s_AlreadyReportedBitmap;
-				auto tooSmall = s_AlreadyReportedBitmap.size() <= foundIndex;
-				if (tooSmall or not s_AlreadyReportedBitmap[foundIndex])
-				{
-					if (tooSmall)
-					{
-						auto newSize = s_AlreadyReportedBitmap.size() * 2;
-						MakeMax(newSize, foundIndex + 1);
-						s_AlreadyReportedBitmap.resize(newSize);
-					}
-					s_AlreadyReportedBitmap[foundIndex] = true;
-					if (!EventLog_HideDeprecatedCaseMixupWarnings())
-					{
-						auto warningStr = mgFormat2string("Deprecated mix-up of cases, tokenized '{}' as token {} and then seen '{}'", foundValue, foundIndex, keyValue);
-						PostMainThreadOper([warningStr] {
-							reportD(SeverityTypeID::ST_CaseMixup, warningStr.c_str());
-							}
-						);
-					}
-				}
-			}
-		}
-
+		CheckCaseMixup(foundIndex, keyValue);
 		return foundIndex; //	return found ID.
 	}
 
@@ -351,9 +354,57 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExi
 	CharPtrRange keyValue(keyFirst, keyLast);
 	auto i = m_Idx.find(keyValue);
 	if (i != m_Idx.end() && m_Idx.key_eq()(keyValue, *i))
-		return *i; //	return found ID.
+	{
+		index_type foundIndex = *i;
+		CheckCaseMixup(foundIndex, keyValue);
+		return foundIndex; //	return found ID.
+	}
 
 	return UNDEFINED_VALUE(index_type);
+}
+
+// #1262: the mix-up check of BOTH impl's. A name that differs from the registered spelling in case
+// only is a mistake wherever it is written, so it is reported by every path that resolves a name to
+// a token, not only by the path that happens to create one -- which since 0b70e8539, where
+// GetOrCreateID_mt starts with a GetExisting_mt, is no longer even the path that a run-time name
+// takes. What remained reporting was the _st path used while a configuration is read; a mix-up
+// first seen at run time, through an indirect expression, a name built from data, or a path lookup,
+// went unreported.
+//
+// It is deliberately NOT put behind a flag that would exempt the callers who merely probe whether a
+// name exists (HofTypeChecker's member-path probes, UnitClass::CreateUnitFromPath). A probe that
+// matches on folded case has still found two spellings of one name in the input, which is precisely
+// what the warning is about; the caller's intent does not change that, and
+// EventLog_HideDeprecatedCaseMixupWarnings() remains the switch for whoever does not want to hear it.
+//
+// The registry section is held here -- exclusively on the creating path, shared on the lookup one --
+// and nothing inside it may resolve a token (see the note above GetOrCreateID_mt). Hence the message
+// is formatted into a string first and reported from the main thread afterwards, and the once-per-token
+// bookkeeping is claimed through a section of its own that calls nothing at all.
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
+void IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::CheckCaseMixup(index_type foundIndex, CharPtrRange keyValue) const
+{
+	if constexpr (std::is_same_v<CharPtrRangeEqCmp, AsciiFoldedCaseInsensitiveEqual>)
+	{
+		GenericEqual eq;
+		StringIndexer indexer(m_Vec);
+
+		auto foundValue = indexer.GetPtrs<MustZeroTerminate>(foundIndex);
+		if (eq(foundValue, keyValue))
+			return; // same spelling: nothing was mixed up
+
+		if (!ClaimCaseMixupReport(foundIndex))
+			return; // this token has said it once already
+
+		if (EventLog_HideDeprecatedCaseMixupWarnings())
+			return;
+
+		auto warningStr = mgFormat2string("Deprecated mix-up of cases, tokenized '{}' as token {} and then seen '{}'", foundValue, foundIndex, keyValue);
+		PostMainThreadOper([warningStr] {
+			reportD(SeverityTypeID::ST_CaseMixup, warningStr.c_str());
+			}
+		);
+	}
 }
 
 using IndexedStringValues = IndexedStrings<false, GenericEqual, GenericHasher>;

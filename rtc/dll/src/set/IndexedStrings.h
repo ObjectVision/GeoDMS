@@ -169,6 +169,12 @@ private:
 	index_set_type m_Idx;
 	index_type GetOrCreateID_impl(CharPtr keyFirst, CharPtr keyLast);
 	index_type GetExisting_impl(CharPtr keyFirst, CharPtr keyLast) const;
+
+	// #1262: every path that resolves a name to an existing token calls this with what it found, so
+	// that a mix-up of cases is reported wherever it is first seen and not only where the token
+	// happened to be created. Const, and reporting is its side effect: the found index and the key
+	// are what both impl's have in hand, and neither owns the report.
+	void CheckCaseMixup(index_type foundIndex, CharPtrRange keyValue) const;
 };
 
 //	Utf8CaseInsensitiveEqual equaler;

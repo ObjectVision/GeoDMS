@@ -61,6 +61,7 @@ unenforced in exactly the builds users run.
 | 88 | MoveSupplInterest (was 99) | `sc_MoveSupplInterestSection`; takes NotifyTargetCount inside | act/Actor.cpp |
 | 89 | NotifyTargetCount (was 100, then 92) | `sc_NotifyTargetCount`; the TContextNotification callback runs under it and **reports**, so it is outer to the registry (P16) | act/TriggerOperator.cpp |
 | 90 | IndexedString (was 99) | the token registry (counted): shared to read, exclusive to register — innermost of its former family, so a token can be read under any of them | set/IndexedStrings.cpp |
+| 91 | CaseMixupReports (new in #1262) | the once-per-token "already reported" flags of the case mix-up warning; claimed with the registry held either way, exclusively where a token is created and **shared** where one is looked up, hence inner to it — and a leaf that calls nothing at all while held | set/IndexedStrings.cpp |
 | 93 | RegisterAccess (was 100) | `s_RegAccess` | utl/Environment.cpp |
 | 94 | LispObjCache (was 100) | LispObjRegister CS | sym |
 | 95 | CountedMutexSection (was 100) | `s_CountedMutexSection`; every `counted_mutex` op takes it | ptr/SharedBase.cpp |
@@ -292,7 +293,7 @@ established). The two that carry the semantics worth knowing by heart:
   (`AbstrMsgGenerator::Describe`, `MsgGeneratorPolicy::GetDescription`, `ConfigProd::Describe`),
   `Object::GetFullName` and the raw `AbstrPropDef` accessors. With `IndexedString` at 90: reading a
   token (90 shared) is allowed, **registering** one (90 exclusive, i.e. `GetOrCreateID_mt`) is
-  refused, everything from 93 up is allowed (`RegisterAccess`, `LispObjCache`,
+  refused, everything from 91 up is allowed (`CaseMixupReports`, `RegisterAccess`, `LispObjCache`,
   `CountedMutexSection`, `ObjectRegister` 97, `ItemCounter` 98, `DebugOutStream` 100), and
   everything ≤ 89 is refused — `NotifyTargetCount` 89 (P16) down through `MoveSupplInterest` 88,
   `ExplainAccess` 84, GDAL 83, count/fail 78/79, thread-messing 75, tile 73, storage 65 — as is

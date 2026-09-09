@@ -81,6 +81,11 @@ enum class ord_level_type : UInt32
 									// GDALComponent, and inner to MoveSupplInterest which takes it. It sat at 92 until the first
 									// battery config that reached a progress report in Debug refused it (#1233 P16).
 	IndexedString = 90,				// the token registry (counted): shared to read, exclusive to register
+	CaseMixupReports = 91,			// #1262: the once-per-token "already reported" flags of IndexedStrings.cpp. Claimed
+									// with the registry held either way -- exclusively where a token is created, SHARED
+									// (so by several threads at once) where one is looked up -- hence inner to it. A
+									// leaf: nothing at all is called while it is held, so it can be entered from any
+									// level and never leads out to one.
 
 	// the former 100 family; CountedMutexSection innermost because every counted_mutex op -- the registry's
 	// and the session counter's -- takes it
