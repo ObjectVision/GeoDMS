@@ -14,6 +14,7 @@
 
 #include <any>
 #include <map>
+#include <set>
 #include <vector>
 
 #include "dbg/Timer.h"
@@ -503,6 +504,8 @@ namespace SuspendTrigger {
 
 	static DeferScope* s_CurrDeferScope = nullptr; // meta thread only
 	static std::map<const void*, std::vector<std::any>> s_DeferKeepAlive; // interest holders of deferred work, per deferring item
+	static std::set<const void*> s_DeferredThisPass; // the actors deferred in the current pass of the update loop, see DeferScope_WasDeferred
+	static bool s_DeferSuppressed = false; // meta thread only: set by the update loop's stall guard, see DeferScope_Suppress
 
 	DeferScope::DeferScope()
 		:	m_BlockLevel(s_SuspendBlockLevel)
@@ -518,12 +521,26 @@ namespace SuspendTrigger {
 		assert(s_CurrDeferScope == this); // scopes nest
 		s_CurrDeferScope = m_Prev;
 		if (!m_Prev)
+		{
 			s_DeferKeepAlive.clear();
+			s_DeferredThisPass.clear();
+			s_DeferSuppressed = false;
+		}
 	}
 
 	bool DeferScope::IsAllowed()
 	{
-		return IsMetaThread() && s_CurrDeferScope && s_CurrDeferScope->m_BlockLevel == s_SuspendBlockLevel;
+		return IsMetaThread() && s_CurrDeferScope && !s_DeferSuppressed && s_CurrDeferScope->m_BlockLevel == s_SuspendBlockLevel;
+	}
+
+	// The update loop found that nothing finished and nothing changed over many retries: from
+	// here on the walk waits for its producers inline, as it did before #1259, so that a producer
+	// that only a Join can drive, or a readiness that never comes, cannot keep the loop turning.
+	// Cleared when the outermost scope ends, so the next update starts afresh.
+	void DeferScope_Suppress()
+	{
+		assert(IsMetaThread());
+		s_DeferSuppressed = true;
 	}
 
 	void DeferScope::Register()
@@ -548,6 +565,30 @@ namespace SuspendTrigger {
 	{
 		assert(IsMetaThread());
 		s_DeferKeepAlive.erase(key);
+	}
+
+	// One pass of the update loop walks the supplier graph once. An actor that ended a pass
+	// deferred (its own commit or check, or a supplier's) is noted, and a consumer that reaches
+	// it again in the same pass takes the note instead of walking it again: its suppliers were
+	// walked and its producers scheduled the first time, and on a graph with shared suppliers
+	// the repeats compound through every consumer (Hestia: a first pass that did not end in two
+	// hours). The loop clears the set before each pass; the scope's end clears it as well.
+	void DeferScope_NewPass()
+	{
+		assert(IsMetaThread());
+		s_DeferredThisPass.clear();
+	}
+
+	void DeferScope_NoteDeferred(const void* actor)
+	{
+		assert(IsMetaThread() && s_CurrDeferScope);
+		s_DeferredThisPass.insert(actor);
+	}
+
+	bool DeferScope_WasDeferred(const void* actor)
+	{
+		assert(IsMetaThread());
+		return s_DeferredThisPass.contains(actor);
 	}
 
 	UInt32 DeferScope::Count()

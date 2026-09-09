@@ -22,6 +22,7 @@
 #include "act/TriggerOperator.h"
 
 bool LedgerHasRoomForDeferral(); // tic/OperationContext.cpp, same module (#1259)
+namespace SuspendTrigger { void DeferScope_NoteDeferred(const void* actor); bool DeferScope_WasDeferred(const void* actor); } // TriggerOperator.cpp, same module (#1259)
 #include "act/UpdateMark.h"
 
 #include "dbg/DmsCatch.h"
@@ -432,6 +433,16 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     if (m_State.GetProgress() >= ProgressState::Committed)
 		return this->WasFailed(FailType::Committed) ? AVS_SuspendedOrFailed : AVS_Ready;
 
+    // #1259 Deferred earlier in this pass of the update loop and reached again through another
+    // consumer: its suppliers were walked and its producers scheduled the first time, and doing
+    // that again would only repeat it. On a graph with shared suppliers the repeats compound
+    // through every consumer (Hestia: a first pass that did not end in two hours), while a
+    // deferral is a deferral for every consumer alike.
+    if (SuspendTrigger::DeferScope::IsAllowed() && SuspendTrigger::DeferScope_WasDeferred(this))
+    {
+        SuspendTrigger::DeferScope::Register(); // still deferred: no consumer commits above it
+        return AVS_SuspendedOrFailed;
+    }
 
     assert(m_LastChangeTS); // must have been set by DetermineState
 
@@ -469,6 +480,8 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     if (updateRes == AVS_SuspendedOrFailed)
     {
         assert(SuspendTrigger::DidSuspend() || SuspendTrigger::DeferScope::IsAllowed()); // suspended, or a supplier's commit was deferred (#1259)
+        if (!SuspendTrigger::DidSuspend() && !WasFailed() && SuspendTrigger::DeferScope::IsAllowed())
+            SuspendTrigger::DeferScope_NoteDeferred(this); // a supplier's deferral: not walked again this pass
         return AVS_SuspendedOrFailed;
     }
     if (m_State.GetProgress() >= ProgressState::Committed)
@@ -535,7 +548,11 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
         return AVS_SuspendedOrFailed;
     }
     if (WasFailed() || (m_State.GetProgress() < ProgressState::Committed) || SuspendTrigger::DidSuspend())
+    {
+        if (!WasFailed() && !SuspendTrigger::DidSuspend() && SuspendTrigger::DeferScope::IsAllowed())
+            SuspendTrigger::DeferScope_NoteDeferred(this); // its own commit or check was deferred (#1259): not walked again this pass
         return AVS_SuspendedOrFailed;
+    }
     return AVS_Ready;
 }
 

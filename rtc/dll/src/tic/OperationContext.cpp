@@ -1434,8 +1434,26 @@ static SizeT LedgerChargeOf(const PerformanceEstimationData& e); // defined belo
 // Deferred work in flight, by deferring item: the ledger charge of the producer's estimate,
 // registered when the commit is deferred and dropped when the item's data is ready, since from
 // then on the memory is in the process commit itself. Meta thread only.
-static std::map<const TreeItem*, SizeT> s_DeferredInFlight;
+// The producer of a deferred item is often a unit or a container, which costs nothing itself;
+// the memory in flight is in its suppliers that are not done (the parse below a stored BAG
+// unit), so the charge follows the producer's supplier set transitively, and an operation
+// shared by several deferred items counts once.
+static std::map<const TreeItem*, std::vector<const OperationContext*>> s_DeferredInFlight; // by deferring item: the operations charged on its behalf
+static std::map<const OperationContext*, std::pair<SizeT, UInt32>> s_ChargedOperations; // charge, number of deferred items referring to it
 static SizeT s_DeferredInFlightBytes = 0;
+static bool s_LedgerSampleStale = true; // a deferral or a release changes what the next room check must see
+static SizeT s_LedgerSampledCommit = 0, s_LedgerSampledBudget = 0; // the last samples of LedgerHasRoomForDeferral, for the traces
+
+static void LedgerCollectInFlight(const OperationContext* oc, std::vector<const OperationContext*>& collected)
+{
+	// under cs_ThreadMessing: a finishing worker edits m_Suppliers
+	if (std::find(collected.begin(), collected.end(), oc) != collected.end())
+		return;
+	collected.push_back(oc);
+	for (const auto& supplier : oc->m_Suppliers)
+		if (supplier)
+			LedgerCollectInFlight(supplier.get(), collected);
+}
 static std::atomic<UInt32> s_DeferredCommitsPending = 0; // published by the update loop, read by the gate
 
 void LedgerNoteDeferral(const TreeItem* item)
@@ -1443,12 +1461,28 @@ void LedgerNoteDeferral(const TreeItem* item)
 	assert(IsMetaThread() && item);
 	if (s_DeferredInFlight.contains(item))
 		return;
-	SizeT charge = 0;
+	std::vector<const OperationContext*> operations;
 	if (auto oc = GetOperationContext(item->GetCurrRangeItem().get()))
-		if (oc->m_Estimate)
-			charge = LedgerChargeOf(*oc->m_Estimate);
-	s_DeferredInFlight[item] = charge;
-	s_DeferredInFlightBytes += charge;
+	{
+		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+		LedgerCollectInFlight(oc.get(), operations);
+	}
+	SizeT charge = 0;
+	for (auto oc : operations)
+	{
+		auto& entry = s_ChargedOperations[oc];
+		if (!entry.second++)
+		{
+			entry.first = oc->m_Estimate ? LedgerChargeOf(*oc->m_Estimate) : 0;
+			s_DeferredInFlightBytes += entry.first;
+			charge += entry.first;
+		}
+	}
+	auto nrOperations = operations.size();
+	s_DeferredInFlight[item] = std::move(operations);
+	s_LedgerSampleStale = true;
+	reportF_without_cancellation_check(MsgCategory::progress, SeverityTypeID::ST_MinorTrace, "ledger: {} deferred, charge {} MB over {} operations, in flight {} MB in {} commits, commit {} MB, budget {} MB"
+		, item->GetSourceName(), charge >> 20, nrOperations, s_DeferredInFlightBytes >> 20, s_DeferredInFlight.size(), s_LedgerSampledCommit >> 20, s_LedgerSampledBudget >> 20);
 }
 
 void LedgerNoteReady(const TreeItem* item)
@@ -1457,7 +1491,19 @@ void LedgerNoteReady(const TreeItem* item)
 	auto i = s_DeferredInFlight.find(item);
 	if (i == s_DeferredInFlight.end())
 		return;
-	s_DeferredInFlightBytes -= Min<SizeT>(s_DeferredInFlightBytes, i->second);
+	SizeT released = 0;
+	for (auto oc : i->second)
+	{
+		auto c = s_ChargedOperations.find(oc);
+		if (c == s_ChargedOperations.end() || --c->second.second)
+			continue; // still referred to by another deferred item
+		released += c->second.first;
+		s_ChargedOperations.erase(c);
+	}
+	s_DeferredInFlightBytes -= Min<SizeT>(s_DeferredInFlightBytes, released);
+	s_LedgerSampleStale = true;
+	reportF_without_cancellation_check(MsgCategory::progress, SeverityTypeID::ST_MinorTrace, "ledger: {} released {} MB, in flight {} MB in {} commits"
+		, item->GetSourceName(), released >> 20, s_DeferredInFlightBytes >> 20, s_DeferredInFlight.size() - 1);
 	s_DeferredInFlight.erase(i);
 }
 
@@ -1467,7 +1513,9 @@ void LedgerSetDeferredCommitsPending(UInt32 nr)
 	if (!nr && IsMetaThread())
 	{
 		s_DeferredInFlight.clear(); // the loop ended: nothing is in flight any more
+		s_ChargedOperations.clear();
 		s_DeferredInFlightBytes = 0;
+		s_LedgerSampleStale = true;
 	}
 }
 
@@ -1476,14 +1524,95 @@ bool LedgerHasRoomForDeferral()
 	assert(IsMetaThread());
 	static Int64 s_LastCheckNs = 0;
 	static SizeT s_Commit = 0;
+	static SizeT s_Budget = 0; // sampled with the commit: the budget asks the OS for the physical memory, once per supplier in the walk was a kernel call each
 	auto nowNs = std::chrono::steady_clock::now().time_since_epoch().count();
-	if (nowNs - s_LastCheckNs > 200'000'000)
+	if (s_LedgerSampleStale || nowNs - s_LastCheckNs > 200'000'000)
 	{
 		s_LastCheckNs = nowNs;
+		s_LedgerSampleStale = false;
 		s_Commit = GetProcessCommitBytes();
+		s_Budget = LedgerBudgetBytes();
+		s_LedgerSampledCommit = s_Commit; s_LedgerSampledBudget = s_Budget;
 	}
-	// what is already in the process plus what the deferred producers will still add
-	return s_Commit + s_DeferredInFlightBytes < LedgerBudgetBytes();
+	// The budget bounds the memory, this bounds the lookahead: the estimates that charge the
+	// in-flight work are absent unless performance logging is on, and without a charge a first
+	// pass over a model with many cheap stores would defer every store it reaches before one is
+	// written. Twice the workers keep the pool busy; the walk stops beyond that and the retries
+	// drain what is in flight, in order, before more is started. (It did not bind on t2000,
+	// whose deferrals are integrity checks, nor on the BAG import, which the budget bounds.)
+	static const SizeT s_MaxDeferred = Max<SizeT>(8, 2 * MaxConcurrentTreads());
+	bool room = s_DeferredInFlight.size() < s_MaxDeferred && s_Commit + s_DeferredInFlightBytes < s_Budget;
+	static bool s_LastRoom = true;
+	if (room != s_LastRoom)
+	{
+		s_LastRoom = room;
+		reportF_without_cancellation_check(MsgCategory::progress, SeverityTypeID::ST_MinorTrace, "ledger: room {} (commit {} MB + in flight {} MB in {} commits vs budget {} MB)"
+			, room, s_Commit >> 20, s_DeferredInFlightBytes >> 20, s_DeferredInFlight.size(), s_Budget >> 20);
+	}
+	return room;
+}
+
+// True while an operation runs inline on this thread (an active CancelableFrame). A supplier
+// walk nested in such a run, as a PhaseContainer's collection of its members or an operator
+// that needs meta-info makes, must not defer: the run expects what it asked for.
+bool IsInsideInlineOperation()
+{
+	return CancelableFrame::CurrActive() != nullptr;
+}
+
+// The commits deferred and not yet found ready: what the cap in LedgerHasRoomForDeferral bounds.
+// Not the number of deferral registrations of a pass, which counts every consumer that reaches
+// a deferred actor and every deferred integrity check. Meta thread only.
+UInt32 LedgerDeferredCommits()
+{
+	assert(IsMetaThread());
+	return s_DeferredInFlight.size();
+}
+
+// The operations activated or running in any phase. The update loop's stall guard
+// (TicInterface.cpp) counts a retry as stalled only while this is zero.
+UInt32 GetNrActivatedOrRunningOperations()
+{
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
+	leveled_critical_section::scoped_lock lock(cs_ThreadMessing);
+	UInt32 nr = 0;
+	for (const auto& phaseAndCount : s_NrActivatedOrRunningOperations)
+		nr += phaseAndCount.second;
+	return nr;
+}
+
+// What the deferred commits are waiting for, one line each at MajorTrace, when the update loop
+// stalls: the names locate the shape in the configuration, the rest says whether the range item
+// is still being produced, is ready by IsDataReady, what its producer's status is, and which of
+// its sub-items has no data. Meta thread only.
+void LedgerReportDeferred(const TreeItem* root, UInt32 nrRetries)
+{
+	assert(IsMetaThread());
+	reportF_without_cancellation_check(MsgCategory::progress, SeverityTypeID::ST_MajorTrace, "deferred commits: the update of {} made no progress in {} retries with {} commits deferred and no operation activated or running; the walk waits inline from here on"
+		, root->GetSourceName(), nrRetries, s_DeferredInFlight.size());
+	UInt32 nrReported = 0;
+	for (const auto& itemAndCharge : s_DeferredInFlight)
+	{
+		if (nrReported++ == 20)
+		{
+			reportF_without_cancellation_check(MsgCategory::progress, SeverityTypeID::ST_MajorTrace, "deferred: and {} more", s_DeferredInFlight.size() - 20);
+			break;
+		}
+		auto item = itemAndCharge.first;
+		auto range = item->GetCurrRangeItem();
+		if (!range)
+			continue;
+		auto oc = GetOperationContext(range.get());
+		SharedStr notStandby;
+		for (auto sub = range->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+			if (auto subUlt = sub->GetCurrUltimateItem(); subUlt && !IsAllDataCurrStandby(subUlt.get()))
+			{
+				notStandby = sub->GetSourceName();
+				break;
+			}
+		reportF_without_cancellation_check(MsgCategory::progress, SeverityTypeID::ST_MajorTrace, "deferred: {} waits for {}: calculating {}, ready {}, producer status {}, first sub-item without data: {}"
+			, item->GetSourceName(), range->GetSourceName(), IsCalculating(range.get()), IsDataReady(range.get()), oc ? int(oc->GetStatus()) : -1, notStandby.empty() ? SharedStr("none") : notStandby);
+	}
 }
 
 // The ledger's own sum counts only what the DMS allocator hands out. Memory a third-party library

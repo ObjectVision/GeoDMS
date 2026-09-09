@@ -76,6 +76,8 @@
 
 namespace SuspendTrigger { void DeferScope_KeepAlive(const void* key, std::any keepAlive); void DeferScope_Release(const void* key); } // TriggerOperator.cpp, same module (#1259)
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
+bool IsInsideInlineOperation(); // idem
+void StartOperationContexts(); // idem: hands what was just scheduled to the worker pool
 
 //----------------------------------------------------------------------
 // implement Actor callback functions
@@ -1134,11 +1136,13 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 				// the new handle above has been taken, so the check's OperationContext stays alive
 				// across retries; and they are released here whether the verdict is taken now or not.
 				SuspendTrigger::DeferScope_Release(self);
-				if (SuspendTrigger::DeferScope::IsAllowed() && !IsDataReady(adiCheckerResult.get()) && !adiCheckerResult->WasFailed())
+				if (SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && LedgerHasRoomForDeferral()
+					&& IsCalculating(adiCheckerResult.get()) && !IsDataReady(adiCheckerResult.get()) && !adiCheckerResult->WasFailed()) // with room, while its producer holds the write lock, not inside an inline run: as in CommitDataChanges
 				{
 					SuspendTrigger::DeferScope::Register();
 					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerDC); // the interest CalledCalcHandle took: dropping it cancels the scheduled check
 					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerFD);
+					StartOperationContexts(); // the check runs while the walk goes on, as in CommitDataChanges
 					return AVS_SuspendedOrFailed;
 				}
 				if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))

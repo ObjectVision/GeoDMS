@@ -29,7 +29,10 @@
 #include "act/TriggerOperator.h"
 
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
+bool IsInsideInlineOperation(); // idem
+void StartOperationContexts(); // idem: hands what was just scheduled to the worker pool
 void LedgerNoteDeferral(const TreeItem* item);
+UInt32 LedgerDeferredCommits(); // idem
 void LedgerNoteReady(const TreeItem* item);
 #include "act/UpdateMark.h"
 #include "act/Waiter.h"
@@ -580,16 +583,28 @@ bool TreeItem::CommitDataChanges() const
 	// scheduled until it was written. Inside a DeferScope the commit is deferred instead: this
 	// item stays below Committed, the walk goes on to schedule the next supplier's producer, and
 	// the update loop comes back for the write once the data is ready.
-	if (SuspendTrigger::DeferScope::IsAllowed() && !IsDataReady(GetCurrRangeItem().get()) && !GetCurrRangeItem()->WasFailed())
+	// Only while a producer holds the range item's write lock: that is the one state in which a
+	// retry can find the data ready without this thread's help. A range item that is neither
+	// ready nor being produced (its producer is done and a sub-item's data was released since,
+	// or it never had a producer) is waited for below as before #1259, which loads what the
+	// write needs or fails with the message it always gave. And only while the budget has room
+	// or other commits are in flight: without room the deferral stops the walk at this item,
+	// which is then the one producer started beyond the budget, and the retries drain what is
+	// in flight with the meta thread free to commit; not starting it starved the walk instead
+	// (the ready items behind it were never reached). With nothing in flight the wait below is
+	// the pre-#1259 path, which /SB1 forces for every commit. Never inside an operation that
+	// runs inline on this thread: that run expects the data.
+	if (SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && (LedgerHasRoomForDeferral() || LedgerDeferredCommits())
+		&& IsCalculating(GetCurrRangeItem().get()) && !IsDataReady(GetCurrRangeItem().get()) && !GetCurrRangeItem()->WasFailed())
 	{
-		if (LedgerHasRoomForDeferral() || IsCalculating(GetCurrRangeItem().get()))
-		{
-			// room for one more, or the producer already runs: waiting for it here would only
-			// idle the meta thread; either way the memory is counted as in flight until ready
-			LedgerNoteDeferral(this);
-			SuspendTrigger::DeferScope::Register();
-			return false; // deferred, not failed
-		}
+		// the producer runs or is queued: waiting for it here would only idle the meta thread;
+		// its memory is counted as in flight until ready. The pool is told now, not when the
+		// pass ends: a pass over a large graph takes seconds, and the stack of the hung Hestia
+		// run showed every worker parked while the walk held the scheduled producers.
+		LedgerNoteDeferral(this);
+		SuspendTrigger::DeferScope::Register();
+		StartOperationContexts();
+		return false; // deferred, not failed
 	}
 	LedgerNoteReady(this); // ready, or about to be waited for: no longer in flight
 

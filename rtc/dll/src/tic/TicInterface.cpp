@@ -23,6 +23,11 @@
 #include <chrono>
 #include <thread>
 void LedgerSetDeferredCommitsPending(UInt32 nr); // OperationContext.cpp, same module (#1259)
+void LedgerReportDeferred(const TreeItem* root, UInt32 nrRetries); // idem
+UInt32 GetNrActivatedOrRunningOperations(); // idem
+UInt32 LedgerDeferredCommits(); // idem
+UInt32 GetCurrFinishedCount(); // idem
+namespace SuspendTrigger { void DeferScope_Suppress(); void DeferScope_NewPass(); } // TriggerOperator.cpp, same module (#1259)
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
@@ -625,11 +630,13 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 	// deferred any more, pumping the meta thread's own work and waiting for a task to finish in
 	// between, so that the producers run side by side instead of one per commit.
 	SuspendTrigger::DeferScope deferScope; // one scope for all retries: what a deferral keeps alive must outlive the retry
-	UInt32 nrRetries = 0;
+	UInt32 nrRetries = 0, nrStalled = 0, lastDeferred = 0;
+	UInt32 lastFinished = GetCurrFinishedCount();
 	auto loopStart = std::chrono::steady_clock::now();
 	for (;;)
 	{
 		deferScope.m_NrDeferred = 0;
+		SuspendTrigger::DeferScope_NewPass(); // what was deferred in the previous pass is walked once more
 		bool done = self->Update(false, context);
 		LedgerSetDeferredCommitsPending(done ? 0 : deferScope.m_NrDeferred);
 		if (done)
@@ -638,9 +645,26 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 			return false;
 		if (!deferScope.m_NrDeferred || self->IsFailed())
 			return true;
+		// Stall guard: a retry that finds no operation finished since the last one, none activated
+		// or running, and the same number of deferrals has nothing to wait for. Forty of those in a
+		// row (a second at the pacing below, longer when the wait times out) name the deferred items
+		// in the log and turn deferral off for the rest of this update: the walk then waits inline
+		// for its producers as before #1259, which completes or fails, but cannot turn forever.
+		auto finished = GetCurrFinishedCount();
+		if (finished != lastFinished || deferScope.m_NrDeferred != lastDeferred || GetNrActivatedOrRunningOperations())
+		{
+			nrStalled = 0;
+			lastFinished = finished;
+			lastDeferred = deferScope.m_NrDeferred;
+		}
+		else if (++nrStalled == 40)
+		{
+			LedgerReportDeferred(self, nrRetries);
+			SuspendTrigger::DeferScope_Suppress();
+		}
 		if (++nrRetries % 100 == 0)
-			reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace, "deferred commits: retry {} of the update of {}, {} deferred, {} s"
-				, nrRetries, self->GetSourceName(), deferScope.m_NrDeferred
+			reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace, "deferred commits: retry {} of the update of {}, {} registrations in the pass, {} commits in flight, {} s"
+				, nrRetries, self->GetSourceName(), deferScope.m_NrDeferred, LedgerDeferredCommits()
 				, std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - loopStart).count());
 		// DoWorkWhileWaiting returns on ANY task completion, and a run with thousands of small operations
 		// completes one every few microseconds: measured 19000 re-walks per second on ten synthetic
