@@ -734,7 +734,39 @@ All seven now materialize a named `SharedStr` first, and `tools/check-lock-acros
 `PrepareDataUsage` and their kin as sinks for this purpose, so the shape is refused statically.
 Whether the registry could deadlock through such a span at all depends on `counted_mutex` being
 reader-preferring (a reader never waits for a pending writer), which it is; the ordinal rule is
-stricter than that, and the materializations are cheap, so the rule stands. Debug battery 322/324 — no lock refusal left in the run; the two `stor_mmd_alias_*` canaries now reach, and stop at, an assertion of #1247's own MMD-alias shape (`ItemLocks.cpp:654` `item->HasInterest()` on the write, `DmsException.cpp:412` on the read) instead of the ceiling, which is exactly the Debug diagnosis that shape was blocked on; handed to #1247.
+stricter than that, and the materializations are cheap, so the rule stands. Debug battery 322/324 — no lock refusal left in the run; the two `stor_mmd_alias_*` canaries now reach, and stop at, an assertion of #1247's own MMD-alias shape (`ItemLocks.cpp:654` `item->HasInterest()` on the write, `DmsException.cpp:412` on the read) instead of the ceiling, which is exactly the Debug diagnosis that shape was blocked on; handed to #1247, filed as #1266 and
+answered in P17.
+
+### P17 — the dictionary dump satisfied an interest-asserting question by starting interest — **replaced (`1946a5cdd`, #1266)**
+
+Found by the P16 battery: with the notify ceiling fixed, the `stor_mmd_alias_1_write` canary
+stopped at `ItemLocks.cpp:654`, `item->HasInterest()` in `IsDataReady`, reached from the unit-Range
+branch of `TreeItem::XML_Dump` while the MMD dictionary was being re-emitted at a later unit's
+commit (#1155). `IsDataReady`, `IsDataCurrReady` and `IsDataCurrCompleted` assert interest as their
+precondition — "or else result would be volatile" — and `IsCalculatingOrReady` goes through the
+first. The branch had asked without interest since #1130 wrote it; Release, with the assert
+compiled out, answered from the current state and emitted a range that was already complete,
+which #1154 depends on for an externally declared domain that has no unit commit of its own.
+
+The first fix, `220ec739c`, satisfied the precondition: a `TreeItemInterestPtr` on the range item,
+taken before the question on every unit with a variable range at every dictionary dump, entered
+or not. That is not a lock-order defect — an interest pointer is per-item, rule 2 of §3.7 — but
+it is production the dump never asked for: `IncInterestCount → StartInterest → StartSupplInterest
+→ UpdateSuppliers → VisitSuppliers → SuspendibleUpdate`, from inside a dump that itself runs
+inside `SuspendibleUpdate` (the Debug interest detector reports exactly this shape, "Starting
+Interest while in Actor::SuspendibleUpdate()", once per unit). When the full.py regression hung
+on 2026-09-09 with that very stack, this holder was the first suspect; the bisect closed on
+`1ac62fc70` (#1259) and none of the hanging models writes an MMD store, so the branch never ran
+there — but the shape had earned the suspicion.
+
+*Replaced:* the guard asks `IsCalculating(r) || IsDataCurrStandby(r)`. `IsDataCurrStandby`
+(`ItemLocks.cpp`, TIC_CALL; what the GUI tree view and `TicInterface` already ask when they hold
+no interest) is `IsDataCurrReady` without the interest precondition and without a failed-data
+reset that applies to data items only, so for a unit's range item the answer is what the
+pre-#1266 Release computed, bit for bit; Debug no longer asserts because nothing that asserts is
+called. The interest the branch holds on the unit itself while it emits the Range predates #1266
+and stays. Debug battery 324/324 with `stor_mmd_alias_*` green; Release battery 324/324.
+Rule R6 (§8) is the general form.
 
 ## 5. Verified non-findings
 
@@ -806,6 +838,12 @@ Recorded so the next reader does not re-suspect them:
   `operation_queue::Process`.
 - **R5** — a foreign callback (GDAL error handler, progress notification) may report or post;
   it may not name items, take DMS locks, or wait.
+- **R6** — an accessor that asserts `HasInterest()` (`IsDataReady`, `IsDataCurrReady`,
+  `IsDataCurrCompleted`, and `IsCalculatingOrReady` through them) is a question for holders of
+  interest. Code that holds none — a dump, a GUI probe, instrumentation — asks the interest-less
+  form (`IsDataCurrStandby`, `IsCalculating`) instead of taking interest to satisfy the assert:
+  taking interest is production (per-item by rule 2 of §3.7, a wait by §3.8), and a Debug-only
+  precondition must not change what Release does (P17).
 
 ## 9. Follow-up work, in order of value
 
@@ -832,3 +870,5 @@ Recorded so the next reader does not re-suspect them:
    bodies and consuming the contracts on function-pointer *typedefs* since `eab00bb01` (P16 is the
    case it now catches). Left: the contracts on virtuals and on function-pointer parameters, and
    modelling a section held earlier in the caller's body.
+6. ~~The dictionary dump's interest holder (#1266, `220ec739c`)~~ — replaced by the interest-less
+   question in `1946a5cdd` (P17, R6).
