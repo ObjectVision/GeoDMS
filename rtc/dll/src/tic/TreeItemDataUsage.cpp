@@ -29,6 +29,7 @@
 #include "act/TriggerOperator.h"
 
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
+bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item); // stg/MemoryMappedDataStorageManager.cpp, same module (#1264)
 bool IsInsideInlineOperation(); // idem
 void StartOperationContexts(); // idem: hands what was just scheduled to the worker pool
 void LedgerNoteDeferral(const TreeItem* item);
@@ -300,6 +301,13 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 					// writing before its data is produced, which the DataWriteLock then maps into the
 					// store's file (write-through); a data block is neither read nor written
 					bool mustWrite = HasConfiguredCalcRule() && !GetCalculator()->IsDataBlock();
+					// #1264: decide HERE, before this item is produced, whether the dictionary
+					// carries its rule instead of its bytes. DataWriteLock reads TSF_MmdRuleOnly
+					// when it maps the produced array, and that production starts below, so the
+					// flag has to exist by now. Decided once per item: the walk it needs is meta
+					// work, and the answer cannot change while the configuration does not.
+					if (mustWrite && !IsMmdRuleOnly() && Mmd_QualifiesAsRuleOnly(sp.get(), this))
+						SetTSF(TSF_MmdRuleOnly);
 					if (mustWrite && !mmd->IsOpenForWrite())
 						if (auto parent = GetStorageParent(true))
 						{
@@ -626,7 +634,8 @@ bool TreeItem::CommitDataChanges() const
 			DataReadLock lock(AsDataItem(this)); // make sure data is calculated and stored
 			// #1247: an item whose content another store item produced has no file of its own;
 			// give it one before the dictionary below declares it.
-			mmd->MaterializeSharedContent(storageHolder.get(), AsDataItem(this));
+			if (!IsMmdRuleOnly()) // #1264: not stored at all; the dictionary carries its rule instead
+				mmd->MaterializeSharedContent(storageHolder.get(), AsDataItem(this));
 			// #1154: writing the data required the domain's range, so here -- and not at
 			// OpenForWrite, where the dictionary was first emitted -- the extent of a domain
 			// declared OUTSIDE this storage is finally readable and can be recorded.

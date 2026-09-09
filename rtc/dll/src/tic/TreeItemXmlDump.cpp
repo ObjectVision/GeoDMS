@@ -403,6 +403,17 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 
 	xmlOutStr->DumpPropList(this);
 
+	// #1264: a stored item whose rule names only items inside this store carries that rule into the
+	// dictionary instead of its bytes, and the reader re-applies it. Written VERBATIM: the reader
+	// merges the dictionary as a subtree under its own holder, so a store-relative identifier
+	// resolves to the same place there as here -- which is why an absolute path disqualifies the
+	// item at TSF_MmdRuleOnly time rather than being rewritten here. The reader needs nothing else:
+	// TreeItem_InstallStorageReadCalculator returns early on HasCalculatorImpl, so an item carrying
+	// a rule gets no storage_read_attr and is evaluated as an ordinary expression.
+	// CALCRULE_NAME, not calcRulePropDefPtr: the propDef overload of DumpSubTag is private.
+	if (!notWritingDictionary && IsMmdRuleOnly())
+		xmlOutStr->DumpSubTag(CALCRULE_NAME, calcRulePropDefPtr->GetRawValue(this).c_str(), true);
+
 	if (notWritingDictionary)
 		xmlOutStr->DumpSubTags(this);
 	else if (this == t_MmdDictionaryRoot)

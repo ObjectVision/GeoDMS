@@ -270,6 +270,9 @@ public:
 	// an endogenous shadow of a sub-item of the referred cache root, see TSF_MergedFromRefItem (#1245)
 	bool IsMergedFromRefItem() const { return GetTSF(TSF_MergedFromRefItem); }
 
+	// #1264: an MMD-stored item whose rule the dictionary carries instead of its bytes, see TSF_MmdRuleOnly
+	bool IsMmdRuleOnly() const { return GetTSF(TSF_MmdRuleOnly); }
+
 	// Parents
 
 	// Parent access (PersistentObject override) and storage parent resolution (for R/W).

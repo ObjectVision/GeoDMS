@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <map>
 
+#include "act/ActorVisitor.h"      // #1264: MakeDerivedBoolVisitor over the rule's named suppliers
+#include "act/SupplierVisitFlag.h" // #1264: SupplierVisitFlag::NamedSuppliers
 #include "act/TriggerOperator.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
@@ -28,6 +30,7 @@
 #include "utl/splitPath.h"
 #include "xml/XMLOut.h"
 
+#include "AbstrCalculator.h" // #1264: the rule's suppliers and IsDataBlock/IsStorageRead
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
@@ -169,6 +172,98 @@ auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedS
 		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi, false);
 	}
 	return expr;
+}
+
+//////////////////////////////////////////////////////////////////////
+// #1264: a rule the reader can re-apply is stored as a rule, not as bytes
+//
+// #1247 made the store materialise every attribute it declares. Where an attribute's rule can be
+// re-applied by the reader WITHOUT the writer's configuration, the store can carry the rule instead
+// and save the bytes. The criterion is syntactic, on the formal identifiers the rule NAMES rather
+// than on what it resolves to: `y := x + 1` with x in the store qualifies, `y := f(src) + 1` does
+// not, even where the two compute the same values. Testing the resolved key instead would call the
+// second one store-local and then have to turn that key back into something meaningful in the
+// reader's context, which is the part that does not work.
+//
+// The rule text goes into the dictionary verbatim: a reader merges the dictionary as a subtree
+// under its own holder and the relative shape is preserved, so a store-relative identifier resolves
+// to the same place there as here. That is why an identifier naming a store item by an ABSOLUTE
+// path disqualifies the item -- it is store-local but would resolve outside the store in the
+// reader, where the store sits somewhere else entirely.
+//
+// This saves DISK, not compute: an item in interest is still calculated, its array simply is not
+// mapped into the store (DataWriteLock's MMD arm skips the write-through on TSF_MmdRuleOnly).
+//////////////////////////////////////////////////////////////////////
+
+namespace {
+
+	// An identifier that names an item by an absolute path, i.e. a '/' that starts a token rather
+	// than separating two name parts. Conservative by construction: anything this cannot read as
+	// clearly relative disqualifies the item, and materialising is always correct, merely larger.
+	bool Mmd_RuleHasAbsolutePath(WeakStr expr)
+	{
+		for (auto p = expr.begin(), e = expr.send(); p != e; ++p)
+		{
+			if (*p != '/')
+				continue;
+			if (p == expr.begin())
+				return true;
+			char prev = p[-1];
+			// a relative path has a name character before the separator ('a/b', '../a/b');
+			// anything else -- '(', ',', an operator, a space -- starts a new token with '/'
+			if (!isalnum(UChar(prev)) && prev != '_' && prev != '.' && prev != '/')
+				return true;
+		}
+		return false;
+	}
+
+} // anonymous namespace
+
+// Declared at its use in TreeItemDataUsage.cpp, as LedgerHasRoomForDeferral is: this is private to
+// the MMD write side and the header reaches most of Clc.
+bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item)
+{
+	assert(IsMetaThread());
+	assert(storageHolder && item);
+
+	if (!IsDataItem(item))
+		return false; // a unit contributes its Range to the dictionary, which is metadata, not bytes
+	if (item->IsDisabledStorage() || item->IsMergedFromRefItem())
+		return false; // not part of the store to begin with
+
+	// KeepData says the modeller wants this data kept, and a store is a place where it is kept.
+	// The bound is the PROPAGATED flag (the user's decision): SetKeepDataState pushes the value
+	// down to sub-items and pushes False down too, so this answers "has it, or inherited it with no
+	// intermediate False". It also carries a KeepData set ABOVE the storage holder, which the rule
+	// as #1264 states it excludes -- so a KeepData anywhere above a store materialises that whole
+	// store. That is the accepted reading, not an oversight.
+	if (item->GetKeepDataState())
+		return false;
+
+	if (!item->HasConfiguredCalcRule())
+		return false; // nothing to write in place of the bytes
+	auto calc = item->GetCalculator();
+	if (!calc || calc->IsDataBlock() || calc->IsStorageRead())
+		return false; // literal data, or an engine-installed read (#587): neither is a rule to re-apply
+
+	if (Mmd_RuleHasAbsolutePath(calcRulePropDefPtr->GetRawValue(item)))
+		return false;
+
+	// every identifier the rule names must be inside this store, so the reader can resolve it
+	bool allInside = true;
+	auto visitor = MakeDerivedBoolVisitor(
+		[storageHolder, &allInside](const Actor* a) -> ActorVisitState
+		{
+			auto ti = dynamic_cast<const TreeItem*>(a);
+			if (!ti || !storageHolder->DoesContain(ti))
+			{
+				allInside = false;
+				return AVS_SuspendedOrFailed; // stop the walk; one outsider settles it
+			}
+			return AVS_Ready;
+		});
+	calc->VisitSuppliers(SupplierVisitFlag::NamedSuppliers, visitor);
+	return allInside;
 }
 
 //////////////////////////////////////////////////////////////////////

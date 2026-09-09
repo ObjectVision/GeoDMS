@@ -72,6 +72,15 @@ const TreeItemStatusFlags TSF_HasStoredProps              = 0x0400;
 // CONFIGURED one, which an MMD writer refuses (#1245).
 const TreeItemStatusFlags TSF_MergedFromRefItem           = 0x4000;
 
+// #1264: a stored item of an MMD store whose calculation rule names ONLY items inside that same
+// store. The dictionary carries that rule and the reader re-applies it, so the writer does not put
+// the item's bytes in the store: DataWriteLock's MMD arm skips the write-through and the array is
+// produced as an ordinary heap array. The item is still CALCULATED when something has interest in
+// it; this saves disk, not compute. Set on the meta thread before the item is produced (the MMD arm
+// of TreeItem::PrepareDataUsage), because the write-through decision is taken during that
+// production and must see it.
+const TreeItemStatusFlags TSF_MmdRuleOnly                 = 0x8000;
+
 //----------------------------------------------------------------------
 // DataItemStatusFlags
 //----------------------------------------------------------------------

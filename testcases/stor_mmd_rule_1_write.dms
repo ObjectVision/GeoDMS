@@ -1,0 +1,33 @@
+// A stored attribute whose calculation rule names ONLY items inside the same MMD store (issue
+// #1264). Such a rule can be re-applied by a reader without the writer's configuration, so since
+// GeoDMS 20.20.0 the dictionary carries the RULE and the store holds no bytes for it: the item is
+// still calculated when something has interest in it, but its array is not mapped into the store.
+// This saves disk, not compute.
+//
+// The criterion is syntactic, on the identifiers a rule NAMES, not on what it resolves to:
+//   own    := src/v * 2         names src, outside the store  -> materialised, as #1247 made it
+//   derived := own + 1          names own, inside the store   -> rule in the dictionary, no file
+//   twice   := src/v * 2 + 1    names src again               -> materialised, though it computes
+//                                                                the same values as derived
+// kept    := own + 1, KeepData -> materialised despite being store-local: KeepData says keep it.
+//
+// This config only WRITES the store; stor_mmd_rule_2_read.dms reads it back and checks it. THE TWO
+// BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file name.
+container stor_mmd_rule_1_write
+{
+	unit<uint32> src : nrofrows = 4
+	{
+		attribute<int32> v : [10, 20, 30, 40];
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_rule.mmd"
+	{
+		unit<uint32> dom := src
+		{
+			attribute<int32> own     := src/v * 2i;        // names src: materialised
+			attribute<int32> derived := own + 1i;          // names own only: rule, no file
+			attribute<int32> twice   := src/v * 2i + 1i;    // same values as derived, but names src
+			attribute<int32> kept    := own + 1i, KeepData = "True"; // store-local but kept: materialised
+		}
+	}
+}

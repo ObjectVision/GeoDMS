@@ -322,16 +322,23 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 							"its IntegrityCheck guards all its sub-items."
 							, sm->GetNameStr(), sp->GetFullName());
 
-				auto fsn = sm->GetNameStr();
-				auto rn = configItem->GetRelativeName(sp.get());
-				if (rn.empty())
+				// #1264: the dictionary carries this item's RULE instead of its bytes, so the store
+				// gets no file for it and the array is produced as an ordinary heap array below.
+				// The flag was decided on the meta thread before this production started, in the
+				// MMD arm of TreeItem::PrepareDataUsage.
+				if (!configItem->IsMmdRuleOnly())
 				{
-					rn = "@main";
-				}
+					auto fsn = sm->GetNameStr();
+					auto rn = configItem->GetRelativeName(sp.get());
+					if (rn.empty())
+					{
+						rn = "@main";
+					}
 
-				auto fn = DelimitedConcat(fsn, rn);
-				reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
-				goto afterReset;
+					auto fn = DelimitedConcat(fsn, rn);
+					reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+					goto afterReset;
+				}
 			}
 		}
 	}

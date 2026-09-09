@@ -1,0 +1,27 @@
+// The read half of the store-local-rule case (issue #1264); stor_mmd_rule_1_write.dms writes the
+// store and carries the description. run_testcases.ps1 walks the configs sorted by file name, so
+// `_1_write` runs before this one; on its own this config fails because the store does not exist.
+//
+// The reader declares nothing but the storage. `derived` has no file in the store: the dictionary
+// carries its rule and the reader re-applies it over `own`, which it has just read. Every value
+// must come out the same as if it had been stored.
+container stor_mmd_rule_2_read
+{
+	container store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_rule.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n       := #store/dom,                          IntegrityCheck = "n == 4";
+		parameter<string> s_own   := AsList(string(store/dom/own), ' '),  IntegrityCheck = "s_own   == '20 40 60 80'";
+		// the rule-only one: re-applied by the reader from own, which is stored
+		parameter<string> s_deriv := AsList(string(store/dom/derived), ' '), IntegrityCheck = "s_deriv == '21 41 61 81'";
+		// computes the same values, but was materialised because its rule names src
+		parameter<string> s_twice := AsList(string(store/dom/twice), ' '), IntegrityCheck = "s_twice == '21 41 61 81'";
+		// store-local rule, but KeepData kept it in the store
+		parameter<string> s_kept  := AsList(string(store/dom/kept), ' '),  IntegrityCheck = "s_kept  == '21 41 61 81'";
+	}
+}
