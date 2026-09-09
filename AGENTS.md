@@ -262,12 +262,14 @@ Conventions that the existing pages follow, worth matching:
   `/foo/export` — the wrapping container's name is not part of the path. A wrong prefix reports
   `the specified item '/foo/export' was not found`.
 
-- **Debug-build assertions pop a modal `abort()` dialog that hangs headless runs.** A failed
-  assertion prints `Assertion failed: <cond>, file …, line …` then `abort() has been called` and
-  blocks on a Retry/Ignore dialog; a headless `GeoDmsRun` then hangs forever and keeps a handle
+- **Since #1265 a Debug-build `dms_assert` reports itself and stops, with no dialog.** It writes
+  `Assertion failed: <cond>, file …, line …` to stderr and to every open log, then breaks into the
+  debugger if one is attached and otherwise exits 3 — in `GeoDmsGuiQt` as well as in `GeoDmsRun`,
+  so a headless run of either ends instead of parking on a Retry/Ignore box while it keeps a handle
   on the build's `Dm*.dll` (which silently turns the next link into a skip — see the
-  `batch\BuildSignAndCreateSetup.bat` guard). To capture the assertion text + stack non-interactively,
-  run under cdb and always kill stray `GeoDmsRun`/`cdb` before rebuilding:
+  `batch\BuildSignAndCreateSetup.bat` guard). A plain CRT `assert` still dialogs under a debugger.
+  To capture the assertion text + stack non-interactively, run under cdb and always kill stray
+  `GeoDmsRun`/`cdb` before rebuilding:
   ```powershell
   & 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe' -c 'g;kn;q' `
       'C:\dev\GeoDMS26\bin\Debug\x64\GeoDmsRun.exe' /L<logfile> <config>.dms /item/path

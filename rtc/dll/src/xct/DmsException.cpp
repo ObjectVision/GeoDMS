@@ -11,6 +11,8 @@
 #include "RtcInterface.h"
 #include "DbgInterface.h" // DBG_WriteFatalLine, DBG_FlushLogs
 
+#include <cstdlib> // std::_Exit, for the assertion path of #1265
+
 #include "xct/DmsException.h"
 #include "sym/Token.h" // IsTokenRegistryHeldExclusivelyByThisThread
 
@@ -1017,6 +1019,21 @@ void debugBreak()
 
 }
 
+#if defined(MG_DEBUG)
+
+// IsDebuggerPresent comes from <windows.h>, included above for the structured-exception handling;
+// off Windows there is nothing that could be attached this way.
+static bool DebuggerIsAttached()
+{
+#if defined(WIN32)
+	return IsDebuggerPresent() != 0;
+#else
+	return false;
+#endif
+}
+
+#endif //defined(MG_DEBUG)
+
 void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
 	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "check failure: {}\n{}({})", msg, fileName, line);
@@ -1027,10 +1044,40 @@ void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 
 }
 
-void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
+// #1265: the single place a Debug assertion ends up, now that dms_assert no longer goes through the
+// CRT assert (see the CC_FIX_ASSERT note in dbg/Diagnostics.h). Three things, in this order:
+//
+//  - Take the DebugOnlyLock chain out of play FIRST. An assertion that is failing must not be
+//    reported a second time by anything that runs afterwards: whatever a re-entry finds on that
+//    chain belongs to a call that is no longer being made, and reporting it attributes the text of
+//    one event to the stack of another. It repairs itself as the scopes exit -- ~DebugOnlyLock
+//    restores its own predecessor -- so this only voids the chain for the failure being handled.
+//  - Say what failed, where. The CRT's message box was the only thing that ever showed the text of
+//    a dms_assert; DBG_WriteFatalLine puts it on stderr AND in every open log, which a headless run
+//    and a GUI run can both read back afterwards. The wording is the CRT's, so existing logs and
+//    greps keep matching.
+//  - Then stop. With a debugger attached, break where the assertion is, which is what a developer
+//    wants and what IDRETRY did; with no debugger, _Exit(3) exactly as DmsHeadlessCrtReportHook
+//    does, so a driving batch sees a clean failure instead of an unhandled breakpoint (which is how
+//    the two #1265 minidumps came to exist) or a modal dialog nobody is there to answer.
+RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
 #if defined(MG_DEBUG)
-	debugBreak();
+	g_CurrAssertLock = nullptr;
+	g_LastAssertStr = msg;
+	g_LastFile = fileName;
+	g_LastLine = line;
+
+	DBG_WriteFatalLine(mySSPrintF("Assertion failed: {}, file {}, line {}", msg, fileName, line).c_str());
+	DBG_FlushLogs();
+
+	if (DebuggerIsAttached())
+	{
+		debugBreak(); // continuing from here returns to the caller, as the CRT's Ignore did
+		return;
+	}
+
+	std::_Exit(3); // 3 == abort-like, matching DmsHeadlessCrtReportHook and DmsTerminateHandler
 #endif
 }
 

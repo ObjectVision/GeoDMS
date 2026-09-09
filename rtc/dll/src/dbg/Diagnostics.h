@@ -51,7 +51,26 @@ struct CharPtrRange;
 void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line);
 #define dms_check(EXPR) (void)( (!!(EXPR)) || (dms_check_failed(#EXPR, __FILE__, __LINE__), 0) )
 
-void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line);
+// Exported since #1265: with CC_FIX_ASSERT below, every dms_assert in every module calls it, where
+// before only rtc's own DebugOnlyLock::CheckNoLocks did.
+RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line);
+
+// #1265: in a Debug build a failing dms_assert goes to dms_assertion_failed, never to the CRT
+// assert. The CRT one does not report, it ASKS: ucrt's common_assert writes to stderr only for a
+// console app, and in a GUI process pops a modal Abort/Retry/Ignore message box -- on a path that
+// never consults _CrtSetReportHook, so the headless hook of dbg/MsgDispatch.cpp does not see it.
+// That box runs its own message loop, which dispatches a paint straight back into the engine, at
+// the one moment an assertion has just declared some structure inconsistent; and it does so with
+// the failing dms_assert's DebugOnlyLock still live, so the re-entry's dms_check_not_debugonly
+// reports the first assertion against a stack that has nothing to do with it. That is what both
+// minidumps in #1265 recorded, and what set the diagnosis of #1249 back.
+//
+// The switch is kept so a build can still ask for the CRT assert by predefining it.
+#if defined(MG_DEBUG) && !defined(CC_FIX_ASSERT)
+#define CC_FIX_ASSERT
+#endif
+
+#include <assert.h> // unconditional: many translation units use plain assert and get it from here
 
 #if defined(CC_FIX_ASSERT)
 
@@ -59,7 +78,6 @@ void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line);
 
 #else
 
-#include <assert.h>
 #define dms_assert_impl(EXPR) assert(EXPR);
 
 #endif
@@ -102,7 +120,7 @@ private:
 #define dbg_assert(EXPR)
 #define lfs_assert(EXPR)
 
-#endif //defined(CC_FIX_ASSERT)
+#endif //defined(MG_DEBUG)
 
 //----------------------------------------------------------------------
 // Exception Generation & Message functions

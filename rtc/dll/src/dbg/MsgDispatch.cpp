@@ -560,10 +560,16 @@ void MustCoalesceHeap(SizeT size)
 // fatal handlers that need them in Release too.
 
 // Headless Debug-run report handling, installed for EVERY exe that loads Rtc (GeoDmsRun, GeoDmsGuiQt,
-// TicTst): a failed assert or abort() would pop a modal Retry/Ignore dialog that silently stalls any
+// TicTst): abort() and _CrtDbgReport would pop a modal Retry/Ignore dialog that silently stalls any
 // automated run (the unit suite's GUI /T tests hung exactly this way). Route the text to stderr and
 // _exit(3) so the driving batch proceeds to the next test with a visible failure. Only when no
 // debugger is attached -- under cdb/VS the normal break-into-debugger behaviour is kept.
+//
+// #1265: this hook does NOT cover the CRT assert. ucrt's _wassert goes to common_assert, which never
+// consults a report hook: in a console app it writes to stderr and abort()s (which this hook does
+// catch), and in a GUI process it pops a modal Abort/Retry/Ignore box whose own message loop
+// dispatches paints back into the engine. dms_assert no longer takes that path at all (CC_FIX_ASSERT
+// in dbg/Diagnostics.h); for a plain assert the error mode set below is what keeps the box away.
 static int DmsHeadlessCrtReportHook(int reportType, char* message, int* returnValue)
 {
 	if (returnValue)
@@ -596,6 +602,16 @@ RtcStreamLock::RtcStreamLock()
 			_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 			_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
 			_CrtSetReportHook(DmsHeadlessCrtReportHook);
+
+#if defined(_MSC_VER)
+			// #1265: and the one dialog the hook above cannot reach. A plain CRT assert in a GUI
+			// process asks common_assert what the error mode is; _OUT_TO_STDERR makes it write the
+			// text and abort() -- which the hook then turns into _exit(3) -- instead of opening a
+			// modal box that pumps messages back into the engine. A GUI process has no console to
+			// write to, so the text may be lost there; a re-entrant paint over a structure an
+			// assertion has just declared inconsistent is the worse of the two.
+			_set_error_mode(_OUT_TO_STDERR);
+#endif
 		}
 #endif //  MG_CRTLOG
 

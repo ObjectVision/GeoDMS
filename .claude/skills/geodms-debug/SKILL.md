@@ -1,6 +1,6 @@
 ---
 name: geodms-debug
-description: Reproducing and diagnosing GeoDMS engine and GUI behaviour from the just-built binaries in bin\<Config>\x64. Covers the GeoDmsRun command line and its exit codes, why a bare item request computes nothing and @statistics or an IntegrityCheck does, Debug-build assertions (headless exit 3 versus the modal abort dialog), getting a stack with cdb by attaching, driving GeoDmsGuiQt headlessly with a /T script or interactively, writing a probe .dms, and the sandbox traps of the agent's own shell (virtualised registry and user profile, shared working directory). Use when asked to reproduce an issue, verify a fix on data, capture an assertion, or test a GUI feature.
+description: Reproducing and diagnosing GeoDMS engine and GUI behaviour from the just-built binaries in bin\<Config>\x64. Covers the GeoDmsRun command line and its exit codes, why a bare item request computes nothing and @statistics or an IntegrityCheck does, Debug-build assertions (a dms_assert now reports itself and exits 3 with no dialog, a plain CRT assert still dialogs under a debugger), getting a stack with cdb by attaching, driving GeoDmsGuiQt headlessly with a /T script or interactively, writing a probe .dms, and the sandbox traps of the agent's own shell (virtualised registry and user profile, shared working directory). Use when asked to reproduce an issue, verify a fix on data, capture an assertion, or test a GUI feature.
 ---
 
 # Reproducing and diagnosing on the local build
@@ -63,15 +63,23 @@ has content, read it with PowerShell `Select-String` or the Read tool instead.
 
 ## Debug-build assertions
 
-A failed `assert` or `MG_CHECK` ends in the CRT `abort()`. In `GeoDmsRun` with no debugger
-attached, `run/exe/src/MainRun.cpp` routes the text to stderr and exits 3, so a headless run
-does not stall; the line `Assertion failed: <cond>, file ..., line N` is in the captured
-stderr. Under a debugger, and in `GeoDmsGuiQt`, the modal Retry/Ignore dialog still appears,
-drawn through `USER32!MessageBoxW`, and the process parks there holding its DLLs: the next
-link fails with `LNK1168`/`LNK1104`, or is skipped silently. Before rebuilding, kill every
-`GeoDmsRun`, `GeoDmsGuiQt`, `cdb` and `WerFault` of yours (`Stop-Process -Force`; if a
-debug port keeps one alive, `cdb -p <pid> -c ".kill;q"`). Kill only your own: check the
-command line of a process before touching it, another session's GUI is theirs.
+Since #1265 a failing `dms_assert` does not reach the CRT assert at all. `CC_FIX_ASSERT` is
+defined for every Debug build (`rtc/dll/src/dbg/Diagnostics.h`), so it calls
+`dms_assertion_failed` (`rtc/dll/src/xct/DmsException.cpp`), which writes
+`Assertion failed: <cond>, file ..., line N` to stderr **and to every open log**, then breaks
+into the debugger if one is attached and otherwise `_Exit(3)`. No dialog, in `GeoDmsRun` and
+in `GeoDmsGuiQt` alike, so a headless run of either ends rather than stalling, and the text
+survives in the `/L` log even where there is no console.
+
+A plain CRT `assert` and `MG_CHECK`'s `abort()` still go through the CRT, but with no debugger
+attached `_set_error_mode(_OUT_TO_STDERR)` plus the report hook of `dbg/MsgDispatch.cpp` turn
+those into the same stderr line and exit 3. With a debugger attached the CRT keeps its modal
+Retry/Ignore box for them, drawn through `USER32!MessageBoxW`. A process parked in that box
+holds its DLLs: the next link fails with `LNK1168`/`LNK1104`, or is skipped silently. Before
+rebuilding, kill every `GeoDmsRun`, `GeoDmsGuiQt`, `cdb` and `WerFault` of yours
+(`Stop-Process -Force`; if a debug port keeps one alive, `cdb -p <pid> -c ".kill;q"`). Kill
+only your own: check the command line of a process before touching it, another session's GUI
+is theirs.
 
 ## A stack for an assertion or a crash
 
@@ -80,12 +88,14 @@ debugger and never reaches the fault. Attach instead.
 
 1. `$env:_NT_SYMBOL_PATH = 'C:\dev\GeoDMS_2026\bin\Debug\x64'` (local PDBs; the public
    symbol server makes the walk hang).
-2. Run the binary plain in the background; on an assertion it parks in the dialog (GUI, or
-   GeoDmsRun under a debugger) or exits 3 (headless GeoDmsRun, so for a stack you attach
-   before the assert or run under the VS debugger).
+2. Run the binary plain in the background. Without a debugger a `dms_assert` now exits 3
+   straight away (#1265), in the GUI as well, so there is nothing to attach to afterwards:
+   attach before the assert, or run under the VS debugger. A plain CRT `assert` under a
+   debugger still parks in the dialog.
 3. Attach and dump: `cdb.exe -p <pid> -c '~*kn 50; q'` from
    `C:\Program Files (x86)\Windows Kits\10\Debuggers\x64`. The faulting thread reads
-   `ucrtbased!abort` under `wassert` under `throwCheckFailed` under your frames. A full
+   `debugBreak` under `dms_assertion_failed` under your frames for a `dms_assert`, and
+   `ucrtbased!abort` under `wassert` under `throwCheckFailed` for a plain one. A full
    `~*kn` over the Tic/Clc PDBs takes minutes; give it a long timeout.
 4. When you do drive the target under cdb, put `bu USER32!MessageBoxW` (and
    `bu ucrtbased!wassert`) in a `-cf <scriptfile>` so it breaks before the dialog; inspect,
@@ -95,9 +105,8 @@ debugger and never reaches the fault. Attach instead.
    exit 2, no dialog) leaves nothing to attach to: attach early with `sxe av` then `g`, or
    use the VS debugger.
 
-Some bugs vanish under a debugger (teardown races did). Then run plain, and suppress the
-dialog in temporary Debug-only code: `_set_error_mode(_OUT_TO_STDERR);
-_set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);` before the failing path.
+Some bugs vanish under a debugger (teardown races did). Then run plain: since #1265 no dialog
+is in the way of that, and the assertion text is in the log.
 
 `doc/deadlocks.md` is the lock inventory; a computation at 0% CPU with no error line is a
 parked wait, and that document says where the known ones were.
