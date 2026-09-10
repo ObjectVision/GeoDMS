@@ -25,8 +25,8 @@ REM assertion before it writes anything: RangeProp<T>::GetRawValueAsSharedStr de
 REM IndexedString ceiling (rtc\dll\src\tic\UnitClassReg.h, and the same shape in the base
 REM PropDef<>::GetRawValueAsSharedStr) and then calls GetRawValue, whose RangeProp<T>::GetValue
 REM takes an interest on the unit and so enters ItemRegister, ord 74, under ord 90. Every
-REM configuration with a ranged unit hits it. That predates the round trip; put the call back once
-REM the ceiling is sorted out.
+REM configuration with a ranged unit hits it. That predates the round trip and is filed as #1268;
+REM put the call back once it is fixed.
 
 echo.
 if "%TC_FAILED%"=="1" (

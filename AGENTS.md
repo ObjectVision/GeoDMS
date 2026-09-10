@@ -28,7 +28,7 @@ GeoDmsRun runs per configuration, offline; the two RELEASE launchers call it rig
 before it writes anything, which predates this battery -- `RangeProp<T>::GetRawValueAsSharedStr`
 declares the IndexedString ceiling and then calls `GetRawValue`, whose `GetValue` takes an interest
 on the unit and so enters ItemRegister (ord 74) under ord 90. Every configuration with a ranged
-unit hits it.
+unit hits it; filed as #1268.
 
 **Do not confuse it with `testcases/run_roundtrip.bat`**, which asks a different question of the
 DMS writer: dump a configuration, RELOAD the dump and recompute its item. The XML one never
