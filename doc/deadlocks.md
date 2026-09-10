@@ -769,6 +769,81 @@ called. The interest the branch holds on the unit itself while it emits the Rang
 and stays. Debug battery 324/324 with `stor_mmd_alias_*` green; Release battery 324/324.
 Rule R6 (§8) is the general form.
 
+### P18 — the dump's raw property reads produced: interest, resolution, creation — **FIXED (#1268)**
+
+Found by the first Debug run of the XML round-trip battery (#1261): all 190 of its configurations
+stopped in `@dumpconfig` with exit 3 and an empty output file. The first refusal, on every
+configuration with a ranged unit, was `held (IndexedString, shared) at UnitClassReg.h:71 → requested
+ITEM(ItemRegister, exclusive) at InterestHolders.h:38`; with that one fixed, four more classes of
+refusal came out from behind it, all through the base `PropDef<>::GetRawValueAsSharedStr` (`:194`)
+and `HasNonDefaultValue` (`:179`). Release, with the checker compiled out, wrote every dump. None of
+it was new: the declarations date from the annotation waves (#1233) and from `9a6f8deb` (#1256);
+nothing had run a Debug dump in between.
+
+The declarations were in the right place and the checker was right to refuse every one. The raw
+accessors of `AbstrPropDef` — `HasNonDefaultValue`, `GetRawValueAsSharedStr` and the `GetRawValue`
+they call — carry the reporting contract `(IndexedString, shared)` (R2; `mci/PropDef.h` says so above
+each): the error path asks them what it was doing, so they read a member or a stored map, never
+evaluate, take nothing outer to the registry. What the dump's reads did instead, one stack each
+under cdb:
+
+- `RangeProp<T>` overrode the cooked `GetValue` — first statement `SharedUnitInterestPtr holder(u)`,
+  then `PrepareDataUsage`, then a `GetRange` that follows the range item and waits on it — and had
+  never overridden `GetRawValue`, whose base default forwards to `GetValue` with a note that a PropDef
+  whose `GetValue` computes must override it. Interest (per-item, rule 2 of §3.7), production and a
+  wait (§3.8), inside a scope that had promised none of them. The same shape as P17, one layer down.
+- `AbstrUnit::IsDefaultUnit` was `this == GetUnitClass()->CreateDefault()`: a question that creates
+  on first asking — a whole tree item, `SetMaxRange` and `SetKeepDataState` (ItemRegister exclusive)
+  included — reached from `GetScriptName` inside `DomainUnitPropDef::GetRawValue`.
+- `DomainUnitPropDef`/`ValuesUnitPropDef::GetRawValue`, their `HasNonDefaultValue`
+  (`HasVoidDomainGuarantee`) and `AbstrDataItem::GetSignature` resolved the unit reference on first
+  asking: `FindUnit → GetUnitOrDefault`, which either creates the value class's default unit or walks
+  the path through `ResolveItemPath → UpdateMetaInfo` — a pump (`NotifyTargetCount` 89 from the
+  `SilentBlocker`, `MakeCalculator` parsing rules, and on a storage container `DoUpdateTree`, so the
+  GDAL component at 83: a dump reading a dataset's schema to write a configuration).
+- `UsingPropDef::GetValue`, through the base default: `UsingCache::UpdateUsings → FindNamespace →
+  ResolveItemPath → UpdateMetaInfo`, the same pump.
+
+Why the DMS dump of an ordinary item never showed it: `GetSignature` runs *before* `DumpPropList`
+and is not ceilinged, so it resolved both units unchecked and the ceilinged reads found them
+resolved. The XML dump has no `GetSignature` step (its first touch was the ceilinged
+`HasNonDefaultValue`), and a function body's references cannot bind (`FindUnit` answers null in a
+template), so every ceilinged read re-resolved.
+
+*Fixed:* the raw reads read. `RangeProp<T>::GetRawValue` returns the range `SetValue` stored, through
+the new `Unit<V>::GetLocalRange` (the counterpart of `AbstrUnit::GetLocalCrs`: the slot's own bare
+guard, nothing else). `IsDefaultUnit` peeks (`UnitClass::GetDefaultIfCreated`): when there is no
+default unit, no unit is it. The unit-reference reads take the unit already resolved
+(`GetCurrDomainUnit`, no `FindUnit`) or the source token (`UnitRefRawValue`); the void-domain
+question has a raw form, `HasVoidDomainAsWritten`, answered from the resolved unit or from the
+token naming the void value class; `UsingPropDef::GetRawValue` writes what is resolved by its script
+name and the pending urls as configured. And a dump resolves the unit and using references of its
+subtree **before** it writes (`TreeItem_ResolveUnitRefs` in `TreeItem_XML_DumpOrThrow`, every entry
+point including the MMD dictionary): the same work the cooked reads did on the fly, done where it
+is visible and not ceilinged, so the dump renders the tree in one state — the #1244 `(.)` rule holds
+whether or not something computed the item before, and the dictionary keeps its absolute paths
+(#1195). In the dump's own order, which is not a detail: resolving one reference runs
+`UpdateMetaInfo` on the containers its path crosses, and that is what makes the target of a later
+reference findable at all; a first version walked the subtree with a stack, siblings in reverse,
+and three `parameter<km2>` items of the grid-to-polygon example were marked failed by the dump
+("Cannot find Values unit km2") where the cooked reads, resolving in order, had bound them.
+Measured: the Debug dumps of all 190 configurations are byte-identical to the Release dumps of the
+previous build, bar the header line, except `fn_test_byexample2`, whose cooked read used to
+*compute* a float32 unit's `nrofrows` range through `cat_range`, fail, and write the error into the
+dump; the raw read writes the configured range, so that configuration left the known-diff list.
+
+A second, unrelated Debug-only defect surfaced once the dumps ran: `MemoInpStreamBuff(begin, end =
+nullptr)` built its `IterRange` from `(begin, nullptr)` and patched the end afterwards, and IterRange
+asserts its two ends are null together — every single-argument use (the XML reader's
+`SetValueAsCharArray`) asserted. The end is now computed in the initialiser.
+
+The static pass cannot see this class, and not for want of the virtual contracts follow-up 5 lists:
+`RangeProp<T>` defined no `GetRawValue`, so there was no body to check — the reach is an inherited
+default → virtual `GetValue` → the override selected by the dynamic type, and `GetValue` has dozens
+of unrelated definitions (ambiguous, skipped by design, §3.9). Resolving that is the runtime's job,
+which is why the XML round-trip battery is back in the two Debug launchers: it is the check for
+this class, and it found five instances on its first run.
+
 ## 5. Verified non-findings
 
 Recorded so the next reader does not re-suspect them:
@@ -832,7 +907,10 @@ Recorded so the next reader does not re-suspect them:
   checks that syntactically and `analyze.bat` runs it.
 - **R2** — the error-reporting path reads names and streams, nothing else:
   `DMS_ENTERS(IndexedString, shared)` on `Describe`/`GetDescription`, contracts on everything they
-  dispatch to (`DebugContext.h`).
+  dispatch to (`DebugContext.h`). The raw property accessors are on that path
+  (`HasNonDefaultValue`, `GetRawValueAsSharedStr`, `GetRawValue`; `mci/PropDef.h`): a PropDef whose
+  cooked `GetValue` takes interest, prepares or evaluates overrides `GetRawValue` with a member
+  read, or the dump — which writes the raw value — does all of that under the ceiling (P18).
 - **R3** — teardown-concurrent code gates on the lock-free `IsSessionTearingDown()`, never on
   `SessionData::Curr()` (which takes `sd_SessionDataCriticalSection` while the tree dies under it).
 - **R4** — main-thread opers are unconstrained *because* every pump holds at most per-item locks — asserted in
@@ -870,6 +948,8 @@ Recorded so the next reader does not re-suspect them:
    `tools/check-lock-ceilings.ps1` (§3.9), run by `analyze.bat`; transitive through undeclared
    bodies and consuming the contracts on function-pointer *typedefs* since `eab00bb01` (P16 is the
    case it now catches). Left: the contracts on virtuals and on function-pointer parameters, and
-   modelling a section held earlier in the caller's body.
+   modelling a section held earlier in the caller's body. Not every miss is one of those: P18 is
+   an inherited default that dispatches on the dynamic type, which no name-based pass resolves —
+   the Debug round-trip battery is the check for that class.
 6. ~~The dictionary dump's interest holder (#1266, `220ec739c`)~~ — replaced by the interest-less
    question in `1946a5cdd` (P17, R6).

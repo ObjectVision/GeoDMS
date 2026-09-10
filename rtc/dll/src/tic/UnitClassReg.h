@@ -41,6 +41,8 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	{}
 
 	// override base class
+	// COOKED, what PropValue(unit, 'range') answers: takes an interest and prepares the unit, so a
+	// range that a calculation or a storage supplies is available as well as a configured one.
 	ApiType GetValue(const unit_t* u) const override
 	{
 		SharedUnitInterestPtr holder(u);
@@ -52,6 +54,19 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 				return u->GetRange();
 			}
 		return ApiType{};
+	}
+	// RAW, what a configuration is written from (OutStreamBase::DumpSubTags): the range SetValue
+	// below stored on THIS unit, when one was configured, read from the member and nothing more.
+	// A raw accessor may neither take an interest nor prepare: its contract is the IndexedString
+	// ceiling (PropDef.h), and an interest pointer is a per-item lock outer to that, which is what
+	// stopped every Debug @dumpconfig of a ranged unit (#1268) -- the base GetRawValue forwards to
+	// GetValue, so a PropDef whose GetValue computes has to override it, as this one now does.
+	// The same seam as SpatialReferencePropDef::GetRawValue / AbstrUnit::GetLocalCrs.
+	ApiType GetRawValue(const unit_t* u) const override
+	{
+		if (!u->GetTSF(USF_HasConfigRange) || u->GetTSF(TSF_Categorical) != m_IsCategorical)
+			return ApiType{};
+		return u->GetLocalRange();
 	}
 	void SetValue(unit_t* u, ParamType val) override
 	{
@@ -68,7 +83,9 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	// its own formatter, GetStrRange), not to the raw value a configuration is written from.
 	SharedStr GetRawValueAsSharedStr(const Object* self) const override
 	{
-		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // as in the base implementation
+		// as in the base implementation, and covering the GetRawValue call on purpose: that is the
+		// contract of GetRawValue, and the ceiling is what checks it (#1268)
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		typename ValueWrap<range_t>::value_type propValue = this->GetRawValue(debug_cast<const unit_t*>(self));
 		SharedStr result = ::AsString(propValue, FormattingFlags::None);
 

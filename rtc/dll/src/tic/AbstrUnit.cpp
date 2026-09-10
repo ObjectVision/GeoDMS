@@ -424,7 +424,11 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 
 bool AbstrUnit::IsDefaultUnit() const
 {
-	return this == GetUnitClass()->CreateDefault();
+	// A peek, not CreateDefault (#1268): when the class has no default unit yet this is not it. The
+	// question is put by GetScriptName from a dump's raw property reads, which run under the
+	// reporting ceiling and may create nothing; what this used to create on first asking was a
+	// whole tree item, SetMaxRange and SetKeepDataState included, from inside a property read.
+	return this == GetUnitClass()->GetDefaultIfCreated();
 }
 
 bool AbstrUnit::HasVarRangeData() const

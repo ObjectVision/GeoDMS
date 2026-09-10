@@ -24,13 +24,14 @@
 
 /********** MemoInpStreamBuff Implementation **********/
 
+// A null end means "up to the null termination". It is computed BEFORE m_Data is built: IterRange
+// asserts that its two ends are null together, and building it from (begin, nullptr) and patching
+// the end afterwards tripped that assert on every single-argument use in a Debug build, which the
+// XML reader is (SetValueAsCharArray, #1268: the first Debug run of the XML round-trip battery).
 MemoInpStreamBuff::MemoInpStreamBuff(const Byte* begin, const Byte* end)
-	: m_Data(begin, end)
+	: m_Data(begin, (end == nullptr && begin != nullptr) ? begin + StrLen(begin) : end)
 	, m_Curr(begin)
-{
-	if (end==nullptr && begin != nullptr)
-		m_Data.second = begin + StrLen(begin); // go to null termination.
-}
+{}
 
 void MemoInpStreamBuff::ReadBytes (Byte* data, streamsize_t size) const 
 {

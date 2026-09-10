@@ -684,6 +684,20 @@ auto Unit<V>::GetRange() const -> range_t requires (ranged_unit_v<V> || fixed_ra
 	}
 }
 
+// The range stored on THIS unit only: no walk to the range item, no wait for it, no preparation.
+// The counterpart of AbstrUnit::GetLocalCrs, and like it the DUMP view -- it answers "what range
+// did this unit declare?", which is what RangeProp<T>::GetRawValue writes a configuration from.
+// A raw property accessor runs under the IndexedString ceiling (PropDef.h), so this takes no
+// leveled lock: the slot's own guard, as GetTiledRangeData does, and nothing else (#1268).
+template <class V>
+auto Unit<V>::GetLocalRange() const -> range_t requires ranged_unit_v<V>
+{
+	auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+	if (!this->m_RangeDataPtr)
+		return range_t();
+	return this->m_RangeDataPtr->GetRange();
+}
+
 template <typename V>
 const UnitMetric*
 Unit<V>::GetMetric() const

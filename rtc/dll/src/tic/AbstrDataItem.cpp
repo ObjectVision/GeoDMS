@@ -278,7 +278,9 @@ SharedStr AbstrDataItem::GetSignature() const
 	// the item is written at another depth, whereas a resolved '../'-path would ascend
 	// above root on reload (e.g. a body item whose values unit is a function parameter).
 	// The user-visible PropValue(item,'ValuesUnit') keeps the resolved path via GetValue.
-	return SharedStr(HasVoidDomainGuarantee()	?	"parameter<" :	"attribute<")
+	// Both halves read what is resolved or the source token and resolve nothing (#1268): this ran
+	// before the ceilinged property reads and resolved both units for them, unchecked.
+	return SharedStr(HasVoidDomainAsWritten()	?	"parameter<" :	"attribute<")
 		+	s_ValuesUnitPropDefPtr->GetRawValue(this)
 		+	">";
 }
@@ -836,6 +838,25 @@ bool AbstrDataItem::HasVoidDomainGuarantee() const
 	return adu->IsKindOf( Unit<Void>::GetStaticClass() );
 }
 
+// #1268: the void-domain question for the serializers -- 'parameter<V> x' or 'attribute<V> x (d)',
+// and whether the DomainUnit attribute is written at all. HasVoidDomainGuarantee above resolves the
+// domain on first asking, and resolving is production: FindUnit walks the path with UpdateMetaInfo on
+// the way, or creates the value class's default unit. A dump may start neither while it writes -- it
+// resolves its subtree beforehand (TreeItem_ResolveUnitRefs) -- and its raw property reads run under
+// the reporting ceiling that refuses both (mci/PropDef.h). So this answers from the unit already
+// resolved, else from the source token, which names the void value class for a parameter that
+// nothing can bind (a function or template body item). A unit ITEM of type void that stays
+// unresolved answers false and is written as 'attribute<V> x (v)', which reads back to the same
+// item as 'parameter<V> x'.
+bool AbstrDataItem::HasVoidDomainAsWritten() const
+{
+	if (auto adu = GetCurrDomainUnit())
+		return adu->IsKindOf(Unit<Void>::GetStaticClass());
+	if (auto vc = ValueClass::FindByScriptName(m_tDomainUnit))
+		return UnitClass::Find(vc) == Unit<Void>::GetStaticClass();
+	return false;
+}
+
 void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 {
 //	MG_CHECK2(false, "NYI: Copy Data into newly formed DataArray");
@@ -989,6 +1010,24 @@ static SharedStr UnitRefDumpValue(TokenID srcToken, SharedStr resolved)
 	return resolved;
 }
 
+// #1268: the unit reference as a RAW read writes it: from the unit this item has ALREADY resolved, or
+// from its source token when it has none. GetAbstrDomainUnit/GetAbstrValuesUnit resolve the reference
+// on first asking, and resolving is production: FindUnit walks the path with UpdateMetaInfo on the way
+// (which on a storage container reads the storage's schema), or creates the value class's default
+// unit. A raw property accessor runs under the reporting ceiling (mci/PropDef.h) and may do neither;
+// the first Debug run of the XML round-trip battery (#1261) stopped on it in 190 of 190
+// configurations. A dump resolves every unit reference of its subtree BEFORE it writes
+// (TreeItem_ResolveUnitRefs in Xml/XmlTreeOut.cpp), so what a raw read finds unresolved is a
+// reference nothing can bind -- a function or template body item -- and that is written as it was
+// configured, which is what UnitRefDumpValue prefers for a bare name anyway.
+static SharedStr UnitRefRawValue(const AbstrDataItem* item, TokenID srcToken, const SharedUnit& currUnit)
+{
+	if (currUnit)
+		return UnitRefDumpValue(srcToken, currUnit->GetScriptName(item));
+	assert(IsDefined(srcToken));
+	return SharedStr(srcToken);
+}
+
 struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 {
 	DomainUnitPropDef()
@@ -1030,14 +1069,16 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 		// the dictionary only: a unit outside it keeps its absolute path, which is the one spelling a
 		// reader that merges the dictionary elsewhere can resolve, and which the #1154 restrictions
 		// are keyed on (Mmd_AddUnitRestriction skips a '.').
-		if (auto adu = item->GetAbstrDomainUnit())
-			if (adu == FindNearestAncestorUnit(item->GetTreeParent().get()) && (!t_MmdDictionaryRoot || t_MmdDictionaryRoot->DoesContain(adu)))
+		// The unit already resolved, or none: a raw read resolves nothing (#1268, UnitRefRawValue).
+		auto adu = item->GetCurrDomainUnit();
+		if (adu)
+			if (adu.get() == FindNearestAncestorUnit(item->GetTreeParent().get()) && (!t_MmdDictionaryRoot || t_MmdDictionaryRoot->DoesContain(adu.get())))
 				return SharedStr(TokenID(t_DotDomain));
-		return UnitRefDumpValue(item->m_tDomainUnit, GetValue(item));
+		return UnitRefRawValue(item, item->m_tDomainUnit, adu);
 	}
 	bool HasNonDefaultValue(const Object* self) const override
 	{
-		return !debug_cast<const AbstrDataItem*>(self)->HasVoidDomainGuarantee();
+		return !debug_cast<const AbstrDataItem*>(self)->HasVoidDomainAsWritten(); // #1268: resolves nothing, as the contract says
 	}
 };
 
@@ -1059,10 +1100,10 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	}
 
 	// see UnitRefDumpValue: the DUMP prefers the re-instantiation-safe bare source token, except in
-	// a dictionary, which needs the absolute path
+	// a dictionary, which needs the absolute path; and it resolves nothing (#1268, UnitRefRawValue)
 	auto GetRawValue(const AbstrDataItem* item) const -> SharedStr override
 	{
-		return UnitRefDumpValue(item->m_tValuesUnit, GetValue(item));
+		return UnitRefRawValue(item, item->m_tValuesUnit, item->GetCurrValuesUnit());
 	}
 };
 

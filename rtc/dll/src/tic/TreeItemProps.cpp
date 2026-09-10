@@ -24,6 +24,7 @@
 #include "SupplCache.h"
 #include "StoredPropDef.h"
 #include "LispTreeType.h"
+#include "UsingCache.h" // #1268: UsingPropDef::GetRawValue reads the cache without resolving it
 
 class PropertyContextHandle : ObjectContextHandle
 {
@@ -686,10 +687,39 @@ namespace { // local defs
 					result += ns->GetScriptName(item);
 				}
 			}
-			return result; 
+			return result;
 		}
-		void SetValue(TreeItem* ti, ParamType val) override 
-		{ 
+		// #1268: the RAW value, what a configuration dump writes: the namespaces this item has resolved,
+		// rendered as GetValue renders them, then the urls it has not resolved yet, as configured -- in
+		// that order, which is the order UpdateUsings would produce. GetValue resolves them first
+		// (UsingCache::UpdateUsings, a path walk with UpdateMetaInfo on the way), which a raw property
+		// read may not do; on a freshly loaded configuration nothing has resolved them yet.
+		ApiType GetRawValue(const TreeItem* item) const override
+		{
+			SharedStr result;
+			if (!item->CurrHasUsingCache())
+				return result;
+			auto uc = item->GetUsingCache();
+			for (UInt32 i = 0, n = uc->GetNrCurrUsings(); i != n; ++i)
+			{
+				const TreeItem* ns = uc->GetCurrUsing(i); // null for an expired using entry
+				if (ns && !ns->DoesContain(item))
+				{
+					if (result.ssize() > 0)
+						result += ';';
+					result += ns->GetScriptName(item);
+				}
+			}
+			for (auto url : uc->UsingUrls())
+			{
+				if (result.ssize() > 0)
+					result += ';';
+				result += SharedStr(url);
+			}
+			return result;
+		}
+		void SetValue(TreeItem* ti, ParamType val) override
+		{
 			assert(ti);
 			ti->AssertPropChangeRights(USING_NAME);
 			ti->ClearNamespaceUsage();

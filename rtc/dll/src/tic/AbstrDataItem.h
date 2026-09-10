@@ -115,6 +115,9 @@ public:
 	DataCheckMode GetTiledCheckMode(tile_id t) const;
 
 	TIC_CALL bool HasVoidDomainGuarantee() const;
+	// #1268: the same question as a RAW read answers it, for the serializers: from the domain unit this
+	// item has already resolved, else from its source token. Resolves nothing; see the definition.
+	TIC_CALL bool HasVoidDomainAsWritten() const;
 
 
 	void OnDomainUnitRangeChange(const DomainChangeInfo* info);

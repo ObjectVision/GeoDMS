@@ -150,6 +150,12 @@ const TreeItem* UsingCache::GetUsing(UInt32 i) const
 	return lock_raw(m_Usings[i]);
 }
 
+const TreeItem* UsingCache::GetCurrUsing(UInt32 i) const // #1268: GetUsing without the resolution precondition
+{
+	MG_PRECONDITION(i < m_Usings.size());
+	return lock_raw(m_Usings[i]);
+}
+
 
 void UsingCache::AddIncoming(UsingCache* incoming) const
 {

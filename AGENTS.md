@@ -23,12 +23,17 @@ syntax too, and compares the two DMS dumps: both are the same writer over what s
 same tree, so a difference is something the XML notation lost. Configurations whose round trip
 is known to differ are listed with their reason in `testcases/xml_roundtrip_known_diff.txt`, and a
 listed one that starts to match fails the run as well, so the list shrinks deliberately. Three
-GeoDmsRun runs per configuration, offline; the two RELEASE launchers call it right after
-`run_testcases.bat`. Not the Debug ones: a Debug `@dumpconfig` stops on a lock-ceiling assertion
-before it writes anything, which predates this battery -- `RangeProp<T>::GetRawValueAsSharedStr`
-declares the IndexedString ceiling and then calls `GetRawValue`, whose `GetValue` takes an interest
-on the unit and so enters ItemRegister (ord 74) under ord 90. Every configuration with a ranged
-unit hits it; filed as #1268.
+GeoDmsRun runs per configuration, offline; the four `Test*Unit.bat` launchers that run the
+testcases battery (`.m` and `.g`, Release and Debug) call it right after `run_testcases.bat`.
+In a Debug build it doubles as the lock-ceiling check of the dump path: a raw property accessor
+(`GetRawValue`, `HasNonDefaultValue`, `GetRawValueAsSharedStr`; contract in `mci/PropDef.h`)
+runs under the IndexedString ceiling and may read a member only, so one that takes an interest
+or prepares stops the dump with exit 3 on every configuration that has such an item. That is
+how #1268 was found -- five raw reads that took interest, resolved or created, the first being
+`RangeProp<T>`'s inherited `GetRawValue`, which forwarded to a `GetValue` that takes an interest --
+and what keeps it fixed: since then a dump resolves the references of its subtree before it
+writes (`TreeItem_ResolveUnitRefs`) and its reads read. The Debug launchers were without the
+battery until then.
 
 **Do not confuse it with `testcases/run_roundtrip.bat`**, which asks a different question of the
 DMS writer: dump a configuration, RELOAD the dump and recompute its item. The XML one never

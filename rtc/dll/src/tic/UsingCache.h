@@ -40,6 +40,11 @@ struct UsingCache
 
 	UInt32 GetNrUsings() const;
 	const TreeItem* GetUsing(UInt32 i) const;
+	// #1268: the raw view, for the configuration dump: the namespaces resolved so far, and beside them
+	// UsingUrls(), the urls not resolved yet. GetNrUsings/GetUsing resolve first (UpdateUsings, a path
+	// walk with UpdateMetaInfo on the way), which a raw property read may not do.
+	UInt32 GetNrCurrUsings() const { return m_Usings.size(); }
+	const TreeItem* GetCurrUsing(UInt32 i) const;
 
 	auto FindItem(TokenID itemID) const -> SharedTreeItem;
 

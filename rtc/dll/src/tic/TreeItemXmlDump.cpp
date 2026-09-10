@@ -179,8 +179,11 @@ void DMS_WriteValuesPrefix(OutStreamBase& out, const TreeItem* item)
 	{
 		auto adi = AsDataItem(item);
 		SharedStr vt(adi->ValuesUnitToken());
-		// a void-domain item is a 'parameter<V>'; anything else is an 'attribute<V>'
-		out << (adi->HasVoidDomainGuarantee() ? "parameter<" : "attribute<"); out << vt.c_str(); out << ">";
+		// a void-domain item is a 'parameter<V>'; anything else is an 'attribute<V>'. As written, i.e.
+		// from the source token when the domain cannot be bound (#1268): a body item usually is such
+		// an item, and re-resolving it here at every call was production this serializer had no
+		// business starting (the dump resolved its subtree beforehand, TreeItem_ResolveUnitRefs).
+		out << (adi->HasVoidDomainAsWritten() ? "parameter<" : "attribute<"); out << vt.c_str(); out << ">";
 		return;
 	}
 	if (IsUnit(item)) { out << SharedStr(item->GetSignature()).c_str(); return; } // 'unit<vt>' -- source-faithful
@@ -195,7 +198,7 @@ void DMS_WriteDomainSuffix(OutStreamBase& out, const TreeItem* item)
 	if (!IsDataItem(item))
 		return;
 	auto adi = AsDataItem(item);
-	if (adi->HasVoidDomainGuarantee())
+	if (adi->HasVoidDomainAsWritten()) // as in DMS_WriteValuesPrefix (#1268)
 		return; // void domain -> 'parameter<V>', no suffix
 	auto vc = adi->GetValueComposition();
 	SharedStr dt(adi->DomainUnitToken());

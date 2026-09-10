@@ -47,6 +47,10 @@ public:
 	TIC_CALL auto CreateTmpUnit     (TreeItem* context) const -> SharedMutableUnit;
 
 	TIC_CALL const AbstrUnit* CreateDefault() const;
+	// #1268: the default unit if CreateDefault has made it, else null. For the question that must not
+	// create: AbstrUnit::IsDefaultUnit, asked by GetScriptName from a dump's raw property reads, which
+	// run under the reporting ceiling. When there is no default unit yet, no unit is it.
+	const AbstrUnit* GetDefaultIfCreated() const { return m_DefaultUnit.get(); }
 	void             DropDefault  () const;
 	TIC_CALL const ValueClass* GetValueType(ValueComposition vc = ValueComposition::Single) const;
 	static const AbstrUnit* GetUnitOrDefault(const TreeItem* context, TokenID id, ValueComposition* vcPtr);

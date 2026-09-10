@@ -89,6 +89,7 @@ public:
 
 	TIC_CALL range_t GetRange()         const requires (ranged_unit_v<V> || fixed_range_unit_v<V>);
 	TIC_CALL range_t GetPreparedRange() const requires ranged_unit_v<V>;
+	TIC_CALL range_t GetLocalRange()    const requires ranged_unit_v<V>; // the range stored on THIS unit, the dump view; see AbstrUnit::GetLocalCrs
 	TIC_CALL void SetRange(const range_t& range)                       requires ranged_unit_v<V>;
 	TIC_CALL void SetRange(const range_t& range, extent_t blockSize)   requires ranged_unit_v<V>;
 	TIC_CALL void ValidateRange(const range_t& range) const            requires ranged_unit_v<V>;

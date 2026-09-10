@@ -19,14 +19,17 @@ set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin\Debug\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
 
-REM The XML round-trip battery (#1261, testcases\run_xml_roundtrip.bat) is NOT called here, only from
-REM the Release launchers. It runs @dumpconfig, and a Debug @dumpconfig stops on a lock-ceiling
-REM assertion before it writes anything: RangeProp<T>::GetRawValueAsSharedStr declares the
-REM IndexedString ceiling (rtc\dll\src\tic\UnitClassReg.h, and the same shape in the base
-REM PropDef<>::GetRawValueAsSharedStr) and then calls GetRawValue, whose RangeProp<T>::GetValue
-REM takes an interest on the unit and so enters ItemRegister, ord 74, under ord 90. Every
-REM configuration with a ranged unit hits it. That predates the round trip and is filed as #1268;
-REM put the call back once it is fixed.
+REM XML round-trip battery (#1261): every testcases configuration dumped in DMS syntax and in
+REM XML, the XML read back and dumped in DMS syntax again, and the two DMS dumps compared. A
+REM difference is something the XML notation lost on the way out or on the way back in.
+REM Offline; three GeoDmsRun runs per configuration, so about twice the battery above. Known
+REM differences and their reason live in testcases\xml_roundtrip_known_diff.txt.
+REM In a Debug build this is also the lock-ceiling check of the dump path: a raw property
+REM accessor that takes an interest or prepares under the IndexedString ceiling stops here with
+REM exit 3, which is how #1268 (RangeProp<T>::GetRawValue) was found and is kept fixed.
+set RT_FAILED=0
+Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%geodms_rootdir%\bin\Debug\x64\GeoDmsRun.exe"
+if errorlevel 1 set RT_FAILED=1
 
 echo.
 if "%TC_FAILED%"=="1" (
@@ -34,9 +37,15 @@ if "%TC_FAILED%"=="1" (
 ) else (
   echo TESTCASES BATTERY PASSED
 )
+if "%RT_FAILED%"=="1" (
+  echo *** XML ROUNDTRIP BATTERY FAILED - see table above and testcases\_out_xml_roundtrip\ ***
+) else (
+  echo XML ROUNDTRIP BATTERY PASSED
+)
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
+if "%RT_FAILED%"=="1" exit /b 1
 exit /b 0

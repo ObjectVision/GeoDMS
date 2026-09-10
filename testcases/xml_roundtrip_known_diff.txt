@@ -3,8 +3,11 @@
 # round-trip byte for byte, and fails a listed one that has started to match, so that this list
 # shrinks deliberately rather than rotting.
 #
-# Measured on 20.20.0, over 188 configurations that load.
+# Measured on 20.20.0, over 190 configurations that load, in Release and in Debug.
+#
+# Removed with #1268: fn_test_byexample2, whose direct dump used to COMPUTE the range of unit
+# 'app/nodes' (nrofrows on a unit<float32>, for which cat_range has no operator) and wrote the
+# error inline. A dump writes the configured range and computes nothing since #1268.
 
-fn_test_byexample2      the direct dump of unit 'app/nodes' fails on its own range and reports it inline ('// ERROR dumping nodes: cat_range Error: Cannot find operator ...'), because the configuration declares nrofrows on a unit<float32> and cat_range has no operator for that. A dump error is not part of the tree, so the tree read back from the XML dumps without it. The cause is the range of that unit, not the notation.
 oper_dms_family         the source rule ends in a line end, which the reader drops together with the layout white space of the element it sits in and cannot tell apart from it, so the ',' the DMS writer appends lands on the previous line
 oper_dms_union_counts   idem, four rules

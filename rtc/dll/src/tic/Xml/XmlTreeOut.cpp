@@ -648,9 +648,49 @@ void TraceConfigSource(const TreeItem* self, XML_Table& xmlTable)
 //											ITERFACE FUNCS
 // *****************************************************************************
 
+// #1268: a dump computes nothing while it writes. Its property reads are the RAW accessors, which run
+// under the reporting ceiling (mci/PropDef.h) and read what an item has already resolved, or its
+// source token. What they need resolved is resolved HERE, before the first line is written: every
+// unit reference in the subtree, which is what the cooked reads used to resolve on the fly, one item
+// at a time, from inside GetSignature and the property reads. Resolving is production -- FindUnit
+// walks a path with UpdateMetaInfo on the way (on a storage container that reads the storage's
+// schema), or creates a value class's default unit -- so it runs where it is visible and not
+// ceilinged, and the dump then renders the tree in ONE state: an attribute whose domain is its
+// nearest ancestor unit is written '(.)' (#1244) whether or not something computed it before, and
+// the dictionary of an MMD store names every unit by its absolute path (#1195), which needs the unit
+// resolved. What stays unresolved -- a function or template body item whose reference FindUnit cannot
+// bind, or a reference that fails -- is written from its source token; the failure is the item's, as
+// it was when the dump used to run into it halfway through that item. The 'using' references are
+// resolved the same way, for the same reason: UsingPropDef::GetRawValue writes what is resolved by
+// its script name and the rest as configured.
+//
+// In the DUMP's order, an item before its sub-items and siblings in declaration order, and not in
+// any other: resolving one reference runs UpdateMetaInfo on the containers its path crosses, which
+// is what makes the items of a later reference findable at all (a unit inside a container that is
+// instantiated from a template, say). Walked in another order the same reference fails, the item is
+// marked failed by a dump, and the configuration is written from its token where the cooked reads,
+// which resolved on the fly in this order, wrote the same text without any of that.
+static void TreeItem_ResolveUnitRefs(const TreeItem* self)
+{
+	try {
+		if (IsDataItem(self)) // the order the cooked reads had: the signature's domain and values unit, then the Using subtag
+		{
+			auto adi = AsDataItem(self);
+			adi->GetAbstrDomainUnit();
+			adi->GetAbstrValuesUnit();
+		}
+		self->GetNrNamespaceUsages(); // UsingCache::UpdateUsings
+	}
+	catch (...) { catchException(false); }
+	for (auto sub = self->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+		TreeItem_ResolveUnitRefs(sub);
+}
+
 void TreeItem_XML_DumpOrThrow(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary)
 {
 	assert(xmlOutStr);
+
+	TreeItem_ResolveUnitRefs(self);
 
 	auto contextSwapper = tmp_swapper{ s_RelativeScope, self };
 	self->XML_Dump(xmlOutStr, notWritingDictionary);

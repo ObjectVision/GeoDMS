@@ -19,14 +19,11 @@ set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin_GLOBIO\Debug\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
 
-REM The XML round-trip battery (#1261, testcases\run_xml_roundtrip.bat) is NOT called here, only from
-REM the Release launchers. It runs @dumpconfig, and a Debug @dumpconfig stops on a lock-ceiling
-REM assertion before it writes anything: RangeProp<T>::GetRawValueAsSharedStr declares the
-REM IndexedString ceiling (rtc\dll\src\tic\UnitClassReg.h, and the same shape in the base
-REM PropDef<>::GetRawValueAsSharedStr) and then calls GetRawValue, whose RangeProp<T>::GetValue
-REM takes an interest on the unit and so enters ItemRegister, ord 74, under ord 90. Every
-REM configuration with a ranged unit hits it. That predates the round trip and is filed as #1268;
-REM put the call back once it is fixed.
+REM XML round-trip battery (#1261), see TestDebugUnit.bat: in a Debug build it is also the
+REM lock-ceiling check of the dump path (#1268).
+set RT_FAILED=0
+Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%geodms_rootdir%\bin_GLOBIO\Debug\x64\GeoDmsRun.exe"
+if errorlevel 1 set RT_FAILED=1
 
 echo.
 if "%TC_FAILED%"=="1" (
@@ -34,9 +31,15 @@ if "%TC_FAILED%"=="1" (
 ) else (
   echo TESTCASES BATTERY PASSED
 )
+if "%RT_FAILED%"=="1" (
+  echo *** XML ROUNDTRIP BATTERY FAILED - see table above and testcases\_out_xml_roundtrip\ ***
+) else (
+  echo XML ROUNDTRIP BATTERY PASSED
+)
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
+if "%RT_FAILED%"=="1" exit /b 1
 exit /b 0
