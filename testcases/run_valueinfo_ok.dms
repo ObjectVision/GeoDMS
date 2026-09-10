@@ -1,0 +1,7 @@
+// #1270: the positive side of the @valueinfo exit code. Run as '@valueinfo 0 /ok'
+// (fnrun_itemmap.txt): the explanation of row 0 is rendered and the run exits 0.
+container run_valueinfo_ok
+{
+	unit<uint32> dom : nrofrows = 4;
+	attribute<uint32> ok (dom) := id(dom);
+}

@@ -936,8 +936,23 @@ bool WaitReady(const TreeItem* item)
 		return false;
 
 	dbg_assert(!SuspendTrigger::DidSuspend());
-	ItemReadLock lock(item); // maybe faster way, just call producer->Join; also calls LoadBlobIfAny
-	return lock.has_ptr();
+	// #1270: the lock waits for the producer, and when that fails during the wait the lock's
+	// constructor throws the item's failure. The unblocked wait above returns false for the same
+	// event, with the reason on the item, and every caller has a branch for that: PrepareData
+	// fails the item asked for with the reason of its ultimate item, and a commit copies it.
+	// The throw skipped those branches and surfaced wherever a catch happened to be: in a
+	// @statistics request of GeoDmsRun that was the text renderer, so the item stayed unfailed
+	// and the run exited 0. Report a failure during this wait as the unblocked wait does.
+	try {
+		ItemReadLock lock(item); // maybe faster way, just call producer->Join; also calls LoadBlobIfAny
+		return lock.has_ptr();
+	}
+	catch (const DmsException&)
+	{
+		if (item->WasFailed())
+			return false;
+		throw;
+	}
 }
 
 std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item)

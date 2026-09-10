@@ -1,0 +1,11 @@
+// #1270: a @statistics request whose item fails to compute exits 1, like a failed commit.
+// Run as '@statistics /r' (fnrun_itemmap.txt): /r reads a file that does not exist, so its
+// own production fails. Before #1270 the failure text landed in the statistics HTML on
+// stdout only and the run exited 0, because GeoDmsRun looked at the item before the
+// command computed it and never after.
+// Expected: exit nonzero, 'Failure: ...' on stderr.
+container run_statistics_own_neg
+{
+	unit<uint32> dom : nrofrows = 4;
+	attribute<uint32> r (dom): StorageName = "%LocalDataDir%/GeoDmsTestcases/no_such_file_1270.fss";
+}

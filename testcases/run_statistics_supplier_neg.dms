@@ -1,0 +1,14 @@
+// #1270: a @statistics request whose item cannot compute because a SUPPLIER fails exits 1.
+// Run as '@statistics /w' (fnrun_itemmap.txt): /r reads a file that does not exist, /w waits
+// for it. This is the other half of run_statistics_own_neg.dms: here the failure is not the
+// item's own, and GeoDmsRun waits under a SuspendTrigger blocker, in which the wait for the
+// producer (WaitReady in ItemLocks.cpp) used to throw the supplier's failure instead of
+// returning false with /w failed. The throw ended in the statistics text; /w stayed unfailed
+// and the run exited 0 even with a check of the item after the command.
+// Expected: exit nonzero, 'Failure: ...' on stderr naming the missing file.
+container run_statistics_supplier_neg
+{
+	unit<uint32> dom : nrofrows = 4;
+	attribute<uint32> r (dom): StorageName = "%LocalDataDir%/GeoDmsTestcases/no_such_file_1270.fss";
+	attribute<uint32> w (dom) := r + 1;
+}

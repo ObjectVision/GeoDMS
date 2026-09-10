@@ -1,0 +1,8 @@
+// #1270: the positive side of the @statistics exit code. Run as '@statistics /ok'
+// (fnrun_itemmap.txt): the item computes, the statistics are printed, and the run
+// exits 0 -- the check of the item after the command must not fail a healthy one.
+container run_statistics_ok
+{
+	unit<uint32> dom : nrofrows = 4;
+	attribute<uint32> ok (dom) := id(dom);
+}

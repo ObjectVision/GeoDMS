@@ -73,3 +73,8 @@ stor_fss_gen_1_write.dms /store
 stor_read_rw_no_writeback_1_write.dms /export
 stor_read_rw_no_writeback_2.dms /tab
 stor_mmd_tiling_1_write.dms /store
+run_statistics_ok.dms @statistics /ok
+run_statistics_own_neg.dms @statistics /r
+run_statistics_supplier_neg.dms @statistics /w
+run_valueinfo_ok.dms @valueinfo 0 /ok
+run_valueinfo_supplier_neg.dms @valueinfo 0 /w

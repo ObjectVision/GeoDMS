@@ -175,6 +175,22 @@ static void ReportUsage(std::ostream& out)
 		<< "https://github.com/ObjectVision/GeoDMS/wiki/Command-line-options\n\n";
 }
 
+// Reports a failed item and returns whether it failed, so that the caller raises the exit code.
+// The log line says that the level goes up, stderr carries the reason for a caller that reads
+// neither the log nor the data output.
+static bool ReportIfFailed(const TreeItem* item)
+{
+	if (!item->IsFailed())
+		return false;
+	auto fr = item->GetFailReason();
+	if (fr)
+	{
+		reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 due to failure: {}", fr->GetAsText().c_str()); ProcessMainThreadOpers();
+		std::cerr << std::endl << "Failure: " << fr->GetAsText() << std::endl;
+	}
+	return true;
+}
+
 int main2_without_SE(int argc, char** argv)
 {
 	ParseRegStatusFlags(argc, argv);
@@ -357,14 +373,8 @@ int main2_without_SE(int argc, char** argv)
 		std::cout  << std::endl << "Update " << itemSourceName.c_str() << std::endl;
 		
 		DMS_TreeItem_Update(item);
-		if (item->IsFailed())
+		if (ReportIfFailed(item))
 		{
-			auto fr = item->GetFailReason();
-			if (fr)
-			{
-				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 due to failure: {}", fr->GetAsText().c_str()); ProcessMainThreadOpers();
-				std::cerr << std::endl << "Failure: " << fr->GetAsText() << std::endl;
-			}
 			result = 1;
 			continue; // skip this item
 		}
@@ -387,6 +397,14 @@ int main2_without_SE(int argc, char** argv)
 			DumpValueInfo(*dataOut, item, valueInfoIndex);
 			break;
 		}
+
+		// #1270: the update above commits a stored item, but computes nothing for one without a
+		// storage; a @statistics or @valueinfo request computes its item inside the command just
+		// run, and a failure there used to land in the output text only, with exit code 0. The
+		// item is looked at once more, so that such a failure raises the exit code like a failed
+		// commit does.
+		if (ReportIfFailed(item))
+			result = 1;
 	}
 	return result;
 }

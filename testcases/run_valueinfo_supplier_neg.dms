@@ -1,0 +1,12 @@
+// #1270: a @valueinfo request whose item cannot compute because a supplier fails exits 1.
+// Run as '@valueinfo 0 /w' (fnrun_itemmap.txt): the same configuration as
+// run_statistics_supplier_neg.dms, through the other command that computes its item
+// inside the command. The explanation used to render the failure as the value of row 0
+// and the run exited 0.
+// Expected: exit nonzero, 'Failure: ...' on stderr naming the missing file.
+container run_valueinfo_supplier_neg
+{
+	unit<uint32> dom : nrofrows = 4;
+	attribute<uint32> r (dom): StorageName = "%LocalDataDir%/GeoDmsTestcases/no_such_file_1270.fss";
+	attribute<uint32> w (dom) := r + 1;
+}

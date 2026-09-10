@@ -23,7 +23,7 @@ $mapFile = Join-Path $here 'fnrun_itemmap.txt'
 if (Test-Path $mapFile) {
     foreach ($line in Get-Content $mapFile) {
         $p = ($line.Trim()) -split '\s+'
-        if ($p.Count -eq 2) { $map[$p[0]] = $p[1] }
+        if ($p.Count -ge 2) { $map[$p[0]] = @($p[1..($p.Count-1)]) } # the rest of the line, as in run_testcases.ps1
     }
 }
 
@@ -38,7 +38,9 @@ foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
     # is already defined"). This config therefore cannot round-trip by construction; the function
     # rendering itself is correct. Documented in doc/function_serializer.md.
     if ($stem -eq 'fn_test_prelude') { continue }
-    $item = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
+    # typed: a one-element array leaves an if-expression as a bare string, which @-splats per character
+    [string[]]$itemArgs = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
+    $item = $itemArgs -join ' '
     $dump = Join-Path $OutDir "$stem.dms"
     Remove-Item $dump -ErrorAction SilentlyContinue
 
@@ -49,7 +51,7 @@ foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
         continue
     }
     # 2. reload the DUMPED config and recompute the item (IntegrityChecks re-verify)
-    & $Exe "/L$(Join-Path $OutDir "$stem.reload.log")" $dump $item *> (Join-Path $OutDir "$stem.reload.out")
+    & $Exe "/L$(Join-Path $OutDir "$stem.reload.log")" $dump @itemArgs *> (Join-Path $OutDir "$stem.reload.out")
     $verdict = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'RELOAD-FAIL' }
     $results += [pscustomobject]@{ config = $stem; item = $item; verdict = $verdict }
 }

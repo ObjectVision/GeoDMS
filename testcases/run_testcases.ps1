@@ -8,7 +8,9 @@
 #
 # Per-config item overrides live in fnrun_itemmap.txt (one 'file.dms /item/path' per
 # line); the default item is /checks (each positive config carries a /checks container
-# whose IntegrityChecks fail the run if a computed value is wrong).
+# whose IntegrityChecks fail the run if a computed value is wrong). Everything after the
+# file name is passed to GeoDmsRun as it stands, so a line can name a command as well:
+# 'file.dms @statistics /item' (#1270 asserts the exit code of such a request).
 #
 # Configs run SORTED BY FILE NAME, one GeoDmsRun invocation each. Cases are otherwise
 # independent, but a round trip over a storage cannot be: the reading domain unit takes
@@ -42,7 +44,7 @@ $mapFile = Join-Path $here 'fnrun_itemmap.txt'
 if (Test-Path $mapFile) {
     foreach ($line in Get-Content $mapFile) {
         $p = ($line.Trim()) -split '\s+'
-        if ($p.Count -eq 2) { $map[$p[0]] = $p[1] }
+        if ($p.Count -ge 2) { $map[$p[0]] = @($p[1..($p.Count-1)]) }
     }
 }
 
@@ -50,9 +52,11 @@ $results = @()
 foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
     $name = $cfg.Name
     $stem = [IO.Path]::GetFileNameWithoutExtension($name)
-    $item = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
+    # typed: a one-element array leaves an if-expression as a bare string, which @-splats per character
+    [string[]]$itemArgs = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
+    $item = $itemArgs -join ' '
     $log  = Join-Path $OutDir "$stem.log"
-    & $Exe "/L$log" $cfg.FullName $item *> (Join-Path $OutDir "$stem.out")
+    & $Exe "/L$log" $cfg.FullName @itemArgs *> (Join-Path $OutDir "$stem.out")
     $code = $LASTEXITCODE
     $isNeg = ($stem -match '_neg') -or ($stem -eq 'fn_test_defcheck')
     $verdict = if ($code -eq 3) { 'ASSERT' }
