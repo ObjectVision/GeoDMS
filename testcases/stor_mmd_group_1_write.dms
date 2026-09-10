@@ -1,5 +1,5 @@
 // A grouping container below an MMD store holder (issue #1244). Its attributes share the holder
-// as domain and, since GeoDMS 21, need no domain specification for that: the dictionary writes
+// as domain and, since GeoDMS 20.20.0, need no domain specification for that: the dictionary writes
 // every attribute whose domain is its nearest ancestor unit with the dotted domain '(.)', and
 // the reader binds '.' to that same unit below any depth of containers. Before, such a group had
 // to spell '(..)' on every attribute (the resolved form the dictionary wrote back), or carry a unit

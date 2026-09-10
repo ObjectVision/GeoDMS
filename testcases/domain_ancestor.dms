@@ -2,7 +2,7 @@
 // The parser stores '.' for such an attribute, which names the parent; the search used to stop
 // there, so an attribute in a grouping container inside a unit failed with "Cannot find Domain
 // unit ." unless it spelled the domain, '(obj)' or '(..)', or the group carried a unit of its own.
-// Since GeoDMS 21 the search continues upward: the parent when that is a unit, as before, else
+// Since GeoDMS 20.20.0 the search continues upward: the parent when that is a unit, as before, else
 // the first unit above the containers. A template body keeps '.' unresolved, and each instance
 // resolves it where it is instantiated. domain_ancestor_neg.dms pins the refusal when no
 // ancestor is a unit at all.
