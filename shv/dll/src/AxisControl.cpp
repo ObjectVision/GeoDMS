@@ -136,11 +136,18 @@ bool AxisControl::Draw(GraphDrawer& d) const
 					continue;
 				const SharedStr& text = posLabel.second;
 				dc->DrawLine(GPoint(devX, clientIntRect.top), GPoint(devX, clientIntRect.top + TICK_LEN), lineColor, 1);
-				GType textLeft = devX + 2;
+				// The label is centred on its tick (issue #1263): the bar, point or category it names
+				// sits at pos, so a label that started there read as belonging to the next one. The
+				// band clips what it draws, so an outermost label is kept inside it rather than losing
+				// an edge; the overlap rule then sees the shifted position.
+				GType textWidth = dc->GetTextExtent(text.c_str(), text.ssize()).x;
+				GType textLeft = devX - textWidth / 2;
+				MakeMin(textLeft, clientIntRect.right - textWidth);
+				MakeMax(textLeft, clientIntRect.left);
 				if (textLeft < nextTextLeft)
 					continue;
 				dc->TextOut(GPoint(textLeft, clientIntRect.top + TICK_LEN), text.c_str(), text.ssize(), lineColor);
-				nextTextLeft = textLeft + dc->GetTextExtent(text.c_str(), text.ssize()).x + LABEL_GAP;
+				nextTextLeft = textLeft + textWidth + LABEL_GAP;
 			}
 			return false;
 		}
