@@ -671,6 +671,11 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			// eliminates the per-DataView native Win32 tooltip path that bypassed
 			// Qt's singleton QToolTip and could not be hidden on window-level
 			// events (deactivate / move / resize).
+			if (msg.m_wParam == UPDATE_VIEW_LATER_TIMER_ID)
+			{
+				OnTimer(UPDATE_VIEW_LATER_TIMER_ID); // #1255; the same handler as on the ViewHost path
+				goto completed;
+			}
 			if (msg.m_wParam != UPDATE_TIMER_ID)
 				goto defaultProcessing;
 
@@ -982,6 +987,23 @@ void DataView::OnTimer(UInt32 timerId)
 				StartTipWatchdog();
 			}
 		}
+		return;
+	}
+
+	if (timerId == UPDATE_VIEW_LATER_TIMER_ID)
+	{
+		if (m_ViewHost)
+			m_ViewHost->VH_KillTimer(UPDATE_VIEW_LATER_TIMER_ID);
+#ifdef _WIN32
+		else
+			KillTimer(m_hWnd, UPDATE_VIEW_LATER_TIMER_ID);
+#endif
+		// the same two windows the update timer sits out: a nested loop under a main-thread oper, and
+		// a popup menu; the actions keep, the poll comes back in 100 ms
+		if (IsProcessingMainThreadOpers() || IdleTimer::IsInIdleMode())
+			SetUpdateViewLaterTimer();
+		else
+			ProcessUpdateViewLaterActions();
 		return;
 	}
 
@@ -2137,6 +2159,124 @@ void DataView::ProcessGuiOpers()
 {
 	assert(IsMainThread());
 	m_GuiOperQueue.Process();
+}
+
+//----------------------------------------------------------------------
+// UpdateViewLater: the stepwise driver for view work that awaits an item (#1255)
+//----------------------------------------------------------------------
+// Before #1255 three places in shv handed such work to a detached thread (dms_task) that blocked in
+// an ItemReadLock, or in a GetCount / GetIndex that takes one, until the producer committed, and
+// then posted the GUI part as a gui oper: GraphicObject::PrepareDataOrUpdateViewLater (re-update an
+// object that drew without its data), the palette-domain count that hides an over-long legend when
+// a layer is added (GraphDataView.cpp), and the focus-element index a table control applies after a
+// show-selected-only toggle (TableControl.cpp). Such a thread could be neither suspended nor
+// cancelled, and a view closed while it waited kept the producer running through the interest the
+// thread held (SHV-53). Now the DataView keeps an action per (object, item) and asks, every 100 ms
+// on the GUI thread, whether the item's range item can be read-locked without waiting; on success it
+// posts the continuation as a gui oper with that lock travelling in it, so the data stays readable
+// until the continuation has run. The three continuations are the bodies of the old tasks.
+//
+// The blocking lock did one more thing than wait: lock_shared joins the producer, and Join is what
+// hands scheduled contexts to the worker pool. Nothing else in this path does -- Schedule only
+// enqueues -- so a poll that merely tries the lock would wait for a producer that nobody started.
+// Hence StartOperationContextsAsWaiter() at registration, and again on every tick that finds work
+// pending: counted as a waiting Join, so that the pool's low-RAM admission lets this producer
+// through as it let the joining thread's, and repeated, as Join repeated it from its loop.
+
+#include "OperationContext.h" // StartOperationContextsAsWaiter
+
+void DataView::SetUpdateViewLaterTimer()
+{
+	if (m_ViewHost)
+		m_ViewHost->VH_SetTimer(UPDATE_VIEW_LATER_TIMER_ID, 100);
+#ifdef _WIN32
+	else
+		SetTimer(m_hWnd, UPDATE_VIEW_LATER_TIMER_ID, 100, nullptr);
+#endif
+}
+
+void DataView::RegisterUpdateViewLater(const std::shared_ptr<GraphicObject>& obj, SharedTreeItemInterestPtr itemHolder, UpdateViewLaterFunc onReady)
+{
+	assert(IsMainThread());
+	assert(obj);
+	assert(itemHolder);
+	assert(onReady);
+
+	for (const auto& action : m_UpdateViewLaterActions)
+		if (action.m_ItemHolder.get_ptr() == itemHolder.get_ptr() && action.m_Object.lock() == obj)
+			return; // already polled for; its continuation reads the item's state when it runs
+
+	bool wasEmpty = m_UpdateViewLaterActions.empty();
+	m_UpdateViewLaterActions.emplace_back(UpdateViewLaterAction{
+		obj
+	,	std::move(itemHolder)
+	,	UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for UpdateViewLater"))
+	,	std::move(onReady)
+	});
+
+	StartOperationContextsAsWaiter(); // see the section comment: scheduled, not yet handed to the pool
+	if (wasEmpty)
+		SetUpdateViewLaterTimer();
+}
+
+// One poll of an action. True when the action is done with: the item is read-locked and the
+// continuation posted, or the object is gone, or the item failed (its failure was reported by the
+// producer; what awaited it goes on without it, as before), or the try threw (a cancelling session).
+// False while the producer still holds the range item.
+static bool StepUpdateViewLater(DataView* dv, const UpdateViewLaterAction& action)
+{
+	auto objSPtr = action.m_Object.lock();
+	if (!objSPtr)
+		return true;
+
+	try {
+		UpdateMarker::ChangeSourceLock tsLock(action.m_ActiveTS, "UpdateViewLater.step");
+
+		const auto& itemHolder = action.m_ItemHolder;
+		if (itemHolder->WasFailed(FailType::Data))
+			return true;
+
+		auto iReadLock = std::make_shared<ItemReadLock>(itemHolder.get_ptr()->GetCurrRangeItem(), try_token); // TODO, avoid heap alloc by making ItemReadLock const copyable
+		if (!iReadLock->has_ptr())
+			return false; // still being produced
+
+		if (itemHolder->WasFailed(FailType::Data))
+			return true;
+
+		// the lock rides along so the item stays readable for the continuation; the object's weak
+		// pointer is re-checked there, the continuation locks its own captures
+		std::weak_ptr<GraphicObject> objWPtr = objSPtr;
+		dv->PostGuiOper([objWPtr, iReadLock, onReady = action.m_OnReady]() {
+			if (objWPtr.expired())
+				return;
+			onReady();
+		});
+	}
+	catch (...)
+	{
+		catchAndReportException();
+	}
+	return true;
+}
+
+void DataView::ProcessUpdateViewLaterActions()
+{
+	assert(IsMainThread());
+
+	// taken out first: a step reports through the event log, and nothing that runs from there may find
+	// this vector half-walked; what a step registers meanwhile lands in the member and is kept below
+	auto actions = std::move(m_UpdateViewLaterActions);
+	assert(m_UpdateViewLaterActions.empty());
+
+	std::erase_if(actions, [this](const UpdateViewLaterAction& action) { return StepUpdateViewLater(this, action); });
+	if (actions.empty() && m_UpdateViewLaterActions.empty())
+		return;
+
+	m_UpdateViewLaterActions.insert(m_UpdateViewLaterActions.end()
+	,	std::make_move_iterator(actions.begin()), std::make_move_iterator(actions.end())
+	);
+	StartOperationContextsAsWaiter();
+	SetUpdateViewLaterTimer();
 }
 
 void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)

@@ -408,6 +408,16 @@ void MemoryLedger_ReleaseRetained(const AbstrDataObject* obj) noexcept;
 // Global monotonic counter to assign new phase numbers for batch scheduling/waiting.
 TIC_CALL auto GetNextPhaseNumber() -> phase_number;
 
+// StartOperationContexts
+// Hands what Schedule enqueued to the worker pool. Scheduling alone does not: a context waits in
+// s_ScheduledContextsMap until a Join, a DoWorkWhileWaiting, an ending context or an explicit call
+// here activates it (the #1259 deferral in CommitDataChanges is such a call).
+void StartOperationContexts();
+// The same for a consumer that waits for a scheduled result without joining it, counted as a waiting
+// Join in the low-RAM admission for the duration of the pass. Exported for the one such consumer:
+// the view update driver in shv (#1255), which polls the item instead of joining its producer.
+TIC_CALL void StartOperationContextsAsWaiter();
+
 // DoWorkWhileWaitingFor
 // Allow current thread to perform other work while waiting for a phase to complete.
 void DoWorkWhileWaiting();

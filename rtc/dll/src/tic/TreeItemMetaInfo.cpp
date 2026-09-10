@@ -77,7 +77,6 @@
 namespace SuspendTrigger { void DeferScope_KeepAlive(const void* key, std::any keepAlive); void DeferScope_Release(const void* key); } // TriggerOperator.cpp, same module (#1259)
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
 bool IsInsideInlineOperation(); // idem
-void StartOperationContexts(); // idem: hands what was just scheduled to the worker pool
 
 //----------------------------------------------------------------------
 // implement Actor callback functions

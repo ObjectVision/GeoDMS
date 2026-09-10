@@ -37,7 +37,7 @@ unenforced in exactly the builds users run.
 | 61 | AbstrStorage (was 93) | | |
 | 62 | SpecificOperatorGroup (was 94) | polygon-overlay insert sections | geo |
 | 63 | DataViewQueue (was 94) | | shv |
-| 64 | UpdateActionSet (was 94) | `sm_UAS` | shv/GraphicObject.cpp |
+| 64 | (retired) UpdateActionSet (was 94) | `sm_UAS`, gone with the detached view-update thread (#1255): the pairs it guarded are now owned and polled by the DataView on the GUI thread | was shv/GraphicObject.cpp |
 | 65 | Storage (was 94) | `s_OdbcSection` | stg/odbc |
 | 66 | BoundingBoxCache2 (was 94) | | |
 | 68 | SpecificOperator (was 95) | `cs_SpatialRefBlockCreation`, polygon addition sections | clc, geo |

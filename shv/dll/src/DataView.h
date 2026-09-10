@@ -13,6 +13,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include <functional>
 #include <vector>
 
 #include "act/Actor.h"
@@ -54,6 +55,29 @@ const int UPDATE_TIMER_ID = 3;
 const int HOVER_TIMER_ID = 4;
 const int TIP_WATCH_TIMER_ID = 5;
 const int CARET_BLINK_TIMER_ID = 6;
+const int UPDATE_VIEW_LATER_TIMER_ID = 7;
+
+//----------------------------------------------------------------------
+// UpdateViewLaterAction (#1255)
+//----------------------------------------------------------------------
+// Something in a view needs an item whose data is not ready: the producer was scheduled and the
+// view went on without the data. The DataView keeps one of these per (object, item) pair and polls
+// it from its own timer, on the GUI thread, until the item's range item can be read-locked without
+// waiting; then it posts the continuation as a gui oper, holding that lock, as the detached threads
+// of before #1255 did after blocking in it. The interest holder is what keeps the producer going;
+// dropping the action -- the view is destroyed, or the object is gone at the next poll -- is what
+// cancels it. The continuation captures what it needs weakly and locks it itself; the object here
+// is the action's anchor and, with the item, its identity.
+
+using UpdateViewLaterFunc = std::function<void()>;
+
+struct UpdateViewLaterAction
+{
+	std::weak_ptr<GraphicObject> m_Object;
+	SharedTreeItemInterestPtr    m_ItemHolder;
+	TimeStamp                    m_ActiveTS = 0;
+	UpdateViewLaterFunc          m_OnReady;
+};
 
 //----------------------------------------------------------------------
 // ViewStyle
@@ -294,6 +318,11 @@ public:
 	void PostGuiOper(operation_type&& func);
 	SHV_CALL void OnTimer(UInt32 timerId); // Called by ViewHost timer callback
 
+	// #1255: obj went on without item's data; poll for it and post onReady as a gui oper when it is there.
+	// One action per (object, item): a second registration while the first is pending is ignored. Also
+	// hands the scheduled producer to the worker pool, which scheduling alone does not (see the driver).
+	void RegisterUpdateViewLater(const std::shared_ptr<GraphicObject>& obj, SharedTreeItemInterestPtr itemHolder, UpdateViewLaterFunc onReady);
+
 protected: // override virtuals of Actor
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
 	void DoInvalidate() const override;
@@ -412,6 +441,10 @@ private:
 
 	operation_queue               m_GuiOperQueue;
 	Waiter                        m_Waiter;
+
+	std::vector<UpdateViewLaterAction> m_UpdateViewLaterActions; // #1255; polled by UPDATE_VIEW_LATER_TIMER_ID
+	void SetUpdateViewLaterTimer();
+	void ProcessUpdateViewLaterActions();
 
 public:
 	ToolButtonID                  m_ControllerID = TB_Neutral;

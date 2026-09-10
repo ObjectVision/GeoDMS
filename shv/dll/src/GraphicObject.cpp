@@ -246,48 +246,11 @@ void GraphicObject::OnChildSizeChanged()
 }
 
 
-#include "OperationContext.h"
-#include "parallel/dms_task.h"
+#include "OperationContext.h" // StartOperationContextsAsWaiter
 
-using UpdateActionType = std::pair<GraphicObject*, std::shared_ptr<const TreeItem>>;
-
-static std::set<UpdateActionType> s_UpdateActionSet;
-leveled_critical_section sm_UAS(item_level_type(0), ord_level_type::UpdateActionSet, "UpdateActionSet");
-
-struct PairRemover
-{
-	PairRemover(std::set<UpdateActionType>::iterator pos): m_Pos(pos) {}
-	PairRemover() = delete;
-	PairRemover(PairRemover&&) = delete;
-	PairRemover(const PairRemover&) = delete;
-	void operator =(const PairRemover&) = delete;
-	void operator =(PairRemover&&) = delete;
-
-	~PairRemover()
-	{ 
-		DMS_ENTERS(ord_level_type::UpdateActionSet, dms_exclusive_v);
-		leveled_critical_section::scoped_lock lock(sm_UAS);
-		s_UpdateActionSet.erase(m_Pos);
-	}
-	std::set<UpdateActionType>::iterator m_Pos;
-};
-
-auto RegisterNew(GraphicObject* obj, const TreeItem* item) -> std::shared_ptr<PairRemover>
-{
-	DMS_ENTERS(ord_level_type::UpdateActionSet, dms_exclusive_v);
-    // construct std::shared_ptr<const TreeItem> from raw pointer as a borrowed/existing object
-	UpdateActionType itemPair(obj, make_shared_tree(item, existing_obj{}));
-
-	leveled_critical_section::scoped_lock lock(sm_UAS);
-	auto pos = s_UpdateActionSet.lower_bound(itemPair);
-	if (pos != s_UpdateActionSet.end() && *pos == itemPair)
-		return {};
-
-	pos = s_UpdateActionSet.insert(pos, itemPair);
-	return std::make_shared<PairRemover>(pos);
-}
-
-
+// Returns true when item's data can be read now. Otherwise the producer has been scheduled and this
+// object should draw without the data: its DataView polls for the result and re-updates it when the
+// data is there (DataView::RegisterUpdateViewLater, #1255). No thread is involved on this side.
 bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 {
 	assert(IsMainThread());
@@ -324,55 +287,36 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 	if (!IsMultiThreaded2())
 		return true;
 
-	auto pairRemover = RegisterNew(this, itemHolder);
-	if (!pairRemover && !ViewPort::g_CurrZoom)
+	auto dv = GetDataView().lock();
+	if (!dv)
+	{
+		// An object without a view has nobody to re-update it: it draws without the data, as it did
+		// when the old task found its view gone. The producer must still reach the pool, which the
+		// registration below does for the objects that have a view (see the driver in DataView.cpp).
+		StartOperationContextsAsWaiter();
 		return false;
+	}
 
-	std::weak_ptr<GraphicObject> objWPtr = this->shared_from_this();
-	TimeStamp tsActive = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for UpdateViewLater"));
-	std::weak_ptr<ViewPort> vpZoom;
-	if (ViewPort::g_CurrZoom)
-		vpZoom = ViewPort::g_CurrZoom->weak_from_base<ViewPort>();
-
-	auto prepareDataTask = [itemHolder, objWPtr, pairRemover, tsActive, vpZoom]() {
-		try {
-			auto objSPtr = objWPtr.lock(); if (!objSPtr) return;
-
-			UpdateMarker::ChangeSourceLock tsLock(tsActive, "UpdateViewLater.impl");
-
-			auto iReadLock = std::make_shared<ItemReadLock>(itemHolder.get_ptr()->GetCurrRangeItem()); // TODO, avoid heap alloc by making ItemReadLock const copyable
-			if (itemHolder->WasFailed(FailType::Data))
-				return;
-
-			auto dReadLock = std::make_shared<DataReadLock>(AsDynamicDataItem(itemHolder.get_ptr()));
-			auto dv_sptr = objSPtr->GetDataView().lock();
-			if (dv_sptr)
-				dv_sptr->PostGuiOper([objWPtr, itemHolder, iReadLock, dReadLock, pairRemover, vpZoom]() {
-					auto objSPtr = objWPtr.lock();
-					if (objSPtr) {
-						objSPtr->InvalidateView();
+	dv->RegisterUpdateViewLater(this->shared_from_this(), itemHolder, [objWPtr = weak_from_this(), itemHolder]() {
+		auto objSPtr = objWPtr.lock();
+		if (!objSPtr)
+			return;
+		DataReadLock dReadLock(AsDynamicDataItem(itemHolder.get_ptr())); // held while the object draws with the data; a unit has none
+		objSPtr->InvalidateView();
 #ifndef _WIN32
-						if (!SuspendTrigger::DidSuspend())
+		if (!SuspendTrigger::DidSuspend())
 #endif
-							objSPtr->UpdateView();
-						objSPtr->InvalidateDraw();
-					}
+			objSPtr->UpdateView();
+		objSPtr->InvalidateDraw();
+	});
 
-					auto vpZoomSPtr = vpZoom.lock();
-					if (vpZoomSPtr)
-						vpZoomSPtr->AL_ZoomAll();
-				});
-		}
-		catch (...) 
-		{
-			catchAndReportException();
-		}
-	};
-
-	// dms_task detaches its thread in the constructor, so there is no handle to keep: the task runs
-	// unsupervised (it locks its weak pointers before use, so it cannot dangle) and can be neither
-	// suspended nor cancelled. TODO: track it in the owner and cancel or join on destruction.
-	dms_task{ prepareDataTask }; // a temporary: its constructor detaches the thread
+	// a zoom-all in progress could not fit the layer whose extent is not there yet: redo it once it is,
+	// after the re-update above (a second action, registered after it, so posted after it)
+	if (ViewPort::g_CurrZoom)
+		dv->RegisterUpdateViewLater(ViewPort::g_CurrZoom->shared_from_base<ViewPort>(), itemHolder, [vpZoom = ViewPort::g_CurrZoom->weak_from_base<ViewPort>()]() {
+			if (auto vpZoomSPtr = vpZoom.lock())
+				vpZoomSPtr->AL_ZoomAll();
+		});
 	return false;
 }
 

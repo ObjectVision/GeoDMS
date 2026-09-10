@@ -31,7 +31,6 @@
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
 bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item); // stg/MemoryMappedDataStorageManager.cpp, same module (#1264)
 bool IsInsideInlineOperation(); // idem
-void StartOperationContexts(); // idem: hands what was just scheduled to the worker pool
 void LedgerNoteDeferral(const TreeItem* item);
 UInt32 LedgerDeferredCommits(); // idem
 void LedgerNoteReady(const TreeItem* item);

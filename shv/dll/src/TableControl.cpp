@@ -33,7 +33,6 @@
 #include "LispTreeType.h"
 #include "OperationContext.h"
 #include "ShvUtils.h"
-#include "parallel/dms_task.h"
 #include "PropFuncs.h"
 #include "TicInterface.h"
 #include "Unit.h"
@@ -414,27 +413,24 @@ void TableControl::UpdateShowSelOnly()
 	NotifyCaptionChange();
 	if (m_FocusElemProvider)
 	{
-		// post to separate GUI action as it can block on ItemWriteLock of domain
-		m_FocusElemProvider->GetIndexParam()->PrepareDataUsage(DrlType::Certain);
-		auto focusElemSetFunctor = [thisWPtr = weak_from_base<TableControl>()]() {
-			auto thisSPtr = thisWPtr.lock();
-			if (!thisSPtr)
-				return;
-			auto index = thisSPtr->m_FocusElemProvider->GetIndex();
-			if (!IsDefined(index))
-				return;
-			auto dvSPtr = thisSPtr->GetDataView().lock();
-			if (!dvSPtr)
-				return;
-			dvSPtr->PostGuiOper([thisWPtr, index]() {
-				auto thisSPtr = thisWPtr.lock();
-				if (!thisSPtr)
-					return;
-				thisSPtr->OnFocusElemChanged(index, UNDEFINED_VALUE(SizeT));
+		// Applied from a later gui oper, once the index parameter is readable: before #1255 a
+		// detached thread waited for that in GetIndex (which can block on the ItemWriteLock of its
+		// domain) and posted the change; now the view polls for the parameter and posts this when it
+		// is there (see the driver in DataView.cpp). Without a view there is nothing to focus in.
+		auto indexParam = m_FocusElemProvider->GetIndexParam();
+		indexParam->PrepareDataUsage(DrlType::Certain);
+		if (auto dv = GetDataView().lock())
+			dv->RegisterUpdateViewLater(shared_from_base<TableControl>(), SharedTreeItemInterestPtr(indexParam)
+			,	[thisWPtr = weak_from_base<TableControl>()]() {
+					auto thisSPtr = thisWPtr.lock();
+					if (!thisSPtr || !thisSPtr->m_FocusElemProvider)
+						return;
+					auto index = thisSPtr->m_FocusElemProvider->GetIndex();
+					if (!IsDefined(index))
+						return;
+					thisSPtr->OnFocusElemChanged(index, UNDEFINED_VALUE(SizeT));
 				}
 			);
-		};
-		auto t = dms_task(focusElemSetFunctor);
 	}
 }
 

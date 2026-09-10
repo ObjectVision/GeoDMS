@@ -759,6 +759,23 @@ void StartOperationContexts()
 	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
 }
 
+// #1255: the same, on behalf of a consumer that waits for a scheduled result without joining it.
+// collectOperationContexts lets one activation per waiting Join through before it consults the free
+// RAM (s_NrWaitingJoins); the detached thread that used to wait for a view's data was such a joiner,
+// and the GUI-thread poll that replaced it is counted here in the same way, for the duration of one
+// activation pass, or a view under memory pressure would poll for ever.
+void StartOperationContextsAsWaiter()
+{
+	// through CollectOperationContextsImpl
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
+	context_array collectedActivatedContexts;
+	{
+		StaticMtIncrementalLock<s_NrWaitingJoins> countAsOneWaitingJoin;
+		collectedActivatedContexts = CollectOperationContextsImpl();
+	}
+	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
+}
+
 inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activated && s <= task_status::running; }
 
 // Admission ledger, defined below getUniqueLicenseToRun; all three require cs_ThreadMessing.

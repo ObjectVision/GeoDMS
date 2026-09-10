@@ -10,7 +10,6 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <memory>
-#include "parallel/dms_task.h"
 
 #include "GraphDataView.h"
 #include "ptr/SharedTreePtr.h"
@@ -254,36 +253,21 @@ public:
 				dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
 				dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
 #endif
-				std::weak_ptr<GraphicLayer> wResLayer = m_Result;
-				std::weak_ptr<LayerSet> wLayerSet = ls->weak_from_base<LayerSet>();
-				std::weak_ptr<DataView> wDv = ls->GetDataView();
-
-				TimeStamp tsActive = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for paletteDomain counting job"));
-
-				auto determineDetailsVisible =
-					[wResLayer, wLayerSet, paletteDomain, wDv, tsActive]()->void {
-						try {
-
-							UpdateMarker::ChangeSourceLock tsLock(tsActive, "paletteDomain.counting");
-
-							SizeT count = paletteDomain->GetCount();
-							auto sDv = wDv.lock(); if (!sDv) return;
-							sDv->PostGuiOper([count, wResLayer, wLayerSet]() {
-								auto sResLayer = wResLayer.lock();
-								if (!sResLayer)
-									return;
-								sResLayer->SetDetailsTooLong(count > 32);
-								if (sResLayer->DetailsTooLong() == sResLayer->DetailsVisible())
-									sResLayer->ToggleDetailsVisibility(); // make palette invisible iff too long details
-							});
-						}
-						catch (...) {} // let it go, it's just GUI.
-					};
-				if (IsMultiThreaded2())
-				{
-					auto t = dms_task(determineDetailsVisible);
-				}
-				else determineDetailsVisible();
+				// The count is what the domain's producer is computing; before #1255 a detached
+				// thread waited for it in GetCount and posted the visibility change. Now the view
+				// polls for the domain and runs this once it is readable (see the driver in
+				// DataView.cpp); the count is then there, and GetCount does not wait.
+				dv->RegisterUpdateViewLater(m_Result, SharedTreeItemInterestPtr(paletteDomain)
+				,	[wResLayer = std::weak_ptr<GraphicLayer>(m_Result), paletteDomain]() {
+						auto sResLayer = wResLayer.lock();
+						if (!sResLayer)
+							return;
+						SizeT count = paletteDomain->GetCount();
+						sResLayer->SetDetailsTooLong(count > 32);
+						if (sResLayer->DetailsTooLong() == sResLayer->DetailsVisible())
+							sResLayer->ToggleDetailsVisibility(); // make palette invisible iff too long details
+					}
+				);
 			}
 		}
 		return layerWasAdded ? GVS_Handled: GVS_UnHandled;

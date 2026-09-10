@@ -47,7 +47,7 @@ enum class ord_level_type : UInt32
 	AbstrStorage = 61,
 	SpecificOperatorGroup = 62,		// polygon-overlay insert sections
 	DataViewQueue = 63,
-	UpdateActionSet = 64,			// sm_UAS (shv GraphicObject)
+	// 64 was UpdateActionSet, sm_UAS in shv GraphicObject: retired with the detached view-update thread (#1255)
 	Storage = 65,					// s_OdbcSection
 	BoundingBoxCache2 = 66,
 	SpecificOperator = 68,			// cs_SpatialRefBlockCreation, polygon addition sections
