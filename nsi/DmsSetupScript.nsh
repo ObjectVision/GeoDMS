@@ -208,6 +208,8 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   ; examples\testcases\run_testcases.bat against the installed GeoDmsRun)
   SetOutPath $INSTDIR\examples\testcases
   File ${GeoDmsBinDir}\examples\testcases\*.*
+  ; its fixtures (#1271): the flat *.* above does not descend, and 17 cases read data\
+  File /r ${GeoDmsBinDir}\examples\testcases\data
 
   SetOutPath $INSTDIR\library
   File ${GeoDmsBinDir}\library\*.*
@@ -282,6 +284,7 @@ Section uninstall
   Delete $INSTDIR\library\geometry
   Delete $INSTDIR\library\basedata_nl\rdc
   Delete $INSTDIR\library\basedata_nl
+  RMDir /r $INSTDIR\examples\testcases\data
   Delete $INSTDIR\examples\testcases\*.*
   Delete $INSTDIR\examples
 
