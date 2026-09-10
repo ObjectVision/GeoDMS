@@ -110,7 +110,11 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <StackReserveSize>67108864</StackReserveSize>
-      <StackCommitSize>8192</StackCommitSize>
+      <!-- #1269: 1 MB committed up front per thread (every default-size std::thread inherits this). Stack growth
+           is commit charge, so a thread that throws at a commit limit while still inside its initial commit dies of
+           STATUS_STACK_OVERFLOW in the exception dispatcher instead of reporting; measured at 8 KB with a worker
+           7,864 bytes deep. ~34 workers x 1 MB is nothing against a run that can reach such a limit. -->
+      <StackCommitSize>1048576</StackCommitSize>
       <!-- 16k MSF pages: raises the PDB size cap from 4 GB to 16 GB; Debug Clc.pdb (3.2 GB) was hitting the 4 GB cap on incremental links -->
       <AdditionalOptions>/pdbpagesize:16384 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalLibraryDirectories Condition="'$(GeoDmsGlobio)' == 'true'">$(VcpkgInstalledDir)$(VcpkgTriplet)\lib;$(GeoDmsGlobioRoot)\Library\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

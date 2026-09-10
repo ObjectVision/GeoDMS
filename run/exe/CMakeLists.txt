@@ -16,7 +16,10 @@ if(WIN32)
     # produce thousands-deep AST/rewrite chains in SubstituteExpr_impl and
     # ApplyTopEnv (Lispeval); until those are iterative (tasks C1b, H1,
     # H3) the MSVC 1 MB default overflows. See also #1102.
-    target_link_options(GeoDmsRun PRIVATE "/STACK:67108864,8192")
+    # The 1 MB initial commit (#1269) is what lets a thread throw at a commit
+    # limit: stack growth is commit charge too, and at 8 KB the exception
+    # dispatcher's first fresh page was refused (STATUS_STACK_OVERFLOW).
+    target_link_options(GeoDmsRun PRIVATE "/STACK:67108864,1048576")
 elseif(UNIX AND NOT APPLE)
     # Linux parity with the 64 MB Windows stack reserve. The PT_GNU_STACK
     # ELF segment size sets the main-thread stack hint for the kernel

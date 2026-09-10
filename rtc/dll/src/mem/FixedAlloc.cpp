@@ -238,6 +238,11 @@ struct VirtualAllocChunk
 		chunkPtr = reinterpret_cast<BYTE_PTR>(mmap(nullptr, chunkSize_, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
 		if (chunkPtr == MAP_FAILED) chunkPtr = nullptr;
 #endif
+		// #1269: a refused reservation used to go unnoticed; the stores were then carved out of
+		// address 0 and the first write into one was an access violation. Nothing was taken, so
+		// there is nothing to hand back: refuse like a blocked allocation does.
+		if (!chunkPtr)
+			throw MemoryAllocFailure();
 	}
 
 	VirtualAllocChunk(VirtualAllocChunk&& rhs) noexcept
@@ -263,13 +268,20 @@ struct VirtualAllocChunk
 	BYTE_PTR end  () const { return begin() + ChunkSize(); }
 
 	// commit release and recommit are done without reference to the actual block in which the object memory will be (re)committed or was committed.
-	static void commit(BYTE_PTR objectPtr, object_size_t objectSize, object_size_t objectStoreSize)
+	//
+	// commit and recommit return whether the OS committed the pages (#1269). A commit is refused when
+	// the process, or the Job Object it runs in, is at its commit limit; the pages then stay reserved
+	// and inaccessible, so a store handed out regardless is an access violation on its first write --
+	// one per worker thread, since nothing had failed as far as the allocator knew. The caller,
+	// FreeStackAllocator::allocate, turns false into the MemoryAllocFailure that a refused
+	// reservation and a refused large allocation already raise from the same AllocateFromStock_impl.
+	[[nodiscard]] static bool commit(BYTE_PTR objectPtr, object_size_t objectSize, object_size_t objectStoreSize)
 	{
 		assert(std::popcount(objectStoreSize) == 1); // objectStoreSize is assumed to be a power of 2
 #if defined(WIN32)
-		VirtualAlloc(objectPtr, objectStoreSize, MEM_COMMIT, PAGE_READWRITE); // next occupant may use more of this store
+		return VirtualAlloc(objectPtr, objectStoreSize, MEM_COMMIT, PAGE_READWRITE) != nullptr; // next occupant may use more of this store
 #else
-		mprotect(objectPtr, objectStoreSize, PROT_READ | PROT_WRITE);
+		return mprotect(objectPtr, objectStoreSize, PROT_READ | PROT_WRITE) == 0; // ENOMEM under strict overcommit
 #endif
 	}
 
@@ -299,13 +311,18 @@ struct VirtualAllocChunk
 #endif
 	}
 
-	static void recommit(BYTE_PTR objectPtr, object_size_t objectSize)
+	// Note that with MG_CACHE_ALLOC_ONLY_SPECIALSIZE no free-stack class reaches DECOMMIT_MIN_SIZE
+	// (SpecialSize admits 8 KB .. 1 MB), so in that build this never gets past the early-out and
+	// every reuse of a drained store goes through commit() instead (the pop reports it cold).
+	[[nodiscard]] static bool recommit(BYTE_PTR objectPtr, object_size_t objectSize)
 	{
 		if (objectSize < DECOMMIT_MIN_SIZE)
-			return; // never decommitted, so still committed: nothing to undo
+			return true; // never decommitted, so still committed: nothing to undo
 #if defined(WIN32)
 		VmSysCallScope scope(s_RecommitCount, s_RecommitTicks);
-		VirtualAlloc(objectPtr, objectSize, MEM_COMMIT, PAGE_READWRITE);
+		return VirtualAlloc(objectPtr, objectSize, MEM_COMMIT, PAGE_READWRITE) != nullptr;
+#else
+		return true; // release() does not decommit on this platform (see there), so there is nothing to redo
 #endif
 	}
 
@@ -370,10 +387,10 @@ struct VirtualAllocChunkArray
 		auto currReservedButUncommittedObjectStoreIndex = --nrResevedButUncommitedObjectStores;
 		return lastChunkPtr + (SizeT(currReservedButUncommittedObjectStoreIndex) << log2ObjectStoreSize);
 	}
-	void commit(BYTE_PTR ptr, object_size_t objectSize)
+	[[nodiscard]] bool commit(BYTE_PTR ptr, object_size_t objectSize)
 	{
 		assert(objectSize > objectStoreSize /2 && objectSize <= objectStoreSize);
-		VirtualAllocChunk::commit(ptr, objectSize, objectStoreSize);
+		return VirtualAllocChunk::commit(ptr, objectSize, objectStoreSize);
 	}
 
 	void release(BYTE_PTR ptr, object_size_t objectSize)
@@ -382,10 +399,10 @@ struct VirtualAllocChunkArray
 		VirtualAllocChunk::release(ptr, objectSize);
 	}
 
-	void recommit(BYTE_PTR ptr, object_size_t objectSize)
+	[[nodiscard]] bool recommit(BYTE_PTR ptr, object_size_t objectSize)
 	{
 		assert(objectSize > objectStoreSize / 2 && objectSize <= objectStoreSize);
-		VirtualAllocChunk::recommit(ptr, objectSize);
+		return VirtualAllocChunk::recommit(ptr, objectSize);
 	}
 };
 
@@ -591,11 +608,12 @@ struct FreeStackAllocator
 	objectstore_count_t objectCount = 0;
 	// Pressure-drain bookkeeping (§8.1.24), under the shared allocSection. INVARIANT: the
 	// decommitted stores are exactly the cold PREFIX freeStack[0 .. nr_deallocated); everything
-	// from nr_deallocated onward is committed. The three mutations each preserve it:
+	// from nr_deallocated onward is committed. The four mutations each preserve it:
 	// add_to_freestack pushes a committed store at the BACK; the pop takes the back, which lies
 	// inside the prefix only when the prefix spans the whole stack (then the popped store is
 	// handed out as-if-fresh and nr_deallocated shrinks with the stack); the drain step
-	// decommits freeStack[nr_deallocated] itself and advances. Only meaningful for classes
+	// decommits freeStack[nr_deallocated] itself and advances; return_uncommitted_objectstore
+	// (#1269) inserts a store the OS refused to commit at the END of the prefix. Only meaningful for classes
 	// below DECOMMIT_MIN_SIZE: larger stores are decommitted by release() and re-enter the
 	// stack cold at the BACK, so for those classes nr_deallocated stays 0 and the existing
 	// recommit() covers reuse.
@@ -617,19 +635,9 @@ struct FreeStackAllocator
 		// critical section from here to result in thread-local ownership of to be committed or recommitted span of [ptr, ptr+objectSize]
 		std::lock_guard guard(allocSection);
 
-		objectCount++;
-		auto fsLive = s_FreeStackLiveBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed)
-			+ inner.objectStoreSize;
-		{	// CAS max, not load/store -- see the note on s_PeakLargeAllocBytes
-			auto prev = s_PeakFreeStackBytes.load(std::memory_order_relaxed);
-			while (fsLive > prev
-				&& !s_PeakFreeStackBytes.compare_exchange_weak(prev, fsLive, std::memory_order_relaxed))
-				;
-		}
-
 		std::pair<BYTE_PTR, bool> result;
 		if (freeStack.empty())
-			result = { inner.get_reserved_objectstore(), true };
+			result = { inner.get_reserved_objectstore(), true }; // may refuse (MemoryAllocFailure): counted below, once a store is ours
 		else
 		{
 			assert(nr_deallocated <= freeStack.size());
@@ -642,6 +650,18 @@ struct FreeStackAllocator
 				--nr_deallocated; // was decommitted: it held no commit charge, so the dead pool is unchanged
 			else if (inner.objectStoreSize < VirtualAllocChunk::DECOMMIT_MIN_SIZE)
 				s_FreeStackDeadBytes.fetch_sub(inner.objectStoreSize, std::memory_order_relaxed); // a committed dead store came back to life
+		}
+
+		// The live accounting follows the take, so that a refused reservation leaves it untouched
+		// (#1269); before, a throw from get_reserved_objectstore left objectCount one too high.
+		objectCount++;
+		auto fsLive = s_FreeStackLiveBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed)
+			+ inner.objectStoreSize;
+		{	// CAS max, not load/store -- see the note on s_PeakLargeAllocBytes
+			auto prev = s_PeakFreeStackBytes.load(std::memory_order_relaxed);
+			while (fsLive > prev
+				&& !s_PeakFreeStackBytes.compare_exchange_weak(prev, fsLive, std::memory_order_relaxed))
+				;
 		}
 
 		// Pressure-triggered decommit (§8.1.24; array-wide sweep §8.1.25; budgeted §8.1.27):
@@ -690,14 +710,39 @@ struct FreeStackAllocator
 		return stillCommitted > keepHot ? stillCommitted - keepHot : 0;
 	}
 
+	// A store whose commit the OS refused (#1269) goes back into the stack as a COLD store: it
+	// holds no commit charge, so it is neither dead-pool nor gate-relevant, and it must not be
+	// handed out as-if committed by the next pop. Below DECOMMIT_MIN_SIZE that means joining
+	// the decommitted prefix, which is exactly what the pop's poppedColdStore test consults; at
+	// or above it every free store is decommitted and reuse recommits, so the back will do.
+	// An insert in the middle of a vector, but only on the path that ends the run anyway.
+	void return_uncommitted_objectstore(BYTE_PTR ptr)
+	{
+		std::lock_guard guard(allocSection);
+
+		objectCount--;
+		s_FreeStackLiveBytes.fetch_sub(inner.objectStoreSize, std::memory_order_relaxed);
+		if (inner.objectStoreSize < VirtualAllocChunk::DECOMMIT_MIN_SIZE)
+		{
+			assert(nr_deallocated <= freeStack.size());
+			freeStack.insert(freeStack.begin() + nr_deallocated, ptr);
+			++nr_deallocated;
+		}
+		else
+			freeStack.emplace_back(ptr);
+	}
+
 	BYTE_PTR allocate(object_size_t objectSize)
 	{
 		auto reserved_or_rest_block = get_reserved_or_reset_objectstore();
-		if (reserved_or_rest_block.second)
-			inner.commit(reserved_or_rest_block.first, objectSize);
-		else
-			inner.recommit(reserved_or_rest_block.first, objectSize);
-
+		bool committed = reserved_or_rest_block.second
+			? inner.commit(reserved_or_rest_block.first, objectSize)
+			: inner.recommit(reserved_or_rest_block.first, objectSize);
+		if (!committed)
+		{
+			return_uncommitted_objectstore(reserved_or_rest_block.first);
+			throw MemoryAllocFailure(); // sticky: s_BlockNewAllocations refuses every further large allocation
+		}
 		return reserved_or_rest_block.first;
 	}
 
