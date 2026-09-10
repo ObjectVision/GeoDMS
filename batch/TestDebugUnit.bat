@@ -19,6 +19,15 @@ set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin\Debug\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
 
+REM The XML round-trip battery (#1261, testcases\run_xml_roundtrip.bat) is NOT called here, only from
+REM the Release launchers. It runs @dumpconfig, and a Debug @dumpconfig stops on a lock-ceiling
+REM assertion before it writes anything: RangeProp<T>::GetRawValueAsSharedStr declares the
+REM IndexedString ceiling (rtc\dll\src\tic\UnitClassReg.h, and the same shape in the base
+REM PropDef<>::GetRawValueAsSharedStr) and then calls GetRawValue, whose RangeProp<T>::GetValue
+REM takes an interest on the unit and so enters ItemRegister, ord 74, under ord 90. Every
+REM configuration with a ranged unit hits it. That predates the round trip; put the call back once
+REM the ceiling is sorted out.
+
 echo.
 if "%TC_FAILED%"=="1" (
   echo *** TESTCASES BATTERY FAILED - see table above and testcases\_out\ logs ***

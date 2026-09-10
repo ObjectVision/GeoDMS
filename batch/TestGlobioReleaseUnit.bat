@@ -47,6 +47,15 @@ set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%G_BIN%\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
 
+REM XML round-trip battery (#1261): every testcases configuration dumped in DMS syntax and in
+REM XML, the XML read back and dumped in DMS syntax again, and the two DMS dumps compared. A
+REM difference is something the XML notation lost on the way out or on the way back in.
+REM Offline; three GeoDmsRun runs per configuration, so about twice the battery above. Known
+REM differences and their reason live in testcases\xml_roundtrip_known_diff.txt.
+set RT_FAILED=0
+Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%G_BIN%\GeoDmsRun.exe"
+if errorlevel 1 set RT_FAILED=1
+
 REM Shipped-content release test (issue #1031). Goes to the internet and rasterises NL
 REM at 25 m; see TestCMakeReleaseUnit.bat for why every Windows flavour runs it.
 set SHIPPED_FAILED=0
@@ -63,6 +72,11 @@ if "%TC_FAILED%"=="1" (
 ) else (
   echo TESTCASES BATTERY PASSED
 )
+if "%RT_FAILED%"=="1" (
+  echo *** XML ROUNDTRIP BATTERY FAILED - see table above and testcases\_out_xml_roundtrip\ ***
+) else (
+  echo XML ROUNDTRIP BATTERY PASSED
+)
 if "%SHIPPED_FAILED%"=="1" (
   echo *** SHIPPED CONTENT RELEASE TEST FAILED - see scratch\grid_to_polygon_release.log ***
 ) else (
@@ -71,5 +85,6 @@ if "%SHIPPED_FAILED%"=="1" (
 
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
+if "%RT_FAILED%"=="1" exit /b 1
 if "%SHIPPED_FAILED%"=="1" exit /b 1
 exit /b 0

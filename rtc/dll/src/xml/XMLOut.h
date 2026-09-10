@@ -273,6 +273,7 @@ struct XML_DataBracket
 private:
 	std::unique_ptr<XML_OutElement> m_DataElement;
 	OutStreamBase&                  m_Stream;
+	bool                            m_WroteBracket = false; // #1261: '[' written, so ']' is owed
 };
 
 class AbstrPropDef;

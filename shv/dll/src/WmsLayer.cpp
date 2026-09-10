@@ -641,8 +641,13 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 	if (imageFormatItem)
 	{
 		imageFormat = GetTheValue<SharedStr>(imageFormatItem.get_ptr());
-		if (imageFormat == "jpeg") ift = wms::image_format_type::jpeg;
-		else if (imageFormat != "png" && imageFormat != "png8") ift = wms::image_format_type::other;
+		// #1261: configured text, so compared without regard to case, and explicitly. It used to
+		// read 'imageFormat == "jpeg"' and 'imageFormat != "png"', and SharedStr's == was
+		// case-sensitive while its != was not, so "PNG" was accepted as png but "JPEG" fell through
+		// to other. Both are accepted now; making != agree with == would otherwise have made "PNG"
+		// fall through as well.
+		if (!stricmp(imageFormat.c_str(), "jpeg")) ift = wms::image_format_type::jpeg;
+		else if (stricmp(imageFormat.c_str(), "png") && stricmp(imageFormat.c_str(), "png8")) ift = wms::image_format_type::other;
 	}
 	else
 		imageFormat = "png";

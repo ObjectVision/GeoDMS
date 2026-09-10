@@ -17,6 +17,7 @@
 #include "mci/PropDef.h"
 #include "mci/PropdefEnums.h"
 #include "xml/XmlConst.h"
+#include "tic/TicPropDefConst.h" // #1261: DATABLOCK_NAME
 #include "utl/StrFormat.h"
 #include "utl/Quotes.h"
 
@@ -659,16 +660,30 @@ XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtrRange url)
 
 XML_DataBracket::XML_DataBracket(OutStreamBase& xmlStream) : m_Stream(xmlStream)
 {
-	if (xmlStream.GetSyntaxType() != OutStreamBase::ST_DMS)
+	// #1261: in the XML configuration notation this is written exactly as a configured value array
+	// is -- a DataBlock element holding '[ ... ]' -- because that is what the reader takes back.
+	// It used to be a DATA element holding the bare values, which nothing read, so an item that
+	// carries its values rather than a rule (the GUI writes those when it saves a desktop; see
+	// ShvSync) was written and lost. The DMS notation has always turned such an item into a value
+	// array on a dump, and this is the same conversion in the same place.
+	// ST_HTM keeps the DATA element: those pages are read by people, not reloaded.
+	if (xmlStream.GetSyntaxType() == OutStreamBase::ST_XML)
+	{
+		m_DataElement.reset(new XML_OutElement(xmlStream, DATABLOCK_NAME, ""));
+		m_WroteBracket = true;
+	}
+	else if (xmlStream.GetSyntaxType() != OutStreamBase::ST_DMS)
 		m_DataElement.reset(new XML_OutElement(xmlStream, "DATA", ""));
 	else
+		m_WroteBracket = true;
+	if (m_WroteBracket)
 		m_Stream << "[";
 }
 
 XML_DataBracket::~XML_DataBracket()
 {
-	if (m_Stream.GetSyntaxType() == OutStreamBase::ST_DMS)
-		m_Stream << "]";
+	if (m_WroteBracket)
+		m_Stream << "]"; // before m_DataElement closes its tag
 }
 
 

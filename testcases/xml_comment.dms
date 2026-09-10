@@ -1,0 +1,13 @@
+// #1261: XML comments. They may stand wherever text or an element may, and they leave no trace in
+// the tree. Before this, '<!--' was read as the start of a tag named '!--' and a fragment carrying
+// a comment did not load at all; the config dump needed them too, to report a sub-item it could not
+// render without writing DMS '//' text into an XML file
+container xml_comment
+{
+	container xmlpart { #include <../data/xml_comment.xml> }
+	container checks
+	{
+		parameter<string> rule  := xmlpart/xcm2/v,                     IntegrityCheck = "rule == 'ok'";
+		parameter<string> descr := PropValue(xmlpart/xcm2/v, 'descr'), IntegrityCheck = "descr == 'plain'";
+	}
+}

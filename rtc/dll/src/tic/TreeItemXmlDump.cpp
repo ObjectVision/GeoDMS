@@ -95,7 +95,11 @@ bool AreIncludesWrittenAsFiles(); // #1253: false; the dump is self-contained
 namespace {
 
 // Robust per-sub-item dump: a throw while rendering one child must not corrupt the enclosing
-// brace nesting; emit an inline (parse-neutral) '//' comment and continue so EndSubItems runs.
+// brace nesting; emit an inline comment and continue so EndSubItems runs. The comment is written
+// in the notation being produced: '//' is a comment in DMS syntax but ordinary character data in
+// XML, where it used to end up as stray text between two elements. That was well-formed by luck
+// (the failing element had already closed) and was silently dropped on reading, so an XML round
+// trip hid a dump failure that the DMS dump showed (#1261).
 void TreeItem_XML_DumpSubItemSafe(const TreeItem* subItem, OutStreamBase* out, bool notWritingDictionary)
 {
 	try
@@ -105,22 +109,35 @@ void TreeItem_XML_DumpSubItemSafe(const TreeItem* subItem, OutStreamBase* out, b
 	catch (...)
 	{
 		auto err = catchException(false);
+		bool isXml = (out->GetSyntaxType() == OutStreamBase::ST_XML);
 		out->NewLine();
-		*out << "// ERROR dumping ";
-		*out << SharedStr(subItem->GetName()).c_str();
+
+		std::string message("ERROR dumping ");
+		message += SharedStr(subItem->GetName()).c_str();
 		if (err)
 		{
 			SharedStr why(err->Why());
-			std::string oneLine;
+			message += ": ";
 			for (CharPtr p = why.begin(), e = why.send(); p != e; ++p)
-				oneLine += (*p == '\n' || *p == '\r') ? ' ' : *p;
-			*out << ": ";
-			*out << oneLine.c_str();
+				message += (*p == '\n' || *p == '\r') ? ' ' : *p;
+		}
+		if (isXml)
+		{
+			// '--' may not occur inside an XML comment, and the message is an error text from
+			// anywhere, so it is broken up rather than trusted
+			for (std::size_t p = message.find("--"); p != std::string::npos; p = message.find("--", p + 2))
+				message.insert(p + 1, 1, ' ');
+			out->WriteValue(""); // closes an attribute list that is still open, as << would
+			out->FormattingStream() << "<!-- " << message.c_str() << " -->";
+		}
+		else
+		{
+			*out << "// ";
+			*out << message.c_str();
 		}
 		out->NewLine();
 	}
 }
-
 void DMS_WriteTypeVars(OutStreamBase& out, const TreeItem* fn)
 {
 	auto tvs = TreeItem_GetFunctionTypeVars(fn);

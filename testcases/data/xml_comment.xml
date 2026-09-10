@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- before the outermost element, and holding a < and a > and a single - dash -->
+<TreeItem name="xcm2">
+	<!-- between two elements -->
+	<DATAITEM name="v" ValuesUnit="string"><CalcRule>&apos;ok&apos;</CalcRule><!-- after a property element --><Descr>plain</Descr></DATAITEM>
+	<!-- and one last, before the closing tag -->
+</TreeItem>

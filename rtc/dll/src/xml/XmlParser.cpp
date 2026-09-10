@@ -154,6 +154,34 @@ void XmlParser::TransformChar(char& nextChar)
 	}
 }
 
+void XmlParser::SkipMarkupDeclaration()
+{
+	// '<' and '!' are consumed. A comment ends at the first '-->', any other declaration at the
+	// first '>'.
+	bool isComment = false;
+	if (NextChar() == '-')
+	{
+		ReadChar();
+		if (NextChar() == '-')
+		{
+			ReadChar();
+			isComment = true;
+		}
+	}
+	int nrDashes = 0;
+	while (!AtEnd())
+	{
+		char ch = NextChar();
+		ReadChar();
+		if (ch == '>' && (!isComment || nrDashes >= 2))
+			return;
+		nrDashes = (ch == '-') ? nrDashes + 1 : 0;
+	}
+	ThrowXmlErr(isComment
+		? "a comment '<!--' is not closed before the end of the file"
+		: "a markup declaration '<!' is not closed before the end of the file");
+}
+
 void XmlParser::ReadText(XmlElement::TextType& elementText)
 {
 	// Element text is kept as it stands, and only the white space before the first and after the
@@ -164,18 +192,33 @@ void XmlParser::ReadText(XmlElement::TextType& elementText)
 	// makes the spaced-out markup of the older fixtures, '< Descr > a &amp; < / Descr >', still
 	// yield 'a &' rather than ' a & '.
 	bool seenNonSpace = false;
-	char nextChar = NextChar();
-	while (!AtEnd() && nextChar != '<') // not EOF: ReadChar answers 0 at the end, see TransformChar
+	for (;;)
 	{
-		if (!isspace(UChar(nextChar)))
+		char nextChar = NextChar();
+		while (!AtEnd() && nextChar != '<') // not EOF: ReadChar answers 0 at the end, see TransformChar
 		{
-			TransformChar(nextChar);
-			elementText.push_back(nextChar);
-			seenNonSpace = true;
+			if (!isspace(UChar(nextChar)))
+			{
+				TransformChar(nextChar);
+				elementText.push_back(nextChar);
+				seenNonSpace = true;
+			}
+			else if (seenNonSpace)
+				elementText.push_back(nextChar); // interior white space, verbatim
+			nextChar = ReadChar();
 		}
-		else if (seenNonSpace)
-			elementText.push_back(nextChar); // interior white space, verbatim
-		nextChar = ReadChar();
+		if (AtEnd())
+			break;
+		// The '<' either opens a tag, which ReadAttr reads, or a comment, which belongs to nobody
+		// and is read here so that the text around it stays one text.
+		ReadChar();
+		if (NextChar() != '!')
+		{
+			m_TagOpenConsumed = true;
+			break;
+		}
+		ReadChar(); // past the '!'
+		SkipMarkupDeclaration();
 	}
 
 	// XML line-end normalization (XML 1.0 section 2.11): a CRLF and a lone CR each count as one LF.
@@ -221,7 +264,7 @@ void XmlParser::ReadEncl(XmlElement& rootEnclElement)
 	{
 		XmlElement& parent = *openStack.back();
 
-		if (NextChar() != '<') // external input, so a reported error rather than an assert
+		if (!m_TagOpenConsumed && NextChar() != '<') // external input, so a reported error rather than an assert
 			ThrowXmlErr(mgFormat2SharedStr("'<' expected at the start of a tag inside the element '<{}>', but {} was found"
 				, parent.m_NameID, AsFoundText(NextChar())).c_str());
 		parent.m_SubElements.emplace_back(&parent);
@@ -400,10 +443,15 @@ SharedStr XmlParser::ReadAttrValue(TokenID tagNameID, WeakStr attrName)
 // Both spellings are accepted now.
 void XmlParser::ReadAttr(XmlElement& element)
 {
-	SkipSpace();
-	if (NextChar() != '<')
-		ThrowXmlErr(mgFormat2SharedStr("'<' expected at the start of a tag, but {} was found", AsFoundText(NextChar())).c_str());
-	ReadChar();
+	if (m_TagOpenConsumed)
+		m_TagOpenConsumed = false; // ReadText already read the '<' to tell a tag from a comment
+	else
+	{
+		SkipSpace();
+		if (NextChar() != '<')
+			ThrowXmlErr(mgFormat2SharedStr("'<' expected at the start of a tag, but {} was found", AsFoundText(NextChar())).c_str());
+		ReadChar();
+	}
 	SkipSpace();
 	if (NextChar() == '?')
 	{

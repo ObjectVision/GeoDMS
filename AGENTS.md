@@ -17,6 +17,24 @@ battery + a few `fn_probe_*` probes + `tmpl_regress.dms`, with the `fe_names.txt
 gitignored `testcases/_out*/`. One-off investigation configs (controls, repros) still
 belong in gitignored `scratch/`, not `testcases/`.
 
+**A second battery runs over the same configurations: `testcases/run_xml_roundtrip.bat`** (#1261).
+It dumps each one in DMS syntax and in the XML notation, reads the XML back, dumps that in DMS
+syntax too, and compares the two DMS dumps: both are the same writer over what should be the
+same tree, so a difference is something the XML notation lost. Configurations whose round trip
+is known to differ are listed with their reason in `testcases/xml_roundtrip_known_diff.txt`, and a
+listed one that starts to match fails the run as well, so the list shrinks deliberately. Three
+GeoDmsRun runs per configuration, offline; the two RELEASE launchers call it right after
+`run_testcases.bat`. Not the Debug ones: a Debug `@dumpconfig` stops on a lock-ceiling assertion
+before it writes anything, which predates this battery -- `RangeProp<T>::GetRawValueAsSharedStr`
+declares the IndexedString ceiling and then calls `GetRawValue`, whose `GetValue` takes an interest
+on the unit and so enters ItemRegister (ord 74) under ord 90. Every configuration with a ranged
+unit hits it.
+
+**Do not confuse it with `testcases/run_roundtrip.bat`**, which asks a different question of the
+DMS writer: dump a configuration, RELOAD the dump and recompute its item. The XML one never
+reloads a `.dms`; it compares two DMS dumps of what should be the same tree, one taken after a
+detour through the XML notation.
+
 **That battery must stay offline and cheap.** Anything that reaches the network or
 processes real source data belongs in **`batch\TestShippedContent.bat`** instead, the
 release test for the `.dms` content the installer ships (issue #1031). It runs against

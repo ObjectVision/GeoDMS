@@ -1,0 +1,10 @@
+// #1261: a comment that is never closed swallows the rest of the file, so it must be reported
+// rather than read as if the file simply ended; the item behind it is absent
+container xml_comment_open_neg
+{
+	container xmlpart { #include <../data/xml_comment_open.xml> }
+	container checks
+	{
+		parameter<string> after := xmlpart/xco/after, IntegrityCheck = "after == 'ok'";
+	}
+}

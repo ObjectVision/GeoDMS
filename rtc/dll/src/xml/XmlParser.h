@@ -90,6 +90,16 @@ private:
 	SharedStr ReadName();
 	SharedStr ReadAttrValue(TokenID tagNameID, WeakStr attrName);
 
+	// '<' and '!' have been consumed: skip an XML comment '<!-- ... -->' or any other markup
+	// declaration '<!...>'. ReadText does the skipping, because it is what runs in front of every
+	// tag, so a comment is accepted wherever text may stand as well as wherever a tag may start.
+	void SkipMarkupDeclaration();
+
+	// ReadText consumes the '<' that ends it before it can tell a tag from a comment; this says so
+	// to the ReadAttr that follows, which then starts at the tag name. The stream reads forward
+	// only, which is why this is a flag rather than a look-ahead.
+	bool m_TagOpenConsumed = false;
+
 	XmlElement m_XmlVersionSpec;
 };
 

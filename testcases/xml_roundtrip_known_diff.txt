@@ -1,0 +1,10 @@
+# Configurations whose XML round trip is known to differ from the direct DMS dump (#1261).
+# One per line: <config stem> <reason>. run_roundtrip.ps1 requires every OTHER configuration to
+# round-trip byte for byte, and fails a listed one that has started to match, so that this list
+# shrinks deliberately rather than rotting.
+#
+# Measured on 20.20.0, over 188 configurations that load.
+
+fn_test_byexample2      the direct dump of unit 'app/nodes' fails on its own range and reports it inline ('// ERROR dumping nodes: cat_range Error: Cannot find operator ...'), because the configuration declares nrofrows on a unit<float32> and cat_range has no operator for that. A dump error is not part of the tree, so the tree read back from the XML dumps without it. The cause is the range of that unit, not the notation.
+oper_dms_family         the source rule ends in a line end, which the reader drops together with the layout white space of the element it sits in and cannot tell apart from it, so the ',' the DMS writer appends lands on the previous line
+oper_dms_union_counts   idem, four rules

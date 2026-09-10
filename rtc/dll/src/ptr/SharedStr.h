@@ -301,18 +301,12 @@ struct SharedCharArrayPtrWrap : protected BasePtr
 
 	bool operator !=(CharPtr b) const
 	{
-		if (!IsDefined())
-			return ::IsDefined(b);
-		if (!::IsDefined(b))
-			return true;
-		assert(b && IsDefined());
-		if (empty())
-			return *b;
-		assert(has_ptr());
-		auto sz = get_ptr()->size();
-		assert(sz);
-		assert(begin()[sz - 1] == char(0));
-		return strnicmp(begin(), b, sz) != 0;
+		// #1261: the negation of operator ==, and nothing else. This compared with strnicmp, so it
+		// was case-INSENSITIVE while operator == is case-sensitive: for a pair differing only in
+		// case, a == b and a != b were BOTH true. The one call site that could tell the difference
+		// was the WMS image_format check (shv/dll/src/WmsLayer.cpp), which is explicit about its
+		// case folding now rather than depending on which of the two operators it happened to use.
+		return !(*this == b);
 	}
 
 	CharPtrRange AsRange() const
