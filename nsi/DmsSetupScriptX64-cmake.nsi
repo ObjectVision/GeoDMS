@@ -226,6 +226,10 @@ Section "GeoDMS Program Folder"
   ; examples\testcases\run_testcases.bat against the installed GeoDmsRun)
   SetOutPath $INSTDIR\examples\testcases
   File ${CMakeBinDir}\examples\testcases\*.*
+  ; its fixtures (#1271): the flat *.* above does not descend, and 17 cases read data\
+  ; (\* rather than \*.*: data\strfiles has no dot, and only Win32 matching lets *.* pass it)
+  SetOutPath $INSTDIR\examples\testcases\data
+  File /r ${CMakeBinDir}\examples\testcases\data\*
 
   ; Start menu shortcuts
   IfSilent skip_set_all
@@ -291,6 +295,7 @@ Section uninstall
   Delete $INSTDIR\library\basedata_nl\rdc\*.*
   Delete $INSTDIR\library\basedata_nl\*.*
   Delete $INSTDIR\library\*.*
+  RMDir /r $INSTDIR\examples\testcases\data
   Delete $INSTDIR\examples\testcases\*.*
   Delete $INSTDIR\examples\*.*
 
