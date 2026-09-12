@@ -135,8 +135,12 @@ private:
 	// weeded_counts table and a ClassifyNonzeroJenksFisher over it -- so nothing is scheduled here
 	// and no OperationContext item writer exists any more. Two things stay with the view and
 	// happen once, in settleGeneratedClassification: sizing the palette domain to the number of
-	// classes the data supports, and building the palettes from the computed breaks.
-	ActorVisitState settleGeneratedClassification(const Actor* act) const;
+	// classes the data supports, and building the palettes from the computed breaks. That runs as
+	// a gui oper of the view, posted by the prepare walk that finds the counts in, not from the
+	// walk itself: the walk is a draw, and the settle changes the layer's suppliers (see the
+	// comment on Theme::settleGeneratedClassification in Theme.cpp).
+	ActorVisitState postSettleGeneratedClassification() const;
+	void settleGeneratedClassification() const;
 
 	// The weeded_counts table of a generated classification, held only until the palette domain has
 	// been sized from it and the palettes have been built from the breaks. Cleared there, the way
@@ -145,6 +149,7 @@ private:
 	// if it is ever wanted again. Non-null therefore means "still to settle".
 	mutable SharedUnitInterestPtr m_ClassCounts;
 	std::weak_ptr<DataView>       m_ClassDataView; // the view that owns those desktop items
+	mutable bool                  m_SettlePosted = false; // the gui oper is in the view's queue; every pass until it ran suspends
 
 	SharedDataItemInterestPtr
 		m_ThemeAttr      // E     -> V
