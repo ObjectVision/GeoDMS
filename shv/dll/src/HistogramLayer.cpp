@@ -10,6 +10,7 @@
 
 #include "HistogramLayer.h"
 
+#include "ChartGeometry.h"
 #include "InvalidationBlock.h"
 #include "vt/Conversions.h"
 #include "geom/IsInside.h"
@@ -393,47 +394,6 @@ void HistogramLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventI
 			picked[k] = true;
 	}
 	SelectBins(picked, eventID);
-}
-
-static bool SegmentsCross(CrdPoint a, CrdPoint b, CrdPoint c, CrdPoint d)
-{
-	auto orient = [](CrdPoint p, CrdPoint q, CrdPoint r) -> int
-	{
-		CrdType v = (q.first - p.first) * (r.second - p.second)
-		          - (q.second - p.second) * (r.first - p.first);
-		return (v > 0) - (v < 0);
-	};
-	return orient(a, b, c) * orient(a, b, d) < 0
-	    && orient(c, d, a) * orient(c, d, b) < 0;
-}
-
-static bool PolygonIntersectsRect(const CrdPoint* first, const CrdPoint* last, const CrdRect& rect)
-{
-	// any polygon vertex inside the rect?
-	for (const CrdPoint* i = first; i != last; ++i)
-		if (IsIncluding(rect, *i))
-			return true;
-
-	// any rect corner inside the polygon?
-	CrdPoint corners[4] = {
-		rect.first,
-		CrdPoint(rect.first.first,  rect.second.second),
-		rect.second,
-		CrdPoint(rect.second.first, rect.first.second)
-	};
-	for (auto corner : corners)
-		if (IsInside(first, last, corner))
-			return true;
-
-	// any polygon edge crossing a rect edge?
-	for (const CrdPoint* i = first; i != last; ++i)
-	{
-		const CrdPoint* j = i + 1; if (j == last) j = first;
-		for (UInt32 c = 0; c != 4; ++c)
-			if (SegmentsCross(*i, *j, corners[c], corners[(c+1) % 4]))
-				return true;
-	}
-	return false;
 }
 
 void HistogramLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID)

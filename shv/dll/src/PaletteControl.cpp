@@ -52,7 +52,10 @@ PaletteControl::PaletteControl(MovableObject* owner, GraphicLayer* layer, bool h
 		m_PaletteDomain = make_shared_tree(activeTheme->GetPaletteDomain(), existing_obj{}); dms_assert(m_PaletteDomain);
 
 		m_ThemeAttr = activeTheme->GetThemeAttr();
-		m_PaletteAttr = activeTheme->GetPaletteAttr();
+		// A feature theme's attribute is the layer's subject, the geometry of a feature layer or the
+		// values of a pie (#1273), not a palette this legend describes or edits.
+		if (activeTheme->GetAspectNr() != AN_Feature)
+			m_PaletteAttr = activeTheme->GetPaletteAttr();
 	}
 	if (!m_ThemeAttr)
 		m_ThemeAttr = m_PaletteAttr;
@@ -341,6 +344,8 @@ void PaletteControl::CreateColumnsImpl()
 	}
 	if (m_LabelTextAttr)
 		CreateLabelTextColumn();
+	if (m_Layer)
+		m_Layer->AddLegendColumns(this); // the layer's own per-row columns, e.g. the value and share of a pie slice
 
 	SharedStr exprStr = m_ThemeAttr ? m_ThemeAttr->GetFullName() : SharedStr();
 

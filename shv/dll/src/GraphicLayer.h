@@ -20,6 +20,7 @@
 #include "ScalableObject.h"
 
 struct IndexCollector;
+class PaletteControl;
 
 //----------------------------------------------------------------------
 // class  : GraphicLayer
@@ -89,6 +90,10 @@ public:
 	virtual CrdRect CalcSelectedFullWorldRect() const = 0;
 
 	virtual void InvalidateFeature(SizeT featureIndex) = 0;
+
+	// A layer's own columns in its legend (a PaletteControl over the palette domain), inserted
+	// after the swatch and the label: the value and the share of a pie slice (#1273).
+	virtual void AddLegendColumns(PaletteControl* /*legend*/) {}
 
 	std::weak_ptr<LayerSet> GetLayerSet();
 

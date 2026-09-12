@@ -138,7 +138,7 @@ void ChangePoint(AbstrDataItem* pointItem, const CrdPoint& point, bool isNew);
 // chart's view-context item (via its DialogType token) so the create-action can
 // seed it and it round-trips through desktop save/load.
 
-enum class ChartKind : UInt8 { Histogram, Scatter, Line, Bar };
+enum class ChartKind : UInt8 { Histogram, Scatter, Line, Bar, Pie };
 
 SHV_CALL void      SetViewContextChartKind(TreeItem* viewContext, ChartKind kind);
 ChartKind GetViewContextChartKind(const TreeItem* viewContext);

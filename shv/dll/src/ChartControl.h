@@ -24,7 +24,9 @@ class AxisControl;
 // Composition of a chart view (issue #75), analogous to MapControl:
 // a plot-area ViewPort (FitMode::Stretch over a synthetic chart-space world unit)
 // flanked by a vertical and a horizontal AxisControl, plus the LayerControlSet
-// panel that doubles as the chart legend.
+// panel that doubles as the chart legend. A pie chart (#1273) has no axes: its
+// bands are folded away and the plot area fits its disc isotropically, so that
+// the disc stays round.
 
 class ChartControl : public ViewControl
 {
@@ -63,6 +65,7 @@ private:
 	std::shared_ptr<LayerSet>        m_LayerSet;
 
 	std::shared_ptr<AxisControl>     m_XAxis, m_YAxis;
+	bool                             m_HasAxes = true;
 
 	std::shared_ptr<ScrollPort>      m_ScrollPort;
 	std::shared_ptr<LayerControlSet> m_LayerControlSet;

@@ -268,12 +268,13 @@ bool WmCopyData(MSG* copyMsgPtr) {
         MainWindow::TheOne()->tableView();
         return true;
 
-    // optional payload: the ChartKind ordinal (0 = Histogram, 1 = Scatter, 2 = Line, 3 = Bar)
+    // optional payload: the ChartKind ordinal (0 = Histogram, 1 = Scatter, 2 = Line, 3 = Bar, 4 = Pie)
     case CommandCode::miHistogramView:
         switch (ChartKind(pcds->cbData >= 4 ? Get4Bytes(pcds, 0) : 0)) {
         case ChartKind::Scatter: MainWindow::TheOne()->scatterChartView(); break;
         case ChartKind::Line:    MainWindow::TheOne()->lineChartView();    break;
         case ChartKind::Bar:     MainWindow::TheOne()->barChartView();     break;
+        case ChartKind::Pie:     MainWindow::TheOne()->pieChartView();     break;
         default:                 MainWindow::TheOne()->histogramChartView(); break;
         }
         return true;

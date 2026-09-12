@@ -123,6 +123,9 @@
     <ClCompile Include="src\HistogramLayer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\PieLayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\MenuData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -311,7 +314,13 @@
     <ClInclude Include="src\ChartLayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\ChartGeometry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\HistogramLayer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PieLayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\GraphicContainer.h">

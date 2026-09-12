@@ -25,6 +25,7 @@
 #include "LayerControl.h"
 #include "LayerInfo.h"
 #include "LayerSet.h"
+#include "PieLayer.h"
 #include "ScrollPort.h"
 #include "ShvUtils.h"
 #include "Theme.h"
@@ -37,6 +38,7 @@
 static StaticLateTokenID s_ChartScatterID("chart_scatter");
 static StaticLateTokenID s_ChartLineID   ("chart_line");
 static StaticLateTokenID s_ChartBarID    ("chart_bar");
+static StaticLateTokenID s_ChartPieID    ("chart_pie");
 
 void SetViewContextChartKind(TreeItem* viewContext, ChartKind kind)
 {
@@ -45,6 +47,7 @@ void SetViewContextChartKind(TreeItem* viewContext, ChartKind kind)
 		case ChartKind::Scatter: TreeItem_SetDialogType(viewContext, s_ChartScatterID); break;
 		case ChartKind::Line:    TreeItem_SetDialogType(viewContext, s_ChartLineID);    break;
 		case ChartKind::Bar:     TreeItem_SetDialogType(viewContext, s_ChartBarID);     break;
+		case ChartKind::Pie:     TreeItem_SetDialogType(viewContext, s_ChartPieID);     break;
 		default: break; // Histogram is the default; no token needed
 	}
 }
@@ -57,6 +60,7 @@ ChartKind GetViewContextChartKind(const TreeItem* viewContext)
 	if (dt == s_ChartScatterID) return ChartKind::Scatter;
 	if (dt == s_ChartLineID)    return ChartKind::Line;
 	if (dt == s_ChartBarID)     return ChartKind::Bar;
+	if (dt == s_ChartPieID)     return ChartKind::Pie;
 	return ChartKind::Histogram;
 }
 
@@ -104,6 +108,8 @@ void ChartDataView::AddLayer(const TreeItem* viewItem, bool isDropped)
 	ChartKind kind = GetViewContextChartKind(GetViewContext());
 	if (kind == ChartKind::Histogram)
 		AddHistogramLayer(adi);
+	else if (kind == ChartKind::Pie)
+		AddPieLayer(adi);
 	else
 		AddSeriesLayer(adi, kind);
 }
@@ -166,6 +172,60 @@ void ChartDataView::AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind)
 	chartControl->GetScrollPort()->ScrollHome();
 }
 
+// The legend lists every part; a domain larger than this keeps its row numbers to itself, as a
+// row-number X axis does with its labels (issue #1207).
+const SizeT MAX_PIE_LEGEND_LABELS = 4096;
+
+void ChartDataView::AddPieLayer(const AbstrDataItem* adi)
+{
+	auto chartControl = GetContents();
+	auto vp = chartControl->GetViewPort();
+	auto ls = chartControl->GetLayerSet();
+
+	vp->InitWorldCrdUnit(nullptr); // ensure the synthetic chart-space world unit exists
+
+	auto layer = std::make_shared<PieLayer>(ls);
+
+	// The value attribute is the layer's subject and rides the AN_Feature theme, as a feature
+	// layer's geometry does: a slice's shape is its value. That makes it the layer's active
+	// attribute, which names the caption and the legend and provides the entity domain E that
+	// the shared selection attribute is defined on.
+	layer->SetThemeAndActivate(Theme::Create(AN_Feature, nullptr, nullptr, adi).get(), adi);
+
+	// One colour per element of E, not a classification of the values as the other charts take:
+	// in a pie every part is told from its neighbours by its own colour. A BrushColor attribute
+	// configured under the value attribute or under E is taken; otherwise the system palette
+	// over E is generated, as the map view does for a categorical attribute.
+	const AbstrUnit* domain = adi->GetAbstrDomainUnit();
+	SharedDataItemInterestPtr colorAttr = FindAspectAttr(AN_BrushColor, adi, domain, PieLayer::GetStaticClass());
+	if (!colorAttr)
+		colorAttr = FindAspectAttr(AN_BrushColor, domain, domain, PieLayer::GetStaticClass());
+	if (!colorAttr)
+		colorAttr = CreateSystemColorPalette(this, domain, AN_BrushColor, false, false, false, nullptr, nullptr);
+	if (colorAttr)
+		layer->ChangeTheme(Theme::Create(AN_BrushColor, colorAttr.get_ptr(), nullptr, nullptr).get());
+
+	// The name of each part, for the legend: the domain's Label attribute, or the row number when
+	// there is none and the domain is small enough to list.
+	SharedDataItemInterestPtr labelAttr;
+	try {
+		labelAttr = domain->GetLabelAttr();
+	}
+	catch (...) {} // a broken Label costs the names in the legend, not the chart
+	if (!labelAttr && !domain->WasFailed(FailType::Data) && domain->PrepareDataUsage(DrlType::Certain) && domain->GetPreparedCount() <= MAX_PIE_LEGEND_LABELS)
+		labelAttr = CreateSystemLabelPalette(this, domain, AN_LabelText, false);
+	if (labelAttr)
+		layer->ChangeTheme(Theme::Create(AN_LabelText, labelAttr.get_ptr(), nullptr, nullptr).get());
+
+	layer->ConnectSelectionsTheme(this);
+
+	ls->InsertEntry(layer.get());
+	ls->SetActiveEntry(layer.get());
+
+	ScheduleFirstUpdate(layer.get());
+	chartControl->GetScrollPort()->ScrollHome();
+}
+
 void ChartDataView::ScheduleFirstUpdate(GraphicLayer* layer)
 {
 	// Schedule the layer's first DoUpdateView on the update timer; never pull it synchronously.
@@ -190,6 +250,9 @@ ExportInfo ChartDataView::GetExportInfo()
 // caption naming a chart that is no longer the one on screen.
 static auto ChartKindName(const GraphicLayer* active_layer) -> CharPtr
 {
+	if (auto pieLayer = dynamic_cast<const PieLayer*>(active_layer))
+		return pieLayer->GetDrawMode() == PieDrawMode::Donut ? "Donut Chart" : "Pie Chart";
+
 	auto chartLayer = dynamic_cast<const ChartLayer*>(active_layer);
 	if (!chartLayer)
 		return "Histogram"; // a HistogramLayer, added by AddHistogramLayer

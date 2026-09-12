@@ -19,7 +19,8 @@ class ChartControl;
 // class  : ChartDataView
 //----------------------------------------------------------------------
 // DataView for charts (issue #75); user-facing name "Graph View" / "Chart".
-// Accepts numeric attributes and shows them as a histogram of classified values;
+// Accepts numeric attributes and shows them as a histogram of classified values, as a
+// series against their row number, or as the parts of their total (#1273);
 // composition and interaction reuse the MapView building blocks via ChartControl.
 
 class ChartDataView : public DataView
@@ -46,6 +47,8 @@ private:
 	// scatter/line/bar: synthesize feature geometry over the value's domain and reuse
 	// the standard FeatureLayer path, so selection/focus/themes work verbatim.
 	void AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind);
+	// pie/donut: one slice per element, sized by its share in the attribute's sum (#1273).
+	void AddPieLayer(const AbstrDataItem* adi);
 	void ScheduleFirstUpdate(GraphicLayer* layer);
 
 	DECL_RTTI(, Class)

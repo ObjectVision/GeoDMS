@@ -40,7 +40,10 @@ void ChartControl::Init(DataView* dv)
 {
 	assert(dv);
 	m_ViewPort = make_shared_gr<ViewPort>(this, dv, "ChartView")();
-	m_ViewPort->SetFitMode(FitMode::Stretch);
+	// A pie has no axes and must stay round: it keeps the isotropic fit of a map. The other
+	// charts stretch their value ranges over the plot area, each axis on its own scale.
+	m_HasAxes = GetViewContextChartKind(dv->GetViewContext()) != ChartKind::Pie;
+	m_ViewPort->SetFitMode(m_HasAxes ? FitMode::Stretch : FitMode::Isotropic);
 	m_ViewPort->SetMinRoiSize(CHART_MIN_ROI_SIZE);
 	m_LayerSet = make_shared_gr<LayerSet>(m_ViewPort.get())();
 
@@ -76,9 +79,13 @@ void ChartControl::ProcessSize(CrdPoint chartControlSize)
 		plotSize.X() -= scrollPortWidth;
 	}
 
+	// without axes the bands collapse to nothing and the plot area takes the whole width and height
+	CrdType yAxisWidth  = m_HasAxes ? Y_AXIS_WIDTH  : 0.0;
+	CrdType xAxisHeight = m_HasAxes ? X_AXIS_HEIGHT : 0.0;
+
 	CrdType plotTop    = 0;
-	CrdType plotLeft   = Min<CrdType>(Y_AXIS_WIDTH,  plotSize.X());
-	CrdType plotBottom = Max<CrdType>(plotSize.Y() - X_AXIS_HEIGHT, plotTop);
+	CrdType plotLeft   = Min<CrdType>(yAxisWidth,  plotSize.X());
+	CrdType plotBottom = Max<CrdType>(plotSize.Y() - xAxisHeight, plotTop);
 	CrdType plotRight  = Max<CrdType>(plotSize.X(), plotLeft);
 
 	m_ViewPort->SetClientRect(CrdRect(shp2dms_order<CrdType>(plotLeft, plotTop ), shp2dms_order<CrdType>(plotRight, plotBottom)));

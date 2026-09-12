@@ -843,6 +843,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 	auto scatter_view_action = MainWindow::TheOne()->m_scatterview_action.get();
 	auto line_view_action = MainWindow::TheOne()->m_lineview_action.get();
 	auto bar_view_action = MainWindow::TheOne()->m_barview_action.get();
+	auto pie_view_action = MainWindow::TheOne()->m_pieview_action.get();
 
 	if (!m_context_menu) {
 		m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
@@ -873,6 +874,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 		m_context_menu->addAction(scatter_view_action);
 		m_context_menu->addAction(line_view_action);
 		m_context_menu->addAction(bar_view_action);
+		m_context_menu->addAction(pie_view_action);
 
 		// process scheme
 		//	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..

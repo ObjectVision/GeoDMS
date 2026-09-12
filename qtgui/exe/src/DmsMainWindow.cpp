@@ -475,6 +475,7 @@ void MainWindow::updateActionsForNewCurrentItem() {
     m_scatterview_action->setEnabled(histogramEnabled);
     m_lineview_action->setEnabled(histogramEnabled);
     m_barview_action->setEnabled(histogramEnabled);
+    m_pieview_action->setEnabled(histogramEnabled);
     m_statistics_action->setEnabled(dataActionable && IsDataItem(ci));
     m_process_schemes_action->setEnabled(true);
     m_update_treeitem_action->setEnabled(true);
@@ -1324,6 +1325,14 @@ void MainWindow::barChartView() {
     createView(ViewStyle::tvsHistogram, ChartKind::Bar);
 }
 
+void MainWindow::pieChartView() {
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "pieChartView // for item {}", currItem->GetFullName());
+    createView(ViewStyle::tvsHistogram, ChartKind::Pie);
+}
+
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {
     assert(IsMainThread());
     auto mw = MainWindow::TheOne();
@@ -1887,7 +1896,7 @@ static auto ViewStyleIcon(char16_t glyph, item_icon_kind paletteEntry) -> QIcon
     return GetGlyphPixmap({ glyph, 0 }, GetItemIconColor(paletteEntry));
 }
 
-// All four chart kinds reach getIconFromViewstyle as tvsHistogram -- the ViewStyle says that a
+// All five chart kinds reach getIconFromViewstyle as tvsHistogram -- the ViewStyle says that a
 // chart window is meant, not which chart -- so this is the one style that needs a second answer
 // (issue #1211). The two bar glyphs differ in what the two charts themselves differ in: the bins
 // of a histogram touch, the bars of a bar chart stand apart.
@@ -1897,6 +1906,7 @@ static auto ChartKindGlyph(ChartKind chartKind) -> char16_t
     case ChartKind::Scatter: return u'\uEB03'; // bubble-chart-line
     case ChartKind::Line:    return u'\uEEAB'; // line-chart-line
     case ChartKind::Bar:     return u'\uEA9E'; // bar-chart-line
+    case ChartKind::Pie:     return u'\uEFFA'; // pie-chart-line
     }
     return u'\uEA96'; // Histogram: bar-chart-2-line
 }

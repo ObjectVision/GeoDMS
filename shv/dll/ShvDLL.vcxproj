@@ -108,6 +108,7 @@
     <ClCompile Include="src\GridDrawer.cpp" />
     <ClCompile Include="src\GridLayer.cpp" />
     <ClCompile Include="src\HistogramLayer.cpp" />
+    <ClCompile Include="src\PieLayer.cpp" />
     <ClCompile Include="src\ResourceIndexCache.cpp" />
     <ClCompile Include="src\IndexCollector.cpp" />
     <ClCompile Include="src\ItemSchemaView.cpp" />
@@ -195,7 +196,9 @@
     <ClInclude Include="src\GridFill.h" />
     <ClInclude Include="src\GridLayer.h" />
     <ClInclude Include="src\GridLayerBase.h" />
+    <ClInclude Include="src\ChartGeometry.h" />
     <ClInclude Include="src\HistogramLayer.h" />
+    <ClInclude Include="src\PieLayer.h" />
     <ClInclude Include="src\IdleTimer.h" />
     <ClInclude Include="src\ResourceIndexCache.h" />
     <ClInclude Include="src\IndexCollector.h" />

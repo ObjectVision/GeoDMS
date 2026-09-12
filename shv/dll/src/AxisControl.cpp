@@ -80,6 +80,8 @@ bool AxisControl::Draw(GraphDrawer& d) const
 	auto sf  = d.GetSubPixelFactors();
 	auto clientAbsRect = ScaleCrdRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), sf);
 	auto clientIntRect = CrdRect2GRect(clientAbsRect);
+	if (clientIntRect.empty())
+		return false; // a chart without axes (a pie) folds the bands away
 
 	dc->FillRect(clientIntRect, CombineRGB(255, 255, 255));
 

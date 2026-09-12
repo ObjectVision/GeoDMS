@@ -312,6 +312,14 @@ void createDmsActions() {
     main_window->connect(main_window->m_barview_action.get(), &QAction::triggered, main_window, &MainWindow::barChartView);
     main_window->m_view_menu->addAction(main_window->m_barview_action.get());
 
+    // pie chart view (issue #1273): the parts of a total. Mnemonic P: H, S, L and B are taken,
+    // and S is already shared with Statistics (#1211).
+    main_window->m_pieview_action = std::make_unique<QAction>(QObject::tr("&Pie Chart"));
+    main_window->m_pieview_action->setStatusTip(QObject::tr("Open a chart that draws every row of the current selected TreeItem as a slice of its total, sized by its share."));
+    main_window->m_pieview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram, ChartKind::Pie));
+    main_window->connect(main_window->m_pieview_action.get(), &QAction::triggered, main_window, &MainWindow::pieChartView);
+    main_window->m_view_menu->addAction(main_window->m_pieview_action.get());
+
     // process schemes
     main_window->m_process_schemes_action = std::make_unique<QAction>(QObject::tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
