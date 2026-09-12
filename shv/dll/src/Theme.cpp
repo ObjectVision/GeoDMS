@@ -575,8 +575,7 @@ static ActorVisitState PrepareThemeUnit(const AbstrUnit* au, const Actor* act)
 }
 
 // #1248: what is left of the generated classification once the computation itself is an operator
-// application. Two steps, both once, both here because this is where a theme may tell the view to
-// come back later:
+// application. Two steps, both once:
 //
 //  - the palette domain is created with DEFAULT_MAX_NR_BREAKS classes, because the number the data
 //    supports is only known once the value-count table is in, and an operator may not resize the
@@ -584,22 +583,46 @@ static ActorVisitState PrepareThemeUnit(const AbstrUnit* au, const Actor* act)
 //    so that anything already derived from the provisional size is recomputed;
 //  - the palettes are rebuilt from the computed breaks, which is what anchors a diverging ramp on
 //    zero (#1146); the ones Theme::Create made were built on the provisional size.
-ActorVisitState Theme::settleGeneratedClassification(const Actor* act) const
+//
+// Not from PrepareThemeData, where #1248 first put it. PrepareThemeData is the prepare step of a
+// draw (GraphDrawer::DoLayer, FeatureLayer::Draw), under the view's draw lock, and the resize stamps
+// a fresh timestamp on the palette domain, a supplier of the layer being drawn. The layer's next
+// GetLastChangeTS in that same draw -- GetIndexCollector, from the FeatureDrawer -- sees it,
+// DetermineState invalidates the layer, and GraphicObject::InvalidateDraw refuses that under the
+// lock: `Assertion failed: !dv->md_InvalidateDrawLock, GraphicObject.cpp line 411`, the Debug unit
+// suite's MicroTst run, whenever the counts land during a draw pass rather than between two. So
+// the settle is a gui oper of the owning view, posted by the pass that finds the counts readable
+// (postSettleGeneratedClassification) and run from the message loop, where a supplier change is
+// what the next UpdateView starts from, like the PostMainThreadOper continuation before #1248.
+void Theme::settleGeneratedClassification() const
 {
-	assert(m_ClassCounts);
+	assert(IsMainThread());
+	m_SettlePosted = false;
+
+	// Once, whatever comes of it: a settle that cannot complete is reported by the draw, through
+	// the classification that names the counts, not repeated. Dropping the interest is also what
+	// lets the (up to MAX_PAIR_COUNT) value-count pairs go once the palette domain is sized.
+	SharedUnitInterestPtr classCounts = std::move(m_ClassCounts);
+	m_ClassCounts = nullptr;
+	if (!classCounts)
+		return;
 
 	auto dv = m_ClassDataView.lock();
 	auto paletteDomain = make_shared_tree(const_cast<AbstrUnit*>(GetPaletteDomain()), existing_obj{});
 	if (!dv || !paletteDomain)
-	{
-		m_ClassCounts = nullptr; // the view or the domain that owned this is gone; nothing to settle
-		return AVS_Ready;
-	}
+		return; // the view or the domain that owned this is gone; nothing to settle
 
-	if (PrepareThemeUnit(m_ClassCounts, act) == AVS_SuspendedOrFailed)
-		return AVS_SuspendedOrFailed;
+	// Not a draw, so nothing here suspends: the counts were readable when this was posted, and the
+	// breaks are a ClassifyNonzeroJenksFisher over at most MAX_PAIR_COUNT pairs, joined here as the
+	// item-writer task before #1248 computed them inline.
+	SuspendTrigger::FencedBlocker blockSuspension("Theme::settleGeneratedClassification");
 
-	SizeT nrBreaks = Min<SizeT>(m_ClassCounts->GetCount(), DEFAULT_MAX_NR_BREAKS);
+	classCounts->UpdateMetaInfo();
+	classCounts->SuspendibleUpdate();
+	if (classCounts->WasFailed(FailType::Data) || !classCounts->PrepareDataUsage(DrlType::Certain))
+		return;
+
+	SizeT nrBreaks = Min<SizeT>(classCounts->GetCount(), DEFAULT_MAX_NR_BREAKS);
 
 	auto ts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("settleGeneratedClassification"));
 	UpdateMarker::ChangeSourceLock changeStamp(ts, "settleGeneratedClassification");
@@ -607,14 +630,21 @@ ActorVisitState Theme::settleGeneratedClassification(const Actor* act) const
 	if (paletteDomain->GetCount() != nrBreaks)
 	{
 		// SetCount on a domain that already carries attributes is a main-thread operation, which
-		// this is. Narrow scope: the palettes below read this domain.
+		// this is. Narrow scope: the palettes below read this domain. Marked before the resize:
+		// OnDomainChange stamps the attributes it resizes from the domain's own timestamp, and
+		// marked after, that was the one from before the settle ("MarkTS out of context" for every
+		// palette attribute, in the Debug trace).
 		ItemWriteLock iwl(paletteDomain.get());
-		paletteDomain->SetCount(nrBreaks);
 		paletteDomain->MarkTS(ts);
+		paletteDomain->SetCount(nrBreaks);
 	}
 
-	if (::PrepareThemeData(m_Classification, act) == AVS_SuspendedOrFailed)
-		return AVS_SuspendedOrFailed;
+	if (!m_Classification)
+		return;
+	m_Classification->UpdateMetaInfo();
+	m_Classification->SuspendibleUpdate();
+	if (m_Classification->WasFailed(FailType::Data) || !m_Classification->PrepareDataUsage(DrlType::Certain))
+		return;
 
 	break_array breaks(nrBreaks);
 	if (nrBreaks)
@@ -628,17 +658,60 @@ ActorVisitState Theme::settleGeneratedClassification(const Actor* act) const
 	if (m_AspectNr != AN_LabelText)
 		CreatePaletteData(dv.get(), paletteDomain.get(), AN_LabelText, true, true, begin_ptr(breaks), end_ptr(breaks));
 
-	// Done: drop the interest on the counts table, so the (up to MAX_PAIR_COUNT) value-count pairs
-	// need not stay resident for the life of the theme. This is also what marks the theme settled.
-	m_ClassCounts = nullptr;
-	return AVS_Ready;
+	// A pass that could not wait for this (see below) drew the provisional classification and has
+	// no timer running; the changed suppliers reach it on the update cycle requested here.
+	dv->RequestUpdate();
+}
+
+// The counts are in and the pass that found them so cannot settle them itself (see above). Posts
+// the settle to the owning view, once, and suspends the pass, so that it resumes -- the view's
+// update timer retries a suspended pass -- on the settled classification, as it did when the
+// settle was inline. A pass that cannot suspend (a blocked draw, such as the clipboard bitmap of
+// MovableObject::GetAsDDBitmap) goes on with the provisional classification, and a theme whose
+// view is gone has nothing to settle: both return AVS_Ready.
+ActorVisitState Theme::postSettleGeneratedClassification() const
+{
+	assert(m_ClassCounts);
+
+	auto dv = m_ClassDataView.lock();
+	if (!dv)
+	{
+		m_ClassCounts = nullptr; // the view that owned the desktop items is gone; nothing to settle
+		return AVS_Ready;
+	}
+
+	if (!m_SettlePosted)
+	{
+		m_SettlePosted = true;
+		dv->PostGuiOper([self = weak_from_this()]()
+			{
+				if (auto theme = self.lock())
+					theme->settleGeneratedClassification();
+			}
+		);
+	}
+
+	if (SuspendTrigger::BlockerBase::IsBlocked())
+		return AVS_Ready;
+
+	// what a supplier that is not ready yet does, spelled out: the next MustSuspend answers yes, and
+	// DidSuspend, which the callers consult, reports it
+	SuspendTrigger::MarkProgress();
+	SuspendTrigger::DoSuspend();
+	SuspendTrigger::MustSuspend();
+	assert(SuspendTrigger::DidSuspend());
+	return AVS_SuspendedOrFailed;
 }
 
 ActorVisitState Theme::PrepareThemeData(const Actor* act) const
 {
 	if (m_ClassCounts)
-		if (settleGeneratedClassification(act) == AVS_SuspendedOrFailed)
+	{
+		if (PrepareThemeUnit(m_ClassCounts, act) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
+		if (postSettleGeneratedClassification() == AVS_SuspendedOrFailed)
+			return AVS_SuspendedOrFailed;
+	}
 
 	if (::PrepareThemeData(m_ThemeAttr     , act) == AVS_SuspendedOrFailed)
 		return AVS_SuspendedOrFailed;

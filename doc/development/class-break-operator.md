@@ -80,22 +80,38 @@ site sees a different contract. All it does now is remember the counts unit and 
 ### The settle step
 
 What the view still owes the classification happens once, in
-`Theme::settleGeneratedClassification`, called from `Theme::PrepareThemeData` — which already
-returns `AVS_SuspendedOrFailed` and is how a theme tells the view to come back later:
+`Theme::settleGeneratedClassification`. `Theme::PrepareThemeData` — which already returns
+`AVS_SuspendedOrFailed` and is how a theme tells the view to come back later — decides when:
 
 1. prepare the counts unit; not ready → suspend, the view retries;
-2. `SetCount(min(#counts, 8))` on the palette domain under an `ItemWriteLock`, and `MarkTS`, so
-   that anything derived from the provisional size is recomputed. This happens **before** the
-   break attribute is demanded, so the classification runs once, against the settled count;
-3. prepare the break attribute, read it with `GetValuesAsFloat64Array`, and rebuild the palettes
-   from those breaks — preserving #1146's zero-anchored ramp;
-4. clear `Theme::m_ClassCounts`, which is both the interest that kept the counts table resident and
-   the "still to settle" flag — the analogue of the old `m_ClassTask.Clear()` on completion. The
-   `ClassBreaks` rule names the table by full name, so the desktop item stays and its data is
-   recomputed on demand if it is ever wanted again.
+2. the counts are in: post the settle to the owning view as a gui oper
+   (`Theme::postSettleGeneratedClassification`, once per theme, `m_SettlePosted`) and suspend
+   again, so the pass resumes on the settled classification. A pass that cannot suspend — a
+   blocked draw, such as the clipboard bitmap — goes on with the provisional classification and is
+   redrawn after the oper (`DataView::RequestUpdate` at its end).
 
-Sizing a plain desktop unit from the view is what the old continuation did too. The difference is
-that it is no longer a payload racing the GUI thread: it is a step in the view's own prepare walk.
+The oper, on the GUI thread from the message loop, between two update cycles:
+
+3. `MarkTS` with a fresh timestamp and `SetCount(min(#counts, 8))` on the palette domain under an
+   `ItemWriteLock`, so that anything derived from the provisional size is recomputed. This happens
+   **before** the break attribute is demanded, so the classification runs once, against the
+   settled count;
+4. join the break attribute (`PrepareDataUsage(DrlType::Certain)` under a `FencedBlocker`: a
+   Jenks-Fisher over at most `MAX_PAIR_COUNT` pairs), read it with `GetValuesAsFloat64Array`, and
+   rebuild the palettes from those breaks — preserving #1146's zero-anchored ramp;
+5. clear `Theme::m_ClassCounts` — first thing, whatever comes of the rest — which is both the
+   interest that kept the counts table resident and the "still to settle" flag — the analogue of
+   the old `m_ClassTask.Clear()` on completion. The `ClassBreaks` rule names the table by full
+   name, so the desktop item stays and its data is recomputed on demand if it is ever wanted again.
+
+Sizing a plain desktop unit from the view is what the old continuation did too, and from the same
+place: a posted oper, not the prepare walk. The first version of #1248 settled inside
+`PrepareThemeData`, and that walk is a draw: `GraphDrawer::DoLayer` calls `PrepareThemeSetData`
+under the view's draw lock, the resize stamps the layer's suppliers with a fresh timestamp, and the
+layer's next `GetLastChangeTS` in the same draw (`GraphicLayer::GetIndexCollector`, from the
+`FeatureDrawer`) invalidated it there — `dbg_assert(!dv->md_InvalidateDrawLock)` in
+`GraphicObject::InvalidateDraw`, whenever the counts landed during a draw pass rather than between
+two (the Debug unit suite's MicroTst run, every time on an idle machine).
 
 ### How the resize reaches the legend
 
@@ -176,12 +192,13 @@ early return, and comments that no longer describe a second kind of task.
   itself — which surfaces as padded duplicate breaks rather than as old values. Making it
   re-settle would mean keeping a non-interest handle to the counts unit and resetting on
   `DoInvalidate`.
-- **The relayout rides on a following pass.** `settleGeneratedClassification` resizes the palette
-  domain inside a draw visit (`GraphDrawer::DoLayer` -> `PrepareThemeSetData`) and returns
-  `AVS_Ready`, so the invalidation it causes is picked up by whatever pass comes next, rather than
-  by one it requests. The old code did this from `PostGuiOper`, outside any visit. It converged in
-  every run measured here; it has not been proved to converge when the counts arrive late. The fix,
-  if wanted, is to invalidate the `act` the visitor already passes.
+- **The relayout rides on a following pass** — by design now, not by accident. The settle runs
+  from a gui oper between two update cycles (see "The settle step"); the pass that posted it is
+  suspended, so the view's update timer brings the next cycle, and a pass that could not suspend
+  gets one from `RequestUpdate`. The invalidation is then picked up by that cycle's
+  `DataView::SuspendibleUpdate` and `GraphUpdater` walk, outside the draw lock. The first version
+  settled inside the draw visit itself, which did not converge when the counts arrived late: it
+  asserted (`!dv->md_InvalidateDrawLock`).
 - **The classification runs twice** on the first view: once against the provisional eight classes,
   once against the settled count. `weeded_counts` is shared, so the second run is Jenks-Fisher over
   at most `MAX_PAIR_COUNT` pairs, but it is work the old code did not do.
