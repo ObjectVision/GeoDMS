@@ -1,0 +1,19 @@
+// A read-only MMD holder whose store does not exist at all (issue #1272). Everything below a
+// read holder comes from the dictionary of the store, and before 20.21.0 the reader's only probe
+// was for that dictionary, with a silent return when it was absent: the holder became an empty
+// container, ready, with nothing below it that could fail -- while a gdal.vect holder on a
+// missing shape file turns red with a message. The same silent return serves the WRITER, for
+// which a store that does not exist yet is the normal case; only the reader's half was wrong.
+//
+// Since 20.21.0 the read holder fails its meta info naming the missing store, which the GUI
+// shows as a red item with the message in the detail pages and the event log, and which
+// GeoDmsRun turns into a nonzero exit (#1270). The holder is a container, as in the issue:
+// a unit holder had other reasons to complain about its missing range.
+container stor_mmd_missing_neg1
+{
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_missing_neg1.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+}

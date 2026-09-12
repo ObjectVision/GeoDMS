@@ -78,3 +78,5 @@ run_statistics_own_neg.dms @statistics /r
 run_statistics_supplier_neg.dms @statistics /w
 run_valueinfo_ok.dms @valueinfo 0 /ok
 run_valueinfo_supplier_neg.dms @valueinfo 0 /w
+stor_mmd_missing_neg1.dms /store
+stor_mmd_missing_neg2.dms /store

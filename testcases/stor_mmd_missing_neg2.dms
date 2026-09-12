@@ -1,0 +1,16 @@
+// The other half of issue #1272: the store FOLDER exists but holds no 0Dictionary.dms -- a folder
+// that is not an MMD store, or a store whose write never got as far as its dictionary. Before
+// 20.21.0 this was as silent as a missing folder (stor_mmd_missing_neg1.dms); since 20.21.0 the
+// holder fails with a message that names the dictionary, so the two cases are told apart, as the
+// issue asked ("is the file missing, or is it corrupt?").
+//
+// The folder is data/stor_mmd_missing_neg2.mmd, tracked with a note inside, so the case does not
+// depend on the order in which the suite runs.
+container stor_mmd_missing_neg2
+{
+	container store
+	:	StorageName     = "%currDir%/data/stor_mmd_missing_neg2.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+}

@@ -1,0 +1,2 @@
+This folder is the store of testcases/stor_mmd_missing_neg2.dms (issue #1272): it exists but
+is not an MMD store, because it has no 0Dictionary.dms. Do not add one.

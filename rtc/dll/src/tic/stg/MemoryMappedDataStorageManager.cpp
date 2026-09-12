@@ -300,7 +300,8 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	if (curr->HasConfiguredCalcRule()) // don't read schema info if the item has a calculation rule; this is the production case (#587: a read installed by the engine is not one)
 		return;
 
-	if (storageReadOnlyPropDefPtr->GetValue(storageHolder))
+	bool isReadHolder = storageReadOnlyPropDefPtr->GetValue(storageHolder);
+	if (isReadHolder)
 	{
 		// #1154/#1179 usage contract for a read holder: the reader declares ONLY the holder --
 		// StorageName plus StorageReadOnly -- and everything below it comes from the dictionary.
@@ -325,7 +326,20 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
 	if (!IsFileOrDirAccessible(dictFileName))
-		return;
+	{
+		if (!isReadHolder)
+			return; // the store is yet to be written: DoWriteTree creates the dictionary at OpenForWrite
+
+		// #1272: for a read holder the dictionary IS the store; without it the holder would become an
+		// empty container, ready, with nothing below it that could ever fail -- the missing store went
+		// unreported where a gdal.vect holder on a missing shape file turns red. The two cases are told
+		// apart: no folder at all, or a folder that is not (or no longer) a complete store.
+		if (!IsFileOrDirAccessible(GetNameStr()))
+			curr->throwItemErrorF("MMD storage {} does not exist", GetNameStr());
+		curr->throwItemErrorF(
+			"MMD storage {} has no dictionary {}: the folder is not a complete MMD store"
+			, GetNameStr(), dictFileName);
+	}
 	if (!s_AppendTreeFromConfigurationPtr)
 		throwErrorD("MmdStorageManager::DoUpdateTree", "s_AppendTreeFromConfigurationPtr is not set");
 
