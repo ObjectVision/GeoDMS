@@ -90,6 +90,8 @@ private:
 	template <typename Hit> void SelectSlices(Hit&& hit, EventID eventID);
 	// per-element selection: write the shared AN_Selections for the picked element mask.
 	void WriteSelection(const std::vector<char>& picked, EventID eventID);
+	// after a selection this layer wrote itself: recompute the slices before the next draw
+	void RefreshAfterSelection();
 
 	void SetDrawModePie()   { SetDrawMode(PieDrawMode::Pie); }
 	void SetDrawModeDonut() { SetDrawMode(PieDrawMode::Donut); }

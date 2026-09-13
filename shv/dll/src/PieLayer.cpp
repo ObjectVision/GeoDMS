@@ -577,6 +577,18 @@ void PieLayer::AddLegendColumns(PaletteControl* legend)
 // selection support: picked slices -> shared entity-domain selection attribute
 //----------------------------------------------------------------------
 
+// A selection this layer writes itself does not invalidate the layer: the InvalidationBlock
+// around the write keeps the change local, as it does for a feature layer, which reads the
+// selection attribute afresh for every feature it draws. This layer reads it once, in
+// DoUpdateView, so that pass has to run again before the next draw, or the slices would keep
+// the colours of the selection before the click while the legend already shows the new one.
+void PieLayer::RefreshAfterSelection()
+{
+	InvalidateView();
+	InvalidateDraw();
+	BroadcastUpdateRequest();
+}
+
 void PieLayer::WriteSelection(const std::vector<char>& picked, EventID eventID)
 {
 	auto selTheme = CreateSelectionsTheme();
@@ -605,8 +617,7 @@ void PieLayer::WriteSelection(const std::vector<char>& picked, EventID eventID)
 		writeLock.Commit();
 		invBlock.ProcessChange();
 	}
-	InvalidateDraw();
-	BroadcastUpdateRequest();
+	RefreshAfterSelection();
 }
 
 template <typename Hit>
@@ -643,6 +654,7 @@ void PieLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 	{
 		writeLock.Commit();
 		invBlock.ProcessChange();
+		RefreshAfterSelection();
 	}
 }
 
