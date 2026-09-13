@@ -36,7 +36,6 @@ extern "C" RTC_CALL void* GetGlobalMainWindowHandle(); // Delphi code could also
 using start_process_result_t = std::pair<HANDLE, HANDLE>;
 
 RTC_CALL void   Wait(UInt32 nrMillisecs);
-void   DmsYield(UInt32 nrMillisecs = 50);
 SizeT  RemainingStackSpace();
 start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
 RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine);

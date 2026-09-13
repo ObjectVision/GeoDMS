@@ -443,12 +443,8 @@ public:
 
 		SharedStr lastIterName = SharedStr(loopContents->GetNameID());
 
-		bool checkStopValue
-			=	mustCalc 
-			&&	(	loopContents->ResolveItemPath("stopValue")
-				->	CheckObjCls(DataArray<Bool>::GetStaticClass())
-				);
-
+		// Early termination on a stopValue parameter in the template was never implemented: every
+		// iteration is instantiated, whatever such an item evaluates to.
 		for (loop_count_t i=0; i!= maxNrIter; ++i)
 		{
 			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter{}", i).c_str())).get();
@@ -466,16 +462,6 @@ public:
 
 			iter->SetExpr(SharedStr(expr));
 
-			if (checkStopValue && false) // TODO, NYI
-			{
-				const AbstrDataItem* stopParamA
-					=	debug_cast<const AbstrDataItem*>(
-							iter->ResolveItemPath("stopValue")->CheckObjCls(DataArray<Bool>::GetStaticClass())
-						);
-
-				if (stopParamA && GetValue<Bool>(stopParamA, 0))
-					break;
-			}
 			lastIterName = SharedStr(iter->GetNameID());
 		}
 		TreeItem* lastIter = result->CreateItem(GetTokenID_mt("lastIter")).get();

@@ -80,7 +80,7 @@ static void InstallHeadlessAssertHandlerIfNoDebugger()
 
 // ============== Main
 
-enum class itemCmd { commit, statistics, histogram, list, file, valueinfo };
+enum class itemCmd { commit, statistics, histogram, list, valueinfo };
 
 // Headless counterpart of the GUI's Value Info page (#612): render the same explanation for one
 // element of a data item, so that what that page says about a value -- in particular why it has no

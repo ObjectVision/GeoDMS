@@ -169,24 +169,26 @@ void DmsGuiOptionsWindow::changeColor(QPushButton* btn, color_option co)
 
 //======== BEGIN GUI OPTIONS WINDOW ========
 
+// the color_option only names the colour dialog's title here; the button-to-option pairing
+// that is persisted is the one in apply() and restoreOptions() below, which these must match.
 void DmsGuiOptionsWindow::changeNotCalculatedColor()
 {
-    changeColor(m_idle_color_ti_button, color_option::st_valid);
+    changeColor(m_idle_color_ti_button, color_option::st_not_calculated);
 }
 
 void DmsGuiOptionsWindow::changeScheduledColor()
 {
-    changeColor(m_scheduled_color_ti_button, color_option::st_not_calculated);
+    changeColor(m_scheduled_color_ti_button, color_option::st_scheduled);
 }
 
 void DmsGuiOptionsWindow::changeDataReadyColor()
 {
-    changeColor(m_data_ready_color_ti_button, color_option::st_not_calculated);
+    changeColor(m_data_ready_color_ti_button, color_option::st_valid);
 }
 
 void DmsGuiOptionsWindow::changeDataStandbyColor()
 {
-    changeColor(m_standby_color_ti_button, color_option::st_not_calculated);
+    changeColor(m_standby_color_ti_button, color_option::st_standby);
 }
 
 void DmsGuiOptionsWindow::changeFailedTreeItemColor()
@@ -530,7 +532,7 @@ void DmsLocalMachineOptionsWindow::restoreOptions()
 void DmsLocalMachineOptionsWindow::cancel()
 {
     restoreOptions();
-    done(QDialog::Accepted);
+    done(QDialog::Rejected);
 }
 
 void DmsLocalMachineOptionsWindow::apply()
@@ -905,14 +907,13 @@ try {
                 else
                 {
 #ifdef _WIN32
-                    // Store in registry
+                    // Store in registry, and clear the session-local override that would shadow it
                     regLM.WriteString(option.name.c_str(), CharPtrRange(overrideValue.cbegin(), overrideValue.cend()));
+                    ClearSessionLocalOverride(option.name.c_str());
 #else
-                    // On Linux, store as session-local (no registry)
+                    // On Linux, the session-local cache is the only store (no registry)
                     SetSessionLocalOverride(option.name.c_str(), overrideValue.constData());
 #endif
-                    // Clear session-local override if it exists
-                    ClearSessionLocalOverride(option.name.c_str());
                 }
             }
             else

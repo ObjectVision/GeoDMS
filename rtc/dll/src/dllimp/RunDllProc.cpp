@@ -27,74 +27,48 @@
 
 #include <map>
 
+// The platform primitives: open, symbol lookup, close. Everything else about a loaded
+// library (ownership, the symbol cache, the CloseAll call on unload) is platform-neutral.
 #if defined(WIN32)
 
 #include <windows.h>
 
-struct DllHandle 
-{
-	DllHandle() : m_hDLL(NULL) {}
-	~DllHandle()
+namespace {
+	using dll_handle_t = HMODULE;
+
+	dll_handle_t dll_open(CharPtr dllname)
 	{
-		if (!m_hDLL)
-			return;
-
-		DMS_CALL_BEGIN
-			LPFNDLLFUNC0 finalizeProc = LPFNDLLFUNC0(GetProc("CloseAll"));
-			if (finalizeProc)
-				(*finalizeProc)();
-			FreeLibrary(m_hDLL);
-		DMS_CALL_END
-
-		m_hDLL = NULL;
+		// dllname is UTF-8; the unsuffixed LoadLibrary resolves to LoadLibraryA
+		// (no UNICODE/_UNICODE in this project), interpreting the bytes as ACP.
+		// Use the wide-char variant so non-ASCII DLL paths load correctly.
+		return LoadLibraryW(Utf8_2_wchar(dllname).get());
 	}
-
-	void* GetProc(CharPtr dllProcName)
-	{
-		DllProcCacheType::iterator i = m_DllProcCache.find(SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc")));
-		if (i != m_DllProcCache.end())
-			return i->second;
-
-		void*& proc = m_DllProcCache[SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc"))];
-		proc = reinterpret_cast<void*>(GetProcAddress(m_hDLL, dllProcName));
-		return proc;
-	}
-
-	bool IsLoaded() const { return m_hDLL != NULL; }
-
-	void SetInstance(HINSTANCE hDLL) 
-	{
-		m_hDLL = hDLL;
-	}
-
-	DllHandle(const DllHandle& src) // FORBIDDEN to copy when dll is loaded since destructor does unload!
-	{
-		MG_CHECK(src.m_hDLL == NULL);
-		m_hDLL = src.m_hDLL;
-	}
-
-private:
-	typedef std::map<SharedStr, void*> DllProcCacheType;
-
-	DllProcCacheType m_DllProcCache;
-	HINSTANCE        m_hDLL;
-};
-
-static void LoadDll(DllHandle& hnd, CharPtr dllname)
-{
-	// dllname is UTF-8; the unsuffixed LoadLibrary resolves to LoadLibraryA
-	// (no UNICODE/_UNICODE in this project), interpreting the bytes as ACP.
-	// Use the wide-char variant so non-ASCII DLL paths load correctly.
-	hnd.SetInstance(LoadLibraryW(Utf8_2_wchar(dllname).get()));
+	void* dll_sym(dll_handle_t hDLL, CharPtr procName) { return reinterpret_cast<void*>(GetProcAddress(hDLL, procName)); }
+	void  dll_close(dll_handle_t hDLL) { FreeLibrary(hDLL); }
 }
 
 #else //defined(WIN32)
 
 #include <dlfcn.h>
 
-struct DllHandle 
+namespace {
+	using dll_handle_t = void*;
+
+	dll_handle_t dll_open(CharPtr dllname) { return dlopen(dllname, RTLD_LAZY); }
+	void* dll_sym(dll_handle_t hDLL, CharPtr procName) { return dlsym(hDLL, procName); }
+	void  dll_close(dll_handle_t hDLL) { dlclose(hDLL); }
+}
+
+#endif //defined(WIN32)
+
+struct DllHandle
 {
-	DllHandle() : m_hDLL(nullptr) {}
+	DllHandle() = default;
+
+	// the destructor unloads, so a handle has exactly one owner: the entry in s_DllHandleCache
+	DllHandle(const DllHandle&) = delete;
+	DllHandle& operator =(const DllHandle&) = delete;
+
 	~DllHandle()
 	{
 		if (!m_hDLL)
@@ -104,10 +78,16 @@ struct DllHandle
 			LPFNDLLFUNC0 finalizeProc = LPFNDLLFUNC0(GetProc("CloseAll"));
 			if (finalizeProc)
 				(*finalizeProc)();
-			dlclose(m_hDLL);
+			dll_close(m_hDLL);
 		DMS_CALL_END
 
 		m_hDLL = nullptr;
+	}
+
+	void Load(CharPtr dllname)
+	{
+		dms_assert(!m_hDLL);
+		m_hDLL = dll_open(dllname);
 	}
 
 	void* GetProc(CharPtr dllProcName)
@@ -117,36 +97,18 @@ struct DllHandle
 			return i->second;
 
 		void*& proc = m_DllProcCache[SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc"))];
-		proc = dlsym(m_hDLL, dllProcName);
+		proc = dll_sym(m_hDLL, dllProcName);
 		return proc;
 	}
 
 	bool IsLoaded() const { return m_hDLL != nullptr; }
 
-	void SetHandle(void* hDLL) 
-	{
-		m_hDLL = hDLL;
-	}
-
-	DllHandle(const DllHandle& src) // FORBIDDEN to copy when dll is loaded since destructor does unload!
-	{
-		MG_CHECK(src.m_hDLL == nullptr);
-		m_hDLL = src.m_hDLL;
-	}
-
 private:
 	typedef std::map<SharedStr, void*> DllProcCacheType;
 
 	DllProcCacheType m_DllProcCache;
-	void*            m_hDLL;
+	dll_handle_t     m_hDLL = nullptr;
 };
-
-static void LoadDll(DllHandle& hnd, CharPtr dllname)
-{
-	hnd.SetHandle(dlopen(dllname, RTLD_LAZY));
-}
-
-#endif //defined(WIN32)
 
 
 namespace {
@@ -189,7 +151,7 @@ DllHandle* RTC_GetDll(CharPtr dllname)
 		return &(i->second);
 
 	DllHandle& hnd = (*s_DllHandleCache)[SharedStr(dllname MG_DEBUG_ALLOCATOR_SRC("RTC_GetDll"))];
-	LoadDll(hnd, dllname);
+	hnd.Load(dllname);
 	return &hnd;
 }
 

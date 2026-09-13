@@ -34,6 +34,42 @@
 #include <string>
 #include <thread>
 #include <atomic>
+#include <iterator> // std::size
+
+//  -----------------------------------------------------------------------
+// The RegDWordEnum settings: one table for both platforms, indexed by RegDWordEnum. Only the
+// first read differs per platform (the registry on Windows, the settings file on POSIX), see
+// RTC_GetRegDWord in each section; RTC_SetCachedDWord is shared, at the end of this file.
+
+namespace {
+	struct RegDWordAttr
+	{
+		CharPtr key;
+		DWORD   value;
+		bool    wasRead;
+	};
+
+	RegDWordAttr s_RegDWordAttrs[] =
+	{
+		{ "MemoryFlushThreshold", 80, false },
+		{ "DrawingSizeInPixels", 0, false },
+		{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
+		{ "PerformanceLogging", 0, false },
+		{ "ResourceAwareScheduling", 0, false }, // OFF by default (0=off, 1=shadow, 2=enforce). Switched on
+		                                        // with /Sq or /SQ, or the q/Q boxes under Settings >
+		                                        // Local machine options > Parallel Processing.
+		                                        // Off because enforce does not yet pay for itself: measured
+		                                        // on t641_2 it parked 124 184 operations and still left the
+		                                        // live peak at 171.9 GiB -- identical to the run without it
+		                                        // (doc SS8.1.33). Budget = MemoryFlushThreshold % of allowed
+		                                        // RAM -- the same threshold that triggers MemoryDrainage --
+		                                        // unless SchedulerBudgetMB (/SB<MB>) overrides it.
+		{ "SchedulerBudgetMB", 0, false },
+		{ "MemoryDrainage", 1, false } // on by default; the trigger is MemoryFlushThreshold (doc SS8.1.32)
+	};
+	static_assert(std::size(s_RegDWordAttrs) == UInt32(RegDWordEnum::count)
+	,	"s_RegDWordAttrs needs exactly one row per RegDWordEnum enumerator (utl/Registry.h)");
+}
 
 //  -----------------------------------------------------------------------
 // Child process output; shared by the MSVC and POSIX implementations of
@@ -133,13 +169,6 @@ namespace {
 
 static SharedStr          g_LocalDataDir;
 
-struct LocalAllocatedPtr
-{
-	LPVOID m_Ptr;
-	LocalAllocatedPtr() : m_Ptr(0) {}
-	~LocalAllocatedPtr() { if (m_Ptr) LocalFree(m_Ptr); }
-};
-
 SharedStr platform::GetSystemErrorText(DWORD lastErr)
 {
 	// Use FormatMessageW so the system-language message comes back in UTF-16,
@@ -182,23 +211,6 @@ SizeT RemainingStackSpace()
 	GetCurrentThreadStackLimits(&low, &high);
 	auto remaining = reinterpret_cast<ULONG_PTR>(&low) - low;
 	return remaining;
-}
-
-
-void DmsYield(UInt32 nrMillisecs)
-{
-	SYSTEMTIME currTime, nextTime;
-	GetSystemTime(&currTime);
-	std::this_thread::yield(); // Yield to other contexts (=tasks?) in the current thread or if none available, another OS thread
-	GetSystemTime(&nextTime);
-	UInt32 currMillisecs = currTime.wMilliseconds + currTime.wSecond * 1000 + currTime.wMinute * 60000; dms_assert(currMillisecs < 60 * 60 * 1000);
-	UInt32 nextMillisecs = currTime.wMilliseconds + currTime.wSecond * 1000 + currTime.wMinute * 60000; dms_assert(nextMillisecs < 60 * 60 * 1000);
-	if (nextMillisecs < currMillisecs)
-		nextMillisecs += 60 * 60 * 1000;
-	assert(nextMillisecs >= currMillisecs);
-	nextMillisecs -= currMillisecs;
-	if (nextMillisecs < nrMillisecs)
-		Wait(nrMillisecs - nextMillisecs);
 }
 
 bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, bool throwOnError, bool doRetry)
@@ -737,37 +749,12 @@ RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv)
 	}
 }
 
-struct RegDWordAttr
-{
-	CharPtr key;
-	DWORD   value;
-	bool    wasRead;
-};
-
-RegDWordAttr s_RegDWordAttrs[] =
-{
-	{ "MemoryFlushThreshold", 80, false},
-    { "DrawingSizeInPixels", 0, false },
-	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
-	{ "PerformanceLogging", 0, false },
-	{ "ResourceAwareScheduling", 0, false }, // OFF by default (0=off, 1=shadow, 2=enforce). Switched on
-	                                        // with /Sq or /SQ, or the q/Q boxes under Settings >
-	                                        // Local machine options > Parallel Processing.
-	                                        // Off because enforce does not yet pay for itself: measured
-	                                        // on t641_2 it parked 124 184 operations and still left the
-	                                        // live peak at 171.9 GiB -- identical to the run without it
-	                                        // (doc SS8.1.33). Budget = MemoryFlushThreshold % of allowed
-	                                        // RAM -- the same threshold that triggers MemoryDrainage --
-	                                        // unless SchedulerBudgetMB (/SB<MB>) overrides it.
-	{ "SchedulerBudgetMB", 0, false },
-	{ "MemoryDrainage", 1, false } // on by default; the trigger is MemoryFlushThreshold (doc SS8.1.32)
-};
-
+// the table s_RegDWordAttrs is at the top of this file; RTC_SetCachedDWord at its end
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 {
 	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	auto ui = UInt32(i);
-	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
+	MG_CHECK(ui < std::size(s_RegDWordAttrs));
 
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 
@@ -796,17 +783,6 @@ extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 	}
 exit:
 	return regAttr.value;
-}
-
-extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
-{
-	auto ui = UInt32(i);
-	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
-
-	leveled_critical_section::scoped_lock lock(RegAccessSection());
-	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
-	regAttr.wasRead = true;
-	regAttr.value   = dw;
 }
 
 void MakeDir(WeakStr dirName)
@@ -1831,13 +1807,6 @@ SizeT RemainingStackSpace()
 void Wait(UInt32 nrMillisecs)
 {
 	std::this_thread::sleep_for(std::chrono::milliseconds(nrMillisecs));
-}
-
-void DmsYield(UInt32 nrMillisecs)
-{
-	std::this_thread::yield();
-	if (nrMillisecs > 0)
-		Wait(nrMillisecs);
 }
 
 bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, bool throwOnError, bool doRetry)
@@ -2870,35 +2839,14 @@ RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv)
 }
 
 // =====================================================================
-// RegDWord
+// RegDWord; the table s_RegDWordAttrs is at the top of this file, RTC_SetCachedDWord at its end
 // =====================================================================
-
-struct RegDWordAttr { CharPtr key; DWORD value; bool wasRead; };
-
-static RegDWordAttr s_RegDWordAttrs[] =
-{
-	{ "MemoryFlushThreshold", 80, false },
-	{ "DrawingSizeInPixels", 0, false },
-	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
-	{ "PerformanceLogging", 0, false },
-	{ "ResourceAwareScheduling", 0, false }, // OFF by default (0=off, 1=shadow, 2=enforce). Switched on
-	                                        // with /Sq or /SQ, or the q/Q boxes under Settings >
-	                                        // Local machine options > Parallel Processing.
-	                                        // Off because enforce does not yet pay for itself: measured
-	                                        // on t641_2 it parked 124 184 operations and still left the
-	                                        // live peak at 171.9 GiB -- identical to the run without it
-	                                        // (doc SS8.1.33). Budget = MemoryFlushThreshold % of allowed
-	                                        // RAM -- the same threshold that triggers MemoryDrainage --
-	                                        // unless SchedulerBudgetMB (/SB<MB>) overrides it.
-	{ "SchedulerBudgetMB", 0, false },
-	{ "MemoryDrainage", 1, false } // on by default; the trigger is MemoryFlushThreshold (doc SS8.1.32)
-};
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 {
 	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	auto ui = UInt32(i);
-	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
+	MG_CHECK(ui < std::size(s_RegDWordAttrs));
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	if (!regAttr.wasRead)
@@ -2908,15 +2856,6 @@ extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 		regAttr.value = val;
 	}
 	return regAttr.value;
-}
-
-extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
-{
-	auto ui = UInt32(i);
-	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
-	leveled_critical_section::scoped_lock lock(RegAccessSection());
-	s_RegDWordAttrs[ui].wasRead = true;
-	s_RegDWordAttrs[ui].value = dw;
 }
 
 // =====================================================================
@@ -3087,6 +3026,20 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 }
 
 #endif //defined(_MSC_VER)
+
+//  -----------------------------------------------------------------------
+// RegDWord override (cross-platform); the table is at the top of this file
+
+extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
+{
+	auto ui = UInt32(i);
+	assert(ui < std::size(s_RegDWordAttrs));
+
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
+	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
+	regAttr.wasRead = true;
+	regAttr.value   = dw;
+}
 
 //  -----------------------------------------------------------------------
 // Performance logging (cross-platform)
