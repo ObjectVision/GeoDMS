@@ -533,6 +533,14 @@ bool GraphicLayer::IsFeatureSelected(SizeT featureIndex) const
 }
 
 
+const AbstrUnit* GraphicLayer::GetLegendDomain() const
+{
+	auto activeTheme = GetActiveTheme();
+	if (!activeTheme)
+		return nullptr;
+	return activeTheme->GetPaletteDomain();
+}
+
 bool GraphicLayer::HasClassIdAttr() const
 {
 	auto theme = GetActiveTheme();

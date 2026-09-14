@@ -18,6 +18,7 @@
 #include "dbg/DmsCatch.h"
 
 #include "AbstrUnit.h"
+#include "Unit.h"
 #include "OperationContext.h"
 #include "Projection.h"
 #include "PropFuncs.h"
@@ -226,13 +227,15 @@ public:
 			ls->SetActiveEntry(m_Result.get());
 
 			layerWasAdded = true;
-			if	(	m_Result->GetActiveTheme()
-				&&	m_Result->GetActiveTheme()->GetPaletteDomain()
-				)
+			// The legend domain decides whether the legend is too long to show: a feature layer without
+			// a palette has a one-row legend over the void unit (FeatureLayer::GetLegendDomain, BAG-Tools
+			// #5), which is never too long and needs no preparing or counting of the layer's entity.
+			auto legendDomain = m_Result->GetActiveTheme() ? m_Result->GetLegendDomain() : nullptr;
+			if (legendDomain && !legendDomain->IsKindOf(Unit<Void>::GetStaticClass()))
 			{
 				dms_assert(m_Result->DetailsVisible());
 
-				std::shared_ptr<const AbstrUnit> paletteDomain = make_shared_tree(m_Result->GetActiveTheme()->GetPaletteDomain(), existing_obj{});
+				std::shared_ptr<const AbstrUnit> paletteDomain = make_shared_tree(legendDomain, existing_obj{});
 
 				// TODO: there must be a handier way 
 				dms_assert(!SuspendTrigger::DidSuspend());

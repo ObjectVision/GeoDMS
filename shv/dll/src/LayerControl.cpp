@@ -16,6 +16,7 @@
 #include "utl/StrFormat.h"
 
 #include "AbstrUnit.h"
+#include "Unit.h"
 #include "DisplayValue.h"
 
 #include "StgBase.h"
@@ -694,9 +695,15 @@ void LayerControl::SetPaletteControl()
 	paletteContainer->SetRowSepHeight(0);
 
 	auto pc = make_shared_gr<PaletteControl>(paletteContainer.get(), m_Layer.get(), true)();
-	auto paletteHeader = std::make_shared<TableHeaderControl>(paletteContainer.get(), pc.get());
 
-	paletteContainer->InsertEntry(paletteHeader.get());
+	// The header names the columns of a classification; the one-row legend of a feature layer
+	// without a palette (FeatureLayer::GetLegendDomain, BAG-Tools #5) has nothing to name.
+	auto legendDomain = m_Layer->GetLegendDomain();
+	if (!legendDomain || !legendDomain->IsKindOf(Unit<Void>::GetStaticClass()))
+	{
+		auto paletteHeader = std::make_shared<TableHeaderControl>(paletteContainer.get(), pc.get());
+		paletteContainer->InsertEntry(paletteHeader.get());
+	}
 	paletteContainer->InsertEntry(pc.get());
 
 	m_PaletteControl = pc;
@@ -724,10 +731,9 @@ void LayerControl::EditPalette()
 
 const AbstrUnit* LayerControl::GetPaletteDomain() const
 {
-	auto activeTheme = m_Layer->GetActiveTheme();
-	dms_assert(activeTheme);
+	dms_assert(m_Layer->GetActiveTheme());
 
-	const AbstrUnit* paletteDomain = activeTheme->GetPaletteDomain();
+	const AbstrUnit* paletteDomain = m_Layer->GetLegendDomain();
 	dms_assert(paletteDomain);
 	return paletteDomain;
 }
@@ -739,10 +745,10 @@ void LayerControl::DoUpdateView()
 	SetHeaderCaption(GetThemeDisplayNameInclMetric(m_Layer.get()).c_str());
 
 
-	auto activeTheme = m_Layer->GetActiveTheme();
-	if (!m_PaletteControl || (activeTheme && (m_PaletteControl->GetEntity() != activeTheme->GetPaletteDomain())))
+	auto legendDomain = m_Layer->GetLegendDomain(); // null without an active theme
+	if (!m_PaletteControl || (legendDomain && (m_PaletteControl->GetEntity() != legendDomain)))
 	{
-		if (!activeTheme || PrepareDataOrUpdateViewLater(activeTheme->GetPaletteDomain()))
+		if (!legendDomain || PrepareDataOrUpdateViewLater(legendDomain))
 		{
 			SetPaletteControl();
 			//	REMOVE	if (m_Layer->DetailsVisible())

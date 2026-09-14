@@ -116,6 +116,13 @@ public:
 	// configured items, so origin colors would only be confusing there.
 	virtual bool ShowOriginTextColors() const { return true; }
 
+	// A table without a focus element provider, one over the void unit for instance, activates
+	// its first row by itself, so that the keys reach a cell. Overridden to false by
+	// PaletteControl: a legend never activates a row on its own; for the one-row legend of a
+	// feature layer without a palette (BAG-Tools #5) the activation inverted the column header
+	// and made the row a keyboard target.
+	virtual bool AutoActivateFirstRow() const { return true; }
+
 	bool ShowSelectedOnlyEnabled() const override;
 
 	SizeT NrRows() const;

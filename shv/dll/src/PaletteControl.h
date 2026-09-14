@@ -39,6 +39,7 @@ public:
 
 //	override virtual of TableControl
 	bool ShowOriginTextColors() const override { return false; } // legend rows describe classes, not configured items
+	bool AutoActivateFirstRow() const override { return false; } // a legend activates no row by itself (BAG-Tools #5)
 
 	void CreateSelCountColumn();
 	bool m_HasTriedToAddSelCountColumn = false;

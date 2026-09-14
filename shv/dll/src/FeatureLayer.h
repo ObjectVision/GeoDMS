@@ -86,6 +86,7 @@ public:
 
 //	override virtual of GraphicLayer
 	const AbstrUnit* GetGeoCrdUnit     () const override;
+	const AbstrUnit* GetLegendDomain   () const override;
 	CrdRect CalcSelectedFullWorldRect  () const override;
 
 //	override virtual of GraphicObject

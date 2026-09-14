@@ -34,6 +34,7 @@
 #include "utl/IncrementalLock.h"
 
 #include "AbstrUnit.h"
+#include "Unit.h"
 #include "DataArray.h"
 #include "UnitProcessor.h"
 
@@ -229,6 +230,22 @@ DmsColor FeatureLayer::GetDefaultOrThemeColor(AspectNr an) const
 	MG_CHECK(defaultClr);
 	UpdateDefaultColor(*defaultClr);
 	return *defaultClr;
+}
+
+// A feature layer without a classified or per-feature colour rides its feature theme, whose palette
+// domain is the layer's entity: one legend row per feature. More than 32 rows collapse the legend
+// (AddLayerCmd in GraphDataView.cpp), so the Layer Control of any table of size showed the layer's
+// name and nothing of the style the map draws it in, and a modeller could not tell which colours
+// belonged to which of two such layers (BAG-Tools #5). Such a legend is one row, over the void unit:
+// the swatch takes the brush, pen and symbol colours from the parameter themes or the layer's
+// defaults, as PaletteControl::CreateSymbolColumnFromLayer already draws them; the entity is not
+// prepared, counted or labelled for it. A pie is no FeatureLayer and keeps its entity (#1273).
+const AbstrUnit* FeatureLayer::GetLegendDomain() const
+{
+	auto activeTheme = GetActiveTheme();
+	if (activeTheme && activeTheme->GetAspectNr() == AN_Feature)
+		return Unit<Void>::GetStaticClass()->CreateDefault();
+	return base_type::GetLegendDomain();
 }
 
 

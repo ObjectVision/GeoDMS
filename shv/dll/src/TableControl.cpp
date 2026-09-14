@@ -535,7 +535,7 @@ void TableControl::DoUpdateView()
 		}
 	}
 	else
-		if (!IsDefined(GetActiveRow()) && NrRows())
+		if (AutoActivateFirstRow() && !IsDefined(GetActiveRow()) && NrRows())
 			GoRow(0, true);
 	NotifyCaptionChange();
 }

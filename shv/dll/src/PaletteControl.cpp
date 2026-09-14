@@ -49,7 +49,9 @@ PaletteControl::PaletteControl(MovableObject* owner, GraphicLayer* layer, bool h
 	auto activeTheme = GetActiveTheme();
 	if (activeTheme) {
 		m_BreakAttr = activeTheme->GetClassification();
-		m_PaletteDomain = make_shared_tree(activeTheme->GetPaletteDomain(), existing_obj{}); dms_assert(m_PaletteDomain);
+		// the layer's legend domain, not the theme's palette domain: a feature layer riding its
+		// geometry has a one-row legend over the void unit (FeatureLayer::GetLegendDomain, BAG-Tools #5)
+		m_PaletteDomain = make_shared_tree(m_Layer->GetLegendDomain(), existing_obj{}); dms_assert(m_PaletteDomain);
 
 		m_ThemeAttr = activeTheme->GetThemeAttr();
 		// A feature theme's attribute is the layer's subject, the geometry of a feature layer or the
@@ -339,7 +341,8 @@ void PaletteControl::CreateColumnsImpl()
 	if (!m_LabelTextAttr && m_PaletteDomain)
 	{
 		m_LabelTextAttr = m_PaletteDomain->GetLabelAttr();
-		if (!m_LabelTextAttr && !m_PaletteDomain->IsFailed(FailType::Data) && m_PaletteDomain->GetValueType()->GetSize() < 4)
+		// no row-number label for the one-row legend of a feature layer without a palette (BAG-Tools #5)
+		if (!m_LabelTextAttr && !m_PaletteDomain->IsFailed(FailType::Data) && !m_PaletteDomain->IsKindOf(Unit<Void>::GetStaticClass()) && m_PaletteDomain->GetValueType()->GetSize() < 4)
 			m_LabelTextAttr = CreateSystemLabelPalette(dv.get(), m_PaletteDomain.get(), AN_LabelText, true);
 	}
 	if (m_LabelTextAttr)

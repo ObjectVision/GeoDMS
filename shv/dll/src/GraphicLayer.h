@@ -95,6 +95,11 @@ public:
 	// after the swatch and the label: the value and the share of a pie slice (#1273).
 	virtual void AddLegendColumns(PaletteControl* /*legend*/) {}
 
+	// The domain of the layer's legend, one row per entry: the palette domain of the active theme,
+	// or null without one. A feature layer whose active theme is its geometry has one row, over the
+	// void unit (FeatureLayer::GetLegendDomain); a pie keeps its entity, every row a slice (#1273).
+	virtual const AbstrUnit* GetLegendDomain() const;
+
 	std::weak_ptr<LayerSet> GetLayerSet();
 
 	void EnableAspectGroup(AspectGroup ag, bool enable);
