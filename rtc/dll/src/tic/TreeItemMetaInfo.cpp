@@ -1135,7 +1135,17 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 				// the new handle above has been taken, so the check's OperationContext stays alive
 				// across retries; and they are released here whether the verdict is taken now or not.
 				SuspendTrigger::DeferScope_Release(self);
-				if (SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && LedgerHasRoomForDeferral()
+				// A check is not deferred (user ruling 2026-09-15): the verdict is taken as soon as its data is
+				// ready, below. Deferring it was measured a net loss on the two regression models that defer checks
+				// by the thousands (GeoDMS-Test, 20.20.0.m vs the same binary with /SB1, same machine state): their
+				// producers are exactly what the next phase needs, so the lookahead buys no breadth, while it costs
+				// memory -- t641.2: ~18k registrations per pass, commit 173 -> 338 GB, +14 % wall -- and the update
+				// loop's re-walk of every registration per retry -- t2000: 52k registrations, 8500 retries, no memory
+				// change, +16 % wall. A deferred check is also invisible to the ledger: not noted, not charged, not
+				// counted against s_MaxDeferred. The commit deferral in CommitDataChanges stays; it is what the BAG
+				// import gains from.
+				constexpr bool deferIntegrityChecks = false;
+				if (deferIntegrityChecks && SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && LedgerHasRoomForDeferral()
 					&& IsCalculating(adiCheckerResult.get()) && !IsDataReady(adiCheckerResult.get()) && !adiCheckerResult->WasFailed()) // with room, while its producer holds the write lock, not inside an inline run: as in CommitDataChanges
 				{
 					SuspendTrigger::DeferScope::Register();
