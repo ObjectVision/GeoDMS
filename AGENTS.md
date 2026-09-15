@@ -44,7 +44,7 @@ detour through the XML notation.
 processes real source data belongs in **`batch\TestShippedContent.bat`** instead, the
 release test for the `.dms` content the installer ships (issue #1031). It runs against
 `bin\<Config>\x64\` — the copies NSIS packages, not the source tree beside them — in two
-steps: the shipped `examples\testcases` battery through its own `run_testcases.bat`, and
+steps: `batch\TestShippedDms.bat`, the offline part, and then
 `examples\grid_to_polygon.dms` over the real CBS buurt map, with the CBS geopackage
 renamed to `.bak` first so `RegioIndelingen.dms` has to download it again.
 `batch\TestReleaseUnit.bat`, `batch\TestCMakeReleaseUnit.bat` and
@@ -52,6 +52,21 @@ renamed to `.bak` first so `RegioIndelingen.dms` has to download it again.
 folder (`bin\`, `build\windows-x64-release\bin\`, `bin_GLOBIO\`); the `.g` setup script runs
 the Globio launcher against the installed build (#1231). Pass a third argument to point the
 geopackage step at a scratch `SourceDataDir` when testing the script itself.
+
+**Every shipped `.dms` is tested before it is packaged (GeoDMS-Test #24).** The installer
+ships two examples and six `library\` files, and the battery's `testcases\shipped_*.dms`
+cases include every one of them from `%exeDir%`, so they test the copy in the output
+folder, and after installing, the installed copy. `batch\TestShippedDms.bat <output
+folder>` (bash twin `TestShippedDms.sh` for the `.l` build) is the gate: it checks that
+the shipped copy of the battery is not older than `testcases\`, follows the `#include`
+lines from the `shipped_*.dms` cases and fails when a shipped `examples\*.dms` or
+`library\**\*.dms` is reached by none of them, then runs the shipped battery from the
+output folder. All four `batch\BuildSignAndCreateSetup*.bat` scripts run it right before
+NSIS or `CreateLinuxSetup.sh`, and the `tst` unit suite runs the shipped battery again
+from the installed copy (`batch\unit\ShippedContent.bat`), so the post-install gate covers
+it too. A new shipped file needs a `shipped_*.dms` case that includes it, or the gate
+names it. Because the cases read the output folder, an edit under `library\` or
+`testcases\` is green there only after a build has mirrored it; the gate says so.
 
 ## Skills: the operational recipes live in `.claude/skills/`
 

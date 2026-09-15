@@ -4,12 +4,19 @@
 // three of the six shipped library files. None of them reads any source data -- they are
 // coordinate-system, grid-domain and WMTS-layer *definitions* -- so all of it is checkable here.
 //
-// RegioIndelingen.dms is included too, but only its year table is demanded: everything below that
-// reads -- and, failing that, curl-downloads -- %SourceDataDir%/RegionalUnits/cbs/
-// gebiedsindelingen<year>.gpkg, which a test must not set off. Note it depends on rdc_meter without
-// including rdc.dms itself, so it only resolves when something else pulled that in first, as here.
+// RegioIndelingen.dms is included too, but only its year table, the instantiation of every year's
+// template and one string parameter of it are demanded: everything below that reads -- and,
+// failing that, curl-downloads -- %SourceDataDir%/RegionalUnits/cbs/gebiedsindelingen<year>.gpkg,
+// which a test must not set off. Note it depends on rdc_meter without including rdc.dms itself, so
+// it only resolves when something else pulled that in first, as here.
+//
+// Units.dms is included as well, in the order examples/grid_to_polygon.dms includes them: the
+// per-cell area parameters of grids.dms are declared in units/meter2, units/ha and units/km2.
+// They used to name bare meter2, ha and km2, which resolved nowhere, and nothing demanded them
+// until the cell-area checks below (GeoDMS-Test #24).
 container shipped_library_basedata_nl
 {
+	#include <%exeDir%/library/Units.dms>
 	#include <%exeDir%/library/basedata_nl/grids.dms>
 	#include <%exeDir%/library/basedata_nl/RegioIndelingen.dms>
 
@@ -46,11 +53,23 @@ container shipped_library_basedata_nl
 	parameter<float64> tm_top0   := first(ngr_layer/TileMatrix/TopCoord);
 	parameter<string>  tm_target := ngr_layer/target;
 
+	// the per-cell areas, 100 m2 = 1 ha = 0.01 km2 at 100 m, 625 m2 at 25 m, 100 m2 at 10 m
+	parameter<float64> ha_100  := grids/impl/perGridsize/size_100m/domain/NrHaPerCell[float64];
+	parameter<float64> km2_100 := grids/impl/perGridsize/size_100m/domain/NrKm2PerCell[float64];
+	parameter<float64> ha_25   := grids/impl/perGridsize/size_25m/domain/NrHaPerCell[float64];
+	parameter<float64> m2_10   := grids/impl/perGridsize/size_10m/domain/NrMeter2PerCell[float64];
+
 	// ---------------------------------------------------------------- RegioIndelingen.dms
 	// The years the CBS Gebiedsindelingen are configured for; no gpkg is touched by this.
 	parameter<uint32> nr_years   := uint32(#CBS_Gebiedsindelingen_jaren);
 	parameter<string> year_first := first(CBS_Gebiedsindelingen_jaren/name);
 	parameter<string> year_last  := last (CBS_Gebiedsindelingen_jaren/name);
+
+	// The for_each_ne instantiates Read_Gebiedsindelingen_gpkg_T once per year, and Last refers to
+	// the highest one. local_file_path is a string built from %SourceDataDir%; asking for it opens
+	// nothing (the gpkg container beside it, which would, is not requested).
+	parameter<string> last_jaar := CBS/Last/jaar;
+	parameter<string> file_2025 := CBS/Y2025/local_file_path;
 
 	container checks
 	{
@@ -85,9 +104,17 @@ container shipped_library_basedata_nl
 		                           && strpos(tm_target, '@TR@') >= 0
 		                           && strpos(tm_target, '@TC@') >= 0, IntegrityCheck = "c_target == true";
 
+		// grids.dms: the cell areas, in the units of Units.dms
+		parameter<bool> c_ha_100   := ha_100 == 1.0,                     IntegrityCheck = "c_ha_100 == true";
+		parameter<bool> c_km2_100  := abs(km2_100 - 0.01) < 1e-12,       IntegrityCheck = "c_km2_100 == true";
+		parameter<bool> c_ha_25    := ha_25 == 0.0625,                   IntegrityCheck = "c_ha_25 == true";
+		parameter<bool> c_m2_10    := m2_10 == 100.0,                    IntegrityCheck = "c_m2_10 == true";
+
 		// RegioIndelingen.dms: range(uint32, 2019, 2027) is Y2019 .. Y2026
 		parameter<bool> c_years    := nr_years == 8u,             IntegrityCheck = "c_years == true";
 		parameter<bool> c_year_1st := year_first == 'Y2019',      IntegrityCheck = "c_year_1st == true";
 		parameter<bool> c_year_lst := year_last  == 'Y2026',      IntegrityCheck = "c_year_lst == true";
+		parameter<bool> c_last     := last_jaar == '2026',        IntegrityCheck = "c_last == true";
+		parameter<bool> c_file     := substr(file_2025, strlen(file_2025) - 26, 26) == 'gebiedsindelingen2025.gpkg', IntegrityCheck = "c_file == true";
 	}
 }

@@ -86,6 +86,15 @@ if errorlevel 1 goto :build_failed
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\test-globio-coexistence.ps1" -OutputDir "%OUTPUT_DIR%" -GlobioRoot "%GLOBIO_ENV_ROOT%"
 if errorlevel 1 goto :build_failed
 
+REM The .dms content this build ships, tested from bin_GLOBIO before NSIS packages it
+REM (GeoDMS-Test #24): every shipped examples\ and library\ file must be reached from a case
+REM of the shipped examples\testcases battery, that copy must be the current one, and the
+REM battery runs from the output folder. Offline, about a minute. The post-install launcher
+REM below runs the same battery again from the installed copy, plus grid_to_polygon over the
+REM real buurt map on the GLOBIO GDAL stack.
+call "%~dp0TestShippedDms.bat" "%OUTPUT_DIR%"
+if errorlevel 1 goto :shipped_failed
+
 if not exist distr md distr
 cd nsi
 "C:\Program Files (x86)\NSIS\makensis.exe" DmsSetupScriptX64-globio.nsi
@@ -124,6 +133,11 @@ echo *** G post-install tests failed - unit suite, testcases battery or shipped 
 if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
 if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
 if exist "%INSTALLER%" del /q "%INSTALLER%"
+endlocal
+exit /b 1
+
+:shipped_failed
+echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
 endlocal
 exit /b 1
 

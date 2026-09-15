@@ -8,12 +8,15 @@ rem beside them. That is the point: it is what lands on a user's machine.
 rem
 rem Two steps:
 rem
-rem   1. the shipped examples\testcases battery, run through its own
-rem      run_testcases.bat from the output folder, exactly as a user would
-rem      run it from <install>\examples\testcases;
+rem   1. TestShippedDms.bat, the offline part (GeoDMS-Test #24): the shipped
+rem      examples\testcases battery run through its own run_testcases.bat from
+rem      the output folder, exactly as a user would run it from
+rem      <install>\examples\testcases, with the shipped_library.dms case that
+rem      covers library\; examples\function.dms; a load of grid_to_polygon.dms;
+rem      and a check that every shipped .dms is covered. The setup scripts run
+rem      that part on its own before NSIS;
 rem
-rem   2. releasetests\grid_to_polygon_release.dms, which drives the shipped
-rem      examples\grid_to_polygon.dms over the real CBS buurt map.
+rem   2. the shipped examples\grid_to_polygon.dms over the real CBS buurt map.
 rem
 rem Before step 2 the CBS geopackage is renamed to <name>.bak (deleting an
 rem older .bak first), so RegioIndelingen.dms has to download it again. That
@@ -88,10 +91,10 @@ echo SourceDataDir : %SOURCEDATADIR%
 echo CBS geopackage: %GPKG%
 echo.
 
-rem --- Step 1: the shipped testcases battery, from the shipped copy ---------
-echo --- 1/2: shipped examples\testcases battery ---
+rem --- Step 1: the offline part: shipped battery, library, examples --------
+echo --- 1/2: shipped .dms content, offline (TestShippedDms.bat) ---
 set "TC_FAILED=0"
-call "%BINDIR%\examples\testcases\run_testcases.bat" "%BINDIR%\GeoDmsRun.exe"
+call "%~dp0TestShippedDms.bat" "%BINDIR%"
 if errorlevel 1 set "TC_FAILED=1"
 
 rem --- Step 2: force a fresh download, then run grid_to_polygon ------------
@@ -130,9 +133,9 @@ if errorlevel 1 set "G2P_FAILED=1"
 echo.
 echo === Shipped content release test: results ===
 if "%TC_FAILED%"=="1" (
-  echo *** SHIPPED TESTCASES BATTERY FAILED ***
+  echo *** SHIPPED .DMS CONTENT ^(offline part^) FAILED - see the TestShippedDms.bat table above ***
 ) else (
-  echo shipped testcases battery PASSED
+  echo shipped .dms content ^(offline part^) PASSED
 )
 if "%G2P_FAILED%"=="1" (
   echo *** grid_to_polygon FAILED - see "%G2P_LOG%" ***

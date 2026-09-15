@@ -114,6 +114,15 @@ if errorlevel 1 (
     goto :build_failed
 )
 
+REM The .dms content this build ships, tested inside WSL from build\linux-x64-release\bin
+REM before CreateLinuxSetup.sh stages it (GeoDMS-Test #24): every shipped examples\ and
+REM library\ file must be reached from a shipped_*.dms case of the battery, that copy must
+REM be current, and those cases run from the output folder. Offline; see
+REM batch\TestShippedDms.sh.
+echo --- testing the shipped .dms content, offline ---
+wsl bash -c "cd %geodms_wsldir% && bash batch/TestShippedDms.sh build/linux-x64-release/bin"
+if errorlevel 1 goto :shipped_failed
+
 echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) ---
 wsl bash -c "cd %geodms_wsldir% && export GeoDmsVersion=%GeoDmsVersion% && bash nsi/CreateLinuxSetup.sh"
 if errorlevel 1 goto :nsis_failed
@@ -149,6 +158,11 @@ exit /B 0
 
 :build_failed
 echo *** Linux cmake build failed ***
+endlocal
+exit /B 1
+
+:shipped_failed
+echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
 endlocal
 exit /B 1
 

@@ -157,6 +157,15 @@ REM Prove that each tagged module is selected and imports in its matching CPytho
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\test-python-bindings.ps1" -OutputDir "%geodms_rootdir%\bin\Release\x64"
 if errorlevel 1 goto :build_failed
 
+REM The .dms content this build ships, tested from bin\Release\x64 before NSIS packages it
+REM (GeoDMS-Test #24): every shipped examples\ and library\ file must be reached from a case
+REM of the shipped examples\testcases battery, that copy must be the current one, and the
+REM battery runs from the output folder. Offline, about a minute. A shipped configuration
+REM that no longer loads or computes must not reach the installer. The unit suite after the
+REM install runs the same battery again, from the installed copy.
+call "%~dp0TestShippedDms.bat" "%geodms_rootdir%\bin\Release\x64"
+if errorlevel 1 goto :shipped_failed
+
 :setupCreation
 
 REM CHOICE /M  "Run setup creation %GeoDmsVersion%?"
@@ -217,6 +226,10 @@ if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%
 if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
 del /q "distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe" 2>nul
 echo Removed "%INSTALL_DIR%" and distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe
+exit /B 1
+
+:shipped_failed
+echo *** Shipped .dms content FAILED before packaging - NSIS, signing, install and unit tests skipped; see the table above and scratch\shipped_dms\ ***
 exit /B 1
 
 :build_failed

@@ -59,6 +59,44 @@ container shipped_library_grid2poly
 	parameter<uint32>  nr_results       := uint32(#poly/Results);
 	parameter<float64> overlap_area     := float64(sum(poly/Results/overlap_check/area));
 
+	// ---- second fixture: an island, which takes the ring path of the template (GeoDMS-Test #24)
+	//
+	// A zone enclosed by another has no junctions: both boundaries are closed rings, and the template
+	// composes the enclosing zone as its outer ring minus the island's ring reversed (Results/islands,
+	// Results/lakes, geos_difference). The fixture above never reaches that code. Rings under 100 m2
+	// are dropped as slivers by the template (NonEmptyJFRing), so this one uses 10 m cells: 6x6 over
+	// 60 m x 60 m, with a 2x2 island of zone 1 in zone 0.
+	//
+	//     island_rel, row 0 at the top:    0 0 0 0 0 0
+	//                                      0 0 0 0 0 0
+	//                                      0 0 1 1 0 0
+	//                                      0 0 1 1 0 0
+	//                                      0 0 0 0 0 0
+	//                                      0 0 0 0 0 0
+	unit<dpoint> coord_system_60 := range(coord_base, point_xy(0.0, 0.0), point_xy(60.0, 60.0));
+
+	unit<ipoint> domain_grid_10m :=
+		range(
+			gridset(
+				coord_system_60
+			,	point_yx(-10.0, 10.0, coord_system_60)   // ten metres per cell, row 0 at the top
+			,	point_yx( 60.0,  0.0, coord_system_60)   // origin at (x_min, y_max)
+			,	ipoint
+			)
+		,	point_yx(0i, 0i)
+		,	point_yx(6i, 6i)
+		)
+	{
+		attribute<Zone> island_rel := pointrow(id(.)) >= 2i && pointrow(id(.)) < 4i && pointcol(id(.)) >= 2i && pointcol(id(.)) < 4i ? 1[Zone] : 0[Zone];
+	}
+
+	container island := grid2poly(domain_grid_10m, Zone, domain_grid_10m/island_rel, coord_system_60, 0.0);
+
+	attribute<float64> island_zone_area (Zone) := float64(area(island/Results/geometry, meter2));
+	parameter<float64> island_total          := sum(island_zone_area);
+	parameter<uint32>  island_results        := uint32(#island/Results);
+	parameter<float64> island_overlap        := float64(sum(island/Results/overlap_check/area));
+
 	container checks
 	{
 		parameter<bool> c_nr    := nr_results == 2u,                 IntegrityCheck = "c_nr == true";
@@ -67,5 +105,12 @@ container shipped_library_grid2poly
 		parameter<bool> c_total := abs(total_area   - 16.0) < 1e-9,  IntegrityCheck = "c_total == true";
 		// the template's own no-overlap assumption, made into an assertion
 		parameter<bool> c_overl := overlap_area < 1e-9,              IntegrityCheck = "c_overl == true";
+
+		// the island fixture: zone 0 is the 60 x 60 m square minus the 20 x 20 m island
+		parameter<bool> i_nr    := island_results == 2u,                        IntegrityCheck = "i_nr == true";
+		parameter<bool> i_outer := abs(island_zone_area[0] - 3200.0) < 1e-9,   IntegrityCheck = "i_outer == true";
+		parameter<bool> i_isle  := abs(island_zone_area[1] -  400.0) < 1e-9,   IntegrityCheck = "i_isle == true";
+		parameter<bool> i_total := abs(island_total - 3600.0) < 1e-9,          IntegrityCheck = "i_total == true";
+		parameter<bool> i_overl := island_overlap < 1e-9,                      IntegrityCheck = "i_overl == true";
 	}
 }

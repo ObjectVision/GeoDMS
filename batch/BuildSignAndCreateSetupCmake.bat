@@ -173,6 +173,13 @@ REM Prove that each tagged module is selected and imports in its matching CPytho
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\test-python-bindings.ps1" -OutputDir "%geodms_rootdir%\%BUILD_DIR%\bin"
 if errorlevel 1 goto :build_failed
 
+REM The .dms content this build ships, tested from the output folder before NSIS packages it
+REM (GeoDMS-Test #24): every shipped examples\ and library\ file must be reached from a case
+REM of the shipped examples\testcases battery, that copy must be the current one, and the
+REM battery runs from the output folder. Offline, about a minute.
+call "%~dp0TestShippedDms.bat" "%geodms_rootdir%\%BUILD_DIR%\bin"
+if errorlevel 1 goto :shipped_failed
+
 echo --- creating NSIS installer ---
 mkdir distr 2>nul
 cd nsi
@@ -245,6 +252,11 @@ exit /B 1
 
 :build_failed
 echo *** cmake build failed ***
+endlocal
+exit /B 1
+
+:shipped_failed
+echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
 endlocal
 exit /B 1
 

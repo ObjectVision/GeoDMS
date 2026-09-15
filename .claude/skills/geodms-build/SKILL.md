@@ -153,10 +153,15 @@ Rules per tier:
   `FAILED`; the launcher prints which of the two it was and exits 1 for either. The verdict is
   the aggregate `C:\LocalData\GeoDMSTestResults\unit\v<selector>.<flavour>_<stamp>.txt`
   (`vR64.off_`, `vGR64.g_`, `v20.19.1.g_`): it lists only failures plus two `python ... OK`
-  lines, so a file of about 190 bytes is all green; grep the per-test files under `unit\` for
-  `FAILED|Error`. `TestReleaseUnit.bat` and `TestGlobioReleaseUnit.bat` also run
-  `batch\TestShippedContent.bat`, which downloads and rasterises real data; `[W] GEOS fix
-  failed` lines there are expected, any `[E]` is not. `TestGlobioReleaseUnit.bat 20.19.1`
+  lines and one `shipped examples\testcases battery OK` line (the battery run from the
+  build under test), so a file of about 240 bytes is all green; grep the per-test files
+  under `unit\` for `FAILED|Error`. `TestReleaseUnit.bat` and `TestGlobioReleaseUnit.bat`
+  also run `batch\TestShippedContent.bat`: first `TestShippedDms.bat`, the offline gate
+  over every shipped `.dms` (the same one the setup scripts run before NSIS), then
+  `grid_to_polygon.dms` over real data, which downloads and rasterises; `[W] GEOS fix
+  failed` lines there are expected, any `[E]` is not. The `shipped_*.dms` cases read
+  `library\` and `examples\` from the output folder, so an edit there is green only after
+  a build has mirrored it. `TestGlobioReleaseUnit.bat 20.19.1`
   tests the installed `GeoDms20.19.1.g` instead of `bin_GLOBIO\Release\x64`; that is how the
   `.g` setup script calls it and how a released `.g` is re-tested without a rebuild.
 - Tier 3 only with the user's explicit consent for that run. Use the Python 3.13 under the

@@ -52,7 +52,11 @@ The agent prepares, watches and verifies.
    (`taskkill /F /IM MSBuild.exe`, they hold no locks); no `GeoDmsRun` or `GeoDmsGuiQt`
    running from `bin\Release\x64` (the script aborts on that; tell the user to close it).
 3. `testcases\run_testcases.bat` green on the current build, so the setup's unit gate does
-   not fail on something cheap.
+   not fail on something cheap. The script itself runs `batch\TestShippedDms.bat` on the
+   output folder right before NSIS (the shipped copy of the battery current, every shipped
+   `examples\` and `library\` file reached from a `shipped_*.dms` case, the battery run
+   from that folder); that gate reads the copies in `bin\`, so a change under `library\`
+   or `testcases\` is green there only after the script's own msbuild has mirrored it.
 4. `.g` needs `GLOBIO_ENV_ROOT` pointing at the conda prefix from
    `vcpkg-globio\environment.yml`; `.l` needs the WSL distro up.
 5. Hand the user the one-liner that keeps the output on their screen and in a log you can
@@ -77,7 +81,8 @@ drift, the Qt deploy targets patch, the Python ABI modules, a concurrent MSBuild
 - `Test-Path 'C:\Program Files\ObjectVision\GeoDms<ver>.<f>\GeoDmsGuiQt.exe'`
 - `(Get-AuthenticodeSignature 'distr\GeoDms<ver>.<f>-Setup-x64.exe').Status` is `Valid`
 - the unit aggregate `C:\LocalData\GeoDMSTestResults\unit\v<ver>.<f>_<stamp>.txt` lists no
-  failures (about 190 bytes: header plus two `python ... OK` lines)
+  failures: the header, two `python ... OK` lines and one `shipped examples\testcases
+  battery OK` line (the battery run from the installed copy), nothing else
 - `.g`: the launcher's summary at the end of the log reads `UNIT SUITE PASSED`,
   `TESTCASES BATTERY PASSED` and `SHIPPED CONTENT RELEASE TEST PASSED`
 - `.l`: all four files in `distr\`, and the `.deb` installed in WSL

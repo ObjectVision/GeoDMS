@@ -52,9 +52,13 @@ container grids
 				attribute<rdc_25m>              rdc_25m_rel     := mapping(., rdc_25m);
 				attribute<rdc_100m>             rdc_100m_rel    := mapping(., rdc_100m);
 				
-				parameter<meter2>               NrMeter2PerCell := gridsize[meter] * gridsize[meter];
-				parameter<ha>                   NrHaPerCell     := convert(NrMeter2PerCell, ha);
-				parameter<km2>                  NrKm2PerCell    := NrMeter2PerCell[km2];
+				// units/..., not meter2/ha/km2: this file is included beside units.dms, whose items live in
+				// its 'units' container, which is also how examples/grid_to_polygon.dms addresses them.
+				// The bare names resolved nowhere, so these three could not be computed in any shipped
+				// configuration; testcases/shipped_library.dms now requests them (GeoDMS-Test #24).
+				parameter<units/meter2>         NrMeter2PerCell := gridsize[units/meter] * gridsize[units/meter];
+				parameter<units/ha>             NrHaPerCell     := convert(NrMeter2PerCell, units/ha);
+				parameter<units/km2>            NrKm2PerCell    := NrMeter2PerCell[units/km2];
 			}
 			
 			unit<uint64> points := select_with_org_rel(isDefined(domain/point))
