@@ -385,6 +385,41 @@ void TreeItem::XML_DumpFunctionDecl(OutStreamBase* out, bool notWritingDictionar
 	out->EndSubItems();
 }
 
+//----------------------------------------------------------------------
+// #1275: the properties that say how an item is shown travel with an MMD store
+//----------------------------------------------------------------------
+// A dictionary is written without DumpSubTags, which would also carry the rule, the storage
+// properties and the checks. Five properties describe an item rather than compute or store it:
+// Descr, Label, DialogType, and the references DialogData and cdf. Without them a BrushColor
+// written with DialogType = "BrushColor" came back as a plain uint32 attribute, so a store could
+// not carry a visualisation style of its own (ObjectVision/BAG-Tools#5).
+//
+// A stored property may be read on the meta thread only (StoredPropDef::HasNonDefaultValue), and
+// this dump also runs on the thread that commits a unit under the store, which re-emits the
+// dictionary (#1155). So the values are not read here: MmdStorageManager::DoWriteTree gathers them
+// on the meta thread, at OpenForWrite, and hands them to this dump in t_MmdPresentationTags (see
+// Mmd_GatherPresentationTags for what is gathered and why a reference may be left out). A
+// dictionary root gets no entry there: the reader declares its holder itself.
+namespace {
+
+	void Mmd_DumpPresentationProps(const TreeItem* self, OutStreamBase* xmlOutStr)
+	{
+		if (!t_MmdPresentationTags)
+			return;
+		auto i = t_MmdPresentationTags->find(self);
+		if (i == t_MmdPresentationTags->end())
+			return;
+		const auto& tags = i->second;
+		// DumpSubTag writes nothing for an empty value
+		xmlOutStr->DumpSubTag(DESCR_NAME,      tags.descr     .c_str(), false);
+		xmlOutStr->DumpSubTag(LABEL_NAME,      tags.label     .c_str(), false);
+		xmlOutStr->DumpSubTag(DIALOGTYPE_NAME, tags.dialogType.c_str(), false);
+		xmlOutStr->DumpSubTag(DIALOGDATA_NAME, tags.dialogData.c_str(), false);
+		xmlOutStr->DumpSubTag(CDF_NAME,        tags.cdf       .c_str(), false);
+	}
+
+} // anonymous namespace
+
 void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) const
 {
 	// write #include <filename> if configStore defined
@@ -455,6 +490,8 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 		if (!restrictions.empty())
 			xmlOutStr->DumpSubTag(ICHECK_NAME, restrictions.c_str(), false);
 	}
+	else
+		Mmd_DumpPresentationProps(this, xmlOutStr); // #1275: how an item is shown travels with the store
 	// end of Copy
 
 	if (IsDataItem(this))

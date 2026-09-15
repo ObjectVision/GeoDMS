@@ -45,6 +45,7 @@
 TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr = nullptr;
 
 thread_local const TreeItem* t_MmdDictionaryRoot = nullptr;
+thread_local const Mmd_PresentationTagMap* t_MmdPresentationTags = nullptr; // #1275
 
 //////////////////////////////////////////////////////////////////////
 // #1154: restrictions on units external to the dictionary
@@ -385,6 +386,128 @@ namespace {
 
 } // anonymous namespace
 
+//////////////////////////////////////////////////////////////////////
+// #1275: the properties that say how an item is shown travel with the store
+//
+// The dictionary is written without DumpSubTags, which would also carry the rule, the storage
+// properties and the checks. Five properties describe an item rather than compute or store it:
+// Descr, Label, DialogType, and the references DialogData and cdf. Without them a BrushColor
+// written with DialogType = "BrushColor" came back as a plain uint32 attribute, a constant style
+// parameter as its rule without its DialogType, and a store could not carry a visualisation
+// style of its own (ObjectVision/BAG-Tools#5); a reader may declare nothing under its holder.
+//
+// A reference is kept only when every item it names lies inside the store, resolved the way a
+// reader can resolve it: up-scope for the first name part, down for the rest, dots as in any
+// path, and never past the holder. The dictionary is merged under the reader's holder, where a
+// store-relative path names the same item and any other path names something else or nothing,
+// and a DialogData or cdf that names nothing is an error on the reader (GetDialogDataRef throws,
+// a map view refuses an item whose cdf names no data item). The lookup walks the raw tree: the
+// configuration does not change during a write session, so what it finds at OpenForWrite holds
+// for every later emission.
+//////////////////////////////////////////////////////////////////////
+
+namespace {
+
+	const TreeItem* Mmd_RawSubItem(const TreeItem* ti, CharPtrRange name)
+	{
+		for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+		{
+			auto subName = sub->GetName();
+			if (std::equal(name.begin(), name.end(), subName.begin(), subName.send()))
+				return sub;
+		}
+		return nullptr;
+	}
+
+	// a part of k dots goes up k-1 levels: '.' is here, '..' the parent, '...' the grandparent
+	const TreeItem* Mmd_Ascend(const TreeItem* ti, SizeT nrDots)
+	{
+		for (; ti && nrDots > 1; --nrDots)
+			ti = ti->GetTreeParent().get();
+		return ti;
+	}
+
+	const TreeItem* Mmd_ResolveInside(const TreeItem* root, const TreeItem* item, CharPtrRange path)
+	{
+		if (path.empty() || *path.begin() == '/')
+			return nullptr; // absolute: the writer's tree, not the reader's
+		const TreeItem* curr = nullptr;
+		CharPtr i = path.begin(), e = path.end();
+		while (true)
+		{
+			CharPtr j = std::find(i, e, '/');
+			CharPtrRange part(i, j);
+			if (part.empty())
+				return nullptr;
+			bool dots = std::all_of(part.begin(), part.end(), [](char ch) { return ch == '.'; });
+			if (curr)
+				curr = dots ? Mmd_Ascend(curr, part.end() - part.begin()) : Mmd_RawSubItem(curr, part);
+			else if (dots)
+				curr = Mmd_Ascend(item, part.end() - part.begin());
+			else // the first name part is searched from the item upward, as an identifier is
+				for (auto loc = item; loc && !curr && root->DoesContain(loc); loc = loc->GetTreeParent().get())
+					curr = Mmd_RawSubItem(loc, part);
+			if (!curr || !root->DoesContain(curr))
+				return nullptr;
+			if (j == e)
+				return curr;
+			i = j + 1;
+		}
+	}
+
+	// DialogData holds one path or several separated by ';' (GetNextDialogDataRef); cdf holds one
+	bool Mmd_RefersInside(const TreeItem* root, const TreeItem* item, const SharedStr& refs)
+	{
+		CharPtr i = refs.begin(), e = refs.send();
+		while (true)
+		{
+			CharPtr j = std::find(i, e, ';');
+			if (!Mmd_ResolveInside(root, item, CharPtrRange(i, j)))
+				return false;
+			if (j == e)
+				return true;
+			i = j + 1;
+		}
+	}
+
+	void Mmd_GatherPresentationTags(const TreeItem* root, Mmd_PresentationTagMap& tags)
+	{
+		assert(IsMetaThread()); // the only thread that may read a stored property
+		tags.clear();
+		std::vector<const TreeItem*> stack{ root };
+		while (!stack.empty())
+		{
+			auto ti = stack.back(); stack.pop_back();
+			for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+				stack.push_back(sub);
+			if (ti == root)
+				continue; // the reader declares its holder itself
+			Mmd_PresentationTags t;
+			if (descrPropDefPtr->HasNonDefaultValue(ti))
+				t.descr = descrPropDefPtr->GetRawValueAsSharedStr(ti);
+			if (labelPropDefPtr->HasNonDefaultValue(ti))
+				t.label = labelPropDefPtr->GetRawValueAsSharedStr(ti);
+			if (dialogTypePropDefPtr->HasNonDefaultValue(ti))
+				t.dialogType = dialogTypePropDefPtr->GetRawValueAsSharedStr(ti);
+			if (dialogDataPropDefPtr->HasNonDefaultValue(ti))
+			{
+				auto dialogData = dialogDataPropDefPtr->GetRawValueAsSharedStr(ti);
+				if (Mmd_RefersInside(root, ti, dialogData))
+					t.dialogData = dialogData;
+			}
+			if (cdfPropDefPtr->HasNonDefaultValue(ti))
+			{
+				auto cdf = cdfPropDefPtr->GetRawValueAsSharedStr(ti);
+				if (Mmd_RefersInside(root, ti, cdf))
+					t.cdf = cdf;
+			}
+			if (!t.descr.empty() || !t.label.empty() || !t.dialogType.empty() || !t.dialogData.empty() || !t.cdf.empty())
+				tags[ti] = std::move(t);
+		}
+	}
+
+} // anonymous namespace
+
 void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 {
 	if (!storageHolder)
@@ -403,10 +526,35 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	t_MmdDictionaryRoot = storageHolder;
 	auto resetRoot = make_scoped_exit([] { t_MmdDictionaryRoot = nullptr; });
 
+	// #1275: the presentation properties, gathered by GatherPresentationTagsOnce when the first item
+	// under this store was prepared (TreeItemDataUsage.cpp). Not here: an emission can run on the
+	// thread that commits a unit (#1155), or on the meta thread inside a commit, where a stored
+	// property may not be read (StoredPropDef::HasNonDefaultValue enters IndexedString under the
+	// commit's ceiling; that is where the Debug battery stopped the first two cuts of this).
+	assert(m_PresentationTagsGathered);
+	t_MmdPresentationTags = &m_PresentationTags;
+	auto resetTags = make_scoped_exit([] { t_MmdPresentationTags = nullptr; });
+
 	TreeItem_XML_DumpOrThrow(storageHolder, &out, false);
 
 	auto fsb = FileOutStreamBuff(dictFileName, true);
 	fsb.WriteBytes(osb.GetData(), osb.CurrPos());
+}
+
+// #1275: called from TreeItem::PrepareDataUsage for every item under an MMD store, on the meta
+// thread with no lock ceiling in force, where Mmd_QualifiesAsRuleOnly reads a stored property as
+// well. The first call gathers for the whole store; the configuration does not change during a
+// write session, so what it finds holds for every emission of the dictionary.
+void MmdStorageManager::GatherPresentationTagsOnce(const TreeItem* storageHolder)
+{
+	if (m_PresentationTagsGathered)
+		return;
+	assert(IsMetaThread());
+	auto lock = lock_t(m_CriticalSection);
+	if (m_PresentationTagsGathered)
+		return;
+	Mmd_GatherPresentationTags(storageHolder, m_PresentationTags);
+	m_PresentationTagsGathered = true;
 }
 
 void MmdStorageManager::UpdateDictionary(const TreeItem* storageHolder)

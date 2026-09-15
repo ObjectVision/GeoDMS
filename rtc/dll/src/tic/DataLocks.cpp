@@ -308,19 +308,10 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 			assert(sm);
 			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 			{
-				// #1179: an IntegrityCheck on a stored sub-item derails the write session -- the
-				// data file is produced here, through this lock, but OpenForWrite never runs, so no
-				// 0Dictionary.dms is written and the whole storage reads back empty. Refuse loudly
-				// instead: restrictions belong on the storage holder, the common ancestor, whose
-				// IntegrityCheck guards all its sub-items since #1180.
-				for (SharedTreeItem guarded = configItem; guarded && guarded != sp; guarded = guarded->GetTreeParent())
-					if (integrityCheckPropDefPtr->HasNonDefaultValue(guarded.get()))
-						guarded->throwItemErrorF(
-							"IntegrityCheck on an item stored in MMD storage {} is not supported: "
-							"it would produce a storage without 0Dictionary.dms (issue #1179). "
-							"Configure the restriction on the storage holder {} instead; "
-							"its IntegrityCheck guards all its sub-items."
-							, sm->GetNameStr(), sp->GetFullName());
+				// #1179: an IntegrityCheck on a stored sub-item is refused in the MMD arm of
+				// TreeItem::PrepareDataUsage, on the meta thread before this production starts.
+				// It was refused here until #1275: this lock runs on the producing thread, where a
+				// stored property may not be read.
 
 				// #1264: the dictionary carries this item's RULE instead of its bytes, so the store
 				// gets no file for it and the array is produced as an ordinary heap array below.

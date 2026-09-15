@@ -1,0 +1,22 @@
+// An IntegrityCheck on an item stored in an MMD store is refused (issue #1179): the data file
+// would be produced but OpenForWrite would never run, leaving a store without 0Dictionary.dms
+// that reads back empty. The restriction belongs on the storage holder, whose IntegrityCheck
+// guards all its sub-items (#1180). Since #1275 the refusal is decided on the meta thread when the
+// item is prepared (TreeItem::PrepareDataUsage), no longer in the DataWriteLock on the producing
+// thread, where a stored property may not be read; this case keeps it firing. Requesting /store
+// must fail: the battery expects a nonzero exit from a _neg case.
+container stor_mmd_icheck_neg
+{
+	unit<uint32> src : nrofrows = 4
+	{
+		attribute<int32> v : [10, 20, 30, 40];
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_icheck_neg.mmd"
+	{
+		unit<uint32> dom := src
+		{
+			attribute<int32> v := src/v, IntegrityCheck = "v > 0i"; // refused: the check belongs on the holder
+		}
+	}
+}

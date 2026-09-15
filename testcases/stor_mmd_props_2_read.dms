@@ -1,0 +1,38 @@
+// The read half of the presentation-properties case (issue #1275); stor_mmd_props_1_write.dms
+// writes the store and carries the description. run_testcases.ps1 walks the configs sorted by file
+// name, so `_1_write` runs before this one; on its own this config fails because the store does
+// not exist.
+//
+// The reader declares nothing but the storage. What the dictionary carries is read back with
+// PropValue: the DialogType of every styled item, the store-local DialogData and cdf references,
+// Descr and Label; a reference that pointed outside the store is absent, and so is the holder's
+// own Descr.
+container stor_mmd_props_2_read
+{
+	container store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_props.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n        := #store/dom,                                  IntegrityCheck = "n == 4";
+		parameter<string> dt_pen   := PropValue(store/dom/PenColor,   'DialogType'), IntegrityCheck = "dt_pen == 'PenColor'";
+		parameter<string> dt_brush := PropValue(store/cls/BrushColor, 'DialogType'), IntegrityCheck = "dt_brush == 'BrushColor'";
+		parameter<string> dt_lbl   := PropValue(store/cls/Label,      'DialogType'), IntegrityCheck = "dt_lbl == 'LabelText'";
+		parameter<string> dt_cb    := PropValue(store/cls/ClassBreak, 'DialogType'), IntegrityCheck = "dt_cb == 'Classification'";
+		parameter<string> pen      := string(store/dom/PenColor),                  IntegrityCheck = "pen == '32768'"; // rgb(0,128,0), the rule re-applied by the reader
+		parameter<string> cdf_in   := PropValue(store/dom/classified, 'cdf'),      IntegrityCheck = "cdf_in == 'cls/ClassBreak'";
+		parameter<string> cdf_abs  := PropValue(store/dom/outside,    'cdf'),      IntegrityCheck = "cdf_abs == ''";
+		parameter<string> cdf_up   := PropValue(store/dom/upscope,    'cdf'),      IntegrityCheck = "cdf_up == ''";
+		parameter<string> dd_in    := PropValue(store/dom/ddin,    'DialogData'),  IntegrityCheck = "dd_in == 'v'";
+		parameter<string> dd_out   := PropValue(store/dom/ddout,   'DialogData'),  IntegrityCheck = "dd_out == ''";
+		parameter<string> dd_two   := PropValue(store/dom/ddtwo,   'DialogData'),  IntegrityCheck = "dd_two == 'v;classified'";
+		parameter<string> dd_mixed := PropValue(store/dom/ddmixed, 'DialogData'),  IntegrityCheck = "dd_mixed == ''";
+		parameter<string> descr    := PropValue(store/dom, 'Descr'),               IntegrityCheck = "descr == 'four rows'";
+		parameter<string> label    := PropValue(store/dom, 'Label'),               IntegrityCheck = "label == 'the table'";
+		parameter<string> descr_c  := PropValue(store/cls, 'Descr'),               IntegrityCheck = "descr_c == 'a classification inside the store'";
+		parameter<string> descr_h  := PropValue(store, 'Descr'),                   IntegrityCheck = "descr_h == ''"; // the holder's own properties stay with the writer
+	}
+}

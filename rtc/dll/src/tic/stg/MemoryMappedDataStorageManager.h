@@ -20,6 +20,15 @@
 #include "stg/AbstrStorageManager.h"
 struct StorageClass;
 
+// #1275: the properties that say how an item is shown rather than what it computes or stores.
+// A stored property may be read on the meta thread only (StoredPropDef::HasNonDefaultValue), and
+// the dictionary is also dumped on whichever thread commits a unit under the store (#1155), so
+// MmdStorageManager::DoWriteTree gathers them on the meta thread and hands them to
+// TreeItem::XML_Dump in a map of these, keyed by item. The root has no entry: the reader declares
+// its holder itself. An empty string is an absent property.
+struct Mmd_PresentationTags { SharedStr descr, label, dialogType, dialogData, cdf; };
+using Mmd_PresentationTagMap = std::map<const TreeItem*, Mmd_PresentationTags>;
+
 /*
  *	MmdStorageManager
  *
@@ -52,6 +61,10 @@ public:
 	// Called from TreeItem::CommitDataChanges once the data is ready, before UpdateDictionary.
 	void MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi);
 
+	// #1275: gather the presentation properties of the store's items (see Mmd_PresentationTags)
+	// the first time an item under it is prepared, where a stored property may be read.
+	void GatherPresentationTagsOnce(const TreeItem* storageHolder);
+
 protected:
 //	implement AbstrStorageManager interface
 //	void DropStream(const TreeItem* item, CharPtr path) override;
@@ -82,8 +95,16 @@ protected:
 	// cache item, so a cache-keyed guard could only ever say "unknown" and would never skip at all.
 	mutable std::map<const TreeItem*, TimeStamp> m_MaterializedAt;
 
+	// #1275: the presentation properties of the store's items, gathered by DoWriteTree on the meta
+	// thread at the first emission of the dictionary and read by every later one; both under
+	// m_CriticalSection (OpenForWrite asserts it held, UpdateDictionary takes it).
+	Mmd_PresentationTagMap m_PresentationTags;
+	bool m_PresentationTagsGathered = false;
+
 	DECL_RTTI(, StorageClass)
 };
+
+extern thread_local const Mmd_PresentationTagMap* t_MmdPresentationTags; // #1275, see Mmd_PresentationTags
 
 using AppendTreeFromConfigurationFuncPtr = auto (*) (const char* fileName, TreeItem* treeItem)->TreeItem*;
 extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr;

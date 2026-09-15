@@ -65,6 +65,8 @@ stor_mmd_empty_1_write.dms /store
 stor_shp_ringclose_1_write.dms /export
 stor_mmd_alias_1_write.dms /store
 stor_mmd_rule_1_write.dms /store
+stor_mmd_props_1_write.dms /store
+stor_mmd_icheck_neg.dms /store
 stor_mmd_group_1_write.dms /store
 stor_fss_1_write.dms /store
 stor_dbf_1_write.dms /export

@@ -296,6 +296,30 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				assert(sm);
 				if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 				{
+					// #1275: the first item prepared under the store gathers, for the whole store, the
+					// properties that say how its items are shown; here, on the meta thread with no
+					// commit in progress, a stored property may be read, which the dictionary dump
+					// that carries them may not do (it also runs at unit commits).
+					mmd->GatherPresentationTagsOnce(sp.get());
+
+					// #1179: an IntegrityCheck on a stored sub-item derails the write session -- the
+					// data file is produced through the DataWriteLock, but OpenForWrite never runs, so
+					// no 0Dictionary.dms is written and the whole storage reads back empty. Refuse
+					// loudly instead: restrictions belong on the storage holder, the common ancestor,
+					// whose IntegrityCheck guards all its sub-items since #1180. Decided here since
+					// #1275, before production: the lock runs on the producing thread, where a stored
+					// property may not be read (StoredPropDef asserts the meta thread), and it never
+					// got there because a stored item had no stored property until a store could carry
+					// DialogType, Descr and the like.
+					for (const TreeItem* guarded = this; guarded && guarded != sp.get(); guarded = guarded->GetTreeParent().get())
+						if (integrityCheckPropDefPtr->HasNonDefaultValue(guarded))
+							guarded->throwItemErrorF(
+								"IntegrityCheck on an item stored in MMD storage {} is not supported: "
+								"it would produce a storage without 0Dictionary.dms (issue #1179). "
+								"Configure the restriction on the storage holder {} instead; "
+								"its IntegrityCheck guards all its sub-items."
+								, sm->GetNameStr(), sp->GetFullName());
+
 					// the write side of an MMD store: an item calculated into it opens the store for
 					// writing before its data is produced, which the DataWriteLock then maps into the
 					// store's file (write-through); a data block is neither read nor written

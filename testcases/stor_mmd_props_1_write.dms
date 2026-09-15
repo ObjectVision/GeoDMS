@@ -1,0 +1,48 @@
+// The properties that say how an item is shown travel with an MMD store (issue #1275). Until
+// GeoDMS 20.21.0 the dictionary wrote only what an item computes or stores, so a BrushColor with
+// DialogType = "BrushColor" came back as a plain uint32 attribute and a store could not carry a
+// visualisation style of its own. Since 20.21.0 the dictionary carries, for every item below the
+// holder: Descr, Label, DialogType, and DialogData and cdf when every item they name lies inside
+// the store, resolved the way a reader can resolve them: up-scope for the first name part, down
+// for the rest, never past the holder. A reference that is absolute, or that leaves the store,
+// is left out: merged under the reader's holder it would name nothing, and a DialogData or cdf
+// that names nothing is an error there. The holder's own properties stay with the writer: the
+// reader declares its holder itself.
+//
+// This config only WRITES the store; stor_mmd_props_2_read.dms reads it back and checks it. THE
+// TWO BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file name.
+container stor_mmd_props_1_write
+{
+	unit<uint8> cls_out : nrofrows = 2 // a classification outside the store
+	{
+		attribute<int32> ClassBreak : DialogType = "Classification", [0, 25];
+	}
+
+	unit<uint32> src : nrofrows = 4
+	{
+		attribute<int32> v : [10, 20, 30, 40];
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_props.mmd", Descr = "the holder: its own properties stay with the writer"
+	{
+		unit<uint8> cls : nrofrows = 2, Descr = "a classification inside the store"
+		{
+			attribute<int32>  ClassBreak : DialogType = "Classification", [0, 25];
+			attribute<uint32> BrushColor : DialogType = "BrushColor", [rgb(255,0,0), rgb(0,0,255)];
+			attribute<string> Label      : DialogType = "LabelText", ['low', 'high'];
+		}
+
+		unit<uint32> dom := src, Descr = "four rows", Label = "the table"
+		{
+			attribute<int32>  v          := src/v;
+			attribute<int32>  classified := v, cdf = "cls/ClassBreak";       // names an item inside: carried
+			attribute<int32>  outside    := v, cdf = "/cls_out/ClassBreak"; // absolute path: left out
+			attribute<int32>  upscope    := v, cdf = "cls_out/ClassBreak";  // resolves outside the store: left out
+			parameter<uint32> PenColor   := rgb(0,128,0), DialogType = "PenColor"; // a constant style: rule and DialogType
+			attribute<int32>  ddin       := v, DialogData = "v";            // inside: carried
+			attribute<int32>  ddout      := v, DialogData = "src/v";        // outside: left out
+			attribute<int32>  ddtwo      := v, DialogData = "v;classified"; // two references, both inside: carried
+			attribute<int32>  ddmixed    := v, DialogData = "v;src/v";      // one of them outside: left out
+		}
+	}
+}
