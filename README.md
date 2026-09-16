@@ -8,6 +8,10 @@ Recent GeoDMS versions can be downloaded from this repository's [release page](h
 If you are new to GeoDMS, the [GeoDMS Academy](https://github.com/ObjectVision/GeoDMS_Academy) will guide you through some of the language's basic features. 
 For the complete documentation of GeoDMS, including additional examples, see [our wiki](https://github.com/ObjectVision/GeoDMS/wiki) or [geodms website](https://geodms.nl)
 
+## GeoDMS as a tool for AI agents
+
+GeoDMS is scriptable end to end: `GeoDmsRun.exe` installs unattended, calculates any item of a configuration headlessly, prints statistics, explains individual values, dumps configuration trees, and reports through exit codes — a tool contract that coding agents can drive directly. Ready-made agent skills (Claude Code / Codex `SKILL.md` format) for running GeoDMS, polygon simplification, discrete land-use allocation and travel-time calculation are catalogued at [GeoDMS AI skills](https://github.com/ObjectVision/GeoDMS/wiki/GeoDMS-AI-skills); the command-line reference is [User Guide GeoDMS Run](https://github.com/ObjectVision/GeoDMS/wiki/User-Guide-GeoDMS-Run).
+
 ## Verifying downloads
 
 All GeoDMS installers and packages are signed with the **Object Vision B.V.**
