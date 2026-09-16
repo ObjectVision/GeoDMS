@@ -93,8 +93,15 @@ const TreeItemStatusFlags TSF_InTemplate                  = 0x00080000;
 const TreeItemStatusFlags TSF_Categorical                 = 0x00100000;
 const TreeItemStatusFlags TSF_LazyCalculated              = 0x00200000;
 const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Make data persistent in the configured storage, also below the data-size threshold
-const TreeItemStatusFlags TSF_Deprecated                 = 0x00800000; // unallocated bit
+const TreeItemStatusFlags TSF_Deprecated                 = 0x00800000; // set by Connect.cpp on a deprecated result member, read by TreeItemMetaInfo.cpp
 const TreeItemStatusFlags TSF_IsFunctionItem              = 0x01000000; // 'function' definition: template-like (body inert via TSF_In/IsTemplate) + typed telescope, designated result, strict scope
+
+// #587: a data member of a members-on-demand result (storage_read_table), which its operator reads on
+// its own when it is demanded (oper_policy::members_on_demand, the #1167 re-entry). Such a member is
+// wanted by ITS OWN interest, not by its cache root's: PartOfInterest does not walk up to the root and
+// TryCleanupMem frees it when its interest drops while the root, the table's domain, stays in interest,
+// as a stored config item freed its own data before #587. Set in CreateResultCaller.
+const TreeItemStatusFlags TSF_MemberOnDemand              = 0x40000000;
 
 // Unit flags can overlap with Data flags as a TreeItem is never both.
 // 0x02000000 was USF_HasSpatialReference, the companion flag of the s_SpatialReferenceAssoc

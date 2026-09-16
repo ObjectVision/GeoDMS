@@ -732,7 +732,8 @@ struct StorageReadTableOperator : BinaryOperator
 			auto parts = SplitMemberSpec(ArgString(args, i));
 			const AbstrUnit* vu = parts.m_ValuesAreTheTable ? root.get() : AsUnit(GetItem(args[i + 1]));
 			MG_CHECK(vu);
-			CreateDataItemFromPath(root.get(), parts.m_Name.c_str(), root.get(), vu, parts.m_VC);
+			auto member = CreateDataItemFromPath(root.get(), parts.m_Name.c_str(), root.get(), vu, parts.m_VC);
+			member->SetTSF(TSF_MemberOnDemand); // retained by its own interest, freed on its own: see TreeItemFlags.h
 		}
 		resultHolder = SharedMutableTreeItem(root);
 	}

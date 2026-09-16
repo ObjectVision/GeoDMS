@@ -694,7 +694,7 @@ bool TreeItem::PartOfInterest() const
 { 
 	if (GetInterestCount())
 		return true;
-	if (!IsCacheItem())
+	if (!IsCacheItem() || GetTSF(TSF_MemberOnDemand)) // an on-demand member is wanted by its own interest only (#587), see TreeItemFlags.h
 		return false;
 
 	return PartOfInterestImpl(GetTreeParent().get());
@@ -703,7 +703,7 @@ bool TreeItem::PartOfInterest() const
 garbage_can TreeItem::TryCleanupMem() const
 {
 	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
-	if (IsCacheItem() && !IsCacheRoot())
+	if (IsCacheItem() && !IsCacheRoot() && !GetTSF(TSF_MemberOnDemand)) // a member goes with its root, unless its operator reads it on its own (#587)
 		return {};
 
 
