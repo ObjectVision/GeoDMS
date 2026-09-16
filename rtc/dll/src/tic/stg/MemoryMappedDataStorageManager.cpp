@@ -670,4 +670,7 @@ bool IsInMMD(const AbstrDataItem* cacheItem)
 // instantiation and registration
 //----------------------------------------------------------------------
 
-IMPL_DYNC_STORAGECLASS(MmdStorageManager, "MMD")
+// lower case like every other storage type name: the type name is a token, the registry folds
+// case, and StorageType = "mmd", the spelling the wiki and the configurations use, reported a case
+// mix-up against "MMD" (#1262).
+IMPL_DYNC_STORAGECLASS(MmdStorageManager, "mmd")

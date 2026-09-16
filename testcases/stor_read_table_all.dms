@@ -1,5 +1,5 @@
 // #587 S1: a gdal.vect table read as one operator application per table. The layer unit gets the
-// calculator storage_read_table(...), every stored attribute under it subitem(...) of that key
+// calculator storage_read_table(...), every stored attribute under it SubItem(...) of that key
 // (installed by the cache-root merge), and the checks demand all three attributes and the count.
 container stor_read_table_all
 {

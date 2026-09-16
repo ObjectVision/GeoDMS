@@ -14,7 +14,7 @@
 // re-verifies the semantics after the reload.
 container fn_test_vurt
 {
-	unit<float64> m := baseunit('m', float64);
+	unit<float64> m := BaseUnit('m', float64);
 
 	unit<uint32> Road : nrofrows = 4
 	{

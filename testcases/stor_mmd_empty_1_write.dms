@@ -12,7 +12,7 @@
 // cannot be ordered after the write inside one config: the reading holder merges the dictionary
 // while its meta info is determined, before any supplier of it is updated.
 //
-// The write also pins the other half of #1245: `sub := none` inherits the org_rel of the selection
+// The write also pins the other half of #1245: `sub := None` inherits the org_rel of the selection
 // result as an engine-set, DisableStorage'd shadow. The MMD writer refuses a configured DisableStorage
 // below its holder (stor_mmd_disablestorage_neg*.dms) but must keep skipping such a shadow, or this
 // ordinary shape could no longer be written at all.
@@ -24,17 +24,17 @@ container stor_mmd_empty_1_write
 	}
 
 	// a sub-table that comes out empty; its result carries org_rel and s as sub-items
-	unit<uint32> none := select_with_attr_by_org_rel(obj, const(false, obj));
+	unit<uint32> None := select_with_attr_by_org_rel(obj, const(false, obj));
 
 	unit<uint32> store := obj
 	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_empty.mmd"
 	{
 		attribute<string> s := obj/s;
 
-		unit<uint32> sub := none
+		unit<uint32> sub := None
 		{
-			attribute<string> s := none/s;          // variable-length: a zero-length s and s.seq
-			attribute<uint32> n := const(1, none);  // fixed-length: a zero-length n
+			attribute<string> s := None/s;          // variable-length: a zero-length s and s.seq
+			attribute<uint32> n := const(1, None);  // fixed-length: a zero-length n
 		}
 	}
 }

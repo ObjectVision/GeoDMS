@@ -73,11 +73,14 @@ private:
 	ClassBreakFunc m_ClassBreakFunc;
 };
 
+// Values as unique's member of that name; count in lower case, because the token registry is
+// one case-folded namespace and 'count' is the aggregation operator: a member Count made every
+// signature dump and every palette report a case mix-up against it (#1161, #1262).
 static StaticLateTokenID s_CB_Values("Values");
-static StaticLateTokenID s_CB_Count("Count");
+static StaticLateTokenID s_CB_Count("count");
 
 // *****************************************************************************
-// weeded_counts(A: D->V) -> unit U { Values: U->V ; Count: U->UInt64 }
+// weeded_counts(A: D->V) -> unit U { Values: U->V ; count: U->UInt64 }
 //
 // The value-count table every classification starts from, as a result of its own, so that its two
 // consumers -- the class count that sizes the palette domain and the classification that fills the
@@ -98,7 +101,7 @@ public:
 
 	// K6: weeded_counts(values: attribute<V>(D)) -> a FRESH unit U [new] of value class uint32.
 	// The two members are a described, complete member set: both are attributes over U, Values
-	// carrying the argument's value class and Count a plain uint64 tally.
+	// carrying the argument's value class and count a plain uint64 tally.
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
@@ -112,7 +115,7 @@ public:
 		sb.ArgAttr(0, V, D, ValueComposition::Single);
 		sb.ResultUnit(U);
 		sb.ResultContainerMember("Values", V, U, ValueComposition::Single);
-		sb.ResultContainerMember("Count", C, U, ValueComposition::Single);
+		sb.ResultContainerMember("count", C, U, ValueComposition::Single);
 		sb.ResultMembersComplete();
 		return true;
 	}

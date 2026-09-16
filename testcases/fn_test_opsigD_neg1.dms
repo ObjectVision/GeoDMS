@@ -18,8 +18,8 @@ container fn_test_opsigD_neg1
 	function bad<D1: domains, D2: domains, Vx: any>(unit<uint32> s; attribute<bool> c (D1); attribute<Vx> d (D2))
 	-> attribute<Vx> (s) := collect_by_cond(s, c, d);
 
-	unit<uint32> Sub := select(condA);
-	attribute<float32> z (Sub) := bad(Sub, condA, dataB);
+	unit<uint32> Sel := select(condA);
+	attribute<float32> z (Sel) := bad(Sel, condA, dataB);
 
 	container checks { parameter<float32> use := sum(z); }
 }

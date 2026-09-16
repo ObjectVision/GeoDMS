@@ -14,12 +14,12 @@ container fn_test_opsigD
 	// select-domain declared at container level; the function collects over it.
 	// collectF exercises collect_by_cond: K1 (c and d share domain D) + result
 	// over the passed subset s + values borrow (class-level)
-	unit<uint32> Sub := select(cond);   // fresh subset unit, 3 rows
+	unit<uint32> Sel := select(cond);   // fresh subset unit, 3 rows
 
 	function collectF<Dx: domains, Vx: any>(unit<uint32> s; attribute<bool> c (Dx); attribute<Vx> d (Dx))
 	-> attribute<Vx> (s) := collect_by_cond(s, c, d);
 
-	attribute<float32> picked (Sub) := collectF(Sub, cond, data);   // [0,1,2]
+	attribute<float32> picked (Sel) := collectF(Sel, cond, data);   // [0,1,2]
 
 	// select INSIDE a function body: the fresh unit feeds nrofrows (a namable
 	// parameter result); the condition's Bool class is checked at definition
@@ -39,7 +39,7 @@ container fn_test_opsigD
 
 	container checks
 	{
-		parameter<uint32>  c_n := nrofrows(Sub),   IntegrityCheck = "c_n == 3";
+		parameter<uint32>  c_n := nrofrows(Sel),   IntegrityCheck = "c_n == 3";
 		parameter<float32> c_p := sum(picked),     IntegrityCheck = "c_p == 3f";   // 0+1+2
 		parameter<uint32>  c_s := nSel,            IntegrityCheck = "c_s == 3";
 		parameter<uint32>  c_u := nUniq,           IntegrityCheck = "c_u == 2";

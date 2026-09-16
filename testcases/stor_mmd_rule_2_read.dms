@@ -16,12 +16,12 @@ container stor_mmd_rule_2_read
 	container checks
 	{
 		parameter<uint32> n       := #store/dom,                          IntegrityCheck = "n == 4";
-		parameter<string> s_own   := AsList(string(store/dom/own), ' '),  IntegrityCheck = "s_own   == '20 40 60 80'";
+		parameter<string> s_own   := asList(string(store/dom/own), ' '),  IntegrityCheck = "s_own   == '20 40 60 80'";
 		// the rule-only one: re-applied by the reader from own, which is stored
-		parameter<string> s_deriv := AsList(string(store/dom/derived), ' '), IntegrityCheck = "s_deriv == '21 41 61 81'";
+		parameter<string> s_deriv := asList(string(store/dom/derived), ' '), IntegrityCheck = "s_deriv == '21 41 61 81'";
 		// computes the same values, but was materialised because its rule names src
-		parameter<string> s_twice := AsList(string(store/dom/twice), ' '), IntegrityCheck = "s_twice == '21 41 61 81'";
+		parameter<string> s_twice := asList(string(store/dom/twice), ' '), IntegrityCheck = "s_twice == '21 41 61 81'";
 		// store-local rule, but KeepData kept it in the store
-		parameter<string> s_kept  := AsList(string(store/dom/kept), ' '),  IntegrityCheck = "s_kept  == '21 41 61 81'";
+		parameter<string> s_kept  := asList(string(store/dom/kept), ' '),  IntegrityCheck = "s_kept  == '21 41 61 81'";
 	}
 }

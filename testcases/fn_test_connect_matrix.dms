@@ -6,7 +6,7 @@ container fn_test_connect_matrix
 	// The feature domain is NOT called Arc: that name collides with the composition
 	// keyword, so '(Arc)' after an attribute reads as a composition, not a domain.
 	//
-	// Geometry, in (y, x):
+	// geometry, in (y, x):
 	//   road 0: (0,0) -> (0,10)       road 1: (100,0) -> (100,10)
 	//   p0 (3,5)   :   3 from road 0, 97 from road 1
 	//   p1 (104,5) : 104 from road 0,  4 from road 1

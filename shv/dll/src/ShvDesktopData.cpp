@@ -381,7 +381,7 @@ GeneratedClassificationItems CreateNonzeroJenksFisherBreakItems(DataView* dv, co
 	if (!result.breakAttr->HasCalculator())
 	{
 		result.breakAttr->DisableStorage();
-		result.breakAttr->SetExpr(mySSPrintF("ClassifyNonzeroJenksFisher({}/Values, {}/Count, {})"
+		result.breakAttr->SetExpr(mySSPrintF("ClassifyNonzeroJenksFisher({}/Values, {}/count, {})"
 		,	result.classCounts->GetFullName().c_str()
 		,	result.classCounts->GetFullName().c_str()
 		,	result.paletteDomain->GetFullName().c_str()

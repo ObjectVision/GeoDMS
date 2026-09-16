@@ -10,7 +10,7 @@
 // (doc/development/crs-metric-decoupling.md, Stage 0).
 container fn_test_unitpow
 {
-	unit<float64> m := baseunit('m', float64);
+	unit<float64> m := BaseUnit('m', float64);
 
 	parameter<float64> two   := 2.0;
 	parameter<float64> three := 3.0;

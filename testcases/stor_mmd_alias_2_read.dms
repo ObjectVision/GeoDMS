@@ -29,13 +29,13 @@ container stor_mmd_alias_2_read
 		parameter<uint32> n_na     := #store/na,                           IntegrityCheck = "n_na    == 3";
 		parameter<uint32> n_adr    := #store/adr,                          IntegrityCheck = "n_adr   == 3";
 
-		parameter<string> s_lig    := AsList(store/lig/Label, ' '),        IntegrityCheck = "s_lig   == 'aangewezen ingetrokken'";
-		parameter<string> s_na     := AsList(store/na/postcode, ' '),      IntegrityCheck = "s_na    == '1000AA 2000BB 3000CC'";
-		parameter<string> s_eigen  := AsList(store/adr/eigen_veld, ' '),   IntegrityCheck = "s_eigen == 'n1! n2! n3!'";
+		parameter<string> s_lig    := asList(store/lig/Label, ' '),        IntegrityCheck = "s_lig   == 'aangewezen ingetrokken'";
+		parameter<string> s_na     := asList(store/na/postcode, ' '),      IntegrityCheck = "s_na    == '1000AA 2000BB 3000CC'";
+		parameter<string> s_eigen  := asList(store/adr/eigen_veld, ' '),   IntegrityCheck = "s_eigen == 'n1! n2! n3!'";
 
 		// the two that had no file at all before: each must now carry the same content as the item
 		// it was written from, compared as a whole rather than elementwise, since the domains differ
-		parameter<string> s_stand  := AsList(store/stand/Label, ' '),      IntegrityCheck = "s_stand == s_lig";
-		parameter<string> s_adr    := AsList(store/adr/postcode, ' '),     IntegrityCheck = "s_adr   == s_na";
+		parameter<string> s_stand  := asList(store/stand/Label, ' '),      IntegrityCheck = "s_stand == s_lig";
+		parameter<string> s_adr    := asList(store/adr/postcode, ' '),     IntegrityCheck = "s_adr   == s_na";
 	}
 }

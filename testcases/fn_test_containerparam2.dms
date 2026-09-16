@@ -13,7 +13,7 @@ container fn_test_containerparam2
 	{
 		parameter<float64> factor := 2.0;
 		container meta { parameter<float64> version := 1.0; }   // incidental
-		Template Helper { parameter<float64> x; parameter<float64> result := 2.0 * x; }
+		template Helper { parameter<float64> x; parameter<float64> result := 2.0 * x; }
 	}
 	container Minimal { parameter<float64> factor := 3.0; }     // no meta, no Helper
 

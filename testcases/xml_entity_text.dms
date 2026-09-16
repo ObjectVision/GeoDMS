@@ -4,6 +4,6 @@ container xml_entity_text
 	container xmlpart { #include <../data/xml_entity_text.xml> }
 	container checks
 	{
-		parameter<string> d := PropValue(xmlpart/xt, 'descr'), IntegrityCheck = "d == 'a & b <c>'";
+		parameter<string> d := PropValue(xmlpart/xt, 'Descr'), IntegrityCheck = "d == 'a & b <c>'";
 	}
 }

@@ -9,7 +9,7 @@ container stor_fss_1_write
 	}
 	unit<uint32> store := obj
 	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_fss_rt.fss"
-	,	StorageType = "FSS"
+	,	StorageType = "fss"
 	{
 		attribute<int32>  a := obj/a;
 		attribute<string> s := obj/s;

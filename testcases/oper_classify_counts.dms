@@ -24,7 +24,7 @@ container oper_classify_counts
 
 	unit<uint8> cls4 : nrofrows = 4;
 	attribute<float32> breaks_binary (cls4) := ClassifyNonzeroJenksFisher(v, cls4);
-	attribute<float32> breaks_counts (cls4) := ClassifyNonzeroJenksFisher(wc/Values, wc/Count, cls4);
+	attribute<float32> breaks_counts (cls4) := ClassifyNonzeroJenksFisher(wc/Values, wc/count, cls4);
 
 	//	=========================================	integral values, non-zero lower bound
 
@@ -35,13 +35,13 @@ container oper_classify_counts
 
 	unit<uint8> cls3 : nrofrows = 3;
 	attribute<R10> breaks_r_binary (cls3) := ClassifyNonzeroJenksFisher(vr, cls3);
-	attribute<R10> breaks_r_counts (cls3) := ClassifyNonzeroJenksFisher(wcr/Values, wcr/Count, cls3);
+	attribute<R10> breaks_r_counts (cls3) := ClassifyNonzeroJenksFisher(wcr/Values, wcr/count, cls3);
 
 	container checks
 	{
 		// the counts table: five distinct values, every element accounted for
 		parameter<uint32>  nrPairs     := #wc,                        IntegrityCheck = "nrPairs == 5";
-		parameter<float64> totalCount  := sum(float64(wc/Count)),     IntegrityCheck = "totalCount == 12.0";
+		parameter<float64> totalCount  := sum(float64(wc/count)),     IntegrityCheck = "totalCount == 12.0";
 		parameter<float64> sumValues   := sum(float64(wc/Values)),    IntegrityCheck = "sumValues == 37.0"; // 1+2+5+9+20
 
 		// the two signatures agree, elementwise
@@ -50,7 +50,7 @@ container oper_classify_counts
 
 		// and again with the values unit's range offset in play
 		parameter<uint32>  nrPairsR    := #wcr,                       IntegrityCheck = "nrPairsR == 5";
-		parameter<float64> totalCountR := sum(float64(wcr/Count)),    IntegrityCheck = "totalCountR == 12.0";
+		parameter<float64> totalCountR := sum(float64(wcr/count)),    IntegrityCheck = "totalCountR == 12.0";
 		parameter<float64> sumValuesR  := sum(float64(wcr/Values)),   IntegrityCheck = "sumValuesR == 5020.0"; // 1000+1001+1003+1007+1009
 		parameter<float64> breakDiffR  := sum(abs(float64(breaks_r_binary) - float64(breaks_r_counts)))
 		,	IntegrityCheck = "breakDiffR == 0.0";

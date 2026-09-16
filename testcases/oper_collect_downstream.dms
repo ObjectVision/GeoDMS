@@ -9,8 +9,8 @@ container oper_collect_downstream
 		unit<uint32> Dx : nrofrows = 4;
 		attribute<bool> keep (Dx) : [false, true, true, false];
 		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
-		unit<uint32> Result := select_with_attr_by_cond(., keep);
-		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
+		unit<uint32> result := select_with_attr_by_cond(., keep);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, result/population);
 		// Shares the already-proven downstream node. The collection-wide memo must
 		// preserve that positive result instead of revisiting the same chain.
 		attribute<float64> downstream_again (Dx) := downstream;
@@ -21,8 +21,8 @@ container oper_collect_downstream
 		unit<uint32> Dx : nrofrows = 4;
 		attribute<bool> keep (Dx) : [false, true, true, false];
 		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
-		unit<uint32> Result := select_spec('attr', ., keep);
-		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
+		unit<uint32> result := select_spec('attr', ., keep);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, result/population);
 	}
 
 	container NamedCollectCase
@@ -31,8 +31,8 @@ container oper_collect_downstream
 		attribute<bool> keep (Dx) : [false, true, true, false];
 		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Selection := select(keep);
-		container Result := collect_attr_by_cond(., Selection, keep);
-		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
+		container result := collect_attr_by_cond(., Selection, keep);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, result/population);
 	}
 
 	container SpecCollectCase
@@ -41,8 +41,8 @@ container oper_collect_downstream
 		attribute<bool> keep (Dx) : [false, true, true, false];
 		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Selection := select(keep);
-		container Result := collect_spec('by_cond', ., Selection, keep);
-		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
+		container result := collect_spec('by_cond', ., Selection, keep);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, result/population);
 	}
 
 	container SpecTableCase
@@ -51,8 +51,8 @@ container oper_collect_downstream
 		attribute<bool> keep (Dx) : [false, true, true, false];
 		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Selection := select(keep);
-		unit<uint32> Result := table_spec('by_cond', ., Selection, keep);
-		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
+		unit<uint32> result := table_spec('by_cond', ., Selection, keep);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, result/population);
 	}
 
 	// issue #1224: the candidate scan reads an ORIGINAL expression, and a raw parse still
@@ -69,22 +69,22 @@ container oper_collect_downstream
 		unit<uint32> Cx : nrofrows = 2;
 		attribute<bool> keep (Dx) : [false, true, true, false];
 		attribute<Cx> class_rel (Dx) := value(id(Dx) % 2, Cx);
-		unit<uint32> Result := select_with_attr_by_cond(., keep);
+		unit<uint32> result := select_with_attr_by_cond(., keep);
 	}
 
 	container checks
 	{
-		parameter<float64> named_select_sum := sum(NamedSelectCase/Result/population), IntegrityCheck = "named_select_sum == 50.0";
-		parameter<float64> spec_select_sum := sum(SpecSelectCase/Result/population), IntegrityCheck = "spec_select_sum == 50.0";
-		parameter<float64> named_collect_sum := sum(NamedCollectCase/Result/population), IntegrityCheck = "named_collect_sum == 50.0";
-		parameter<float64> spec_collect_sum := sum(SpecCollectCase/Result/population), IntegrityCheck = "spec_collect_sum == 50.0";
-		parameter<float64> spec_table_sum := sum(SpecTableCase/Result/population), IntegrityCheck = "spec_table_sum == 50.0";
+		parameter<float64> named_select_sum := sum(NamedSelectCase/result/population), IntegrityCheck = "named_select_sum == 50.0";
+		parameter<float64> spec_select_sum := sum(SpecSelectCase/result/population), IntegrityCheck = "spec_select_sum == 50.0";
+		parameter<float64> named_collect_sum := sum(NamedCollectCase/result/population), IntegrityCheck = "named_collect_sum == 50.0";
+		parameter<float64> spec_collect_sum := sum(SpecCollectCase/result/population), IntegrityCheck = "spec_collect_sum == 50.0";
+		parameter<float64> spec_table_sum := sum(SpecTableCase/result/population), IntegrityCheck = "spec_table_sum == 50.0";
 
-		unit<uint32> named_select_items := SubItem_PropValues(NamedSelectCase/Result, 'name');
-		unit<uint32> spec_select_items := SubItem_PropValues(SpecSelectCase/Result, 'name');
-		unit<uint32> named_collect_items := SubItem_PropValues(NamedCollectCase/Result, 'name');
-		unit<uint32> spec_collect_items := SubItem_PropValues(SpecCollectCase/Result, 'name');
-		unit<uint32> spec_table_items := SubItem_PropValues(SpecTableCase/Result, 'name');
+		unit<uint32> named_select_items := SubItem_PropValues(NamedSelectCase/result, 'name');
+		unit<uint32> spec_select_items := SubItem_PropValues(SpecSelectCase/result, 'name');
+		unit<uint32> named_collect_items := SubItem_PropValues(NamedCollectCase/result, 'name');
+		unit<uint32> spec_collect_items := SubItem_PropValues(SpecCollectCase/result, 'name');
+		unit<uint32> spec_table_items := SubItem_PropValues(SpecTableCase/result, 'name');
 
 		parameter<bool> named_select_excludes_downstream := all(named_select_items/name != 'downstream' && named_select_items/name != 'downstream_again'), IntegrityCheck = "named_select_excludes_downstream == true";
 		parameter<bool> spec_select_excludes_downstream := all(spec_select_items/name != 'downstream'), IntegrityCheck = "spec_select_excludes_downstream == true";
@@ -94,6 +94,6 @@ container oper_collect_downstream
 
 		// #1224: the rewrite-headed member is collected, and collected correctly -- keep
 		// selects Dx 1 and 2, whose classes are 1 and 0.
-		parameter<uint32> rewritten_head_sum := sum(uint32(RewrittenHeadCase/Result/class_rel)), IntegrityCheck = "rewritten_head_sum == 1";
+		parameter<uint32> rewritten_head_sum := sum(uint32(RewrittenHeadCase/result/class_rel)), IntegrityCheck = "rewritten_head_sum == 1";
 	}
 }

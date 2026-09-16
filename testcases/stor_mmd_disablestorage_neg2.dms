@@ -14,6 +14,6 @@ container stor_mmd_disablestorage_neg2
 	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_disablestorage_neg2.mmd"
 	{
 		attribute<string> s   := obj/s;
-		attribute<string> tmp := uppercase(s), DisableStorage = "True";
+		attribute<string> tmp := UpperCase(s), DisableStorage = "True";
 	}
 }

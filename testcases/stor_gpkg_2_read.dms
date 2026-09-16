@@ -7,8 +7,8 @@
 // one-pass field read, which the numeric instantiation set leaves out.
 container stor_gpkg_2_read
 {
-	unit<fpoint>  point_rd := baseunit('m', fpoint);
-	unit<float32> m        := baseunit('m', float32);
+	unit<fpoint>  point_rd := BaseUnit('m', fpoint);
+	unit<float32> m        := BaseUnit('m', float32);
 	unit<float32> m2       := m * m;
 
 	unit<uint32> tab
@@ -24,7 +24,7 @@ container stor_gpkg_2_read
 	container checks
 	{
 		parameter<uint32> n  := #tab,                              IntegrityCheck = "n == 2";
-		parameter<uint32> np := #Sequence2Points(tab/geometry),    IntegrityCheck = "np == 10";
+		parameter<uint32> np := #sequence2points(tab/geometry),    IntegrityCheck = "np == 10";
 		parameter<float32> ar := sum(float32(area(tab/geometry, m2))), IntegrityCheck = "abs(ar) == 200f";
 		parameter<string> s  := asList(tab/name, ','),             IntegrityCheck = "s == 'left,right'";
 		parameter<uint32> f  := sum(uint32(tab/flag)),             IntegrityCheck = "f == 1";

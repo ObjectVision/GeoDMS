@@ -9,7 +9,7 @@
 // (the battery runs its configs sorted by file name, so the read follows this write).
 container stor_gdalwrite_geom_name
 {
-	unit<fpoint> point_rd := baseunit('m', fpoint);
+	unit<fpoint> point_rd := BaseUnit('m', fpoint);
 
 	unit<uint32> shapes : nrofrows = 2;
 
@@ -31,6 +31,6 @@ container stor_gdalwrite_geom_name
 		// one, so a points2sequence result declared (polygon) is an arc and this layer would be
 		// written as a polyline. stor_gdalwrite_geom_name_read.dms reads the file back as polygons.
 		attribute<point_rd> shape (polygon) := points2polygon(coords/point, coords/shape_rel, coords/ordinal);
-		attribute<string>   label           : ['left', 'right'];
+		attribute<string>   Label           : ['left', 'right'];
 	}
 }

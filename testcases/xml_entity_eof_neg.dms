@@ -4,6 +4,6 @@ container xml_entity_eof_neg
 	container xmlpart { #include <../data/xml_entity_eof.xml> }
 	container checks
 	{
-		parameter<string> d := PropValue(xmlpart/xd, 'descr'), IntegrityCheck = "d != ''";
+		parameter<string> d := PropValue(xmlpart/xd, 'Descr'), IntegrityCheck = "d != ''";
 	}
 }

@@ -4,7 +4,7 @@ container xml_entity
 	container xmlpart { #include <../data/xml_entity.xml> }
 	container checks
 	{
-		parameter<string> outer := PropValue(xmlpart/xb,    'descr'), IntegrityCheck = "outer == 'a &'";
-		parameter<string> inner := PropValue(xmlpart/xb/xc, 'descr'), IntegrityCheck = "inner == 'b <'";
+		parameter<string> outer := PropValue(xmlpart/xb,    'Descr'), IntegrityCheck = "outer == 'a &'";
+		parameter<string> inner := PropValue(xmlpart/xb/xc, 'Descr'), IntegrityCheck = "inner == 'b <'";
 	}
 }

@@ -196,33 +196,44 @@ void ExprProd::ProdFloat64(Float64 x)
 
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-#include "set/VectorMap.h"
+#include "vt/StringBounds.h"
+#include <algorithm>
 
-typedef vector_map<TokenID, ValueClassID> map_type;
-typedef map_type::value_type P;
+// The value-type suffixes of a numeric literal (1d, 2f, 3u, 4i, 5w, 6s, 7b, 8c, and the sized
+// forms u64 .. u2) are recognised by TEXT, exactly and in lower case, and are not interned as
+// tokens. They used to be: a static table keyed by TokenID registered 'd', 'f', 'u', 'i', 'w',
+// 's', 'b' and 'c' at load time, and since the token registry is one case-folded namespace
+// shared with every configuration, each item a modeller named D, F, U, I, W, S, B or C -- a type
+// parameter `D: domains` as the function examples write it, a unit W for watt, a container C --
+// reported a case mix-up against a suffix letter, on every run (#1161, #1262). A suffix is not a
+// name that anything looks up by token: the only consumer is this production, and it wants the
+// value class, which the text gives directly.
+//
+// Since GeoDMS 20.21.0 the match is case-sensitive: 60D is no longer 60 as float64. The upper-case
+// spelling was never documented, was found in four test configurations and no wiki example, and
+// an exact match is what lets D, F, U, I, W, S, B and C be ordinary names: 60D now means 60 in a
+// unit called D, the way 5m means 5 in the unit m, and fails like any other unknown identifier
+// when there is none.
+struct SuffixEntry { CharPtr text; ValueClassID vt; };
 
-static P suffixArray[] = {
-	P(GetTokenID_st("d"),   ValueClassID::VT_Float64), P(GetTokenID_st("f"),   ValueClassID::VT_Float32),
-	P(GetTokenID_st("u"),   ValueClassID::VT_UInt32), P(GetTokenID_st("i"),   ValueClassID::VT_Int32),
-	P(GetTokenID_st("w"),   ValueClassID::VT_UInt16), P(GetTokenID_st("s"),   ValueClassID::VT_Int16),
-	P(GetTokenID_st("b"),   ValueClassID::VT_UInt8), P(GetTokenID_st("c"),   ValueClassID::VT_Int8),
-	P(GetTokenID_st("u64"), ValueClassID::VT_UInt64), P(GetTokenID_st("i64"), ValueClassID::VT_Int64),
-	P(GetTokenID_st("u32"), ValueClassID::VT_UInt32), P(GetTokenID_st("i32"), ValueClassID::VT_Int32),
-	P(GetTokenID_st("u16"), ValueClassID::VT_UInt16), P(GetTokenID_st("i16"), ValueClassID::VT_Int16),
-	P(GetTokenID_st("u8"),  ValueClassID::VT_UInt8), P(GetTokenID_st("i8") , ValueClassID::VT_Int8),
-	P(GetTokenID_st("u4"),  ValueClassID::VT_UInt4), P(GetTokenID_st("u2") , ValueClassID::VT_UInt2),
+static const SuffixEntry suffixTable[] = {
+	{ "d",   ValueClassID::VT_Float64 }, { "f",   ValueClassID::VT_Float32 },
+	{ "u",   ValueClassID::VT_UInt32  }, { "i",   ValueClassID::VT_Int32   },
+	{ "w",   ValueClassID::VT_UInt16  }, { "s",   ValueClassID::VT_Int16   },
+	{ "b",   ValueClassID::VT_UInt8   }, { "c",   ValueClassID::VT_Int8    },
+	{ "u64", ValueClassID::VT_UInt64  }, { "i64", ValueClassID::VT_Int64   },
+	{ "u32", ValueClassID::VT_UInt32  }, { "i32", ValueClassID::VT_Int32   },
+	{ "u16", ValueClassID::VT_UInt16  }, { "i16", ValueClassID::VT_Int16   },
+	{ "u8",  ValueClassID::VT_UInt8   }, { "i8",  ValueClassID::VT_Int8    },
+	{ "u4",  ValueClassID::VT_UInt4   }, { "u2",  ValueClassID::VT_UInt2   },
 };
 
-ValueClassID GetValueType(TokenID suffix)
+static ValueClassID GetValueTypeOfSuffix(CharPtr first, CharPtr last)
 {
-	static map_type suffixMap(suffixArray, suffixArray + sizeof(suffixArray) / sizeof(P));
-
-	if (suffix <= suffixMap.back().first)
-	{
-		map_type::const_iterator iter = suffixMap.find(suffix);
-		if (iter != suffixMap.end())
-			return iter->second;
-	}
+	SizeT size = last - first;
+	for (const auto& entry : suffixTable)
+		if (size == StrLen(entry.text) && std::equal(first, last, entry.text))
+			return entry.vt;
 	return ValueClassID::VT_Unknown;
 }
 
@@ -232,10 +243,9 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 	MG_CHECK(first != last);
 	dms_assert(m_Result.back().IsNumb() || m_Result.back().IsUI64());
 
-	TokenID suffixToken = GetTokenID_mt(&*first, &*last);
-
 	const ValueClass* vc = nullptr;
-	ValueClassID vt = GetValueType(suffixToken);
+	TokenID suffixToken;
+	ValueClassID vt = GetValueTypeOfSuffix(&*first, &*last);
 	if (vt != ValueClassID::VT_Unknown)
 	{
 		if (vt == ValueClassID::VT_Float64 && m_Result.back().IsNumb())
@@ -249,6 +259,9 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 	}
 	else
 	{
+		// a value-type script name (1float32) or a unit name (5m): those ARE names, so they are
+		// interned, and a spelling that differs in case from the registered one is reported.
+		suffixToken = GetTokenID_mt(&*first, &*last);
 		vc = ValueClass::FindByScriptName(suffixToken);
 		if (vc)
 			suffixToken = vc->GetNameID(); // the registered name, whatever key the lookup accepted

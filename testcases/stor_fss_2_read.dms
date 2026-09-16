@@ -4,7 +4,7 @@ container stor_fss_2_read
 {
 	unit<uint32> store
 	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_fss_rt.fss"
-	,	StorageType     = "FSS"
+	,	StorageType     = "fss"
 	,	StorageReadOnly = "True"
 	{
 		attribute<int32>  a;

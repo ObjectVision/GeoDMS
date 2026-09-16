@@ -16,7 +16,7 @@ container fn_test_itemname
 	// name position after a keyword signature + 'item' inside a quoted expression
 	unit<uint32> itemset : nrofrows = 2;
 	attribute<uint32> itemval (itemset) := id(itemset);
-	parameter<uint32> named : expr = "items + uint32(item)";
+	parameter<uint32> named : Expr = "items + uint32(item)";
 
 	container checks
 	{

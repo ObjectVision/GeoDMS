@@ -13,7 +13,7 @@
 // other vertex would change the shape.
 container stor_shp_ringclose_2_read
 {
-	unit<fpoint> point_rd := baseunit('m', fpoint);
+	unit<fpoint> point_rd := BaseUnit('m', fpoint);
 
 	unit<uint32> from_shp : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_n.dbf"
 	{

@@ -8,6 +8,6 @@ container xml_comment
 	container checks
 	{
 		parameter<string> rule  := xmlpart/xcm2/v,                     IntegrityCheck = "rule == 'ok'";
-		parameter<string> descr := PropValue(xmlpart/xcm2/v, 'descr'), IntegrityCheck = "descr == 'plain'";
+		parameter<string> Descr := PropValue(xmlpart/xcm2/v, 'Descr'), IntegrityCheck = "descr == 'plain'";
 	}
 }

@@ -26,7 +26,7 @@ container oper_explicit_suppliers_phasecontainer
 
 	unit<uint32> names := SubItem_PropValues(fenced, 'name');
 
-	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('fenced/'+names/name,';')";
+	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=asList('fenced/'+names/name,';')";
 
 	// a consumer, so the driver is reached by reference and not only by its own update
 	parameter<string> consumer := Generate + '!';

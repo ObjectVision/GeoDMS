@@ -30,7 +30,7 @@ container stor_mmd_props_2_read
 		parameter<string> dd_out   := PropValue(store/dom/ddout,   'DialogData'),  IntegrityCheck = "dd_out == ''";
 		parameter<string> dd_two   := PropValue(store/dom/ddtwo,   'DialogData'),  IntegrityCheck = "dd_two == 'v;classified'";
 		parameter<string> dd_mixed := PropValue(store/dom/ddmixed, 'DialogData'),  IntegrityCheck = "dd_mixed == ''";
-		parameter<string> descr    := PropValue(store/dom, 'Descr'),               IntegrityCheck = "descr == 'four rows'";
+		parameter<string> Descr    := PropValue(store/dom, 'Descr'),               IntegrityCheck = "descr == 'four rows'";
 		parameter<string> label    := PropValue(store/dom, 'Label'),               IntegrityCheck = "label == 'the table'";
 		parameter<string> descr_c  := PropValue(store/cls, 'Descr'),               IntegrityCheck = "descr_c == 'a classification inside the store'";
 		parameter<string> descr_h  := PropValue(store, 'Descr'),                   IntegrityCheck = "descr_h == ''"; // the holder's own properties stay with the writer

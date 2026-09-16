@@ -4,7 +4,7 @@
 // so the list follows the container instead of having to be maintained beside it:
 //
 //     unit<uint32>      names    := SubItem_PropValues(work, 'name');
-//     parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('work/'+names/name,';')";
+//     parameter<string> Generate := 'Ready', ExplicitSuppliers = "=asList('work/'+names/name,';')";
 //
 // The battery covered the two halves separately and never together: SubItem_PropValues only
 // in oper_collect_downstream.dms, ExplicitSuppliers only in fn_test_icheck_suppl.dms and
@@ -28,7 +28,7 @@ container oper_explicit_suppliers_propvalues
 
 	unit<uint32> names := SubItem_PropValues(work, 'name');
 
-	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('work/'+names/name,';')";
+	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=asList('work/'+names/name,';')";
 
 	// a consumer, so the driver is reached by reference and not only by its own update
 	parameter<string> consumer := Generate + '!';

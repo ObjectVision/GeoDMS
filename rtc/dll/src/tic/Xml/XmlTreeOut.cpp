@@ -221,7 +221,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	ItemReadLock xx(currRangeUnit);
 
 	if (unit->GetValueType()->IsNumeric() || unit->GetNrDimensions() == 2)
-		xmlTable.EditableNameValueRow("Range", GetStrRange(currRangeUnit.get()).c_str(), currRangeUnit.get());
+		xmlTable.EditableNameValueRow("range", GetStrRange(currRangeUnit.get()).c_str(), currRangeUnit.get()); // the row's name is the property it edits: the registered spelling
 	if (auto trd = currRangeUnit->GetTiledRangeData())
 		if (trd->HasSortedValues())
 			xmlTable.NameValueRow("HasSorteValues", "Yes");

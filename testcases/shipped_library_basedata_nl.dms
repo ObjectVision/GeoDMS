@@ -22,14 +22,14 @@ container shipped_library_basedata_nl
 
 	// ---------------------------------------------------------------- rdc.dms
 	// rdc_meter is the RD extent of the Netherlands: x 0..280000, y 300000..625000.
-	parameter<float64> rdc_x_min := pointcol(lowerbound(rdc_meter));
-	parameter<float64> rdc_x_max := pointcol(upperbound(rdc_meter));
-	parameter<float64> rdc_y_min := pointrow(lowerbound(rdc_meter));
-	parameter<float64> rdc_y_max := pointrow(upperbound(rdc_meter));
+	parameter<float64> rdc_x_min := pointcol(LowerBound(rdc_meter));
+	parameter<float64> rdc_x_max := pointcol(UpperBound(rdc_meter));
+	parameter<float64> rdc_y_min := pointrow(LowerBound(rdc_meter));
+	parameter<float64> rdc_y_max := pointrow(UpperBound(rdc_meter));
 
 	// rdc_mm is that same extent gridded at 1 mm, so it counts 1000 cells per metre per axis
-	parameter<int32> mm_cols := pointcol(upperbound(rdc_mm)) - pointcol(lowerbound(rdc_mm));
-	parameter<int32> mm_rows := pointrow(upperbound(rdc_mm)) - pointrow(lowerbound(rdc_mm));
+	parameter<int32> mm_cols := pointcol(UpperBound(rdc_mm)) - pointcol(LowerBound(rdc_mm));
+	parameter<int32> mm_rows := pointrow(UpperBound(rdc_mm)) - pointrow(LowerBound(rdc_mm));
 
 	// ---------------------------------------------------------------- grids.dms
 	// 280000 x 325000 metres at 10 / 25 / 100 m
@@ -65,10 +65,10 @@ container shipped_library_basedata_nl
 	parameter<string> year_first := first(CBS_Gebiedsindelingen_jaren/name);
 	parameter<string> year_last  := last (CBS_Gebiedsindelingen_jaren/name);
 
-	// The for_each_ne instantiates Read_Gebiedsindelingen_gpkg_T once per year, and Last refers to
+	// The for_each_ne instantiates Read_Gebiedsindelingen_gpkg_T once per year, and last refers to
 	// the highest one. local_file_path is a string built from %SourceDataDir%; asking for it opens
 	// nothing (the gpkg container beside it, which would, is not requested).
-	parameter<string> last_jaar := CBS/Last/jaar;
+	parameter<string> last_jaar := CBS/last/jaar;
 	parameter<string> file_2025 := CBS/Y2025/local_file_path;
 
 	container checks

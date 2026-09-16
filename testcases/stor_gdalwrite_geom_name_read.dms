@@ -9,8 +9,8 @@
 // "Line String"", which is how the polygon disappears. Two 10x10 squares, together 200 m2.
 container stor_gdalwrite_geom_name_read
 {
-	unit<fpoint>  point_rd := baseunit('m', fpoint);
-	unit<float32> m        := baseunit('m', float32);
+	unit<fpoint>  point_rd := BaseUnit('m', fpoint);
+	unit<float32> m        := BaseUnit('m', float32);
 	unit<float32> m2       := m * m;
 
 	unit<uint32> shapes

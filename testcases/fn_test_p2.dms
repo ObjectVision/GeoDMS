@@ -10,7 +10,7 @@ container fn_test_p2
 	function TwiceG<Vx: numerics>(unit<uint32> Dx; attribute<Vx> x (Dx))
 	-> attribute<Vx> (Dx) := x + x;
 
-	attribute<float64> f2 (Road) := TwiceG(Road, Road/flow);
+	attribute<float64> F2 (Road) := TwiceG(Road, Road/flow);
 	attribute<uint32>  l2 (Road) := TwiceG(Road, Road/lanes);
 
 	// generic domain parameter
@@ -34,7 +34,7 @@ container fn_test_p2
 
 	container checks
 	{
-		parameter<float64> check1 := sum(f2),    IntegrityCheck = "check1 == 1500.0";
+		parameter<float64> check1 := sum(F2),    IntegrityCheck = "check1 == 1500.0";
 		parameter<uint32>  check2 := sum(l2),    IntegrityCheck = "check2 == 14";
 		parameter<uint32>  check3 := n,          IntegrityCheck = "check3 == 4";
 		parameter<float64> check4 := sum(mixed), IntegrityCheck = "check4 == 757.0";

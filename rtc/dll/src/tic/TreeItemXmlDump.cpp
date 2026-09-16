@@ -554,7 +554,9 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 			if (!tilingRule.empty())
 				xmlOutStr->DumpSubTag(CALCRULE_NAME, tilingRule.c_str(), true);
 			else
-				xmlOutStr->DumpSubTag("Range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
+				// "range": the property's registered name (RangeProp in UnitClassReg.h). A dump that wrote
+				// Range made every reader of it -- the MMD dictionary above all -- report a case mix-up.
+				xmlOutStr->DumpSubTag("range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
 		}
 	}
 

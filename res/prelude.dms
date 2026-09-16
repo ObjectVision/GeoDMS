@@ -76,7 +76,7 @@ function sort_index_spec
 			concat(specString, ';by_org_rel'),
 			attrContainer,
 			sortingDomain,
-			lookup(sortingDomain/values, permutation)
+			lookup(sortingDomain/Values, permutation)
 		);
 	}
 
@@ -89,7 +89,7 @@ function sort_index_spec
 			concat(specString, ';by_org_rel'),
 			attrContainer,
 			sortingDomain,
-			lookup(sortingDomain/values, permutation)
+			lookup(sortingDomain/Values, permutation)
 		);
 	}
 }
@@ -104,7 +104,7 @@ function sort_index
 		attribute<TD> permutation (TD) := sort_index_raw(value);
 		unit<TD> result := unique(permutation)
 		{
-			attribute<TD> org_rel := lookup(result/values, permutation);
+			attribute<TD> org_rel := lookup(result/Values, permutation);
 		}
 	}
 
@@ -114,7 +114,7 @@ function sort_index
 		attribute<TD> permutation (TD) := sort_index_raw(value, rest);
 		unit<TD> result := unique(permutation)
 		{
-			attribute<TD> org_rel := lookup(result/values, permutation);
+			attribute<TD> org_rel := lookup(result/Values, permutation);
 		}
 	}
 }

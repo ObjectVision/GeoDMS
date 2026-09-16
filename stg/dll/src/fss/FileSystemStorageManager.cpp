@@ -116,4 +116,7 @@ void FileSystemStorageManager::DoCloseStorage (bool mustCommit) const
 // instantiation and registration
 //----------------------------------------------------------------------
 
-IMPL_DYNC_STORAGECLASS(FileSystemStorageManager, "FSS")
+// lower case like every other storage type name ("str", "tif", "gdal.vect", ...): the type name is
+// a token, the registry folds case, and a configuration's StorageType = "fss" -- the spelling the
+// wiki and nearly every configuration use -- reported a case mix-up against "FSS" (#1262).
+IMPL_DYNC_STORAGECLASS(FileSystemStorageManager, "fss")

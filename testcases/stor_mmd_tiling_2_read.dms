@@ -39,14 +39,14 @@ container stor_mmd_tiling_2_read
 		parameter<uint32> n_sml := #store/sml, IntegrityCheck = "n_sml ==    200";
 
 		// the fixed-size (dpoint) files: a sum over both coordinates, per domain
-		parameter<float64> x_def := sum(PointCol(store/def/geometry)), IntegrityCheck = "x_def > 0d";
-		parameter<float64> y_def := sum(PointRow(store/def/geometry)), IntegrityCheck = "y_def > 0d";
-		parameter<float64> x_reg := sum(PointCol(store/reg/geometry)), IntegrityCheck = "x_reg == x_def";
-		parameter<float64> y_reg := sum(PointRow(store/reg/geometry)), IntegrityCheck = "y_reg == y_def";
-		parameter<float64> x_one := sum(PointCol(store/one/geometry)), IntegrityCheck = "x_one == x_def";
-		parameter<float64> y_one := sum(PointRow(store/one/geometry)), IntegrityCheck = "y_one == y_def";
-		parameter<float64> x_irr := sum(PointCol(store/irr/geometry)), IntegrityCheck = "x_irr == x_def";
-		parameter<float64> y_irr := sum(PointRow(store/irr/geometry)), IntegrityCheck = "y_irr == y_def";
+		parameter<float64> x_def := sum(pointcol(store/def/geometry)), IntegrityCheck = "x_def > 0d";
+		parameter<float64> y_def := sum(pointrow(store/def/geometry)), IntegrityCheck = "y_def > 0d";
+		parameter<float64> x_reg := sum(pointcol(store/reg/geometry)), IntegrityCheck = "x_reg == x_def";
+		parameter<float64> y_reg := sum(pointrow(store/reg/geometry)), IntegrityCheck = "y_reg == y_def";
+		parameter<float64> x_one := sum(pointcol(store/one/geometry)), IntegrityCheck = "x_one == x_def";
+		parameter<float64> y_one := sum(pointrow(store/one/geometry)), IntegrityCheck = "y_one == y_def";
+		parameter<float64> x_irr := sum(pointcol(store/irr/geometry)), IntegrityCheck = "x_irr == x_def";
+		parameter<float64> y_irr := sum(pointrow(store/irr/geometry)), IntegrityCheck = "y_irr == y_def";
 
 		// the sequence (string) files: a total length plus one element read by position, so that a
 		// file which merely has the right size but the wrong tile layout still fails

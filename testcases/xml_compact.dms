@@ -10,7 +10,7 @@ container xml_compact
 	container checks
 	{
 		parameter<string> text  := xmlpart/xcw/xcp,                     IntegrityCheck = "text == 'a & b'";
-		parameter<string> descr := PropValue(xmlpart/xcw/xcp, 'descr'), IntegrityCheck = "descr == 'compact'";
+		parameter<string> Descr := PropValue(xmlpart/xcw/xcp, 'Descr'), IntegrityCheck = "descr == 'compact'";
 		parameter<string> inner := xmlpart/xcw/xcq/xcr,                 IntegrityCheck = "inner == 'nested'";
 		parameter<string> empty := PropValue(xmlpart/xcw/xcs, 'name'),  IntegrityCheck = "empty == 'xcs'";
 	}

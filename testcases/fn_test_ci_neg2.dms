@@ -9,22 +9,22 @@ container fn_test_ci_neg2
 		attribute<float32> px      := float32(id(.)) * 10f;
 		attribute<float32> py      := float32(id(.)) *  0f;
 		attribute<fpoint>  point   := point_yx(py, px, fpoint);
-		attribute<Arc>     seq_rel : [0, 0];
+		attribute<Road>     seq_rel : [0, 0];
 		attribute<uint32>  ordinal := id(.);
 	}
-	unit<uint32> Arc : nrofrows = 1
+	unit<uint32> Road : nrofrows = 1
 	{
-		attribute<fpoint> geometry (Arc) := points2sequence(ArcPoints/point, ArcPoints/seq_rel, ArcPoints/ordinal);
+		attribute<fpoint> geometry (Road, arc) := points2sequence(ArcPoints/point, ArcPoints/seq_rel, ArcPoints/ordinal);
 	}
 	unit<uint32> Pnt : nrofrows = 1 { attribute<fpoint> geometry := const(point_yx(3f, 5f, fpoint), .); }
 
-	function bad(attribute<fpoint> arcs (Arc); attribute<fpoint> pts (Pnt)) -> parameter<uint32>
+	function bad(attribute<fpoint> arcs (Road, arc); attribute<fpoint> pts (Pnt)) -> parameter<uint32>
 	{
 		container ci := connect_info(arcs, pts);
 		attribute<string> mislabeled (Pnt) := ci/dist; // float member vs string declaration
 		parameter<uint32> result := #mislabeled;       // references mislabeled -> checked
 	}
-	parameter<uint32> n := bad(Arc/geometry, Pnt/geometry);
+	parameter<uint32> n := bad(Road/geometry, Pnt/geometry);
 
 	container checks
 	{

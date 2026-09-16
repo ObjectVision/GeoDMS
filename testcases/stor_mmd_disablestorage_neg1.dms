@@ -16,14 +16,14 @@ container stor_mmd_disablestorage_neg1
 		attribute<string> s : ['a', 'b'];
 	}
 
-	Template meta_t
+	template meta_t
 	{
 		// begin case parameters
 		unit<uint32>      domain: DisableStorage = "True";
 		attribute<string> S (domain);
 		// end case parameters
 
-		attribute<string> UPPER (domain) := uppercase(S);
+		attribute<string> UPPER (domain) := UpperCase(S);
 	}
 
 	unit<uint32> store := obj

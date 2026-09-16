@@ -12,7 +12,7 @@ container oper_explicit_suppliers_propvalues_neg1
 
 	unit<uint32> names := SubItem_PropValues(work, 'name');
 
-	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('work/'+names/name,';')";
+	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=asList('work/'+names/name,';')";
 
 	parameter<string> consumer := Generate + '!';
 

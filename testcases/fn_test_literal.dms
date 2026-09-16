@@ -11,7 +11,7 @@ container fn_test_literal
 	}
 
 	// 1) container literal with a domain, '.' = the domain unit; the user's target form
-	attribute<float64> lit (range_0_10) := CongestionRatio( range_0_10 { flow: float64(ID(.)); cap: 2.0; } );
+	attribute<float64> lit (range_0_10) := CongestionRatio( range_0_10 { flow: float64(id(.)); cap: 2.0; } );
 	unit<uint32> range_0_10 := range(uint32, 0u, 10u);
 
 	// 2) container literal whose members reference caller-scope items (not '.')

@@ -392,7 +392,7 @@ void PaletteControl::CreateColumnsImpl()
 		auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 		auto countingUnit = countingUnitClass->CreateDefault();
 
-		SharedMutableDataItem countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain.get(), countingUnit);
+		SharedMutableDataItem countAttr = CreateDataItem(container, GetTokenID_mt("count"), m_PaletteDomain.get(), countingUnit);
 		countAttr->SetKeepDataState(true);
 		countAttr->DisableStorage(true);
 		countAttr->SetExpr( mySSPrintF("pcount({})", exprStr.c_str() ) );
@@ -701,7 +701,7 @@ void PaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
 		SyncRef(m_ThemeAttr, viewContext2, GetTokenID_mt("ThemeAttr"), sm);
 		SyncRef(m_BreakAttr, viewContext2, GetTokenID_mt("ClassBreaks"), sm);
 		SyncRef(m_PaletteAttr, viewContext2, GetTokenID_mt("PaletteAttr"), sm);
-		SyncRef(m_CountAttr, viewContext2, GetTokenID_mt("Count"), sm);
+		SyncRef(m_CountAttr, viewContext2, GetTokenID_mt("count"), sm);
 	}
 	if (sm == SM_Load)
 		m_PaletteDomain = make_shared_tree(GetEntity(), existing_obj{});

@@ -22,7 +22,7 @@ container grids
 		}
 		container perGridsize := for_each_ne(Gridsizes/name, 'Create_GridDomain_T('+string(Gridsizes/size)+'[float64])'), Descr = "Bevat de verschillende grid domains die gebruikt kunnen worden in het model, op basis van de verschillende gridsizes.";
 	
-		Template Create_GridDomain_T
+		template Create_GridDomain_T
 		{
 			parameter<float64> gridsize;
 			parameter<int32>   nr_cols := int32((x_max - x_min) / gridsize);
@@ -44,7 +44,7 @@ container grids
 				parameter<int32>                nr_cols         := ../nr_cols;
 				attribute<rdc_meter>            point           := mapping(., rdc_meter) + point_yx(-0.5d * gridsize, 0.5d * gridsize, rdc_meter);
 				unit<uint32>                    id_key          := range(uint32, 0, uint32(#domain));
-				attribute<uint32>               id_rel          := value(uint32(PointRow(id(.))) * uint32(nr_cols) + uint32(PointCol(id(.))), id_key);
+				attribute<uint32>               id_rel          := value(uint32(pointrow(id(.))) * uint32(nr_cols) + uint32(pointcol(id(.))), id_key);
 				
 				attribute<rdc_meter> locatie := id(.)[rdc_meter];
 				
@@ -61,11 +61,11 @@ container grids
 				parameter<units/km2>            NrKm2PerCell    := NrMeter2PerCell[units/km2];
 			}
 			
-			unit<uint64> points := select_with_org_rel(isDefined(domain/point))
+			unit<uint64> points := select_with_org_rel(IsDefined(domain/point))
 			{
 				attribute<rdc_meter>            geometry  := org_rel -> point;
-				attribute<float64>              x         := PointCol(geometry);
-				attribute<float64>              y         := PointRow(geometry);
+				attribute<float64>              x         := pointcol(geometry);
+				attribute<float64>              y         := pointrow(geometry);
 				attribute<domain>               grid_rel  := geometry[domain];	
 			}
 		}	

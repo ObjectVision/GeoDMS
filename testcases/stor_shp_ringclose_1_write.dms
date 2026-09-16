@@ -21,7 +21,7 @@
 // written closed (5 vertices); the closed one pins that closing does not run twice.
 container stor_shp_ringclose_1_write
 {
-	unit<fpoint> point_rd := baseunit('m', fpoint);
+	unit<fpoint> point_rd := BaseUnit('m', fpoint);
 
 	unit<uint32> region : nrofrows = 2;
 
@@ -46,7 +46,7 @@ container stor_shp_ringclose_1_write
 			attribute<point_rd> geometry (polygon) := /poly
 			,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_n.shp"
 			,	StorageType = "shp";
-			attribute<string>   label               : ['open', 'closed'];
+			attribute<string>   Label               : ['open', 'closed'];
 		}
 
 		// gdalwrite.vect: one layer, geometry and fields together
@@ -55,7 +55,7 @@ container stor_shp_ringclose_1_write
 		,	StorageType = "gdalwrite.vect"
 		{
 			attribute<point_rd> geometry (polygon) := /poly;
-			attribute<string>   label               : ['open', 'closed'];
+			attribute<string>   Label               : ['open', 'closed'];
 		}
 	}
 }
