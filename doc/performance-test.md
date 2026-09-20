@@ -275,3 +275,149 @@ flight, which is worth a look of its own.
 Wall times of the large models vary by tens of percent between runs on one binary, as the
 background above says, so the t641.1 and t641.2 minutes should be read as coarse; the memory
 figures and the registration and retry counts should not.
+
+## Results (OVSRV05), 20.21.1
+
+Run on 2026-09-20 between 16:37 and 19:12 on OVSRV05, 64 GB, AMD Ryzen 9 5900X, 24 logical
+processors, so `s_MaxDeferred` is 48. Tree `C:\dev\GeoDMS` on `main` at `c4987c5ef`, the three
+commits of the 20.21.1 bundle fast-forwarded onto `b4e601059`. Built with the VS18 msbuild,
+Release x64 of `all22.sln`, launched 16:17:49 and exit 0 at 16:28:50; `bin\Release\x64\Rtc.dll`
+is of 16:18:31, `GeoDmsRun.exe` of 16:27:43 and `GeoDmsGuiQt.exe` of 16:28:35 (Qt and the three
+CPython versions are on this machine since 16/09, so all eleven projects link now).
+`TreeItemMetaInfo.cpp`, `OperationContext.cpp` and `TreeItemDataUsage.cpp` compiled without a
+diagnostic. On that build `testcases\run_testcases.bat` gave 347 cases, 0 bad, and
+`testcases\run_xml_roundtrip.bat` 194 configurations, 192 matching, the 2 listed known diffs,
+0 bad; neither battery output holds a stall or assertion line. GeoDMS-Test at `86229d3`. Command
+exactly as above, `-Version local-msbuild-release -Tests t641,t2000,t810,t060,t300,t405`, started
+through a scheduled task so that the run is a child of neither the Claude app nor its shell; 14
+experiments with `/S1 /S2 /S3` and no `/SP`, all ended `ok`. Result folder `20_21_1_m`, report
+`reports\20_21_1_m___16_0_5.html`. (The first launch attempt at 16:32 died in `full.py` on a
+missing `packaging` module: the 16/09 pip install of the harness modules lived in the tool
+shell's overlay of the user profile; they were installed for the real machine at 16:36, the same
+versions, and the run was started at 16:37:45.)
+
+Running on the machine throughout: the VS18 `devenv` opened at 16:15, idle with four idle
+MSBuild nodes of its own (30 to 170 MB resident, a few seconds of CPU per ten minutes), a Chrome
+Remote Desktop host session at about a third of a core, the Claude desktop app at about a sixth
+of a core, nothing else of GeoDMS. Free physical memory fell to 122 MB at 18:03 and 141 MB at
+18:13, during t641.2.
+
+About the 20.21.0.m column: the `20_21_0_m` result folder and the report of 16/09 hold the full
+round of the installed GeoDms20.21.0.m, run on 2026-09-16 between 20:34 and 23:37, not the
+14-experiment run of the local build that the section above reports on. The figures below are
+from that full round; where the two runs differ, the section above says 0:55:51 for t641.1
+against 0:50:38 here, 0:42:39 for t641.2 against 0:46:14, 0:18:13 for t2000 against 0:18:53, and
+38 retry lines for t2000 against 51. The report regenerated for 20.21.1 shows releases and the
+version under test only and carries no 20.21.0.m column, so its cells come from
+`reports\20_21_0_m___16_0_5.html`.
+
+### Report cells: duration, peak physical / peak committed (GB)
+
+| test | 20.21.1.m (this build) | 20.21.0.m | 20.20.0.m |
+|---|---|---|---|
+| t060 | 0:01:55, 10.04 / 11.22 | 0:01:50, 10.35 / 11.54 | 0:01:45, 14.89 / 15.79 |
+| t300 | 0:01:02, 13.00 / 16.45 | 0:01:53, 9.49 / 12.25 | 0:00:42, 13.01 / 16.46 |
+| t405.1 | 0:02:48, 13.58 / 14.47 | 0:02:00, 14.27 / 15.06 | 0:01:57, 14.11 / 14.97 |
+| t405.2 | 0:13:44, 54.22 / 111.81 | 0:13:08, 54.30 / 96.98 | 0:15:22, 32.42 / 93.77 |
+| t405.3 | 0:13:04, 59.69 / 107.10 | 0:13:06, 58.80 / 100.90 | 0:15:10, 35.53 / 95.11 |
+| t641.1 | 0:49:45, 59.15 / 188.22 | 0:50:45, 62.05 / 175.96 | 0:24:18, 35.24 / 373.57 |
+| t641.2 | 0:47:12, 58.43 / 248.46 | 0:46:21, 61.25 / 193.98 | 0:59:01, 61.44 / 382.50 |
+| t810 | 0:05:19, 32.21 / 33.18 | 0:04:53, 29.57 / 30.55 | 0:04:49, 32.01 / 32.97 |
+| t2000 | 0:16:47, 61.39 / 92.50 | 0:18:58, 60.48 / 89.66 | 0:17:14, 48.80 / 81.68 |
+
+### Wall time, the span between the first and the last timestamp of the GeoDMS log
+
+| test | 20.21.1.m | 20.21.0.m | 20.20.0.m |
+|---|---|---|---|
+| t060 | 0:01:56 | 0:01:50 | 0:01:46 |
+| t300 | 0:01:01 | 0:01:53 | 0:00:43 |
+| t405.1 | 0:02:48 | 0:01:59 | 0:01:57 |
+| t405.2 | 0:13:43 | 0:13:07 | 0:15:21 |
+| t405.3 | 0:13:01 | 0:13:04 | 0:15:09 |
+| t641.1 | 0:49:40 | 0:50:38 | 0:24:11 |
+| t641.2 | 0:47:06 | 0:46:14 | 0:58:50 |
+| t810 | 0:05:18 | 0:04:53 | 0:04:49 |
+| t2000 | 0:16:42 | 0:18:53 | 0:17:11 |
+
+### The `[memory]` line: Highest CommitCharge / PeakLiveLarge / PeakFreeStack (MB)
+
+| test | 20.21.1.m | 20.21.0.m | 20.20.0.m |
+|---|---|---|---|
+| t060 | 9720 / 10160 / 3087 | 10708 / 10598 / 3578 | 13848 / 14371 / 3804 |
+| t300 | 10925 / 14297 / 3107 | 7947 / 11252 / 3371 | 10476 / 14339 / 3348 |
+| t405.1 | 11681 / 12521 / 10113 | 10329 / 12621 / 9791 | 10374 / 12548 / 9711 |
+| t405.2 | 86939 / 73350 / 64823 | 79518 / 73397 / 65196 | 83008 / 73959 / 65308 |
+| t405.3 | 82819 / 73624 / 64608 | 85031 / 74609 / 65276 | 79349 / 73959 / 65308 |
+| t641.1 | 154430 / 144693 / 85792 | 150623 / 144651 / 85835 | 340360 / 346136 / 221172 |
+| t641.2 | 236570 / 222630 / 222777 | 182332 / 170224 / 169774 | 354601 / 348896 / 348820 |
+| t810 | 31203 / 25293 / 15052 | 28208 / 22509 / 15223 | 31465 / 25292 / 15051 |
+| t2000 | 68398 / 69818 / 63599 | 70784 / 70143 / 63861 | 64044 / 63489 / 59348 |
+
+### The deferral lines
+
+`Calling EmptyWorkingSet` lines / `deferred commits: retry` lines / on the first of them,
+`registrations in the pass` and `commits in flight` / `ledger: room 0` lines / `ledger: ...
+deferred` notes / `made no progress` stall lines.
+
+| test | 20.21.1.m | 20.21.0.m | 20.20.0.m |
+|---|---|---|---|
+| t060 | 0 / 1 / 1, 48 / 1 / 68 / 0 | 0 / 0 / - / 0 / 30 / 0 | 0 / 0 / - / 0 / 55 / 0 |
+| t300 | 0 / 18 / 264, 10 / 0 / 26 / 0 | 0 / 2 / 1, 1 / 0 / 1 / 0 | 0 / 13 / 264, 0 / 0 / 1 / 0 |
+| t405.1 | 0 / 45 / 49, 4 / 0 / 14 / 0 | 0 / 33 / 73, 6 / 0 / 13 / 0 | 0 / 33 / 49, 4 / 0 / 13 / 0 |
+| t405.2 | 117 / 71 / 132, 36 / 19 / 37 / 1 | 102 / 77 / 132, 36 / 15 / 36 / 1 | 315 / 55 / 132, 36 / 7 / 36 / 1 |
+| t405.3 | 66 / 71 / 132, 36 / 12 / 37 / 1 | 39 / 211 / 132, 36 / 5 / 36 / 0 | 299 / 52 / 132, 36 / 6 / 36 / 1 |
+| t641.1 | 39 / 32 / 1, 48 / 2 / 72 / 1 | 48 / 0 / - / 1 / 0 / 0 | 441 / 12 / 1, 11 / 1 / 50 / 0 |
+| t641.2 | 548 / 90 / 1, 48 / 1 / 49 / 1 | 87 / 0 / - / 1 / 0 / 0 | 964 / 0 / - / 1 / 0 / 0 |
+| t810 | 0 / 80 / 2139, 1 / 0 / 18 / 0 | 0 / 0 / - / 0 / 2 / 0 | 0 / 73 / 2139, 0 / 0 / 2 / 0 |
+| t2000 | 13 / 198 / 52034, 2 / 12 / 71 / 0 | 8 / 51 / 1, 1 / 2 / 1 / 0 | 30 / 20 / 52034, 0 / 3 / 0 / 0 |
+
+The `commits in flight` figure never exceeds 48 in any log: the cap binds. It is reached on t060,
+t641.1 and t641.2; t405.2 and t405.3 sit at 36, t300 at 10, t810 at 8, t2000 at 2.
+
+The `vmcalls` drain figures: t641.2 1 320 944 calls draining 188 389 MB over 200 242 sweeps,
+against 812 448 calls, 129 200 MB and 114 410 sweeps for 20.21.0.m and 1 882 021, 285 244 MB and
+764 733 for 20.20.0.m; t641.1 409 534 calls and 53 321 MB against 503 124 and 50 467 MB, and
+640 396 and 126 416 MB; t2000 471 752 calls and 44 545 MB against 337 485 and 62 108 MB, and
+669 770 and 111 635 MB. t405.2 and t405.3 are within a few percent of 20.21.0.m.
+
+### Against what was asked
+
+| test | expected of this build | measured |
+|---|---|---|
+| t641.1 | wall towards 0:24, commit near 167 GB | not met on wall: 0:49:40 is the 20.21.0.m figure (0:50:38), not the 0:24:11 of 20.20.0.m. Memory at the 20.21.0.m level: CommitCharge 154 430 MB against 150 623, PeakLiveLarge 144 693 against 144 651. The stall guard fired at 17:16:27, five and a half minutes into the run, after 3239 retries with 43 commits deferred and no operation activated or running, and the walk waited inline for the remaining 44 minutes. |
+| t641.2 | wall and commit at the 20.21.0 figures; registrations per pass in the tens, not 18k | wall met: 0:47:06 against 0:46:14. Commit not met: CommitCharge 236 570 MB against 182 332 for 20.21.0.m and 354 601 for 20.20.0.m, PeakLiveLarge 222 630 against 170 224 and 348 896, trims 548 against 87 and 964, sampled cmt 248 GB against 194 and 383. Every retry line reports 1 registration in the pass and 48 commits in flight. The stall guard fired at 18:11:14, ten and a half minutes in, after 9087 retries with 48 commits deferred; 310 of the 548 trims fell in those ten minutes. |
+| t300 | wall towards 0:43 | halfway: 0:01:01 against 0:00:43 for 20.20.0.m and 0:01:53 for 20.21.0.m. 18 retry lines with 264 registrations on the first, as the 13 lines of 20.20.0.m, and 10 commits in flight; CommitCharge 10 925 MB is the 20.20.0.m figure (10 476) against 7947 for 20.21.0.m. |
+| t2000 | registrations per pass in the tens; wall at or below 20.20.0 | wall met: 0:16:42, below both 0:17:11 and 0:18:53. Registrations not met: the first retry line reports 52 034 registrations in the pass, the 20.20.0.m fan-out, with 2 commits in flight, and there are 198 retry lines (the last is retry 19 800) against 20 for 20.20.0.m and 51 for 20.21.0.m. Memory at the 20.21.0.m level, 68 398 / 69 818 MB against 70 784 / 70 143. Twelve `room 0` lines. |
+| t810 | memory at 20.21.0; retry lines, if any, with registrations in the tens | not met: CommitCharge 31 203 MB and PeakLiveLarge 25 293 are the 20.20.0.m figures (31 465 and 25 292) against 28 208 and 22 509 for 20.21.0.m; 80 retry lines with 2139 registrations on the first, the storm 20.20.0.m had in 73 lines, 1 to 8 commits in flight; wall 0:05:18 against 0:04:53 and 0:04:49. |
+| t060, t405.1, t405.2, t405.3 | unchanged against 20.21.0 | t060 and t405.3 unchanged. t405.2 is 36 s slower with CommitCharge 86 939 MB against 79 518 and a sampled cmt of 111.81 GB against 96.98, with the stall line that all three columns have. t405.1 takes 0:02:48 against 0:01:59 and 0:01:57, with 45 retry lines against 33, at unchanged memory. |
+
+### What the two t641 stall reports show
+
+The guard lists the ledger entries at the moment it fires. In t641.1, 19 of the 20 listed wait
+for a `DataItem<bool>` that is `calculating 0, ready 1, producer status -1`, a checker result
+that is ready and whose producer is gone; the one other waits for an `AbstrDataItem` that is
+`calculating 1, ready 0, producer status 1`. In t641.2 all 20 listed are ready checker results,
+`and 28 more`. So what fills the cap is checks whose verdict has become available but was never
+taken. The code releases a deferred check in one place only, `TreeItem_ValidateIntegrity` when
+it takes the verdict, and the retry passes did not get there: every retry line of both runs
+reports 1 registration in the pass, so each pass ended at its first deferral, with 43 to 48
+entries left in flight. With the cap full `LedgerHasRoomForDeferral` is false and no further
+lookahead is possible; the walk repeats the same pass until the guard fires (3239 retries in
+314 s on t641.1, 9087 in 603 s on t641.2) and then waits inline for the rest of the run. That is
+why t641.1 is the 20.21.0.m run again from minute five, and why t641.2 pays: its 48 deferred
+producers ran to completion during the ten stalled minutes (the `room 0` line of 18:02:19 reads
+commit 35 355 MB with 48 in flight; 310 trims followed before the stall) and the inline remainder
+came on top, which puts its peak 52 GB above 20.21.0.m.
+
+Where the fan-out is wide the same accounting shows without a stall: t2000 and t810 register
+their checks by the thousands per pass again, 52 034 and 2139 as in 20.20.0.m, and retry more
+often than either reference, and t300 and t810 return to the 20.20.0.m memory with part, or none,
+of the 20.20.0.m speed.
+
+Read together: against 20.21.0.m this build keeps the memory of t641.1 and t2000, loses it on
+t641.2 (+54 GB commit) and t810 (+3 GB), recovers half of t300's wall time and nothing of
+t641.1's, is two minutes faster on t2000 and fifty seconds slower on t405.1, and adds a failure
+mode the 20.21.0.m build did not have: a ledger full of checks whose verdicts are ready, which
+only the stall guard resolves. Wall times of the large models vary by tens of percent between
+runs on one binary, as the background says; the memory figures, the registration and retry
+counts and the stall lines do not.
