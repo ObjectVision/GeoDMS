@@ -31,7 +31,7 @@
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
 bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item); // stg/MemoryMappedDataStorageManager.cpp, same module (#1264)
 bool IsInsideInlineOperation(); // idem
-void LedgerNoteDeferral(const TreeItem* item);
+void LedgerNoteDeferral(const TreeItem* item, const std::shared_ptr<const TreeItem>& waitedFor); // idem
 UInt32 LedgerDeferredCommits(); // idem
 void LedgerNoteReady(const TreeItem* item);
 #include "act/UpdateMark.h"
@@ -632,7 +632,7 @@ bool TreeItem::CommitDataChanges() const
 		// its memory is counted as in flight until ready. The pool is told now, not when the
 		// pass ends: a pass over a large graph takes seconds, and the stack of the hung Hestia
 		// run showed every worker parked while the walk held the scheduled producers.
-		LedgerNoteDeferral(this);
+		LedgerNoteDeferral(this, GetCurrRangeItem());
 		SuspendTrigger::DeferScope::Register();
 		StartOperationContexts();
 		return false; // deferred, not failed

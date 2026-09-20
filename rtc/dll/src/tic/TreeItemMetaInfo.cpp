@@ -76,6 +76,9 @@
 
 namespace SuspendTrigger { void DeferScope_KeepAlive(const void* key, std::any keepAlive); void DeferScope_Release(const void* key); } // TriggerOperator.cpp, same module (#1259)
 bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
+UInt32 LedgerDeferredCommits(); // idem
+void LedgerNoteDeferral(const TreeItem* item, const std::shared_ptr<const TreeItem>& waitedFor); // idem
+void LedgerNoteReady(const TreeItem* item); // idem
 bool IsInsideInlineOperation(); // idem
 
 //----------------------------------------------------------------------
@@ -1083,6 +1086,10 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 
 		auto iCheckerDC = MakeResult(iCheckerPtr.get());
 		assert(iCheckerDC);
+		// #1259 A check deferred in an earlier pass is in the ledger until its verdict is taken:
+		// every exit below that decides it, a verdict or a failure, takes it out. The two exits
+		// that leave it undecided, a deferral and a suspension, release this guard first.
+		auto noteReadyOnVerdict = make_releasable_scoped_exit([self] { LedgerNoteReady(self); });
 		if (iCheckerDC->WasFailed(FailType::Validate))
 		{
 			self->Fail(iCheckerDC.get());
@@ -1099,7 +1106,10 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 			iCheckerDC = CalledCalcHandle(iCheckerPtr.get(), DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
 			if (SuspendTrigger::DidSuspend())
+			{
+				noteReadyOnVerdict.release(); // undecided: what was deferred stays in flight
 				return AVS_SuspendedOrFailed;
+			}
 
 			// #1181 backstop, also in Release: primary data evaluated on behalf of an
 			// integrity check must be under interest and scheduled -- CalledCalcHandle
@@ -1135,25 +1145,31 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 				// the new handle above has been taken, so the check's OperationContext stays alive
 				// across retries; and they are released here whether the verdict is taken now or not.
 				SuspendTrigger::DeferScope_Release(self);
-				// A check is not deferred (user ruling 2026-09-15): the verdict is taken as soon as its data is
-				// ready, below. Deferring it was measured a net loss on the two regression models that defer checks
-				// by the thousands (GeoDMS-Test, 20.20.0.m vs the same binary with /SB1, same machine state): their
-				// producers are exactly what the next phase needs, so the lookahead buys no breadth, while it costs
-				// memory -- t641.2: ~18k registrations per pass, commit 173 -> 338 GB, +14 % wall -- and the update
-				// loop's re-walk of every registration per retry -- t2000: 52k registrations, 8500 retries, no memory
-				// change, +16 % wall. A deferred check is also invisible to the ledger: not noted, not charged, not
-				// counted against s_MaxDeferred. The commit deferral in CommitDataChanges stays; it is what the BAG
-				// import gains from.
-				constexpr bool deferIntegrityChecks = false;
-				if (deferIntegrityChecks && SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && LedgerHasRoomForDeferral()
-					&& IsCalculating(adiCheckerResult.get()) && !IsDataReady(adiCheckerResult.get()) && !adiCheckerResult->WasFailed()) // with room, while its producer holds the write lock, not inside an inline run: as in CommitDataChanges
+				// A deferred check is bounded exactly as a deferred commit is (second round of #1259). The
+				// first round deferred a check without noting it in the ledger: not counted against
+				// s_MaxDeferred, not charged, so the only brake was the sampled process commit against the
+				// flush threshold. On the regression models that carry checks by the thousands that ran
+				// the lookahead until the memory was full -- t641.2: ~18k registrations per pass, commit
+				// 188 -> 270-338 GB, the EmptyWorkingSet loop; t2000: 52k registrations re-walked on every
+				// retry, 8500 retries -- and the ruling of 2026-09-15 switched the check deferral off.
+				// Off, the two models whose lookahead was breadth paid for it (OVSRV05, 20.21.0.m against
+				// 20.20.0.m: t641.1 24 -> 56 min, t300 0:43 -> 1:51, doc/performance-test.md). Noted here
+				// like a commit, a check counts against the cap and charges its producer's in-flight
+				// suppliers, so at most s_MaxDeferred checks and commits are in flight, the walk stops at
+				// the first one beyond the budget and the retries drain, in order. The wait below is the
+				// pre-#1259 path, which /SB1 forces for every check and commit.
+				if (SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && (LedgerHasRoomForDeferral() || LedgerDeferredCommits())
+					&& IsCalculating(adiCheckerResult.get()) && !IsDataReady(adiCheckerResult.get()) && !adiCheckerResult->WasFailed()) // with room or with work in flight, while its producer holds the write lock, not inside an inline run: as in CommitDataChanges
 				{
+					LedgerNoteDeferral(self, adiCheckerResult); // counted and charged: what bounds the lookahead
 					SuspendTrigger::DeferScope::Register();
 					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerDC); // the interest CalledCalcHandle took: dropping it cancels the scheduled check
 					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerFD);
 					StartOperationContexts(); // the check runs while the walk goes on, as in CommitDataChanges
+					noteReadyOnVerdict.release(); // deferred: stays in the ledger until a retry takes the verdict
 					return AVS_SuspendedOrFailed;
 				}
+				LedgerNoteReady(self); // ready, or about to be waited for: no longer in flight, as in CommitDataChanges
 				if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
 				{
 					if (adiCheckerResult->WasFailed())

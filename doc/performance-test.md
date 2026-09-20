@@ -1,3 +1,77 @@
+# Performance test request: 20.21.1 (a deferred check is counted and charged) against 20.21.0.m and 20.20.0.m
+
+For the Claude Code session on OVSRV05. Written on 2026-09-20 on a Linux session that has neither
+the Windows toolchain nor the test data, from the OVSRV05 measurement below; the code is not compiled
+there, so the build is the first thing this request asks for.
+
+## What to measure
+
+Commit `#1259 A deferred IntegrityCheck is counted and charged like a deferred commit` (this tree,
+`rtc\dll\src\tic\TreeItemMetaInfo.cpp`, `rtc\dll\src\tic\OperationContext.cpp`) replaces the 20.21.0
+switch-off of the check deferral (`deferIntegrityChecks = false`) by the bound the commit deferral
+always had: a deferred check is noted in the ledger, counted against `s_MaxDeferred` (8, or twice the
+workers) and charged with its producer's in-flight suppliers, and taken out when its verdict is taken.
+With that, at most `s_MaxDeferred` checks and commits are in flight, the walk stops at the first one
+beyond the budget and the retries drain them in order. The 20.20.0 deferral had none of that and ran
+the lookahead until the process commit hit the flush threshold; the 20.21.0 switch-off gave the memory
+back and lost the two models whose lookahead was breadth.
+
+The question: does the bounded deferral keep the 20.21.0 memory figures and recover the 20.20.0 wall
+times of t641.1 and t300, without the retry storm of t2000 and t810?
+
+| test | 20.20.0.m | 20.21.0.m | expected on this build |
+|---|---|---|---|
+| t641.1 | 0:24:11, commit 340 GB | 0:55:51, commit 167 GB | wall towards 0:24, commit near 167 GB (the cap binds) |
+| t641.2 | 0:58:50, commit 355 GB, 964 trims | 0:42:39, commit 183 GB, 81 trims | wall and commit at the 20.21.0 figures; registrations per pass in the tens, not 18k |
+| t300 | 0:00:43 | 0:01:51 | wall towards 0:43 |
+| t2000 | 0:17:11, 52k registrations per pass | 0:18:13, 38 retry lines on one item | registrations per pass in the tens; wall at or below 20.20.0 |
+| t810 | 0:04:49, 73 retry lines, 2139 registrations | 0:04:45, none | memory at 20.21.0; retry lines, if any, with registrations in the tens |
+| t060, t405.1, t405.2, t405.3 | | | unchanged against 20.21.0 |
+
+## How to run
+
+1. Pull the branch and check the commit is there: `git log -1 --oneline -- rtc/dll/src/tic/TreeItemMetaInfo.cpp`.
+   The version is 20.21.1 (`rtc\dll\src\RtcVersionNumbers.h`), so the result folder and the report column
+   are `20_21_1_m`, next to the `20_21_0_m` and `20_20_0_m` columns already on the machine.
+2. Build Release x64 of `all22.sln` with the VS18 msbuild exactly as `AGENTS.md` and the `geodms-build`
+   skill say (never a single project). The code was not compiled where it was written: read the build
+   output for errors in the two files above before anything else. Prove the build ran: the mtime of
+   `bin\Release\x64\Rtc.dll` and `GeoDmsRun.exe` must be after the launch.
+3. `testcases\run_testcases.bat` and `testcases\run_xml_roundtrip.bat` on the Release build first; a
+   deferral that is never released would show there as a hang or a stall report, at no cost.
+4. In the GeoDMS-Test working copy, `batch\local_settings.json`: `ProfilerDir` must point at this tree's
+   `profiler` folder. Nothing else of GeoDMS may be running, no build, no GUI.
+5. Run, detached, from the GeoDMS-Test `batch` folder:
+
+   ```
+   powershell -ExecutionPolicy Bypass -File batch\run_detached.ps1 -Version local-msbuild-release -Tests t641,t2000,t810,t060,t300,t405
+   ```
+
+   Two to three hours. If time allows, a full round (no `-Tests`) gives the complete column.
+6. When the round has ended, open the regenerated report in `C:\LocalData\GeoDMS_Test_Results\reports\`
+   next to the `20_21_0_m` and `20_20_0_m` columns.
+
+## What to compare, per test
+
+From the report cell: duration, `fys` and `cmt`. From the GeoDMS log of each run
+(`<results>\<column>\log\<test>.txt`), the same lines as the 20.21.0 request below:
+
+- the end-of-run `[memory]` line: `Highest CommitCharge`, `PeakLiveLarge`, `PeakFreeStack`;
+- the number of lines `Calling EmptyWorkingSet`;
+- the number of lines `deferred commits: retry` and the `registrations in the pass` and `commits in
+  flight` figures on the first of them: on this build the second is bounded by `s_MaxDeferred` (48 on
+  OVSRV05), and a first figure in the thousands means a consumer fan-out, not the cap failing;
+- every `ledger: room 0` line: the walk stopped at the budget, which the 20.20.0 build never logged for
+  a check;
+- any `deferred commits: the update of ... made no progress` line: the stall guard fired and the run
+  finished inline from there, which is a regression in this build even when the wall time is fine.
+
+Write the table with these figures for the three columns under a heading `## Results (OVSRV05), 20.21.1`
+at the end of this file, with the date, the commit hashes of the tree and of GeoDMS-Test, and what was
+running on the machine, and commit this file locally. Do not push.
+
+---
+
 # Performance test request: 20.20.0 against the build without IntegrityCheck deferral
 
 For the Claude Code session on OVSRV05 (64 GB, idle, dedicated to performance testing).
