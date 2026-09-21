@@ -421,3 +421,145 @@ mode the 20.21.0.m build did not have: a ledger full of checks whose verdicts ar
 only the stall guard resolves. Wall times of the large models vary by tens of percent between
 runs on one binary, as the background says; the memory figures, the registration and retry
 counts and the stall lines do not.
+
+## Results (OVSRV05), 20.21.1 without deferral
+
+Three rounds followed the one above, every one started by full.py on this machine under the
+mtahi account, and the code changed between them. All three columns are kept: the first two are
+under `_Archive`, the third is the `20_21_1_m` column and `reports\20_21_1_m___16_0_5.html` now.
+
+1. 2026-09-20, 19:47 to 20:22: the binaries of the section above with `/SB1`, the scheduler budget
+   of 1 MB under which nothing is deferred, over t060, t300, t301, t405.1, t405.2 and t810, as a
+   column `20_21_1_s` (a `msbuild-release-sb1` entry with suffix `s` in the gitignored
+   `local_settings.json`, removed again afterwards). Threshold 95. Archived as
+   `_Archive\20_21_1_s_deferral_off_SB1_20260920`.
+2. 2026-09-21, 08:47 to 11:07: a7127224f, the deferral of commits and integrity checks removed and
+   a start of the producers of an item's ExplicitSuppliers before their sequential update added,
+   the full round, threshold 60. t641.1 ended in exit 1 after 39 minutes at 210 GB commit and t641.2
+   had no base data. Archived as `_Archive\20_21_1_m_explicitsuppliers_prestart_thr60_20260921`.
+3. 2026-09-21, 11:26 to 14:40: 92eaa7150, the deferral removed and nothing added, the full round,
+   threshold 60, 32 experiments, all `ok`. Tree `C:\dev\GeoDMS` on `main` at `92eaa7150`,
+   GeoDMS-Test at `e11c1ac` (which injects `/SH` on every flavour, see below). Built with the VS18
+   msbuild, Release x64 of `all22.sln`, 11:12 to 11:22, exit 0; on that build testcases 347/0, the
+   XML round trip 194 with the 2 known diffs, the tst unit suite with no FAILED line and the
+   shipped-content release test passed. Running on the machine throughout: the VS18 `devenv`, idle
+   at 0.8 to 1.1 GB with a few seconds of CPU per ten minutes, the Claude desktop app, a Chrome
+   Remote Desktop host that was idle, nothing else of GeoDMS.
+
+**The memory threshold.** `MemoryFlushThreshold` is a per-account registry value that sets the
+deferral budget, the working-set trim loop and the drainage trigger. The 20.20.0.m column ran with
+60 (its ledger lines read `budget 39269 MB`, 60 % of the 65 450 MB this machine has), the section
+above and the 20.21.0.m column with 95 (the mtahi value), and the 20.19.x columns under the Cicada
+account, whose value cannot be read from here (its hive is not loaded; its drain volumes sit
+between the two, which fits the default of 80). Rounds 2 and 3 ran with 60, set for the run and
+put back to 95 after it, so their trim counts compare with the 20.20.0.m column and not with the
+section above.
+
+**What full.py reported and what was done about it.** The 20.21.0.m column carried two verdicts
+that were not timings: t010 `data error` and t1742 `output differs`. t010 was the literal `60D` in
+the network tests of the Operator configuration, whose upper-case suffix #1262 stopped accepting;
+GeoDMS-Test had already lower-cased it in 4eb065d and 679a571, and the working copy here was two
+commits behind, so a fast-forward pull fixed it. t1742 differed only in thousand separators: on
+Windows the harness leaves them to the running account's `ShowThousandSeparator` status flag,
+which the account of the 20.20.0.m column has and mtahi does not; e11c1ac injects `/SH` for every
+flavour, as it already did for `.l`, so the round no longer depends on the account. Both are `ok`
+in round 3.
+
+### Round 1: the same binaries with and without deferral, threshold 95
+
+| test | with (20.21.1 of the section above, bounded checks) | without (`/SB1`) | 20.19.3.m |
+|---|---|---|---|
+| t060 | 0:01:56, 9720 / 10160 | 0:02:03, 7354 / 7607 | 0:01:59, 6141 / 7351 |
+| t300 | 0:01:01, 10925 / 14297 | 0:01:01, 8091 / 11268 | 0:01:19, 5740 / 11252 |
+| t301 | (not in that run; 20.21.0.m 0:02:59, 20237 / 4365) | 0:02:38, 18239 / 4365 | 0:02:31, 15447 / 4620 |
+| t405.1 | 0:02:48, 11681 / 12521 | 0:04:27, 10339 / 9618 | 0:11:37, 9241 / 9421 |
+| t405.2 | 0:13:43, 86939 / 73350, 117 trims, stall | 0:18:16, 31668 / 32129, no trims | 0:18:24, 31627 / 32129 |
+| t810 | 0:05:18, 31203 / 25293 | 0:05:31, 27784 / 22593 | 0:04:57, 28272 / 22538 |
+
+Wall time, then Highest CommitCharge / PeakLiveLarge in MB. Without deferral the memory of every
+test is the 20.19.3 figure; the deferral's own gain is 2.5 minutes on t405.1 for 3 GB and 5
+minutes on t405.2 for 41 GB of live memory beyond the RAM, and the rest of the 20.20.0 gain on
+t405.1 (11:37 to 4:27) and t300 (1:19 to 1:01) is not the deferral's and stays without it.
+
+### Round 2: the pre-start of the ExplicitSuppliers' producers
+
+t641.1 failed the #1181 backstop of `TreeItem_ValidateIntegrity`, `Check Failed Error: iCheckerDC
+&& iCheckerDC->GetInterestCount()`, on the stored tif attributes of the Zonneladder `Write`
+container, which `for_each_neidvat` gives a self-referring IntegrityCheck: the pre-start had
+produced them, with their folded checks, before the walk validated them. A probe of that shape
+(`scratch\probe_prestart\probe.dms`, a driver whose ExplicitSupplier is a container of three such
+attributes) writes the first tif and fails the other two with the same error on that build, and
+writes all three on the build of round 3. Two more figures against round 3: t060 peaked at
+23 941 MB commit and 23 903 MB live against 7221 / 7606, every target of the driver in production
+at once, and t405.1 took 4:15 against 4:29, no gain, because its drivers name their own
+ExplicitSuppliers and the pre-start left those to the walk. 92eaa7150 takes it out again; the
+ExplicitSuppliers wiki page is as it was.
+
+### Round 3: 20.21.1 without deferral, threshold 60, against the reference columns
+
+Wall time, the span between the first and the last timestamp of the GeoDMS log.
+
+| test | 20.21.1.m (round 3) | 20.21.0.m | 20.20.0.m | 20.19.3.m | 20.19.0.m |
+|---|---|---|---|---|---|
+| t060 | 0:02:11 | 0:01:50 | 0:01:46 | 0:01:59 | 0:01:56 |
+| t300 | 0:01:56 | 0:01:53 | 0:00:43 | 0:01:19 | 0:01:15 |
+| t301 | 0:02:31 | 0:02:59 | 0:02:26 | 0:02:31 | 0:02:20 |
+| t405.1 | 0:04:29 | 0:01:59 | 0:01:57 | 0:11:37 | 0:11:05 |
+| t405.2 | 0:18:22 | 0:13:07 | 0:15:21 | 0:18:24 | 0:18:03 |
+| t405.3 | 0:18:26 | 0:13:04 | 0:15:09 | 0:18:09 | 0:17:59 |
+| t641.1 | 0:51:50 | 0:50:38 | 0:24:11 | 0:50:55 | 0:58:00 |
+| t641.2 | 0:44:06 | 0:46:14 | 0:58:50 | 0:46:27 | (config error) |
+| t810 | 0:05:12 | 0:04:53 | 0:04:49 | 0:04:57 | 0:05:33 |
+| t2000 | 0:17:01 | 0:18:53 | 0:17:11 | 0:16:25 | 0:18:26 |
+| t020 | 0:03:56 | 0:03:47 | 0:03:47 | 0:03:44 | 0:03:49 |
+| t101 | 0:03:16 | 0:03:10 | 0:03:16 | 0:03:08 | 0:03:16 |
+| t200 | 0:00:37 | 0:00:33 | 0:00:32 | 0:00:32 | 0:00:33 |
+| t410 | 0:04:49 | 0:04:49 | 0:04:38 | 0:04:43 | 0:04:39 |
+| t710 | 0:01:01 | 0:01:04 | 0:01:03 | 0:01:01 | 0:01:03 |
+| t720 | 0:09:12 | 0:09:15 | 0:09:18 | 0:09:16 | 0:09:19 |
+| t910 | 0:00:48 | 0:00:46 | 0:00:44 | 0:00:46 | 0:00:48 |
+
+The `[memory]` line, Highest CommitCharge / PeakLiveLarge in MB, and the `Calling EmptyWorkingSet`
+count.
+
+| test | 20.21.1.m (round 3) | 20.21.0.m | 20.20.0.m | 20.19.3.m |
+|---|---|---|---|---|
+| t060 | 7221 / 7606, 0 | 10708 / 10598, 0 | 13848 / 14371, 0 | 6141 / 7351, 0 |
+| t300 | 6872 / 11306, 0 | 7947 / 11252, 0 | 10476 / 14339, 0 | 5740 / 11252, 0 |
+| t301 | 17106 / 4131, 0 | 20237 / 4365, 0 | 17058 / 4369, 0 | 15447 / 4620, 0 |
+| t405.1 | 10340 / 9618, 0 | 10329 / 12621, 0 | 10374 / 12548, 0 | 9241 / 9421, 0 |
+| t405.2 | 31664 / 32129, 1 | 79518 / 73397, 102 | 83008 / 73959, 315 | 31627 / 32129, 1 |
+| t405.3 | 31759 / 32129, 1 | 85031 / 74609, 39 | 79349 / 73959, 299 | 31623 / 32129, 1 |
+| t641.1 | 146710 / 144651, 216 | 150623 / 144651, 48 | 340360 / 346136, 441 | 153696 / 144606, 88 |
+| t641.2 | 171774 / 169560, 496 | 182332 / 170224, 87 | 354601 / 348896, 964 | 177021 / 171757, 232 |
+| t810 | 28137 / 22552, 0 | 28208 / 22509, 0 | 31465 / 25292, 0 | 28272 / 22538, 0 |
+| t2000 | 63193 / 62641, 43 | 70784 / 70143, 8 | 64044 / 63489, 30 | 60110 / 67484, 7 |
+| t720 | 22497 / 20638, 0 | 20551 / 20988, 0 | 19339 / 20896, 0 | 21368 / 20919, 0 |
+
+The report cells, peak physical / peak committed in GB, for the memory-heavy tests: t641.1 56.82 /
+162.88 against 61.66 / 163.65 for 20.19.3.m and 35.24 / 373.57 for 20.20.0.m; t641.2 57.10 /
+193.69 against 60.82 / 196.69 and 61.44 / 382.50; t405.2 33.05 / 52.96 against 45.12 / 52.36 and
+32.42 / 93.77; t2000 50.44 / 81.01 against 52.85 / 87.09 and 48.80 / 81.68; t060 8.71 / 9.35
+against 8.65 / 9.15 and 14.89 / 15.79. No retry, `room 0` or stall line exists any more.
+
+### Reading
+
+- Memory is the 20.19.x memory again on every test, within a gigabyte: t641.1 147 GB commit and
+  145 GB live, t641.2 172 and 170, t405.2 and t405.3 32 GB live where 20.20.0.m and 20.21.0.m held
+  73 to 74, t060 7 GB where they held 11 to 14, t810 28 GB. The trims of t641 and t2000 are the
+  threshold's: 216, 496 and 43 at 60 against 88, 232 and 7 for 20.19.3.m at its own setting and
+  441, 964 and 30 for 20.20.0.m at 60.
+- The big models are at their 20.19.x wall times: t641.1 0:51:50 against 0:50:55, t641.2 0:44:06
+  against 0:46:27, t2000 0:17:01 against 0:16:25, t405.2 and t405.3 within 20 seconds of 20.19.3.m.
+  The one figure 20.20.0.m had that no build without deferral has is t641.1's 0:24:11, which cost
+  346 GB of live memory on a 64 GB machine.
+- Of the 20.20.0 gains, what was not the deferral's stays: t405.1 4:29 against 11:37, 2.6 times
+  faster than 20.19.3.m at the 20.19.3.m memory, and 2.3 times slower than with the commit deferral.
+  t405.2 and t405.3 give up the deferral's 3 to 5 minutes and keep 41 GB of live memory.
+- Small residuals, all outside the 20.19.x band of the same test and present in round 2 as well:
+  t020 0:03:56 against 3:44 to 3:49, t200 0:00:37 against 0:32 to 0:33, t060 0:02:11 against
+  1:46 to 1:59, t810 0:05:12 against 4:49 to 4:57 (20.19.0.m: 5:33). t300 is 0:01:56, and that
+  test has read 0:43, 1:01, 1:15, 1:19, 1:53 and 1:54 on the columns of this file, so its figure
+  says nothing about the build. Wall times of the large models vary by tens of percent between
+  runs on one binary, as the background says; the memory figures and the absence of the deferral
+  lines do not.
