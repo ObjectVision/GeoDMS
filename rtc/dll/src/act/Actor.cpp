@@ -708,12 +708,6 @@ ActorVisitState Actor::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
     return AVS_Ready;
 }
 
-// #1259 Nothing to start for a plain actor; TreeItem starts the producers of its ExplicitSuppliers.
-ActorVisitState Actor::StartSupplierProduction() const
-{
-    return AVS_Ready;
-}
-
 // Update all suppliers to at least the given progress state.
 // Fails/suspends if any supplier fails/suspends.
 // TODO: Consider batching/rescheduling to avoid deep recursion for large graphs.
@@ -727,11 +721,6 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
     assert(!WasFailed(FailType::MetaInfo));
     assert(!WasFailed()); // precondition
     assert(DoesHaveSupplInterest() || !GetInterestCount());
-
-    // #1259 What can run side by side is started before the sequential walk below: for a TreeItem,
-    // the producers of its ExplicitSuppliers (TreeItem::StartSupplierProduction).
-    if (StartSupplierProduction() == AVS_SuspendedOrFailed)
-        return AVS_SuspendedOrFailed;
 
     ActorVisitState updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
