@@ -20,9 +20,6 @@
 #include "act/InterestRetainContext.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
-
-bool LedgerHasRoomForDeferral(); // tic/OperationContext.cpp, same module (#1259)
-namespace SuspendTrigger { void DeferScope_NoteDeferred(const void* actor); bool DeferScope_WasDeferred(const void* actor); } // TriggerOperator.cpp, same module (#1259)
 #include "act/UpdateMark.h"
 
 #include "dbg/DmsCatch.h"
@@ -433,17 +430,6 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     if (m_State.GetProgress() >= ProgressState::Committed)
 		return this->WasFailed(FailType::Committed) ? AVS_SuspendedOrFailed : AVS_Ready;
 
-    // #1259 Deferred earlier in this pass of the update loop and reached again through another
-    // consumer: its suppliers were walked and its producers scheduled the first time, and doing
-    // that again would only repeat it. On a graph with shared suppliers the repeats compound
-    // through every consumer (Hestia: a first pass that did not end in two hours), while a
-    // deferral is a deferral for every consumer alike.
-    if (SuspendTrigger::DeferScope::IsAllowed() && SuspendTrigger::DeferScope_WasDeferred(this))
-    {
-        SuspendTrigger::DeferScope::Register(); // still deferred: no consumer commits above it
-        return AVS_SuspendedOrFailed;
-    }
-
     assert(m_LastChangeTS); // must have been set by DetermineState
 
      // we can try (to resume) to update now
@@ -464,7 +450,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     ActorVisitState updateRes = UpdateSuppliers(); 
     // ===========================
 
-    assert(updateRes || WasFailed() || SuspendTrigger::DidSuspend() || SuspendTrigger::DeferScope::IsAllowed());
+    assert(updateRes || WasFailed() || SuspendTrigger::DidSuspend());
     // don't leave now on !updateRes since a failed supplier will have to cause CheckInvalidate to fail this
 
     // UpdateSuppliers may have resulted in a (new) fail reason: supplier failed, or any other fail
@@ -479,9 +465,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
 
     if (updateRes == AVS_SuspendedOrFailed)
     {
-        assert(SuspendTrigger::DidSuspend() || SuspendTrigger::DeferScope::IsAllowed()); // suspended, or a supplier's commit was deferred (#1259)
-        if (!SuspendTrigger::DidSuspend() && !WasFailed() && SuspendTrigger::DeferScope::IsAllowed())
-            SuspendTrigger::DeferScope_NoteDeferred(this); // a supplier's deferral: not walked again this pass
+        assert(SuspendTrigger::DidSuspend());
         return AVS_SuspendedOrFailed;
     }
     if (m_State.GetProgress() >= ProgressState::Committed)
@@ -538,7 +522,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
         }
         else
         {
-            assert(SuspendTrigger::DidSuspend() || WasFailed() || SuspendTrigger::DeferScope::IsAllowed()); // or this item's own commit was deferred (#1259)
+            assert(SuspendTrigger::DidSuspend() || WasFailed());
         }
     }
     catch (const DmsException& x)
@@ -548,11 +532,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
         return AVS_SuspendedOrFailed;
     }
     if (WasFailed() || (m_State.GetProgress() < ProgressState::Committed) || SuspendTrigger::DidSuspend())
-    {
-        if (!WasFailed() && !SuspendTrigger::DidSuspend() && SuspendTrigger::DeferScope::IsAllowed())
-            SuspendTrigger::DeferScope_NoteDeferred(this); // its own commit or check was deferred (#1259): not walked again this pass
         return AVS_SuspendedOrFailed;
-    }
     return AVS_Ready;
 }
 
@@ -728,6 +708,12 @@ ActorVisitState Actor::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
     return AVS_Ready;
 }
 
+// #1259 Nothing to start for a plain actor; TreeItem starts the producers of its ExplicitSuppliers.
+ActorVisitState Actor::StartSupplierProduction() const
+{
+    return AVS_Ready;
+}
+
 // Update all suppliers to at least the given progress state.
 // Fails/suspends if any supplier fails/suspends.
 // TODO: Consider batching/rescheduling to avoid deep recursion for large graphs.
@@ -742,39 +728,26 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
     assert(!WasFailed()); // precondition
     assert(DoesHaveSupplInterest() || !GetInterestCount());
 
-    // #1259 A supplier whose commit was deferred (its producer is in flight) does not stop the
-    // walk while the memory budget has room: the next suppliers are updated too, so that their
-    // producers get scheduled alongside. Once the budget is used up the walk stops at the first
-    // incomplete supplier instead, so that the retries finish what is in flight, in order, and
-    // release it, before anything further is started. Without that stop every supplier advanced
-    // one stage per retry in lockstep and nothing was released before the end (measured on the
-    // BAG extract: 68 GB live under a 16 GB budget). Either way a deferral stops this item from
-    // committing below, until a retry finds nothing deferred.
-    bool anyDeferred = false;
+    // #1259 What can run side by side is started before the sequential walk below: for a TreeItem,
+    // the producers of its ExplicitSuppliers (TreeItem::StartSupplierProduction).
+    if (StartSupplierProduction() == AVS_SuspendedOrFailed)
+        return AVS_SuspendedOrFailed;
+
     ActorVisitState updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
-            [this, &anyDeferred](const Actor* supplier) -> ActorVisitState
+            [this](const Actor* supplier) -> ActorVisitState
             {
                 if (!supplier->IsPassor())
                 {
-                    auto deferredBefore = SuspendTrigger::DeferScope::Count();
                     supplier->SuspendibleUpdate();
                     if (SuspendTrigger::DidSuspend())
                         return AVS_SuspendedOrFailed;
-                    if (SuspendTrigger::DeferScope::Count() != deferredBefore)
-                    {
-                        anyDeferred = true;
-                        if (!LedgerHasRoomForDeferral())
-                            return AVS_SuspendedOrFailed; // stop the walk here; retried after in-flight work has progressed
-                    }
                 }
                 return AVS_Ready;
             }
         );
     if (updateRes == AVS_SuspendedOrFailed)
         return updateRes;
-    if (anyDeferred)
-        return AVS_SuspendedOrFailed;
 
     updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::UpdateForDataPrep,

@@ -71,15 +71,7 @@
 #include "UsingCache.h"
 #include "stg/MemoryMappedDataStorageManager.h"
 
-#include <any>
 #include <unordered_set>
-
-namespace SuspendTrigger { void DeferScope_KeepAlive(const void* key, std::any keepAlive); void DeferScope_Release(const void* key); } // TriggerOperator.cpp, same module (#1259)
-bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
-UInt32 LedgerDeferredCommits(); // idem
-void LedgerNoteDeferral(const TreeItem* item, const std::shared_ptr<const TreeItem>& waitedFor); // idem
-void LedgerNoteReady(const TreeItem* item); // idem
-bool IsInsideInlineOperation(); // idem
 
 //----------------------------------------------------------------------
 // implement Actor callback functions
@@ -1052,8 +1044,7 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 // which the evaluation below leaves Validated (shared by identity with the #1180-folded
 // conditions, deduplicated per #1182).
 //
-// Returns AVS_SuspendedOrFailed for SUSPENSION only, or for a deferred verdict inside a
-// SuspendTrigger::DeferScope (#1259); a verdict, either way, returns AVS_Ready
+// Returns AVS_SuspendedOrFailed for SUSPENSION only; a verdict, either way, returns AVS_Ready
 // and a failure is recorded on self (FailType::Validate). No progress is marked here: self's
 // DoUpdate does that, and a parent validated on behalf of a descendant must not skip ahead of
 // its own data phase.
@@ -1086,10 +1077,6 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 
 		auto iCheckerDC = MakeResult(iCheckerPtr.get());
 		assert(iCheckerDC);
-		// #1259 A check deferred in an earlier pass is in the ledger until its verdict is taken:
-		// every exit below that decides it, a verdict or a failure, takes it out. The two exits
-		// that leave it undecided, a deferral and a suspension, release this guard first.
-		auto noteReadyOnVerdict = make_releasable_scoped_exit([self] { LedgerNoteReady(self); });
 		if (iCheckerDC->WasFailed(FailType::Validate))
 		{
 			self->Fail(iCheckerDC.get());
@@ -1106,10 +1093,7 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 			iCheckerDC = CalledCalcHandle(iCheckerPtr.get(), DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
 			if (SuspendTrigger::DidSuspend())
-			{
-				noteReadyOnVerdict.release(); // undecided: what was deferred stays in flight
 				return AVS_SuspendedOrFailed;
-			}
 
 			// #1181 backstop, also in Release: primary data evaluated on behalf of an
 			// integrity check must be under interest and scheduled -- CalledCalcHandle
@@ -1137,39 +1121,6 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 
 				std::shared_ptr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
 				assert(adiCheckerResult->GetInterestCount());
-				// #1259 The check needs data that is still being produced. Waiting for it here is the second
-				// place, next to CommitDataChanges, where the supplier walk stalled on the meta thread; inside
-				// a DeferScope the verdict is left for a retry of the update loop, so that the walk goes on
-				// and the producers of the next items get scheduled alongside this one.
-				// The holders of an earlier deferral of this same check are released only now, after
-				// the new handle above has been taken, so the check's OperationContext stays alive
-				// across retries; and they are released here whether the verdict is taken now or not.
-				SuspendTrigger::DeferScope_Release(self);
-				// A deferred check is bounded exactly as a deferred commit is (second round of #1259). The
-				// first round deferred a check without noting it in the ledger: not counted against
-				// s_MaxDeferred, not charged, so the only brake was the sampled process commit against the
-				// flush threshold. On the regression models that carry checks by the thousands that ran
-				// the lookahead until the memory was full -- t641.2: ~18k registrations per pass, commit
-				// 188 -> 270-338 GB, the EmptyWorkingSet loop; t2000: 52k registrations re-walked on every
-				// retry, 8500 retries -- and the ruling of 2026-09-15 switched the check deferral off.
-				// Off, the two models whose lookahead was breadth paid for it (OVSRV05, 20.21.0.m against
-				// 20.20.0.m: t641.1 24 -> 56 min, t300 0:43 -> 1:51, doc/performance-test.md). Noted here
-				// like a commit, a check counts against the cap and charges its producer's in-flight
-				// suppliers, so at most s_MaxDeferred checks and commits are in flight, the walk stops at
-				// the first one beyond the budget and the retries drain, in order. The wait below is the
-				// pre-#1259 path, which /SB1 forces for every check and commit.
-				if (SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && (LedgerHasRoomForDeferral() || LedgerDeferredCommits())
-					&& IsCalculating(adiCheckerResult.get()) && !IsDataReady(adiCheckerResult.get()) && !adiCheckerResult->WasFailed()) // with room or with work in flight, while its producer holds the write lock, not inside an inline run: as in CommitDataChanges
-				{
-					LedgerNoteDeferral(self, adiCheckerResult); // counted and charged: what bounds the lookahead
-					SuspendTrigger::DeferScope::Register();
-					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerDC); // the interest CalledCalcHandle took: dropping it cancels the scheduled check
-					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerFD);
-					StartOperationContexts(); // the check runs while the walk goes on, as in CommitDataChanges
-					noteReadyOnVerdict.release(); // deferred: stays in the ledger until a retry takes the verdict
-					return AVS_SuspendedOrFailed;
-				}
-				LedgerNoteReady(self); // ready, or about to be waited for: no longer in flight, as in CommitDataChanges
 				if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
 				{
 					if (adiCheckerResult->WasFailed())
@@ -1205,6 +1156,85 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 		self->DoFailCaller(err, FailType::Validate);
 	}
 	return AVS_Ready;
+}
+
+// #1259 The producers of an item's ExplicitSuppliers start together. Actor::UpdateSuppliers updates
+// the listed suppliers and their subtrees one item at a time, and the commit of a stored item
+// (CommitDataChanges) waits for its producer, so nothing after that item was scheduled while it
+// was being produced: the stored targets of a 'Ready' + ExplicitSuppliers driver ran one by one,
+// however many workers were idle. Before that walk, every item below the listed suppliers that the
+// walk is going to commit has its production prepared here and the pool is started on it; the walk
+// then commits them in the configured order and finds the data of each one ready or in the making.
+// Nothing is deferred, registered or retried: a commit whose producer still runs waits for it as it
+// always did, and the order of the commits stays. What no longer holds is that a later target's
+// producer starts only after an earlier target's file is written. An item that names its own
+// ExplicitSuppliers is left to the walk, which updates those before it, so a dependency that is
+// configured is honoured as before.
+ActorVisitState TreeItem::StartSupplierProduction() const
+{
+	assert(IsMetaThread());
+	if (!HasSupplCache())
+		return AVS_Ready;
+	auto n = GetSupplCache()->GetNrConfigured(this);
+	if (!n)
+		return AVS_Ready;
+	if (CancelableFrame::CurrActive()) // a supplier walk nested in an operation that runs inline on this thread walks for what that run needs, not for lookahead
+		return AVS_Ready;
+	assert(!SuspendTrigger::DidSuspend()); // precondition of the walk this precedes
+
+	bool anyStarted = false;
+	auto starter = MakeDerivedProcVisitor([&anyStarted](const Actor* supplier)
+		{
+			if (SuspendTrigger::DidSuspend())
+				return;
+			if (auto ti = dynamic_cast<const TreeItem*>(supplier))
+				if (ti->StartProductionForCommit())
+					anyStarted = true;
+		});
+	for (decltype(n) i = 0; i != n; ++i)
+	{
+		auto supplier = GetSupplCache()->begin(this)[i];
+		if (!supplier)
+			continue;
+		starter(supplier.get());
+		if (SuspendTrigger::DidSuspend())
+			return AVS_SuspendedOrFailed;
+		if (auto supplTI = dynamic_cast<const TreeItem*>(supplier.get()))
+			supplTI->VisitConstVisibleSubTree(starter);
+		if (SuspendTrigger::DidSuspend())
+			return AVS_SuspendedOrFailed;
+	}
+	if (anyStarted)
+		StartOperationContexts();
+	return AVS_Ready;
+}
+
+// One item below an ExplicitSupplier: prepare its production, without waiting, when the walk is
+// going to commit it. What decides that (storability, a calculator, the range item, the item's own
+// ExplicitSuppliers) is meta-information, updated here as PrepareDataUsage does a moment later anyway.
+bool TreeItem::StartProductionForCommit() const
+{
+	assert(IsMetaThread());
+	if (IsPassor() || IsCacheItem() || InTemplate() || IsFailed() || m_State.GetProgress() >= ProgressState::Committed)
+		return false;
+	if (!IsDataItem(this) && !IsUnit(this))
+		return false;
+	try
+	{
+		UpdateMetaInfo();
+		if (IsFailed() || !IsStorable() || IsReadFromStorage() || !HasCalculator() || !GetInterestCount())
+			return false;
+		if (HasSupplCache() && GetSupplCache()->GetNrConfigured(this)) // its own ExplicitSuppliers come first: left to the walk
+			return false;
+		auto rangeItem = GetCurrRangeItem();
+		if (!rangeItem || rangeItem->IsFailed() || IsCalculatingOrReady(rangeItem.get()))
+			return false;
+		return PrepareDataUsage(DrlType::Suspendible); // schedules the producer; CommitDataChanges waits for it when the walk gets there
+	}
+	catch (const DmsException&)
+	{
+		return false; // the walk reaches this item a moment later and reports there what went wrong
+	}
 }
 
 ActorVisitState TreeItem::DoUpdate()
@@ -1308,9 +1338,6 @@ ActorVisitState TreeItem::DoUpdate()
 
 		if (SuspendTrigger::DidSuspend())
 			return AVS_SuspendedOrFailed;
-
-		if (!result && !WasFailed(FailType::Committed))
-			return AVS_SuspendedOrFailed; // #1259 deferred: the producer is in flight, the update loop retries the commit
 
 		assert(result || WasFailed(FailType::Committed));
 

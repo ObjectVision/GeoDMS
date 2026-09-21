@@ -208,6 +208,9 @@ struct Actor: PersistentObject
 	RTC_CALL void DetermineState () const;
 	// Update suppliers for a given progress state; returns visit/update outcome.
 	ActorVisitState UpdateSuppliers() const;
+	// #1259 Called by UpdateSuppliers before its sequential walk: start what can run side by side.
+	// Starts nothing here; TreeItem starts the producers of its ExplicitSuppliers.
+	RTC_CALL virtual ActorVisitState StartSupplierProduction() const;
 
 protected:
 	// Apply decision hook used by update flow to decide if an apply-like action is needed.

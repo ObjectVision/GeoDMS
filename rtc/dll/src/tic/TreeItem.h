@@ -379,6 +379,10 @@ public:
 	// Visit suppliers with flags determining breadth/depth, implied/configured.
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
 
+	// #1259 Before UpdateSuppliers commits the ExplicitSuppliers in order, start their producers together.
+	ActorVisitState StartSupplierProduction() const override;
+	bool StartProductionForCommit() const; // one item below an ExplicitSupplier: prepare its production, no waiting
+
 //	calculator and reffered items
 
 	// Calculator accessors and derivation chain navigation (source/ultimate items).
