@@ -6,6 +6,20 @@
 		parameter<uint8> test_param := 5b;
 	}
 
+	// fixtures for ConstTreeItem.update_metainfo() / fail_reason() / in_template() (#1279)
+	container red_items_check
+	{
+		parameter<uint8> valid := 1b + 2b;
+		// an unresolvable identifier: the configuration still parses and loads; this item
+		// only fails when its meta info is determined, which is what makes it red in the GUI.
+		parameter<uint8> broken := BestaatNiet_xyz;
+
+		template tmpl
+		{
+			parameter<uint8> in_body := 1b;
+		}
+	}
+
 	unit<uint32> reference: nrofrows = 5
 	{
 		attribute<int32>   IntegerAtt           : [0,1,256,-100,9999];

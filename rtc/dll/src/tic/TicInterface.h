@@ -202,6 +202,8 @@ TIC_CALL void        DMS_CONV DMS_TreeItem_ThrowFailReason(const TreeItem* self)
 TIC_CALL void        DMS_CONV DMS_TreeItem_DoViewAction(const TreeItem* x);
 
 TIC_CALL void        DMS_CONV DMS_TreeItem_Update(const TreeItem* self);
+// Determine the meta info of self without calculating it; true when it did not fail (#1279).
+TIC_CALL bool        DMS_CONV DMS_TreeItem_UpdateMetaInfo(const TreeItem* self);
 
 // Unit property access
 TIC_CALL const ValueClass* DMS_CONV DMS_Unit_GetValueType(const AbstrUnit* self);

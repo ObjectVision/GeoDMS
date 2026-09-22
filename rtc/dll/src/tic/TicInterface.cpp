@@ -697,6 +697,36 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Update(const TreeItem* self)
 	DMS_CALL_END
 }
 
+// Determine the meta info of self without calculating it, and report whether it survived
+// that (#1279). This is the check behind the red items of the GUI tree-view: it resolves the
+// calculation rule, the domain and values units, the storage and the sub-items that the rule
+// implies, all of which can fail on a configuration error, and none of which reads primary
+// data the way DMS_TreeItem_Update does. TreeItem::UpdateMetaInfo is noexcept and records a
+// failure of its own as FailType::MetaInfo, so the result is read from the state afterwards;
+// the reason of a false is available from DMS_TreeItem_GetFailReasonAsIString.
+TIC_CALL bool DMS_CONV DMS_TreeItem_UpdateMetaInfo(const TreeItem* self)
+{
+	DMS_CALL_BEGIN
+
+		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_UpdateMetaInfo");
+
+		// as DmsModel::data and DMS_TreeItem_GetItem do: a suspension left pending by an
+		// earlier call would make the ProcessMainThreadOpers at the end of the walk assert.
+		SuspendTrigger::Resume();
+
+		// unconditionally: UpdateMetaInfo returns at once for an item that is already
+		// determined AND not older than the last configuration change, so guarding the call
+		// on the progress state alone would skip the re-determination that a SetExpr needs.
+		self->UpdateMetaInfo();
+
+		// Report ANY failure, as the tree-view colours any failed item: an item whose data
+		// failed in an earlier calculation is not valid either, even though its meta info is.
+		return !self->WasFailed();
+
+	DMS_CALL_END
+	return false;
+}
+
 auto TreeUpdateOrReturnFailerImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder) -> SharedTreeItem
 {
 	for (const TreeItem* walker = self; walker; walker = self->WalkConstSubTree(walker))
@@ -806,8 +836,18 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetFailReasonAsIString(const TreeIt
 		DBG_START("DMS_TreeItem", "GetFailedReason", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetFailReason");
 		DBG_TRACE(("self = {}", self->GetName().c_str()));
-		
-		return IString::Create(self->GetFailReason()->Why());
+
+		// An item that has not failed has no recorded reason: Actor::GetFailReason() asserts
+		// WasFailed() in Debug and returns a null ErrMsgPtr in Release, so ->Why() dereferenced
+		// null on every valid item (#1279). Report "no reason" as a null handle, which callers
+		// already read as the empty string.
+		if (!self->WasFailed())
+			return nullptr;
+		auto failReason = self->GetFailReason();
+		if (!failReason)
+			return nullptr;
+
+		return IString::Create(failReason->Why());
 
 	DMS_CALL_END
 	return nullptr;
