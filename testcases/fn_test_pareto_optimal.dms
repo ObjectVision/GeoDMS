@@ -62,8 +62,44 @@ container fn_test_pareto_optimal
 		attribute<bool> ref := not(any(pairs/is_less, pairs/second_rel));
 	}
 
+	// ---- epsilon-dominance (#1282): pareto_optimal_eps buckets each criterion to floor(c / eps)
+	// and sweeps on the buckets; the row with the smallest raw values of a box survives
+	unit<uint32> T2e := T2
+	{
+		// c2 in buckets of 5: group A (1,5) bucket 1 then (2,3) bucket 0; (4,1) is bucket 0 too and
+		// falls; group B (0,2) comes first on c1 and (1,1) shares its bucket
+		attribute<bool> po_c2   := pareto_optimal_eps(T2/g_rel, T2/c1, 0.0, T2/c2, 5.0);
+		attribute<bool> exp_c2  : [true, true, false, false, false, false, false, false, true, false];
+		// c1 in buckets of 10 as well: all times of a group count as equal, so the lowest c2
+		// bucket wins and within it the smallest c1: A keeps (2,3) only, B keeps (0,2) only
+		attribute<bool> po_both := pareto_optimal_eps(T2/g_rel, T2/c1, 10.0, T2/c2, 5.0);
+		attribute<bool> exp_both : [false, true, false, false, false, false, false, false, true, false];
+		// eps 0 on both: the exact result
+		attribute<bool> po_zero := pareto_optimal_eps(T2/g_rel, T2/c1, 0.0, T2/c2, 0.0);
+	}
+
+	// on the generated table: a subset of the exact result, and every exact-optimal row that
+	// drops out is covered by a surviving row of its partition that is no worse on c1 (eps 0)
+	// and less than 2 worse on c2 and c3
+	unit<uint32> T3e := T3
+	{
+		attribute<bool> po_eps := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, T3/c2, 2.0, T3/c3, 2.0);
+		unit<uint32> pairs := join_equal_values_uint32(T3/p_rel, T3/p_rel)
+		{
+			attribute<bool> covers := po_eps[first_rel] && T3/c1[first_rel] <= T3/c1[second_rel] && T3/c2[first_rel] < T3/c2[second_rel] + 2.0 && float64(T3/c3[first_rel]) < float64(T3/c3[second_rel]) + 2.0;
+		}
+		attribute<bool> covered := any(pairs/covers, pairs/second_rel);
+	}
+
 	container checks
 	{
+		parameter<uint32> c_t2e_c2    := sum(uint32(T2e/po_c2 != T2e/exp_c2)),     IntegrityCheck = "c_t2e_c2 == 0";
+		parameter<uint32> c_t2e_both  := sum(uint32(T2e/po_both != T2e/exp_both)), IntegrityCheck = "c_t2e_both == 0";
+		parameter<uint32> c_t2e_zero  := sum(uint32(T2e/po_zero != T2/expected)),  IntegrityCheck = "c_t2e_zero == 0";
+		parameter<uint32> c_t3e_sub   := sum(uint32(T3e/po_eps && not(T3/po))),    IntegrityCheck = "c_t3e_sub == 0";
+		parameter<uint32> c_t3e_less  := sum(uint32(T3e/po_eps)),                  IntegrityCheck = "c_t3e_less > 40 && c_t3e_less < c_t3_some";
+		parameter<uint32> c_t3e_cover := sum(uint32(T3/po && not(T3e/po_eps) && not(T3e/covered))), IntegrityCheck = "c_t3e_cover == 0";
+
 		parameter<uint32> c_t2_diff  := sum(uint32(T2/po != T2/expected)),   IntegrityCheck = "c_t2_diff == 0";
 		parameter<uint32> c_t1_diff  := sum(uint32(T1/po != T1/expected)),   IntegrityCheck = "c_t1_diff == 0";
 		parameter<uint32> c_t3_diff  := sum(uint32(T3/po != T3/ref)),        IntegrityCheck = "c_t3_diff == 0";

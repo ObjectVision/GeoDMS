@@ -203,7 +203,10 @@ void CheckFlags(DijkstraFlag df)
 			"pareto does not support verboseLogging");
 	}
 	else
+	{
 		MG_USERCHECK2(!flags(df & DijkstraFlag::Imp2Cut), "OrgZone_max_imp2 requires the pareto option");
+		MG_USERCHECK2(!flags(df & DijkstraFlag::Imp2Epsilon), "imp2_epsilon requires the pareto option");
+	}
 }
 
 using sqr_dist_t = UInt32;
@@ -646,7 +649,8 @@ struct BiNodeZoneConnector
 
 		if (m_LastCommittedSrcZone[dstZone] == m_CurrSrcZoneTick)
 		{
-			if (imp2 >= m_MinImp2PerDstZone[dstZone])
+			// epsilon-dominance (#1282): the same bucket comparison as BiCriteriaDijkstraHeap::IsUndominated
+			if (Imp2Bucket(imp2, m_Imp2Epsilon) >= Imp2Bucket(m_MinImp2PerDstZone[dstZone], m_Imp2Epsilon))
 				return false;
 		}
 		else
@@ -658,6 +662,8 @@ struct BiNodeZoneConnector
 	}
 
 	SizeT CommitCount() const { return m_Commits.size(); }
+
+	ImpType m_Imp2Epsilon = ImpType(0); // bucket width of the second criterion for the per-zone test, set per origin together with the heap's (#1282)
 	const CommitType& Commit(SizeT r) const { return m_Commits[r]; }
 
 	const network_info* m_NetworkInfoPtr = nullptr;
@@ -1588,6 +1594,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 ,	const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 ,	const ImpType* orgMaxImpedances, bool orgMaxImpedancesHasVoidDomain
 ,	const ImpType* orgMaxImp2, bool orgMaxImp2HasVoidDomain
+,	const ImpType* imp2Epsilon, bool imp2EpsilonHasVoidDomain
 ,	sqr_dist_t euclidicSqrDist
 ,	const GraphInfo<NodeType, LinkType, ImpType>& graph
 ,	const ImpType* linkImp2Data, bool linkImp2HasVoidDomain
@@ -1641,6 +1648,10 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 			// Per-origin cutoffs; fixed for the whole origin (no limit() in this mode)
 			dh.m_MaxImp = orgMaxImpedances[orgMaxImpedancesHasVoidDomain ? 0 : orgZone];
 			dh.m_MaxImp2 = orgMaxImp2 ? orgMaxImp2[orgMaxImp2HasVoidDomain ? 0 : orgZone] : MAX_VALUE(ImpType);
+			// epsilon-dominance (#1282): the bucket width of the second criterion, 0 = exact; the
+			// per-zone connector applies the same rule to its commits
+			dh.m_Imp2Epsilon = imp2Epsilon ? imp2Epsilon[imp2EpsilonHasVoidDomain ? 0 : orgZone] : ImpType(0);
+			nzc.m_Imp2Epsilon = dh.m_Imp2Epsilon;
 
 			dh.ResetImpedances();
 			nzc.ResetSrc(orgZone);
@@ -1859,6 +1870,7 @@ class DijkstraMatrOperator : public VariadicOperator
 		if (flags(df & DijkstraFlag::UseAltLinkImp)) ++nrArgs;
 		if (flags(df & DijkstraFlag::UseLinkAttr)) ++nrArgs;
 		if (flags(df & DijkstraFlag::Imp2Cut)) ++nrArgs;
+		if (flags(df & DijkstraFlag::Imp2Epsilon)) ++nrArgs;
 		if (flags(df & DijkstraFlag::InteractionVi)) ++nrArgs;
 		if (flags(df & DijkstraFlag::InteractionWj)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DistDecay)) ++nrArgs;
@@ -2036,6 +2048,11 @@ public:
 			sig_var MI2 = sb.UnitVar("OrgZone_max_imp2"); sb.MemberValueClass(MI2, ValueWrap<ImpType>::GetStaticClass());
 			sb.ArgName(i, "OrgZone_max_imp2"); sb.ArgAttr(i, MI2, ozDom(), ValueComposition::Single); ++i;
 		}
+		if (flags(df & DijkstraFlag::Imp2Epsilon)) // pareto(imp2_epsilon): same shape as the cut, per origin zone or void
+		{
+			sig_var E2 = sb.UnitVar("Imp2Epsilon"); sb.MemberValueClass(E2, ValueWrap<ImpType>::GetStaticClass());
+			sb.ArgName(i, "imp2_epsilon"); sb.ArgAttr(i, E2, ozDom(), ValueComposition::Single); ++i;
+		}
 		if (flags(df & DijkstraFlag::OrgMinImp))
 		{
 			sig_var MI = sb.UnitVar("OrgMinImp"); sb.MemberValueClass(MI, ValueWrap<ImpType>::GetStaticClass());
@@ -2181,6 +2198,7 @@ public:
 		const AbstrDataItem* adiLinkAltImp          = flags(df & DijkstraFlag::UseAltLinkImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiLinkAttr            = flags(df & DijkstraFlag::UseLinkAttr  ) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiOrgMaxImp2          = flags(df & DijkstraFlag::Imp2Cut      ) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiImp2Epsilon         = flags(df & DijkstraFlag::Imp2Epsilon  ) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 
 		const AbstrDataItem* adiOrgMinImp  = flags(df & DijkstraFlag::OrgMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiDstMinImp  = flags(df & DijkstraFlag::DstMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
@@ -2301,6 +2319,12 @@ public:
 			assert(adiLinkAltImp); // CheckFlags: Imp2Cut implies pareto implies alternative(link_imp), so imp2Unit is the alternative's
 			orgZonesOrVoid->UnifyDomain(adiOrgMaxImp2->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgZone_max_imp2", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			imp2Unit->UnifyValues(adiOrgMaxImp2->GetAbstrValuesUnit(), impUnitRef, "Values of OrgZone_max_imp2", UnifyMode(UM_Throw | UM_AllowDefault));
+		}
+		if (adiImp2Epsilon)
+		{
+			assert(adiLinkAltImp); // CheckFlags: Imp2Epsilon implies pareto implies alternative(link_imp)
+			orgZonesOrVoid->UnifyDomain(adiImp2Epsilon->GetAbstrDomainUnit(), "OrgZones", "Domain of imp2_epsilon", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			imp2Unit->UnifyValues(adiImp2Epsilon->GetAbstrValuesUnit(), impUnitRef, "Values of imp2_epsilon", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiOrgMinImp)
 		{
@@ -2487,6 +2511,7 @@ public:
 			DataReadLock argCLock(adiDstMassLimit);
 			DataReadLock argWLock(adiLinkAltImp);
 			DataReadLock argA2Lock(adiOrgMaxImp2);
+			DataReadLock argE2Lock(adiImp2Epsilon);
 			DataReadLock argOrgMassLock(adiOrgMass);
 			DataReadLock argDstMassLock(adiDstMass);
 			DataReadLock argDistDecayB(adiDistDecayBetaParam);
@@ -2517,6 +2542,7 @@ public:
 			const ArgImpType* argDstMinImp = const_opt_array_checkedcast<ImpType  >(adiDstMinImp);
 			const ArgImpType* argOrgMaxImp = const_opt_array_checkedcast<ImpType  >(adiOrgMaxImp);
 			const ArgImpType* argOrgMaxImp2 = const_opt_array_checkedcast<ImpType  >(adiOrgMaxImp2);
+			const ArgImpType* argImp2Epsilon = const_opt_array_checkedcast<ImpType  >(adiImp2Epsilon);
 			const ArgMassType* argOrgMassLimit = const_opt_array_checkedcast<MassType >(adiOrgMassLimit);
 			const ArgMassType* argDstMassLimit = const_opt_array_checkedcast<MassType >(adiDstMassLimit);
 			const ArgImpType* argLinkAltImp = const_opt_array_checkedcast<MassType >(adiLinkAltImp);
@@ -2544,6 +2570,8 @@ public:
 					throwDmsErrD("pareto: illegal negative value in startPoint impedance data");
 				if (argEndPointImpedance && IsDefined(vector_find_if(argEndPointImpedance->GetLockedDataRead(), [](ImpType v) { return v < 0; })))
 					throwDmsErrD("pareto: illegal negative value in endPoint impedance data");
+				if (argImp2Epsilon && IsDefined(vector_find_if(argImp2Epsilon->GetLockedDataRead(), [](ImpType v) { return v < 0; })))
+					throwDmsErrD("pareto: illegal negative value in imp2_epsilon");
 			}
 
 			bool isBidirectional = flags(df & (DijkstraFlag::Bidirectional|DijkstraFlag::BidirFlag));
@@ -2564,6 +2592,7 @@ public:
 
 			CheckDefineMode(adiOrgMaxImp, "OrgZone_MaxImpedance");
 			CheckDefineMode(adiOrgMaxImp2, "OrgZone_max_imp2");
+			CheckDefineMode(adiImp2Epsilon, "imp2_epsilon");
 			CheckDefineMode(adiOrgMassLimit, "OrgZone_MaxMass");
 			CheckDefineMode(adiDstMassLimit, "DstZone_MassLimit");
 			CheckDefineMode(adiLinkAltImp, "Link_AltImpedance");
@@ -2591,6 +2620,7 @@ public:
 			auto dstMinImpData         = argDstMinImp           ? argDstMinImp          ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
 			auto orgMaxImpedances      = argOrgMaxImp           ? argOrgMaxImp          ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
 			auto orgMaxImp2Data        = argOrgMaxImp2          ? argOrgMaxImp2         ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
+			auto imp2EpsilonData       = argImp2Epsilon         ? argImp2Epsilon        ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
 			auto orgMassLimit          = argOrgMassLimit        ? argOrgMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
 			auto dstMassLimit          = argDstMassLimit        ? argDstMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
 			auto altWeight             = argLinkAltImp          ? argLinkAltImp         ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
@@ -2643,6 +2673,7 @@ public:
 							nrRes = ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType>(resultHolder, networkInfo
 								, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
 								, orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
+								, imp2EpsilonData.begin(), HasVoidDomainGuarantee(adiImp2Epsilon)
 								, euclidicSqrDist
 								, graph
 								, altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
@@ -2745,6 +2776,7 @@ public:
 					return ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType>(resultHolder, networkInfo
 					,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
 					,	orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
+					,	imp2EpsilonData.begin(), HasVoidDomainGuarantee(adiImp2Epsilon)
 					,	euclidicSqrDist
 					,	graph
 					,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
