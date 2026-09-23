@@ -1,0 +1,74 @@
+container fn_test_pareto_optimal
+{
+	// pareto_optimal(partition_rel, crit1, ..., critN): the rows that no other row of the same
+	// partition weakly dominates, all criteria minimised, exact duplicates keeping their first
+	// occurrence. Checked by hand on small tables and against the self-join formulation
+	// (join_equal_values + any) on a generated table with ties and duplicates.
+
+	unit<uint8> G : nrofrows = 2;
+
+	// ---- two criteria, by hand: group A rows 0..5, group B rows 6..8, a null row 9
+	unit<uint32> T2 : nrofrows = 10
+	{
+		attribute<G>       g_rel : [0, 0, 0, 0, 0, 0, 1, 1, 1, 0];
+		attribute<uint32>  c1    : [1, 2, 3, 2, 4, 4, 1, 1, 0, null];
+		attribute<float32> c2    : [5, 3, 4, 3, 1, 1, 1, 1, 2, 0];
+		// A: (1,5) T, (2,3) T, (3,4) dominated by (2,3), (2,3) duplicate of row 1, (4,1) T, (4,1) duplicate of row 4
+		// B: (1,1) T, (1,1) duplicate, (0,2) T; row 9: null criterion, never optimal
+		attribute<bool>    expected : [true, true, false, false, true, false, true, false, true, false];
+		attribute<bool>    po := pareto_optimal(g_rel, c1, c2);
+	}
+
+	// ---- one criterion: the argmin per group, first occurrence on ties
+	unit<uint32> T1 : nrofrows = 6
+	{
+		attribute<G>      g_rel : [1, 0, 1, 0, 1, 0];
+		attribute<int16>  c1    : [3, -2, 1, -2, 1, 5];
+		attribute<bool>   expected : [false, true, true, false, false, false];
+		attribute<bool>   po := pareto_optimal(g_rel, c1);
+	}
+
+	// ---- three criteria, generated with ties and duplicates, against the self-join formulation
+	unit<uint32> P : nrofrows = 40;
+	unit<uint32> T3 : nrofrows = 3000
+	{
+		attribute<uint32>  i     := id(.);
+		attribute<P>       p_rel := value(mod(i * 7919, 40), P);
+		attribute<uint32>  c1    := mod(i * 104729, 13);
+		attribute<float64> c2    := float64(mod(uint64(i) * uint64(1299709), uint64(11))) - 5.0;
+		attribute<uint32>  c3    := mod(i * 8887, 7);
+
+		attribute<bool> po := pareto_optimal(p_rel, c1, c2, c3);
+
+		unit<uint32> pairs := join_equal_values_uint32(p_rel, p_rel)
+		{
+			attribute<bool> is_le   := c1[first_rel] <= c1[second_rel] && c2[first_rel] <= c2[second_rel] && c3[first_rel] <= c3[second_rel];
+			attribute<bool> is_eq   := c1[first_rel] == c1[second_rel] && c2[first_rel] == c2[second_rel] && c3[first_rel] == c3[second_rel];
+			attribute<bool> is_less := is_le && (not(is_eq) || first_rel < second_rel);
+		}
+		attribute<bool> ref := not(any(pairs/is_less, pairs/second_rel));
+	}
+
+	// ---- two criteria on the generated table, the scalar path against the same reference
+	unit<uint32> T3b := T3
+	{
+		attribute<bool> po := pareto_optimal(T3/p_rel, T3/c1, T3/c2);
+		unit<uint32> pairs := join_equal_values_uint32(T3/p_rel, T3/p_rel)
+		{
+			attribute<bool> is_le   := T3/c1[first_rel] <= T3/c1[second_rel] && T3/c2[first_rel] <= T3/c2[second_rel];
+			attribute<bool> is_eq   := T3/c1[first_rel] == T3/c1[second_rel] && T3/c2[first_rel] == T3/c2[second_rel];
+			attribute<bool> is_less := is_le && (not(is_eq) || first_rel < second_rel);
+		}
+		attribute<bool> ref := not(any(pairs/is_less, pairs/second_rel));
+	}
+
+	container checks
+	{
+		parameter<uint32> c_t2_diff  := sum(uint32(T2/po != T2/expected)),   IntegrityCheck = "c_t2_diff == 0";
+		parameter<uint32> c_t1_diff  := sum(uint32(T1/po != T1/expected)),   IntegrityCheck = "c_t1_diff == 0";
+		parameter<uint32> c_t3_diff  := sum(uint32(T3/po != T3/ref)),        IntegrityCheck = "c_t3_diff == 0";
+		parameter<uint32> c_t3_some  := sum(uint32(T3/po)),                  IntegrityCheck = "c_t3_some > 40 && c_t3_some < 3000";
+		parameter<uint32> c_t3b_diff := sum(uint32(T3b/po != T3b/ref)),      IntegrityCheck = "c_t3b_diff == 0";
+		parameter<uint32> c_t3b_some := sum(uint32(T3b/po)),                 IntegrityCheck = "c_t3b_some > 40 && c_t3b_some < c_t3_some";
+	}
+}

@@ -117,6 +117,10 @@ Consequences:
 - The same test applies as a push-time pre-prune (minCost[v] is nonincreasing during a run, so a label failing
   it at push time also fails at pop time). Pending labels are NOT compared against each other — correct,
   merely a somewhat larger queue; this mirrors the existing IsBetter-before-push / MarkFinal-after-pop split.
+- The same rule works offline on a finished table (#1281, `pareto_optimal(partition_rel, crit1, ..., critN)`
+  in clc/dll/src/ParetoOptimal.cpp): a sort on (partition, criteria, row id) reproduces the pop order, and the
+  sweep keeps one scalar per partition for two criteria and the accepted front for more. That is how a union of
+  fronts from several searches, or from several modes, is reduced to its front again without a k^2 self-join.
 
 Correctness conditions that must be made explicit in the implementation:
 
