@@ -705,7 +705,7 @@ void dms_assign(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 }
 
 template <typename P, typename SequenceType, typename MPT>
-void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling, Timer& processTimer, CharPtr itemRef = "")
+void UnionPolygon(ResourceArrayHandle& r, SizeT n, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling, Timer& processTimer, CharPtr itemRef = "")
 {
 	auto polyData = const_array_cast<SequenceType>(polyDataA);
 	assert(polyData);
@@ -748,6 +748,8 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 				}
 				i = ri;
 			}
+			else
+				i += tileOffset; // #1283: an unpartitioned element keeps its own place in the domain
 			assert( i < n);
 			geometryTowerPtr += i;
 		}
@@ -905,7 +907,8 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
-					Calculate(r, domainCount, argPoly, argPart, t, processTimer, itemRef.c_str());
+					// #1283: r spans the whole domain here, so an unpartitioned element's slot is its tile's first index plus its index within the tile
+					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, processTimer, itemRef.c_str());
 				}
 				DataWriteLock resGeometryHandle; // will be assigned after establishing the count of resUnit
 				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, processTimer, itemRef.c_str());
@@ -923,7 +926,7 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
-					Calculate(r, resDomain->GetTileSize(t), argPoly, argPart, t, processTimer, itemRefPtr);
+					Calculate(r, resDomain->GetTileSize(t), 0, argPoly, argPart, t, processTimer, itemRefPtr); // r is this tile only
 					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, processTimer, itemRefPtr);
 				});
 				resGeometryHandle.Commit();
@@ -975,7 +978,7 @@ protected:
 #endif //defined(MG_DEBUG_POLYGON)
 		StoreImpl(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, t, r);
 	}
-	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const=0;
+	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const=0;
 	virtual void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const=0;
 	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, tile_id tn, PolygonFlags f, Timer& processTimer, CharPtr itemRef = "") const {}
 };
@@ -1079,9 +1082,9 @@ public:
 		:	AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
-		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
+		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
 	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags flag, Timer& processTimer, CharPtr itemRef = "") const override
@@ -1328,9 +1331,9 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1437,9 +1440,9 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1546,7 +1549,7 @@ public:
 		}
 	}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
@@ -1554,7 +1557,7 @@ public:
 				throwErrorF("GEOS_PolygonOperator", "GEOS-based polygon operation {} is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation {} is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1708,7 +1711,7 @@ public:
 		return frame;
 	}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto polyData = const_array_cast<SequenceType>(polyDataA);
 		assert(polyData);
@@ -1744,6 +1747,7 @@ public:
 				}
 				return ri;
 			}
+			i += tileOffset;
 			assert(i < domainCount);
 			return i;
 		};

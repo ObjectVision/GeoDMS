@@ -1,0 +1,65 @@
+// Pins #1283: the split_polygon family on a domain of more than one tile. The split result is
+// gathered for the whole domain, tile by tile, and each element must land in its own place in
+// that domain: polygon_rel is the element's index in the domain, not its index within its tile.
+// Before the fix, element k of every tile went to slot k, so polygon_rel ran 0..(tile size - 1)
+// and the elements sharing a slot were unioned before being split again.
+//
+// The tiles are of unequal size (3, 5, 4), so that "index within the tile" cannot pass for
+// "index modulo the tile size". The rings are clockwise, as bp_ requires.
+//
+// Offline and cheap by design (testcases/ rule): twelve literal squares.
+container oper_split_polygon_tiled
+{
+	unit<uint32> base := range(uint32, 0, 12);
+	unit<uint32> tiles : nrofrows = 3
+	{
+		attribute<base> lb : [0, 3,  8];
+		attribute<base> ub : [3, 8, 12];
+	}
+	unit<uint32> dom := TiledUnit(tiles/lb, tiles/ub);
+
+	// square i is [10i, 10i+5] x [0, 5]: all disjoint
+	unit<uint32> pts := range(uint32, 0, 60)
+	{
+		attribute<dom>    seq_rel := value(id(.) / 5, dom);
+		attribute<uint32> ord     := id(.) % 5;
+		attribute<int32>  x0      := int32(seq_rel) * 10i;
+		attribute<int32>  dx      := (ord == 2 || ord == 3) ? 5i : 0i;
+		attribute<int32>  dy      := (ord == 1 || ord == 2) ? 5i : 0i;
+		attribute<dpoint> pd      := point_xy(float64(x0 + dx), float64(dy), dpoint);
+		attribute<ipoint> pi      := point_xy(x0 + dx, dy, ipoint);
+		attribute<dpoint> pd_same := point_xy(float64(dx), float64(dy), dpoint); // all twelve on [0,5]^2
+	}
+	attribute<dpoint> geometry   (dom, polygon) := points2polygon(pts/pd, pts/seq_rel, pts/ord);
+	attribute<ipoint> geometry_i (dom, polygon) := points2polygon(pts/pi, pts/seq_rel, pts/ord);
+	attribute<dpoint> coincident (dom, polygon) := points2polygon(pts/pd_same, pts/seq_rel, pts/ord);
+
+	container checks
+	{
+		// each variant: one part per element, in domain order, each part the element's own square
+		unit<uint32> r_geos := geos_split_polygon(geometry);
+		unit<uint32> r_bg   := bg_split_polygon(geometry);
+		unit<uint32> r_cgal := cgal_split_polygon(geometry);
+		unit<uint32> r_dms  := dms_split_polygon(geometry);
+		unit<uint32> r_bp   := bp_split_polygon(geometry_i);
+
+		parameter<bool> geos_ok := #r_geos == 12 && all(r_geos/polygon_rel == value(id(r_geos), dom)) && all(pointcol(lower_bound(r_geos/geometry)) == float64(id(r_geos) * 10))
+			, IntegrityCheck = "geos_ok == true";
+		parameter<bool> bg_ok   := #r_bg   == 12 && all(r_bg/polygon_rel   == value(id(r_bg),   dom)) && all(pointcol(lower_bound(r_bg/geometry))   == float64(id(r_bg)   * 10))
+			, IntegrityCheck = "bg_ok == true";
+		parameter<bool> cgal_ok := #r_cgal == 12 && all(r_cgal/polygon_rel == value(id(r_cgal), dom)) && all(pointcol(lower_bound(r_cgal/geometry)) == float64(id(r_cgal) * 10))
+			, IntegrityCheck = "cgal_ok == true";
+		parameter<bool> dms_ok  := #r_dms  == 12 && all(r_dms/polygon_rel  == value(id(r_dms),  dom)) && all(pointcol(lower_bound(r_dms/geometry))  == float64(id(r_dms)  * 10))
+			, IntegrityCheck = "dms_ok == true";
+		parameter<bool> bp_ok   := #r_bp   == 12 && all(r_bp/polygon_rel   == value(id(r_bp),   dom)) && all(pointcol(lower_bound(r_bp/geometry))   == int32(id(r_bp)     * 10))
+			, IntegrityCheck = "bp_ok == true";
+
+		// twelve identical squares: still twelve parts, none merged with its namesake in another tile
+		unit<uint32> r_same_geos := geos_split_polygon(coincident);
+		unit<uint32> r_same_dms  := dms_split_polygon(coincident);
+		parameter<bool> same_geos_ok := #r_same_geos == 12 && all(r_same_geos/polygon_rel == value(id(r_same_geos), dom))
+			, IntegrityCheck = "same_geos_ok == true";
+		parameter<bool> same_dms_ok  := #r_same_dms  == 12 && all(r_same_dms/polygon_rel  == value(id(r_same_dms),  dom))
+			, IntegrityCheck = "same_dms_ok == true";
+	}
+}
