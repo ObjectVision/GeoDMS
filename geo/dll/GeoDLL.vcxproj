@@ -95,6 +95,7 @@
     <ClInclude Include="src\GeoPCH.h" />
     <ClInclude Include="src\GEOS_Traits.h" />
     <ClInclude Include="src\DMS_Traits.h" />
+    <ClInclude Include="src\ThreadScratch.h" />
     <ClInclude Include="src\minkowski.h" />
     <ClInclude Include="src\PolyOper.h" />
     <ClInclude Include="src\Potential.h" />

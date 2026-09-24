@@ -131,9 +131,12 @@
 #include <cstdlib>
 #include <format>
 #include <limits>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "ThreadScratch.h"
 
 namespace dms_overlay
 {
@@ -1396,6 +1399,8 @@ struct DmsOverlayEngine
 				throwErrorF(operName, "the grid size for integer coordinates must be a whole number of at least 1, not {}", explicitGrid);
 		}
 	}
+	DmsOverlayEngine(const DmsOverlayEngine&) = delete; // its buffers are what is worth keeping: pass it by reference
+	DmsOverlayEngine& operator=(const DmsOverlayEngine&) = delete;
 
 	SizeT m_NrUndefined = 0; // elements that had an undefined operand or an undefined point
 	SizeT NrCrossingPixels() const { return m_Noder.m_NrCrossingPixels; }
@@ -1530,7 +1535,8 @@ struct DmsOverlayEngine
 	// and whether it was kept. That is the whole local configuration, enough to reason from.
 	void CheckKeptClosed(SizeT nrFragments) const
 	{
-		std::vector<std::pair<GPoint, int>> ends;
+		auto& ends = m_KeptEnds;
+		ends.clear();
 		ends.reserve(2 * m_Kept.size());
 		for (const auto& e : m_Kept)
 		{
@@ -1944,12 +1950,25 @@ private:
 	std::vector<ParityEdge> m_Parity;
 	std::vector<CountEdge>  m_Counts;
 	std::vector<DirEdge>    m_Kept;
+	mutable std::vector<std::pair<GPoint, int>> m_KeptEnds; // CheckKeptClosed's scratch, kept for its capacity
 	Polygonizer             m_Polygonizer;
 	std::vector<Ring>       m_Rings;
 	HoleAssigner            m_HoleAssigner;
 	std::vector<SizeT>      m_Shells;
 	std::vector<std::vector<SizeT>>  m_HolesOf;
 	std::vector<std::vector<GPoint>> m_OutPts; // the rings as written, without collinear vertices
+};
+
+// The engines of one eagerly calculated operation whose tiles run in parallel: one per thread, so
+// that an engine serves every tile its thread works on (see thread_scratch). A lazily calculated
+// operation has no such scope; there one engine per tile is the unit, and that is fine.
+template <typename P>
+class DmsThreadEngines : public thread_scratch<DmsOverlayEngine<P>>
+{
+public:
+	DmsThreadEngines(BoolOp op, CharPtr operName, Float64 explicitGrid = 0.0)
+		: thread_scratch<DmsOverlayEngine<P>>([op, operName, explicitGrid] { return std::make_unique<DmsOverlayEngine<P>>(op, operName, explicitGrid); })
+	{}
 };
 
 // *****************************************************************************
@@ -2136,13 +2155,21 @@ struct union_dms_polygons
 // downstream (the fold, the split, the store) see canonical geometry, exactly as
 // geos_create_polygons followed by normalize() does on the GEOS side.
 template <typename P, typename R>
-void dms_clean_into(DmsPolySet<P>& lhs, const R& poly, Float64 cell, CharPtr operName)
+void dms_clean_into(DmsOverlayEngine<P>& engine, DmsPolySet<P>& lhs, const R& poly, Float64 cell)
 {
-	DmsOverlayEngine<P> engine(BoolOp::Union, operName);
 	engine.SetFixedCell(cell);
 
 	lhs.m_Cell = cell;
 	engine.Clean(lhs.m_Poly, poly);
+}
+
+// The same with an engine of its own, for a single call. A loop over elements should pass one
+// engine instead, so that its buffers are allocated once rather than once per element.
+template <typename P, typename R>
+void dms_clean_into(DmsPolySet<P>& lhs, const R& poly, Float64 cell, CharPtr operName)
+{
+	DmsOverlayEngine<P> engine(BoolOp::Union, operName);
+	dms_clean_into(engine, lhs, poly, cell);
 }
 
 // Copy a polygon value into a result reference. The sequence is already in the multi-polygon

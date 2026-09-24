@@ -136,11 +136,39 @@ FormattedOutStream& operator << (FormattedOutStream& os, const boost::polygon::r
 }
 
 // *****************************************************************************
+//	scratch state of one operation
+// *****************************************************************************
+
+// What one polygon operation keeps from its first element to its last: an operator that needs
+// scratch state (the dms_ family's overlay engine) derives from this and hands it out through
+// CreateContext, so that its buffers are allocated once per operation instead of once per element.
+// Where the tiles of an operation run in parallel, the functor of the tile loop holds a
+// thread_scratch of contexts, one per thread, that lives as long as the operation.
+struct PolygonOperContext
+{
+	virtual ~PolygonOperContext() = default;
+};
+using PolygonOperContexts = thread_scratch<PolygonOperContext>;
+
+template <typename P>
+struct DmsEngineContext : PolygonOperContext
+{
+	DmsEngineContext(dms_overlay::BoolOp op, CharPtr operName) : engine(op, operName) {}
+	dms_overlay::DmsOverlayEngine<P> engine;
+
+	static dms_overlay::DmsOverlayEngine<P>& EngineOf(PolygonOperContext* ctx)
+	{
+		MG_CHECK(ctx);
+		return debug_cast<DmsEngineContext*>(ctx)->engine;
+	}
+};
+
+// *****************************************************************************
 //	PolygonOverlay
 // *****************************************************************************
 
 
-static TokenID 
+static TokenID
 	s_tGM = token::geometry,
 	s_tFR = token::first_rel,
 	s_tSR = token::second_rel;
@@ -201,6 +229,7 @@ protected:
 			}
 
 			std::atomic<tile_id> intersectCount = 0;
+			PolygonOperContexts contexts([this] { return CreateContext(); }); // one per thread, for every tile pair it works on
 
 			for (tile_id u=0, ue = domain2Unit->GetNrTiles(); u != ue; ++u)
 			{
@@ -210,13 +239,14 @@ protected:
 
 				leveled_critical_section resInsertSection(item_level_type(0), ord_level_type::SpecificOperatorGroup, "PolygonOverlay.InsertSection");
 
-				parallel_tileloop(domain1Unit->GetNrTiles(), [this, &resInsertSection, arg1A, arg2A, u, &pointBoxDataHandle, &polyInfoHandle, &resData, &intersectCount](tile_id t)->void
+				parallel_tileloop(domain1Unit->GetNrTiles(), [this, &resInsertSection, arg1A, arg2A, u, &pointBoxDataHandle, &polyInfoHandle, &resData, &intersectCount, &contexts](tile_id t)->void
 					{
 						if (this->IsIntersecting(t, u, pointBoxDataHandle, polyInfoHandle))
 						{
 							ReadableTileLock readPoly1Lock (arg1A->GetCurrRefObj().get(), t);
 
-							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle);
+							auto ctx = contexts.local();
+							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle, ctx.get());
 
 							++intersectCount;
 						}
@@ -238,7 +268,8 @@ protected:
 	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& polyInfoHandle) const =0;
 	virtual void CreatePointHandle(const AbstrDataItem* pointDataA, tile_id t, ResourceHandle& pointBoxDataHandle) const =0;
 	virtual bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const=0;
-	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const=0;
+	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContext* ctx) const=0;
+	virtual std::unique_ptr<PolygonOperContext> CreateContext() const { return std::make_unique<PolygonOperContext>(); }
 	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData) const=0;
 
 	bool m_MustCreateGeometries = true, m_OnlyForwardMatches = false;
@@ -321,7 +352,15 @@ public:
 		return ::IsIntersecting(spIndexPtr->GetBoundingBox(), boxArray[t]);
 	}
 
-	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const override
+	std::unique_ptr<PolygonOperContext> CreateContext() const override
+	{
+		if constexpr (GL == geometry_library::dms)
+			return std::make_unique<DmsEngineContext<P>>(dms_overlay::BoolOp::Intersection, "dms_overlay_polygon");
+		else
+			return AbstrPolygonOverlayOperator::CreateContext();
+	}
+
+	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContext* ctx) const override
 	{
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8))
 		{
@@ -366,7 +405,7 @@ public:
 
 		// avoid overhead of parallel_for context switch admin 
 		bool onlyForwardMatches = this->m_OnlyForwardMatches;
-		serial_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, onlyForwardMatches](SizeT i)->void
+		serial_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, onlyForwardMatches, ctx](SizeT i)->void
 		{
 			Point<SizeT> orgRels;
 			PolygonType lastResGeometry;
@@ -504,11 +543,11 @@ public:
 				}
 				else if constexpr (GL == geometry_library::dms)
 				{
-					// One engine per first-argument element, reused over its candidate pairs: its
-					// scratch is what the sweep allocates, and the pairs of one element are of a
-					// size. Each pair is an independent binary intersection, so it derives its own
-					// frame, exactly as dms_intersect does.
-					dms_overlay::DmsOverlayEngine<P> engine(dms_overlay::BoolOp::Intersection, "dms_overlay_polygon");
+					// The engine of this tile pair's context, reused over every candidate pair of every
+					// element of the tile, and by the tile pairs that take the context after it: its
+					// scratch is what the sweep allocates. Each pair is an independent binary
+					// intersection, so it derives its own frame, exactly as dms_intersect does.
+					dms_overlay::DmsOverlayEngine<P>& engine = DmsEngineContext<P>::EngineOf(ctx);
 
 					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 					{
@@ -902,23 +941,25 @@ protected:
 			{
 				SizeT domainCount = resDomain->GetCount();
 				ResourceArrayHandle r;
+				auto ctx = CreateContext(); // the tiles run one after the other here, so one context serves the whole operation
 				for (tile_id t=0, te = domain1Unit->GetNrTiles(); t != te; ++t)
 				{
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
 					// #1283: r spans the whole domain here, so an unpartitioned element's slot is its tile's first index plus its index within the tile
-					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, processTimer, itemRef.c_str());
+					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, ctx.get(), processTimer, itemRef.c_str());
 				}
 				DataWriteLock resGeometryHandle; // will be assigned after establishing the count of resUnit
-				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, processTimer, itemRef.c_str());
+				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, ctx.get(), processTimer, itemRef.c_str());
 				resGeometryHandle.Commit();
 			}
 			else
 			{
 				DataWriteLock resGeometryHandle(resGeometry);
 				auto tn = domain1Unit->GetNrTiles();
-				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn, &processTimer, itemRefPtr = itemRef.c_str()](tile_id t) 
+				PolygonOperContexts contexts([this] { return CreateContext(); }); // the tiles run concurrently here: one context per thread
+				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn, &processTimer, &contexts, itemRefPtr = itemRef.c_str()](tile_id t)
 				{
 					if (resultHolder.WasFailed(FailType::Data))
 						resultHolder.ThrowFail();
@@ -926,8 +967,9 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
-					Calculate(r, resDomain->GetTileSize(t), 0, argPoly, argPart, t, processTimer, itemRefPtr); // r is this tile only
-					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, processTimer, itemRefPtr);
+					auto ctx = contexts.local();
+					Calculate(r, resDomain->GetTileSize(t), 0, argPoly, argPart, t, ctx.get(), processTimer, itemRefPtr); // r is this tile only
+					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, ctx.get(), processTimer, itemRefPtr);
 				});
 				resGeometryHandle.Commit();
 			}
@@ -965,7 +1007,7 @@ protected:
 
 		ProcessNumOperImpl(r, argNum, t, tn, f, processTimer, itemRef);
 	}
-	void Store (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryHandle, AbstrDataItem* resNrOrgEntity, tile_id t, tile_id tn, ResourceArrayHandle& r, const AbstrDataItem* argNum1, const AbstrDataItem* argNum2, Timer& processTimer, CharPtr itemRef = "") const
+	void Store (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryHandle, AbstrDataItem* resNrOrgEntity, tile_id t, tile_id tn, ResourceArrayHandle& r, const AbstrDataItem* argNum1, const AbstrDataItem* argNum2, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const
 	{
 		if (r)
 		{
@@ -976,10 +1018,11 @@ protected:
 #if defined(MG_DEBUG_POLYGON)
 		reportF(ST_MajorTrace, "UnionPolygon.Store {}", t);
 #endif //defined(MG_DEBUG_POLYGON)
-		StoreImpl(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, t, r);
+		StoreImpl(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, t, r, ctx);
 	}
-	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const=0;
-	virtual void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const=0;
+	virtual std::unique_ptr<PolygonOperContext> CreateContext() const { return std::make_unique<PolygonOperContext>(); }
+	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const=0;
+	virtual void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const=0;
 	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, tile_id tn, PolygonFlags f, Timer& processTimer, CharPtr itemRef = "") const {}
 };
 
@@ -1082,7 +1125,7 @@ public:
 		:	AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
@@ -1190,7 +1233,7 @@ public:
 		}
 	}
 
-	void StoreImpl (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	void StoreImpl (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const override
 	{
 		SizeT domainCount = 0;
 		OwningPtrSizedArray<typename traits_t::multi_polygon_type> geometryPtr;
@@ -1331,12 +1374,12 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
-	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const override
 	{
 		SizeT domainCount = 0;
 		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get());
@@ -1440,12 +1483,12 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
-	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const override
 	{
 		SizeT domainCount = 0;
 		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get());
@@ -1549,7 +1592,7 @@ public:
 		}
 	}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
@@ -1560,7 +1603,7 @@ public:
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
-	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const override
 	{
 		SizeT domainCount = 0;
 		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get());
@@ -1662,6 +1705,15 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
+	// The one engine of an operation (of a running tile, where tiles run in parallel): every
+	// element and, in a dissolve, every bag goes through it, so its buffers grow to the largest
+	// case once and are reused from then on.
+	std::unique_ptr<PolygonOperContext> CreateContext() const override
+	{
+		return std::make_unique<DmsEngineContext<P>>(dms_overlay::BoolOp::Union, GetGroup()->GetNameStr());
+	}
+	static Engine& EngineOf(PolygonOperContext* ctx) { return DmsEngineContext<P>::EngineOf(ctx); }
+
 	// A dissolve, plain or partitioned, goes through a segment bag per result element and is noded
 	// once at store time (doc/development/dms-dissolve-single-noding.md). The per-element forms,
 	// dms_polygon and dms_split_polygon, keep the tower: one element per slot, cleaned once and
@@ -1711,7 +1763,7 @@ public:
 		return frame;
 	}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto polyData = const_array_cast<SequenceType>(polyDataA);
 		assert(polyData);
@@ -1767,7 +1819,7 @@ public:
 			assert(bagResourcePtr->size() == domainCount);
 			const auto& frame = bagResourcePtr->begin()->frame;
 
-			Engine engine(dms_overlay::BoolOp::Union, operName);
+			Engine& engine = EngineOf(ctx);
 			engine.SetFixedFrame(frame.cell, frame.originX, frame.originY);
 
 			for (auto pb = polyArray.begin(), pi = pb, pe = polyArray.end(); pi != pe; ++pi)
@@ -1799,6 +1851,7 @@ public:
 		// one lattice for every reduction of this tile; zero for integer coordinates, where the
 		// lattice is the integer grid whatever the extent
 		Float64 cell = dms_overlay::DeriveFoldCell<P>(polyArray);
+		Engine& engine = EngineOf(ctx);
 
 		for (auto pb = polyArray.begin(), pi = pb, pe = polyArray.end(); pi != pe; ++pi)
 		{
@@ -1809,7 +1862,7 @@ public:
 			auto towerPtr = towerResourcePtr->begin() + slot;
 
 			PolySet geometry;
-			dms_overlay::dms_clean_into(geometry, *pi, cell, operName);
+			dms_overlay::dms_clean_into(engine, geometry, *pi, cell);
 			towerPtr->add(std::move(geometry));
 
 			if (processTimer.PassedSecs())
@@ -1824,7 +1877,7 @@ public:
 		}
 	}
 
-	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const override
 	{
 		// The value of every result element first, from whichever accumulator this operator uses:
 		// a bag noded once here (phase B, the dissolve), or a tower reduced to its front (the
@@ -1835,12 +1888,11 @@ public:
 		{
 			auto bagResourcePtr = debug_cast<ResourceArray<Bag>*>(r.get());
 			Bag* bagPtr = bagResourcePtr ? bagResourcePtr->begin() : nullptr;
-			CharPtr operName = GetGroup()->GetNameStr();
+			Engine& engine = EngineOf(ctx);
 			for (SizeT i = 0; i != domainCount; ++i, ++bagPtr)
 			{
 				if (bagPtr->empty())
 					continue;
-				Engine engine(dms_overlay::BoolOp::Union, operName);
 				engine.SetFixedFrame(bagPtr->frame.cell, bagPtr->frame.originX, bagPtr->frame.originY);
 				engine.UnionBag(bagPtr->segs);
 				engine.Store(results[i]);
