@@ -1763,6 +1763,31 @@ public:
 		return frame;
 	}
 
+	// How many elements each slot of a dissolve gets, 0, 1 or 2 for more, counted over all the
+	// tiles before phase A reads the first: only a slot that gets exactly one element may take it
+	// as it is (DmsOverlayEngine::SingleRingToRings), and phase A must know that when it reads it.
+	static void CountExpected(Bag* bags, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA)
+	{
+		if (!partitionDataA)
+		{
+			assert(domainCount == 1); // a plain dissolve: one slot for all
+			bags[0].nrExpected = UInt32(Min<SizeT>(polyDataA->GetAbstrDomainUnit()->GetCount(), 2));
+			return;
+		}
+		const AbstrUnit* partDomain = partitionDataA->GetAbstrDomainUnit();
+		for (tile_id u = 0, ue = partDomain->GetNrTiles(); u != ue; ++u)
+		{
+			ReadableTileLock readPartLock(partitionDataA->GetCurrRefObj().get(), u);
+			std::unique_ptr<IndexGetter> vg(IndexGetterCreator::Create(partitionDataA, u));
+			for (SizeT i = 0, n = partDomain->GetTileSize(u); i != n; ++i)
+			{
+				SizeT ri = vg->Get(i);
+				if (ri < domainCount && bags[ri].nrExpected < 2) // undefined and out-of-range indices are skipped, as phase A does
+					++bags[ri].nrExpected;
+			}
+		}
+	}
+
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto polyData = const_array_cast<SequenceType>(polyDataA);
@@ -1814,6 +1839,7 @@ public:
 				auto bags = debug_cast<ResourceArray<Bag>*>(r.get());
 				for (Bag* b = bags->begin(), *be = bags->end(); b != be; ++b)
 					b->frame = frame;
+				CountExpected(bags->begin(), domainCount, polyDataA, partitionDataA);
 			}
 			auto bagResourcePtr = debug_cast<ResourceArray<Bag>*>(r.get());
 			assert(bagResourcePtr->size() == domainCount);
@@ -1828,7 +1854,16 @@ public:
 				SizeT slot = slotOf(pi - pb, skip);
 				if (skip)
 					continue;
-				dms_overlay::dms_append_rings(bagResourcePtr->begin()[slot], engine.CleanToRings(*pi));
+				Bag& bag = bagResourcePtr->begin()[slot];
+
+				// the only element of its slot, and a single ring: taken as it is, and in phase B again
+				if (bag.nrExpected == 1 && engine.SingleRingToRings(*pi))
+				{
+					dms_overlay::dms_append_rings(bag, engine.CurrRings());
+					bag.singleRing = true;
+				}
+				else
+					dms_overlay::dms_append_rings(bag, engine.CleanToRings(*pi));
 
 				if (processTimer.PassedSecs())
 				{
@@ -1861,8 +1896,9 @@ public:
 				continue;
 			auto towerPtr = towerResourcePtr->begin() + slot;
 
+			// the per-element forms: every element is its slot's only one, so a single ring is taken as it is
 			PolySet geometry;
-			dms_overlay::dms_clean_into(engine, geometry, *pi, cell);
+			dms_overlay::dms_clean_single_into(engine, geometry, *pi, cell);
 			towerPtr->add(std::move(geometry));
 
 			if (processTimer.PassedSecs())
@@ -1894,7 +1930,10 @@ public:
 				if (bagPtr->empty())
 					continue;
 				engine.SetFixedFrame(bagPtr->frame.cell, bagPtr->frame.originX, bagPtr->frame.originY);
-				engine.UnionBag(bagPtr->segs);
+				if (bagPtr->singleRing && bagPtr->nrElements == 1)
+					engine.RingFromBag(bagPtr->segs); // phase A took it as it is; so does phase B
+				else
+					engine.UnionBag(bagPtr->segs);
 				engine.Store(results[i]);
 			}
 		}

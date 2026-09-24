@@ -1533,6 +1533,96 @@ struct DmsOverlayEngine
 		return m_Rings;
 	}
 
+	// ---- one element, one ring: no overlay ----
+	//
+	// An element that is its slot's only one, and whose walk is a single ring, is taken as it is:
+	// the ring is assumed simple, as GEOS assumes its input valid, and it is not noded or swept.
+	// What that saves is the whole sweep; what it keeps is the canonical form the sweep would have
+	// written for a valid simple ring: quantized onto the lattice, consecutive duplicates merged,
+	// wound clockwise and starting at its lexicographically first vertex, collinear vertices
+	// dropped at write time. For such a ring the result is therefore the full path's, exactly.
+	//
+	// A walk counts as a single ring when no vertex occurs in it twice, the closing point aside.
+	// Every other walk goes through the sweep: more than one ring, whether the others are holes,
+	// further shells or overlaps, and a ring that touches itself at a vertex. So does an element
+	// that cannot be framed, has fewer than three distinct points, or encloses no area.
+
+	// The rings of a when it is a single ring, as CleanToRings would give them; false, with no
+	// rings, when it is not, and the caller takes the full path.
+	template <typename RA>
+	bool SingleRingToRings(const RA& a)
+	{
+		m_Polygonizer.Recycle(m_Rings);
+		m_Framed = SetFrame(a, EmptyRange());
+		if (!m_Framed)
+			return false;
+
+		auto& pts = m_SinglePts;
+		pts.clear();
+		for (auto pi = a.begin(), pe = a.end(); pi != pe; ++pi)
+		{
+			GPoint g = Quantize(*pi);
+			if (pts.empty() || g != pts.back())
+				pts.push_back(g);
+		}
+		while (pts.size() >= 2 && pts.back() == pts.front())
+			pts.pop_back(); // the closing point
+		if (pts.size() < 3)
+			return false;
+
+		m_SingleSorted.assign(pts.begin(), pts.end());
+		std::sort(m_SingleSorted.begin(), m_SingleSorted.end(), LexLess);
+		if (std::adjacent_find(m_SingleSorted.begin(), m_SingleSorted.end()) != m_SingleSorted.end())
+			return false; // a vertex visited twice: more than one ring, or one that touches itself
+
+		int orientation = RingOrientation(pts);
+		if (!orientation)
+			return false;
+		if (orientation > 0)
+			std::reverse(pts.begin(), pts.end()); // a shell runs clockwise
+		std::rotate(pts.begin(), std::min_element(pts.begin(), pts.end(), LexLess), pts.end());
+
+		Ring ring;
+		ring.pts = m_Polygonizer.TakeSparePts();
+		ring.pts.assign(pts.begin(), pts.end());
+		ring.isShell = true;
+		m_Rings.push_back(std::move(ring));
+		return true;
+	}
+
+	// dms_polygon of an element that is its slot's only one: a single ring as it is, anything else
+	// through the sweep, as Clean.
+	template <typename E, typename RA>
+	bool CleanSingle(E&& res, const RA& a)
+	{
+		if (!SingleRingToRings(a))
+			return Clean(std::forward<E>(res), a);
+		Store(std::forward<E>(res));
+		return true;
+	}
+
+	// Phase B for a bag that holds the one ring of its only element, which phase A took through
+	// SingleRingToRings and appended edge by edge from its first vertex: that ring again, with no
+	// noding and no sweep. The bag is consumed.
+	bool RingFromBag(std::vector<Segment>& bag)
+	{
+		MG_CHECK2(m_HasFixedOrigin, "dms overlay: RingFromBag needs a fixed frame");
+		m_Polygonizer.Recycle(m_Rings);
+		m_Framed = true;
+
+		Ring ring;
+		ring.pts = m_Polygonizer.TakeSparePts();
+		ring.pts.reserve(bag.size());
+		for (const auto& s : bag)
+			ring.pts.push_back(s.a);
+		std::vector<Segment>().swap(bag);
+		MG_CHECK2(ring.pts.size() >= 3, "dms overlay: a single-ring bag with fewer than three vertices");
+		ring.isShell = true;
+		m_Rings.push_back(std::move(ring));
+		return true;
+	}
+
+	const std::vector<Ring>& CurrRings() const { return m_Rings; }
 
 	// Phase B of a dissolve: the union of a bag of segments that already lie on this engine's fixed
 	// frame (SetFixedFrame) and carry coverage weights (see Segment and dms_append_rings). Nodes
@@ -2021,6 +2111,7 @@ private:
 	std::vector<std::vector<SizeT>>  m_HolesOf;
 	std::vector<std::vector<GPoint>> m_OutPts; // the rings as written, without collinear vertices
 	std::vector<GPoint>     m_ShellStarts, m_HoleStarts; // Store's way back
+	std::vector<GPoint>     m_SinglePts, m_SingleSorted;  // SingleRingToRings' scratch
 };
 
 // The engines of one eagerly calculated operation whose tiles run in parallel: one per thread, so
@@ -2137,6 +2228,8 @@ struct DmsSegmentBag
 	DmsFrame             frame;
 	std::vector<Segment> segs;
 	SizeT                nrElements = 0;
+	UInt32               nrExpected = 0;     // the elements this slot will get, counted before phase A: 0, 1 or 2 for more
+	bool                 singleRing = false; // its only element was one ring, appended as it is (SingleRingToRings)
 
 	bool empty() const { return segs.empty(); }
 };
@@ -2225,6 +2318,17 @@ void dms_clean_into(DmsOverlayEngine<P>& engine, DmsPolySet<P>& lhs, const R& po
 
 	lhs.m_Cell = cell;
 	engine.Clean(lhs.m_Poly, poly);
+}
+
+// The same for an element that is its slot's only one: a single ring is taken as it is, see
+// DmsOverlayEngine::SingleRingToRings.
+template <typename P, typename R>
+void dms_clean_single_into(DmsOverlayEngine<P>& engine, DmsPolySet<P>& lhs, const R& poly, Float64 cell)
+{
+	engine.SetFixedCell(cell);
+
+	lhs.m_Cell = cell;
+	engine.CleanSingle(lhs.m_Poly, poly);
 }
 
 // The same with an engine of its own, for a single call. A loop over elements should pass one
