@@ -468,9 +468,6 @@ struct JenksFisher
 		,	m_CurrSSM(new ClassBreakValueType[m_BufSize])
 		,	m_CB     ( new SizeT[m_BufSize * (m_K-1)])
 		,	m_CBPtr()
-#if defined(MG_REPORT_SSM_COUNT)
-		,	md_SsmCounter(0)
-#endif
 	{
 		DBG_START("JenksFisher", "JenksFisher", MG_DEBUG_CLASSBREAKS);
 		m_CumulValues.reserve(vcpc.size() MG_DEBUG_ALLOCATOR_SRC("JenksFischer CumulValues"));
@@ -495,12 +492,6 @@ struct JenksFisher
 		}
 	}
 
-#if defined(MG_REPORT_SSM_COUNT)
-	~JenksFisher()
-	{
-		reportF(ST_MajorTrace, "JenksFisher SsmCounter={}", (UInt64)md_SsmCounter);
-	}
-#endif
 	Float64 GetW(SizeT b, SizeT e)
 	{
 		assert(b<=e);
@@ -523,9 +514,6 @@ struct JenksFisher
 
 	Float64 GetSSM(SizeT b, SizeT e)
 	{
-#if defined(MG_REPORT_SSM_COUNT)
-		++md_SsmCounter;
-#endif
 		Float64 res = GetWV(b,e);
 		return res * res / GetW(b,e);
 	}
@@ -542,16 +530,6 @@ struct JenksFisher
 		Float64 minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
 		DBG_TRACE(("{:f} = prevSSM[{}] + GetSSM({}) = {:f} + {:f}", Float32(minSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(minSSM-m_PrevSSM[bp])));
 
-#if defined(MG_ASSUME_CB_INC)
-		if (m_NrCompletedRows>1 && (i+1 < m_BufSize))
-		{
-			SizeT prev_bp = (m_CBPtr-m_BufSize)[i+1];
-			if (prev_bp--)
-				MakeMax(bp, prev_bp);
-		}
-		assert(bp < ep);
-		assert(bp <= i);
-#endif
 		SizeT foundP = bp;
 		while (++bp < ep)
 		{
@@ -663,9 +641,6 @@ struct JenksFisher
 	SizeT*                 m_CBPtr;
 
 	SizeT                  m_NrCompletedRows = 0;
-#if defined(MG_REPORT_SSM_COUNT)
-	UInt64 md_SsmCounter;
-#endif
 };
 
 break_array ClassifyCRJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk)
