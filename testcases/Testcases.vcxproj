@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F7A0A4C3-D5E6-6A7A-1C3F-4A0E9A1D5C7F}</ProjectGuid>
+    <RootNamespace>Testcases</RootNamespace>
+    <Keyword>GeoDMS Test Cases</Keyword>
+    <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
+    <ProjectName>Testcases</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <ItemGroup>
+    <None Include="tmpl_regress.dms" />
+    <None Include="fn_test.dms" />
+    <None Include="fn_test_anon.dms" />
+    <None Include="fn_test_anon_neg1.dms" />
+    <None Include="fn_test_anon_neg2.dms" />
+    <None Include="fn_test_apply.dms" />
+    <None Include="fn_test_applyt.dms" />
+    <None Include="fn_test_applyt2.dms" />
+    <None Include="fn_test_apply_nd.dms" />
+    <None Include="fn_test_applyt_nd.dms" />
+    <None Include="fn_test_generic1.dms" />
+    <None Include="fn_test_generic2.dms" />
+    <None Include="fn_test_generic3.dms" />
+    <None Include="fn_test_generic4.dms" />
+    <None Include="fn_test_generic5.dms" />
+    <None Include="fn_test_generic_neg.dms" />
+    <None Include="fn_test_instantiate.dms" />
+    <None Include="fn_test_instantiate_nd.dms" />
+    <None Include="fn_test_map1.dms" />
+    <None Include="fn_test_map2.dms" />
+    <None Include="fn_test_map_neg.dms" />
+    <None Include="fn_test_neg.dms" />
+    <None Include="fn_test_nested_instantiate.dms" />
+    <None Include="fn_test_neg1.dms" />
+    <None Include="fn_test_neg2.dms" />
+    <None Include="fn_test_neg3.dms" />
+    <None Include="fn_test_neg4.dms" />
+    <None Include="fn_test_neg5.dms" />
+    <None Include="fn_test_rec_instantiate.dms" />
+    <None Include="fn_test_simple_fncall.dms" />
+    <None Include="fn_probe_cfgbase_a.dms" />
+    <None Include="fn_probe_cfgbase_b.dms" />
+    <None Include="fn_probe_cfgbase_deep.dms" />
+    <None Include="fn_probe_cfgbase_neg.dms" />
+    <None Include="fn_probe_cfgbase_scope.dms" />
+    <None Include="shipped_examples.dms" />
+    <None Include="shipped_library.dms" />
+    <None Include="data\xml_roundtrip_source.dms" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>
