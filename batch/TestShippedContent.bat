@@ -12,9 +12,9 @@ rem   1. TestShippedDms.bat, the offline part (GeoDMS-Test #24): the shipped
 rem      examples\testcases battery run through its own run_testcases.bat from
 rem      the output folder, exactly as a user would run it from
 rem      <install>\examples\testcases, with the shipped_library.dms case that
-rem      covers library\; examples\function.dms; a load of grid_to_polygon.dms;
-rem      and a check that every shipped .dms is covered. The setup scripts run
-rem      that part on its own before NSIS;
+rem      covers library\; examples\function.dms and examples\convex_hull.dms; a
+rem      load of grid_to_polygon.dms; and a check that every shipped .dms is
+rem      covered. The setup scripts run that part on its own before NSIS;
 rem
 rem   2. the shipped examples\grid_to_polygon.dms over the real CBS buurt map.
 rem

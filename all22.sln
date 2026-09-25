@@ -82,6 +82,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CopyResources", "CopyResour
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
+		examples\convex_hull.dms = examples\convex_hull.dms
 		examples\function.dms = examples\function.dms
 		examples\grid_to_polygon.dms = examples\grid_to_polygon.dms
 	EndProjectSection
@@ -392,6 +393,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "testcases", "testcases", "{
 		testcases\run_valueinfo_supplier_neg.dms = testcases\run_valueinfo_supplier_neg.dms
 		testcases\run_xml_roundtrip.bat = testcases\run_xml_roundtrip.bat
 		testcases\run_xml_roundtrip.ps1 = testcases\run_xml_roundtrip.ps1
+		testcases\shipped_example_convex_hull.dms = testcases\shipped_example_convex_hull.dms
 		testcases\shipped_example_function.dms = testcases\shipped_example_function.dms
 		testcases\shipped_example_grid_to_polygon.dms = testcases\shipped_example_grid_to_polygon.dms
 		testcases\shipped_library_basedata_nl.dms = testcases\shipped_library_basedata_nl.dms

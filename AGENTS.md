@@ -54,7 +54,7 @@ the Globio launcher against the installed build (#1231). Pass a third argument t
 geopackage step at a scratch `SourceDataDir` when testing the script itself.
 
 **Every shipped `.dms` is tested before it is packaged (GeoDMS-Test #24).** The installer
-ships two examples and six `library\` files, and the battery's `testcases\shipped_*.dms`
+ships three examples and six `library\` files, and the battery's `testcases\shipped_*.dms`
 cases include every one of them from `%exeDir%`, so they test the copy in the output
 folder, and after installing, the installed copy. `batch\TestShippedDms.bat <output
 folder>` (bash twin `TestShippedDms.sh` for the `.l` build) is the gate: it checks that

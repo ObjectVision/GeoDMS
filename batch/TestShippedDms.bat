@@ -21,8 +21,9 @@ rem      file that no case includes fails here, with its name. The cases in
 rem      testcases\shipped_*.dms include from %exeDir% and check the units, the RD
 rem      domains, the WMTS tile matrix, the grid domains and their cell areas, the
 rem      CBS year table and its instantiation, two grid2poly fixtures, and
-rem      examples\function.dms with its own /checks; grid_to_polygon.dms is loaded
-rem      and its includes resolved, since its data is a download.
+rem      examples\function.dms and examples\convex_hull.dms with their own
+rem      /checks; grid_to_polygon.dms is loaded and its includes resolved, since
+rem      its data is a download.
 rem
 rem   3. the shipped battery, run through its own run_testcases.bat from the output
 rem      folder, exactly as a user would from <install>\examples\testcases.
