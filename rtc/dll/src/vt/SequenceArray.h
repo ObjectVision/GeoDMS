@@ -398,8 +398,7 @@ struct SA_Reference : private SequenceArray_Base<T>
 	template <typename ...Args>
 	void emplace_back(MG_DEBUG_ALLOCATOR_FIRST_ARG Args&& ...args )
 	{
-		push_back(MG_DEBUG_ALLOCATOR_TXT_PARAM);
-		back() = value_type(std::forward<Args>(args)...);
+		push_back(value_type(std::forward<Args>(args)...) MG_DEBUG_ALLOCATOR_SRC_PARAM); // args can refer to values in this sequence array, which push_back can reallocate
 	}
 	RTC_CALL void push_back(const value_type& value MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void push_back(MG_DEBUG_ALLOCATOR_TXT_ARG);

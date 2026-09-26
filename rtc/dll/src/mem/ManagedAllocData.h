@@ -261,14 +261,16 @@ struct my_vector : managed_alloc_data<V>
 
 	void push_back(const V& value MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		grow(1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		new (&this->back()) V(value); // placement new to construct the object in place
+		emplace_back(MG_DEBUG_ALLOCATOR_FIRST_PARAM value);
 	}
+	// args can refer to an element of this vector, as in v.push_back(v.front()); see emplace_back_reallocating
 	template <typename... Args>
 	void emplace_back(MG_DEBUG_ALLOCATOR_FIRST_ARG Args&& ...args)
 	{
-		grow(1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		new (&this->back()) V(std::forward<Args>(args)...); // placement new to construct the object in place
+		if (this->size() == this->m_Capacity)
+			return emplace_back_reallocating(MG_DEBUG_ALLOCATOR_FIRST_PARAM std::forward<Args>(args)...);
+		new (this->second) V(std::forward<Args>(args)...); // placement new to construct the object in place
+		++this->second; // after the construction, so that a constructor that throws leaves the vector as it was
 	}
 	void erase(const_iterator first, const_iterator last)
 	{
@@ -284,6 +286,22 @@ struct my_vector : managed_alloc_data<V>
 		--last; // get the last element's position
 		last->~V(); // explicitly call the destructor for the last element
 		this->second = last; // adjust the end pointer
+	}
+
+private:
+	// grows as grow does, but constructs the new element in the new storage before the elements move there, as args
+	// can refer to them and the move releases them; a constructor that throws leaves the vector as it was
+	template <typename... Args>
+	void emplace_back_reallocating(MG_DEBUG_ALLOCATOR_FIRST_ARG Args&& ...args)
+	{
+		SizeT oldSize = this->size();
+		SizeT newCapacity = oldSize + 1;
+		MakeMax<SizeT>(newCapacity, 2 * this->m_Capacity);
+		managed_alloc_data<V> newAlloc(0, newCapacity, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		new (newAlloc.first + oldSize) V(std::forward<Args>(args)...); // placement new to construct the object in place
+		newAlloc.second = raw_move(this->first, this->second, newAlloc.first) + 1;
+		this->second = this->first; // raw_move already destroyed the moved elements
+		this->swap(newAlloc);
 	}
 };
 
