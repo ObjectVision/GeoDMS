@@ -720,6 +720,12 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	// values present, with room for a negative + zero + positive class), so it gets a 0-centered classification.
 	bool insertZeroBreak = hasZeroClass || (negativeValues.size() != 0 && positiveValues.size() != 0 && kk >= 3);
 
+	// Two classes leave no room for a negative, a zero and a positive class, and the splits below would then leave one
+	// side without a class. The break at 0 stays and the first break is the minimum, so the negative values get the
+	// first class and 0 shares the second with the positive values, as in ClassifyNZEqualInterval.
+	if (kk == 2 && hasZeroClass && negativeValues.size() != 0)
+		return { negativeValues[0].first, 0.0 };
+
 	if (negativeValues.size() <= 1)
 	{
 		auto result = ClassifyCRJenksFisher(positiveValues, kk - negativeValues.size() - (insertZeroBreak ? 1 : 0));
