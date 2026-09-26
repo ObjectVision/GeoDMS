@@ -421,7 +421,7 @@ template <int N, typename CB, typename Iter> inline
 Iter fast_copy_backward(bit_iterator<N, CB> first, bit_iterator<N, CB> last, Iter targetEnd)
 {
 	while (first != last)
-		*--last == typesafe_cast<bit_value<N>>(*--targetEnd);
+		*--targetEnd = typesafe_cast<bit_value<N>>(*--last);
 	return targetEnd;
 }
 
