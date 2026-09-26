@@ -234,9 +234,12 @@ struct my_vector : managed_alloc_data<V>
 	void insert(const_iterator pos, const V& value MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		assert(pos >= this->first && pos <= this->second); // ensure the range is valid
+		SizeT index = pos - this->first; // grow can reallocate, which leaves pos dangling
+		V valueCopy(value); // value can be an element of this vector, which a reallocation or the move below changes
 		grow(1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		auto afterPos = raw_move_backward_unchecked(pos, this->cend(), this->end() + 1); // move elements to the right
-		new (--afterPos) V(value); // placement new to construct the object in place
+		iterator insertPos = this->first + index;
+		raw_move_backward(insertPos, this->second - 1, this->second); // move the elements from insertPos one to the right, last first as the ranges overlap; leaves *insertPos unconstructed
+		new (insertPos) V(std::move(valueCopy)); // placement new to construct the object in place
 	}
 
 	template <typename InIter>
