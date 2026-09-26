@@ -257,7 +257,7 @@ public:
 	template <typename InIter> void PointSet_AddPoints(InIter first, InIter last);  // Adds a set of points
 	STGIMPL_CALL ShpPolygon& ShapeSet_PushBackPolygon(ShapeTypes shapeType);
 	STGIMPL_CALL ShpPolygon& ShapeSet_PushBackPolygon();
-	STGIMPL_CALL void ShapeSet_PrepareDataStore(UInt32 nrRecs, UInt32 nrSeqsToKeep);
+	STGIMPL_CALL void ShapeSet_PrepareDataStore(UInt32 nrRecs, UInt32 nrSeqsToKeep, SizeT expectedNrPoints = 0);
 	
 	// Debug
 	void Render(long width, long height);
