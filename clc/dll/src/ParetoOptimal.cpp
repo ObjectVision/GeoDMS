@@ -120,7 +120,7 @@ struct ParetoOptimalOperator : VariadicOperator
 				critItems[k] = AsDataItem(args[CritArg(k)]);
 				if (m_WithEps)
 				{
-					eps[k] = AsDataItem(args[EpsArg(k)])->GetRefObj()->GetValueAsFloat64(0);
+					eps[k] = AsDataItem(args[EpsArg(k)])->GetCurrRefObj()->GetValueAsFloat64(0); // argLocks holds it; GetRefObj is meta-thread only and this may run on a worker
 					MG_USERCHECK2(IsDefined(eps[k]) && eps[k] >= 0.0, mySSPrintF("{}: the epsilon of criterion {} must be a defined, nonnegative value", Name(), k + 1).c_str());
 				}
 			}
