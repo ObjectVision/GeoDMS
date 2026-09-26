@@ -1,9 +1,10 @@
-// Counting integral values in bins (BinCounts in clc/dll/include/ValuesTable.h), the counts that the classifications,
-// weeded_counts and the total modus family (modus, unique_count_*, frequency_table, as_unique_list, ...) start from.
-// Each block is a shape of data that the bins handle differently: tiles that share their values, tiles whose values
-// move on so that the bins grow, one tile whose values lie too far apart for bins among narrow ones, values outside
-// the values unit's range, nulls, and more distinct values than weeded_counts keeps. The checks compare with unique,
-// which sorts, and with totals that do not depend on how the values were counted.
+// Counting integral values in bins (BinCounts in clc/dll/include/ValuesTable.h), which the classifications,
+// weeded_counts, the total modus family (modus, unique_count_*, frequency_table, as_unique_list, ...) and unique
+// start from. Each block is a shape of data that the bins handle differently: tiles that share their values, tiles
+// whose values move on so that the bins grow, one tile whose values lie too far apart for bins among narrow ones,
+// values outside the values unit's range, nulls, more distinct values than weeded_counts keeps, and bit values.
+// The checks compare with unique of the same values as float64, which are sorted, never binned, and with totals
+// that do not depend on how the values were counted.
 // Expected: exit 0 on /checks.
 container oper_counts_bins
 {
@@ -12,50 +13,74 @@ container oper_counts_bins
 
 	// 8-bit values in 9 classes, every 13th null
 	attribute<uint8> lu (T) := iif(id(T) % 13 == 0, null_b, uint8((id(T) / 3 + id(T) / 7) % 10));
-	unit<uint32> ulu := unique(lu);
-	unit<uint32> wlu := weeded_counts(lu);
+	unit<uint32> ulu  := unique(lu);
+	unit<uint32> ulun := unique_with_null(lu);
+	unit<uint32> ulf  := unique(float64(lu));
+	unit<uint32> wlu  := weeded_counts(lu);
 	attribute<uint8> luBreaks (cls) := ClassifyUniqueValues(lu, cls);
 
 	// tile k holds 100k-1000 up to 100k-951: the bins grow from tile to tile
 	attribute<int16> grow (T) := int16(int32(id(T) / 1000) * int32(100) + int32(id(T) % 50) - int32(1000));
-	unit<uint32> ugrow := unique(grow);
+	unit<uint32> ugrow  := unique(grow);
+	unit<uint32> ugrowf := unique(float64(grow));
 
 	// narrow values everywhere but in tile 7, whose values lie too far apart for bins and are sorted instead
 	attribute<int16> wide (T) := iif(id(T) / 1000 == 7, int16(int32(id(T) % 1000) * int32(60) - int32(30000)), int16(id(T) % 10));
-	unit<uint32> uwide := unique(wide);
+	unit<uint32> uwide  := unique(wide);
+	unit<uint32> uwidef := unique(float64(wide));
 
 	// 10 and 11 lie outside the values unit's range and are counted like the others
 	unit<uint8> LU10 : nrofrows = 10;
 	attribute<LU10> outr (T) := value(uint8(id(T) % 12), LU10);
 	unit<uint32> woutr := weeded_counts(outr);
+	unit<uint32> uoutr := unique(outr);
 
 	// 10000 distinct values, more than the 4096 pairs weeded_counts keeps
 	attribute<int32> many (T) := int32(id(T) / 1000) * int32(500) + int32(id(T) % 500);
-	unit<uint32> wmany := weeded_counts(many);
+	unit<uint32> wmany  := weeded_counts(many);
+	unit<uint32> umany  := unique(many);
+	unit<uint32> umanyf := unique(float64(many));
+
+	// bit values: a table of all their values
+	attribute<uint4> u4 (T) := uint4(id(T) % 13);
+	attribute<bool>  b  (T) := id(T) % 3 == 0;
+	unit<uint32> uu4  := unique(u4);
+	unit<uint32> uu4f := unique(float64(u4));
+	unit<uint32> ub   := unique(b);
 
 	container checks
 	{
 		// nulls are left out, or counted apart and listed first
 		parameter<uint32>  luDefined   := sum(uint32(IsDefined(lu)));
-		parameter<uint32>  luCounted   := uint32(sum(wlu/count)),       IntegrityCheck = "luCounted == luDefined";
-		parameter<uint32>  luPairs     := #wlu,                          IntegrityCheck = "luPairs == #ulu";
-		parameter<uint32>  luUnique    := unique_count_uint32(lu),       IntegrityCheck = "luUnique == #ulu";
-		parameter<string>  luWithNull  := as_unique_list_with_null(lu),  IntegrityCheck = "luWithNull == '<null>; 0; 1; 2; 3; 4; 5; 6; 7; 8'";
-		parameter<uint8>   luModus     := modus(lu),                     IntegrityCheck = "luModus == uint8(1)";
-		parameter<bool>    luBreaksOk  := all(luBreaks == id(cls)),      IntegrityCheck = "luBreaksOk == True";
+		parameter<uint32>  luCounted   := uint32(sum(wlu/count)),        IntegrityCheck = "luCounted == luDefined";
+		parameter<uint32>  luPairs     := #wlu,                           IntegrityCheck = "luPairs == #ulf";
+		parameter<uint32>  luUnique    := unique_count_uint32(lu),        IntegrityCheck = "luUnique == #ulf";
+		parameter<string>  luValues    := asList(string(ulu/Values), ','), IntegrityCheck = "luValues == asList(string(ulf/Values), ',')";
+		parameter<uint32>  luWithNull  := #ulun,                          IntegrityCheck = "luWithNull == #ulu + 1";
+		parameter<string>  luListNull  := as_unique_list_with_null(lu),   IntegrityCheck = "luListNull == '<null>; 0; 1; 2; 3; 4; 5; 6; 7; 8'";
+		parameter<uint8>   luModus     := modus(lu),                      IntegrityCheck = "luModus == uint8(1)";
+		parameter<bool>    luBreaksOk  := all(luBreaks == id(cls)),       IntegrityCheck = "luBreaksOk == True";
 
-		// bins that grow, and values beside them that are sorted, find what unique finds
-		parameter<uint32>  growUnique  := unique_count_uint32(grow),     IntegrityCheck = "growUnique == 1000 && growUnique == #ugrow";
-		parameter<uint32>  wideUnique  := unique_count_uint32(wide),     IntegrityCheck = "wideUnique == #uwide";
-		parameter<int16>   wideModus   := modus(wide),                   IntegrityCheck = "wideModus == int16(0)";
+		// bins that grow, and values beside them that are sorted, find what sorting finds
+		parameter<uint32>  growUnique  := unique_count_uint32(grow),      IntegrityCheck = "growUnique == 1000 && growUnique == #ugrowf";
+		parameter<string>  growValues  := asList(string(ugrow/Values), ','), IntegrityCheck = "growValues == asList(string(ugrowf/Values), ',')";
+		parameter<uint32>  wideUnique  := unique_count_uint32(wide),      IntegrityCheck = "wideUnique == #uwidef";
+		parameter<string>  wideValues  := asList(string(uwide/Values), ','), IntegrityCheck = "wideValues == asList(string(uwidef/Values), ',')";
+		parameter<int16>   wideModus   := modus(wide),                    IntegrityCheck = "wideModus == int16(0)";
 
 		// values outside the values unit's range are data
-		parameter<uint32>  outrPairs   := #woutr,                        IntegrityCheck = "outrPairs == 12";
-		parameter<float64> outrTop     := float64(max(woutr/Values)),    IntegrityCheck = "outrTop == 11.0";
+		parameter<uint32>  outrPairs   := #woutr,                         IntegrityCheck = "outrPairs == 12";
+		parameter<float64> outrTop     := float64(max(woutr/Values)),     IntegrityCheck = "outrTop == 11.0";
+		parameter<uint32>  outrUnique  := #uoutr,                         IntegrityCheck = "outrUnique == 12";
 
 		// weeded down to at most 4096 pairs, every element still accounted for
-		parameter<uint32>  manyPairs   := #wmany,                        IntegrityCheck = "manyPairs == 2500";
-		parameter<float64> manyCounted := float64(sum(wmany/count)),     IntegrityCheck = "manyCounted == 20000.0";
-		parameter<uint32>  manyUnique  := unique_count_uint32(many),     IntegrityCheck = "manyUnique == 10000";
+		parameter<uint32>  manyPairs   := #wmany,                         IntegrityCheck = "manyPairs == 2500";
+		parameter<float64> manyCounted := float64(sum(wmany/count)),      IntegrityCheck = "manyCounted == 20000.0";
+		parameter<uint32>  manyUnique  := unique_count_uint32(many),      IntegrityCheck = "manyUnique == 10000";
+		parameter<string>  manyValues  := asList(string(umany/Values), ','), IntegrityCheck = "manyValues == asList(string(umanyf/Values), ',')";
+
+		// bit values
+		parameter<string>  u4Values    := asList(string(uu4/Values), ','), IntegrityCheck = "u4Values == asList(string(uu4f/Values), ',')";
+		parameter<uint32>  bUnique     := #ub,                            IntegrityCheck = "bUnique == 2";
 	}
 }

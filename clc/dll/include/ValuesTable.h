@@ -439,32 +439,49 @@ struct BinCounts
 	// the bin of v, or at least the number of bins when v lies outside them: below m_First the difference wraps around
 	SizeT Offset(V v) const { return uint_type(uint_type(v) - uint_type(m_First)); }
 
+	// how many bins a tile of tileSize values may bring them to: within MaxBins, and within the number of values counted
+	// with it, so that a small tile of widely spread values does not pay for a large table
+	SizeT MaxSpan(SizeT maxPairCount, SizeT tileSize) const { return Min<SizeT>(MaxBins(maxPairCount), Max<SizeT>(m_NrCounted + tileSize, BUFFER_SIZE)); }
+
+	// the lowest and highest defined value in data, false if there is none; the 255 defined values of an 8-bit type
+	// fit anyway, so these are taken without looking
+	static bool DefinedRange(typename sequence_traits<V>::cseq_t data, V& lo, V& hi)
+	{
+		if constexpr (sizeof(V) == 1)
+		{
+			lo = MinValue<V>();
+			hi = MaxValue<V>();
+			return true;
+		}
+		else
+		{
+			auto valuePtr = std::find_if(data.begin(), data.end(), [](V v) { return IsDefined(v); });
+			if (valuePtr == data.end())
+				return false;
+			lo = hi = *valuePtr;
+			for (; valuePtr != data.end(); ++valuePtr)
+				if (IsDefined(*valuePtr))
+				{
+					MakeMin(lo, *valuePtr);
+					MakeMax(hi, *valuePtr);
+				}
+			return true;
+		}
+	}
+
 	// Counts the values of a tile in the bins and returns the (value, count) pairs, sorted, of those that do not fit.
-	// A tile sizes absent bins to its own values and grows present ones for values beyond them, as long as the bins
-	// stay within MaxBins and within the number of values counted, so that a small tile of widely spread values does
-	// not pay for a large table.
+	// A tile sizes absent bins to its own values and grows present ones for values beyond them, within MaxSpan.
 	auto CountTile(typename sequence_traits<V>::cseq_t data, SizeT maxPairCount, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 	{
-		SizeT maxSpan = Min<SizeT>(MaxBins(maxPairCount), Max<SizeT>(m_NrCounted + data.size(), BUFFER_SIZE));
+		SizeT maxSpan = MaxSpan(maxPairCount, data.size());
 		if (!HasBins())
 		{
-			V lo = MinValue<V>(), hi = MaxValue<V>(); // the 255 defined values of an 8-bit type fit without looking
-			if constexpr (sizeof(V) > 1)
+			V lo = V(), hi = V();
+			if (!DefinedRange(data, lo, hi))
 			{
-				auto valuePtr = std::find_if(data.begin(), data.end(), [](V v) { return IsDefined(v); });
-				if (valuePtr == data.end())
-				{
-					if (!valueMustBeDefined)
-						m_NullCount += data.size();
-					return {};
-				}
-				lo = hi = *valuePtr;
-				for (; valuePtr != data.end(); ++valuePtr)
-					if (IsDefined(*valuePtr))
-					{
-						MakeMin(lo, *valuePtr);
-						MakeMax(hi, *valuePtr);
-					}
+				if (!valueMustBeDefined)
+					m_NullCount += data.size();
+				return {};
 			}
 			SizeT span = BinSpan(lo, hi, maxSpan);
 			if (!span)
@@ -506,6 +523,45 @@ struct BinCounts
 			++m_Bins[Offset(v)];
 		m_NrCounted += outside.size();
 		return {};
+	}
+
+	// Counts all values of a tile in the bins, sizing or growing them within MaxSpan as CountTile does, if they all fit;
+	// returns false, counting nothing, otherwise. For a caller that has a better way than sorting single-threaded to deal
+	// with a tile whose values lie too far apart, such as unique, which splits the tile over threads.
+	bool CountTileIfItFits(typename sequence_traits<V>::cseq_t data, SizeT maxPairCount, bool valueMustBeDefined)
+	{
+		V lo = V(), hi = V();
+		if (DefinedRange(data, lo, hi))
+		{
+			if (HasBins())
+			{
+				MakeMin(lo, m_First);
+				MakeMax(hi, Last());
+			}
+			SizeT maxSpan = MaxSpan(maxPairCount, data.size());
+			SizeT span = BinSpan(lo, hi, maxSpan);
+			if (!span)
+				return false;
+			if (!HasBins())
+			{
+				m_First = lo;
+				m_Bins = my_vector<C>(span MG_DEBUG_ALLOCATOR_SRC("BinCounts::CountTileIfItFits")); // zeroed
+			}
+			else if (lo < m_First || Last() < hi)
+				Grow(lo, hi, maxSpan);
+		}
+
+		SizeT nrNulls = 0;
+		auto  bins = m_Bins.begin();
+		for (V v : data)
+			if (IsDefined(v))
+				++bins[Offset(v)];
+			else
+				++nrNulls;
+		if (!valueMustBeDefined)
+			m_NullCount += nrNulls;
+		m_NrCounted += data.size() - nrNulls;
+		return true;
 	}
 
 	// Adds the counts of other if the bins of both fit in MaxBins together; returns false, changing nothing, otherwise.
