@@ -236,11 +236,15 @@ break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPair
 	return ba;
 }
 
+// 0 is treated as ClassifyNonzeroJenksFisher treats it: a compulsory break, with a class of its own when there is room for one. The
+// negative and the positive values each get classes of equal width from their own minimum to their own maximum, and the classes are
+// split over the two sides so that the widest class is as narrow as possible.
 break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
 	assert(breakAttr);
 	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
-	if (k < 2 || !vcpc.size() || vcpc[0].first > 0)
+	// no values, one class, or only positive or only negative values
+	if (k < 2 || !vcpc.size() || vcpc[0].first > 0 || vcpc.back().first < 0)
 		return ClassifyEqualInterval(breakAttr, vcpc, abstrValuesRangeData);
 
 	DataWriteLock breakObj(breakAttr, vcpc.size() == breakAttr->GetAbstrDomainUnit()->GetCount() ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
@@ -251,7 +255,7 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	assert(m);
 
 	assert(m <= GetTotalCount(vcpc));
-	SizeT mz = 0; while (mz < m && vcpc[mz].first < 0.0) ++mz;
+	SizeT mz = 0; while (vcpc[mz].first < 0.0) ++mz; // stops at a 0 or a positive value, as the last value is not negative
 	bool hasNegative = (mz > 0);
 
 	Float64 minValueN = 0.0, maxValueN = 0.0;
@@ -264,11 +268,15 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	assert(IsDefined(maxValueN));
 	assert(minValueN <= maxValueN);
 
+	// 0 gets a class of its own, unless two classes have to hold the negative and the positive values; 0 then shares the second class
+	// with the positive values. Issue #1146: as in ClassifyNonzeroJenksFisher, data that straddle 0 without containing it get a class at 0
+	// too, which then holds no values, so that a diverging palette is anchored on 0.
 	auto kk = k;
-	bool hasZero = vcpc[mz].first == 0.0 && k > 2; // if k==2 we just treat zero as a positive number
-	if (hasZero)
+	bool zeroClass = k > 2 || !(hasNegative && vcpc[m - 1].first > 0.0);
+	if (zeroClass)
 	{
-		++mz;
+		if (vcpc[mz].first == 0.0)
+			++mz;
 		--kk;
 	}
 	bool hasPositive = (mz < m);
@@ -293,11 +301,12 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	}
 	else
 	{
-		auto minDelta = Max(deltaN, deltaP);
-		for (SizeT ko = 1; ko + 1 != kk; ++ko)
+		// the split whose widest class is narrowest; on a tie, the positive values get the extra class, as in ClassifyNonzeroJenksFisher
+		auto minDelta = Max(deltaN, deltaP / (kk - 1)); // kn == 1
+		for (SizeT ko = 2; ko < kk; ++ko)
 		{
 			auto currDelta = Max(deltaN / ko, deltaP / (kk - ko));
-			if (currDelta <= minDelta)
+			if (currDelta < minDelta)
 			{
 				kn = ko;
 				minDelta = currDelta;
@@ -313,13 +322,14 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 		ba.emplace_back(minValueN);
 		minValueN += deltaN;
 	}
-	if (hasZero)
+	if (zeroClass)
 		ba.emplace_back(0.0);
 	while (kp--)
 	{
 		ba.emplace_back(minValueP);
 		minValueP += deltaP;
 	}
+	assert(ba.size() == k);
 	for (SizeT j=0; j!= ba.size(); ++j)
 		breakObj->SetValueAsFloat64(j, ba[j]);
 
