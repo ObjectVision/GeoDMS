@@ -1,0 +1,70 @@
+// invert and invertAll over a values unit whose range contains the null value: a value inside the range is
+// inverted, null included, and a value outside the range is skipped, as lookup does. GetCheckMode returns
+// DCM_CheckBoth for such data, which invert treats as DCM_CheckRange. Covered: an untiled values unit (the
+// DCM_CheckBoth path), a tiled values unit and a tiled domain (both already took DCM_CheckRange). Each of the
+// three asserted in Debug (Invert.h); on the untiled one Release skipped the null and wrote out-of-range values
+// at unchecked positions.
+// A point unit can get such a range in a configuration: range() takes a bound with one null coordinate as
+// defined, spans the bounds componentwise from the null point, and does not clip them to an empty base range.
+// A null outside the range of its values unit is skipped, see the int8 case.
+// Expected: exit 0 on /checks.
+container oper_invert_null_in_range
+{
+	unit<spoint> NoClip := range(spoint, point_yx(0s, 0s), point_yx(0s, 0s));
+	unit<spoint> P      := range(NoClip, spoint(point_yx(-32768, -32764)), spoint(point_yx(-32764, -32768))); // rows and cols -32768 (null) .. -32765
+	unit<spoint> PT     := TiledUnit(point_yx(2s, 2s, P)); // the same points in 2 x 2 tiles
+
+	// row 2 is null, rows 1 and 4 lie outside the range, rows 0 and 5 share a value
+	unit<uint32> E : nrofrows = 6
+	{
+		attribute<int16> r : [-32766, 0, null, -32767, 5, -32766];
+		attribute<int16> c : [-32765, 0, null, -32767, 5, -32765];
+		attribute<P>     a  := point_yx(r, c, P);
+		attribute<PT>    at := point_yx(r, c, PT);
+	}
+	unit<uint32> ET := TiledUnit(value(2, range(uint32, 0, 6))) // the same rows in 3 tiles
+	{
+		attribute<P> a := point_yx(E/r[value(id(.), E)], E/c[value(id(.), E)], P);
+	}
+
+	unit<int8>   S8 := range(int8, int8(-3), int8(3)); // the null value -128 lies outside
+	unit<uint32> F : nrofrows = 5
+	{
+		attribute<S8> x : [-2, 7, null, 0, -2];
+	}
+
+	attribute<E>  inv  (P)  := invert(E/a);
+	attribute<E>  all  (P)  := invertAll(E/a);
+	attribute<E>  invT (PT) := invert(E/at);
+	attribute<E>  allT (PT) := invertAll(E/at);
+	attribute<ET> invE (P)  := invert(ET/a);
+	attribute<ET> allE (P)  := invertAll(ET/a);
+	attribute<F>  invV (S8) := invert(F/x);
+	attribute<F>  allV (S8) := invertAll(F/x);
+
+	container checks
+	{
+		// P lists its 16 points row by row: the null point 1st, (-32767, -32767) 6th, (-32766, -32765) 12th;
+		// invertAll keeps the last row of a value and links it to the row before
+		parameter<string> inv_s   := AsList(MakeDefined(string(inv),       'n'), ','), IntegrityCheck = "inv_s   == '2,n,n,n,n,3,n,n,n,n,n,5,n,n,n,n'";
+		parameter<string> all_s   := AsList(MakeDefined(string(all),       'n'), ','), IntegrityCheck = "all_s   == '2,n,n,n,n,3,n,n,n,n,n,5,n,n,n,n'";
+		parameter<string> next_s  := AsList(MakeDefined(string(all/Next),  'n'), ','), IntegrityCheck = "next_s  == 'n,n,n,n,n,0'";
+
+		// the null row finds itself back, as lookup finds the null point
+		parameter<string> back_s  := AsList(MakeDefined(string(lookup(E/a, inv)), 'n'), ','), IntegrityCheck = "back_s == '5,n,2,3,n,5'";
+
+		// PT lists its points tile by tile: the null point 1st, (-32767, -32767) 4th, (-32766, -32765) 14th
+		parameter<string> invT_s  := AsList(MakeDefined(string(invT),      'n'), ','), IntegrityCheck = "invT_s  == '2,n,n,3,n,n,n,n,n,n,n,n,n,5,n,n'";
+		parameter<string> allT_s  := AsList(MakeDefined(string(allT),      'n'), ','), IntegrityCheck = "allT_s  == '2,n,n,3,n,n,n,n,n,n,n,n,n,5,n,n'";
+		parameter<string> nextT_s := AsList(MakeDefined(string(allT/Next), 'n'), ','), IntegrityCheck = "nextT_s == 'n,n,n,n,n,0'";
+
+		parameter<string> invE_s  := AsList(MakeDefined(string(invE),      'n'), ','), IntegrityCheck = "invE_s  == '2,n,n,n,n,3,n,n,n,n,n,5,n,n,n,n'";
+		parameter<string> allE_s  := AsList(MakeDefined(string(allE),      'n'), ','), IntegrityCheck = "allE_s  == '2,n,n,n,n,3,n,n,n,n,n,5,n,n,n,n'";
+		parameter<string> nextE_s := AsList(MakeDefined(string(allE/Next), 'n'), ','), IntegrityCheck = "nextE_s == 'n,n,n,n,n,0'";
+
+		// S8 lists -3 .. 2: 7 and the null are skipped
+		parameter<string> invV_s  := AsList(MakeDefined(string(invV),      'n'), ','), IntegrityCheck = "invV_s  == 'n,4,n,3,n,n'";
+		parameter<string> allV_s  := AsList(MakeDefined(string(allV),      'n'), ','), IntegrityCheck = "allV_s  == 'n,4,n,3,n,n'";
+		parameter<string> nextV_s := AsList(MakeDefined(string(allV/Next), 'n'), ','), IntegrityCheck = "nextV_s == 'n,n,n,n,0'";
+	}
+}

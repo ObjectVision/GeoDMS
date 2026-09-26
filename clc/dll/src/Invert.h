@@ -50,7 +50,7 @@ void invert2values_best(ResIter  resultPtr
 	,	DataCheckMode dcmIndices
 )
 {
-	dms_assert((dcmIndices & DCM_CheckDefined) || !ContainsUndefined(domainRange));
+	dms_assert(dcmIndices != DCM_CheckBoth); // the caller passes DCM_CheckRange instead, also for a domainRange that contains <null>
 
 	bool hasOutOfRangeIndices = dcmIndices & DCM_CheckRange;
 	if (!(dcmIndices & DCM_CheckDefined))
@@ -73,7 +73,8 @@ void invert2values_best(ResIter resultPtr
 	,	DataCheckMode dcmIndices
 )
 {
-	dms_assert(dcmIndices == DCM_None);
+	// any check mode will do: domainRange holds all 2^N bit values (asserted below) and a bit value cannot be null,
+	// so no value needs checking. Invert.cpp passes DCM_CheckRange when the domain has more than one tile.
 	dms_assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
 
 	for (SizeT i = 0; curr != last; ++curr, ++i)
@@ -142,7 +143,7 @@ void invertAll2values_best(ResIter  resultPerV, ResIter resultPerE
 	,	DataCheckMode dcmIndices, bool mustInitPerEntity
 )
 {
-	dms_assert((dcmIndices & DCM_CheckDefined) || !ContainsUndefined(domainRange));
+	dms_assert(dcmIndices != DCM_CheckBoth); // the caller passes DCM_CheckRange instead, also for a domainRange that contains <null>
 
 	bool hasOutOfRangeIndices = dcmIndices & DCM_CheckRange;
 	SizeT i = 0;
@@ -173,7 +174,7 @@ void invertAll2values_best(ResIter resultPerV, ResIter resultPerE
 	,	DataCheckMode dcmIndices, bool mustInitPerEntity
 )
 {
-	dms_assert(dcmIndices == DCM_None);
+	// any check mode will do, as in invert2values_best for bit values
 	dms_assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
 	for (SizeT i = 0; curr != last; ++curr, ++i, ++resultPerE)
 	{
@@ -196,8 +197,6 @@ void invertAll2values_array(
 	dms_assert(resultDataPerV.size() == Cardinality(valuesRange));
 	dms_assert(!resultDataPerEPtr || resultDataPerEPtr->size() == Cardinality(entityRange));
 	dms_assert(argData       .size() == Cardinality(entityRange));
-
-	dms_assert((dcmIndices & DCM_CheckDefined) || !ContainsUndefined(valuesRange));
 
 	if (resultDataPerEPtr)
 		invertAll2values_best<E>(

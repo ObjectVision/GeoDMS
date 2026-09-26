@@ -1,0 +1,49 @@
+// invert and invertAll of bit values (bool and uint2) over a tiled domain. Invert.cpp inverts each tile of a domain
+// with more than one tile with DCM_CheckRange, which the bit-value overloads in Invert.h asserted to be DCM_None, so
+// a Debug build stopped with exit 3; Release ignored the check mode, as a bit value always lies in its range and is
+// never null.
+// The tiled domain gives what the same rows give untiled: the last row with a value is its result, Next links each
+// row to the previous row with the same value, also across tiles, and a value that no row has stays null.
+// Expected: exit 0 on /checks.
+container oper_invert_bits_tiled
+{
+	unit<uint32> E : nrofrows = 6
+	{
+		attribute<bool>  b := id(.) == 3 || id(.) == 4; // False False False True True False
+		attribute<uint2> u : [2, 0, 3, 2, 0, 2];        // 1 is absent, 2 occurs in each tile of ET
+	}
+	unit<uint32> ET := TiledUnit(value(2, range(uint32, 0, 6))) // the same rows in 3 tiles of 2
+	{
+		attribute<bool>  b := id(.) == 3 || id(.) == 4;
+		attribute<uint2> u := E/u[value(id(.), E)];
+	}
+
+	attribute<E>  invB  (bool)  := invert(E/b);
+	attribute<E>  allB  (bool)  := invertAll(E/b);
+	attribute<ET> invBT (bool)  := invert(ET/b);
+	attribute<ET> allBT (bool)  := invertAll(ET/b);
+
+	attribute<E>  invU  (uint2) := invert(E/u);
+	attribute<E>  allU  (uint2) := invertAll(E/u);
+	attribute<ET> invUT (uint2) := invert(ET/u);
+	attribute<ET> allUT (uint2) := invertAll(ET/u);
+
+	container checks
+	{
+		// bool lists False, True
+		parameter<string> invB_s   := asList(MakeDefined(string(invB),       'n'), ','), IntegrityCheck = "invB_s   == '5,4'";
+		parameter<string> allB_s   := asList(MakeDefined(string(allB),       'n'), ','), IntegrityCheck = "allB_s   == '5,4'";
+		parameter<string> nextB_s  := asList(MakeDefined(string(allB/Next),  'n'), ','), IntegrityCheck = "nextB_s  == 'n,0,1,n,3,2'";
+		parameter<string> invBT_s  := asList(MakeDefined(string(invBT),      'n'), ','), IntegrityCheck = "invBT_s  == '5,4'";
+		parameter<string> allBT_s  := asList(MakeDefined(string(allBT),      'n'), ','), IntegrityCheck = "allBT_s  == '5,4'";
+		parameter<string> nextBT_s := asList(MakeDefined(string(allBT/Next), 'n'), ','), IntegrityCheck = "nextBT_s == 'n,0,1,n,3,2'";
+
+		// uint2 lists 0 .. 3
+		parameter<string> invU_s   := asList(MakeDefined(string(invU),       'n'), ','), IntegrityCheck = "invU_s   == '4,n,5,2'";
+		parameter<string> allU_s   := asList(MakeDefined(string(allU),       'n'), ','), IntegrityCheck = "allU_s   == '4,n,5,2'";
+		parameter<string> nextU_s  := asList(MakeDefined(string(allU/Next),  'n'), ','), IntegrityCheck = "nextU_s  == 'n,n,n,0,1,3'";
+		parameter<string> invUT_s  := asList(MakeDefined(string(invUT),      'n'), ','), IntegrityCheck = "invUT_s  == '4,n,5,2'";
+		parameter<string> allUT_s  := asList(MakeDefined(string(allUT),      'n'), ','), IntegrityCheck = "allUT_s  == '4,n,5,2'";
+		parameter<string> nextUT_s := asList(MakeDefined(string(allUT/Next), 'n'), ','), IntegrityCheck = "nextUT_s == 'n,n,n,0,1,3'";
+	}
+}
