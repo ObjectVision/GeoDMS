@@ -106,6 +106,11 @@ SizeT GetFreeStackDeadBytes();
 
 RTC_CALL void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 RTC_CALL void  LeaveToStock(void* ptr, size_t sz);
+
+// The bytes that a request of sz bytes takes from the stock: from 8 KB to 1 MB a whole object store of the next
+// power of 2, which is committed in full; any other size as asked. A container can take that much as its capacity,
+// provided that it also frees with it: LeaveToStock must get the size that AllocateFromStock got.
+RTC_CALL SizeT StockAllocationSize(SizeT sz);
 extern std::atomic<bool> s_ReportingRequestPending;
 extern std::atomic<bool> s_BlockNewAllocations;
 void ReportFixedAllocStatus();

@@ -12,6 +12,7 @@
 #include "RtcBase.h"
 #include "mem/AllocData.h"
 #include "mem/FixedAlloc.h"
+#include "mem/MyAllocator.h"
 #include "set/rangefuncs.h"
 
 //----------------------------------------------------------------------
@@ -31,22 +32,18 @@ struct managed_alloc_data : alloc_data<V>
 	{}
 
 	managed_alloc_data(size_type sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
-	{
-		if (!sz)
-			return;
+		: managed_alloc_data(sz, sz, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM)
+	{}
 
-		first = CreateMyAllocator<V>()->allocate(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		second = first + sz;
-		raw_awake_or_init(first, second, mustClear);
-		m_Capacity = sz;
-	}
-
+	// The capacity becomes all that the stock takes for the one asked for (StockAllocationSize), and clear()
+	// deallocates with it.
 	managed_alloc_data(size_type sz, size_type capacity, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		assert(sz <= capacity);
 		if (!capacity)
 			return;
 
+		capacity = my_allocator<V>::capacity_for(capacity);
 		first = CreateMyAllocator<V>()->allocate(capacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		second = first + sz;
 		raw_awake_or_init(first, second, mustClear);
@@ -59,6 +56,7 @@ struct managed_alloc_data : alloc_data<V>
 		if (!capacity)
 			return;
 
+		capacity = my_allocator<V>::capacity_for(capacity);
 		first = CreateMyAllocator<V>()->allocate(capacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 		second = raw_copy(first_, last_, first);

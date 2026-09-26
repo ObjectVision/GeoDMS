@@ -20,6 +20,7 @@
 #include "set/rangefuncs.h"
 #include "utl/swap.h"
 
+#include <bit>     // std::bit_ceil, for the power-of-2 growth in enable_nr_blocks
 #include <utility> // std::forward, for the emplace_back conformance overload below
 #include <vector>
 
@@ -717,11 +718,12 @@ struct BitVector : bit_info<N, Block>
 
 private:
 	// Gives insert and push_back nrBlocks blocks; they set m_NrElems themselves. The blocks already written are
-	// kept, and new blocks start at zero, so the bits past the last element stay clear.
+	// kept, and new blocks start at zero, so the bits past the last element stay clear. The capacity grows to a
+	// power of 2 of blocks: FixedAlloc serves 8 KB to 1 MB from power-of-2 object stores that it commits in full.
 	void enable_nr_blocks(size_type nrBlocks MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		if (nrBlocks > m_bits.capacity())
-			m_bits.reserve(Max<size_type>(m_bits.capacity() * 1.5, nrBlocks) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			m_bits.reserve(std::bit_ceil(nrBlocks) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		::resizeSO(m_bits, nrBlocks, true MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	void             clear_unused_bits();

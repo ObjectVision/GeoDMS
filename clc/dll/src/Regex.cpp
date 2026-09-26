@@ -101,7 +101,7 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 						else
 							resI->assign(Undefined());
 					}
-					dms_assert(resData.get_sa().actual_data_size() == resData.get_sa().data_capacity());
+					dms_assert(resData.get_sa().actual_data_size() == totalSize); // the count predicts the data; the capacity can be a larger store
 				}
 			);
 			resLock.Commit();
@@ -283,7 +283,7 @@ struct RegexReplaceOperator : CommonOperGroup, QuaternaryOperator
 						else
 							resI->assign(Undefined());
 					}
-					dms_assert(resData.get_sa().actual_data_size() == resData.get_sa().data_capacity());
+					dms_assert(resData.get_sa().actual_data_size() == SizeT(totalSize)); // the count predicts the data; the capacity can be a larger store
 				}
 			);
 			resLock.Commit();

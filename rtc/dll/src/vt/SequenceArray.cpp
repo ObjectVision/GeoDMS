@@ -580,7 +580,7 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	MG_DEBUGCODE( checkActualDataSize(); )
 	MG_DEBUGCODE( checkConsecutiveness(); )
 
-	assert(m_Values.size() +expectedGrowth == m_Values.capacity());
+	assert(m_Values.size() +expectedGrowth <= m_Values.capacity()); // the capacity can be the whole store the stock takes for it
 	return true;
 }
 

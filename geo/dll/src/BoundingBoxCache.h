@@ -18,9 +18,10 @@ template <typename RectArrayType, typename FeatArrayType>
 typename RectArrayType::value_type MakeBlockBoundArray(RectArrayType& blockArray, const FeatArrayType& featArray)
 {
 	SizeT n = featArray.size();
+	SizeT nrBlocks = (n + (AbstrBoundingBoxCache::c_BlockSize-1))/ AbstrBoundingBoxCache::c_BlockSize;
 
 	blockArray.clear();
-	blockArray.reserve( (n + (AbstrBoundingBoxCache::c_BlockSize-1))/ AbstrBoundingBoxCache::c_BlockSize);
+	blockArray.reserve(nrBlocks);
 	auto
 		i = featArray.begin(),
 		e = featArray.end();
@@ -34,7 +35,7 @@ typename RectArrayType::value_type MakeBlockBoundArray(RectArrayType& blockArray
 	}
 	if (i!=e)
 		blockArray.push_back(typename RectArrayType::value_type(i, e, false, true));
-	assert(blockArray.size() == blockArray.capacity());
+	assert(blockArray.size() == nrBlocks); // the capacity can be the whole store the stock takes for it
 	return typename RectArrayType::value_type(blockArray.begin(), blockArray.end(), false, false);
 }
 
