@@ -44,11 +44,6 @@ inline void SafeIncrementCounter(SizeT& assignee)
 	assignee++;
 	assert(assignee); // SizeT cannot overflow when counting distict addressable elements
 }
-inline bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
-{
-	DataCheckMode dcm = adi->GetCheckMode();
-	return !(dcm & DCM_CheckRange);
-}
 
 template <typename V>
 auto GetValuesRange(const DataArray<V>* tileFunctor) -> typename Unit<V>::range_t
@@ -57,6 +52,48 @@ auto GetValuesRange(const DataArray<V>* tileFunctor) -> typename Unit<V>::range_
 	auto vrd = tileFunctor->GetValueRangeData();
 	MG_CHECK(vrd);
 	return vrd->GetRange();
+}
+
+//----------------------------------------------------------------------
+// Tables over the formal range of integral values
+//
+// A table counts integral values with one counter per value of the formal range of their values unit, the range that the
+// modus family assumes them to lie in: a value outside it is an error, which ThrowOutOfFormalRange reports. The range of a
+// values unit without a range of its own, [MinValue, MaxValue), stands for all defined values, MaxValue included, as in the
+// check mode that DataArrayBase::DoDetermineCheckMode determines; a table over it has a counter for MaxValue too.
+//----------------------------------------------------------------------
+
+// whether range excludes some defined values, which the range of a values unit without a range of its own does not
+template <typename V>
+bool IsRestrictingRange(const Range<V>& range)
+{
+	return IsDefined(range) && !range.inverted() && !range.is_max();
+}
+
+// the number of counters of a table over range, undefined for an undefined range
+template <typename V>
+SizeT TableSize(const Range<V>& range)
+{
+	if (!IsDefined(range) || range.inverted())
+		return UNDEFINED_VALUE(SizeT);
+	SizeT n = Cardinality(range);
+	if (IsDefined(n) && range.is_max())
+		++n;
+	return n;
+}
+
+// the value that counter i of a table over range counts
+template <typename V>
+V TableValue(const Range<V>& range, SizeT i)
+{
+	assert(i < TableSize(range));
+	return V(range.first + i);
+}
+
+template <typename V>
+[[noreturn]] void ThrowOutOfFormalRange(V value, const Range<V>& range)
+{
+	throwErrorF("Range Error", "Value {} not in expected range from {} till {}", value, range.first, range.second);
 }
 
 //----------------------------------------------------------------------
@@ -786,11 +823,11 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 				if (!IsDefined(*valuesIter))
 					continue;
 			}
-			auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
+			auto i = Range_GetIndex_naked_unchecked(localInfo.valuesRange, *valuesIter); // a value outside is reported below, in a debug build too
 			if constexpr (has_undefines_v<V>)
 			{
 				if (i >= localInfo.vCount)
-					throwErrorF("Range Error", "Value {} not in expected range from {} till {}", *valuesIter, localInfo.valuesRange.first, localInfo.valuesRange.second);
+					ThrowOutOfFormalRange<V>(*valuesIter, localInfo.valuesRange);
 			}
 			SafeIncrementCounter(bufferB[i]);
 		}
@@ -802,7 +839,8 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 template<typename V, typename C>
 auto GetCountsAsArray(const DataArray<V> * valuesDataArray, typename Unit<V>::range_t valuesRange) -> std::vector<C>
 {
-	SizeT vCount = Cardinality(valuesRange);
+	SizeT vCount = TableSize(valuesRange);
+	assert(IsDefined(vCount));
 	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
 	if (vCount)
 		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);

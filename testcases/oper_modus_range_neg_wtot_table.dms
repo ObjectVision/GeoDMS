@@ -1,0 +1,21 @@
+// A value outside the formal range of its values unit is an error for modus_weighted, here where
+// the table (6 counters <= 12 values) counts the values: the last value, 1006, lies outside the range.
+// Expected: a Range Error, so exit nonzero on /checks. See oper_modus_formal_range.dms.
+container oper_modus_range_neg_wtot_table
+{
+	unit<uint8>  P2 : nrofrows = 2;
+	unit<uint32> R  := range(uint32, 1000, 1006);
+
+	unit<uint32> D : nrofrows = 12
+	{
+		attribute<uint32>  raw : [1001, 1001, 1001, 1004, 1004, 1003, 1002, 1002, 1002, 1002, 1005, 1006];
+		attribute<float64> w   := const(1.0, .);
+		attribute<P2>      part := value(uint8(id(.) / 6), P2);
+		attribute<R>       v   := value(raw, R);
+	}
+
+	container checks
+	{
+		parameter<uint32> result := uint32(modus_weighted(D/v, D/w)), IntegrityCheck = "result >= 0";
+	}
+}
