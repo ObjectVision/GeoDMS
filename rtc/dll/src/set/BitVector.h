@@ -707,11 +707,13 @@ struct BitVector : bit_info<N, Block>
 	}
 
 private:
+	// Gives insert and push_back nrBlocks blocks; they set m_NrElems themselves. The blocks already written are
+	// kept, and new blocks start at zero, so the bits past the last element stay clear.
 	void enable_nr_blocks(size_type nrBlocks MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		if (nrBlocks > m_bits.capacity())
-			::reallocSO(m_bits, Max<size_type>(m_bits.capacity() * 1.5, nrBlocks), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		resizeSO(nrBlocks, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			m_bits.reserve(Max<size_type>(m_bits.capacity() * 1.5, nrBlocks) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		::resizeSO(m_bits, nrBlocks, true MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	void             clear_unused_bits();
     Block&           m_highest_block()       { return m_bits.back(); }

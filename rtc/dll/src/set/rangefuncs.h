@@ -345,11 +345,11 @@ auto fast_copy_backward(bit_iterator<N, CB> first, bit_iterator<N, CB> last, bit
 {
 	assert(!(first < target) || (last <= target)); // BEWARE OF OVERLAPPING RANGES
 
-	for (; last.nr_elem(); --target, --last)
+	while (last.nr_elem()) // the elements of an incomplete last block, one by one, as std::copy_backward does
 	{
 		if (first == last)
 			return target;
-		*target = *last;
+		*--target = *--last;
 	}
 	assert(last.nr_elem() == 0);
 

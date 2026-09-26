@@ -1,0 +1,59 @@
+// Operators that append bit values (bool, uint2, uint4) one by one to a packed bit vector (BitVector::push_back),
+// which lost values it held before: uint2 0,1,2 came out as 0,0,2, and uint4 0..12 as 13,12,0,0,0,0,0,0,8,..,12.
+// - unique of values that are already sorted, as unique(x)/Values are;
+// - direct_index, which gathers its argument that way before it sorts;
+// - griddist on a tiled grid, which keeps the direction of each border cell it seeds a tile with that way.
+// The references never pack values in bits: unique and direct_index of the same values as float64 or uint8, and
+// griddist_untiled; random costs make the shortest paths unique, so the TraceBack directions must agree too.
+// Expected: exit 0 on /checks.
+container oper_bit_values_appended
+{
+	unit<uint32> T := TiledUnit(value(1000, range(uint32, 0, 20000))); // 20 tiles of 1000
+
+	attribute<uint4> u4  (T) := uint4(id(T) % 13); // 13 values, 8 to a block of bits
+	attribute<uint4> u4a (T) := uint4(id(T) % 16); // all 16 values
+	attribute<uint2> u2  (T) := uint2(id(T) % 3);  // 3 values in one block of 16
+	attribute<bool>  b   (T) := id(T) % 3 == 0;    // 2 values in one block of 32
+
+	unit<uint32> su4   := unique(u4);
+	unit<uint32> ssu4  := unique(su4/Values);
+	unit<uint32> fu4   := unique(float64(u4));
+	unit<uint32> su4a  := unique(u4a);
+	unit<uint32> ssu4a := unique(su4a/Values);
+	unit<uint32> fu4a  := unique(float64(u4a));
+	unit<uint32> su2   := unique(u2);
+	unit<uint32> ssu2  := unique(su2/Values);
+	unit<uint32> sb    := unique(b);
+	unit<uint32> ssb   := unique(sb/Values);
+
+	// unsorted values for direct_index
+	attribute<uint4> x4 (T) := uint4((id(T) * 7 + id(T) / 3) % 16);
+	attribute<uint2> x2 (T) := uint2((id(T) * 5 + id(T) / 7) % 4);
+	attribute<bool>  xb (T) := (id(T) * 3 + id(T) / 11) % 5 < 2;
+
+	unit<fpoint> gbase;
+	unit<spoint> G  := range(gridset(gbase, point_yx(1f, 1f, gbase), point_yx(0f, 0f, gbase), spoint), point_yx(0s, 0s), point_yx(100s, 100s));
+	unit<spoint> GT := TiledUnit(point_yx(25s, 25s, G)); // 16 tiles of 25 x 25
+	attribute<float64> imp (GT) := rnd_uniform(7, GT, range(float64, 1.0, 2.0));
+	unit<uint32> Dest: nrofrows = 1
+	{
+		attribute<GT> loc: ['{5, 7}'];
+	}
+	attribute<float64> distTiled   (GT) := griddist(imp, Dest/loc, const(0.0, Dest));
+	attribute<float64> distUntiled (GT) := griddist_untiled(imp, Dest/loc, const(0.0, Dest));
+
+	container checks
+	{
+		parameter<string> u4Values  := asList(string(ssu4/Values), ','),  IntegrityCheck = "u4Values == asList(string(fu4/Values), ',')";
+		parameter<string> u4aValues := asList(string(ssu4a/Values), ','), IntegrityCheck = "u4aValues == asList(string(fu4a/Values), ',')";
+		parameter<string> u2Values  := asList(string(ssu2/Values), ','),  IntegrityCheck = "u2Values == '0,1,2'";
+		parameter<string> bValues   := asList(string(ssb/Values), ','),   IntegrityCheck = "bValues == 'False,True'";
+
+		parameter<uint32> x4Index   := sum(uint32(direct_index(x4) != direct_index(uint8(x4)))), IntegrityCheck = "x4Index == 0";
+		parameter<uint32> x2Index   := sum(uint32(direct_index(x2) != direct_index(uint8(x2)))), IntegrityCheck = "x2Index == 0";
+		parameter<uint32> xbIndex   := sum(uint32(direct_index(xb) != direct_index(uint8(xb)))), IntegrityCheck = "xbIndex == 0";
+
+		parameter<uint32> gridDist  := sum(uint32(distTiled != distUntiled)),                     IntegrityCheck = "gridDist == 0";
+		parameter<uint32> gridTrace := sum(uint32(distTiled/TraceBack != distUntiled/TraceBack)), IntegrityCheck = "gridTrace == 0";
+	}
+}
