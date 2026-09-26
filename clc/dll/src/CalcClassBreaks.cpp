@@ -474,6 +474,13 @@ struct JenksFisher
 		Float64    cwv=0;
 		CountType  cw =0, w;
 
+		// Accumulate w*(v-s), with s the weighted median. Over the classes of any partition of a prefix [0, e],
+		// sum (sum w(v-s))^2 / sum w = sum (sum wv)^2 / sum w - 2s sum_[0,e] wv + s^2 sum_[0,e] w, and the added terms do
+		// not depend on the breaks, so every argmax stays where it was. Uncentred, the terms grow with the square of the
+		// values: around 3e9 with a spread of 1000, their rounding exceeded the differences between candidate breaks,
+		// which gave wrong breaks and tripped the assert in CalcRange. s is a data value, so integral values stay integral.
+		const Float64 s = vcpc[WeightedMedianIndex(vcpc)].first;
+
 		for(SizeT i=0; i!=m_M; ++i)
 		{
 			w   = vcpc[i].second;
@@ -483,13 +490,24 @@ struct JenksFisher
 			assert(cw >= w); // no overflow?
 
 			assert(!i || vcpc[i-1].first < vcpc[i].first);
-			cwv+= w * vcpc[i].first;
+			cwv+= w * (vcpc[i].first - s);
 			m_CumulValues.push_back(ValueCountPair<Float64>(cwv, cw) MG_DEBUG_ALLOCATOR_SRC("JenksFischer CumulValues"));
 
 			if (i < m_BufSize)
 				m_PrevSSM[i] = cwv * cwv / cw; // prepare SSM for first class, last m_K values can be omitted since they never belong to the first class
 			DBG_TRACE(("m_PrevSSM[{}]={:f}", i, Float32(m_PrevSSM[i])));
 		}
+	}
+
+	// the index of the first value at which the cumulative count reaches half of the total count
+	static SizeT WeightedMedianIndex(const ValueCountPairContainer& vcpc)
+	{
+		assert(vcpc.size());
+		CountType totalCount = GetTotalCount(vcpc), cw = vcpc[0].second;
+		SizeT i = 0;
+		while (cw < totalCount - cw)
+			cw += vcpc[++i].second;
+		return i;
 	}
 
 	Float64 GetW(SizeT b, SizeT e)
@@ -711,7 +729,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 
 	break_array result(kk);
 	SizeT nrNegativeClasses = 1;
-	ClassBreakValueType maxSSM = 0;
+	ClassBreakValueType maxSSM = MinValue<ClassBreakValueType>(); // a side's SSM is centred on its median: one class can have 0
 	for(;; nrNegativeClasses++)
 	{
 		SizeT nrPositiveClasses = kk - nrNegativeClasses - (insertZeroBreak ? 1 : 0);

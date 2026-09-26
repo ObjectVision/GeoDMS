@@ -1,0 +1,63 @@
+// ClassifyJenksFisher on values far from zero. JenksFisher accumulated sum(w*v) uncentred, so with values
+// around -3e9 and a spread of 1000 the rounding of (sum wv)^2 / sum w exceeded the differences between
+// candidate breaks: the breaks came out worse than those of the same pattern near zero, and with 7 classes
+// Debug builds tripped the CB(i, j-1) <= CB(i, j) assert in JenksFisher::CalcRange (exit 3). The sums are now
+// centred on the weighted median, which moves no argmax, so the breaks of x must be those of its twin
+// x - offset, plus the offset. With 3 classes the assert cannot fire; only the breaks show the error.
+//
+// The last block guards ClassifyNonzeroJenksFisher: it picks the split between the negative and positive
+// classes by the largest sum of both sides' SSMs, which are now centred and can be 0 (one class whose mean
+// is its median), so the search must not start from 0.
+// Expected: exit 0 on /checks.
+container oper_classify_jenks_magnitude
+{
+	unit<uint32> D : nrofrows = 3000;
+	attribute<uint32> r      (D) := (id(D) * id(D) + 3 * id(D)) % 1000; // 0..999, scrambled
+	attribute<bool>   isNull (D) := id(D) % 19 == 0;
+
+	unit<uint8> cls3 : nrofrows = 3;
+	unit<uint8> cls7 : nrofrows = 7;
+
+	//	=========================================	int64 around -3e9, and its twin near zero
+
+	unit<int64> V  := range(int64, int64(0) - int64(3000000000), int64(0) - int64(2999999000));
+	unit<int64> Vs := range(int64, int64(0), int64(1000));
+	attribute<V>  x  (D) := value(iif(isNull, null_i64, int64(0) - int64(3000000000) + int64(r)), V);
+	attribute<Vs> xs (D) := value(iif(isNull, null_i64, int64(r)), Vs);
+
+	attribute<V>  jf3  (cls3) := ClassifyJenksFisher(x,  cls3);
+	attribute<Vs> jfs3 (cls3) := ClassifyJenksFisher(xs, cls3);
+	attribute<V>  jf7  (cls7) := ClassifyJenksFisher(x,  cls7);
+	attribute<Vs> jfs7 (cls7) := ClassifyJenksFisher(xs, cls7);
+	attribute<V>  nz7  (cls7) := ClassifyNonzeroJenksFisher(x, cls7); // one sign only: the same breaks
+
+	//	=========================================	uint64 around 5e9
+
+	unit<uint64> U := range(uint64, 5000000000u64, 5000001000u64);
+	attribute<U> xu   (D)    := value(iif(isNull, null_u64, 5000000000u64 + uint64(r)), U);
+	attribute<U> jfu7 (cls7) := ClassifyJenksFisher(xu, cls7);
+
+	//	=========================================	float64 around 1e12, in quarter steps (exact)
+
+	attribute<float64> xf    (D)    := iif(isNull, null_d, 1e12 + float64(r) * 0.25);
+	attribute<float64> xfs   (D)    := iif(isNull, null_d, float64(r) * 0.25);
+	attribute<float64> jff7  (cls7) := ClassifyJenksFisher(xf,  cls7);
+	attribute<float64> jffs7 (cls7) := ClassifyJenksFisher(xfs, cls7);
+
+	//	=========================================	nonzero variant, each side symmetric
+
+	unit<uint32> S : nrofrows = 6;
+	attribute<int32> sv            (S)    : [-3, -2, -1, 1, 2, 3];
+	attribute<int32> nzs3          (cls3) := ClassifyNonzeroJenksFisher(sv, cls3);
+	attribute<int32> nzs3_expected (cls3) : [-3, 0, 1];
+
+	container checks
+	{
+		parameter<float64> diff3   := sum(abs(float64(int64(jf3) + int64(3000000000)) - float64(jfs3))),  IntegrityCheck = "diff3 == 0.0";
+		parameter<float64> diff7   := sum(abs(float64(int64(jf7) + int64(3000000000)) - float64(jfs7))),  IntegrityCheck = "diff7 == 0.0";
+		parameter<float64> diffNz7 := sum(abs(float64(int64(nz7) - int64(jf7)))),                         IntegrityCheck = "diffNz7 == 0.0";
+		parameter<float64> diffU7  := sum(abs(float64(uint64(jfu7) - 5000000000u64) - float64(jfs7))),    IntegrityCheck = "diffU7 == 0.0";
+		parameter<float64> diffF7  := sum(abs((jff7 - 1e12) - jffs7)),                                     IntegrityCheck = "diffF7 == 0.0";
+		parameter<float64> diffNzS := sum(abs(float64(nzs3) - float64(nzs3_expected))),                   IntegrityCheck = "diffNzS == 0.0";
+	}
+}
