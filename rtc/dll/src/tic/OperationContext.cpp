@@ -776,6 +776,13 @@ void StartOperationContextsAsWaiter()
 	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
 }
 
+// #1259: the same count, held for as long as its owner waits rather than for one activation pass, as
+// Join holds it over its wait: a context that ends in the meantime activates the next one at once
+// (StartOperationContexts at the end of separateResources), instead of leaving it to the owner's
+// next call, which for the update loop is its next retry.
+CountedAsWaitingJoin::CountedAsWaitingJoin() { ++s_NrWaitingJoins; }
+CountedAsWaitingJoin::~CountedAsWaitingJoin() { --s_NrWaitingJoins; }
+
 inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activated && s <= task_status::running; }
 
 // Admission ledger, defined below getUniqueLicenseToRun; all three require cs_ThreadMessing.

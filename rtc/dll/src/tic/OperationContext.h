@@ -411,12 +411,24 @@ TIC_CALL auto GetNextPhaseNumber() -> phase_number;
 // StartOperationContexts
 // Hands what Schedule enqueued to the worker pool. Scheduling alone does not: a context waits in
 // s_ScheduledContextsMap until a Join, a DoWorkWhileWaiting, an ending context or an explicit call
-// here activates it (the #1259 deferral in CommitDataChanges is such a call).
+// here activates it.
 void StartOperationContexts();
 // The same for a consumer that waits for a scheduled result without joining it, counted as a waiting
-// Join in the low-RAM admission for the duration of the pass. Exported for the one such consumer:
-// the view update driver in shv (#1255), which polls the item instead of joining its producer.
+// Join in the low-RAM admission for the duration of the pass. Exported for the view update driver in
+// shv (#1255), which polls the item instead of joining its producer; the #1259 deferral in
+// CommitDataChanges is the other such consumer.
 TIC_CALL void StartOperationContextsAsWaiter();
+// Counts the calling thread as one waiting Join in that low-RAM admission for its lifetime, so that a
+// context that ends meanwhile activates the next one, as it does while a thread waits in a Join. For
+// the update loop of TicInterface.cpp while it waits between retries for its deferred commits (#1259).
+struct CountedAsWaitingJoin
+{
+	CountedAsWaitingJoin();
+	~CountedAsWaitingJoin();
+
+	CountedAsWaitingJoin(const CountedAsWaitingJoin& rhs) = delete;
+	CountedAsWaitingJoin(CountedAsWaitingJoin&& rhs) = delete;
+};
 
 // DoWorkWhileWaitingFor
 // Allow current thread to perform other work while waiting for a phase to complete.
