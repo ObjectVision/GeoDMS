@@ -851,7 +851,7 @@ struct partitioning_info_t : partitioning_meta_t
 
 	OwningPtrSizedArray<UInt32>       m_AtomicRegionPartitioningData;         // Dense AR->region mapping (if DI present)
 	UInt32                            m_NrRegions = static_cast<UInt32>(-1);  // Cached region count
-	atomic_region_id                  m_UniqueRegionOffset = static_cast<atomic_region_id>(-1); // Global offset for unique ids
+	UInt32                            m_UniqueRegionOffset = static_cast<UInt32>(-1); // Global offset for unique ids; UInt32, not AR: see regions_info_t::m_NrUniqueRegions
 
 #if defined(MG_DEBUG)
 	UInt32                            md_NrAtomicRegions = 0;                 // Debug: #atomic regions observed
@@ -959,7 +959,9 @@ struct regions_info_t : regions_info_base
 	WeakPtr<const TileFunctor<atomic_region_id> > m_AtomicRegionMapObj;
 	atomic_region_data_handle                     m_AtomicRegionMapData; // 1 per grid-cell           (==  n )
 	std::vector<partitioning_info_t<AR> >         m_Partitionings;       // 1 per Unique partitioning (==  p )
-	atomic_region_id                              m_NrUniqueRegions = 0; // #ur
+	// #ur, the sum of the region counts of all partitionings (PreparePartitionings). UInt32 like the unique region ids,
+	// not AR: a partitioning unit can have more elements than the atomic region type can count.
+	UInt32                                        m_NrUniqueRegions = 0;
 
 	UInt32 GetNrAtomicRegions() const { return m_AtomicRegionSizes.size(); }
 	UInt32 GetNrPartitionings() const { return m_Partitionings.size(); }
@@ -972,7 +974,7 @@ struct regions_info_t : regions_info_base
 
 	// ========== ErrorMsg helper funcs
 
-	SharedStr UniqueRegionStr(atomic_region_id ur) const
+	SharedStr UniqueRegionStr(UInt32 ur) const // ur: a unique region id, which AR need not be able to hold
 	{
 		SharedStr result = mySSPrintF("Region {} ", ur);
 		UInt32 p;
