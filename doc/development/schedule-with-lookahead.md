@@ -90,10 +90,11 @@ References are `path:line` in this repo. This section is descriptive; §3+ is th
 
 1. **Low-RAM activation brake** — `OperationContext.cpp:1051-1067`: during an
    activation pass, if `IsLowOnFreeRAM()` and there are at least as many
-   activated/running operations as threads blocked in `Join`, stop admitting. Binary,
-   size-blind, at most one probe per pass. The `s_NrWaitingJoins` exception is a
-   crude progress guarantee — the germ of the "never starve the task that unblocks
-   memory release" rule in §5.1.
+   activated/running operations as threads waiting in `Join` (or counted as such:
+   the view poll, the update loop's deferred commits), and at least one, stop
+   admitting. Binary, size-blind, at most one probe per pass. The floor of one and
+   the `s_NrWaitingJoins` exception are a crude progress guarantee — the germ of the
+   "never starve the task that unblocks memory release" rule in §5.1.
 2. **`throttled_async`** — `ParallelTiles.h:138-161`: helper fan-outs degrade to
    inline execution when `!IsMultiThreaded1() || IsLowOnFreeRAM()`.
 3. **Per-storage-manager serialization** — `stg/AbstrStorageManager.h:301-312`

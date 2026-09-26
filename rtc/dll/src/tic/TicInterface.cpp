@@ -672,10 +672,8 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 		// has finished, which is rare by comparison, so the retries are paced to at most one per 25 ms;
 		// the meta thread's own work is still pumped first by DoWorkWhileWaiting.
 		// Over the wait and the pause the loop counts as the one waiting Join that its deferred commits
-		// no longer make. Once RAM use passes MemoryFlushThreshold, collectOperationContexts activates
-		// no more contexts than there are waiting Joins; uncounted, the producers stayed scheduled with
-		// nothing running until the stall guard above gave up on deferral, about a second per stored
-		// item. Counted, a producer that ends hands on to its waiter at once, as under a Join.
+		// no longer make: above MemoryFlushThreshold, collectOperationContexts keeps as many contexts
+		// activated or running as there are waiting Joins, and one at least.
 		CountedAsWaitingJoin waitingForDeferredCommits;
 		auto retryStart = std::chrono::steady_clock::now();
 		DoWorkWhileWaiting();

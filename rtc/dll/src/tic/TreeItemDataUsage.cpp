@@ -632,9 +632,9 @@ bool TreeItem::CommitDataChanges() const
 		// its memory is counted as in flight until ready. The pool is told now, not when the
 		// pass ends: a pass over a large graph takes seconds, and the stack of the hung Hestia
 		// run showed every worker parked while the walk held the scheduled producers. And told
-		// as a waiter, as the Join of the wait below was: once RAM use passes MemoryFlushThreshold,
-		// collectOperationContexts activates no more contexts than there are waiting Joins, so
-		// with nothing running it activated none, and the retries waited out the stall guard.
+		// as a waiter, as the Join of the wait below would be: above MemoryFlushThreshold,
+		// collectOperationContexts keeps as many contexts activated or running as there are
+		// waiting Joins, and one at least.
 		LedgerNoteDeferral(this);
 		SuspendTrigger::DeferScope::Register();
 		StartOperationContextsAsWaiter();
