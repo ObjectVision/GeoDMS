@@ -1,0 +1,80 @@
+// discrete_alloc, greedy_alloc and needy_alloc in the 11-argument form, with two partitionings of the atomic
+// regions whose values all lie in their region units: PA maps them onto RegA, in which the claims of LuA are
+// stated, and PB onto RegB, in which those of LuB are. The maximum claim of LuA in region 0 of RegA binds:
+// land units 0 and 1 both prefer LuA and lie in that region through their atomic regions, and land unit 1,
+// which loses the least by it, gets LuB. So the result shows that PA decides which claim a land unit counts
+// against.
+// discrete_alloc and greedy_alloc run once more on a tiled atomic region unit of three tiles, whose
+// partitioning values lie in every tile; before 20.21.0 only the first tile was read, and the others were
+// used uninitialized.
+// This is the positive control of oper_alloc_partitioning_neg_range and _neg_null, which differ from it only
+// in one value of PA and must fail with "out of range [0, 2) of the regions of [[/RegA]]".
+// Expected: exit 0 on /checks.
+container oper_alloc_partitioning
+{
+	unit<uint8>  Parts : nrofrows = 2 { attribute<string> name : ['PA', 'PB']; }
+	unit<uint8>  LuType : nrofrows = 2
+	{
+		attribute<string> name         : ['LuA', 'LuB'];
+		attribute<Parts>  partitioning : [0, 1];
+	}
+	unit<uint8>  RegA : nrofrows = 2 { attribute<uint32> expected_LuA : [1, 2]; }
+	unit<uint8>  RegB : nrofrows = 1 { attribute<uint32> expected_LuB : [5]; }
+
+	unit<uint16> AtomicRegion : nrofrows = 3
+	{
+		attribute<RegA> PA : [0, 1, 1];
+		attribute<RegB> PB : [0, 0, 0];
+	}
+	unit<uint32> TiledAtomicRegion := TiledUnit(value(1, range(uint32, 0, 3))) // 3 tiles of 1 atomic region
+	{
+		attribute<RegA> PA : [0, 1, 1];
+		attribute<RegB> PB : [0, 0, 0];
+	}
+
+	unit<uint32> Cell : nrofrows = 8
+	{
+		attribute<uint32>            raw      : [0, 0, 1, 1, 2, 2, 1, 0];
+		attribute<AtomicRegion>      ar       := value(uint16(raw), AtomicRegion);
+		attribute<TiledAtomicRegion> tiled_ar := value(raw, TiledAtomicRegion);
+		attribute<LuType>            expected : [0, 1, 0, 0, 1, 1, 1, 1];
+	}
+	container Suit
+	{
+		attribute<int32> LuA (Cell) : [9, 8, 7, 6, 5, 4, 3, 2];
+		attribute<int32> LuB (Cell) : [2, 3, 4, 5, 6, 7, 8, 9];
+	}
+	container CMin { attribute<uint32> LuA (RegA) : [0, 0]; attribute<uint32> LuB (RegB) : [0]; }
+	container CMax { attribute<uint32> LuA (RegA) : [1, 4]; attribute<uint32> LuB (RegB) : [8]; }
+	parameter<int32> thr := 0i;
+	container Feasible;
+
+	container da     := discrete_alloc(LuType/name, Cell, Suit, LuType/partitioning, Parts/name, AtomicRegion, Cell/ar, CMin, CMax, thr, Feasible);
+	container greedy := greedy_alloc  (LuType/name, Cell, Suit, LuType/partitioning, Parts/name, AtomicRegion, Cell/ar, CMin, CMax, thr, Feasible);
+	container needy  := needy_alloc   (LuType/name, Cell, Suit, LuType/partitioning, Parts/name, AtomicRegion, Cell/ar, CMin, CMax, thr, Feasible);
+
+	container da_tiled     := discrete_alloc(LuType/name, Cell, Suit, LuType/partitioning, Parts/name, TiledAtomicRegion, Cell/tiled_ar, CMin, CMax, thr, Feasible);
+	container greedy_tiled := greedy_alloc  (LuType/name, Cell, Suit, LuType/partitioning, Parts/name, TiledAtomicRegion, Cell/tiled_ar, CMin, CMax, thr, Feasible);
+
+	container checks
+	{
+		parameter<uint32> da_same     := sum(uint32(eq_or_both_null(da/landuse,     Cell/expected))), IntegrityCheck = "da_same == 8";
+		parameter<uint32> greedy_same := sum(uint32(eq_or_both_null(greedy/landuse, Cell/expected))), IntegrityCheck = "greedy_same == 8";
+		parameter<uint32> needy_same  := sum(uint32(eq_or_both_null(needy/landuse,  Cell/expected))), IntegrityCheck = "needy_same == 8";
+
+		parameter<uint32> da_tiled_same     := sum(uint32(eq_or_both_null(da_tiled/landuse,     Cell/expected))), IntegrityCheck = "da_tiled_same == 8";
+		parameter<uint32> greedy_tiled_same := sum(uint32(eq_or_both_null(greedy_tiled/landuse, Cell/expected))), IntegrityCheck = "greedy_tiled_same == 8";
+
+		// the totals per region of each partitioning: LuA in RegA through PA, LuB in RegB through PB
+		parameter<uint32> da_LuA       := sum(uint32(da/total_allocated/LuA       == RegA/expected_LuA)), IntegrityCheck = "da_LuA == 2";
+		parameter<uint32> da_LuB       := sum(uint32(da/total_allocated/LuB       == RegB/expected_LuB)), IntegrityCheck = "da_LuB == 1";
+		parameter<uint32> greedy_LuA   := sum(uint32(greedy/total_allocated/LuA   == RegA/expected_LuA)), IntegrityCheck = "greedy_LuA == 2";
+		parameter<uint32> da_tiled_LuA := sum(uint32(da_tiled/total_allocated/LuA == RegA/expected_LuA)), IntegrityCheck = "da_tiled_LuA == 2";
+
+		parameter<bool> da_flag           := da/statusFlag,           IntegrityCheck = "da_flag == true";
+		parameter<bool> greedy_flag       := greedy/statusFlag,       IntegrityCheck = "greedy_flag == true";
+		parameter<bool> needy_flag        := needy/statusFlag,        IntegrityCheck = "needy_flag == true";
+		parameter<bool> da_tiled_flag     := da_tiled/statusFlag,     IntegrityCheck = "da_tiled_flag == true";
+		parameter<bool> greedy_tiled_flag := greedy_tiled/statusFlag, IntegrityCheck = "greedy_tiled_flag == true";
+	}
+}

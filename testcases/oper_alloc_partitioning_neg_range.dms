@@ -1,0 +1,46 @@
+// discrete_alloc with a partitioning attribute holding a value outside its region unit: PA maps atomic
+// region 2 onto region 7, while RegA has 2 regions. Such a value is an error in every regime, since
+// FeasibilityTest indexes the unique regions with it before anything is allocated; before 20.21.0 that
+// asserted in a Debug build and wrote out of bounds in a Release build.
+// Expected: exit nonzero on /checks
+// ("Value 7 for atomic region 2 out of range [0, 2) of the regions of [[/RegA]]").
+// See oper_alloc_partitioning.dms, which is the same config with a valid PA.
+container oper_alloc_partitioning_neg_range
+{
+	unit<uint8>  Parts : nrofrows = 2 { attribute<string> name : ['PA', 'PB']; }
+	unit<uint8>  LuType : nrofrows = 2
+	{
+		attribute<string> name         : ['LuA', 'LuB'];
+		attribute<Parts>  partitioning : [0, 1];
+	}
+	unit<uint8>  RegA : nrofrows = 2;
+	unit<uint8>  RegB : nrofrows = 1;
+
+	unit<uint16> AtomicRegion : nrofrows = 3
+	{
+		attribute<RegA> PA : [0, 1, 7];
+		attribute<RegB> PB : [0, 0, 0];
+	}
+
+	unit<uint32> Cell : nrofrows = 8
+	{
+		attribute<uint32>       raw : [0, 0, 1, 1, 2, 2, 1, 0];
+		attribute<AtomicRegion> ar  := value(uint16(raw), AtomicRegion);
+	}
+	container Suit
+	{
+		attribute<int32> LuA (Cell) : [9, 8, 7, 6, 5, 4, 3, 2];
+		attribute<int32> LuB (Cell) : [2, 3, 4, 5, 6, 7, 8, 9];
+	}
+	container CMin { attribute<uint32> LuA (RegA) : [0, 0]; attribute<uint32> LuB (RegB) : [0]; }
+	container CMax { attribute<uint32> LuA (RegA) : [1, 4]; attribute<uint32> LuB (RegB) : [8]; }
+	parameter<int32> thr := 0i;
+	container Feasible;
+
+	container da := discrete_alloc(LuType/name, Cell, Suit, LuType/partitioning, Parts/name, AtomicRegion, Cell/ar, CMin, CMax, thr, Feasible);
+
+	container checks
+	{
+		parameter<uint32> n := sum(uint32(IsDefined(da/landuse))), IntegrityCheck = "n == 8";
+	}
+}

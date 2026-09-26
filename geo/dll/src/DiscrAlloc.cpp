@@ -669,7 +669,8 @@ struct ggType_info_t : ggType_meta_t
 //   1. constructed from either an AR -> region attribute or the atomic region unit itself;
 //   2. PreparePartitionings assigns m_NrRegions and m_UniqueRegionOffset, which concatenate the
 //      region id spaces of all partitionings into one "unique region" space (GetUniqueRegionID);
-//   3. GetData() materialises the dense AR -> region array, when there is a mapping attribute;
+//   3. GetData() materialises the dense AR -> region array, when there is a mapping attribute, and
+//      rejects a region id outside the partitioning unit;
 //   4. GetRegionID / GetUniqueRegionID are then read on the hot allocation path.
 //
 // GetRegionID discriminates on the POPULATED ARRAY, not on the weak mapping handle: an identity
@@ -747,26 +748,48 @@ struct partitioning_info_t : partitioning_meta_t
 		: partitioning_meta_t(rhs)
 	{}
 
-	// Populate region-id mapping when a data item mapping exists.
-	// For identity mappings (no data item) only debug counts are recorded.
+	// Populate region-id mapping when a data item mapping exists, and check it: the region id of every atomic
+	// region must lie in the partitioning unit, as GetUniqueRegionID indexes the unique regions with it (in
+	// GetAr2UrBiGraph, which FeasibilityTest builds in every regime) and GetClaim the claims of its region.
+	// Nothing else checks it, so a null or a value outside the partitioning unit is an error here, before
+	// anything is indexed with it.
+	// Pre: PreparePartitionings has set m_NrRegions.
+	// For identity mappings (no data item) only debug counts are recorded: each atomic region is its own region.
 	void GetData()
 	{
+		assert(m_NrRegions != static_cast<UInt32>(-1));
 		if (m_HasPartitioningDI)
 		{
 			auto diLock = lock_or_cancel(m_AtomicRegionPartitioningDI); // owning for this scope; throws if torn down
 			const AbstrDataItem* di = diLock.get();
 			DataReadLock lock(di);
-			auto nrAtomicRegions = di->GetCurrRefObj()->GetNrFeaturesNow();
+			auto ado = di->GetCurrRefObj();
+			auto tiledRangeData = ado->GetTiledRangeData();
+			SizeT nrAtomicRegions = tiledRangeData->GetElemCount();
 			MG_DEBUGCODE(md_NrAtomicRegions = nrAtomicRegions);
 			m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(
 				nrAtomicRegions,
 				dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData")
 			);
-			di->GetCurrRefObj()->GetValuesAsUInt32Array(
-				tile_loc(0, 0),
-				nrAtomicRegions,
-				m_AtomicRegionPartitioningData.begin()
-			);
+			// read every tile: an atomic region unit made by TiledUnit has several, and a tile left out would
+			// leave its atomic regions uninitialized
+			SizeT nrRead = 0;
+			for (tile_id t = 0, tn = tiledRangeData->GetNrTiles(); t != tn; ++t)
+				nrRead += ado->GetValuesAsUInt32Array(tile_loc(t, 0), nrAtomicRegions - nrRead, m_AtomicRegionPartitioningData.begin() + nrRead);
+			MG_CHECK(nrRead == nrAtomicRegions);
+
+			for (SizeT ar = 0; ar != nrAtomicRegions; ++ar)
+			{
+				UInt32 regionID = m_AtomicRegionPartitioningData[ar];
+				if (regionID >= m_NrRegions) // a null too: GetValuesAsUInt32Array made it UNDEFINED_VALUE(UInt32)
+					di->throwItemErrorF(
+							"Value {} for atomic region {} out of range [0, {}) of the regions of {}"
+						,	IsDefined(regionID) ? mySSPrintF("{}", regionID) : SharedStr("null")
+						,	ar
+						,	m_NrRegions
+						,	GetPartitioningUnit()->GetSourceName()
+					);
+			}
 		}
 		else
 		{
