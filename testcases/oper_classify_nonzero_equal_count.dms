@@ -1,0 +1,166 @@
+// ClassifyNonzeroEqualCount treats 0 as ClassifyNonzeroJenksFisher does. 0 is a compulsory break, with a class of its own
+// when there is room for one, and the negative and the positive values are classified apart, each side by equal count over
+// its own values. The split of the classes over the two sides minimises the largest average class count; on a tie the
+// positive values get the extra class. With two classes, negative values and a 0, the breaks are [minimum, 0]. Data that
+// straddles 0 without containing it also gets a class at 0 when there are three or more classes (#1146); that class holds
+// no values. Only positive or only negative values, one class, and no more distinct values than classes give ClassifyEqualCount's breaks.
+// The breaks were ClassifyEqualCount's on data with a 0: [-3, 1, 2] for block A with 3 classes, which put the negative
+// values and all six zeros in one class.
+// Expected: exit 0 on /checks.
+container oper_classify_nonzero_equal_count
+{
+	unit<uint8> cls1 : nrofrows = 1;
+	unit<uint8> cls2 : nrofrows = 2;
+	unit<uint8> cls3 : nrofrows = 3;
+	unit<uint8> cls4 : nrofrows = 4;
+	unit<uint8> cls5 : nrofrows = 5;
+
+	//	=========================================	negative values, six zeros, positive values
+
+	unit<uint32> A : nrofrows = 12;
+	attribute<int32> va (A) : [-3, -2, -1, 0, 0, 0, 0, 0, 0, 1, 2, 3];
+
+	attribute<int32> nzA1   (cls1) := ClassifyNonzeroEqualCount(va, cls1);
+	attribute<int32> nzA2   (cls2) := ClassifyNonzeroEqualCount(va, cls2);
+	attribute<int32> nzA3   (cls3) := ClassifyNonzeroEqualCount(va, cls3);
+	attribute<cls3>  classA (A)    := classify(va, nzA3);
+	attribute<int32> nzA4   (cls4) := ClassifyNonzeroEqualCount(va, cls4); // tie: 3 values on each side for 3 classes
+	attribute<int32> nzA5   (cls5) := ClassifyNonzeroEqualCount(va, cls5);
+	attribute<int32> ecA3   (cls3) := ClassifyEqualCount(va, cls3);
+
+	attribute<int32> nzA2_expected   (cls2) : [-3, 0];
+	attribute<int32> nzA3_expected   (cls3) : [-3, 0, 1];
+	attribute<cls3>  classA_expected (A)    : [0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2];
+	attribute<int32> nzA4_expected   (cls4) : [-3, 0, 1, 2];
+	attribute<int32> nzA5_expected   (cls5) : [-3, -2, 0, 1, 2];
+	attribute<int32> ecA3_expected   (cls3) : [-3, 1, 2];
+
+	//	=========================================	the same without the zeros: a class at 0 from 3 classes on, holding no values
+
+	unit<uint32> B : nrofrows = 6;
+	attribute<int32> vb (B) : [-3, -2, -1, 1, 2, 3];
+
+	attribute<int32> nzB2   (cls2) := ClassifyNonzeroEqualCount(vb, cls2);
+	attribute<int32> nzB3   (cls3) := ClassifyNonzeroEqualCount(vb, cls3);
+	attribute<cls3>  classB (B)    := classify(vb, nzB3);
+
+	attribute<int32> nzB2_expected   (cls2) : [-3, 1];
+	attribute<cls3>  classB_expected (B)    : [0, 0, 0, 2, 2, 2];
+
+	//	=========================================	one 0 and positive values, unsigned: ClassifyEqualCount gives [0, 2, 4]
+
+	unit<uint32> C : nrofrows = 7;
+	attribute<uint8> vpos (C) : [0, 1, 2, 3, 4, 5, 6];
+
+	attribute<uint8> nzC2 (cls2) := ClassifyNonzeroEqualCount(vpos, cls2);
+	attribute<uint8> nzC3 (cls3) := ClassifyNonzeroEqualCount(vpos, cls3);
+	attribute<uint8> ecC3 (cls3) := ClassifyEqualCount(vpos, cls3);
+
+	attribute<uint8> nzC2_expected (cls2) : [0, 1];
+	attribute<uint8> nzC3_expected (cls3) : [0, 1, 4];
+	attribute<uint8> ecC3_expected (cls3) : [0, 2, 4];
+
+	//	=========================================	negative values and one 0
+
+	unit<uint32> D : nrofrows = 7;
+	attribute<int32> vneg (D) : [-6, -5, -4, -3, -2, -1, 0];
+
+	attribute<int32> nzD2 (cls2) := ClassifyNonzeroEqualCount(vneg, cls2);
+	attribute<int32> nzD3 (cls3) := ClassifyNonzeroEqualCount(vneg, cls3);
+
+	attribute<int32> nzD2_expected (cls2) : [-6, 0];
+	attribute<int32> nzD3_expected (cls3) : [-6, -3, 0];
+
+	//	=========================================	the split follows the counts: 2 negative and 8 positive values, and the mirror image
+
+	unit<uint32> E : nrofrows = 11;
+	attribute<int32> vfewneg (E) : [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8];
+	attribute<int32> nzE5          (cls5) := ClassifyNonzeroEqualCount(vfewneg, cls5);
+	attribute<int32> nzE5_expected (cls5) : [-2, 0, 1, 3, 6];
+
+	unit<uint32> F : nrofrows = 11;
+	attribute<int32> vfewpos (F) : [-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2];
+	attribute<int32> nzF5          (cls5) := ClassifyNonzeroEqualCount(vfewpos, cls5);
+	attribute<int32> nzF5_expected (cls5) : [-8, -6, -3, 0, 1];
+
+	//	=========================================	counts, not distinct values: 30 negative and 3 positive values over 3 distinct values each
+
+	unit<uint32> G : nrofrows = 7;
+	attribute<int32>  gv (G) : [-3, -2, -1, 0, 1, 2, 3];
+	attribute<uint64> gc (G) : [10, 10, 10, 1, 1, 1, 1];
+	attribute<int32>  nzG4_counts (cls4) := ClassifyNonzeroEqualCount(gv, gc, cls4);
+
+	unit<uint32> Gx : nrofrows = 34;
+	attribute<int32> vgx (Gx) : [-3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 2, 3];
+	attribute<int32> nzG4_binary (cls4) := ClassifyNonzeroEqualCount(vgx, cls4);
+
+	attribute<int32> nzG4_expected (cls4) : [-3, -1, 0, 1];
+
+	//	=========================================	floating point values that straddle 0 without containing it
+
+	unit<uint32> H : nrofrows = 5;
+	attribute<float64> vflt (H) : [-2.5, -1.5, 0.5, 1.5, 2.5];
+	attribute<float64> nzH3          (cls3) := ClassifyNonzeroEqualCount(vflt, cls3);
+	attribute<float64> nzH3_expected (cls3) : [-2.5, 0.0, 0.5];
+
+	//	=========================================	ClassifyEqualCount's breaks: only positive or only negative values, and no more distinct values than classes
+
+	unit<uint32> P : nrofrows = 6;
+	attribute<int32> vallpos (P) : [1, 2, 3, 4, 5, 6];
+	attribute<int32> nzP3 (cls3) := ClassifyNonzeroEqualCount(vallpos, cls3);
+	attribute<int32> ecP3 (cls3) := ClassifyEqualCount(vallpos, cls3);
+	attribute<int32> nzP3_expected (cls3) : [1, 3, 5];
+
+	unit<uint32> N : nrofrows = 6;
+	attribute<int32> vallneg (N) : [-6, -5, -4, -3, -2, -1];
+	attribute<int32> nzN3 (cls3) := ClassifyNonzeroEqualCount(vallneg, cls3);
+	attribute<int32> nzN3_expected (cls3) : [-6, -4, -2];
+
+	unit<uint32> S : nrofrows = 2;
+	attribute<int32> vsmall (S) : [-1, 1];
+	attribute<int32> nzS3 (cls3) := ClassifyNonzeroEqualCount(vsmall, cls3);
+	attribute<int32> ecS3 (cls3) := ClassifyEqualCount(vsmall, cls3);
+	attribute<int32> nzS3_expected (cls3) : [-1, 1, 1];
+
+	unit<uint32> T : nrofrows = 3;
+	attribute<int32> vthree (T) : [-1, 0, 1];
+	attribute<int32> nzT3 (cls3) := ClassifyNonzeroEqualCount(vthree, cls3);
+	attribute<int32> nzT3_expected (cls3) : [-1, 0, 1];
+
+	container checks
+	{
+		parameter<int32>  minA1      := min(nzA1),                          IntegrityCheck = "minA1 == -3";
+		parameter<bool>   okA2       := all(nzA2 == nzA2_expected),          IntegrityCheck = "okA2 == true";
+		parameter<bool>   okA3       := all(nzA3 == nzA3_expected),          IntegrityCheck = "okA3 == true";
+		parameter<bool>   okClassA   := all(classA == classA_expected),      IntegrityCheck = "okClassA == true";
+		parameter<bool>   okA4       := all(nzA4 == nzA4_expected),          IntegrityCheck = "okA4 == true";
+		parameter<bool>   okA5       := all(nzA5 == nzA5_expected),          IntegrityCheck = "okA5 == true";
+		parameter<bool>   okEcA3     := all(ecA3 == ecA3_expected),          IntegrityCheck = "okEcA3 == true";
+
+		parameter<bool>   okB2       := all(nzB2 == nzB2_expected),          IntegrityCheck = "okB2 == true";
+		parameter<bool>   okB3       := all(nzB3 == nzA3_expected),          IntegrityCheck = "okB3 == true";
+		parameter<bool>   okClassB   := all(classB == classB_expected),      IntegrityCheck = "okClassB == true";
+
+		parameter<bool>   okC2       := all(nzC2 == nzC2_expected),          IntegrityCheck = "okC2 == true";
+		parameter<bool>   okC3       := all(nzC3 == nzC3_expected),          IntegrityCheck = "okC3 == true";
+		parameter<bool>   okEcC3     := all(ecC3 == ecC3_expected),          IntegrityCheck = "okEcC3 == true";
+
+		parameter<bool>   okD2       := all(nzD2 == nzD2_expected),          IntegrityCheck = "okD2 == true";
+		parameter<bool>   okD3       := all(nzD3 == nzD3_expected),          IntegrityCheck = "okD3 == true";
+
+		parameter<bool>   okE5       := all(nzE5 == nzE5_expected),          IntegrityCheck = "okE5 == true";
+		parameter<bool>   okF5       := all(nzF5 == nzF5_expected),          IntegrityCheck = "okF5 == true";
+
+		parameter<bool>   okG4counts := all(nzG4_counts == nzG4_expected),   IntegrityCheck = "okG4counts == true";
+		parameter<bool>   okG4binary := all(nzG4_binary == nzG4_expected),   IntegrityCheck = "okG4binary == true";
+
+		parameter<bool>   okH3       := all(nzH3 == nzH3_expected),          IntegrityCheck = "okH3 == true";
+
+		parameter<bool>   okP3       := all(nzP3 == nzP3_expected),          IntegrityCheck = "okP3 == true";
+		parameter<bool>   okEcP3     := all(ecP3 == nzP3_expected),          IntegrityCheck = "okEcP3 == true";
+		parameter<bool>   okN3       := all(nzN3 == nzN3_expected),          IntegrityCheck = "okN3 == true";
+		parameter<bool>   okS3       := all(nzS3 == nzS3_expected),          IntegrityCheck = "okS3 == true";
+		parameter<bool>   okEcS3     := all(ecS3 == nzS3_expected),          IntegrityCheck = "okEcS3 == true";
+		parameter<bool>   okT3       := all(nzT3 == nzT3_expected),          IntegrityCheck = "okT3 == true";
+	}
+}
