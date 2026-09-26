@@ -564,6 +564,14 @@ struct JenksFisher
 		m_CurrSSM[i] = minSSM;
 		return { foundP, minSSM };
 	}
+
+	// for the assert in CalcRange: does candidate p score as well as maxSSM, the best for i, up to rounding?
+	bool IsTie(SizeT i, SizeT p, Float64 maxSSM)
+	{
+		Float64 ssm = m_PrevSSM[p] + GetSSM(p+m_NrCompletedRows, i+m_NrCompletedRows);
+		return ssm >= maxSSM - maxSSM * 1e-12;
+	}
+
 	void CalcRange(SizeT bi, SizeT ei, SizeT bp, SizeT ep)
 	{
 		DBG_START("JenksFisher", "CalcRange", MG_DEBUG_CLASSBREAKS);
@@ -588,7 +596,11 @@ struct JenksFisher
 		CalcRange(bi, mi, bp, Min<SizeT>(mi, mp+1));
 
 #if !defined(MG_ASSUME_CB_INC)
-		assert(m_NrCompletedRows==1 || (mi+1) == m_BufSize|| (mp+1) >= (m_CBPtr-m_BufSize)[mi+1]); // assumption right?
+		// CB(i, j-1) <= CB(i, j): adding a class does not move the last break to the left. In exact arithmetic that holds
+		// when every row breaks ties alike, but rounding breaks exact ties, common in integral data with repeated gaps,
+		// either way; so a violation passes when the candidate that satisfies it scores as well as mp, up to rounding.
+		assert(m_NrCompletedRows==1 || (mi+1) == m_BufSize|| (mp+1) >= (m_CBPtr-m_BufSize)[mi+1]
+			|| IsTie(mi, (m_CBPtr-m_BufSize)[mi+1]-1, minSSM));
 #endif
 		m_CBPtr[ mi ] = mp;
 		CalcRange(mi+1, ei, mp, ep);
