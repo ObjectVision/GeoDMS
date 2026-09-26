@@ -223,6 +223,18 @@ void AbstrController::Stop()
 		dv->RemoveController(this); // WARNING: Make sure that *this is not accessed anymore after this call, or that it is reference-counted
 }
 
+// Stops the pending controllers, so that each can undo what it did to the contents (PasteGridController restores the cursor and clears the paste).
+// Called by ~DataView while the contents still exist; the DataView can no longer be locked then, so Stop does not remove the controller itself.
+void DataView::RemoveAllControllers()
+{
+	while (!m_ControllerVector.empty())
+	{
+		SharedPtr<AbstrController> ctrl = m_ControllerVector.back();
+		{ ControllerStopper stopper(ctrl.get()); } // its destructor calls ctrl->Stop()
+		RemoveController(ctrl.get()); // a no-op when Stop already removed it
+	}
+}
+
 //----------------------------------------------------------------------
 // class  : PointCaretController
 //----------------------------------------------------------------------

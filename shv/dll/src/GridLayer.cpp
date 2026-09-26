@@ -809,6 +809,7 @@ void GridLayer::PasteSelValuesDirect()
 		return;
 	HANDLE dataHandle = clipBoard.GetData(CF_CELLVALUES);
 
+	GetViewPort()->CancelPasteGrid(); // a pending floating paste, possibly in m_PasteHandler, is discarded
 	if (m_PasteHandler)
 		InvalidatePasteArea();
 
@@ -825,6 +826,7 @@ void GridLayer::PasteSelValues()
 		return;
 	HANDLE dataHandle = clipBoard.GetData(CF_CELLVALUES);
 
+	GetViewPort()->CancelPasteGrid(); // a pending floating paste, possibly in m_PasteHandler, is discarded
 	if (m_PasteHandler)
 		InvalidatePasteArea();
 
