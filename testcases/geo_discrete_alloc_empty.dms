@@ -1,0 +1,28 @@
+// GEO-A21: discrete_alloc and greedy_alloc on an empty land-unit set. The number of land units N is
+// legitimately 0 there, as for an empty per-region subset; a dms_assert(m_N) in GetN stopped a Debug
+// build with exit 3 and was __assume in Release, which could fold away the n == 0 early return of
+// the perturbation range check. Expected: exit 0 on /checks, nothing allocated.
+container geo_discrete_alloc_empty
+{
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA','LuB']; }
+	unit<uint32> CellDom : nrofrows = 0;
+
+	container Suit
+	{
+		attribute<int32> LuA (CellDom) := const(1i, CellDom);
+		attribute<int32> LuB (CellDom) := const(2i, CellDom);
+	}
+	container CMin { parameter<uint32> LuA := 0; parameter<uint32> LuB := 0; }
+	container CMax { parameter<uint32> LuA := 5; parameter<uint32> LuB := 5; }
+	parameter<int32> thr := 0i;
+
+	container da := discrete_alloc_np(LuType/name, CellDom, Suit, CMin, CMax, thr);
+	container ga := greedy_alloc_np  (LuType/name, CellDom, Suit, CMin, CMax, thr);
+
+	container checks
+	{
+		parameter<uint32> nda := #CellDom + da/total_allocated/LuA + da/total_allocated/LuB, IntegrityCheck = "nda == 0";
+		parameter<uint32> nga := ga/total_allocated/LuA + ga/total_allocated/LuB,            IntegrityCheck = "nga == 0";
+		parameter<uint32> nlu := sum(uint32(IsDefined(da/landuse))),                          IntegrityCheck = "nlu == 0";
+	}
+}

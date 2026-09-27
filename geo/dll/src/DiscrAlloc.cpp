@@ -1143,7 +1143,7 @@ struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 	UInt32 GetNrNodes()                 const { return m_Claims.size(); }
 	UInt32 GetNrLinks()                 const { return m_Facets.size(); }
 	UInt32 GetK()                       const { return m_ggTypes.size(); }
-	land_unit_id GetN()                 const { dms_assert(this->m_N); return this->m_N; }         // nr of land units in all tiles
+	land_unit_id GetN()                 const { return this->m_N; }         // nr of land units in all tiles; 0 for an empty land unit set, which is legitimate (GEO-A21)
 	UInt32 GetFirstLink(UInt32 claimID, dir_forward_tag ) const { dms_assert(claimID < GetNrNodes()); return m_Claims[claimID].m_FirstOutHeapID;  }
 	UInt32 GetFirstLink(UInt32 claimID, dir_backward_tag) const { dms_assert(claimID < GetNrNodes()); return m_Claims[claimID].m_FirstInpHeapID;  }
 	UInt32 GetNextLink (UInt32 heapID, dir_forward_tag )  const { dms_assert(heapID  < GetNrLinks()); return m_Facets[ heapID].m_NextOutHeapID; }
