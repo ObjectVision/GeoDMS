@@ -433,6 +433,18 @@ void GdalVectSM::DoCloseStorage(bool mustCommit) const
 	m_hDS = nullptr; // calls GDALClose through GDALDatasetHandle::deleter
 }
 
+// getLinearGeometry returns a NEW geometry, which the caller owns. The readers used to call
+// geo->getLinearGeometry()->toPolygon() and so on inline, leaking one linearised copy per curved
+// feature (CurvePolygon, MultiSurface, CircularString, CompoundCurve: common in GML sources). A
+// temporary of this type owns it until the end of the full expression it appears in.
+struct LinearGeometry
+{
+	explicit LinearGeometry(const OGRGeometry* geo) : m_Geometry(geo->getLinearGeometry()) {}
+	OGRGeometry* operator->() const { return m_Geometry.get(); }
+
+	std::unique_ptr<OGRGeometry> m_Geometry;
+};
+
 template <typename PolygonType>
 void AddPoint(typename DataArray<PolygonType>::reference dataElemRef, OGRPoint* point)
 {
@@ -927,7 +939,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbCurvePolygon: 
 		case OGRwkbGeometryType::wkbCurvePolygonM:
 		case OGRwkbGeometryType::wkbCurvePolygonZM:
-			AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break;
+			AddPolygon<PolygonType>(dataElemRef, LinearGeometry(geo)->toPolygon()); break;
 
 		case OGRwkbGeometryType::wkbMultiPolygon: 
 		case OGRwkbGeometryType::wkbMultiPolygon25D:
@@ -943,7 +955,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			break;
 
 		case OGRwkbGeometryType::wkbMultiSurface:
-			AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break;
+			AddMultiPolygon<PolygonType>(dataElemRef, LinearGeometry(geo)->toMultiPolygon()); break;
 
 		default: 
 			reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS Polygon.\n"
@@ -1101,7 +1113,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 		case OGRwkbGeometryType::wkbCurvePolygon:
 		case OGRwkbGeometryType::wkbCurvePolygonM:
 		case OGRwkbGeometryType::wkbCurvePolygonZM:
-			AddPolygonZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toPolygon(), isZ); break;
+			AddPolygonZM<SeqType>(dataElemRef, LinearGeometry(geo)->toPolygon(), isZ); break;
 
 		case OGRwkbGeometryType::wkbMultiPolygon:
 		case OGRwkbGeometryType::wkbMultiPolygon25D:
@@ -1117,7 +1129,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 			break;
 
 		case OGRwkbGeometryType::wkbMultiSurface:
-			AddMultiPolygonZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon(), isZ); break;
+			AddMultiPolygonZM<SeqType>(dataElemRef, LinearGeometry(geo)->toMultiPolygon(), isZ); break;
 
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS Polygon.\n"
@@ -1186,12 +1198,12 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 		case OGRwkbGeometryType::wkbCircularString:
 		case OGRwkbGeometryType::wkbCircularStringM:
 		case OGRwkbGeometryType::wkbCircularStringZM:
-			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+			AddLineString<PolygonType>(dataElemRef, LinearGeometry(geo)->toLineString()); break;
 
 		case OGRwkbGeometryType::wkbCompoundCurve:
 		case OGRwkbGeometryType::wkbCompoundCurveM:
 		case OGRwkbGeometryType::wkbCompoundCurveZM:
-			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+			AddLineString<PolygonType>(dataElemRef, LinearGeometry(geo)->toLineString()); break;
 
 		case OGRwkbGeometryType::wkbPolygon:
 		case OGRwkbGeometryType::wkbPolygonM:
@@ -1302,12 +1314,12 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbCircularString:
 		case OGRwkbGeometryType::wkbCircularStringM:
 		case OGRwkbGeometryType::wkbCircularStringZM:
-			AddLineStringZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toLineString(), isZ); break;
+			AddLineStringZM<SeqType>(dataElemRef, LinearGeometry(geo)->toLineString(), isZ); break;
 
 		case OGRwkbGeometryType::wkbCompoundCurve:
 		case OGRwkbGeometryType::wkbCompoundCurveM:
 		case OGRwkbGeometryType::wkbCompoundCurveZM:
-			AddLineStringZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toLineString(), isZ); break;
+			AddLineStringZM<SeqType>(dataElemRef, LinearGeometry(geo)->toLineString(), isZ); break;
 
 		case OGRwkbGeometryType::wkbPolygon:
 		case OGRwkbGeometryType::wkbPolygonM:
@@ -2274,7 +2286,7 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 		OGRPoint pt(p.X(), p.Y());
 		OGRLine->addPoint(&pt);
 	}
-	feature->SetGeometry((OGRGeometry*)OGRLine); // TODO: makes a copy, switch to SetGeometryDirectly
+	feature->SetGeometryDirectly(OGRLine); // takes ownership: SetGeometry copied it, and the factory line leaked
 }
 
 template<typename PointType>
@@ -2315,22 +2327,25 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 			{
 				if (!ogrMultiPoly)
 					ogrMultiPoly.reset( debug_cast<OGRMultiPolygon*>(OGRGeometryFactory::createGeometry(wkbMultiPolygon)) );
-				ogrMultiPoly->addGeometry(ogrPoly.release());
+				ogrMultiPoly->addGeometryDirectly(ogrPoly.release());
 			}
 			else 
 				currOuterIsClockwise = (ogrRing->isClockwise() != 0);
 			ogrPoly.reset( debug_cast<OGRPolygon*>(OGRGeometryFactory::createGeometry(wkbPolygon)) );
 		}
 
-		ogrPoly->addRing(ogrRing.release());
+		ogrPoly->addRingDirectly(ogrRing.release());
 	}
+	// The ...Directly calls take ownership of what they are given. This used to pass released
+	// pointers to addRing, addGeometry and SetGeometry, which copy their argument: every ring and
+	// polygon of an exported layer leaked, about the size of the whole geometry column.
 	if (ogrMultiPoly)
 	{
-		ogrMultiPoly->addGeometry(ogrPoly.release());
-		feature->SetGeometry(ogrMultiPoly.release());
+		ogrMultiPoly->addGeometryDirectly(ogrPoly.release());
+		feature->SetGeometryDirectly(ogrMultiPoly.release());
 	}
 	else
-		feature->SetGeometry(ogrPoly.release());
+		feature->SetGeometryDirectly(ogrPoly.release());
 }
 
 bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
