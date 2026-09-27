@@ -99,6 +99,7 @@
 
 - **Literal suffixes are text, matched case-sensitively (#1262).** `60D` is no longer 60 as a `float64` but 60 in a unit named `D`, as `5m` is 5 in the unit `m`, and an unknown identifier where there is no such unit; the upper-case spelling was never documented. The suffix letters used to be registered as names, so every configuration with an item named D, F, U, I, W, S, B or C (a type parameter `D: domains`, a unit `W`, a container `C`) reported a case mix-up on every run. The engine's own names follow the spelling the configurations use: the member of `weeded_counts` and the palette's count attribute are `count`, the storage types `fss` and `mmd`, and a dump writes `range`; a configuration that wrote `Count`, `"FSS"` or `"MMD"` is now the one that differs in case. The shipped library and `prelude.dms` follow their own declarations.
 - **The XML configuration notation decodes an entity reference in an attribute value.** Since 20.20.0 every attribute value is decoded, and one holding `&amp;` or `&quot;`, which the XML writer itself produces, hung the load. An unknown entity is kept as it stands.
+- **A name that begins with `container`, `template` or `entity`** (`Templates`, `ContainerCount`, `entityTypes`) is a name in a `name : type` declaration. It was read as the keyword followed by the rest of the name, and the declaration failed with a parse error far from its cause; `item` already had to be a whole word.
 
 ## Packaging and build
 
