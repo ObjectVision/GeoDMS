@@ -200,8 +200,9 @@ in practice from invoking the pieces directly instead of the launcher:
   directory, prints `'unit.bat' is not recognized`, and only the testcases battery runs. Every
   `Test*Unit.bat` now goes through `batch\run_unit_suite.bat`, which puts the `tst` batch folder
   on `PATH`, requires a **new** aggregate after the run (exit 1 otherwise) and exits 2 when that
-  aggregate lists a `FAILED` line; the `.g` setup script gates its install on the same script
-  (#1231). Still clear that variable in the parent process when running the `tst` scripts by hand.
+  aggregate lists a `FAILED` line; the `.g`, `.m` and `.c` setup scripts gate their install on the
+  same script (#1231; `.m` and `.c` since the audit of 2026-09-27, BAT-A09). Still clear that
+  variable in the parent process when running the `tst` scripts by hand.
 
 **Do not run these scripts headless.** Piping them through `cmd /c ... | Tee-Object` leaves them
 without a console: the script's `timeout /T` steps fail with

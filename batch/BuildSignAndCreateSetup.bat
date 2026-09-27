@@ -192,29 +192,18 @@ if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" CH
 del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 
-cd ..\tst\batch
-REM Pass the flavor separately so unit.bat -> unit_flagged.bat ->
-REM SetGeoDMSPlatform.bat can compose the install dir as
-REM GeoDms<ver>.<flavor> (e.g. GeoDms20.0.0.m). Without the flavor the
-REM path becomes GeoDms<ver> which does not exist and every GeoDmsRun.exe
-REM invocation reports a missing-file FAILED.
-REM Explicit path for the same reason as GeoDmsVersion.cmd above; the PATH entry is
-REM what rescues unit.bat's own bare-name call to unit_flagged.bat, which lives in the
-REM tst tree. The result-file scan below already catches a suite that never ran.
-set "SAVED_PATH=%PATH%"
-set "PATH=%CD%;%PATH%"
-Call "%CD%\unit.bat" %GeoDmsVersion% m off
-set "PATH=%SAVED_PATH%"
-cd %geodms_rootdir%
-echo on
-
-REM Harness unit-test failure. unit.bat sets no errorlevel, so scan the newest
-REM result file (v<ver>.<flavor>_*.txt under %LocalDataDir%\GeoDMSTestResults\unit,
-REM where unit.bat -> SetLocalDataDir.bat just set %LocalDataDir%) for a FAILED line.
+REM Post-install unit tests through the shared guard rail, as the .g script does (#1231):
+REM run_unit_suite.bat runs tst\batch\unit.bat against the INSTALLED GeoDms<ver>.m, proves
+REM that a NEW aggregate appeared and gates on a FAILED line in it. The inline scan that stood
+REM here graded the newest v<ver>.m_*.txt, so re-running this script for the same version
+REM while unit.bat failed to start graded the previous run's passing aggregate, and installed.
 REM On failure REMOVE the installed build and the setup file: a warning echo is too
 REM easy to miss, and a build with failing unit tests must not stay installed/shippable.
-powershell -NoProfile -Command "$d='%LocalDataDir%\GeoDMSTestResults\unit'; $f=Get-ChildItem (Join-Path $d 'v%GeoDmsVersion%.%GeoDmsFlavor%_*.txt') -EA SilentlyContinue | Sort-Object LastWriteTime -Desc | Select-Object -First 1; if(-not $f){Write-Host 'no unit result file found - treating as failure'; exit 1}; if(Select-String -Path $f.FullName -Pattern 'FAILED' -Quiet){Write-Host ('unit FAILED: '+$f.Name); exit 1} else {Write-Host ('unit OK: '+$f.Name); exit 0}"
-if errorlevel 1 goto :unit_failed
+call "%~dp0run_unit_suite.bat" %GeoDmsVersion% %GeoDmsFlavor% "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%"
+set "UNIT_RC=%ERRORLEVEL%"
+cd /d %geodms_rootdir%
+echo on
+if not "%UNIT_RC%"=="0" goto :unit_failed
 
 pause "Klaar ?"
 exit /B 0
