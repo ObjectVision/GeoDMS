@@ -736,7 +736,9 @@ typedef SharedStr String;
 FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
-	dms_assert(t == 0);
+	// tile 0 reads the whole column (GetDataWrite(no_tile) below); a dms_assert(t == 0) was __assume in Release (STG-A22)
+	if (t)
+		return {};
 
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set

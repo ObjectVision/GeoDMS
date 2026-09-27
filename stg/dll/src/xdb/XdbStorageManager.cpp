@@ -36,8 +36,10 @@
 
 FileResult XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
+	// tile 0 reads the whole column (GetDataWriteBegin(no_tile) below); a dms_assert(!t) was __assume in Release (STG-A22)
+	if (t)
+		return {};
 	AbstrDataItem* adi = smi->CurrWD();
-	dms_assert(!t);
 
 	dms_assert( DoesExist(smi->StorageHolder()) );
 	dms_assert(adi);

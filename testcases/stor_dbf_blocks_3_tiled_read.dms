@@ -1,0 +1,23 @@
+// STG-A22: the dbf storage manager on a tiled domain. The storage read calls ReadDataItem once per tile; the dbf
+// reader fills the whole column at tile 0 and used to dms_assert(!t) on the others, which stopped a Debug build with
+// exit 3 and was __assume in Release. Reads the file of stor_dbf_blocks_1_write.dms on a domain of 20 tiles of 1000
+// and checks every value. Expected: exit 0 on /checks.
+container stor_dbf_blocks_3_tiled_read
+{
+	unit<uint32> T := TiledUnit(value(1000, range(uint32, 0, 20000))); // 20 tiles of 1000
+
+	container tab
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_dbf_blocks.dbf"
+	,	StorageType     = "dbf"
+	,	StorageReadOnly = "True"
+	{
+		attribute<int32>   a (T);
+		attribute<float64> f (T);
+	}
+	container checks
+	{
+		parameter<bool>  ca := all(tab/a == int32(id(T))),         IntegrityCheck = "ca == true";
+		parameter<bool>  cf := all(tab/f == float64(id(T)) * 0.5), IntegrityCheck = "cf == true";
+		parameter<int32> la := last(tab/a),                        IntegrityCheck = "la == 19999i";
+	}
+}

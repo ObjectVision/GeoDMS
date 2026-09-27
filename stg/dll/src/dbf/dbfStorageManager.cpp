@@ -191,8 +191,11 @@ void DbfStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 FileResult DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
+	// The read of tile 0 fills the whole column through GetDataWrite(no_tile); the other tiles of a tiled domain have
+	// nothing left to read, as in the shp twin. A dms_assert(!t) here was __assume in Release (STG-A22).
+	if (t)
+		return {};
 	TreeItemContextHandle och2(smi->StorageHolder(), "StorageParent");
-	dms_assert(!t);
 
 	DbfImplRead dbf(GetNameStr(), smi->StorageHolder());
 
