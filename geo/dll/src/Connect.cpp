@@ -1015,6 +1015,8 @@ public:
 						{
 							ado2->FillWithUInt32Values(tile_loc(t, 0), arg2DataSize, UNDEFINED_VALUE(UInt32));
 							fast_undefine(r3, r3 + arg2DataSize); // cut-point
+							fast_zero(r4, r4 + arg2DataSize); // InArc: the tile was not zeroed (write_only_all)
+							fast_zero(r5, r5 + arg2DataSize); // InSegm
 							fast_undefine(r6, r6 + arg2DataSize); // segm-id
 						}
 					}
@@ -1081,6 +1083,8 @@ public:
 							{
 								ado2->SetValueAsSizeT(currRow, UNDEFINED_VALUE(SizeT), t);
 								MakeUndefined(*r3);
+								*r4 = false; // as the reversed variant does (#1228): the tile was not zeroed
+								*r5 = false;
 								MakeUndefined(*r6);
 							}
 
@@ -1162,6 +1166,8 @@ public:
 							{
 								ado2->FillWithUInt32Values(tile_loc(t, 0), arcDataSize, UNDEFINED_VALUE(UInt32));
 								fast_undefine(r3, r3 + arcDataSize); // cut-point
+								fast_zero(r4, r4 + arcDataSize); // InArc: the tile was not zeroed (write_only_all)
+								fast_zero(r5, r5 + arcDataSize); // InSegm
 								fast_undefine(r6, r6 + arcDataSize); // segm-id
 							}
 							return;
