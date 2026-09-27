@@ -830,8 +830,10 @@ RTC_CALL void DoubleQuote(SharedStr& ref, CharPtr b, CharPtr e)
 
 void SingleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 {
-	dms_assert(begin+2 <= end);
-	MG_PRECONDITION(begin && end!=begin && *begin == '\'' && end && *(end-1) == '\'');
+	// A single quote character begins and ends with a quote but is not a quoted string: ++begin and
+	// --end would cross and the scan below would run through the next elements of the sequence. The
+	// length was guarded by a dms_assert only, which is no check in Release.
+	MG_PRECONDITION(begin && end && end - begin >= 2 && *begin == '\'' && *(end-1) == '\'');
 
 	result.resize_uninitialized(_SingleUnQuoteMiddleSize(++begin, --end) MG_DEBUG_ALLOCATOR_SRC("SingleUnQuote"));
 	if (!result.empty())
@@ -843,8 +845,7 @@ void SingleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 
 void DoubleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 {
-	dms_assert(begin+2 <= end);
-	MG_PRECONDITION(begin && end!=begin && *begin == '\"' && end && *(end-1) == '\"');
+	MG_PRECONDITION(begin && end && end - begin >= 2 && *begin == '\"' && *(end-1) == '\"'); // as in SingleUnQuote
 
 	result.resize_uninitialized(_DoubleUnQuoteMiddleSize(++begin, --end) MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
 	if (!result.empty())
@@ -856,8 +857,7 @@ void DoubleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 
 void DoubleUnQuote(SharedStr& result, CharPtr begin, CharPtr end)
 {
-	dms_assert(begin + 2 <= end);
-	MG_PRECONDITION(begin && end != begin && *begin == '\"' && end && *(end - 1) == '\"');
+	MG_PRECONDITION(begin && end && end - begin >= 2 && *begin == '\"' && *(end - 1) == '\"'); // as in SingleUnQuote
 
 	auto sz = _DoubleUnQuoteMiddleSize(++begin, --end);
 	result.resize(sz MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
@@ -869,8 +869,7 @@ void DoubleUnQuote(SharedStr& result, CharPtr begin, CharPtr end)
 
 SharedStr DoubleUnQuote(CharPtr begin, CharPtr end)
 {
-	dms_assert(begin + 2 <= end);
-	MG_PRECONDITION(begin && end != begin && *begin == '\"' && end && *(end - 1) == '\"');
+	MG_PRECONDITION(begin && end && end - begin >= 2 && *begin == '\"' && *(end - 1) == '\"'); // as in SingleUnQuote
 
 	SharedCharArray* resPtr = SharedCharArray::CreateUninitialized(_DoubleUnQuoteMiddleSize(++begin, --end) + 1 MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
 

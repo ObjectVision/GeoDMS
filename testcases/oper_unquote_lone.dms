@@ -1,0 +1,25 @@
+// Regression for doc/code-audit-2026-09-27.md INF-A02: unquote and undquote tested only that a value
+// begins and ends with a quote, which a value of one quote character does; the unquoting then
+// started past its end and read through the next values of the sequence (a Debug assertion, undefined
+// behaviour in Release). A value shorter than two characters now gives null, like any other value
+// that is not quoted. Expected: exit 0 on /checks.
+container oper_unquote_lone
+{
+	unit<uint32> S: nrofrows = 4
+	{
+		attribute<string> sq: ['''', '''ab''', 'x', ''];
+		attribute<string> dq: ['"', '"ab"', 'x', ''];
+	}
+
+	container checks
+	{
+		attribute<string> usq (S) := unquote(S/sq);
+		attribute<string> udq (S) := undquote(S/dq);
+
+		parameter<bool> loneSingle := IsNull(usq[0]), IntegrityCheck = "loneSingle == true";
+		parameter<bool> loneDouble := IsNull(udq[0]), IntegrityCheck = "loneDouble == true";
+		parameter<bool> single     := usq[1] == 'ab', IntegrityCheck = "single == true";
+		parameter<bool> double     := udq[1] == 'ab', IntegrityCheck = "double == true";
+		parameter<bool> unquoted   := IsNull(usq[2]) && IsNull(udq[2]) && IsNull(usq[3]) && IsNull(udq[3]), IntegrityCheck = "unquoted == true";
+	}
+}

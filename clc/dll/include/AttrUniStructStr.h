@@ -146,7 +146,7 @@ struct unquote_assign : unary_assign<SharedStr, SharedStr>
 
 	void operator ()(typename unary_assign::assignee_ref res, typename unary_assign::arg1_cref arg) const
 	{
-		if (arg.empty() || (*(arg.begin()) != '\'') || (*(arg.end()-1) != '\''))
+		if (arg.size() < 2 || (*(arg.begin()) != '\'') || (*(arg.end()-1) != '\'')) // a lone quote begins and ends with one but encloses nothing
 			Assign(res, Undefined());
 		else
 			SingleUnQuote(res, begin_ptr( arg ), end_ptr( arg ));
@@ -169,7 +169,7 @@ struct undquote_assign : unary_assign<SharedStr, SharedStr>
 
 	void operator ()(typename unary_assign::assignee_ref res, typename unary_assign::arg1_cref arg) const
 	{
-		if (arg.empty() || (*(arg.begin()) != '\"') || (*(arg.end()-1) != '\"'))
+		if (arg.size() < 2 || (*(arg.begin()) != '\"') || (*(arg.end()-1) != '\"')) // as in unquote_assign
 			Assign(res, Undefined());
 		else
 			DoubleUnQuote(res, begin_ptr( arg ), end_ptr( arg ));
