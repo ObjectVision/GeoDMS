@@ -1,0 +1,21 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A01: 300 occurrences of one key in the first
+// argument do not fit a uint8 count. The sparse path of join_equal_values used to wrap the count to
+// 44 and write beyond the result; it now reports the overflow.
+// Expected: exit nonzero on /checks (a numerical overflow while counting).
+container join_equal_values_narrow_neg
+{
+	unit<uint32> A := range(uint32, 0, 300)
+	{
+		attribute<uint32> key := const(7, .);
+	}
+	unit<uint32> B: nrofrows = 1
+	{
+		attribute<uint32> key := const(7, .);
+	}
+	unit<uint8> J := join_equal_values_uint8(A/key, B/key);
+
+	container checks
+	{
+		parameter<uint32> n := uint32(#J), IntegrityCheck = "n == 300";
+	}
+}

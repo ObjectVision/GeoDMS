@@ -1,0 +1,27 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A01: the sparse path of join_equal_values (taken
+// when the values unit is not ordinal and zero based, or its range is much larger than the data,
+// as for a plain uint32 key) counted the occurrences of a value in the narrow result type without
+// an overflow check. 300 occurrences wrapped to 44 in a uint8 counter, passed the product check,
+// and the fill loops wrote up to index 255 of a 44-element result. The count is now checked, as on
+// the dense path. This case stays below the limit and must give the full join; the _neg twin
+// exceeds it and must fail. Expected: exit 0 on /checks.
+container join_equal_values_narrow
+{
+	unit<uint32> A := range(uint32, 0, 254)
+	{
+		attribute<uint32> key := const(7, .);
+	}
+	unit<uint32> B: nrofrows = 1
+	{
+		attribute<uint32> key := const(7, .);
+	}
+	unit<uint8> J := join_equal_values_uint8(A/key, B/key);
+
+	container checks
+	{
+		parameter<bool> count  := #J == 254, IntegrityCheck = "count == true";
+		parameter<bool> firsts := sum(uint32(J/first_rel)) == 32131, IntegrityCheck = "firsts == true"; // 0 + 1 + ... + 253
+		parameter<bool> second := all(J/second_rel == 0), IntegrityCheck = "second == true";
+		parameter<bool> xrel   := all(J/X_rel == 7), IntegrityCheck = "xrel == true";
+	}
+}

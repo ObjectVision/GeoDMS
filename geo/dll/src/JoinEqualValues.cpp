@@ -120,6 +120,9 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 			return true;
 		}
 
+		// counts with SafeIncrement, as pcount_best does for the dense index: a count that wrapped
+		// in a narrow ResultElement would pass the product check below and make the fill loops
+		// write beyond the result.
 		template <typename Iter, typename CheckModeT>
 		void count(Iter first, Iter last, ResultElement* counts, CheckModeT) const
 		{
@@ -127,7 +130,7 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 			{
 				SizeT slot;
 				if (find(*first, slot))
-					++counts[slot];
+					SafeIncrement(counts[slot]);
 			}
 		}
 	};
