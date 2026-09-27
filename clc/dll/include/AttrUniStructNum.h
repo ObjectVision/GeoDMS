@@ -62,7 +62,20 @@ struct neg_func_unchecked : unary_func<signed_type_t<T>, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<typename neg_func_unchecked::res_type>(args); }
 
-	auto operator()(cref_t<T> x) const { return -signed_type_t<T>(x); }
+	auto operator()(cref_t<T> x) const
+	{
+		using S = signed_type_t<T>;
+		if constexpr (!is_signed_v<T>)
+		{
+			// an unsigned value above the signed maximum has no negation of the same width: it wrapped,
+			// neg(uint8(200)) gave 56. The null is the largest unsigned value; keep it null.
+			if (!IsDefined(x))
+				return UNDEFINED_VALUE(S);
+			if (x > T(MAX_VALUE(S)))
+				throwErrorF("neg", "{} has no negation of the same width: it is above the largest signed value", UInt64(x));
+		}
+		return S(-S(x));
+	}
 };
 
 // *****************************************************************************

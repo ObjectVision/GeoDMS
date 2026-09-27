@@ -1,0 +1,19 @@
+// The positive side of oper_neg_unsigned_neg.dms (doc/code-audit-2026-09-27.md CLC-A08): neg of an
+// unsigned value that fits the signed type of the same width is its negation, and neg of a null is
+// null: the check against the signed maximum must not take the unsigned null, the largest value,
+// for an overflow.
+// Expected: exit 0 on /checks.
+container oper_neg_unsigned
+{
+	unit<uint32> D : nrofrows = 3
+	{
+		attribute<uint8> v : [0, 127, null];
+	}
+
+	container checks
+	{
+		attribute<int8> n (D) := neg(D/v);
+		parameter<bool> values_ok := int32(n[0]) == 0i && int32(n[1]) == -127i, IntegrityCheck = "values_ok == true";
+		parameter<bool> null_ok   := IsNull(n[2]), IntegrityCheck = "null_ok == true";
+	}
+}
