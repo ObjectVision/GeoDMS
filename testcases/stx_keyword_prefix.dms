@@ -1,0 +1,21 @@
+// Regression for doc/code-audit-2026-09-27.md STX-A13: the item signatures container, template and
+// entity matched as the start of a longer name, since only 'item' had a word-boundary guard. In the
+// 'name : type' style of declaration an item named Templates parsed as the keyword template and a
+// name s, one named ContainerCount as container and a name Count, one named entityTypes as entity
+// and a name Types, and each then failed with a parse error far from the cause. Since 20.22.0 these
+// keywords match as whole words only.
+// Expected: exit 0 on /checks.
+container stx_keyword_prefix
+{
+	Templates : container
+	{
+		parameter<uint32> a := 1;
+	}
+	ContainerCount : parameter<uint32> := 3;
+	entityTypes    : parameter<uint32> := 4;
+
+	container checks
+	{
+		parameter<bool> ok := Templates/a == 1 && ContainerCount == 3 && entityTypes == 4, IntegrityCheck = "ok == true";
+	}
+}

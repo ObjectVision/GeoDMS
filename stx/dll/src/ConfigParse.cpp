@@ -352,20 +352,27 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					)
 				[([&cp](auto _1, auto _2) { cp.DoItemHeading(_1, _2);})];
 
+			// The keywords that are not followed by '<' match as whole words only: no character that can
+			// continue an item name may follow (letters, digits, '_', '@' and bytes from 128 up). Without
+			// that guard 'Templates: container {...}' parsed as 'template' and a name 's', and
+			// 'ContainerTerminals: container;' as 'container' and a name 'Terminals'.
 			itemSignature =
-				as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(SignatureType::TreeItem);})]
+				lexeme_d[as_lower_d[CONTAINER] >> epsilon_p(boost::spirit::anychar_p - itemNameNextChar_p)]
+					[([&cp](...) { cp.SetSignature(SignatureType::TreeItem);})]
 				// 'item x': meta-reference function parameter. Guards: (a) word boundary
-				// (lexeme: no alnum/'_' may follow, so 'items' stays an identifier);
+				// (lexeme: no item-name character may follow, so 'items' stays an identifier);
 				// (b) not followed by ':' or '=', so 'item := expr;' stays a bare decl
 				// and 'item : type' declares an item NAMED item
-				| (lexeme_d[as_lower_d[ITEM] >> epsilon_p(boost::spirit::anychar_p - alnum_p - '_')]
+				| (lexeme_d[as_lower_d[ITEM] >> epsilon_p(boost::spirit::anychar_p - itemNameNextChar_p)]
 					>> epsilon_p(boost::spirit::anychar_p - COLON - EQUAL))
 					[([&cp](...) { cp.SetSignature(SignatureType::MetaRef);})]
-				| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(SignatureType::Template);})]
+				| lexeme_d[as_lower_d[TEMPLATE] >> epsilon_p(boost::spirit::anychar_p - itemNameNextChar_p)]
+					[([&cp](...) { cp.SetSignature(SignatureType::Template);})]
 				| (as_lower_d[ATTRIBUTE] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.DoAttrSignature();})]
 				| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Parameter);})]
 				| (as_lower_d[UNIT] >> '<' >> basicType >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Unit);})]
-				| (as_lower_d[ENTITY])[([&cp](...) { cp.DoEntitySignature();})]
+				| lexeme_d[as_lower_d[ENTITY] >> epsilon_p(boost::spirit::anychar_p - itemNameNextChar_p)]
+					[([&cp](...) { cp.DoEntitySignature();})]
 				;
 
 			//<unit identifier> ::=	<item ref>
