@@ -2913,6 +2913,7 @@ task_status OperationContext::Join()
 		}
 
 
+		garbage_can joinGarbage; // declared before the lock: what collectTaskImpl hands back must die outside it
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
 			break;
@@ -2923,6 +2924,17 @@ task_status OperationContext::Join()
 		if (m_Status == task_status::scheduled)
 		{
 			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of s_IsInLowRamMode
+
+			// Still scheduled after the StartOperationContexts above: the low-RAM brake parked it. That
+			// brake counts the context this worker is running, which waits here for this one, so it
+			// held back exactly the context that would let it go on; the worker then polled until the
+			// machine's RAM use dropped, which may never happen while this process holds the memory.
+			// Activate it for this thread, which runs it inline in the next iteration: that adds no
+			// concurrency, since the thread was going to wait anyway. The meta thread does not run
+			// tasks inline, and the brake's floor of one covers it. Only within the phase being
+			// activated, as collectOperationContexts would do.
+			if (!IsMetaThread() && m_PhaseNumber == s_CurrActivePhaseNumber && collectTaskImpl(joinGarbage))
+				continue;
 		}
 		if (m_Status == task_status::waiting_for_suppliers)
 		{
