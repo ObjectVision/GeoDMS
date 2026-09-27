@@ -1,0 +1,23 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A28: get_x and get_y computed x * factor + offset
+// for every point, a null one too, so a null integer point gave a number: get_x of a null ipoint
+// was -2147483648, and likewise for spoint, wpoint and upoint. Float points propagated their NaN,
+// and pointcol / pointrow kept the null. Since 20.22.0 a null point gives a null coordinate.
+// Expected: exit 0 on /checks.
+container oper_get_xy_null
+{
+	unit<uint32> D : nrofrows = 2
+	{
+		attribute<ipoint> p := id(.) == 0 ? point_xy(3i, 4i, ipoint) : null_ip;
+		attribute<spoint> s := id(.) == 0 ? point_xy(int16(3), int16(4), spoint) : null_sp;
+	}
+
+	container checks
+	{
+		attribute<float64> px (D) := float64(get_x(D/p));
+		attribute<float64> py (D) := float64(get_y(D/p));
+		attribute<float64> sx (D) := float64(get_x(D/s));
+
+		parameter<bool> defined_ok := px[0] == 3.0 && py[0] == 4.0 && sx[0] == 3.0, IntegrityCheck = "defined_ok == true";
+		parameter<bool> null_ok    := IsNull(px[1]) && IsNull(py[1]) && IsNull(sx[1]), IntegrityCheck = "null_ok == true";
+	}
+}

@@ -312,10 +312,14 @@ struct UnaryAttr_XY_FuncOperator : UnaryAttrOperator<ResCoordType, PointType>
 
 		auto tr = UnitProjection::GetCompositeTransform(argVU->GetCurrProjection());
 
+		// a null point gives a null coordinate: for integer points the arithmetic turned it into a number
+		// (get_x of a null ipoint gave -2147483648); float points already propagated their NaN
 		if constexpr (TAKE_THE_Y)
-			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fy = tr.Factor().Y(), ty = tr.Offset().Y()](const auto& p) { return p.Y() * fy + ty;  });
+			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fy = tr.Factor().Y(), ty = tr.Offset().Y()](const auto& p) -> ResCoordType
+				{ return IsDefined(p) ? ResCoordType(p.Y() * fy + ty) : UNDEFINED_VALUE(ResCoordType); });
 		else
-			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fx = tr.Factor().X(), tx = tr.Offset().X()](const auto& p) { return p.X() * fx + tx;  });
+			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fx = tr.Factor().X(), tx = tr.Offset().X()](const auto& p) -> ResCoordType
+				{ return IsDefined(p) ? ResCoordType(p.X() * fx + tx) : UNDEFINED_VALUE(ResCoordType); });
 	}
 };
 
