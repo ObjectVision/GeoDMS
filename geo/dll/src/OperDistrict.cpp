@@ -173,7 +173,6 @@ public:
 		
 			Range<T> range = values->GetRange();
 			assert(range.first < range.second);
-			T inputUpperBound = Cardinality(range);
 
 			IRect rect = domain->GetRangeAsIRect();
 			if (!rect.empty())
@@ -188,7 +187,7 @@ public:
 
 					Diversity(
 						input,
-						inputUpperBound,
+						range,
 						GetCurrValue<typename Arg2Type::value_type>(radiusA, 0),
 						GetCurrValue<typename Arg3Type::value_type>(isCircleA, 0),
 						output

@@ -631,10 +631,13 @@ bool TreeItem::CommitDataChanges() const
 		// the producer runs or is queued: waiting for it here would only idle the meta thread;
 		// its memory is counted as in flight until ready. The pool is told now, not when the
 		// pass ends: a pass over a large graph takes seconds, and the stack of the hung Hestia
-		// run showed every worker parked while the walk held the scheduled producers.
+		// run showed every worker parked while the walk held the scheduled producers. And told
+		// as a waiter, as the Join of the wait below would be: above MemoryFlushThreshold,
+		// collectOperationContexts keeps as many contexts activated or running as there are
+		// waiting Joins, and one at least.
 		LedgerNoteDeferral(this);
 		SuspendTrigger::DeferScope::Register();
-		StartOperationContexts();
+		StartOperationContextsAsWaiter();
 		return false; // deferred, not failed
 	}
 	LedgerNoteReady(this); // ready, or about to be waited for: no longer in flight

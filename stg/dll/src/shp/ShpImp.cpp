@@ -271,7 +271,17 @@ bool ShpImp::Read(WeakStr name)
 	{
 		// Read lines, polygons or multipoints
 		if (m_NrRecs != UInt32(-1))
-			ShapeSet_PrepareDataStore(m_NrRecs, 0);
+		{
+			// After its record header, a record holds a shape type, a box, the part and point counts and the part indices
+			// (a multipoint record no part count or indices), then 16 bytes per point: with one part per record, the file
+			// length leaves room for exactly the points. Any further part makes this 4 bytes more than needed; a null
+			// record, which holds only its shape type, makes it less.
+			SizeT recordBytesBesidesPoints = sizeof(ShpRecordHeader) + sizeof(Int32) + 4 * sizeof(Float64) + sizeof(Int32)
+				+ (m_ShapeType == ShapeTypes::ST_MultiPoint ? 0 : sizeof(Int32) + sizeof(ShpPointIndex));
+			SizeT bytesBesidesPoints = pos + SizeT(m_NrRecs) * recordBytesBesidesPoints; // pos: after the file header
+			SizeT expectedNrPoints = m_FileLength > bytesBesidesPoints ? (m_FileLength - bytesBesidesPoints) / sizeof(ShpPoint) : 0;
+			ShapeSet_PrepareDataStore(m_NrRecs, 0, expectedNrPoints);
+		}
 		else
 			ShapeSet_PrepareDataStore(0, 0);
 		SeqLock<sequence_array<ShpPointIndex>> lockParts (m_SeqParts , dms_rw_mode::write_only_all);
@@ -304,9 +314,9 @@ bool ShpImp::Read(WeakStr name)
 	return true;
 }
 
-void ShpImp::ShapeSet_PrepareDataStore(UInt32 nrRecs, UInt32 nrSeqsToKeep)
+void ShpImp::ShapeSet_PrepareDataStore(UInt32 nrRecs, UInt32 nrSeqsToKeep, SizeT expectedNrPoints)
 {
-	m_SeqPoints.Resize(0,      nrRecs, nrSeqsToKeep MG_DEBUG_ALLOCATOR_SRC("Shp: SeqPoints"));
+	m_SeqPoints.Resize(expectedNrPoints, nrRecs, nrSeqsToKeep MG_DEBUG_ALLOCATOR_SRC("Shp: SeqPoints"));
 	m_SeqParts .Resize(nrRecs, nrRecs, nrSeqsToKeep MG_DEBUG_ALLOCATOR_SRC("Shp: SeqParts"));
 	m_NrRecs = nrRecs;
 }

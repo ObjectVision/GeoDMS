@@ -1080,6 +1080,26 @@ bool SpecialSize(SizeT sz) { return true;  }
 
 #endif // defined(MG_CACHE_ALLOC)
 
+// Follows the dispatch of AllocateFromStock_impl: a request that a free list or free stack serves takes its whole
+// object store, ALLOC_OBJSSIZE_MIN << BlockListIndex, i.e. the next power of 2; any other goes to the CRT as asked.
+SizeT StockAllocationSize(SizeT objectSize)
+{
+#if defined(MG_CACHE_ALLOC)
+	if (!objectSize)
+		return 0;
+	auto i = BlockListIndex(objectSize);
+	if (i < FIRST_PAGE_INDEX)
+	{
+#if defined(MG_CACHE_ALLOC_SMALL)
+		return ALLOC_OBJSSIZE_MIN << i;
+#endif //defined(MG_CACHE_ALLOC_SMALL)
+	}
+	else if (SpecialSize(objectSize) && i - FIRST_PAGE_INDEX < NR_FREE_STACK_ALLOCS)
+		return ALLOC_OBJSSIZE_MIN << i;
+#endif //defined(MG_CACHE_ALLOC)
+	return objectSize;
+}
+
 //----------------------------------------------------------------------
 // implement interface
 //----------------------------------------------------------------------

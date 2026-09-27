@@ -5,8 +5,8 @@
 // diversity of a cell is the number of grid cells within the disc, which is counted here by
 // brute force over all cell pairs. Expected: exit 0 on /checks.
 //
-// The values unit has an explicit range: diversity counts only values below the cardinality of
-// the values unit (as nulls are), and with the default uint8 unit the two highest values of the
+// The values unit has an explicit range: diversity counts only values inside the range of the
+// values unit (as it skips nulls), and with the default uint8 unit the two highest values of the
 // grid, 254 and 255, were ignored, which made the counts around the bottom-right corner short.
 container diversity_circle
 {

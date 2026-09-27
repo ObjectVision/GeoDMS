@@ -139,11 +139,11 @@ void SharedStr::resize(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 	else 
 	{
 		SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1 MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		reset(result);
 		fast_zero(
-			fast_copy(begin(), send(), result->begin())
+			fast_copy(cbegin(), csend(), result->begin())
 		,	result->end()
 		);
+		reset(result); // only after the copy: this releases the old characters
 	}
 }
 

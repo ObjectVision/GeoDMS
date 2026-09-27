@@ -30,6 +30,7 @@
 
 const UInt32 BUFFER_SIZE = 1024;
 const UInt32 MAX_PAIR_COUNT = 4096;
+const UInt32 MAX_BIN_COUNT = 0x10000; // the counters of one BinCounts: every 16-bit value, in 512 KB
 
 //----------------------------------------------------------------------
 
@@ -43,11 +44,6 @@ inline void SafeIncrementCounter(SizeT& assignee)
 	assignee++;
 	assert(assignee); // SizeT cannot overflow when counting distict addressable elements
 }
-inline bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
-{
-	DataCheckMode dcm = adi->GetCheckMode();
-	return !(dcm & DCM_CheckRange);
-}
 
 template <typename V>
 auto GetValuesRange(const DataArray<V>* tileFunctor) -> typename Unit<V>::range_t
@@ -56,6 +52,48 @@ auto GetValuesRange(const DataArray<V>* tileFunctor) -> typename Unit<V>::range_
 	auto vrd = tileFunctor->GetValueRangeData();
 	MG_CHECK(vrd);
 	return vrd->GetRange();
+}
+
+//----------------------------------------------------------------------
+// Tables over the formal range of integral values
+//
+// A table counts integral values with one counter per value of the formal range of their values unit, the range that the
+// modus family assumes them to lie in: a value outside it is an error, which ThrowOutOfFormalRange reports. The range of a
+// values unit without a range of its own, [MinValue, MaxValue), stands for all defined values, MaxValue included, as in the
+// check mode that DataArrayBase::DoDetermineCheckMode determines; a table over it has a counter for MaxValue too.
+//----------------------------------------------------------------------
+
+// whether range excludes some defined values, which the range of a values unit without a range of its own does not
+template <typename V>
+bool IsRestrictingRange(const Range<V>& range)
+{
+	return IsDefined(range) && !range.inverted() && !range.is_max();
+}
+
+// the number of counters of a table over range, undefined for an undefined range
+template <typename V>
+SizeT TableSize(const Range<V>& range)
+{
+	if (!IsDefined(range) || range.inverted())
+		return UNDEFINED_VALUE(SizeT);
+	SizeT n = Cardinality(range);
+	if (IsDefined(n) && range.is_max())
+		++n;
+	return n;
+}
+
+// the value that counter i of a table over range counts
+template <typename V>
+V TableValue(const Range<V>& range, SizeT i)
+{
+	assert(i < TableSize(range));
+	return V(range.first + i);
+}
+
+template <typename V>
+[[noreturn]] void ThrowOutOfFormalRange(V value, const Range<V>& range)
+{
+	throwErrorF("Range Error", "Value {} not in expected range from {} till {}", value, range.first, range.second);
 }
 
 //----------------------------------------------------------------------
@@ -403,18 +441,307 @@ auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id
 	return WeededMergeToLeft(firstHalf->get(), secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
-template <ordered_value_type V, count_type C>
-auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
+//----------------------------------------------------------------------
+// Counting integral values in bins
+//
+// Bit values all fit in a table of their 2^N values, see GetWeededWallCounts. Other integral values could lie too
+// far apart for that: where the defined values of a tile lie close together, GetWeededWallCounts counts them in bins,
+// one counter per value from the lowest on, instead of sorting them. The bins are sized to the values, not to the
+// values unit's range, which does not bound them: a value outside that range is data too. All tiles of a worker count
+// into the same bins, which grow for a tile whose values reach beyond them, and the workers add up their bins. Values
+// that would make the bins too large are sorted and merged as before. Bins never outnumber maxPairCount, so the pairs
+// they yield are the ones sorting yields.
+//----------------------------------------------------------------------
+
+// the number of values from lo up to and including hi if that is at most maxSpan, 0 otherwise
+template <typename V>
+SizeT BinSpan(V lo, V hi, SizeT maxSpan)
 {
-	auto nrTiles = values_fta.size();
-	if (!nrTiles)
+	assert(!(hi < lo));
+	SizeT diff = unsigned_type_t<V>(unsigned_type_t<V>(hi) - unsigned_type_t<V>(lo));
+	return diff < maxSpan ? diff + 1 : 0;
+}
+
+template <ordered_value_type V, count_type C>
+struct BinCounts
+{
+	using uint_type = unsigned_type_t<V>;
+
+	static SizeT MaxBins(SizeT maxPairCount) { return Min<SizeT>(maxPairCount, MAX_BIN_COUNT); }
+
+	bool HasBins() const { return !m_Bins.empty(); }
+	bool IsEmpty() const { return !HasBins() && m_NullCount == C(); }
+	V    Last()    const { assert(HasBins()); return V(uint_type(uint_type(m_First) + (m_Bins.size() - 1))); }
+
+	// the bin of v, or at least the number of bins when v lies outside them: below m_First the difference wraps around
+	SizeT Offset(V v) const { return uint_type(uint_type(v) - uint_type(m_First)); }
+
+	// how many bins a tile of tileSize values may bring them to: within MaxBins, and within the number of values counted
+	// with it, so that a small tile of widely spread values does not pay for a large table
+	SizeT MaxSpan(SizeT maxPairCount, SizeT tileSize) const { return Min<SizeT>(MaxBins(maxPairCount), Max<SizeT>(m_NrCounted + tileSize, BUFFER_SIZE)); }
+
+	// the lowest and highest defined value in data, false if there is none; the 255 defined values of an 8-bit type
+	// fit anyway, so these are taken without looking
+	static bool DefinedRange(typename sequence_traits<V>::cseq_t data, V& lo, V& hi)
+	{
+		if constexpr (sizeof(V) == 1)
+		{
+			lo = MinValue<V>();
+			hi = MaxValue<V>();
+			return true;
+		}
+		else
+		{
+			auto valuePtr = std::find_if(data.begin(), data.end(), [](V v) { return IsDefined(v); });
+			if (valuePtr == data.end())
+				return false;
+			lo = hi = *valuePtr;
+			for (; valuePtr != data.end(); ++valuePtr)
+				if (IsDefined(*valuePtr))
+				{
+					MakeMin(lo, *valuePtr);
+					MakeMax(hi, *valuePtr);
+				}
+			return true;
+		}
+	}
+
+	// Counts the values of a tile in the bins and returns the (value, count) pairs, sorted, of those that do not fit.
+	// A tile sizes absent bins to its own values and grows present ones for values beyond them, within MaxSpan.
+	auto CountTile(typename sequence_traits<V>::cseq_t data, SizeT maxPairCount, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
+	{
+		SizeT maxSpan = MaxSpan(maxPairCount, data.size());
+		if (!HasBins())
+		{
+			V lo = V(), hi = V();
+			if (!DefinedRange(data, lo, hi))
+			{
+				if (!valueMustBeDefined)
+					m_NullCount += data.size();
+				return {};
+			}
+			SizeT span = BinSpan(lo, hi, maxSpan);
+			if (!span)
+				return GetWeededTileCounts<V, C>(data, 0, data.size(), maxPairCount, valueMustBeDefined);
+			m_First = lo;
+			m_Bins = my_vector<C>(span MG_DEBUG_ALLOCATOR_SRC("BinCounts::CountTile")); // zeroed
+		}
+
+		my_vector<V> outside;
+		SizeT nrNulls = 0;
+		auto  bins = m_Bins.begin();
+		SizeT nrBins = m_Bins.size();
+		for (V v : data)
+		{
+			if (!IsDefined(v))
+				++nrNulls;
+			else if (SizeT i = Offset(v); i < nrBins)
+				++bins[i];
+			else
+				outside.push_back(v MG_DEBUG_ALLOCATOR_SRC("BinCounts::CountTile outside"));
+		}
+		if (!valueMustBeDefined)
+			m_NullCount += nrNulls;
+		m_NrCounted += data.size() - nrNulls - outside.size();
+		if (outside.empty())
+			return {};
+
+		V lo = m_First, hi = Last();
+		for (V v : outside)
+		{
+			MakeMin(lo, v);
+			MakeMax(hi, v);
+		}
+		if (!BinSpan(lo, hi, maxSpan))
+			return GetWeededTileCounts<V, C>(typename sequence_traits<V>::cseq_t(outside.begin(), outside.end()), 0, outside.size(), maxPairCount, true);
+
+		Grow(lo, hi, maxSpan);
+		for (V v : outside)
+			++m_Bins[Offset(v)];
+		m_NrCounted += outside.size();
 		return {};
+	}
 
-	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
-	MakeMin(maxNrThreads, nrTiles);
-	MakeMax(maxNrThreads, 1);
+	// Counts all values of a tile in the bins, sizing or growing them within MaxSpan as CountTile does, if they all fit;
+	// returns false, counting nothing, otherwise. For a caller that has a better way than sorting single-threaded to deal
+	// with a tile whose values lie too far apart, such as unique, which splits the tile over threads.
+	bool CountTileIfItFits(typename sequence_traits<V>::cseq_t data, SizeT maxPairCount, bool valueMustBeDefined)
+	{
+		V lo = V(), hi = V();
+		if (DefinedRange(data, lo, hi))
+		{
+			if (HasBins())
+			{
+				MakeMin(lo, m_First);
+				MakeMax(hi, Last());
+			}
+			SizeT maxSpan = MaxSpan(maxPairCount, data.size());
+			SizeT span = BinSpan(lo, hi, maxSpan);
+			if (!span)
+				return false;
+			if (!HasBins())
+			{
+				m_First = lo;
+				m_Bins = my_vector<C>(span MG_DEBUG_ALLOCATOR_SRC("BinCounts::CountTileIfItFits")); // zeroed
+			}
+			else if (lo < m_First || Last() < hi)
+				Grow(lo, hi, maxSpan);
+		}
 
-	return GetWeededWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxPairCount, maxNrThreads, valueMustBeDefined);
+		SizeT nrNulls = 0;
+		auto  bins = m_Bins.begin();
+		for (V v : data)
+			if (IsDefined(v))
+				++bins[Offset(v)];
+			else
+				++nrNulls;
+		if (!valueMustBeDefined)
+			m_NullCount += nrNulls;
+		m_NrCounted += data.size() - nrNulls;
+		return true;
+	}
+
+	// Adds the counts of other if the bins of both fit in MaxBins together; returns false, changing nothing, otherwise.
+	bool Absorb(BinCounts&& other, SizeT maxPairCount)
+	{
+		if (other.HasBins())
+		{
+			if (!HasBins())
+			{
+				m_First = other.m_First;
+				m_Bins = std::move(other.m_Bins);
+			}
+			else
+			{
+				V lo = Min<V>(m_First, other.m_First), hi = Max<V>(Last(), other.Last());
+				SizeT maxSpan = MaxBins(maxPairCount);
+				if (!BinSpan(lo, hi, maxSpan))
+					return false;
+				if (lo < m_First || Last() < hi)
+					Grow(lo, hi, maxSpan);
+				auto bins = m_Bins.begin() + Offset(other.m_First);
+				for (SizeT i = 0, n = other.m_Bins.size(); i != n; ++i)
+					bins[i] += other.m_Bins[i];
+			}
+		}
+		m_NullCount += other.m_NullCount;
+		m_NrCounted += other.m_NrCounted;
+		return true;
+	}
+
+	// the counts as (value, count) pairs, in the order GetCountsDirect gives them: null first
+	auto ToPairs() const -> ValueCountPairContainerT<V, C>
+	{
+		ValueCountPairContainerT<V, C> result;
+		SizeT n = (m_NullCount != C()) ? 1 : 0;
+		for (C c : m_Bins)
+			if (c != C())
+				++n;
+		result.reserve(n MG_DEBUG_ALLOCATOR_SRC("BinCounts::ToPairs"));
+		if (m_NullCount != C())
+			result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("BinCounts::ToPairs") UNDEFINED_VALUE(V), m_NullCount);
+		for (SizeT i = 0, e = m_Bins.size(); i != e; ++i)
+			if (m_Bins[i] != C())
+				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("BinCounts::ToPairs") V(uint_type(uint_type(m_First) + i)), m_Bins[i]);
+		return result;
+	}
+
+private:
+	// Makes the bins cover lo..hi, which covers them already, keeping the counts. Adds as many bins to spare as there
+	// were, within maxSpan and the defined values, on the side that grew, so that tiles whose values each reach a
+	// little further do not copy the bins every time.
+	void Grow(V lo, V hi, SizeT maxSpan)
+	{
+		SizeT span = BinSpan(lo, hi, maxSpan);
+		assert(span);
+		SizeT room  = Min<SizeT>(m_Bins.size(), maxSpan - span);
+		SizeT below = (lo < m_First) ? (Last() < hi ? room / 2 : room) : 0;
+		MakeMin(below, SizeT(uint_type(uint_type(lo) - uint_type(MinValue<V>()))));
+		SizeT above = Min<SizeT>(room - below, SizeT(uint_type(uint_type(MaxValue<V>()) - uint_type(hi))));
+		V first = V(uint_type(uint_type(lo) - uint_type(below)));
+
+		my_vector<C> bins(span + below + above MG_DEBUG_ALLOCATOR_SRC("BinCounts::Grow")); // zeroed
+		std::copy(m_Bins.begin(), m_Bins.end(), bins.begin() + SizeT(uint_type(uint_type(m_First) - uint_type(first))));
+		m_Bins = std::move(bins);
+		m_First = first;
+	}
+
+	V              m_First = V();
+	my_vector<C>   m_Bins;            // m_Bins[i] counts the value m_First + i
+	C              m_NullCount = C(); // counted only when valueMustBeDefined is false
+	SizeT          m_NrCounted = 0;   // the values counted in bins, which bounds how far they grow
+};
+
+// The counts of a range of tiles: in bins while all values fit, as sorted (value, count) pairs from then on. Turning
+// to pairs where the first values do not fit, and not later, lets weeding happen at the merges it happens at without
+// bins: a merge that weeds would otherwise weed some pairs once more than others.
+template <ordered_value_type V, count_type C>
+struct WallCounts
+{
+	BinCounts<V, C>                bins;
+	ValueCountPairContainerT<V, C> pairs;
+
+	void TurnToPairs(SizeT maxPairCount, bool valueMustBeDefined)
+	{
+		if (bins.IsEmpty())
+			return;
+		pairs = pairs.empty() ? bins.ToPairs() : WeededMergeToLeft(bins.ToPairs(), pairs, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+		bins = {};
+	}
+};
+
+template <ordered_value_type V, count_type C>
+auto GetBinnedWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount, bool valueMustBeDefined, BinCounts<V, C>& bins) -> ValueCountPairContainerT<V, C>
+{
+	if (nrTiles == 1)
+	{
+		auto tileData = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+		return bins.CountTile(tileData, maxPairCount, valueMustBeDefined);
+	}
+
+	tile_id m = nrTiles / 2;
+	assert(m >= 1);
+
+	auto firstHalf  = GetBinnedWallCounts_ST<V, C>(values_fta, t, m, maxPairCount, valueMustBeDefined, bins);
+	auto secondHalf = GetBinnedWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, valueMustBeDefined, bins);
+
+	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+}
+
+template <ordered_value_type V, count_type C>
+auto GetBinnedWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount, SizeT availableThreads, bool valueMustBeDefined) -> WallCounts<V, C>
+{
+	assert(nrTiles);
+	assert(availableThreads <= nrTiles);
+
+	WallCounts<V, C> result;
+	if (availableThreads == 1)
+	{
+		result.pairs = GetBinnedWallCounts_ST<V, C>(values_fta, t, nrTiles, maxPairCount, valueMustBeDefined, result.bins);
+		if (!result.pairs.empty())
+			result.TurnToPairs(maxPairCount, valueMustBeDefined);
+		return result;
+	}
+
+	auto m = nrTiles / 2;
+	auto rt = availableThreads / 2;
+
+	auto firstHalf = throttled_async([&values_fta, t, m, maxPairCount, rt, valueMustBeDefined]
+		{
+			return GetBinnedWallCounts_MT<V, C>(values_fta, t, m, maxPairCount, rt, valueMustBeDefined);
+		}
+	);
+
+	auto secondHalf = GetBinnedWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt, valueMustBeDefined);
+
+	result = firstHalf->get();
+	if (result.pairs.empty() && secondHalf.pairs.empty() && result.bins.Absorb(std::move(secondHalf.bins), maxPairCount))
+		return result;
+
+	result.TurnToPairs(maxPairCount, valueMustBeDefined);
+	secondHalf.TurnToPairs(maxPairCount, valueMustBeDefined);
+	result.pairs = WeededMergeToLeft(result.pairs, secondHalf.pairs, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+	return result;
 }
 
 template <ordered_value_type V, count_type C>
@@ -496,11 +823,11 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 				if (!IsDefined(*valuesIter))
 					continue;
 			}
-			auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
+			auto i = Range_GetIndex_naked_unchecked(localInfo.valuesRange, *valuesIter); // a value outside is reported below, in a debug build too
 			if constexpr (has_undefines_v<V>)
 			{
 				if (i >= localInfo.vCount)
-					throwErrorF("Range Error", "Value {} not in expected range from {} till {}", *valuesIter, localInfo.valuesRange.first, localInfo.valuesRange.second);
+					ThrowOutOfFormalRange<V>(*valuesIter, localInfo.valuesRange);
 			}
 			SafeIncrementCounter(bufferB[i]);
 		}
@@ -512,7 +839,8 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 template<typename V, typename C>
 auto GetCountsAsArray(const DataArray<V> * valuesDataArray, typename Unit<V>::range_t valuesRange) -> std::vector<C>
 {
-	SizeT vCount = Cardinality(valuesRange);
+	SizeT vCount = TableSize(valuesRange);
+	assert(IsDefined(vCount));
 	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
 	if (vCount)
 		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
@@ -528,68 +856,55 @@ auto GetCountsAsArray(const DataArray<V> * valuesDataArray, typename Unit<V>::ra
 	return GetWallCountsAsArray<V, C>(info, 0, tn, maxNrThreads);
 }
 
-template <ordered_value_type R, count_type C>
-auto MakeValueCountContainer(std::vector<C>&& freqTable) -> ValueCountPairContainerT<R, C>
+// The (value, count) pairs of all tiles, sorted: from bins for integral values, as far as they fit, merged otherwise.
+template <ordered_value_type V, count_type C>
+auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 {
-	ValueCountPairContainerT<R, C> result;
-	SizeT c = 0;
-	for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
-		if (freqTable[i] > 0)
-			c++;
-	result.reserve(c MG_DEBUG_ALLOCATOR_SRC("MakeValueCountContainer"));
+	auto nrTiles = values_fta.size();
+	if (!nrTiles)
+		return {};
 
-	for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
-		if (freqTable[i] > 0)
-			result.push_back({ i, freqTable[i] } MG_DEBUG_ALLOCATOR_SRC("MakeValueCountContainer"));
-	return result;
+	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+	MakeMin(maxNrThreads, nrTiles);
+	MakeMax(maxNrThreads, 1);
+
+	if constexpr (is_bitvalue_v<V>)
+	{
+		// a bin for each of the 2^N values fits them all: bit values are never sorted, nor null
+		WallCountsAsArrayInfo<V> info = { typename Unit<V>::range_t(0, 1 << nrbits_of_v<V>), SizeT(1) << nrbits_of_v<V>, values_fta.begin() };
+		auto bins = GetWallCountsAsArray<V, C>(info, 0, nrTiles, maxNrThreads);
+
+		ValueCountPairContainerT<V, C> result;
+		result.reserve(bins.size() - SizeT(std::count(bins.begin(), bins.end(), C())) MG_DEBUG_ALLOCATOR_SRC("GetWeededWallCounts"));
+		for (SizeT i = 0, n = bins.size(); i != n; ++i)
+			if (bins[i] != C())
+				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededWallCounts") V(typename V::base_type(i)), bins[i]);
+		return result;
+	}
+	else if constexpr (is_integral_v<V>)
+	{
+		auto counts = GetBinnedWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxPairCount, maxNrThreads, valueMustBeDefined);
+		counts.TurnToPairs(maxPairCount, valueMustBeDefined);
+		return std::move(counts.pairs);
+	}
+	else
+		return GetWeededWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxPairCount, maxNrThreads, valueMustBeDefined);
 }
 
 template <ordered_value_type R, typename V, count_type C>
-auto GetWeededCountsOfV(const DataArray<V>* valuesTF, bool noOutOfRangeValues,  const Unit<V>* valuesUnit, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
+auto GetWeededCountsOfV(const DataArray<V>* valuesTF, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
 {
-	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
-	{
-		auto freqTable = GetCountsAsArray<V, C>(valuesTF, valuesUnit->GetRange());
-		return MakeValueCountContainer<R, C>(std::move(freqTable));
-	}
+	auto values_fta = GetFutureTileArray(valuesTF);
+	auto vcxxx = GetWeededWallCounts<V, C>(values_fta, maxPairCount, true); // class breaks and unique counts never count nulls
+	if constexpr (std::is_same_v<R, V>)
+		return vcxxx;
 	else
 	{
-		if constexpr (is_integral_v<scalar_of_t<V>>)
-		{
-			if (noOutOfRangeValues)
-			{
-				SizeT v = valuesUnit->GetDataCount();
-				if (IsDefined(v) && v <= maxPairCount)
-				{
-					SizeT n = valuesTF->GetTiledRangeData()->GetElemCount();
-					if (v <= n) // Countable values; go for Table if sensible
-					{
-						auto range = valuesUnit->GetRange();
-						auto freqTable = GetCountsAsArray<V, C>(valuesTF, range);
-						auto vcc = MakeValueCountContainer<R, C>(std::move(freqTable));
-						R offset = Convert<R>(range.first);
-						if (offset != R())
-						{
-							for (auto& vcPair : vcc)
-								vcPair.first += offset;
-						}
-
-					}
-				}
-			}
-		}
-		auto values_fta = GetFutureTileArray(valuesTF);
-		auto vcxxx = GetWeededWallCounts<V, C>(values_fta, maxPairCount, true); // class breaks and unique counts never count nulls
-		if constexpr (std::is_same_v<R, V>)
-			return vcxxx;
-		else
-		{
-			ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size() MG_DEBUG_ALLOCATOR_SRC("GetWeededCountsOfV"));
-			CountablePointConverter<V> conv(valuesTF->m_ValueRangeDataPtr);
-			for (const auto& vcp : vcxxx)
-				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededCountsOfV") conv.template GetScalar<R>(vcp.first), vcp.second);
-			return result;
-		}
+		ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size() MG_DEBUG_ALLOCATOR_SRC("GetWeededCountsOfV"));
+		CountablePointConverter<V> conv(valuesTF->m_ValueRangeDataPtr);
+		for (const auto& vcp : vcxxx)
+			result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededCountsOfV") conv.template GetScalar<R>(vcp.first), vcp.second);
+		return result;
 	}
 }
 
@@ -597,10 +912,10 @@ template <ordered_value_type R, typename TypeList, count_type C>
 auto GetWeededCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
 {
 	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(adi->GetAbstrValuesUnit()
-		, [adi, maxPairCount]<typename V>(const Unit<V>*valuesUnit) 
+		, [adi, maxPairCount]<typename V>(const Unit<V>*)
 			{
 				auto tileFunctor = const_array_cast<V>(adi);
-				return GetWeededCountsOfV<R, V, C>(tileFunctor, OnlyDefinedCheckRequired(adi), valuesUnit, maxPairCount);
+				return GetWeededCountsOfV<R, V, C>(tileFunctor, maxPairCount);
 			}
 	);
 }

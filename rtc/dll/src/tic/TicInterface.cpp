@@ -671,6 +671,10 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 		// filesets, each walking every deferred subtree. A commit becomes possible only when a producer
 		// has finished, which is rare by comparison, so the retries are paced to at most one per 25 ms;
 		// the meta thread's own work is still pumped first by DoWorkWhileWaiting.
+		// Over the wait and the pause the loop counts as the one waiting Join that its deferred commits
+		// no longer make: above MemoryFlushThreshold, collectOperationContexts keeps as many contexts
+		// activated or running as there are waiting Joins, and one at least.
+		CountedAsWaitingJoin waitingForDeferredCommits;
 		auto retryStart = std::chrono::steady_clock::now();
 		DoWorkWhileWaiting();
 		auto spent = std::chrono::steady_clock::now() - retryStart;

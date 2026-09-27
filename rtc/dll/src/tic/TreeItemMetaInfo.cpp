@@ -1151,7 +1151,7 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 					SuspendTrigger::DeferScope::Register();
 					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerDC); // the interest CalledCalcHandle took: dropping it cancels the scheduled check
 					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerFD);
-					StartOperationContexts(); // the check runs while the walk goes on, as in CommitDataChanges
+					StartOperationContextsAsWaiter(); // the check runs while the walk goes on, as in CommitDataChanges
 					return AVS_SuspendedOrFailed;
 				}
 				if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))

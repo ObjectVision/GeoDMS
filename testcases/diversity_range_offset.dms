@@ -1,0 +1,86 @@
+// diversity counted a value v in counter v and had as many counters as the values unit has values,
+// so it ignored where the range of that unit starts: on range(uint8, 10, 15) every value lay at or
+// above the cardinality 5 and none was counted (0 in every cell), and on range(uint8, 2, 7) the
+// values 0 and 1 below the range were counted while 5 and 6 inside it were not. A value now counts
+// at its offset from the first value of the range; values outside the range, nulls included, are
+// not counted. The same grids also run through values units based at 0. With the square kernel of
+// radius 1, each cell must get the hand-counted number of distinct in-range values in its 3x3
+// window, clipped at the grid edge. Expected: exit 0 on /checks.
+container diversity_range_offset
+{
+	unit<fpoint> gbase;
+	unit<spoint> G := range(gridset(gbase, point_yx(1f, 1f, gbase), point_yx(0f, 0f, gbase), spoint), point_yx(0s, 0s), point_yx(4s, 4s));
+
+	// unit names differ from the attribute names in more than case: item names are case-insensitive
+	unit<uint8>  U8z  := range(uint8, uint8(0), uint8(5));
+	unit<uint8>  U8t  := range(uint8, uint8(10), uint8(15));
+	unit<uint8>  U8s  := range(uint8, uint8(2), uint8(7));
+	unit<uint32> U32z := range(uint32, 0, 5);
+	unit<uint32> U32k := range(uint32, 1000, 1005);
+
+	// every value inside the range
+	attribute<uint8> k (G): [
+		0,0,1,1,
+		0,2,2,1,
+		3,3,2,4,
+		3,4,4,4
+	];
+	attribute<uint32> expK (G): [
+		2,3,3,2,
+		3,4,5,3,
+		4,4,4,3,
+		2,3,3,2
+	];
+	attribute<U8z>  v8z  (G) := value(k, U8z);
+	attribute<U8t>  v8t  (G) := value(k + uint8(10), U8t);
+	attribute<U32z> v32z (G) := value(uint32(k), U32z);
+	attribute<U32k> v32k (G) := value(uint32(k) + 1000, U32k);
+
+	// 2..6 lie in range(uint8, 2, 7); four cells lie outside it: 0 and 1 below it, 7 and 9 above it
+	attribute<uint8> w (G): [
+		0,2,3,3,
+		2,4,4,1,
+		7,5,4,6,
+		5,6,6,9
+	];
+	attribute<uint32> expW (G): [
+		2,3,3,2,
+		3,4,5,3,
+		4,4,3,2,
+		2,3,3,2
+	];
+	attribute<U8s>  v8s  (G) := value(w, U8s);
+	attribute<U8z>  v8sz (G) := value((w >= uint8(2) && w < uint8(7) ? w : uint8(202)) - uint8(2), U8z); // w based at 0
+	// w shifted into range(uint32, 1000, 1005), with a null in the cell where w is 9
+	attribute<U32k> v32s (G): [
+		 998,1000,1001,1001,
+		1000,1002,1002, 999,
+		1005,1003,1002,1004,
+		1003,1004,1004,null
+	];
+
+	attribute<U8z>  d8z   (G) := diversity(v8z,  uint16(1), uint16(0));
+	attribute<U8t>  d8t   (G) := diversity(v8t,  uint16(1), uint16(0));
+	attribute<U32z> d32z  (G) := diversity(v32z, uint16(1), uint16(0));
+	attribute<U32k> d32k  (G) := diversity(v32k, uint16(1), uint16(0));
+	attribute<U8s>  d8s   (G) := diversity(v8s,  uint16(1), uint16(0));
+	attribute<U8z>  d8sz  (G) := diversity(v8sz, uint16(1), uint16(0));
+	attribute<U32k> d32s  (G) := diversity(v32s, uint16(1), uint16(0));
+
+	// the circular kernel (radius 2) shares the counting code
+	attribute<U8z>  c8z   (G) := diversity(v8z,  uint16(2), uint16(1));
+	attribute<U8t>  c8t   (G) := diversity(v8t,  uint16(2), uint16(1));
+	attribute<U8s>  c8s   (G) := diversity(v8s,  uint16(2), uint16(1));
+	attribute<U8z>  c8sz  (G) := diversity(v8sz, uint16(2), uint16(1));
+
+	container checks
+	{
+		parameter<bool> zeroBased := all(uint32(d8z) == expK) && all(uint32(d32z) == expK) && all(uint32(d8sz) == expW), IntegrityCheck = "zeroBased == true";
+		parameter<bool> offset8   := all(uint32(d8t)  == expK), IntegrityCheck = "offset8 == true";
+		parameter<bool> offset32  := all(uint32(d32k) == expK), IntegrityCheck = "offset32 == true";
+		parameter<bool> outside8  := all(uint32(d8s)  == expW), IntegrityCheck = "outside8 == true";
+		parameter<bool> outside32 := all(uint32(d32s) == expW), IntegrityCheck = "outside32 == true";
+		parameter<bool> circle8   := all(uint32(c8t)  == uint32(c8z)),  IntegrityCheck = "circle8 == true";
+		parameter<bool> circle8s  := all(uint32(c8s)  == uint32(c8sz)), IntegrityCheck = "circle8s == true";
+	}
+}

@@ -1,0 +1,31 @@
+// greedy_alloc with an atomic region map holding a value outside its atomic region unit: land unit 6 lies
+// in region 7, while Region has 2 elements. Such a value is an error, as it is for discrete_alloc; before
+// 20.21.0 greedy_alloc and needy_alloc indexed the claims with it, which asserted in a Debug build and
+// read and wrote out of bounds in a Release build.
+// Expected: exit nonzero on /checks ("Value 7 out of range of valid Atomic Regions").
+// See oper_alloc_atomic_regions.dms, which is the same config with a valid map.
+container oper_alloc_atomic_regions_neg_range
+{
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA', 'LuB']; }
+	unit<uint8>  Region : nrofrows = 2;
+
+	unit<uint32> Cell : nrofrows = 8
+	{
+		attribute<Region> ar : [0, 0, 1, 1, 0, 1, 7, 0];
+	}
+	container Suit
+	{
+		attribute<int32> LuA (Cell) : [9, 8, 7, 6, 5, 4, 3, -1];
+		attribute<int32> LuB (Cell) : [2, 3, 4, 5, 6, 7, 8, -1];
+	}
+	container CMin { attribute<uint32> LuA (Region) : [0, 0]; attribute<uint32> LuB (Region) : [0, 0]; }
+	container CMax { attribute<uint32> LuA (Region) : [1, 4]; attribute<uint32> LuB (Region) : [4, 4]; }
+	parameter<int32> thr := 0i;
+
+	container greedy := greedy_alloc_sp(LuType/name, Cell, Suit, Region, Cell/ar, CMin, CMax, thr);
+
+	container checks
+	{
+		parameter<uint32> n := sum(uint32(IsDefined(greedy/landuse))), IntegrityCheck = "n == 7";
+	}
+}

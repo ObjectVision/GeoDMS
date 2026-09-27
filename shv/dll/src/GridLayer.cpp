@@ -22,6 +22,7 @@
 #include "mci/ValueClassID.h"
 #include "mci/ValueClass.h"
 #include "utl/IncrementalLock.h"
+#include "utl/scoped_exit.h"
 
 #include "AbstrUnit.h"
 #include "DataArray.h"
@@ -71,7 +72,7 @@ struct PasteHandler
 	{
 		GlobalLockHandle selValuesLock(selValuesData);
 		UInt32 size = reinterpret_cast<SelValuesData*>(selValuesLock.GetDataPtr())->m_Size;
-		m_SelValuesData.reset( new BYTE[size], size );
+		m_SelValuesData = OwningPtrSizedArray<BYTE>(size, dont_initialize MG_DEBUG_ALLOCATOR_SRC("PasteHandler"));
 		const BYTE* dataPtr = reinterpret_cast<BYTE*>(selValuesLock.GetDataPtr());
 		fast_copy(dataPtr, dataPtr + size, m_SelValuesData.begin());
 
@@ -804,27 +805,35 @@ void GridLayer::CopySelValues()
 
 void GridLayer::PasteSelValuesDirect()
 {
+	if (m_Themes[AN_Feature]) // refused before a PasteHandler exists: PasteNow cannot write through the feature ids, and DrawPaste cannot draw over them
+		throwErrorD("PasteSelValuesDirect", "Cannot paste to Indirect Grid");
+
 	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 	if (ClipBoard::GetCurrFormat() != CF_CELLVALUES)
 		return;
 	HANDLE dataHandle = clipBoard.GetData(CF_CELLVALUES);
 
+	GetViewPort()->CancelPasteGrid(); // a pending floating paste, possibly in m_PasteHandler, is discarded
 	if (m_PasteHandler)
 		InvalidatePasteArea();
 
 	m_PasteHandler = std::make_unique<PasteHandler>(dataHandle);
+	auto clearPaste = make_scoped_exit([this] { ClearPaste(); }); // also when PasteNow throws, e.g. when its DataWriteLock finds the grid read-locked: a PasteHandler left behind stays drawn
 
 	PasteNow();
-	ClearPaste();
 }
 
 void GridLayer::PasteSelValues()
 {
+	if (m_Themes[AN_Feature]) // as in PasteSelValuesDirect
+		throwErrorD("PasteSelValues", "Cannot paste to Indirect Grid");
+
 	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 	if (ClipBoard::GetCurrFormat() != CF_CELLVALUES)
 		return;
 	HANDLE dataHandle = clipBoard.GetData(CF_CELLVALUES);
 
+	GetViewPort()->CancelPasteGrid(); // a pending floating paste, possibly in m_PasteHandler, is discarded
 	if (m_PasteHandler)
 		InvalidatePasteArea();
 
@@ -1609,7 +1618,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 			)
 		);	
 	}
-	if (hasEditAttr && ClipBoard::GetCurrFormat() == CF_CELLVALUES)
+	if (hasEditAttr && !m_Themes[AN_Feature] && ClipBoard::GetCurrFormat() == CF_CELLVALUES) // PasteSelValues refuses an indirect grid
 	{
 		dms_assert(IsVisible());
 		med.m_MenuData.push_back( 

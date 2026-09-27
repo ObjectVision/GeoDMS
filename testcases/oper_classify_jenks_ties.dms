@@ -1,0 +1,51 @@
+// ClassifyJenksFisher on data full of exact ties: the values 0..149, value v occurring 1 + v % 3 times.
+// With equal gaps and repeating counts, competing breaks often have exactly the same SSM. Rounding then decides
+// between them, one way in one row of the break search and the other way in the next, which tripped the
+// CB(i, j-1) <= CB(i, j) assert in JenksFisher::CalcRange in Debug builds (here with 13 and 16 classes) although
+// the breaks were optimal. The assert now accepts such a violation when the candidate that satisfies it scores as
+// well, up to rounding. The breaks may be any of the equally good ones, so the checks compare their within-class
+// sum of squares with the optimum, computed in exact rational arithmetic; the counts signature gets the same pairs.
+// Expected: exit 0 on /checks.
+container oper_classify_jenks_ties
+{
+	unit<uint32> R : nrofrows = 300;
+	// blocks of six rows: 3b once, 3b+1 twice, 3b+2 three times
+	attribute<int32>   x  (R) := int32(3 * (id(R) / 6)) + iif(id(R) % 6 == 0, int32(0), iif(id(R) % 6 <= 2, int32(1), int32(2)));
+	attribute<float64> fx (R) := float64(x);
+
+	unit<uint8> cls12 : nrofrows = 12;
+	unit<uint8> cls13 : nrofrows = 13;
+	unit<uint8> cls16 : nrofrows = 16;
+
+	attribute<int32> jf12 (cls12) := ClassifyJenksFisher(x, cls12);
+	attribute<int32> jf13 (cls13) := ClassifyJenksFisher(x, cls13);
+	attribute<int32> jf16 (cls16) := ClassifyJenksFisher(x, cls16);
+
+	//	=========================================	the same value-count pairs through the counts signature
+
+	unit<uint32> P : nrofrows = 150;
+	attribute<int32>  pv    (P)     := int32(id(P));
+	attribute<uint64> pc    (P)     := uint64(1 + id(P) % 3);
+	attribute<int32>  jfc16 (cls16) := ClassifyJenksFisher(pv, pc, cls16);
+
+	//	=========================================	within-class sum of squares of each result
+
+	attribute<cls12> c12  (R) := classify(x, jf12);
+	attribute<cls13> c13  (R) := classify(x, jf13);
+	attribute<cls16> c16  (R) := classify(x, jf16);
+	attribute<cls16> cc16 (R) := classify(x, jfc16);
+
+	parameter<float64> ssd12  := sum(sum(fx * fx, c12 ) - sum(fx, c12 ) * sum(fx, c12 ) / float64(pcount(c12 )));
+	parameter<float64> ssd13  := sum(sum(fx * fx, c13 ) - sum(fx, c13 ) * sum(fx, c13 ) / float64(pcount(c13 )));
+	parameter<float64> ssd16  := sum(sum(fx * fx, c16 ) - sum(fx, c16 ) * sum(fx, c16 ) / float64(pcount(c16 )));
+	parameter<float64> ssdC16 := sum(sum(fx * fx, cc16) - sum(fx, cc16) * sum(fx, cc16) / float64(pcount(cc16)));
+
+	container checks
+	{
+		parameter<float64> sumX       := sum(fx),                            IntegrityCheck = "sumX == 22450.0"; // sum of v * (1 + v % 3)
+		parameter<float64> ssdDiff12  := abs(ssd12  - 33960592.0 / 8775.0), IntegrityCheck = "ssdDiff12 < 1e-6";
+		parameter<float64> ssdDiff13  := abs(ssd13  - 17464628.0 / 5313.0), IntegrityCheck = "ssdDiff13 < 1e-6";
+		parameter<float64> ssdDiff16  := abs(ssd16  -  2864353.0 / 1330.0), IntegrityCheck = "ssdDiff16 < 1e-6";
+		parameter<float64> ssdDiffC16 := abs(ssdC16 -  2864353.0 / 1330.0), IntegrityCheck = "ssdDiffC16 < 1e-6";
+	}
+}

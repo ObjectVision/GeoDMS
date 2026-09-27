@@ -1,0 +1,37 @@
+// greedy_alloc and needy_alloc on an atomic region map whose values all lie in the atomic region unit
+// (here Region, the single partitioning of the _sp form). The claims bind per region -- LuA may take one
+// land unit in region 0 -- so the map decides which claim each land unit counts against. Land unit 7 is
+// below the threshold for both types and stays unallocated.
+// This is the positive control of oper_alloc_atomic_regions_neg_range and _neg_null, which differ from it
+// only in one value of the map and must fail with "out of range of valid Atomic Regions".
+// Expected: exit 0 on /checks.
+container oper_alloc_atomic_regions
+{
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA', 'LuB']; }
+	unit<uint8>  Region : nrofrows = 2;
+
+	unit<uint32> Cell : nrofrows = 8
+	{
+		attribute<Region> ar       : [0, 0, 1, 1, 0, 1, 1, 0];
+		attribute<LuType> expected : [0, 1, 0, 0, 1, 1, 1, null];
+	}
+	container Suit
+	{
+		attribute<int32> LuA (Cell) : [9, 8, 7, 6, 5, 4, 3, -1];
+		attribute<int32> LuB (Cell) : [2, 3, 4, 5, 6, 7, 8, -1];
+	}
+	container CMin { attribute<uint32> LuA (Region) : [0, 0]; attribute<uint32> LuB (Region) : [0, 0]; }
+	container CMax { attribute<uint32> LuA (Region) : [1, 4]; attribute<uint32> LuB (Region) : [4, 4]; }
+	parameter<int32> thr := 0i;
+
+	container greedy := greedy_alloc_sp(LuType/name, Cell, Suit, Region, Cell/ar, CMin, CMax, thr);
+	container needy  := needy_alloc_sp (LuType/name, Cell, Suit, Region, Cell/ar, CMin, CMax, thr);
+
+	container checks
+	{
+		parameter<uint32> greedy_same := sum(uint32(eq_or_both_null(greedy/landuse, Cell/expected))), IntegrityCheck = "greedy_same == 8";
+		parameter<uint32> needy_same  := sum(uint32(eq_or_both_null(needy/landuse,  Cell/expected))), IntegrityCheck = "needy_same == 8";
+		parameter<bool>   greedy_flag := greedy/statusFlag, IntegrityCheck = "greedy_flag == true";
+		parameter<bool>   needy_flag  := needy/statusFlag,  IntegrityCheck = "needy_flag == true";
+	}
+}

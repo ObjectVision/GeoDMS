@@ -214,6 +214,8 @@ public:
 		assert(arg1);
 
 		DataCheckMode dcm = (res->GetTiledRangeData()->GetNrTiles() > 1) ? DCM_CheckRange : arg1A->GetCheckMode();
+		if (dcm == DCM_CheckBoth)
+			dcm = DCM_CheckRange; // <null> is within the values range: invert it like any other value, as lookup does
 		visit<typelists::domain_elements>(arg1A->GetAbstrDomainUnit(), 
 			[&res, &resSub, arg1A, dcm] <typename E> (const Unit<E>* inviter)
 			{

@@ -305,20 +305,25 @@ SharedMutableTreeItem AppendTreeFromConfiguration(CharPtr sourceFileName, TreeIt
 
 #include "act/TriggerOperator.h"
 
+#include <vector>
+
 SharedStr ProcessADMS(const TreeItem* context, CharPtr url)
 {
 	SharedStr localUrl = SharedStr(url);
-	SharedStr result;
 	auto cmfh = std::make_shared<ConstMappedFileHandle>(localUrl, true, false);
 	auto fileView = ConstFileViewHandle(cmfh, 0, -1, -1);
 	fileView.MapView();
 
 	CharPtr fileCurr = fileView.DataBegin(), fileEnd = fileView.DataEnd();
+
+	// Appending to a SharedStr copies all of it, so the page is built in a buffer that grows and is copied once.
+	std::vector<char> page;
+	page.reserve(fileEnd - fileCurr);
 	while (true) {
 		CharPtr markerPos = Search(CharPtrRange(fileCurr, fileEnd), "<%"); // TODO: Parse Expr instead of Search
-		result += CharPtrRange(fileCurr, markerPos);
+		page.insert(page.end(), fileCurr, markerPos);
 		if (markerPos == fileEnd)
-			return result;
+			return SharedStr(CharPtrRange(page.data(), page.data() + page.size()));
 		markerPos += 2;
 		fileCurr = Search(CharPtrRange(markerPos, fileEnd), "%>");
 		if (fileCurr == fileEnd)
@@ -327,7 +332,8 @@ SharedStr ProcessADMS(const TreeItem* context, CharPtr url)
 		SharedStr evalRes = AbstrCalculator::EvaluateExpr(const_cast<TreeItem*>(context), CharPtrRange(markerPos, fileCurr), CalcRole::Other, 1);
 		if (!evalRes.IsDefined())
 			evalRes = UNDEFINED_VALUE_STRING;
-		result += evalRes;
+		auto evalText = evalRes.AsRange();
+		page.insert(page.end(), evalText.begin(), evalText.end());
 
 		fileCurr += 2;
 	}

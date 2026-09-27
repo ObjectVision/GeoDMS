@@ -20,6 +20,7 @@
 #include "set/rangefuncs.h"
 #include "utl/swap.h"
 
+#include <bit>     // std::bit_ceil, for the power-of-2 growth in enable_nr_blocks
 #include <utility> // std::forward, for the emplace_back conformance overload below
 #include <vector>
 
@@ -457,7 +458,9 @@ struct bit_sequence : bit_sequence_base<N, Block>
 			if (*db != *rdb)
 				return false;
 		}
-		return true;
+		// the elements of an incomplete last block; the bits past them are not part of the sequence
+		typename bit_info_t::bit_index_type elemIndex = bit_info_t::elem_index(sz);
+		return !elemIndex || !((*db ^ *rdb) & ((Block(1) << (elemIndex * N)) - 1));
 	}
 
 	size_type FindLowestNonZeroPos() const
@@ -473,6 +476,7 @@ struct bit_sequence : bit_sequence_base<N, Block>
 			if (*i != 0)
 				break;
 			result += bit_info_t::nr_elem_per_block;
+			++i;
 		}
 
 		// FindLowestNonZeroPos(nonZeroBlock);
@@ -531,6 +535,7 @@ struct BitVector : bit_info<N, Block>
 	{
 		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(m_NrElems), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		std::copy(first, last, begin());	//	OPTIMIZE: if first.elem_offset == 0, direct insertion into m_Bits prevents double passing it. 
+		clear_unused_bits(); // std::copy leaves the bits past the last element as they were allocated
 	}
 
 	BitVector(bit_iterator<N, const Block> first, bit_iterator<N, const Block> last MG_DEBUG_ALLOCATOR_SRC_ARG_D)
@@ -547,7 +552,10 @@ struct BitVector : bit_info<N, Block>
 			clear_unused_bits();
 		}
 		else
+		{
 			std::copy(first, last, begin());
+			clear_unused_bits(); // as in the other range constructor
+		}
 	}
 	BitVector(BitVector&& rhs) noexcept
 	{
@@ -590,7 +598,8 @@ struct BitVector : bit_info<N, Block>
 
 		if (required_blocks != old_num_blocks) {
 			::resizeSO(m_bits, required_blocks, false MG_DEBUG_ALLOCATOR_SRC("BitVector::resize"));
-			fast_fill(begin_ptr(m_bits) + old_num_blocks, begin_ptr(m_bits) + required_blocks, blockValue); // s.g. (copy) [gps]
+			if (required_blocks > old_num_blocks)
+				fast_fill(begin_ptr(m_bits) + old_num_blocks, begin_ptr(m_bits) + required_blocks, blockValue); // s.g. (copy) [gps]
 		}
 
 
@@ -680,6 +689,7 @@ struct BitVector : bit_info<N, Block>
 	{
 		m_NrElems = fast_copy(e, end(), b) - begin();
 		m_bits.resize(bit_info_t::calc_nr_blocks(m_NrElems) MG_DEBUG_ALLOCATOR_SRC("BitVector::erase"));
+		clear_unused_bits(); // the last block may still hold erased values, or copies of the moved ones
 	}
 
 	void swap(BitVector& oth) { 
@@ -707,11 +717,14 @@ struct BitVector : bit_info<N, Block>
 	}
 
 private:
+	// Gives insert and push_back nrBlocks blocks; they set m_NrElems themselves. The blocks already written are
+	// kept, and new blocks start at zero, so the bits past the last element stay clear. The capacity grows to a
+	// power of 2 of blocks: FixedAlloc serves 8 KB to 1 MB from power-of-2 object stores that it commits in full.
 	void enable_nr_blocks(size_type nrBlocks MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		if (nrBlocks > m_bits.capacity())
-			::reallocSO(m_bits, Max<size_type>(m_bits.capacity() * 1.5, nrBlocks), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		resizeSO(nrBlocks, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			m_bits.reserve(std::bit_ceil(nrBlocks) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		::resizeSO(m_bits, nrBlocks, true MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	void             clear_unused_bits();
     Block&           m_highest_block()       { return m_bits.back(); }

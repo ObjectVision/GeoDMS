@@ -334,15 +334,17 @@ struct SA_Reference : private SequenceArray_Base<T>
 		size_type startPos = startPtr - begin();
 		assert(startPos <= size());
 
+		T valueCopy = value; // value can be an element of this sequence, which resize() can relocate and the shift below overwrites
 		resize_uninitialized(size() + 1 MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		startPtr = begin() + startPos; // can be relocated due to resize()
 		assert(startPtr < end());
 
-		std::copy_backward(startPtr, end() - 1, startPtr + 1);
-		*startPtr = value;
+		std::copy_backward(startPtr, end() - 1, end()); // shift the elements from startPtr one to the right
+		*startPtr = valueCopy;
 		return startPtr;
 	}
 
+	// [first, last) must not lie in the sequence array of this sequence, as resize() can relocate it
 	template <typename InIter>
 	void insert(iterator startPtr, InIter first, InIter last MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
@@ -351,11 +353,11 @@ struct SA_Reference : private SequenceArray_Base<T>
 
 		size_type n = std::distance(first, last);
 
-		resize_uninitialized(size() + n);
+		resize_uninitialized(size() + n MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		startPtr = begin() + startPos;
 		assert(startPtr <= end() - n);
 
-		std::copy_backward(startPtr, end() - n, startPtr + n);
+		std::copy_backward(startPtr, end() - n, end()); // shift the elements from startPtr n to the right
 		fast_copy(first, last, startPtr);
 	}
 
@@ -396,8 +398,7 @@ struct SA_Reference : private SequenceArray_Base<T>
 	template <typename ...Args>
 	void emplace_back(MG_DEBUG_ALLOCATOR_FIRST_ARG Args&& ...args )
 	{
-		push_back(MG_DEBUG_ALLOCATOR_TXT_PARAM);
-		back() = value_type(std::forward<Args>(args)...);
+		push_back(value_type(std::forward<Args>(args)...) MG_DEBUG_ALLOCATOR_SRC_PARAM); // args can refer to values in this sequence array, which push_back can reallocate
 	}
 	RTC_CALL void push_back(const value_type& value MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void push_back(MG_DEBUG_ALLOCATOR_TXT_ARG);

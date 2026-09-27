@@ -142,16 +142,20 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		SizeT n = 0;
 		for (auto& resultArray : resultArrays)
 			n += resultArray.size();
-		tile_results_type results; results.reserve(n);
+		tile_results_type results;
 		for (auto& resultArray : resultArrays)
 		{
-			if (results.empty())
-				results = std::move(resultArray);
-			else
+			if (resultArray.empty())
+				continue;
+			if (resultArray.size() == n) // the one tile with results: take its buffer as it is
 			{
-				results.insert(results.end(), resultArray.begin(), resultArray.end());
-				resultArray = tile_results_type();
+				results = std::move(resultArray);
+				break;
 			}
+			if (results.empty())
+				results.reserve(n); // several tiles with results: one allocation for all of them
+			results.insert(results.end(), resultArray.begin(), resultArray.end());
+			resultArray = tile_results_type();
 		}
 
 		AB->SetCount(results.size());
