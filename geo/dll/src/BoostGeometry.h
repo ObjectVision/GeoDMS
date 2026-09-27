@@ -565,6 +565,11 @@ bg_multi_polygon_t clean_bg_geometry(Geometry&& input)
 	throwDmsErrF("clean_bg_geometry: GEOS could not repair this geometry: \"{}\"", reason3);
 }
 
+// Both functions compare the size of the outer ring with the sizes of its holes, whatever their
+// winding: the net area is |outer| - sum |inner|. They used to subtract the signed inner areas from
+// the signed outer area, so correctly wound holes (negative) enlarged the outer ring, and an outer
+// ring that fixWindingOrders had just reversed kept its negative area, which then always removed the
+// polygon it had repaired, with a warning about its holes.
 inline void checkWindingOrders(const bg_multi_polygon_t& mp)
 {
 	for (const auto& polygon : mp)
@@ -572,15 +577,16 @@ inline void checkWindingOrders(const bg_multi_polygon_t& mp)
 		auto outerArea = boost::geometry::area(polygon.outer());
 		if (outerArea < 0)
 			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: outer ring has negative area {:f}", outerArea);
+		auto netArea = std::abs(outerArea);
 		for (const auto& inner : polygon.inners())
 		{
 			auto innerArea = boost::geometry::area(inner);
 			if (innerArea > 0)
 				reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: inner ring has positive area {:f}", innerArea);
-			outerArea -= innerArea;
+			netArea -= std::abs(innerArea);
 		}
-		if (outerArea < 0)
-			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with {:f}", outerArea);
+		if (netArea < 0)
+			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: inner rings sum up to more than the outer ring with {:f}", netArea);
 	}
 }
 
@@ -595,6 +601,7 @@ inline void fixWindingOrders(bg_multi_polygon_t& mp)
 			reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: outer ring had negative area {:f}", outerArea);
 			std::reverse(polygon.outer().begin(), polygon.outer().end());
 		}
+		auto netArea = std::abs(outerArea);
 		for (auto& inner : polygon.inners())
 		{
 			auto innerArea = boost::geometry::area(inner);
@@ -603,11 +610,11 @@ inline void fixWindingOrders(bg_multi_polygon_t& mp)
 				reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: inner ring had positive area {:f}", innerArea);
 				std::reverse(inner.begin(), inner.end());
 			}
-			outerArea -= innerArea;
+			netArea -= std::abs(innerArea);
 		}
-		if (outerArea < 0)
+		if (netArea < 0)
 		{
-			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with {:f}", outerArea);
+			reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: inner rings sum up to more than the outer ring with {:f}", netArea);
 			mustRemovePolygons = true;
 			polygon = {};
 		}
