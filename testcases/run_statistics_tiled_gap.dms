@@ -1,0 +1,21 @@
+// Regression for doc/code-audit-2026-09-27.md TIC-A05: the statistics of a string attribute count its
+// nulls with DataArrayBase::GetNrNulls, which on a tiling that does not cover its range walks every
+// row of the range. A row in a gap between tiles lies in no tile, and the walk asked for the data of
+// tile no_tile as soon as it stepped from a real tile into a gap: an index far past the tile array.
+// Since 20.22.0 a gap row counts as null without a tile being read.
+//
+// Run as '@statistics /s' (fnrun_itemmap.txt). Rows 0 to 2 lie in the first tile, 3 to 7 in a gap,
+// 8 to 11 in the second tile.
+// Expected: exit 0.
+container run_statistics_tiled_gap
+{
+	unit<uint32> base := range(uint32, 0, 12);
+	unit<uint32> tiles : nrofrows = 2
+	{
+		attribute<base> lb : [0,  8];
+		attribute<base> ub : [3, 12];
+	}
+	unit<uint32> dom := TiledUnit(tiles/lb, tiles/ub);
+
+	attribute<string> s (dom) := 'v' + string(id(dom));
+}

@@ -571,7 +571,8 @@ SizeT DataArrayBase<V>::GetNrNulls() const
 			if (tl.first != currTile)
 			{
 				currTile = tl.first;
-				tileData = GetTile(tl.first);
+				if (currTile != no_tile) // a row in a gap between tiles has no data to read; it counts as null
+					tileData = GetTile(currTile);
 			}
 			if (currTile == no_tile || !IsDefined(tileData[tl.second]))
 				++count;
