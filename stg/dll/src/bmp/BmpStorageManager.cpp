@@ -166,11 +166,14 @@ namespace Bmp
 			self->throwItemError("nr rows and colums are conflicting with configuration");
 
 		std::vector<UInt8> buffer(width, 0);
-		
-		for (UInt32 r=height; r>0; --r)
+
+		// grid row r is bmp row Mirror(r, height), as WriteData puts it. The loop ran r from height down to
+		// 1, so the first row asked for was Mirror(height, height) = UInt32(-1), which GetRow refuses since
+		// its check, and every row went one row too far into the grid.
+		for (UInt32 r = 0; r != height; ++r)
 		{
 			imp.GetRow(Mirror(r, height), &*buffer.begin());
-			gridData->SetValuesAsUInt8Array(tile_loc(no_tile, r*width), width, &*buffer.begin());
+			gridData->SetValuesAsUInt8Array(tile_loc(no_tile, SizeT(r) * width), width, &*buffer.begin());
 		}
 	}
 
@@ -318,7 +321,10 @@ namespace Bmp
 
 FileResult BmpPalStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	dms_assert(t == no_tile);
+	// ReadDataItemInto passes each tile 0 .. n-1, never no_tile, which was asserted here: every bmp or pal
+	// read stopped a Debug build. The file is read whole, which is right for a domain of one tile.
+	if (borrowedReadResultHolder->GetTiledRangeData()->GetNrTiles() > 1)
+		throwItemError("a bmp or pal file can only be read into a domain of one tile");
 
 	// Pass a stream object
 	BmpImp imp;

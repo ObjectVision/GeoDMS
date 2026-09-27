@@ -1,0 +1,19 @@
+// The read half of the bmp case; stor_bmp_1_write.dms writes the file and carries the description.
+// On its own this config fails because the file does not exist yet.
+// Expected: exit 0 on /checks.
+container stor_bmp_2_read
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(3s, 4s));
+
+	attribute<uint8> img (dom)
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_bmp_grid.bmp"
+	,	StorageType     = "bmp"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		attribute<uint8> expected (dom) := uint8(pointrow(id(dom))) * uint8(10) + uint8(pointcol(id(dom)));
+		parameter<bool> same := all(img == expected), IntegrityCheck = "same == true";
+		parameter<bool> sum_ok := sum(uint32(img)) == 138, IntegrityCheck = "sum_ok == true";
+	}
+}

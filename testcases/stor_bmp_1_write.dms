@@ -1,0 +1,21 @@
+// Regression for doc/code-audit-2026-09-27.md STG-A09: the bmp storage manager wrote a grid, but its
+// read of one could never succeed. The read loop ran the grid rows from the height down to 1, so the
+// first row it asked the file for was row UInt32(-1), which BmpImp::GetRow refuses, and each row went
+// one row too far into the grid; and ReadDataItem asserted a tile id of no_tile, which it never gets,
+// so every bmp or pal read also stopped a Debug build. No test used the bmp storage. Since 20.22.0 a
+// bmp grid reads back as it was written.
+//
+// This config only WRITES the file; stor_bmp_2_read.dms reads it back and checks it. The two belong
+// together and run in this order (see stor_shp_ringclose_1_write.dms). A grid of 3 rows and 4
+// columns whose cell (r, c) holds 10 r + c, so that a flipped or shifted row shows.
+container stor_bmp_1_write
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(3s, 4s));
+
+	container export
+	{
+		attribute<uint8> img (dom) := uint8(pointrow(id(dom))) * uint8(10) + uint8(pointcol(id(dom)))
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_bmp_grid.bmp"
+		,	StorageType = "bmp";
+	}
+}
