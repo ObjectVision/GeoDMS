@@ -283,7 +283,13 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 	auto polyData = debug_valcast<const DataArray<PolygonType>*>(ado)->GetDataRead(); 		
 
 	UInt32 nrRecs = polyData.size();
-	pImp->ShapeSet_PrepareDataStore(nrRecs, 0);
+	// the points of the values, and for polygons one more for each value's first ring, which AddRing closes if open
+	SizeT nrPoints = 0;
+	for (auto polygon : polyData)
+		nrPoints += polygon.size();
+	if (pImp->GetShapeType() == ShapeTypes::ST_Polygon)
+		nrPoints += nrRecs;
+	pImp->ShapeSet_PrepareDataStore(nrRecs, 0, nrPoints);
 
 	SeqLock<sequence_array<ShpPointIndex>> lockParts  (pImp->m_SeqParts , dms_rw_mode::write_only_all);
 	SeqLock<sequence_array<ShpPoint>     > lockPoints (pImp->m_SeqPoints, dms_rw_mode::write_only_all);

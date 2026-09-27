@@ -131,9 +131,13 @@
 #include <cstdlib>
 #include <format>
 #include <limits>
+#include <memory>
+#include <memory_resource>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "ThreadScratch.h"
 
 namespace dms_overlay
 {
@@ -471,7 +475,10 @@ struct CrossingSweep
 		const CrossingSweep* m_Sweep = nullptr;
 		bool operator()(SlotId i, SlotId j) const { return i != j && m_Sweep->IsBelow(i, j); }
 	};
-	using ActiveSet  = std::set<SlotId, Below>;
+	// A tree, since the sweep keeps an iterator per slot (m_SlotWhere) and Reverse re-labels nodes
+	// in place: a sorted vector would invalidate those on every insertion. Its nodes come from
+	// m_NodePool, which keeps every node an erase frees for the next insert, run after run.
+	using ActiveSet  = std::pmr::set<SlotId, Below>;
 	using ActiveIter = ActiveSet::iterator;
 
 	struct Event
@@ -507,7 +514,7 @@ struct CrossingSweep
 		m_FreeSlots.clear();
 		m_Events.clear();
 
-		ActiveSet active(Below{ this });
+		ActiveSet active(Below{ this }, &m_NodePool);
 		m_Active = &active;
 
 		EdgeId posLo = 0, posHi = 0;
@@ -739,6 +746,7 @@ private:
 	std::vector<SlotId>     m_FreeSlots;
 	std::vector<Event>      m_Events;    // a heap by position, see EventAfter
 	std::vector<EdgeId>     m_Run;
+	std::pmr::unsynchronized_pool_resource m_NodePool; // the active set's nodes, kept for the next run
 };
 
 // *****************************************************************************
@@ -853,7 +861,8 @@ private:
 		if (m_Hot.empty())
 			return false;
 
-		PointIndex index(m_Hot.data(), m_Hot.data() + m_Hot.size());
+		m_Index.Rebuild(m_Hot.data(), m_Hot.data() + m_Hot.size());
+		const PointIndex& index = m_Index;
 
 		m_Next.clear();
 		m_Next.reserve(segs.size());
@@ -905,6 +914,7 @@ private:
 
 	std::vector<GPoint>   m_Hot;   // sorted and unique between rounds
 	CrossingSweep         m_Sweep;
+	PointIndex            m_Index; // over m_Hot, rebuilt per round; kept for its capacity
 	std::vector<Segment>  m_Next;
 	std::vector<PixelKey> m_Keys;
 };
@@ -952,27 +962,40 @@ inline bool IsBelow(const SweepEdge& e, const SweepEdge& f)
 	return SideOfEdge(f, e.lo) < 0;
 }
 
+// Orders active edges by IsBelow. It reads the edges through the sweep line's own pointer to
+// them, so that one sweep line, set up once, can sweep edge set after edge set.
 struct EdgeBelow
 {
-	const std::vector<SweepEdge>* m_Edges = nullptr;
+	const std::vector<SweepEdge>* const* m_Edges = nullptr;
 
 	bool operator()(EdgeId i, EdgeId j) const
 	{
-		return i != j && IsBelow((*m_Edges)[i], (*m_Edges)[j]);
+		return i != j && IsBelow((**m_Edges)[i], (**m_Edges)[j]);
 	}
 };
 
+// A sweep over a set of edges, which Reset sets up. One sweep line serves sweep after sweep: its
+// vectors keep their capacity and its active set takes its nodes from m_NodePool, which keeps
+// every node an erase frees, so that a sweep over a few edges allocates nothing.
 struct SweepLine
 {
-	using ActiveSet  = std::set<EdgeId, EdgeBelow>;
+	using ActiveSet  = std::pmr::set<EdgeId, EdgeBelow>;
 	using ActiveIter = ActiveSet::iterator;
 
-	explicit SweepLine(const std::vector<SweepEdge>& edges)
-		: m_Edges(edges)
-		, m_Active(EdgeBelow{ &edges })
-		, m_Where(edges.size())
+	SweepLine()
+		: m_Active(EdgeBelow{ &m_EdgesPtr }, &m_NodePool)
+	{}
+	SweepLine(const SweepLine&) = delete; // the active set's order refers to m_EdgesPtr, and its nodes to m_NodePool
+	SweepLine& operator=(const SweepLine&) = delete;
+
+	void Reset(const std::vector<SweepEdge>& edges)
 	{
+		m_Active.clear(); // empty already after a sweep that ran to its end
+		m_EdgesPtr = &edges;
+		m_PosLo = m_PosHi = 0;
+
 		EdgeId n = EdgeId(edges.size());
+		m_Where.resize(n);
 		m_ByLo.resize(n);
 		m_ByHi.resize(n);
 		for (EdgeId e = 0; e != n; ++e)
@@ -1001,12 +1024,13 @@ struct SweepLine
 	GPoint NextVertex() const
 	{
 		assert(!AtEnd());
+		const std::vector<SweepEdge>& edges = *m_EdgesPtr;
 		if (m_PosLo == m_ByLo.size())
-			return m_Edges[m_ByHi[m_PosHi]].hi;
+			return edges[m_ByHi[m_PosHi]].hi;
 		if (m_PosHi == m_ByHi.size())
-			return m_Edges[m_ByLo[m_PosLo]].lo;
-		const GPoint& lo = m_Edges[m_ByLo[m_PosLo]].lo;
-		const GPoint& hi = m_Edges[m_ByHi[m_PosHi]].hi;
+			return edges[m_ByLo[m_PosLo]].lo;
+		const GPoint& lo = edges[m_ByLo[m_PosLo]].lo;
+		const GPoint& hi = edges[m_ByHi[m_PosHi]].hi;
 		return LexLess(hi, lo) ? hi : lo;
 	}
 
@@ -1015,10 +1039,11 @@ struct SweepLine
 	template <typename OnNewEdge>
 	void ProcessVertex(const GPoint& v, OnNewEdge&& onNewEdge)
 	{
-		for (; m_PosHi != m_ByHi.size() && m_Edges[m_ByHi[m_PosHi]].hi == v; ++m_PosHi)
+		const std::vector<SweepEdge>& edges = *m_EdgesPtr;
+		for (; m_PosHi != m_ByHi.size() && edges[m_ByHi[m_PosHi]].hi == v; ++m_PosHi)
 			m_Active.erase(m_Where[m_ByHi[m_PosHi]]);
 
-		for (; m_PosLo != m_ByLo.size() && m_Edges[m_ByLo[m_PosLo]].lo == v; ++m_PosLo)
+		for (; m_PosLo != m_ByLo.size() && edges[m_ByLo[m_PosLo]].lo == v; ++m_PosLo)
 		{
 			EdgeId e = m_ByLo[m_PosLo];
 			auto ins = m_Active.insert(e);
@@ -1028,9 +1053,13 @@ struct SweepLine
 		}
 	}
 
-	const std::vector<SweepEdge>& m_Edges;
-	ActiveSet                     m_Active;
-	std::vector<ActiveIter>       m_Where; // per edge, valid while it is active
+private:
+	std::pmr::unsynchronized_pool_resource m_NodePool; // before m_Active, which takes its nodes from it
+	const std::vector<SweepEdge>*          m_EdgesPtr = nullptr;
+
+public:
+	ActiveSet               m_Active;
+	std::vector<ActiveIter> m_Where; // per edge, valid while it is active
 
 private:
 	std::vector<EdgeId> m_ByLo, m_ByHi;
@@ -1048,10 +1077,10 @@ struct ParityEdge
 	UInt8 rightMask;
 };
 
-inline void ComputeFaceParity(const std::vector<SweepEdge>& edges, std::vector<ParityEdge>& parity)
+inline void ComputeFaceParity(const std::vector<SweepEdge>& edges, std::vector<ParityEdge>& parity, SweepLine& sweep)
 {
 	assert(edges.size() == parity.size());
-	SweepLine sweep(edges);
+	sweep.Reset(edges);
 	while (!sweep.AtEnd())
 	{
 		GPoint v = sweep.NextVertex();
@@ -1082,10 +1111,10 @@ struct CountEdge
 	Int32 below;
 };
 
-inline void ComputeFaceCounts(const std::vector<SweepEdge>& edges, std::vector<CountEdge>& counts)
+inline void ComputeFaceCounts(const std::vector<SweepEdge>& edges, std::vector<CountEdge>& counts, SweepLine& sweep)
 {
 	assert(edges.size() == counts.size());
-	SweepLine sweep(edges);
+	sweep.Reset(edges);
 	while (!sweep.AtEnd())
 	{
 		GPoint v = sweep.NextVertex();
@@ -1153,9 +1182,32 @@ inline int RingOrientation(const std::vector<GPoint>& pts)
 // that visit off as a ring of its own, so every ring is simple, and its orientation classifies it.
 struct Polygonizer
 {
+	// Empties rings, keeping the point vectors of its rings for the rings of the next Run.
+	void Recycle(std::vector<Ring>& rings)
+	{
+		for (auto& ring : rings)
+		{
+			ring.pts.clear();
+			m_SparePts.push_back(std::move(ring.pts));
+		}
+		rings.clear();
+	}
+
+	// An empty point vector for a new ring, with the capacity of a recycled one when there is one.
+	std::vector<GPoint> TakeSparePts()
+	{
+		std::vector<GPoint> pts;
+		if (!m_SparePts.empty())
+		{
+			pts = std::move(m_SparePts.back());
+			m_SparePts.pop_back();
+		}
+		return pts;
+	}
+
 	void Run(std::vector<DirEdge>& edges, std::vector<Ring>& rings)
 	{
-		rings.clear();
+		Recycle(rings);
 		if (edges.empty())
 			return;
 
@@ -1266,9 +1318,10 @@ private:
 		return EdgeId(lo == t ? s : lo);
 	}
 
-	void EmitRing(const std::vector<DirEdge>& edges, SizeT k, std::vector<Ring>& rings) const
+	void EmitRing(const std::vector<DirEdge>& edges, SizeT k, std::vector<Ring>& rings)
 	{
 		Ring ring;
+		ring.pts = TakeSparePts();
 		ring.pts.reserve(m_Path.size() - k);
 		for (SizeT i = k, pe = m_Path.size(); i != pe; ++i)
 			ring.pts.push_back(edges[m_Path[i]].from);
@@ -1289,6 +1342,7 @@ private:
 	std::vector<bool>   m_Used;
 	std::vector<EdgeId> m_Path;
 	std::vector<SizeT>  m_PosOnPath;
+	std::vector<std::vector<GPoint>> m_SparePts; // the point vectors of recycled rings
 };
 
 // The shell of every hole. At a hole's first vertex v the polygon interior is on the left, so the
@@ -1335,7 +1389,8 @@ struct HoleAssigner
 			return IsBelow(m_Edges[e0], m_Edges[e1]) ? e0 : e1;
 		};
 
-		SweepLine sweep(m_Edges);
+		SweepLine& sweep = m_Sweep;
+		sweep.Reset(m_Edges);
 		SizeT hp = 0;
 		while (!sweep.AtEnd())
 		{
@@ -1371,6 +1426,7 @@ private:
 	std::vector<SizeT>     m_RingOf;
 	std::vector<SizeT>     m_EdgeStart;
 	std::vector<SizeT>     m_Holes;
+	SweepLine              m_Sweep;
 };
 
 // *****************************************************************************
@@ -1396,6 +1452,8 @@ struct DmsOverlayEngine
 				throwErrorF(operName, "the grid size for integer coordinates must be a whole number of at least 1, not {}", explicitGrid);
 		}
 	}
+	DmsOverlayEngine(const DmsOverlayEngine&) = delete; // its buffers are what is worth keeping: pass it by reference
+	DmsOverlayEngine& operator=(const DmsOverlayEngine&) = delete;
 
 	SizeT m_NrUndefined = 0; // elements that had an undefined operand or an undefined point
 	SizeT NrCrossingPixels() const { return m_Noder.m_NrCrossingPixels; }
@@ -1471,9 +1529,100 @@ struct DmsOverlayEngine
 	const std::vector<Ring>& CleanToRings(const RA& a)
 	{
 		if (!Compute(BoolOp::Union, a, EmptyRange()))
-			m_Rings.clear();
+			m_Polygonizer.Recycle(m_Rings);
 		return m_Rings;
 	}
+
+	// ---- one element, one ring: no overlay ----
+	//
+	// An element that is its slot's only one, and whose walk is a single ring, is taken as it is:
+	// the ring is assumed simple, as GEOS assumes its input valid, and it is not noded or swept.
+	// What that saves is the whole sweep; what it keeps is the canonical form the sweep would have
+	// written for a valid simple ring: quantized onto the lattice, consecutive duplicates merged,
+	// wound clockwise and starting at its lexicographically first vertex, collinear vertices
+	// dropped at write time. For such a ring the result is therefore the full path's, exactly.
+	//
+	// A walk counts as a single ring when no vertex occurs in it twice, the closing point aside.
+	// Every other walk goes through the sweep: more than one ring, whether the others are holes,
+	// further shells or overlaps, and a ring that touches itself at a vertex. So does an element
+	// that cannot be framed, has fewer than three distinct points, or encloses no area.
+
+	// The rings of a when it is a single ring, as CleanToRings would give them; false, with no
+	// rings, when it is not, and the caller takes the full path.
+	template <typename RA>
+	bool SingleRingToRings(const RA& a)
+	{
+		m_Polygonizer.Recycle(m_Rings);
+		m_Framed = SetFrame(a, EmptyRange());
+		if (!m_Framed)
+			return false;
+
+		auto& pts = m_SinglePts;
+		pts.clear();
+		for (auto pi = a.begin(), pe = a.end(); pi != pe; ++pi)
+		{
+			GPoint g = Quantize(*pi);
+			if (pts.empty() || g != pts.back())
+				pts.push_back(g);
+		}
+		while (pts.size() >= 2 && pts.back() == pts.front())
+			pts.pop_back(); // the closing point
+		if (pts.size() < 3)
+			return false;
+
+		m_SingleSorted.assign(pts.begin(), pts.end());
+		std::sort(m_SingleSorted.begin(), m_SingleSorted.end(), LexLess);
+		if (std::adjacent_find(m_SingleSorted.begin(), m_SingleSorted.end()) != m_SingleSorted.end())
+			return false; // a vertex visited twice: more than one ring, or one that touches itself
+
+		int orientation = RingOrientation(pts);
+		if (!orientation)
+			return false;
+		if (orientation > 0)
+			std::reverse(pts.begin(), pts.end()); // a shell runs clockwise
+		std::rotate(pts.begin(), std::min_element(pts.begin(), pts.end(), LexLess), pts.end());
+
+		Ring ring;
+		ring.pts = m_Polygonizer.TakeSparePts();
+		ring.pts.assign(pts.begin(), pts.end());
+		ring.isShell = true;
+		m_Rings.push_back(std::move(ring));
+		return true;
+	}
+
+	// dms_polygon of an element that is its slot's only one: a single ring as it is, anything else
+	// through the sweep, as Clean.
+	template <typename E, typename RA>
+	bool CleanSingle(E&& res, const RA& a)
+	{
+		if (!SingleRingToRings(a))
+			return Clean(std::forward<E>(res), a);
+		Store(std::forward<E>(res));
+		return true;
+	}
+
+	// Phase B for a bag that holds the one ring of its only element, which phase A took through
+	// SingleRingToRings and appended edge by edge from its first vertex: that ring again, with no
+	// noding and no sweep. The bag is consumed.
+	bool RingFromBag(std::vector<Segment>& bag)
+	{
+		MG_CHECK2(m_HasFixedOrigin, "dms overlay: RingFromBag needs a fixed frame");
+		m_Polygonizer.Recycle(m_Rings);
+		m_Framed = true;
+
+		Ring ring;
+		ring.pts = m_Polygonizer.TakeSparePts();
+		ring.pts.reserve(bag.size());
+		for (const auto& s : bag)
+			ring.pts.push_back(s.a);
+		std::vector<Segment>().swap(bag);
+		MG_CHECK2(ring.pts.size() >= 3, "dms overlay: a single-ring bag with fewer than three vertices");
+		ring.isShell = true;
+		m_Rings.push_back(std::move(ring));
+		return true;
+	}
+
+	const std::vector<Ring>& CurrRings() const { return m_Rings; }
 
 	// Phase B of a dissolve: the union of a bag of segments that already lie on this engine's fixed
 	// frame (SetFixedFrame) and carry coverage weights (see Segment and dms_append_rings). Nodes
@@ -1481,15 +1630,16 @@ struct DmsOverlayEngine
 	// between zero and nonzero, directed with the covered side on its right, and chains those into
 	// rings, which Store then writes. The nonzero rule, rather than count > 0, keeps a ring that
 	// arrived wound the wrong way on the inside instead of subtracting it; after phase A the two
-	// agree, since every ring it produces is canonically wound. The bag is consumed. Returns whether
-	// any area came out.
+	// agree, since every ring it produces is canonically wound. The bag is consumed: copied into the
+	// engine's own buffer, which keeps its capacity, and then released. Returns whether any area
+	// came out.
 	bool UnionBag(std::vector<Segment>& bag)
 	{
 		MG_CHECK2(m_HasFixedOrigin, "dms overlay: UnionBag needs a fixed frame");
-		m_Rings.clear();
+		m_Polygonizer.Recycle(m_Rings);
 		m_Framed = true;
-		m_Segments.swap(bag);
-		bag.clear();
+		m_Segments.assign(bag.begin(), bag.end());
+		std::vector<Segment>().swap(bag);
 
 		m_Noder.Run(m_Segments);
 
@@ -1501,7 +1651,7 @@ struct DmsOverlayEngine
 			m_Edges[i]  = SweepEdge{ m_Segments[i].a, m_Segments[i].b }; // merged: a is the lexicographic lower
 			m_Counts[i] = CountEdge{ m_Segments[i].weight, 0 };
 		}
-		ComputeFaceCounts(m_Edges, m_Counts);
+		ComputeFaceCounts(m_Edges, m_Counts, m_FaceSweep);
 
 		m_Kept.clear();
 		for (SizeT i = 0; i != n; ++i)
@@ -1530,7 +1680,8 @@ struct DmsOverlayEngine
 	// and whether it was kept. That is the whole local configuration, enough to reason from.
 	void CheckKeptClosed(SizeT nrFragments) const
 	{
-		std::vector<std::pair<GPoint, int>> ends;
+		auto& ends = m_KeptEnds;
+		ends.clear();
 		ends.reserve(2 * m_Kept.size());
 		for (const auto& e : m_Kept)
 		{
@@ -1574,7 +1725,7 @@ struct DmsOverlayEngine
 	template <typename RA, typename RB>
 	bool Compute(BoolOp op, const RA& a, const RB& b)
 	{
-		m_Rings.clear();
+		m_Polygonizer.Recycle(m_Rings);
 		m_Framed = SetFrame(a, b);
 		if (!m_Framed)
 			return false;
@@ -1594,7 +1745,7 @@ struct DmsOverlayEngine
 			m_Edges[i] = SweepEdge{ m_Segments[i].a, m_Segments[i].b }; // merged: a is the lexicographic lower
 			m_Parity[i] = ParityEdge{ m_Segments[i].mask, 0 };
 		}
-		ComputeFaceParity(m_Edges, m_Parity);
+		ComputeFaceParity(m_Edges, m_Parity, m_FaceSweep);
 
 		// the boundary of the result, with the result on the right
 		m_Kept.clear();
@@ -1857,12 +2008,18 @@ public:
 		if (m_Rings.empty())
 			return;
 
-		m_OutPts.resize(m_Rings.size());
+		// m_OutPts and m_HolesOf only ever grow, so that their inner vectors keep their capacity;
+		// the first m_Rings.size() entries are this store's
+		if (m_OutPts.size() < m_Rings.size())
+			m_OutPts.resize(m_Rings.size());
 		for (SizeT r = 0, n = m_Rings.size(); r != n; ++r)
 			DropCollinear(m_Rings[r].pts, m_OutPts[r]);
 
 		m_Shells.clear();
-		m_HolesOf.assign(m_Rings.size(), std::vector<SizeT>());
+		if (m_HolesOf.size() < m_Rings.size())
+			m_HolesOf.resize(m_Rings.size());
+		for (SizeT r = 0, n = m_Rings.size(); r != n; ++r)
+			m_HolesOf[r].clear();
 		for (SizeT r = 0, n = m_Rings.size(); r != n; ++r)
 		{
 			if (m_Rings[r].isShell)
@@ -1896,7 +2053,8 @@ public:
 		}
 		res.reserve(count MG_DEBUG_ALLOCATOR_SRC("dms_overlay"));
 
-		std::vector<GPoint> shellStarts, holeStarts;
+		auto& shellStarts = m_ShellStarts; shellStarts.clear();
+		auto& holeStarts  = m_HoleStarts;  holeStarts.clear();
 		for (SizeT s : m_Shells)
 		{
 			const auto& shell = m_OutPts[s];
@@ -1941,15 +2099,31 @@ private:
 	std::vector<Segment>    m_Segments;
 	Noder                   m_Noder;
 	std::vector<SweepEdge>  m_Edges;
+	SweepLine               m_FaceSweep; // the parity and the count sweep, one after the other
 	std::vector<ParityEdge> m_Parity;
 	std::vector<CountEdge>  m_Counts;
 	std::vector<DirEdge>    m_Kept;
+	mutable std::vector<std::pair<GPoint, int>> m_KeptEnds; // CheckKeptClosed's scratch, kept for its capacity
 	Polygonizer             m_Polygonizer;
 	std::vector<Ring>       m_Rings;
 	HoleAssigner            m_HoleAssigner;
 	std::vector<SizeT>      m_Shells;
 	std::vector<std::vector<SizeT>>  m_HolesOf;
 	std::vector<std::vector<GPoint>> m_OutPts; // the rings as written, without collinear vertices
+	std::vector<GPoint>     m_ShellStarts, m_HoleStarts; // Store's way back
+	std::vector<GPoint>     m_SinglePts, m_SingleSorted;  // SingleRingToRings' scratch
+};
+
+// The engines of one eagerly calculated operation whose tiles run in parallel: one per thread, so
+// that an engine serves every tile its thread works on (see thread_scratch). A lazily calculated
+// operation has no such scope; there one engine per tile is the unit, and that is fine.
+template <typename P>
+class DmsThreadEngines : public thread_scratch<DmsOverlayEngine<P>>
+{
+public:
+	DmsThreadEngines(BoolOp op, CharPtr operName, Float64 explicitGrid = 0.0)
+		: thread_scratch<DmsOverlayEngine<P>>([op, operName, explicitGrid] { return std::make_unique<DmsOverlayEngine<P>>(op, operName, explicitGrid); })
+	{}
 };
 
 // *****************************************************************************
@@ -2054,6 +2228,8 @@ struct DmsSegmentBag
 	DmsFrame             frame;
 	std::vector<Segment> segs;
 	SizeT                nrElements = 0;
+	UInt32               nrExpected = 0;     // the elements this slot will get, counted before phase A: 0, 1 or 2 for more
+	bool                 singleRing = false; // its only element was one ring, appended as it is (SingleRingToRings)
 
 	bool empty() const { return segs.empty(); }
 };
@@ -2136,13 +2312,32 @@ struct union_dms_polygons
 // downstream (the fold, the split, the store) see canonical geometry, exactly as
 // geos_create_polygons followed by normalize() does on the GEOS side.
 template <typename P, typename R>
-void dms_clean_into(DmsPolySet<P>& lhs, const R& poly, Float64 cell, CharPtr operName)
+void dms_clean_into(DmsOverlayEngine<P>& engine, DmsPolySet<P>& lhs, const R& poly, Float64 cell)
 {
-	DmsOverlayEngine<P> engine(BoolOp::Union, operName);
 	engine.SetFixedCell(cell);
 
 	lhs.m_Cell = cell;
 	engine.Clean(lhs.m_Poly, poly);
+}
+
+// The same for an element that is its slot's only one: a single ring is taken as it is, see
+// DmsOverlayEngine::SingleRingToRings.
+template <typename P, typename R>
+void dms_clean_single_into(DmsOverlayEngine<P>& engine, DmsPolySet<P>& lhs, const R& poly, Float64 cell)
+{
+	engine.SetFixedCell(cell);
+
+	lhs.m_Cell = cell;
+	engine.CleanSingle(lhs.m_Poly, poly);
+}
+
+// The same with an engine of its own, for a single call. A loop over elements should pass one
+// engine instead, so that its buffers are allocated once rather than once per element.
+template <typename P, typename R>
+void dms_clean_into(DmsPolySet<P>& lhs, const R& poly, Float64 cell, CharPtr operName)
+{
+	DmsOverlayEngine<P> engine(BoolOp::Union, operName);
+	dms_clean_into(engine, lhs, poly, cell);
 }
 
 // Copy a polygon value into a result reference. The sequence is already in the multi-polygon

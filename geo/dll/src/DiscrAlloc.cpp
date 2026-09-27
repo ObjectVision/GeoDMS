@@ -669,7 +669,8 @@ struct ggType_info_t : ggType_meta_t
 //   1. constructed from either an AR -> region attribute or the atomic region unit itself;
 //   2. PreparePartitionings assigns m_NrRegions and m_UniqueRegionOffset, which concatenate the
 //      region id spaces of all partitionings into one "unique region" space (GetUniqueRegionID);
-//   3. GetData() materialises the dense AR -> region array, when there is a mapping attribute;
+//   3. GetData() materialises the dense AR -> region array, when there is a mapping attribute, and
+//      rejects a region id outside the partitioning unit;
 //   4. GetRegionID / GetUniqueRegionID are then read on the hot allocation path.
 //
 // GetRegionID discriminates on the POPULATED ARRAY, not on the weak mapping handle: an identity
@@ -747,26 +748,48 @@ struct partitioning_info_t : partitioning_meta_t
 		: partitioning_meta_t(rhs)
 	{}
 
-	// Populate region-id mapping when a data item mapping exists.
-	// For identity mappings (no data item) only debug counts are recorded.
+	// Populate region-id mapping when a data item mapping exists, and check it: the region id of every atomic
+	// region must lie in the partitioning unit, as GetUniqueRegionID indexes the unique regions with it (in
+	// GetAr2UrBiGraph, which FeasibilityTest builds in every regime) and GetClaim the claims of its region.
+	// Nothing else checks it, so a null or a value outside the partitioning unit is an error here, before
+	// anything is indexed with it.
+	// Pre: PreparePartitionings has set m_NrRegions.
+	// For identity mappings (no data item) only debug counts are recorded: each atomic region is its own region.
 	void GetData()
 	{
+		assert(m_NrRegions != static_cast<UInt32>(-1));
 		if (m_HasPartitioningDI)
 		{
 			auto diLock = lock_or_cancel(m_AtomicRegionPartitioningDI); // owning for this scope; throws if torn down
 			const AbstrDataItem* di = diLock.get();
 			DataReadLock lock(di);
-			auto nrAtomicRegions = di->GetCurrRefObj()->GetNrFeaturesNow();
+			auto ado = di->GetCurrRefObj();
+			auto tiledRangeData = ado->GetTiledRangeData();
+			SizeT nrAtomicRegions = tiledRangeData->GetElemCount();
 			MG_DEBUGCODE(md_NrAtomicRegions = nrAtomicRegions);
 			m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(
 				nrAtomicRegions,
 				dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData")
 			);
-			di->GetCurrRefObj()->GetValuesAsUInt32Array(
-				tile_loc(0, 0),
-				nrAtomicRegions,
-				m_AtomicRegionPartitioningData.begin()
-			);
+			// read every tile: an atomic region unit made by TiledUnit has several, and a tile left out would
+			// leave its atomic regions uninitialized
+			SizeT nrRead = 0;
+			for (tile_id t = 0, tn = tiledRangeData->GetNrTiles(); t != tn; ++t)
+				nrRead += ado->GetValuesAsUInt32Array(tile_loc(t, 0), nrAtomicRegions - nrRead, m_AtomicRegionPartitioningData.begin() + nrRead);
+			MG_CHECK(nrRead == nrAtomicRegions);
+
+			for (SizeT ar = 0; ar != nrAtomicRegions; ++ar)
+			{
+				UInt32 regionID = m_AtomicRegionPartitioningData[ar];
+				if (regionID >= m_NrRegions) // a null too: GetValuesAsUInt32Array made it UNDEFINED_VALUE(UInt32)
+					di->throwItemErrorF(
+							"Value {} for atomic region {} out of range [0, {}) of the regions of {}"
+						,	IsDefined(regionID) ? mySSPrintF("{}", regionID) : SharedStr("null")
+						,	ar
+						,	m_NrRegions
+						,	GetPartitioningUnit()->GetSourceName()
+					);
+			}
 		}
 		else
 		{
@@ -828,7 +851,7 @@ struct partitioning_info_t : partitioning_meta_t
 
 	OwningPtrSizedArray<UInt32>       m_AtomicRegionPartitioningData;         // Dense AR->region mapping (if DI present)
 	UInt32                            m_NrRegions = static_cast<UInt32>(-1);  // Cached region count
-	atomic_region_id                  m_UniqueRegionOffset = static_cast<atomic_region_id>(-1); // Global offset for unique ids
+	UInt32                            m_UniqueRegionOffset = static_cast<UInt32>(-1); // Global offset for unique ids; UInt32, not AR: see regions_info_t::m_NrUniqueRegions
 
 #if defined(MG_DEBUG)
 	UInt32                            md_NrAtomicRegions = 0;                 // Debug: #atomic regions observed
@@ -936,7 +959,9 @@ struct regions_info_t : regions_info_base
 	WeakPtr<const TileFunctor<atomic_region_id> > m_AtomicRegionMapObj;
 	atomic_region_data_handle                     m_AtomicRegionMapData; // 1 per grid-cell           (==  n )
 	std::vector<partitioning_info_t<AR> >         m_Partitionings;       // 1 per Unique partitioning (==  p )
-	atomic_region_id                              m_NrUniqueRegions = 0; // #ur
+	// #ur, the sum of the region counts of all partitionings (PreparePartitionings). UInt32 like the unique region ids,
+	// not AR: a partitioning unit can have more elements than the atomic region type can count.
+	UInt32                                        m_NrUniqueRegions = 0;
 
 	UInt32 GetNrAtomicRegions() const { return m_AtomicRegionSizes.size(); }
 	UInt32 GetNrPartitionings() const { return m_Partitionings.size(); }
@@ -949,7 +974,7 @@ struct regions_info_t : regions_info_base
 
 	// ========== ErrorMsg helper funcs
 
-	SharedStr UniqueRegionStr(atomic_region_id ur) const
+	SharedStr UniqueRegionStr(UInt32 ur) const // ur: a unique region id, which AR need not be able to hold
 	{
 		SharedStr result = mySSPrintF("Region {} ", ur);
 		UInt32 p;
@@ -3284,20 +3309,33 @@ struct ClaimScaler: std::vector<claim_range>
 	}
 };
 
+// A land unit's atomic region must lie in the atomic region unit, so it cannot be null either. Nothing
+// checks that before the allocation: PreparePartitionings counts the atomic region sizes with pcount,
+// which skips a null or out of range value without a word. So each regime checks the atomic region of
+// every land unit itself, before it indexes the claims with it: the hitchcock regime while counting them
+// per step (IncrementAtomicRegionCount), greedy and needy while ranking the land units (SolveGreedy).
+template <typename AR>
+void CheckAtomicRegionID(const regions_info_t<AR>& regionInfo, AR ar)
+{
+	if (ar >= regionInfo.GetNrAtomicRegions())
+		regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
+				"Value {}{} out of range of valid Atomic Regions"
+			,	ar
+			,	IsDefined(ar) ? "" : " (a.k.a. null-value)"
+		);
+}
+
 template <typename AR>
 void IncrementAtomicRegionCount(std::vector<claim_type>& atomicRegionCount, const regions_info_t<AR>& regionInfo, land_unit_id i, land_unit_id e)
 {
+	assert(atomicRegionCount.size() == regionInfo.GetNrAtomicRegions());
+
 	// count per ar with stepSize
 	for (; i < e; regionInfo.GetNextPermutationValue(), ++i)
 	{
 		assert(regionInfo.m_CurrPI < regionInfo.m_N);
 		AR ar = regionInfo.GetAtomicRegionID(regionInfo.m_CurrPI);
-		if (ar >= atomicRegionCount.size())
-			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
-					"Value {}{} out of range of valid Atomic Regions"
-				,	ar
-				,	IsDefined(ar) ? "" : " (a.k.a. null-value)"
-			);
+		CheckAtomicRegionID(regionInfo, ar);
 		++atomicRegionCount[ar];
 	}
 	assert(regionInfo.m_CurrPI >= regionInfo.m_N);
@@ -3378,6 +3416,9 @@ void Solve(htp_info_t<S, P, AR, AT>& htpInfo, S threshold, AbstrDataObject* resP
 //   Ties are broken by land unit index, so a run is reproducible and independent of tiling.
 //   The ranking is NOT recomputed while allocating: a bid is what a land unit is worth, not a
 //   moving target, which is what makes the outcome easy to explain.
+//   The same pass checks the atomic region of every land unit, also of one below the threshold, as
+//   the hitchcock regime does: a null or a value outside the atomic region unit is an error, where
+//   the sweeps would otherwise index the claims with it (see CheckAtomicRegionID).
 //
 // SWEEP 1 (skipped when every minimum claim is 0)
 //   Reserve for the minimum claims: each land unit, in ranking order, goes to its best type whose
@@ -3425,7 +3466,7 @@ struct greedy_totals
 template <typename S, typename P, typename AR, typename AT>
 bool GreedyAllocateUnit(htp_info_t<S, P, AR, AT>& htpInfo, land_unit_id i, bool minPhase, Int64& totalSuitability)
 {
-	auto ar = htpInfo.GetAtomicRegionID(i);
+	auto ar = htpInfo.GetAtomicRegionID(i); // in range: SolveGreedy checked it while ranking
 	UInt32 K = htpInfo.GetK();
 
 	UInt32 winner = UNDEFINED_VALUE(UInt32);
@@ -3478,6 +3519,9 @@ greedy_totals SolveGreedy(htp_info_t<S, P, AR, AT>& htpInfo, S threshold, alloc_
 	for (land_unit_id i = 0; i != N; ++i)
 	{
 		htpInfo.m_ResultArray[i] = UNDEFINED_VALUE(AT); // also the "still free" marker for the sweeps
+
+		if constexpr (!std::is_same_v<AR, Void>)
+			CheckAtomicRegionID<AR>(htpInfo, htpInfo.GetAtomicRegionID(i)); // before anything is allocated, see RANKING above
 
 		bool any = false;
 		S best = thr, next = thr;

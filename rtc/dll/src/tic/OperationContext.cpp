@@ -660,8 +660,12 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 
 		for (; currContext != scheduledContexts.end(); ++currContext)
 		{
-			// Heuristic: don't activate too many when low on RAM or when too many joins are waiting.
-			if (!isLowOnFreeRamTested && s_NrActivatedOrRunningOperations[nextPhaseNumber] >= s_NrWaitingJoins) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
+			// Low-RAM brake: while the machine's RAM use is above MemoryFlushThreshold, this phase gets no
+			// more activated or running contexts than there are threads waiting in a Join (or counted as
+			// such), and always one: only an ending context or a next call here looks at this queue
+			// again, so a consumer that schedules without joining, and does not count itself, would
+			// otherwise find its work parked with nothing running.
+			if (!isLowOnFreeRamTested && s_NrActivatedOrRunningOperations[nextPhaseNumber] >= Max<UInt32>(s_NrWaitingJoins, 1))
 			{
 				if (IsLowOnFreeRAM())
 				{
@@ -760,10 +764,10 @@ void StartOperationContexts()
 }
 
 // #1255: the same, on behalf of a consumer that waits for a scheduled result without joining it.
-// collectOperationContexts lets one activation per waiting Join through before it consults the free
-// RAM (s_NrWaitingJoins); the detached thread that used to wait for a view's data was such a joiner,
+// Above MemoryFlushThreshold collectOperationContexts lets one activation per waiting Join through
+// (s_NrWaitingJoins); the detached thread that used to wait for a view's data was such a joiner,
 // and the GUI-thread poll that replaced it is counted here in the same way, for the duration of one
-// activation pass, or a view under memory pressure would poll for ever.
+// activation pass.
 void StartOperationContextsAsWaiter()
 {
 	// through CollectOperationContextsImpl

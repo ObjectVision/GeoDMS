@@ -1,0 +1,95 @@
+// The modus family on integral values (modus, unique_count_*, modus_count_*, frequency_table, entropy, ..., and
+// modus_weighted; in total and per partition) assumes the values to lie in the formal range of their values unit. It counts
+// them in a table over that range where the table is not larger than the values (v * p <= n) and in a set otherwise; bit
+// values always in a table. Table and set give the same results: each result below is computed under a small range, where
+// the table counts, and under a large one, where the set counts, and both are compared with the expected value.
+// Further checks: the range of a values unit without a range of its own takes every defined value, MaxValue included;
+// nulls are skipped; summed weights are compared as Float64 (in partition 1, value 1000 weighs 1.5 and beats value 1005
+// with 1.2). A value outside the formal range throws, see the oper_modus_range_neg_* configs.
+// Expected: exit 0 on /checks.
+container oper_modus_formal_range
+{
+	unit<uint8>  P2     : nrofrows = 2;
+	unit<uint8>  P1     : nrofrows = 1;
+	unit<uint32> Small  := range(uint32, 1000, 1006);         // 6 values: a table, also for 2 partitions (6 * 2 <= 12)
+	unit<uint32> Large  := range(uint32, 1000, 1100);         // 100 values: a set
+	unit<int16>  SSmall := range(int16, int16(-3), int16(3));
+	unit<int16>  SLarge := range(int16, int16(-100), int16(100));
+
+	unit<uint32> D : nrofrows = 12
+	{
+		attribute<uint32>  raw : [1001, 1001, 1001, 1004, 1004, 1003, 1002, 1002, 1002, 1002, 1005, 1000];
+		attribute<float64> w   : [ 0.5,  0.5,  0.5,  1.2,  0.3,  2.0,  0.1,  0.1,  0.1,  0.1,  1.2,  1.5];
+		attribute<P2>      part := value(uint8(id(.) / 6), P2);
+
+		attribute<Small>   vs  := value(raw, Small);
+		attribute<Large>   vl  := value(raw, Large);
+		attribute<SSmall>  ss  := value(int16(int32(raw) - int32(1003)), SSmall);
+		attribute<SLarge>  sl  := value(int16(int32(raw) - int32(1003)), SLarge);
+		attribute<uint4>   b4  := uint4(raw - 1000);
+
+		// the first value null
+		attribute<Small>   nvs := value(iif(id(.) == 0, 0 / 0, raw), Small);
+		attribute<Large>   nvl := value(iif(id(.) == 0, 0 / 0, raw), Large);
+	}
+
+	// values units without a range of their own: uint8 [0, 254) and int16 [-32767, 32767) hold their MaxValue too
+	unit<uint32> Many : nrofrows = 300
+	{
+		attribute<uint8>   u8  := iif(id(.) < 100, uint8(254), uint8(id(.) % 7));      // 255 counters <= 300 values: a table
+		attribute<int16>   i16 := iif(id(.) < 100, int16(32767), int16(id(.) % 7));   // 65535 counters > 300 values: a set
+		attribute<float64> w   := const(1.0, .);
+		attribute<P1>      one := const(0[P1], .);
+	}
+
+	container checks
+	{
+		// in total, table (_t) and set (_s)
+		parameter<uint32>  m_t   := uint32(modus(D/vs)),                 IntegrityCheck = "m_t == 1002";
+		parameter<uint32>  m_s   := uint32(modus(D/vl)),                 IntegrityCheck = "m_s == 1002";
+		parameter<int16>   sm_t  := int16(modus(D/ss)),                  IntegrityCheck = "sm_t == int16(-1)";
+		parameter<int16>   sm_s  := int16(modus(D/sl)),                  IntegrityCheck = "sm_s == int16(-1)";
+		parameter<uint32>  uc_t  := unique_count_uint32(D/vs),           IntegrityCheck = "uc_t == 6";
+		parameter<uint32>  uc_s  := unique_count_uint32(D/vl),           IntegrityCheck = "uc_s == 6";
+		parameter<uint32>  mc_t  := modus_count_uint32(D/vs),            IntegrityCheck = "mc_t == 4";
+		parameter<uint32>  mc_s  := modus_count_uint32(D/vl),            IntegrityCheck = "mc_s == 4";
+		parameter<bool>    ft    := frequency_table(D/vs) == frequency_table(D/vl), IntegrityCheck = "ft == true";
+		parameter<bool>    ent   := entropy(D/vs) == entropy(D/vl),      IntegrityCheck = "ent == true";
+
+		// per partition
+		parameter<string>  mp_t  := asList(string(uint32(modus(D/vs, D/part))), ','), IntegrityCheck = "mp_t == '1001,1002'";
+		parameter<string>  mp_s  := asList(string(uint32(modus(D/vl, D/part))), ','), IntegrityCheck = "mp_s == '1001,1002'";
+		parameter<string>  smp_t := asList(string(int16(modus(D/ss, D/part))), ','),  IntegrityCheck = "smp_t == '-2,-1'";
+		parameter<string>  smp_s := asList(string(int16(modus(D/sl, D/part))), ','),  IntegrityCheck = "smp_s == '-2,-1'";
+
+		// weighted, in total and per partition
+		parameter<uint32>  w_t   := uint32(modus_weighted(D/vs, D/w)),   IntegrityCheck = "w_t == 1003";
+		parameter<uint32>  w_s   := uint32(modus_weighted(D/vl, D/w)),   IntegrityCheck = "w_s == 1003";
+		parameter<int16>   sw_t  := int16(modus_weighted(D/ss, D/w)),    IntegrityCheck = "sw_t == int16(0)";
+		parameter<int16>   sw_s  := int16(modus_weighted(D/sl, D/w)),    IntegrityCheck = "sw_s == int16(0)";
+		parameter<string>  wp_t  := asList(string(uint32(modus_weighted(D/vs, D/w, D/part))), ','), IntegrityCheck = "wp_t == '1003,1000'";
+		parameter<string>  wp_s  := asList(string(uint32(modus_weighted(D/vl, D/w, D/part))), ','), IntegrityCheck = "wp_s == '1003,1000'";
+		parameter<string>  swp_t := asList(string(int16(modus_weighted(D/ss, D/w, D/part))), ','),  IntegrityCheck = "swp_t == '0,-3'";
+		parameter<string>  swp_s := asList(string(int16(modus_weighted(D/sl, D/w, D/part))), ','),  IntegrityCheck = "swp_s == '0,-3'";
+
+		// bit values: always the table
+		parameter<uint32>  b_m   := uint32(modus(D/b4)),                 IntegrityCheck = "b_m == 2";
+		parameter<string>  b_mp  := asList(string(uint32(modus(D/b4, D/part))), ','), IntegrityCheck = "b_mp == '1,2'";
+		parameter<uint32>  b_w   := uint32(modus_weighted(D/b4, D/w)),   IntegrityCheck = "b_w == 3";
+		parameter<string>  b_wp  := asList(string(uint32(modus_weighted(D/b4, D/w, D/part))), ','), IntegrityCheck = "b_wp == '3,0'";
+
+		// without a range of its own: MaxValue counts, in the table (uint8) and in the set (int16)
+		parameter<uint32>  x_m   := uint32(modus(Many/u8)),              IntegrityCheck = "x_m == 254";
+		parameter<uint32>  x_mc  := modus_count_uint32(Many/u8),         IntegrityCheck = "x_mc == 100";
+		parameter<uint32>  x_mp  := sum(uint32(modus(Many/u8, Many/one))), IntegrityCheck = "x_mp == 254";
+		parameter<uint32>  x_w   := uint32(modus_weighted(Many/u8, Many/w)), IntegrityCheck = "x_w == 254";
+		parameter<int16>   x_s   := int16(modus(Many/i16)),              IntegrityCheck = "x_s == int16(32767)";
+		parameter<int16>   x_sw  := int16(modus_weighted(Many/i16, Many/w)), IntegrityCheck = "x_sw == int16(32767)";
+
+		// nulls are skipped, and are not outside the range
+		parameter<uint32>  n_t   := uint32(modus(D/nvs)),                IntegrityCheck = "n_t == 1002";
+		parameter<uint32>  n_s   := uint32(modus(D/nvl)),                IntegrityCheck = "n_s == 1002";
+		parameter<string>  n_p   := asList(string(uint32(modus_weighted(D/nvs, D/w, D/part))), ','), IntegrityCheck = "n_p == '1003,1000'";
+		parameter<bool>    n_ft  := frequency_table_with_null(D/nvs) == frequency_table_with_null(D/nvl), IntegrityCheck = "n_ft == true";
+	}
+}

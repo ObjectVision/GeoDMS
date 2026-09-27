@@ -411,7 +411,7 @@ TIC_CALL auto GetNextPhaseNumber() -> phase_number;
 // StartOperationContexts
 // Hands what Schedule enqueued to the worker pool. Scheduling alone does not: a context waits in
 // s_ScheduledContextsMap until a Join, a DoWorkWhileWaiting, an ending context or an explicit call
-// here activates it (the #1259 deferral in CommitDataChanges is such a call).
+// here activates it.
 void StartOperationContexts();
 // The same for a consumer that waits for a scheduled result without joining it, counted as a waiting
 // Join in the low-RAM admission for the duration of the pass. Exported for the one such consumer:

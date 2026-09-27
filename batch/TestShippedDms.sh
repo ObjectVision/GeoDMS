@@ -64,11 +64,15 @@ resolve_ci() {
 echo "--- 1/3: the shipped copy of the battery is current ---"
 COV_RC=0
 stale=0
+# Whole seconds, not `-nt`: CMake's file(COPY) preserves the source's mtime to the second
+# only on Linux (fn_test.dms 21:09:31.365 becomes 21:09:31.000 in the copy), and bash 5
+# compares nanoseconds, so `-nt` called every file of a freshly deployed copy stale (the
+# 20.21.0.l build stopped on it). The Windows copies keep the full 100 ns stamp.
 for src in "$SRC"/*.dms "$SRC"/*.txt "$SRC"/*.bat "$SRC"/*.ps1; do
     [[ -f "$src" ]] || continue
     dst="$COPY/$(basename "$src")"
     if [[ ! -f "$dst" ]]; then echo "    $(basename "$src") (missing)"; stale=1
-    elif [[ "$src" -nt "$dst" ]]; then echo "    $(basename "$src") (source is newer)"; stale=1
+    elif (( $(stat -c %Y "$src") > $(stat -c %Y "$dst") )); then echo "    $(basename "$src") (source is newer)"; stale=1
     fi
 done
 if [[ $stale -eq 1 ]]; then

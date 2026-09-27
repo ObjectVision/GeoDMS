@@ -95,6 +95,7 @@ enum class DijkstraFlag : UInt64
 	// Bi-criteria (pareto) mode -- issue #856
 	BiCriteria       = 0x40'0000, // pareto: bi-criteria label-setting on (imp, alternative imp); one od-row per Pareto-optimal route.
 	Imp2Cut          = 0x80'0000, // pareto(OrgZone_max_imp2): extra argument bounding the second criterion.
+	Imp2Epsilon      = 0x2000'0000, // pareto(imp2_epsilon): extra argument, the bucket width of the second criterion for epsilon-dominance (#1282).
 
 	// OD relative outputs
 	ProdOdOrgZone_rel    = 0x100'0000, // Output: origin zone (per OD pair).

@@ -109,6 +109,9 @@
     <ClCompile Include="src\Overlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\ParetoOptimal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\PCount.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

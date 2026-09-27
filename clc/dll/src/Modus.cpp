@@ -45,10 +45,12 @@
 //											Modus Helper funcs
 // *****************************************************************************
 
-template <typename Counter, typename CIter>
+// the first of the largest positive counts; they are compared as countF gives them, so that sums of Float64 weights are
+// not truncated to an integral counter
+template <typename CIter>
 CIter arg_max(CIter b, CIter e, auto countF)
 {
-	Counter maxC = 0; // MIN_VALUE(ACC);
+	decltype(countF(b)) maxC = 0;
 	CIter maxP = e;
 	for (; b != e; ++b)
 	{
@@ -61,14 +63,14 @@ CIter arg_max(CIter b, CIter e, auto countF)
 	return maxP;
 }
 
-template <typename Counter, typename Value>
+template <typename Value>
 struct modusFunc {
 	using result_type = Value;
 
 	template <typename CIter>
 	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
 	{
-		CIter p = arg_max<Counter>(b, e, countF);
+		CIter p = arg_max(b, e, countF);
 		if (p == e)
 			return UNDEFINED_OR_ZERO(Value);
 		return valueF(p);
@@ -82,7 +84,7 @@ struct modusCountFunc {
 	template <typename CIter>
 	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
 	{
-		CIter p = arg_max<Counter>(b, e, countF);
+		CIter p = arg_max(b, e, countF);
 		if (p == e)
 			return 0;
 		return countF(p);
@@ -211,6 +213,40 @@ struct asUniqueListFunc {
 };
 
 // *****************************************************************************
+//											Formal ranges
+// *****************************************************************************
+
+// Integral values are assumed to lie in the formal range of their values unit (see TableSize in ValuesTable.h). Whether a
+// table or a set counts them, a counted value outside it throws, so that the result does not depend on which one counts.
+
+template <typename V>
+auto GetFormalRange(const DataArray<V>* valuesTF) -> Range<V>
+{
+	auto vrd = valuesTF->GetValueRangeData();
+	if (!vrd)
+		return Range<V>(Undefined());
+	return vrd->GetRange();
+}
+
+// Checks values counted in ascending order, which puts their extremes at the ends; a null, counted when nulls are, comes
+// first (see ValueCountKeyCompare).
+template <typename V, typename CIter>
+void CheckCountedValues(CIter b, CIter e, const Range<V>& range, auto valueF)
+{
+	if (!IsRestrictingRange(range))
+		return;
+	if (b != e && !IsDefined(valueF(b)))
+		++b;
+	if (b == e)
+		return;
+	if (!IsIncluding(range, valueF(b)))
+		ThrowOutOfFormalRange<V>(valueF(b), range);
+	--e;
+	if (!IsIncluding(range, valueF(e)))
+		ThrowOutOfFormalRange<V>(valueF(e), range);
+}
+
+// *****************************************************************************
 //											ModusTot
 // *****************************************************************************
 
@@ -220,6 +256,8 @@ void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>:
 {
 	auto values_fta = GetFutureTileArray(tileFunctor);
 	auto counters = GetWeededWallCounts<V, SizeT>(values_fta, SizeT(-1), valueMustBeDefined);
+	if constexpr (is_integral_v<V>)
+		CheckCountedValues<V>(counters.begin(), counters.end(), GetFormalRange(tileFunctor), [](auto i) { return i->first; });
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }
@@ -234,28 +272,18 @@ void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R
 
 	resData = aggrFunc(buffer.begin(), buffer.end()
 	, [ ](auto i) { return *i; }
-	, [&](auto i) { return Range_GetValue_naked(valuesRange, i - buffer.begin()); }
+	, [&](auto i) { return TableValue(valuesRange, i - buffer.begin()); }
 	);
 }
 
-// make tradeoff between 
-//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
-//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
-// when v is not countable(such as string, float), always choose the second method
-//
-// Note that ModusTotal is a special case of ModusPatial with p=1
-//
-// When memory condition doesn't favour Set: n >= v*p
-// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
-// Thus, tradeof is made at v*p <= n.
-
-// Conservative estimate of std::map node size for table-vs-set heuristic.
-// Exact size is implementation-defined; the payload plus 4 pointer-sized
-// fields (parent, left, right, color/bookkeeping) is a portable upper bound.
-template <typename V> constexpr UInt32 map_node_type_size = sizeof(std::pair<std::pair<SizeT, V>, SizeT>) + 4 * sizeof(void*);
+// The modus family counts integral values in a table over their formal range when the table is not larger than the values:
+//      Table: O(n+v*p) processing with O(v*p) temp memory
+//	and Set:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
+// so where v*p <= n, TableTime O(n+v*p) <= O(2n) < O(n*log(min(n,v))). ModusTotal is the case p=1. Bit values always go
+// to the table; values that are not countable, such as strings and floats, always to the set.
 
 template <typename V, typename R, typename AggrFunc>
-void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::container_type::reference resData, bool valueMustBeDefined, AggrFunc aggrFunc)
+void ModusTotDispatcher(const DataArray<V>* valuesTF, typename sequence_traits<R>::container_type::reference resData, bool valueMustBeDefined, AggrFunc aggrFunc)
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
@@ -268,14 +296,11 @@ void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, t
 		{
 			// the table is indexed by values range and thus has no slot to count nulls in,
 			// so it can only serve the variant that skips them; compare ModusPart::ProcessData
-			if (noOutOfRangeValues && valueMustBeDefined)
+			if (valueMustBeDefined)
 			{
-				typename Unit<V>::range_t valuesRange = GetValuesRange<V>(valuesTF);
-				// Countable values; go for Table if sensible
-				auto n = valuesTF->GetTiledRangeData()->GetElemCount();
-				auto v = Cardinality(valuesRange);
-
-				if (IsDefined(v) && (v / map_node_type_size<V> <= n / sizeof(V)))  // memory condition v*p<=n, thus TableTime <= 2n.
+				auto valuesRange = GetFormalRange(valuesTF);
+				auto v = TableSize(valuesRange);
+				if (IsDefined(v) && v <= valuesTF->GetTiledRangeData()->GetElemCount())
 				{
 					ModusTotByTable<V, R>(valuesTF, resData, valuesRange, aggrFunc);
 					return;
@@ -294,7 +319,8 @@ void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, t
 template<typename V, typename OIV, typename AggrFunc>
 void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array part_fta
 	, future_tile_array<V> values_fta
-	, OIV resBegin, SizeT pCount, bool valueMustBeDefined, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
+	, OIV resBegin, SizeT pCount, bool valueMustBeDefined, AggrFunc aggrFunc  // countable dommain unit of result; P can be Void.
+	, const Range<V>* formalRange) // of integral values
 {
 	assert(values_fta.size() == part_fta.size());
 
@@ -316,6 +342,8 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array pa
 		while (++i != e)
 			if (i->first.first != p)
 				break;
+		if constexpr (is_integral_v<V>)
+			CheckCountedValues<V>(pb, i, *formalRange, getValue);
 		while (ri < p)
 			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
 		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
@@ -330,7 +358,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 	, OIV resBegin, typename Unit<V>::range_t valuesRange, SizeT pCount  // countable dommain unit of result; P can be Void.
 	, AggrFunc aggrFunc)
 {
-	SizeT vCount = Cardinality(valuesRange);
+	SizeT vCount = TableSize(valuesRange);
 	my_vec_t<SizeT> buffer(vCount*pCount, 0);
 	auto bufferB = buffer.begin();
 
@@ -345,12 +373,16 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 
 		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
 		{
-			auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
-			if (vi >= vCount)
-				continue;
+			if constexpr (has_undefines_v<V>)
+				if (!IsDefined(*valuesIter))
+					continue;
 			auto pi = indexGetter->Get(i);
 			if (pi >= pCount)
 				continue;
+			auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
+			if constexpr (has_undefines_v<V>)
+				if (vi >= vCount)
+					ThrowOutOfFormalRange<V>(*valuesIter, valuesRange);
 			SafeIncrementCounter(bufferB[ pi * vCount + vi]);
 		}
 	}
@@ -359,7 +391,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 	{
 		*resBegin = aggrFunc(bufferB, bufferB + vCount
 		, [ ](auto i) { return *i; }
-		, [&](auto i) { return Range_GetValue_naked(valuesRange, i - bufferB); }
+		, [&](auto i) { return TableValue(valuesRange, i - bufferB); }
 		);
 
 		bufferB += vCount;
@@ -388,9 +420,9 @@ void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* we
 			if (IsDefined(*valuesIter))
 				counters[*valuesIter] += weightsGetter->Get(weightsIter);
 	}
+	CheckCountedValues<V>(counters.begin(), counters.end(), GetFormalRange(valuesTF), [](auto i) { return i->first; });
 
-
-	modusFunc<Float64, V> aggrFunc;
+	modusFunc<V> aggrFunc;
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	, [](auto i) { return i->second; }
@@ -402,7 +434,7 @@ void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* we
 template<typename V>
 void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData, const typename Unit<V>::range_t& valuesRange)
 {
-	auto vCount = Cardinality(valuesRange);
+	auto vCount = TableSize(valuesRange);
 	my_vec_t<Float64> buffer(vCount, 0);
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
@@ -416,33 +448,27 @@ void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* 
 
 		for (; valuesIter != valuesEnd; ++weightIter, ++valuesIter)
 		{
-			UInt32 v = Range_GetIndex_checked(valuesRange, *valuesIter);
-			if (v < vCount)
-				buffer[v] += weightsGetter->Get(weightIter);
+			if constexpr (has_undefines_v<V>)
+				if (!IsDefined(*valuesIter))
+					continue;
+			auto v = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
+			if constexpr (has_undefines_v<V>)
+				if (v >= vCount)
+					ThrowOutOfFormalRange<V>(*valuesIter, valuesRange);
+			buffer[v] += weightsGetter->Get(weightIter);
 		}
 	}
 
-	modusFunc<Float64, V> aggrFunc;
+	modusFunc<V> aggrFunc;
 
 	resData = aggrFunc(buffer.begin(), buffer.end()
 	, [ ](auto i) { return *i; }
-	, [&](auto i) { return Range_GetValue_naked(valuesRange, i - buffer.begin()); }
+	, [&](auto i) { return TableValue(valuesRange, i - buffer.begin()); }
 	);
 }
 
-// make tradeoff between 
-//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
-//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
-// when v is not countable(such as string, float), always choose the second method
-//
-// Note that ModusTotal is a special case of ModusPatial with p=1
-//
-// When memory condition doesnt favour Set: n >= v*p
-// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
-// Thus, tradeof is made at v*p <= n.
-
 template<typename V>
-void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData)
+void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData)
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
@@ -450,24 +476,12 @@ void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeV
 	}
 	else
 	{
-		if constexpr (is_integral_v<scalar_of_t<V>>)
-		{
-			if (noOutOfRangeValues)
-			{
-				auto valuesRange = GetValuesRange<V>(valuesTF);
-
-				// Countable values; go for Table if sensible
-				auto n = valuesTF->GetTiledRangeData()->GetElemCount();
-				auto v = Cardinality(valuesRange);
-
-				if (IsDefined(v) && (v / map_node_type_size<V> <= n / sizeof(V))) // memory condition v*p<=n, thus TableTime <= 2n.
-				{
-					WeightedModusTotByTable<V>(valuesTF, weightItem, resData, valuesRange);
-					return;
-				}
-			}
-		}
-		WeightedModusTotBySet<V>(valuesTF, weightItem, resData);
+		auto valuesRange = GetFormalRange(valuesTF);
+		auto v = TableSize(valuesRange);
+		if (IsDefined(v) && v <= valuesTF->GetTiledRangeData()->GetElemCount())
+			WeightedModusTotByTable<V>(valuesTF, weightItem, resData, valuesRange);
+		else
+			WeightedModusTotBySet<V>(valuesTF, weightItem, resData);
 	}
 }
 
@@ -509,9 +523,10 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 				}
 			}
 	}
-	modusFunc<SizeT, V> aggrFunc;
+	modusFunc<V> aggrFunc;
 	auto getCount = [](auto counterPtr) { return counterPtr->second; };
 	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
+	auto formalRange = GetFormalRange(valuesTF);
 
 	auto i = wieghtAccumulators.begin(), e = wieghtAccumulators.end();
 	SizeT ri = 0;
@@ -522,6 +537,7 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 		while (++i != e)
 			if (i->first.first != p)
 				break;
+		CheckCountedValues<V>(pb, i, formalRange, getValue);
 		while (ri < p)
 			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
 		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
@@ -534,7 +550,7 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 template<typename V, typename OIV>
 void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, typename Unit<V>::range_t valuesRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
-	SizeT vCount = Cardinality(valuesRange);
+	SizeT vCount = TableSize(valuesRange);
 	my_vec_t<Float64> buffer(vCount*pCount, 0);
 	my_vec_t<Float64>::iterator bufferB = buffer.begin();
 
@@ -553,25 +569,24 @@ void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem*
 		for (; valuesIter != valuesEnd; ++weightIter, ++i, ++valuesIter)
 			if (IsDefined(*valuesIter) && IsDefined(weight = weightsGetter->Get(weightIter)))
 			{
-				assert(IsIncluding(valuesRange, *valuesIter)); // PRECONDITION
-				auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
-				if (vi >= vCount)
-					continue;
 				auto pi = indexGetter->Get(i);
 				if (pi >= pCount)
 					continue;
-				assert(pi < pCount);
+				auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
+				if constexpr (has_undefines_v<V>)
+					if (vi >= vCount)
+						ThrowOutOfFormalRange<V>(*valuesIter, valuesRange);
 				bufferB[pi * vCount + vi] += weight;
 			}
 	}
 
-	modusFunc<Float64, V> aggrFunc;
+	modusFunc<V> aggrFunc;
 
 	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
 	{
 		*resBegin = aggrFunc(bufferB, bufferB + vCount
 		, [ ](auto i) { return *i; }
-		, [&](auto i) { return Range_GetValue_naked(valuesRange, i - bufferB); }
+		, [&](auto i) { return TableValue(valuesRange, i - bufferB); }
 		);
 
 		bufferB += vCount;
@@ -579,19 +594,8 @@ void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem*
 	assert(bufferB == buffer.end());
 }
 
-// make tradeoff between 
-//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
-//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
-// when v is not countable(such as string, float), always choose the second method
-//
-// Note that ModusTotal is a special case of ModusPatial with p=1
-//
-// When memory condition doesnt favour Set: n >= v*p
-// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
-// Thus, tradeof is made at v*p <= n.
-
 template<typename V, typename OIV>
-void WeightedModusPartDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, SizeT nrP)
+void WeightedModusPartDispatcher(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, SizeT nrP)
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
@@ -599,29 +603,15 @@ void WeightedModusPartDispatcher(const DataArray<V>* valuesTF, bool noOutOfRange
 	}
 	else
 	{
-		if constexpr (is_integral_v<scalar_of_t<V>>)
-		{
-			if (noOutOfRangeValues)
-			{
-				auto valuesRange = GetValuesRange<V>(valuesTF);
+		assert(IsNotUndef(nrP)); //consequence of the checks on indexRange: values Unit of index has been used as domain of the result
 
-				assert(IsDefined(valuesRange)); //we already made result with p as domainUnit, thus count must be known and managable.
-				assert(!valuesRange.empty());   //we already made result with p as domainUnit, thus count must be known and managable.
-
-				// Countable values; go for Table if sensible
-				auto n = valuesTF->GetTiledRangeData()->GetElemCount();
-				auto v = valuesRange.empty() ? MAX_VALUE(row_id) : Cardinality(valuesRange);
-
-				assert(IsNotUndef(nrP)); //consequence of the checks on indexRange: values Unit of index has been used as domain of the result
-
-				if (IsDefined(v) && (!nrP || v <= n / nrP)) // memory condition v*p<=n, thus TableTime <= 2n.
-				{
-					WeightedModusPartByTable<V>(valuesTF, weightItem, indicesItem, resBegin, valuesRange, nrP);
-					return;
-				}
-			}
-		}
-		WeightedModusPartBySet<V>(valuesTF, weightItem, indicesItem, resBegin, nrP);
+		auto valuesRange = GetFormalRange(valuesTF);
+		auto v = TableSize(valuesRange);
+		auto n = valuesTF->GetTiledRangeData()->GetElemCount();
+		if (IsDefined(v) && (!nrP || v <= n / nrP)) // memory condition v*p<=n, thus TableTime <= 2n.
+			WeightedModusPartByTable<V>(valuesTF, weightItem, indicesItem, resBegin, valuesRange, nrP);
+		else
+			WeightedModusPartBySet<V>(valuesTF, weightItem, indicesItem, resBegin, nrP);
 	}
 }
 
@@ -644,7 +634,7 @@ public:
 		assert(result);
 		auto  resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
-		ModusTotDispatcher<V, ResultValueType>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), resData[0], m_ValueMustBeDefined, m_AggrFunc);
+		ModusTotDispatcher<V, ResultValueType>(const_array_cast<V>(arg1A), resData[0], m_ValueMustBeDefined, m_AggrFunc);
 	}
 	AggrFunc m_AggrFunc;
 };
@@ -671,7 +661,7 @@ public:
 		dms_assert(result);
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-		WeightedModusTotDispatcher<V>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), arg2A, resData[0]);
+		WeightedModusTotDispatcher<V>(const_array_cast<V>(arg1A), arg2A, resData[0]);
 	}
 };
 
@@ -749,37 +739,26 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 		}
 		else
 		{
-			// make tradeoff between 
-			//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
-			//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
-			// when v is not countable(such as string, float), always choose the second method
-			//
-			// Note that ModusTotal is a special case of ModusPatial with p=1
-			//
-			// When memory condition doesnt favour Set: n >= v*p
-			// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
-			// Thus, tradeof is made at v*p <= n.
-
-			// Countable values; go for Table if sensible
+			// the table or the set, as described at ModusTotDispatcher
 			assert(IsNotUndef(pdi.resCount)); //consequence of the checks on indexRange
 
 			if constexpr (is_integral_v<scalar_of_t<V>>)
 			{
-				SizeT v = MAX_VALUE(SizeT);
-				auto range = pdi.valuesRangeData->GetRange();
-				if (!range.empty())
-					v =  Cardinality(range);
+				auto range = pdi.valuesRangeData ? pdi.valuesRangeData->GetRange() : Range<V>(Undefined());
+				SizeT v = TableSize(range);
 
+				// the table has no slot to count nulls in, so it can only serve the variant that skips them
 				if (IsDefined(v) && this->m_ValueMustBeDefined
-					//		&& (!resCount || v / map_node_type_size<V> <= n / resCount / sizeof(SizeT))
 					&& (!pdi.resCount || v <= pdi.n / pdi.resCount)
 					) // memory condition v*p<=n, thus TableTime <= 2n.
 				{
-					ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount, m_AggrFunc);
+					ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, range, pdi.resCount, m_AggrFunc);
 					return;
 				}
+				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, this->m_ValueMustBeDefined, m_AggrFunc, &range);
 			}
-			ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, this->m_ValueMustBeDefined, m_AggrFunc);
+			else
+				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, this->m_ValueMustBeDefined, m_AggrFunc, nullptr);
 		}
 	}
 
@@ -835,7 +814,7 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 
 		assert(resData.size() == res->GetTiledRangeData()->GetRangeSize()); // DataWriteLock was set by caller and p3 is domain of res
 
-		WeightedModusPartDispatcher<V>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), arg2A, arg3A, resData.begin(), arg3A->GetAbstrValuesUnit()->GetCount());
+		WeightedModusPartDispatcher<V>(const_array_cast<V>(arg1A), arg2A, arg3A, resData.begin(), arg3A->GetAbstrValuesUnit()->GetCount());
 	}
 };
 
@@ -901,7 +880,7 @@ namespace
 		{}
 
 	private:
-		AggrFuncInst<V, modusFunc<SizeT, V> > m_ModusFunc;
+		AggrFuncInst<V, modusFunc<V> > m_ModusFunc;
 
 		AggrFuncInst<V, modusCountFunc<UInt8 > > m_ModusCountFunc08;
 		AggrFuncInst<V, modusCountFunc<UInt16> > m_ModusCountFunc16;

@@ -391,8 +391,21 @@ struct SpatialIndex
 
 	SpatialIndex(ObjectPtr first, ObjectPtr last, SizeT maxNrFutureInserts = 0)
 	{
+		Rebuild(first, last, maxNrFutureInserts);
+	}
+	SpatialIndex(SpatialIndex&& rhs) = default;
+
+	// An empty index, to Rebuild before use: an index kept as a member and rebuilt for set after
+	// set of objects keeps the capacity of its leaf and node containers.
+	SpatialIndex() {}
+
+	// The index of [first, last), as the constructor makes it, in place of the current one.
+	void Rebuild(ObjectPtr first, ObjectPtr last, SizeT maxNrFutureInserts = 0)
+	{
 		MG_CHECK(first != last || !maxNrFutureInserts); // future inserts must be within the current determinable boundingbox
-		m_Leafs.reserve((last-first) + maxNrFutureInserts);
+		m_Leafs.clear();
+		m_Nodes.clear();
+		m_Leafs.reserve((last-first) + maxNrFutureInserts); // the nodes point into m_Leafs: it must not grow after this
 		RangeType boundingBox;
 
 		for (; first != last; ++first)
@@ -412,7 +425,6 @@ struct SpatialIndex
 				_Add(&*i);
 			}
 	}
-	SpatialIndex(SpatialIndex&& rhs) = default;
 
 	~SpatialIndex() {}
 
@@ -465,7 +477,6 @@ struct SpatialIndex
 	ObjectPtr first_leaf() const { dms_assert(m_Leafs.size()); return m_Leafs.begin()->get_ptr(); }
 private:
 	SpatialIndex(const SpatialIndex&) {}
-	SpatialIndex() {}
 
 	void _Add(LeafType* obj)
 	{

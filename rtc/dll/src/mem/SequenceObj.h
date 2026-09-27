@@ -157,9 +157,10 @@ public:
 		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
 		assert(oldSize + 1 > oldSize); // No overflow
+		value_type value = v; // for elements above 8 bytes, v is a reference that can be to an element of this sequence, which grow can move and release
 		m_Provider->grow(m_Data, 1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		assert(m_Data.size() == oldSize + 1);
-		m_Data.back() = v;
+		m_Data.back() = std::move(value);
 	}
 	template <typename... Args>
 	void emplace_back(Args&& ...args)
@@ -168,9 +169,10 @@ public:
 		MGD_CHECKDATA(m_Provider); 
 		SizeT oldSize = size();
 		assert(oldSize + 1 > oldSize); // No overflow
+		value_type value(std::forward<Args>(args)...); // args can refer to an element of this sequence, which grow can move and release
 		m_Provider->grow(m_Data, 1, false MG_DEBUG_ALLOCATOR_SRC("emplace_back"));
 		assert(m_Data.size() == oldSize + 1);
-		new (&m_Data.back()) value_type(std::forward<Args>(args)...); // placement new
+		m_Data.back() = std::move(value); // grow has already constructed the new element
 	}
 	void pop_back()
 	{ 

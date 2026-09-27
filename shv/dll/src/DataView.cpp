@@ -291,6 +291,9 @@ DataView::~DataView()
 	// avoid destructor of m_ControllerVector that triggers RemoveCaret to Reverse any remaining carets
 	m_State.Clear(DVF_CaretsVisible);
 
+	// Stop pending controllers while m_Contents, which they act on, still exists (e.g. a view closed with a floating paste).
+	RemoveAllControllers();
+
 	DataView* subView = _GetFirstSubItem();
 	while (subView)
 	{

@@ -22,6 +22,7 @@
 #include "Wrapper.h"
 
 class NeedleCaret;
+class PasteGridController;
 class ScaleBarCaret;
 struct RoiTracker;
 struct SelValuesData;
@@ -174,6 +175,7 @@ public:
 	SelCaretPtr  GetOrCreateSelCaret (const sel_caret_key& key);
 
 	void PasteGrid(SelValuesData* svd, GridLayer* gl);
+	void CancelPasteGrid(); // discards the floating paste that PasteGrid left pending, if any, and restores the cursor
 
 	WeakPtr<RoiTracker> m_Tracker;
 	auto FindBackgroundWmsLayer() -> WmsLayer*;
@@ -219,9 +221,11 @@ private:
 	ScaleBarCaret*             m_ScaleBarCaret;
 	grid_coord_map             m_GridCoordMap;
 	sel_caret_map              m_SelCaretMap;
+	WeakPtr<PasteGridController> m_PasteGridController; // the pending floating paste; cleared when it stops
 
 	friend GridCoord;
 	friend SelCaret;
+	friend PasteGridController;
 
 public:
 	static ViewPort* g_CurrZoom;

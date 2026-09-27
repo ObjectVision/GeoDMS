@@ -118,7 +118,7 @@ struct DiversityCalculator : SpatialAnalyzer<T>
 	using typename SpatialAnalyzer<T>::DataGridType;
 	using typename SpatialAnalyzer<T>::DataGridValType;
 
-	DiversityCalculator(DataGridType input, DataGridValType inputUpperBound, RadiusType radius, bool isCircle);
+	DiversityCalculator(DataGridType input, Range<DataGridValType> valuesRange, RadiusType radius, bool isCircle);
 
 	void GetDiversity(DivCountGridType output);
 
@@ -131,9 +131,11 @@ private:
 	DivCountType DiversityCountAll        (UGridPoint, DivVectorType&);
 
 	bool         NextBorderPoint(UGridPoint&, TTranslation, bool forward);
+	SizeT        ValueIndex(UGridPoint);
 
-	TForm  m_Form;
-	T      m_InputUpperBound = 0;
+	TForm    m_Form;
+	Range<T> m_ValuesRange;  // a value is counted at its offset from m_ValuesRange.first
+	SizeT    m_NrValues = 0; // Cardinality(m_ValuesRange); offsets at or beyond it are not counted
 };
 
 //==================================================== SpatialAnalyzer: template member functions
@@ -267,10 +269,9 @@ ResultType Districting(UGrid<const ZoneType> input, UGrid<ResultType> output, bo
 }
 
 template <typename ZoneType>
-void Diversity(UGrid<const ZoneType> input, ZoneType inputUpperBound, RadiusType radius, bool isCircle, UGrid<ZoneType> divOutput)
+void Diversity(UGrid<const ZoneType> input, Range<ZoneType> valuesRange, RadiusType radius, bool isCircle, UGrid<ZoneType> divOutput)
 { 
-	// TODO: LowerBound
-	DiversityCalculator<ZoneType>(input, inputUpperBound, radius, isCircle).GetDiversity(divOutput);
+	DiversityCalculator<ZoneType>(input, valuesRange, radius, isCircle).GetDiversity(divOutput);
 }
 
 // *****************************************************************************

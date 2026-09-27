@@ -53,6 +53,32 @@ try:
     missing = root.find("/does/not/exist")
     check(missing.is_null(), "non-existent path returns a null item")
 
+    # #1279: fail_reason() on an item that has not failed returns the empty string it
+    # documents, rather than dereferencing a null ErrMsgPtr and taking the process down.
+    check(param_item.fail_reason() == "", "fail_reason() of a valid item is empty")
+
+    const_root = config.const_root()
+    valid = const_root.find("/red_items_check/valid")
+    check(not valid.is_null(), "found /red_items_check/valid")
+    check(valid.update_metainfo(), "update_metainfo() of a valid item returns True")
+    check(valid.fail_reason() == "", "a valid item has no fail reason after update_metainfo()")
+
+    # #1279: what makes an item red in the GUI -- meta info only, no calculation.
+    broken = const_root.find("/red_items_check/broken")
+    check(not broken.is_null(), "found /red_items_check/broken")
+    check(not broken.update_metainfo(), "update_metainfo() of a broken item returns False")
+    reason = broken.fail_reason()
+    check("BestaatNiet_xyz" in reason, f"fail_reason() names the unresolved identifier (got {reason!r})")
+
+    # #1279: a walker skips template bodies, which are inert and must not be updated.
+    tmpl = const_root.find("/red_items_check/tmpl")
+    check(not tmpl.is_null(), "found /red_items_check/tmpl")
+    check(tmpl.is_template() and tmpl.in_template(), "the template item itself reports is_template/in_template")
+    in_body = const_root.find("/red_items_check/tmpl/in_body")
+    check(not in_body.is_null(), "found /red_items_check/tmpl/in_body")
+    check(in_body.in_template() and not in_body.is_template(), "an item in a template body reports in_template only")
+    check(not valid.in_template(), "an ordinary item is not in a template")
+
     # change the parameter expression and (re)calculate a dependent result
     param_item.set_expr("3b")
     result_item = root.find("/export/IntegerAtt")

@@ -1,0 +1,30 @@
+// needy_alloc with a null in the atomic region map. The atomic region of every land unit is checked,
+// also of one that no type can be allocated to: here land unit 7, whose suitabilities are all below the
+// threshold. discrete_alloc checks every land unit likewise.
+// Expected: exit nonzero on /checks ("Value 255 (a.k.a. null-value) out of range of valid Atomic Regions").
+// See oper_alloc_atomic_regions.dms, which is the same config with a valid map.
+container oper_alloc_atomic_regions_neg_null
+{
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA', 'LuB']; }
+	unit<uint8>  Region : nrofrows = 2;
+
+	unit<uint32> Cell : nrofrows = 8
+	{
+		attribute<Region> ar : [0, 0, 1, 1, 0, 1, 1, null];
+	}
+	container Suit
+	{
+		attribute<int32> LuA (Cell) : [9, 8, 7, 6, 5, 4, 3, -1];
+		attribute<int32> LuB (Cell) : [2, 3, 4, 5, 6, 7, 8, -1];
+	}
+	container CMin { attribute<uint32> LuA (Region) : [0, 0]; attribute<uint32> LuB (Region) : [0, 0]; }
+	container CMax { attribute<uint32> LuA (Region) : [1, 4]; attribute<uint32> LuB (Region) : [4, 4]; }
+	parameter<int32> thr := 0i;
+
+	container needy := needy_alloc_sp(LuType/name, Cell, Suit, Region, Cell/ar, CMin, CMax, thr);
+
+	container checks
+	{
+		parameter<uint32> n := sum(uint32(IsDefined(needy/landuse))), IntegrityCheck = "n == 7";
+	}
+}

@@ -27,9 +27,12 @@
 namespace dms_overlay
 {
 
-// One tile: the element pairs, with either operand possibly a parameter (Void domain).
+// One tile: the element pairs, with either operand possibly a parameter (Void domain). The
+// engine is the caller's: one per tile when the tiles come lazily, one per thread for all the
+// tiles it works on when they are calculated eagerly (DmsThreadEngines). Its counters then run on
+// across tiles, so what is reported here is this tile's share.
 template <typename P, typename ResSeq, typename ArgSeq>
-void CalcDmsOverlayTile(BoolOp op, CharPtr operName, Float64 grid
+void CalcDmsOverlayTile(DmsOverlayEngine<P>& engine, CharPtr operName
 	, ResSeq& resData, const ArgSeq& arg1Data, const ArgSeq& arg2Data, bool e1IsVoid, bool e2IsVoid
 	, CharPtr itemRef)
 {
@@ -39,7 +42,7 @@ void CalcDmsOverlayTile(BoolOp op, CharPtr operName, Float64 grid
 	assert(n2 == n || e2IsVoid);
 	assert(resData.size() == n);
 
-	DmsOverlayEngine<P> engine(op, operName, grid);
+	SizeT crossings0 = engine.NrCrossingPixels(), rounds0 = engine.NrExtraRounds(), undefined0 = engine.m_NrUndefined;
 	Timer processTimer;
 
 	for (SizeT i = 0; i != n; ++i)
@@ -49,9 +52,10 @@ void CalcDmsOverlayTile(BoolOp op, CharPtr operName, Float64 grid
 		if (processTimer.PassedSecs())
 			reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences", itemRef, operName, AsString(i), AsString(n));
 	}
-	if (engine.NrCrossingPixels() || engine.NrExtraRounds() || engine.m_NrUndefined)
+	SizeT crossings = engine.NrCrossingPixels() - crossings0, rounds = engine.NrExtraRounds() - rounds0, undefined = engine.m_NrUndefined - undefined0;
+	if (crossings || rounds || undefined)
 		reportF(SeverityTypeID::ST_MinorTrace, "{}{}: {} sequences; {} crossings snapped to the grid, {} extra noding rounds, {} undefined results"
-			, itemRef, operName, AsString(n), AsString(engine.NrCrossingPixels()), AsString(engine.NrExtraRounds()), AsString(engine.m_NrUndefined));
+			, itemRef, operName, AsString(n), AsString(crossings), AsString(rounds), AsString(undefined));
 }
 
 // *****************************************************************************
@@ -74,19 +78,57 @@ struct DmsOverlayOperator : BinaryAttrOper<PolygonType_t<P>, PolygonType_t<P>, P
 		: base_type(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
 	{}
 
+	// AbstrBinaryAttrOper::CreateResult either hands the tiles to a lazy tile functor, which calls
+	// CalcTile per tile, or calculates them eagerly in a parallel tile loop. The lazy way is left
+	// to it; the eager way is done here, so that its loop can give every thread one engine for all
+	// the tiles it works on. The condition is AbstrBinaryAttrOper's and must stay in step with it.
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		assert(args.size() == 2);
-		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[0]), ValueComposition::Polygon);
-		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[1]), ValueComposition::Polygon);
-		return base_type::CreateResult(resultHolder, args, mustCalc);
+		auto arg1A = AsDataItem(args[0]);
+		auto arg2A = AsDataItem(args[1]);
+		CheckGeometryArgComposition(this->GetGroup(), arg1A, ValueComposition::Polygon);
+		CheckGeometryArgComposition(this->GetGroup(), arg2A, ValueComposition::Polygon);
+		if (!mustCalc)
+			return base_type::CreateResult(resultHolder, args, mustCalc);
+
+		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = e1->GetValueType() == ValueWrap<Void>::GetStaticClass();
+		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit(); bool e2IsVoid = e2->GetValueType() == ValueWrap<Void>::GetStaticClass();
+		const AbstrUnit* e = e1IsVoid ? e2 : e1;
+
+		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+		auto tn = e->GetNrTiles();
+		if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res))
+			return base_type::CreateResult(resultHolder, args, mustCalc); // lazy: one engine per tile, in CalcTile
+
+		DataReadLock arg1Lock(arg1A);
+		DataReadLock arg2Lock(arg2A);
+		DataWriteLock resLock(res);
+
+		CharPtr operName = this->GetGroup()->GetNameStr();
+		DmsThreadEngines<P> engines(Op, operName);
+		parallel_tileloop(tn, [&](tile_id t)
+			{
+				auto arg1Data = const_array_cast<PolygonType>(arg1A)->GetTile(e1IsVoid ? 0 : t);
+				auto arg2Data = const_array_cast<PolygonType>(arg2A)->GetTile(e2IsVoid ? 0 : t);
+				auto resData  = mutable_array_cast<PolygonType>(resLock.get())->GetWritableTile(t);
+
+				auto engine = engines.local();
+				CalcDmsOverlayTile<P>(*engine, operName, resData, arg1Data, arg2Data, e1IsVoid, e2IsVoid, "");
+			}
+		);
+		resLock.Commit();
+		return true;
 	}
 
+	// a tile of the lazy tile functor: its own engine
 	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		bool e1IsVoid = (af & AF1_ISPARAM);
 		bool e2IsVoid = (af & AF2_ISPARAM);
-		CalcDmsOverlayTile<P>(Op, this->GetGroup()->GetNameStr(), 0.0, resData, arg1Data, arg2Data, e1IsVoid, e2IsVoid, "");
+		CharPtr operName = this->GetGroup()->GetNameStr();
+		DmsOverlayEngine<P> engine(Op, operName);
+		CalcDmsOverlayTile<P>(engine, operName, resData, arg1Data, arg2Data, e1IsVoid, e2IsVoid, "");
 	}
 };
 
@@ -148,19 +190,16 @@ protected:
 			auto resItem = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(resItem, dms_rw_mode::write_only_mustzero);
 
-			parallel_tileloop(e->GetNrTiles(), [=, this, resObj = resLock.get(), itemRefPtr = itemRef.c_str()](tile_id t)->void
-				{
-					this->Calculate(resObj, arg1A, arg2A, e1IsVoid, e2IsVoid, grid, t, itemRefPtr);
-				}
-			);
+			CalculateTiles(resLock.get(), arg1A, arg2A, e1IsVoid, e2IsVoid, grid, e->GetNrTiles(), itemRef.c_str());
 
 			resLock.Commit();
 		}
 		return true;
 	}
 
-	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A
-		, bool e1IsVoid, bool e2IsVoid, Float64 grid, tile_id t, CharPtr itemRef) const = 0;
+	// all tiles, eagerly: the loop is the derived class's, since its engines are of a point type
+	virtual void CalculateTiles(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A
+		, bool e1IsVoid, bool e2IsVoid, Float64 grid, tile_id tn, CharPtr itemRef) const = 0;
 };
 
 template <typename P, BoolOp Op>
@@ -173,14 +212,22 @@ struct DmsOverlayGridOperator : AbstrDmsOverlayGridOperator
 		: AbstrDmsOverlayGridOperator(gr, ArgType::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A
-		, bool e1IsVoid, bool e2IsVoid, Float64 grid, tile_id t, CharPtr itemRef) const override
+	// one engine per thread for all the tiles it works on
+	void CalculateTiles(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A
+		, bool e1IsVoid, bool e2IsVoid, Float64 grid, tile_id tn, CharPtr itemRef) const override
 	{
-		auto arg1Data = const_array_cast<PolygonType>(arg1A)->GetTile(e1IsVoid ? 0 : t);
-		auto arg2Data = const_array_cast<PolygonType>(arg2A)->GetTile(e2IsVoid ? 0 : t);
-		auto resData  = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
+		CharPtr operName = GetGroup()->GetNameStr();
+		DmsThreadEngines<P> engines(Op, operName, grid);
+		parallel_tileloop(tn, [&](tile_id t)->void
+			{
+				auto arg1Data = const_array_cast<PolygonType>(arg1A)->GetTile(e1IsVoid ? 0 : t);
+				auto arg2Data = const_array_cast<PolygonType>(arg2A)->GetTile(e2IsVoid ? 0 : t);
+				auto resData  = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
 
-		CalcDmsOverlayTile<P>(Op, GetGroup()->GetNameStr(), grid, resData, arg1Data, arg2Data, e1IsVoid, e2IsVoid, itemRef);
+				auto engine = engines.local();
+				CalcDmsOverlayTile<P>(*engine, operName, resData, arg1Data, arg2Data, e1IsVoid, e2IsVoid, itemRef);
+			}
+		);
 	}
 };
 

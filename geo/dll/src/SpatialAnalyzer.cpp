@@ -12,6 +12,7 @@
 
 #include "dbg/debug.h"
 #include "vt/Conversions.h"
+#include "vt/RangeIndex.h"
 #include "geom/Point.h"
 
 #include <cmath>
@@ -171,10 +172,11 @@ bool TForm::NextBorderPoint(UGridPoint& p, TTranslation t)
 // *****************************************************************************
 
 template <typename T>
-DiversityCalculator<T>::DiversityCalculator(DataGridType input, DataGridValType inputUpperBound, RadiusType radius, bool isCircle)
+DiversityCalculator<T>::DiversityCalculator(DataGridType input, Range<DataGridValType> valuesRange, RadiusType radius, bool isCircle)
 	:	SpatialAnalyzer<T>(input)
 {
-	m_InputUpperBound = inputUpperBound;
+	m_ValuesRange = valuesRange;
+	m_NrValues    = Cardinality(valuesRange);
 	m_Form.Init(radius, isCircle);
 }
 
@@ -184,7 +186,7 @@ void DiversityCalculator<T>::GetDiversity(DivCountGridType output)
 	DBG_START("SpatialAnalyzer", "GetDiversity", true);
 	MG_CHECK(this->m_Input.GetSize() == output.GetSize()); // PRECONDITIOON;
 
-	DivVectorType divVector(m_InputUpperBound, DivCountType(0));
+	DivVectorType divVector(m_NrValues, DivCountType(0));
 
 	ICoordType rowBegin = 0;
 	ICoordType colBegin = 0;
@@ -259,21 +261,21 @@ DiversityCalculator<T>::DiversityCountAll(UGridPoint center, DivVectorType& divV
 	DivCountType divCount = 0;
 
 	m_Form.SetCenter(center);
-	dms_assert(m_InputUpperBound == divVector.size());
+	dms_assert(m_NrValues == divVector.size());
 
 	while (m_Form.NextContainedPoint(point))
 	{
 		if (IsStrictlyLower(point, this->m_Input.GetSize()))
 		{
-			SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
+			SizeT i = ValueIndex(point);
 
-			if (val < m_InputUpperBound)
+			if (i < m_NrValues)
 			{
-				if (divVector[val] == 0)
+				if (divVector[i] == 0)
 					divCount++;
 			
-				divVector[val]++;
-				if (divVector[val] == 0)
+				divVector[i]++;
+				if (divVector[i] == 0)
 					throwErrorF("Diversity", "Numeric overflow in counting diversity around location {}", AsString(point).c_str());
 			}
 		}
@@ -289,7 +291,7 @@ DiversityCalculator<T>::DiversityDifference(UGridPoint center, DivVectorType& di
 	DivCountType divCount = 0;
 
 	m_Form.SetCenter(center);
-	assert(m_InputUpperBound == divVector.size());
+	assert(m_NrValues == divVector.size());
 
 	if (doAdd)
 	{
@@ -297,14 +299,14 @@ DiversityCalculator<T>::DiversityDifference(UGridPoint center, DivVectorType& di
 		{
 			if (IsStrictlyLower(point, this->m_Input.GetSize()))
 			{
-				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
-				if (val < m_InputUpperBound)
+				SizeT i = ValueIndex(point);
+				if (i < m_NrValues)
 				{
-					if (divVector[val] == 0)
+					if (divVector[i] == 0)
 						divCount++;
 
-					divVector[val]++;
-					if (divVector[val] == 0)
+					divVector[i]++;
+					if (divVector[i] == 0)
 						throwErrorF("Diversity", "Numeric overflow in counting diversity around location {}", AsString(point).c_str());
 				}
 			}
@@ -315,11 +317,11 @@ DiversityCalculator<T>::DiversityDifference(UGridPoint center, DivVectorType& di
 		{
 			if (IsStrictlyLower(point, this->m_Input.GetSize()))
 			{
-				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
-				if (val < m_InputUpperBound)
+				SizeT i = ValueIndex(point);
+				if (i < m_NrValues)
 				{
-					assert(divVector[val]); // logic of caller required divVector was incremented before for this value.
-					if (--divVector[val] == 0)
+					assert(divVector[i]); // logic of caller required divVector was incremented before for this value.
+					if (--divVector[i] == 0)
 						divCount++;
 				}
 			}
@@ -340,6 +342,15 @@ bool DiversityCalculator<T>::NextBorderPoint(UGridPoint& point, TTranslation tra
 		case tDecRow: return m_Form.NextBorderPoint(point, add ? tDecRow : tIncRow);
 	}
 	return false;
+}
+
+// the counter of a value is its offset from the first value of the values range. A value below that
+// first wraps around to an offset beyond the range, so it is skipped just like the values at or above
+// the end of the range and nulls.
+template <typename T>
+SizeT DiversityCalculator<T>::ValueIndex(UGridPoint point)
+{
+	return Range_GetIndex_naked_unchecked(m_ValuesRange, this->m_Input.GetDataPtr()[this->Pos(point)]);
 }
 
 

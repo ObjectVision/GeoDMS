@@ -1,0 +1,72 @@
+// ClassifyNonzeroJenksFisher with 2 classes on data with negative values and a 0. Two classes leave no room for a
+// negative, a zero and a positive class. 0 stays a break and the first break is the minimum, so the breaks are
+// [minimum, 0]: the negative values form class 0, and 0 and the positive values class 1, as ClassifyNonzeroEqualInterval
+// has it for 2 classes. With two or more distinct values on each side of 0, Debug builds tripped
+// assert(nrPositiveClasses >= 1) in ClassifyJenksFisher (exit 3); with one positive value the breaks were [0, p], and
+// classify made every negative value null.
+// Expected: exit 0 on /checks.
+container oper_classify_jenks_nonzero_k2
+{
+	unit<uint8> cls2 : nrofrows = 2;
+	unit<uint8> cls3 : nrofrows = 3;
+
+	//	=========================================	two or more distinct values on each side of 0
+
+	unit<uint32> A : nrofrows = 5;
+	attribute<int32> va     (A)    : [-2, -1, 0, 1, 2];
+	attribute<int32> nzA2   (cls2) := ClassifyNonzeroJenksFisher(va, cls2);
+	attribute<cls2>  classA (A)    := classify(va, nzA2);
+	attribute<int32> nzA3   (cls3) := ClassifyNonzeroJenksFisher(va, cls3); // with room for it, 0 gets a class of its own
+
+	attribute<int32> nzA2_expected   (cls2) : [-2, 0];
+	attribute<cls2>  classA_expected (A)    : [0, 0, 1, 1, 1];
+	attribute<int32> nzA3_expected   (cls3) : [-2, 0, 1];
+
+	//	=========================================	the same values through the counts signature, other counts
+
+	unit<uint32> P : nrofrows = 5;
+	attribute<int32>  pv   (P)    : [-2, -1, 0, 1, 2];
+	attribute<uint64> pc   (P)    : [3, 1, 4, 1, 5];
+	attribute<int32>  nzP2 (cls2) := ClassifyNonzeroJenksFisher(pv, pc, cls2);
+
+	//	=========================================	skewed: ClassifyJenksFisher gives [-100, -1], putting -1 with the positive values
+
+	unit<uint32> B : nrofrows = 7;
+	attribute<int32> vb            (B)    : [-100, -90, -1, 0, 0, 1, 2];
+	attribute<int32> nzB2          (cls2) := ClassifyNonzeroJenksFisher(vb, cls2);
+	attribute<int32> nzB2_expected (cls2) : [-100, 0];
+
+	//	=========================================	one positive value: the breaks were [0, 5]
+
+	unit<uint32> C : nrofrows = 4;
+	attribute<int32> vc              (C)    : [-2, -1, 0, 5];
+	attribute<int32> nzC2            (cls2) := ClassifyNonzeroJenksFisher(vc, cls2);
+	attribute<cls2>  classC          (C)    := classify(vc, nzC2);
+	attribute<cls2>  classC_expected (C)    : [0, 0, 1, 1];
+
+	//	=========================================	one negative value, and no positive value: these were [minimum, 0] already
+
+	unit<uint32> D : nrofrows = 4;
+	attribute<int32> vd            (D)    : [-5, 0, 1, 2];
+	attribute<int32> nzD2          (cls2) := ClassifyNonzeroJenksFisher(vd, cls2);
+	attribute<int32> nzD2_expected (cls2) : [-5, 0];
+
+	unit<uint32> E : nrofrows = 4;
+	attribute<int32> ve            (E)    : [-3, -2, -1, 0];
+	attribute<int32> nzE2          (cls2) := ClassifyNonzeroJenksFisher(ve, cls2);
+	attribute<int32> nzE2_expected (cls2) : [-3, 0];
+
+	container checks
+	{
+		parameter<bool>   okA2     := all(nzA2 == nzA2_expected),        IntegrityCheck = "okA2 == true";
+		parameter<bool>   okClassA := all(classA == classA_expected),    IntegrityCheck = "okClassA == true";
+		parameter<bool>   okA3     := all(nzA3 == nzA3_expected),        IntegrityCheck = "okA3 == true";
+		parameter<bool>   okP2     := all(nzP2 == nzA2_expected),        IntegrityCheck = "okP2 == true";
+		parameter<bool>   okB2     := all(nzB2 == nzB2_expected),        IntegrityCheck = "okB2 == true";
+		parameter<bool>   okC2     := all(nzC2 == nzA2_expected),        IntegrityCheck = "okC2 == true";
+		parameter<uint32> definedC := sum(uint32(IsDefined(classC))),    IntegrityCheck = "definedC == 4";
+		parameter<bool>   okClassC := all(classC == classC_expected),    IntegrityCheck = "okClassC == true";
+		parameter<bool>   okD2     := all(nzD2 == nzD2_expected),        IntegrityCheck = "okD2 == true";
+		parameter<bool>   okE2     := all(nzE2 == nzE2_expected),        IntegrityCheck = "okE2 == true";
+	}
+}

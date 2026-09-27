@@ -26,20 +26,21 @@
 #include "OperSignature.h"
 
 #include "rlookup.h"
+#include "ValuesTable.h"
 #include "mem/MyContainers.h"
 
-template <typename V> const UInt32 BUFFER_SIZE = 4096 / sizeof(V);
+template <typename V> const UInt32 UNIQUE_BUFFER_SIZE = 4096 / sizeof(V);
 
 template <typename V>
 my_elem_vec_t<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size, bool mustBeDefined)
 {
 	// PRECONDITIONS
-	assert(size <= BUFFER_SIZE<V>);
+	assert(size <= UNIQUE_BUFFER_SIZE<V>);
 	assert(size > 0);
 	assert(index <= seq.size());
 	assert(index + size <= seq.size());
 
-	V buffer[BUFFER_SIZE<V>]; 
+	V buffer[UNIQUE_BUFFER_SIZE<V>];
 	V* bufferCursor = nullptr;
 	//	fast_copy(seq.begin() + index, seq.begin() + index + size, buffer);
 
@@ -151,7 +152,7 @@ my_elem_vec_t<V> MergeToLeft(my_elem_vec_t<V> left, my_elem_vec_t<V> right, bool
 template <typename V>
 my_elem_vec_t<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size, bool mustBeDefined)
 {
-	if (size <= BUFFER_SIZE<V>)
+	if (size <= UNIQUE_BUFFER_SIZE<V>)
 		return GetUniqueValuesDirect<V>(tileData, index, size, mustBeDefined);
 
 	my_elem_vec_t<V> result;
@@ -189,6 +190,103 @@ my_elem_vec_t<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id
 	return MergeToLeft<V>(firstHalf->get(), std::move(secondHalf), mustBeDefined);
 }
 
+// *****************************************************************************
+//                         Unique integral values, in bins
+// *****************************************************************************
+
+// A tile whose integral values all fit in the bins of its worker is counted there (see BinCounts in ValuesTable.h);
+// any other tile is sorted as above, still split over threads. Bit values all fit in a table of their 2^N values.
+
+template <typename V>
+struct BinnedUniqueValues
+{
+	BinCounts<V, SizeT> bins;
+	my_elem_vec_t<V>    values; // of the tiles that did not fit in the bins, sorted
+};
+
+template <typename V>
+my_elem_vec_t<V> BinnedValues(const BinCounts<V, SizeT>& bins)
+{
+	auto counts = bins.ToPairs(); // null first, when counted, as MergeToLeft orders it
+	my_elem_vec_t<V> result;
+	result.reserve(counts.size());
+	for (const auto& valueCount : counts)
+		result.push_back(valueCount.first);
+	return result;
+}
+
+template <typename V>
+my_elem_vec_t<V> GetBinnedUniqueWallValues_ST(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined, BinCounts<V, SizeT>& bins)
+{
+	if (nrTiles == 1)
+	{
+		auto tileData = ado->GetTile(t);
+		if (bins.CountTileIfItFits(tileData, SizeT(-1), mustBeDefined))
+			return {};
+		auto tileSize = tileData.size();
+		return GetTileUniqueValues<V>(std::move(tileData), 0, tileSize, mustBeDefined);
+	}
+
+	tile_id m = nrTiles / 2;
+	dms_assert(m >= 1);
+
+	auto firstHalf  = GetBinnedUniqueWallValues_ST<V>(ado, t, m, mustBeDefined, bins);
+	auto secondHalf = GetBinnedUniqueWallValues_ST<V>(ado, t + m, nrTiles - m, mustBeDefined, bins);
+
+	return MergeToLeft<V>(std::move(firstHalf), std::move(secondHalf), mustBeDefined);
+}
+
+template <typename V>
+auto GetBinnedUniqueWallValues_MT(const DataArray<V>* ado, tile_id t, tile_id nrTiles, SizeT availableThreads, bool mustBeDefined) -> BinnedUniqueValues<V>
+{
+	dms_assert(availableThreads <= nrTiles);
+
+	BinnedUniqueValues<V> result;
+	if (availableThreads == 1)
+	{
+		result.values = GetBinnedUniqueWallValues_ST<V>(ado, t, nrTiles, mustBeDefined, result.bins);
+		return result;
+	}
+
+	auto m = nrTiles / 2;
+	auto rt = availableThreads / 2;
+
+	auto firstHalf = throttled_async([ado, t, m, rt, mustBeDefined]() {
+		return GetBinnedUniqueWallValues_MT<V>(ado, t, m, rt, mustBeDefined);
+		});
+
+	auto secondHalf = GetBinnedUniqueWallValues_MT<V>(ado, t + m, nrTiles - m, availableThreads - rt, mustBeDefined);
+
+	result = firstHalf->get();
+	result.values = MergeToLeft<V>(std::move(result.values), std::move(secondHalf.values), mustBeDefined);
+	if (!result.bins.Absorb(std::move(secondHalf.bins), SizeT(-1)))
+		result.values = MergeToLeft<V>(std::move(result.values), BinnedValues<V>(secondHalf.bins), mustBeDefined);
+	return result;
+}
+
+template <typename V>
+my_elem_vec_t<V> GetBinnedUniqueWallValues(const DataArray<V>* ado, tile_id nrTiles, bool mustBeDefined)
+{
+	if constexpr (is_bitvalue_v<V>)
+	{
+		auto values_fta = GetFutureTileArray(ado);
+		V buffer[1 << nrbits_of_v<V>];
+		V* bufferCursor = buffer;
+		for (const auto& valueCount : GetWeededWallCounts<V, SizeT>(values_fta, SizeT(-1), mustBeDefined))
+			*bufferCursor++ = valueCount.first;
+		return my_elem_vec_t<V>(buffer, bufferCursor);
+	}
+	else
+	{
+		SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+		MakeMin(maxNrThreads, nrTiles);
+		MakeMax(maxNrThreads, 1);
+
+		auto uniqueValues = GetBinnedUniqueWallValues_MT<V>(ado, 0, nrTiles, maxNrThreads, mustBeDefined);
+		return MergeToLeft<V>(BinnedValues<V>(uniqueValues.bins), std::move(uniqueValues.values), mustBeDefined);
+	}
+}
+
 
 template<fixed_elem V>
 void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi, bool mustBeDefined)
@@ -223,7 +321,12 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 		{
 			tile_id tn = ado->GetTiledRangeData()->GetNrTiles();
 			if (tn)
-				values = GetUniqueWallValues<V>(ado, 0, tn, mustBeDefined);
+			{
+				if constexpr (is_integral_v<V>)
+					values = GetBinnedUniqueWallValues<V>(ado, tn, mustBeDefined);
+				else
+					values = GetUniqueWallValues<V>(ado, 0, tn, mustBeDefined);
+			}
 		}
 	}
 

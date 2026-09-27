@@ -1313,8 +1313,7 @@ public:
 			,	EventID::LBUTTONUP|EventID::RBUTTONDOWN|EventID::RBUTTONUP|EventID::CAPTURECHANGED|EventID::SCROLLED
 			,	ToolButtonID::TB_PasteSel
 			)
-		,	m_ViewPort(vp)
-		,	m_GridLayer(target)
+		,	m_ViewPort(vp->weak_from_base<ViewPort>())
 		,	m_GridCoords(gridCoords)
 		,	m_SelValues(selValues)
 	{
@@ -1323,12 +1322,14 @@ public:
 	}
 	~PasteGridController()
 	{
-		dms_assert(!m_OrgCursor);
+		dms_assert(!m_OrgCursor); // Stop() ran, also when the DataView was closed with the paste pending (DataView::RemoveAllControllers)
 	}
 
 protected:
 	bool Move (EventInfo& eventInfo) override
 	{
+		auto gl = GetGridLayer(); if (!gl) return true;
+
 		m_GridCoords->UpdateUnscaled();
 		IPoint gridNewBase = (IsDefined(eventInfo.m_Point))			
 			?	m_GridCoords->GetExtGridCoordFromAbs(eventInfo.m_Point)
@@ -1337,28 +1338,38 @@ protected:
 		if (gridNewBase == m_SelValues->m_Rect.first)
 			return false;
 
-		m_GridLayer->InvalidatePasteArea();
+		gl->InvalidatePasteArea();
 		m_SelValues->MoveTo(gridNewBase);
-		m_GridLayer->InvalidatePasteArea();
+		gl->InvalidatePasteArea();
 		return true;
 	}
 	bool Exec(EventInfo& eventInfo) override
 	{
-		m_GridLayer->PasteNow();
+		auto gl = GetGridLayer(); if (!gl) return true;
+		gl->PasteNow();
 		return true;
 	}
 
 	void Stop () override
 	{
-		m_ViewPort->SetViewPortCursor(m_OrgCursor);
+		if (auto vp = m_ViewPort.lock())
+		{
+			vp->SetViewPortCursor(m_OrgCursor);
+			if (vp->m_PasteGridController == this)
+				vp->m_PasteGridController = nullptr;
+		}
 		m_OrgCursor = nullptr;
-		m_GridLayer->ClearPaste();
+		if (auto gl = GetGridLayer())
+			gl->ClearPaste();
  		base_type::Stop(); // !!! destroys this
 	}
 
 private:
-	std::shared_ptr<ViewPort>    m_ViewPort;
-	std::shared_ptr<GridLayer>   m_GridLayer;
+	// The ViewPort and the GridLayer (the target) are owned by the DataView's contents (make_shared_gr), so refer to them weakly:
+	// a shared_ptr made from their raw pointer would be a second owner that deletes them.
+	std::shared_ptr<GridLayer> GetGridLayer() const { return std::static_pointer_cast<GridLayer>(GetTargetObject().lock()); }
+
+	std::weak_ptr<ViewPort> m_ViewPort;
 	GridCoordPtr           m_GridCoords;
 	WeakPtr<SelValuesData> m_SelValues;
 	HCURSOR                m_OrgCursor = nullptr; friend class ViewPort;
@@ -1369,12 +1380,25 @@ private:
 void ViewPort::PasteGrid(SelValuesData* svd, GridLayer* gl)
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
+	dms_assert(!m_PasteGridController); // GridLayer::PasteSelValues cancelled it
 	SharedPtr<PasteGridController> pasteController = new PasteGridController(dv.get(), this, gl, gl->GetGridCoordInfo(this), svd);
 	dv->InsertController(pasteController.get());
 	pasteController->m_OrgCursor = SetViewPortCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_PAN)));
+	m_PasteGridController = pasteController.get();
 }
 
-#endif // _WIN32 (PasteGridController, PasteGrid)
+// A new paste replaces a pending floating paste: its controller would otherwise act on a PasteHandler that the new paste
+// replaces or clears, and restore the cursor out of turn.
+void ViewPort::CancelPasteGrid()
+{
+	if (!m_PasteGridController)
+		return;
+	SharedPtr<PasteGridController> pasteController = m_PasteGridController.get(); // keeps it alive while Stop removes it from the DataView
+	pasteController->Stop(); // restores the cursor, clears the paste and m_PasteGridController
+	dms_assert(!m_PasteGridController);
+}
+
+#endif // _WIN32 (PasteGridController, PasteGrid, CancelPasteGrid)
 
 void ViewPort::ScrollDevice(GPoint delta)
 {

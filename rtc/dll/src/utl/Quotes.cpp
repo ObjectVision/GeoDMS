@@ -822,7 +822,7 @@ RTC_CALL void DoubleQuote(SharedStr& ref, CharPtr b, CharPtr e)
 
 	auto ref_iter = ref.begin();
 	*ref_iter++ = '\"';
-	ref_iter = _DoubleUnQuoteMiddle(ref_iter, b, e);
+	ref_iter = _DoubleQuoteMiddle(ref_iter, b, e);
 	*ref_iter++ = '\"';
 	assert(ref.ssize() == SizeT(ref_iter - ref.begin()));
 	*ref_iter++ = '\0';

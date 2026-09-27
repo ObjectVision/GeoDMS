@@ -117,6 +117,10 @@ Consequences:
 - The same test applies as a push-time pre-prune (minCost[v] is nonincreasing during a run, so a label failing
   it at push time also fails at pop time). Pending labels are NOT compared against each other — correct,
   merely a somewhat larger queue; this mirrors the existing IsBetter-before-push / MarkFinal-after-pop split.
+- The same rule works offline on a finished table (#1281, `pareto_optimal(partition_rel, crit1, ..., critN)`
+  in clc/dll/src/ParetoOptimal.cpp): a sort on (partition, criteria, row id) reproduces the pop order, and the
+  sweep keeps one scalar per partition for two criteria and the accepted front for more. That is how a union of
+  fronts from several searches, or from several modes, is reduced to its front again without a k^2 self-join.
 
 Correctness conditions that must be made explicit in the implementation:
 
@@ -301,8 +305,14 @@ engine is ready for them).
   counting pass, across all origins. A naive v1 without quantization would be feasibility-limited on exactly
   the PBL workloads that motivated the issue — hence the posture above.
 - Fallback if userspace quantization proves insufficient in practice: an in-engine epsilon-dominance
-  parameter (bucketed minCost test). Reserve grammar space for it; do not build it in v1. Landmark/A*-style
-  goal direction is a further future speedup, out of scope here (cf. doc note in wiki Impedance-future.md).
+  parameter (bucketed minCost test). Reserved in v1; built as `pareto(imp2_epsilon)` in #1282 (20.21.0) once
+  NetworkModel_PBL's per-link quantization left 56 routes per OD pair: `Imp2Bucket` in Dijkstra.h compares
+  floor(imp2 / eps) instead of imp2 in both the per-node and the per-zone test, so a node keeps at most one
+  label per bucket, the first popped and therefore fastest one. The result is an approximation: each exact
+  front point has an accepted label at its node that is no slower and less than eps more expensive, and along
+  a route those deviations can add up. The table operator `pareto_optimal_eps` applies the same buckets
+  offline, to every criterion. Landmark/A*-style goal direction is a further future speedup, out of scope
+  here (cf. doc note in wiki Impedance-future.md).
 
 ### 5.6 v2 candidates, in order
 
@@ -310,7 +320,7 @@ engine is ready for them).
 2. Per-label StartPoint_rel (requires per-label origin tracking).
 3. Cost offsets at start/end points (engine-ready; argument plumbing only).
 4. limit() semantics for fronts (needs a semantic decision first).
-5. In-engine epsilon-dominance; landmark pruning.
+5. In-engine epsilon-dominance (done, #1282: `pareto(imp2_epsilon)`); landmark pruning.
 
 
 ## 6. Validation plan (for the implementation phase)

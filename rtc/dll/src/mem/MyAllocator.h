@@ -27,6 +27,7 @@ struct my_allocator<bit_value<N> >
 		assert(!i.nr_elem());
 		m_BlockAllocator.deallocate(i.data_begin(), info_t::calc_nr_blocks(sz));
 	}
+	static size_type capacity_for(size_type sz) { return sz; } // bit values keep the capacity asked for
 	size_type max_size() const
 	{
 		assert(m_BlockAllocator.max_size() > info_t::calc_nr_blocks( MAX_VALUE(std::size_t) ) );
@@ -98,6 +99,22 @@ struct my_allocator {
 	{
 		return SizeT(-1) / sizeof(T);
 	}
+
+	// The number of T that fill what a request for n takes from the stock (StockAllocationSize); a container that
+	// takes it as its capacity must also deallocate with it.
+	static SizeT capacity_for(SizeT n)
+	{
+		return StockAllocationSize(safe_size_n<nrbits_of_v<T>>(n)) / sizeof(T);
+	}
+
+#if defined(__cpp_lib_allocate_at_least)
+	// C++23 size feedback: MSVC's std::vector takes the count as its capacity, and deallocates with it.
+	std::allocation_result<T*, SizeT> allocate_at_least(SizeT n)
+	{
+		SizeT count = capacity_for(n);
+		return { allocate(count), count };
+	}
+#endif
 };
 
 //=======================================

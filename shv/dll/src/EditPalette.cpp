@@ -310,7 +310,7 @@ void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
 		bool hasZeroIssue = m && m_SortedUniqueValueCache.first[0].first <= 0 && m_SortedUniqueValueCache.first.back().first >= 0;
 		SubMenu subMenu(med.m_MenuData, "Classify "+m_ThemeAttr->GetDisplayName()); // SUBMENU
 		med.m_MenuData.push_back( MenuItem(SharedStr("Unique Values"),          make_MembFuncCmd(&EditPaletteControl::ClassifyUniqueValues ), this, (m<=maxK)   ?0:MFS_GRAYED) );
-		med.m_MenuData.push_back(MenuItem(SharedStr("Equal Counts non-zero"), make_MembFuncCmd(&EditPaletteControl::ClassifyEqualCount), this, (m > 1 && hasZeroIssue) ? 0 : MFS_GRAYED));
+		med.m_MenuData.push_back(MenuItem(SharedStr("Equal Counts non-zero"), make_MembFuncCmd(&EditPaletteControl::ClassifyNZEqualCount), this, (m > 1 && hasZeroIssue) ? 0 : MFS_GRAYED));
 		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Counts"),           make_MembFuncCmd(&EditPaletteControl::ClassifyEqualCount   ), this, (m>1)       ?0:MFS_GRAYED) );
 		med.m_MenuData.push_back(MenuItem(SharedStr("Equal Interval non-zero"), make_MembFuncCmd(&EditPaletteControl::ClassifyNZEqualInterval), this, (m > 1 && k > 1 && hasZeroIssue) ? 0 : MFS_GRAYED));
 		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Interval"),         make_MembFuncCmd(&EditPaletteControl::ClassifyEqualInterval), this, (m>1 && k>1)?0:MFS_GRAYED) );

@@ -487,15 +487,40 @@ auto treeitem_parent_mutable(py_geodms::MutableTreeItem self) -> py_geodms::Muta
 	return py_geodms::MutableTreeItem(make_shared_tree(const_cast<TreeItem*>(DMS_TreeItem_GetParent(self.item.get())), existing_obj{}));
 }
 
-auto treeitem_fail_reason(py_geodms::ConstTreeItem self) -> std::string {
-	treeitem_CheckNonNull_const(self);
-	auto handle = DMS_TreeItem_GetFailReasonAsIString(self.item.get());
+auto treeitem_fail_reason_impl(const TreeItem* self) -> std::string {
+	auto handle = DMS_TreeItem_GetFailReasonAsIString(self);
 	if (!handle)
 		return std::string();
 	CharPtr str = DMS_IString_AsCharPtr(handle);
 	std::string result = str ? str : "";
 	DMS_IString_Release(handle);
 	return result;
+}
+
+auto treeitem_fail_reason(py_geodms::ConstTreeItem self) -> std::string {
+	treeitem_CheckNonNull_const(self);
+	return treeitem_fail_reason_impl(self.item.get());
+}
+
+auto treeitem_fail_reason_mutable(py_geodms::MutableTreeItem self) -> std::string {
+	treeitem_CheckNonNull_mutable(self);
+	return treeitem_fail_reason_impl(self.item.get());
+}
+
+// Determine the meta info of an item without calculating it, which is what colours an item
+// red in the GUI tree-view. update() would read the primary data of the item and of all its
+// suppliers, which for a raster attribute is a full calculation; this resolves the
+// calculation rule, the units, the storage and the implied sub-items only, so a walk over a
+// whole configuration stays cheap. Returns false for a failed item, whose reason is then
+// available from fail_reason().
+auto treeitem_update_metainfo(py_geodms::ConstTreeItem self) -> bool {
+	treeitem_CheckNonNull_const(self);
+	return DMS_TreeItem_UpdateMetaInfo(self.item.get());
+}
+
+auto treeitem_update_metainfo_mutable(py_geodms::MutableTreeItem self) -> bool {
+	treeitem_CheckNonNull_mutable(self);
+	return DMS_TreeItem_UpdateMetaInfo(self.item.get());
 }
 
 //----------------------------------------------------------------------
@@ -704,6 +729,13 @@ PYBIND11_MODULE(geodms, m) {
 		.def("sub_items", &treeitem_subitems_const, "Return a list of all direct sub-items")
 		.def("parent", &treeitem_parent_const)
 		.def("fail_reason", &treeitem_fail_reason, "Failure reason string, or empty when the item is valid")
+		.def("update_metainfo", &treeitem_update_metainfo,
+			"Determine the meta info of this item without calculating it, as the GUI does before it colours an item red; "
+			"returns False when the item failed, whose reason is then given by fail_reason()")
+		.def("in_template", [](py_geodms::ConstTreeItem self) -> bool { treeitem_CheckNonNull_const(self); return self.item->InTemplate(); },
+			"True for a template and for every item inside one; such a body is inert and is not meant to be updated")
+		.def("is_template", [](py_geodms::ConstTreeItem self) -> bool { treeitem_CheckNonNull_const(self); return self.item->IsTemplate(); },
+			"True for the template item itself")
 		.def("update", [](py_geodms::ConstTreeItem self) { treeitem_CheckNonNull_const(self); DMS_TreeItem_Update(self.item.get()); }, "Force (re)calculation of this item and its suppliers")
 		.def("isDataItem", [](py_geodms::ConstTreeItem self) -> bool { return IsDataItem(self.item.get()); })
 		.def("asDataItem", [](py_geodms::ConstTreeItem self) -> py_geodms::DataItem { return AsDataItem(self.item.get()); })
@@ -721,6 +753,13 @@ PYBIND11_MODULE(geodms, m) {
 		.def("asConst", [](py_geodms::MutableTreeItem self) -> py_geodms::ConstTreeItem { return { make_shared_tree(self.item.get(), existing_obj{}) }; })
 		.def("sub_items", &treeitem_subitems_mutable, "Return a list of all direct sub-items")
 		.def("parent", &treeitem_parent_mutable)
+		.def("fail_reason", &treeitem_fail_reason_mutable, "Failure reason string, or empty when the item is valid")
+		.def("update_metainfo", &treeitem_update_metainfo_mutable,
+			"Determine the meta info of this item without calculating it; returns False when the item failed")
+		.def("in_template", [](py_geodms::MutableTreeItem self) -> bool { treeitem_CheckNonNull_mutable(self); return self.item->InTemplate(); },
+			"True for a template and for every item inside one")
+		.def("is_template", [](py_geodms::MutableTreeItem self) -> bool { treeitem_CheckNonNull_mutable(self); return self.item->IsTemplate(); },
+			"True for the template item itself")
 		.def("update", [](py_geodms::MutableTreeItem self) { treeitem_CheckNonNull_mutable(self); DMS_TreeItem_Update(self.item.get()); }, "Force (re)calculation of this item and its suppliers")
 		.def("set_expr", [](py_geodms::MutableTreeItem self, const std::string& str) { treeitem_CheckNonNull_mutable(self); self.item->SetExpr(SharedStr(str)); }, "Set the calculation expression of this item")
 		.def("set_descr", [](py_geodms::MutableTreeItem self, const std::string& str) { treeitem_CheckNonNull_mutable(self); self.item->SetDescr(SharedStr(str)); }, "Set the description property of this item")

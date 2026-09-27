@@ -178,8 +178,8 @@ find "${DST}/gdaldata" "${DST}/proj4data" -type f \
 find "${DST}/gdaldata" "${DST}/proj4data" -type d -empty -delete
 
 # DMS library scripts (referenced by user configurations at runtime) and the
-# two tiny demo configurations in examples/ (end-user content, also shipped
-# by the Windows installer — kept for flavor parity, ~8 KiB).
+# three small demo configurations in examples/ (end-user content, also shipped
+# by the Windows installer — kept for flavor parity, ~21 KiB).
 cp -r "${SRC}/library"    "${DST}/"
 cp -r "${SRC}/examples"   "${DST}/"
 

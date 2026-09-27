@@ -1,0 +1,93 @@
+// discrete_alloc, greedy_alloc and needy_alloc in the 11-argument form, with more regions than the atomic region type
+// can count. The atomic region unit is uint8, but RegA, the region unit of partitioning PA, has 300 elements, so the
+// unique regions -- the regions of all partitionings in a row, the 300 of RegA and then the one of RegB -- number 301,
+// and the region of RegB is unique region 300. Before 20.21.0 that count and those offsets were kept in the atomic
+// region type: 301 wrapped to 45, and the feasibility test that every regime runs first asserted on the link from
+// atomic region 2 to unique region 299 (Debug exit 3), or wrote out of bounds (Release).
+// Two claims of those high unique regions bind. The minimum claim of 2 for LuA in region 299 of RegA, which holds
+// only atomic region 2, gives both its land units LuA, although they prefer LuB; the minimum claim of 3 for LuB in
+// RegB then also takes land unit 3, which loses the least by it. discrete_alloc allocates that optimum. greedy_alloc
+// and needy_alloc, which rank the land units in the same order here, reserve the land units ranked highest for the
+// minimum claims, and so give land units 0 and 1 LuB.
+// discrete_alloc runs once more with the same claims over a uint16 atomic region unit, which lists a third
+// partitioning PC first: no land use type claims in its 70000 regions, but they are unique regions all the same, so
+// those of RegA start at 70000 and the region of RegB is unique region 70300. There the count wrapped at 65536.
+// Expected: exit 0 on /checks.
+container oper_alloc_partitioning_many_regions
+{
+	unit<uint8>  Parts   : nrofrows = 2 { attribute<string> name : ['PA', 'PB']; }
+	unit<uint8>  Parts16 : nrofrows = 3 { attribute<string> name : ['PC', 'PA', 'PB']; }
+	unit<uint8>  LuType : nrofrows = 2
+	{
+		attribute<string>  name           : ['LuA', 'LuB'];
+		attribute<Parts>   partitioning   : [0, 1];
+		attribute<Parts16> partitioning16 : [1, 2];
+	}
+
+	unit<uint16> RegA : nrofrows = 300
+	{
+		attribute<uint32> ordinal             := uint32(id(.));
+		attribute<uint32> expected_LuA        := uint32(ordinal == 0) * 2 + uint32(ordinal == 1) + uint32(ordinal == 299) * 2;
+		attribute<uint32> expected_greedy_LuA := uint32(ordinal == 1) * 2 + uint32(ordinal == 299) * 2;
+	}
+	unit<uint8>  RegB : nrofrows = 1;
+	unit<uint32> RegC : nrofrows = 70000;
+
+	unit<uint8>  AtomicRegion : nrofrows = 3
+	{
+		attribute<RegA> PA : [0, 1, 299];
+		attribute<RegB> PB : [0, 0, 0];
+	}
+	unit<uint16> AtomicRegion16 : nrofrows = 3
+	{
+		attribute<RegC> PC : [0, 1, 69999];
+		attribute<RegA> PA : [0, 1, 299];
+		attribute<RegB> PB : [0, 0, 0];
+	}
+
+	unit<uint32> Cell : nrofrows = 8
+	{
+		attribute<uint32>         raw             : [0, 0, 1, 1, 2, 2, 1, 0];
+		attribute<AtomicRegion>   ar              := value(uint8(raw), AtomicRegion);
+		attribute<AtomicRegion16> ar16            := value(uint16(raw), AtomicRegion16);
+		attribute<LuType>         expected        : [0, 0, 0, 1, 0, 0, 1, 1];
+		attribute<LuType>         expected_greedy : [1, 1, 0, 0, 0, 0, 1, 1];
+	}
+	container Suit
+	{
+		attribute<int32> LuA (Cell) : [9, 8, 7, 6, 5, 4, 3, 2];
+		attribute<int32> LuB (Cell) : [2, 3, 4, 5, 6, 7, 8, 9];
+	}
+	container CMin { attribute<uint32> LuA (RegA) := uint32(RegA/ordinal == 299) * 2; attribute<uint32> LuB (RegB) : [3]; }
+	container CMax { attribute<uint32> LuA (RegA) := const(4, RegA);                  attribute<uint32> LuB (RegB) : [8]; }
+	parameter<int32> thr := 0i;
+	container Feasible;
+
+	container da     := discrete_alloc(LuType/name, Cell, Suit, LuType/partitioning,   Parts/name,   AtomicRegion,   Cell/ar,   CMin, CMax, thr, Feasible);
+	container greedy := greedy_alloc  (LuType/name, Cell, Suit, LuType/partitioning,   Parts/name,   AtomicRegion,   Cell/ar,   CMin, CMax, thr, Feasible);
+	container needy  := needy_alloc   (LuType/name, Cell, Suit, LuType/partitioning,   Parts/name,   AtomicRegion,   Cell/ar,   CMin, CMax, thr, Feasible);
+	container da16   := discrete_alloc(LuType/name, Cell, Suit, LuType/partitioning16, Parts16/name, AtomicRegion16, Cell/ar16, CMin, CMax, thr, Feasible);
+
+	container checks
+	{
+		parameter<uint32> da_same     := sum(uint32(eq_or_both_null(da/landuse,     Cell/expected))),        IntegrityCheck = "da_same == 8";
+		parameter<uint32> greedy_same := sum(uint32(eq_or_both_null(greedy/landuse, Cell/expected_greedy))), IntegrityCheck = "greedy_same == 8";
+		parameter<uint32> needy_same  := sum(uint32(eq_or_both_null(needy/landuse,  Cell/expected_greedy))), IntegrityCheck = "needy_same == 8";
+		parameter<uint32> da16_same   := sum(uint32(eq_or_both_null(da16/landuse,   Cell/expected))),        IntegrityCheck = "da16_same == 8";
+
+		// the totals per region: LuA in every region of RegA, LuB in the one region of RegB
+		parameter<uint32> da_LuA     := sum(uint32(da/total_allocated/LuA     == RegA/expected_LuA)),        IntegrityCheck = "da_LuA == 300";
+		parameter<uint32> greedy_LuA := sum(uint32(greedy/total_allocated/LuA == RegA/expected_greedy_LuA)), IntegrityCheck = "greedy_LuA == 300";
+		parameter<uint32> needy_LuA  := sum(uint32(needy/total_allocated/LuA  == RegA/expected_greedy_LuA)), IntegrityCheck = "needy_LuA == 300";
+		parameter<uint32> da16_LuA   := sum(uint32(da16/total_allocated/LuA   == RegA/expected_LuA)),        IntegrityCheck = "da16_LuA == 300";
+		parameter<uint32> da_LuB     := sum(da/total_allocated/LuB),     IntegrityCheck = "da_LuB == 3";
+		parameter<uint32> greedy_LuB := sum(greedy/total_allocated/LuB), IntegrityCheck = "greedy_LuB == 4";
+		parameter<uint32> needy_LuB  := sum(needy/total_allocated/LuB),  IntegrityCheck = "needy_LuB == 4";
+		parameter<uint32> da16_LuB   := sum(da16/total_allocated/LuB),   IntegrityCheck = "da16_LuB == 3";
+
+		parameter<bool> da_flag     := da/statusFlag,     IntegrityCheck = "da_flag == true";
+		parameter<bool> greedy_flag := greedy/statusFlag, IntegrityCheck = "greedy_flag == true";
+		parameter<bool> needy_flag  := needy/statusFlag,  IntegrityCheck = "needy_flag == true";
+		parameter<bool> da16_flag   := da16/statusFlag,   IntegrityCheck = "da16_flag == true";
+	}
+}

@@ -12,6 +12,7 @@
 #include "RtcBase.h"
 #include "mem/AllocData.h"
 #include "mem/FixedAlloc.h"
+#include "mem/MyAllocator.h"
 #include "set/rangefuncs.h"
 
 //----------------------------------------------------------------------
@@ -31,22 +32,18 @@ struct managed_alloc_data : alloc_data<V>
 	{}
 
 	managed_alloc_data(size_type sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
-	{
-		if (!sz)
-			return;
+		: managed_alloc_data(sz, sz, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM)
+	{}
 
-		first = CreateMyAllocator<V>()->allocate(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		second = first + sz;
-		raw_awake_or_init(first, second, mustClear);
-		m_Capacity = sz;
-	}
-
+	// The capacity becomes all that the stock takes for the one asked for (StockAllocationSize), and clear()
+	// deallocates with it.
 	managed_alloc_data(size_type sz, size_type capacity, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		assert(sz <= capacity);
 		if (!capacity)
 			return;
 
+		capacity = my_allocator<V>::capacity_for(capacity);
 		first = CreateMyAllocator<V>()->allocate(capacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		second = first + sz;
 		raw_awake_or_init(first, second, mustClear);
@@ -59,6 +56,7 @@ struct managed_alloc_data : alloc_data<V>
 		if (!capacity)
 			return;
 
+		capacity = my_allocator<V>::capacity_for(capacity);
 		first = CreateMyAllocator<V>()->allocate(capacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 		second = raw_copy(first_, last_, first);
@@ -234,9 +232,12 @@ struct my_vector : managed_alloc_data<V>
 	void insert(const_iterator pos, const V& value MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		assert(pos >= this->first && pos <= this->second); // ensure the range is valid
+		SizeT index = pos - this->first; // grow can reallocate, which leaves pos dangling
+		V valueCopy(value); // value can be an element of this vector, which a reallocation or the move below changes
 		grow(1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		auto afterPos = raw_move_backward_unchecked(pos, this->cend(), this->end() + 1); // move elements to the right
-		new (--afterPos) V(value); // placement new to construct the object in place
+		iterator insertPos = this->first + index;
+		raw_move_backward(insertPos, this->second - 1, this->second); // move the elements from insertPos one to the right, last first as the ranges overlap; leaves *insertPos unconstructed
+		new (insertPos) V(std::move(valueCopy)); // placement new to construct the object in place
 	}
 
 	template <typename InIter>
@@ -260,14 +261,16 @@ struct my_vector : managed_alloc_data<V>
 
 	void push_back(const V& value MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		grow(1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		new (&this->back()) V(value); // placement new to construct the object in place
+		emplace_back(MG_DEBUG_ALLOCATOR_FIRST_PARAM value);
 	}
+	// args can refer to an element of this vector, as in v.push_back(v.front()); see emplace_back_reallocating
 	template <typename... Args>
 	void emplace_back(MG_DEBUG_ALLOCATOR_FIRST_ARG Args&& ...args)
 	{
-		grow(1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		new (&this->back()) V(std::forward<Args>(args)...); // placement new to construct the object in place
+		if (this->size() == this->m_Capacity)
+			return emplace_back_reallocating(MG_DEBUG_ALLOCATOR_FIRST_PARAM std::forward<Args>(args)...);
+		new (this->second) V(std::forward<Args>(args)...); // placement new to construct the object in place
+		++this->second; // after the construction, so that a constructor that throws leaves the vector as it was
 	}
 	void erase(const_iterator first, const_iterator last)
 	{
@@ -283,6 +286,22 @@ struct my_vector : managed_alloc_data<V>
 		--last; // get the last element's position
 		last->~V(); // explicitly call the destructor for the last element
 		this->second = last; // adjust the end pointer
+	}
+
+private:
+	// grows as grow does, but constructs the new element in the new storage before the elements move there, as args
+	// can refer to them and the move releases them; a constructor that throws leaves the vector as it was
+	template <typename... Args>
+	void emplace_back_reallocating(MG_DEBUG_ALLOCATOR_FIRST_ARG Args&& ...args)
+	{
+		SizeT oldSize = this->size();
+		SizeT newCapacity = oldSize + 1;
+		MakeMax<SizeT>(newCapacity, 2 * this->m_Capacity);
+		managed_alloc_data<V> newAlloc(0, newCapacity, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		new (newAlloc.first + oldSize) V(std::forward<Args>(args)...); // placement new to construct the object in place
+		newAlloc.second = raw_move(this->first, this->second, newAlloc.first) + 1;
+		this->second = this->first; // raw_move already destroyed the moved elements
+		this->swap(newAlloc);
 	}
 };
 

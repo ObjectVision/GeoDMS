@@ -74,6 +74,8 @@
 #include "vt/HeapElem.h"
 #include "ptr/OwningPtrSizedArray.h"
 
+#include <cmath>
+#include <type_traits>
 #include <utility>
 
 // *****************************************************************************
@@ -293,6 +295,31 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 };
 
 // *****************************************************************************
+// Imp2Bucket
+//   The bucket of a second-criterion value under epsilon-dominance (#1282): floor(x / eps)
+//   for eps > 0, x itself for eps == 0 (exact dominance). With a bucket width the dominance
+//   tests of BiCriteriaDijkstraHeap and BiNodeZoneConnector compare buckets instead of
+//   values: a label is accepted only when its imp2 lies in a strictly lower bucket than the
+//   cheapest label accepted so far, so a node keeps at most one label per bucket and its
+//   front is bounded by maxImp2 / eps. Which label of a bucket survives is decided by the
+//   pop order, the first and therefore fastest one, deterministically; every exact front
+//   point then has an accepted label at its node that is no slower and less than eps more
+//   expensive, though along a route such deviations can add up. A floating-point quotient
+//   within a millionth of a bucket width below an edge counts as the higher bucket, so that
+//   0.30 / 0.10 is bucket 3 and not 2.
+// *****************************************************************************
+template <typename ImpType>
+inline ImpType Imp2Bucket(ImpType x, ImpType eps)
+{
+	if (eps <= ImpType(0))
+		return x;
+	if constexpr (std::is_floating_point_v<ImpType>)
+		return std::floor(x / eps + ImpType(1e-6));
+	else
+		return x / eps;
+}
+
+// *****************************************************************************
 // BiCriteriaDijkstraHeap
 //   Label-setting heap for the bi-criteria (pareto) variant -- issue #856. The
 //   heap holds LABELS (imp, imp2, node), several of which may refer to the same
@@ -399,7 +426,8 @@ struct BiCriteriaDijkstraHeap
 	bool IsUndominated(NodeType v, ImpType d2) const
 	{
 		assert(v < m_NrV);
-		return IsStale(v) || d2 < m_MinImp2[v];
+		// epsilon-dominance (#1282): with m_Imp2Epsilon > 0 the buckets are compared, see Imp2Bucket
+		return IsStale(v) || Imp2Bucket(d2, m_Imp2Epsilon) < Imp2Bucket(m_MinImp2[v], m_Imp2Epsilon);
 	}
 
 	// Attempt to push label (d, d2) for node v; prunes on both cutoffs and on dominance.
@@ -441,6 +469,7 @@ struct BiCriteriaDijkstraHeap
 
 	ImpType m_MaxImp  = MaxValue<ImpType>(); // cutoff on the first criterion: cut(OrgZone_max_imp), required in pareto mode
 	ImpType m_MaxImp2 = MaxValue<ImpType>(); // optional cutoff on the second criterion: pareto(OrgZone_max_imp2)
+	ImpType m_Imp2Epsilon = ImpType(0);      // optional bucket width of the second criterion: pareto(imp2_epsilon), 0 = exact dominance (#1282)
 
 	OwningPtrSizedArray<ImpType>  m_MinImp2;      // min imp2 over ACCEPTED labels, per node
 

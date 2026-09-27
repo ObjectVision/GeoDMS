@@ -1,0 +1,187 @@
+// ClassifyNonzeroEqualInterval treats 0 as ClassifyNonzeroJenksFisher does: 0 is a compulsory break, with a class of its own when
+// there is room for one, and the negative and the positive values each get classes of equal width from their own minimum to their own
+// maximum. The classes are split over the two sides so that the widest class is as narrow as possible; on a tie the positive values
+// get the extra class. Data that straddles 0 without containing it also gets a class at 0 when there are three or more classes
+// (#1146); that class holds no values. Two classes on negative values, a 0 and positive values give [minimum, 0]. One class, and only
+// positive or only negative values, give ClassifyEqualInterval's breaks.
+// Before, only negative values read one past the end of the value table (Debug: exit 3, assertion i < size() in iterrange.h); the
+// positive values got at least two classes, so block S gave [-100, 0, 1, 1.5] with 4 classes; a tie gave the negative values the
+// extra class; data without a 0 got no class at 0; and a 0 with positive values gave [0, maximum / 2] with 2 classes.
+// Expected: exit 0 on /checks.
+container oper_classify_nonzero_equal_interval
+{
+	unit<uint8> cls1 : nrofrows = 1;
+	unit<uint8> cls2 : nrofrows = 2;
+	unit<uint8> cls3 : nrofrows = 3;
+	unit<uint8> cls4 : nrofrows = 4;
+	unit<uint8> cls5 : nrofrows = 5;
+	unit<uint8> cls6 : nrofrows = 6;
+
+	//	=========================================	only negative values: ClassifyEqualInterval's breaks
+
+	unit<uint32> N : nrofrows = 6;
+	attribute<int32>   vneg  (N) : [-6, -5, -4, -3, -2, -1];
+	attribute<float64> vnegf (N) : [-6.0, -5.0, -4.0, -3.0, -2.0, -1.0];
+
+	attribute<int32>   nzN3  (cls3) := ClassifyNonzeroEqualInterval(vneg, cls3);
+	attribute<int32>   eiN3  (cls3) := ClassifyEqualInterval(vneg, cls3);
+	attribute<float64> nzN3f (cls3) := ClassifyNonzeroEqualInterval(vnegf, cls3);
+	attribute<float64> nzN2f (cls2) := ClassifyNonzeroEqualInterval(vnegf, cls2);
+
+	attribute<float64> nzN3f_expected (cls3) : [-6.0, -3.5, -1.0];
+	attribute<float64> nzN2f_expected (cls2) : [-6.0, -1.0];
+
+	unit<uint32> Nc : nrofrows = 3;
+	attribute<float64> ncv   (Nc)   : [-6.0, -4.0, -1.0];
+	attribute<uint64>  ncc   (Nc)   : [2, 5, 1];
+	attribute<float64> nzNc3 (cls3) := ClassifyNonzeroEqualInterval(ncv, ncc, cls3);
+
+	//	=========================================	negative values and a 0: 0 gets a class of its own, with 2 classes too
+
+	unit<uint32> Z : nrofrows = 8;
+	attribute<float64> vnz (Z) : [-7.0, -6.0, -5.0, -4.0, -3.0, -2.0, -1.0, 0.0];
+
+	attribute<float64> nzZ3 (cls3) := ClassifyNonzeroEqualInterval(vnz, cls3);
+	attribute<float64> nzZ2 (cls2) := ClassifyNonzeroEqualInterval(vnz, cls2);
+
+	attribute<float64> nzZ3_expected (cls3) : [-7.0, -4.0, 0.0];
+	attribute<float64> nzZ2_expected (cls2) : [-7.0, 0.0];
+
+	//	=========================================	a 0 and positive values: 0 gets a class of its own, with 2 classes too
+
+	unit<uint32> P : nrofrows = 8;
+	attribute<float64> vpz (P) : [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+
+	attribute<float64> nzP3   (cls3) := ClassifyNonzeroEqualInterval(vpz, cls3);
+	attribute<float64> nzP2   (cls2) := ClassifyNonzeroEqualInterval(vpz, cls2);
+	attribute<cls2>    classP (P)    := classify(vpz, nzP2);
+
+	attribute<float64> nzP3_expected   (cls3) : [0.0, 1.0, 4.0];
+	attribute<float64> nzP2_expected   (cls2) : [0.0, 1.0];
+	attribute<cls2>    classP_expected (P)    : [0, 1, 1, 1, 1, 1, 1, 1];
+
+	//	=========================================	the split: one negative class of width 50 was next to positive classes of width 0.5
+
+	unit<uint32> S : nrofrows = 5;
+	attribute<float64> vs (S) : [-100.0, -50.0, 0.0, 1.0, 2.0];
+
+	attribute<float64> nzS4   (cls4) := ClassifyNonzeroEqualInterval(vs, cls4);
+	attribute<cls4>    classS (S)    := classify(vs, nzS4);
+	attribute<float64> nzS6   (cls6) := ClassifyNonzeroEqualInterval(vs, cls6);
+
+	attribute<float64> nzS4_expected   (cls4) : [-100.0, -75.0, 0.0, 1.0];
+	attribute<cls4>    classS_expected (S)    : [0, 1, 2, 3, 3];
+	attribute<float64> nzS6_expected   (cls6) : [-100.0, -87.5, -75.0, -62.5, 0.0, 1.0];
+
+	unit<uint32> Sc : nrofrows = 5;
+	attribute<float64> scv   (Sc)   : [-100.0, -50.0, 0.0, 1.0, 2.0];
+	attribute<uint64>  scc   (Sc)   : [1, 4, 2, 3, 5];
+	attribute<float64> nzSc4 (cls4) := ClassifyNonzeroEqualInterval(scv, scc, cls4);
+
+	// the mirror image: the positive values get 2 classes, as they did before
+	unit<uint32> Sm : nrofrows = 5;
+	attribute<float64> vsm (Sm) : [-2.0, -1.0, 0.0, 50.0, 100.0];
+
+	attribute<float64> nzSm4          (cls4) := ClassifyNonzeroEqualInterval(vsm, cls4);
+	attribute<float64> nzSm4_expected (cls4) : [-2.0, 0.0, 50.0, 75.0];
+
+	//	=========================================	a tie: widths 6 and 6 in 5 classes, of which the positive values get 3
+
+	unit<uint32> T : nrofrows = 5;
+	attribute<float64> vt (T) : [-7.0, -1.0, 0.0, 1.0, 7.0];
+
+	attribute<float64> nzT6          (cls6) := ClassifyNonzeroEqualInterval(vt, cls6);
+	attribute<float64> nzT6_expected (cls6) : [-7.0, -4.0, 0.0, 1.0, 3.0, 5.0];
+
+	//	=========================================	no 0 in the data: a class at 0 from 3 classes on, holding no values (#1146)
+
+	unit<uint32> H : nrofrows = 5;
+	attribute<float64> vh (H) : [-2.5, -1.5, 0.5, 1.5, 2.5];
+
+	attribute<float64> nzH3   (cls3) := ClassifyNonzeroEqualInterval(vh, cls3);
+	attribute<cls3>    classH (H)    := classify(vh, nzH3);
+	attribute<float64> nzH2   (cls2) := ClassifyNonzeroEqualInterval(vh, cls2);
+
+	attribute<float64> nzH3_expected   (cls3) : [-2.5, 0.0, 0.5];
+	attribute<cls3>    classH_expected (H)    : [0, 0, 2, 2, 2];
+	attribute<float64> nzH2_expected   (cls2) : [-2.5, 0.5];
+
+	unit<uint32> Hi : nrofrows = 5;
+	attribute<int32> vhi (Hi) : [-30, -10, 10, 40, 70];
+
+	attribute<int32> nzHi5          (cls5) := ClassifyNonzeroEqualInterval(vhi, cls5);
+	attribute<int32> nzHi5_expected (cls5) : [-30, 0, 10, 30, 50];
+
+	unit<uint32> Hs : nrofrows = 2;
+	attribute<int32> vhs (Hs) : [-5, 3];
+
+	attribute<int32> nzHs3          (cls3) := ClassifyNonzeroEqualInterval(vhs, cls3);
+	attribute<int32> nzHs3_expected (cls3) : [-5, 0, 3];
+
+	//	=========================================	2 classes on negative values, a 0 and positive values: 0 shares the second class with the positive values
+
+	unit<uint32> K : nrofrows = 5;
+	attribute<int32> vk (K) : [-2, -1, 0, 1, 2];
+
+	attribute<int32> nzK2   (cls2) := ClassifyNonzeroEqualInterval(vk, cls2);
+	attribute<cls2>  classK (K)    := classify(vk, nzK2);
+	attribute<int32> nzK1   (cls1) := ClassifyNonzeroEqualInterval(vk, cls1);
+
+	attribute<int32> nzK2_expected   (cls2) : [-2, 0];
+	attribute<cls2>  classK_expected (K)    : [0, 0, 1, 1, 1];
+
+	//	=========================================	the operator suite's data: a 0, a null and positive values
+
+	unit<uint32> D : nrofrows = 15;
+	attribute<uint32> vd (D) : [550, 1025, 300, 200, 0, null, 300, 2, 20, 55, 860, 1025, 1025, 100, 750];
+
+	attribute<uint32> nzD4          (cls4) := ClassifyNonzeroEqualInterval(vd, cls4);
+	attribute<uint32> nzD4_expected (cls4) : [0, 2, 343, 684];
+
+	//	=========================================	only zeros
+
+	unit<uint32> O : nrofrows = 3;
+	attribute<int32> vo (O) : [0, 0, 0];
+
+	attribute<int32> nzO3 (cls3) := ClassifyNonzeroEqualInterval(vo, cls3);
+	attribute<int32> nzO2 (cls2) := ClassifyNonzeroEqualInterval(vo, cls2);
+
+	container checks
+	{
+		parameter<bool>   okN3     := all(nzN3 == eiN3),                  IntegrityCheck = "okN3 == true";
+		parameter<bool>   okN3f    := all(nzN3f == nzN3f_expected),       IntegrityCheck = "okN3f == true";
+		parameter<bool>   okN2f    := all(nzN2f == nzN2f_expected),       IntegrityCheck = "okN2f == true";
+		parameter<bool>   okNc3    := all(nzNc3 == nzN3f_expected),       IntegrityCheck = "okNc3 == true";
+
+		parameter<bool>   okZ3     := all(nzZ3 == nzZ3_expected),         IntegrityCheck = "okZ3 == true";
+		parameter<bool>   okZ2     := all(nzZ2 == nzZ2_expected),         IntegrityCheck = "okZ2 == true";
+
+		parameter<bool>   okP3     := all(nzP3 == nzP3_expected),         IntegrityCheck = "okP3 == true";
+		parameter<bool>   okP2     := all(nzP2 == nzP2_expected),         IntegrityCheck = "okP2 == true";
+		parameter<bool>   okClassP := all(classP == classP_expected),     IntegrityCheck = "okClassP == true";
+
+		parameter<bool>   okS4     := all(nzS4 == nzS4_expected),         IntegrityCheck = "okS4 == true";
+		parameter<bool>   okClassS := all(classS == classS_expected),     IntegrityCheck = "okClassS == true";
+		parameter<bool>   okS6     := all(nzS6 == nzS6_expected),         IntegrityCheck = "okS6 == true";
+		parameter<bool>   okSc4    := all(nzSc4 == nzS4_expected),        IntegrityCheck = "okSc4 == true";
+		parameter<bool>   okSm4    := all(nzSm4 == nzSm4_expected),       IntegrityCheck = "okSm4 == true";
+
+		parameter<bool>   okT6     := all(nzT6 == nzT6_expected),         IntegrityCheck = "okT6 == true";
+
+		parameter<bool>   okH3     := all(nzH3 == nzH3_expected),         IntegrityCheck = "okH3 == true";
+		parameter<bool>   okClassH := all(classH == classH_expected),     IntegrityCheck = "okClassH == true";
+		parameter<bool>   okH2     := all(nzH2 == nzH2_expected),         IntegrityCheck = "okH2 == true";
+		parameter<bool>   okHi5    := all(nzHi5 == nzHi5_expected),       IntegrityCheck = "okHi5 == true";
+		parameter<bool>   okHs3    := all(nzHs3 == nzHs3_expected),       IntegrityCheck = "okHs3 == true";
+
+		parameter<bool>   okK2     := all(nzK2 == nzK2_expected),         IntegrityCheck = "okK2 == true";
+		parameter<bool>   okClassK := all(classK == classK_expected),     IntegrityCheck = "okClassK == true";
+		parameter<int32>  minK1    := min(nzK1),                          IntegrityCheck = "minK1 == -2";
+
+		parameter<bool>   okD4     := all(nzD4 == nzD4_expected),         IntegrityCheck = "okD4 == true";
+
+		parameter<int32>  minO3    := min(nzO3),                          IntegrityCheck = "minO3 == int32(0)";
+		parameter<int32>  maxO3    := max(nzO3),                          IntegrityCheck = "maxO3 == int32(0)";
+		parameter<int32>  maxO2    := max(nzO2),                          IntegrityCheck = "maxO2 == int32(0)";
+	}
+}

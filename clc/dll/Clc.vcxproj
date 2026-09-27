@@ -80,6 +80,7 @@
     <ClCompile Include="src\Lookup_pntseq.cpp" />
     <ClCompile Include="src\Modus.cpp" />
     <ClCompile Include="src\Overlay.cpp" />
+    <ClCompile Include="src\ParetoOptimal.cpp" />
     <ClCompile Include="src\PCount.cpp" />
     <ClCompile Include="src\PhaseContainer.cpp" />
     <ClCompile Include="src\Random.cpp" />

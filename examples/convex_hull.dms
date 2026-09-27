@@ -1,0 +1,173 @@
+//////////////////////////////////////////////////////////////////////////////
+// Convex hull of polygons with one ring each, found by repeatedly dropping
+// the corners where a ring turns inward.
+//
+// The template Simplify below is the script of the wiki page
+//   https://github.com/ObjectVision/GeoDMS/wiki/convex-hull-example-script
+// Each iteration takes the points of every ring and computes, from a point's
+// predecessor and successor, the sign of the cross product det: negative
+// where the ring turns right, zero where it goes straight on, positive where
+// it turns left. In a clockwise ring, the GeoDMS order for an exterior ring,
+// a left turn is a reflex corner, a dent in the shape, and the iteration
+// drops those points, which fills the dent. Dropping points can turn a
+// neighbour into a reflex corner, as the bump in the third shape below
+// shows, so the step is repeated: Simplify(Shapes, 50) runs 50 iterations,
+// many more than these shapes need. The points that remain form the convex
+// hull, including points that lie on a straight part of it.
+//
+// Limits: one ring per polygon, no holes, clockwise order; a counter-
+// clockwise ring would lose its convex corners instead. Dropping a corner
+// cuts straight across, so a ring that winds back into the triangle it cuts
+// off, such as a spiral, can end up crossing itself.
+//
+// Run headless with:
+//   GeoDmsRun.exe C:\...\examples\convex_hull.dms /checks
+// or open it in the GeoDMS GUI and view Shapes/geometry_rd and
+// Simplified/MakeFinal/convex_hull in one map view.
+//////////////////////////////////////////////////////////////////////////////
+
+container convex_hull_example
+{
+	// ------------------------------------------------------------------ data
+
+	// The script declares its points in geometries/rdc. Any fpoint unit will
+	// do; this one is a plain plane in metres, without a SpatialReference.
+	container geometries
+	{
+		unit<fpoint> rdc;
+	}
+
+	// Three rings, each clockwise and closed, i.e. ending at its first point:
+	//   0  a 10 x 10 square with a dent in its top edge
+	//   1  an L shape
+	//   2  a 10 x 10 square with a notch in its top edge and a bump inside the
+	//      notch. The bump becomes a reflex corner only once the two corners of
+	//      the notch are dropped, so this ring needs a second iteration.
+	unit<uint32> Shapes : nrofrows = 3
+	{
+		attribute<string>         Label : ['dented square', 'L shape', 'notch with a bump'];
+		attribute<geometries/rdc> geometry_rd (poly) := points2polygon(RingPoints/point, RingPoints/shape_rel);
+	}
+
+	unit<uint32> RingPoints : nrofrows = 23
+	{
+		attribute<Shapes>  shape_rel : [ 0,  0, 0,  0,  0, 0,   1,  1,  1,  1,  1,  1,  1,   2,  2,  2,  2,  2,  2,  2,  2,  2,  2];
+		attribute<float32> x         : [ 0,  0, 5, 10, 10, 0,  20, 20, 30, 30, 40, 40, 20,  50, 50, 53, 54, 55, 56, 57, 60, 60, 50];
+		attribute<float32> y         : [ 0, 10, 6, 10,  0, 0,   0, 20, 20, 10, 10,  0,  0,   0, 10, 10,  6,  7,  6, 10, 10,  0,  0];
+		attribute<geometries/rdc> point := point_xy(x, y, geometries/rdc);
+	}
+
+	// -------------------------------------------------------------- the hull
+
+	container Simplified := Simplify(Shapes, 50);  // domain and number of iterations
+
+	template Simplify
+	{
+	   // begin case parameters
+	   unit<uint32> iter_domain;
+	   parameter<uint32> nrIterations;
+	   // end case parameters
+
+	   unit<uint32> iter := range(uint32, 0, nrIterations)
+	   {
+	      attribute<string> name     := 'I' + string(id(.));
+	      attribute<string> PrevName := MakeDefined(name[sub_or_null(id(.), 1)], 'StartingState');
+	   }
+
+	   container StartingState
+	   {
+	      unit<uint32> NextValue := sequence2points(iter_domain/geometry_rd);
+	   }
+
+	   container Iters     := for_each_ne(iter/name, 'IterT('+iter/PrevName+', iter_domain)');
+	   container LastIter  := =last('Iters/'+iter/name);
+
+	  template IterT
+	  {
+	       //  begin case parameters
+	       container PrevIterator;
+	       unit<uint32> domain;
+	       //  end case parameters
+
+	       unit<uint32>  PrevValue   := PrevIterator/NextValue;
+	       container     ConvexHullT := MakeConvexHullT(domain, PrevValue);
+	       unit<uint32>  NextValue   := ConvexHullT/sequence/Convex_hull_points;
+	  }
+
+	  container MakeFinal
+	   {
+	      unit <uint32> domain_with_endpoints := union_unit(LastIter/NextValue, iter_domain)
+	      {
+	         attribute<geometries/rdc> point :=
+	           union_data(., LastIter/NextValue/point, first(LastIter/NextValue/point, LastIter/NextValue/sequence_rel));
+	         attribute<uint32>         sequence_rel := union_data(., LastIter/NextValue/sequence_rel, id(iter_domain));
+	      }
+	      attribute<geometries/rdc> convex_hull (iter_domain, poly) :=
+	         points2polygon(domain_with_endpoints/point, domain_with_endpoints/sequence_rel);
+	    }
+
+	  template MakeConvexHullT
+	   {
+	       //  begin case parameters
+	        unit<uint32> domain;
+	        unit<uint32> seq;
+	       //  end case parameters
+
+	        unit<uint32> sequence := seq
+	        {
+	           attribute<geometries/rdc>  point              := seq/point;
+	           attribute<uint32>          sequence_rel       := seq/sequence_rel;
+
+	           attribute<uint32>          min_index (domain) := min_index(id(.), sequence_rel);
+	           attribute<uint32>          max_index (domain) := max_index(id(.), sequence_rel);
+
+	           attribute<bool>            IsFirst  := id(.) == min_index[sequence_rel];
+	           attribute<bool>            IsLast   := id(.) == max_index[sequence_rel];
+	           attribute<uint32>          prev_id  := IsFirst ? rjoin(sequence_rel, id(domain), max_index) : sub_or_null(id(.), 1);
+	           attribute<uint32>          next_id  := IsLast  ? rjoin(sequence_rel, id(domain), min_index) : id(.)+1;
+	           attribute<geometries/rdc>  A        := point[prev_id];
+	           attribute<geometries/rdc>  B        := point;
+	           attribute<geometries/rdc>  C        := point[next_id];
+	           attribute<geometries/rdc>  p        := B - A;
+	           attribute<geometries/rdc>  q        := C - B;
+
+	           attribute<float32>         Px       := pointcol(p);
+	           attribute<float32>         Py       := pointrow(p);
+	           attribute<float32>         Qx       := pointcol(q);
+	           attribute<float32>         Qy       := pointrow(q);
+
+	           attribute<float32>         det      := Px*Qy - Py*Qx;
+
+	           unit<uint32> Convex_hull_points :=
+	              select_with_org_rel(det <= 0f && (point != rjoin(prev_id, id(.), point)))
+	           {
+	              attribute<geometries/rdc> point        := ../point[org_rel];
+	              attribute<uint32>         sequence_rel := ../sequence_rel[org_rel];
+	           }
+	      }
+	   }
+	}
+
+	// ----------------------------------------------------------------- checks
+	//
+	// Per shape: the number of points of the hull, the closing point included,
+	// and the areas before and after. A positive area also confirms that the
+	// rings are clockwise. Filling the dents adds 20, 50 and 11 square metres.
+
+	container checks
+	{
+		unit<uint32> HullPoints := sequence2points(Simplified/MakeFinal/convex_hull);
+
+		attribute<uint32>  nr_hull_points (Shapes) := pcount(HullPoints/sequence_rel);
+		attribute<float32> shape_area     (Shapes) := area(Shapes/geometry_rd, float32);
+		attribute<float32> hull_area      (Shapes) := area(Simplified/MakeFinal/convex_hull, float32);
+
+		attribute<uint32>  expected_nr_hull_points (Shapes) : [  5,   6,   7];
+		attribute<float32> expected_shape_area     (Shapes) : [ 80, 300,  89];
+		attribute<float32> expected_hull_area      (Shapes) : [100, 350, 100];
+
+		parameter<bool> nr_hull_points_ok := all(nr_hull_points == expected_nr_hull_points), IntegrityCheck = "nr_hull_points_ok == true";
+		parameter<bool> shape_area_ok     := all(shape_area == expected_shape_area),         IntegrityCheck = "shape_area_ok == true";
+		parameter<bool> hull_area_ok      := all(hull_area == expected_hull_area),           IntegrityCheck = "hull_area_ok == true";
+	}
+}
