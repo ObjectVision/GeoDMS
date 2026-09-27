@@ -3309,20 +3309,33 @@ struct ClaimScaler: std::vector<claim_range>
 	}
 };
 
+// A land unit's atomic region must lie in the atomic region unit, so it cannot be null either. Nothing
+// checks that before the allocation: PreparePartitionings counts the atomic region sizes with pcount,
+// which skips a null or out of range value without a word. So each regime checks the atomic region of
+// every land unit itself, before it indexes the claims with it: the hitchcock regime while counting them
+// per step (IncrementAtomicRegionCount), greedy and needy while ranking the land units (SolveGreedy).
+template <typename AR>
+void CheckAtomicRegionID(const regions_info_t<AR>& regionInfo, AR ar)
+{
+	if (ar >= regionInfo.GetNrAtomicRegions())
+		regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
+				"Value {}{} out of range of valid Atomic Regions"
+			,	ar
+			,	IsDefined(ar) ? "" : " (a.k.a. null-value)"
+		);
+}
+
 template <typename AR>
 void IncrementAtomicRegionCount(std::vector<claim_type>& atomicRegionCount, const regions_info_t<AR>& regionInfo, land_unit_id i, land_unit_id e)
 {
+	assert(atomicRegionCount.size() == regionInfo.GetNrAtomicRegions());
+
 	// count per ar with stepSize
 	for (; i < e; regionInfo.GetNextPermutationValue(), ++i)
 	{
 		assert(regionInfo.m_CurrPI < regionInfo.m_N);
 		AR ar = regionInfo.GetAtomicRegionID(regionInfo.m_CurrPI);
-		if (ar >= atomicRegionCount.size())
-			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
-					"Value {}{} out of range of valid Atomic Regions"
-				,	ar
-				,	IsDefined(ar) ? "" : " (a.k.a. null-value)"
-			);
+		CheckAtomicRegionID(regionInfo, ar);
 		++atomicRegionCount[ar];
 	}
 	assert(regionInfo.m_CurrPI >= regionInfo.m_N);
@@ -3403,6 +3416,9 @@ void Solve(htp_info_t<S, P, AR, AT>& htpInfo, S threshold, AbstrDataObject* resP
 //   Ties are broken by land unit index, so a run is reproducible and independent of tiling.
 //   The ranking is NOT recomputed while allocating: a bid is what a land unit is worth, not a
 //   moving target, which is what makes the outcome easy to explain.
+//   The same pass checks the atomic region of every land unit, also of one below the threshold, as
+//   the hitchcock regime does: a null or a value outside the atomic region unit is an error, where
+//   the sweeps would otherwise index the claims with it (see CheckAtomicRegionID).
 //
 // SWEEP 1 (skipped when every minimum claim is 0)
 //   Reserve for the minimum claims: each land unit, in ranking order, goes to its best type whose
@@ -3450,7 +3466,7 @@ struct greedy_totals
 template <typename S, typename P, typename AR, typename AT>
 bool GreedyAllocateUnit(htp_info_t<S, P, AR, AT>& htpInfo, land_unit_id i, bool minPhase, Int64& totalSuitability)
 {
-	auto ar = htpInfo.GetAtomicRegionID(i);
+	auto ar = htpInfo.GetAtomicRegionID(i); // in range: SolveGreedy checked it while ranking
 	UInt32 K = htpInfo.GetK();
 
 	UInt32 winner = UNDEFINED_VALUE(UInt32);
@@ -3503,6 +3519,9 @@ greedy_totals SolveGreedy(htp_info_t<S, P, AR, AT>& htpInfo, S threshold, alloc_
 	for (land_unit_id i = 0; i != N; ++i)
 	{
 		htpInfo.m_ResultArray[i] = UNDEFINED_VALUE(AT); // also the "still free" marker for the sweeps
+
+		if constexpr (!std::is_same_v<AR, Void>)
+			CheckAtomicRegionID<AR>(htpInfo, htpInfo.GetAtomicRegionID(i)); // before anything is allocated, see RANKING above
 
 		bool any = false;
 		S best = thr, next = thr;
