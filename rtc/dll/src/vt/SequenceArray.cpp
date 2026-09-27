@@ -318,6 +318,9 @@ void sequence_array<T>::assign(const sequence_array<T>& src, data_size_type expe
 	MGD_CHECKDATA(IsLocked());
 	MGD_CHECKDATA(src.IsLocked());
 
+	if (&src == this) // reset below would free the data it then copies from (RTC-A03); expectedGrowth is only a capacity hint
+		return;
+
 	assert(src.calcActualDataSize() == src.actual_data_size());
 
 	reset(src.size(), src.actual_data_size() + expectedGrowth MG_DEBUG_ALLOCATOR_SRC_PARAM);
@@ -695,12 +698,27 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 		}
 		else
 		{
+			// The source may be another sequence of this array (sa[i] = sa[j]), so it lies in the pool that allocate_data
+			// replaces. Keep the old pool alive in oldData and copy from there, as allocateSequence does (RTC-A03).
+			const T* srcFirst  = std::addressof(*first);
+			const T* poolFirst = m_Values.size() ? std::addressof(*m_Values.begin()) : nullptr;
+			bool sourceInPool  = poolFirst
+				&& !std::less<const T*>()(srcFirst, poolFirst)
+				&&  std::less<const T*>()(srcFirst, poolFirst + m_Values.size());
+			data_size_type srcOffset = sourceInPool ? data_size_type(srcFirst - poolFirst) : 0;
+
 			abandon(seqPtr->first, seqPtr->second);
 			*seqPtr = seq_t();
 
 			auto newCapacity = Max<data_size_type>(m_ActualDataSize + 2 * oldSize, newSize);
-			bool dataWasMoved = allocate_data(newCapacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
-			appendValues(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			locked_sequence<T> oldData(false);
+			bool dataWasMoved = allocate_data(oldData, newCapacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			if (!sourceInPool)
+				appendValues(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			else if (dataWasMoved) // compacted into a new pool; the source still lies at its offset in the old one
+				appendValues(oldData.begin() + srcOffset, oldData.begin() + (srcOffset + newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			else // data_reserve of a pool that is not heap allocated may have relocated it, offsets intact; capacity is reserved, so this append does not relocate again
+				appendValues(m_Values.begin() + srcOffset, m_Values.begin() + (srcOffset + newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 			*seqPtr = seq_t(m_Values.size()-newSize, m_Values.size());
 
