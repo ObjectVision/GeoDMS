@@ -1606,10 +1606,14 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 			{
 				auto lineStringRef = lineStringData[i];
 				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
-				geos::simplify::DouglasPeuckerSimplifier simplifier(lineString.get());
-				simplifier.setDistanceTolerance(maxError);
-				auto simplifiedLinestring = simplifier.getResultGeometry();
-				geos_assign_multi_linestring(resData[i], simplifiedLinestring.get());
+				resData[i].clear();
+				if (lineString) // null for an empty or all-null arc
+				{
+					geos::simplify::DouglasPeuckerSimplifier simplifier(lineString.get());
+					simplifier.setDistanceTolerance(maxError);
+					auto simplifiedLinestring = simplifier.getResultGeometry();
+					geos_assign_multi_linestring(resData[i], simplifiedLinestring.get());
+				}
 			}
 			else
 			{
@@ -2103,7 +2107,8 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			{
 				auto lineStringRef = lineStringData[i];
 				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
-				auto bufferedLineString = lineString->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
+				// null for an empty or all-null arc, which buffers to nothing
+				auto bufferedLineString = lineString ? lineString->buffer(bufferDistance, (pointsPerCircle + 3) / 4) : nullptr;
 				geos_assign_geometry(resData[i], bufferedLineString.get());
 				// move to next geometry
 				if (++i == n)
@@ -2396,7 +2401,8 @@ struct GeosBufferOperator : public AbstrBufferOperator
 			{
 				auto lineStringRef = polyData[i];
 				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
-				auto bufferedLineString = lineString->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
+				// null for an empty or all-null arc, which buffers to nothing
+				auto bufferedLineString = lineString ? lineString->buffer(bufferDistance, (pointsPerCircle + 3) / 4) : nullptr;
 				geos_assign_geometry(resData[i], bufferedLineString.get());
 				break;
 			}

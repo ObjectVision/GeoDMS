@@ -1,0 +1,38 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A10: geos_buffer_linestring, geos_buffer on arcs
+// and geos_simplify_linestring dereferenced a null GEOS geometry for an empty or all-null arc (an
+// access violation), while their polygon twin skipped it. Empty arcs are routine: a null shape
+// record, a subset result. Such an arc now buffers and simplifies to nothing. Arc 0 is a line of
+// three points, arc 1 is empty. The domain is called Road: a domain named Arc collides with the arc
+// composition keyword. Expected: exit 0 on /checks.
+container oper_geos_empty_arc
+{
+	unit<uint32> Road: nrofrows = 2;
+	unit<uint32> ArcPoint: nrofrows = 3
+	{
+		attribute<float64> x: [0, 10, 20];
+		attribute<float64> y: [0, 5, 0];
+		attribute<dpoint>  point := point_xy(x, y, dpoint);
+		attribute<Road>    seq: [0, 0, 0];
+		attribute<uint32>  ord: [0, 1, 2];
+	}
+	attribute<dpoint> lines (Road, arc) := points2sequence(ArcPoint/point, ArcPoint/seq, ArcPoint/ord);
+
+	container checks
+	{
+		attribute<dpoint> buffered   (Road, polygon) := geos_buffer_linestring(lines, 1.0, 16b);
+		attribute<dpoint> buffered2  (Road, polygon) := geos_buffer(lines, 1.0, 16b);
+		attribute<dpoint> simplified (Road, arc)     := geos_simplify_linestring(lines, 0.5);
+
+		attribute<uint32>  nIn     (Road) := sequence_element_count(lines);
+		attribute<float64> aBuf    (Road) := area(buffered, float64);
+		attribute<float64> aBuf2   (Road) := area(buffered2, float64);
+		attribute<uint32>  nSimpl  (Road) := sequence_element_count(simplified);
+
+		parameter<bool> emptyIn     := nIn[1] == 0, IntegrityCheck = "emptyIn == true";
+		parameter<bool> bufFull     := aBuf[0] > 0.0, IntegrityCheck = "bufFull == true";
+		parameter<bool> bufEmpty    := aBuf[1] == 0.0, IntegrityCheck = "bufEmpty == true";
+		parameter<bool> buf2Empty   := aBuf2[1] == 0.0, IntegrityCheck = "buf2Empty == true";
+		parameter<bool> simplEmpty  := nSimpl[1] == 0, IntegrityCheck = "simplEmpty == true";
+		parameter<bool> simplFull   := nSimpl[0] >= 2, IntegrityCheck = "simplFull == true";
+	}
+}
