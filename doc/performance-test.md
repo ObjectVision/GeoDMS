@@ -1,5 +1,15 @@
 # Performance test request: 20.21.1 (a deferred check is counted and charged) against 20.21.0.m and 20.20.0.m
 
+> **A measurement log, not a description of the engine.** The deferral of commits and IntegrityChecks
+> that this document measures was removed on 2026-09-21 (a7127224f, #1259), and the ExplicitSuppliers
+> pre-start that replaced it for a few hours went again the same day (92eaa7150). Since GeoDMS 20.22.0
+> the walk updates an item's suppliers one after another, each completely before the next, as before
+> 20.20.0. `DeferScope`, `s_MaxDeferred`, the ledger of deferred work, the retry loop with its stall
+> guard, `StartSupplierProduction` and `StartProductionForCommit` no longer exist; where the text below
+> says "this tree" or "the build", it means the build of that day. What it still documents is why the
+> deferral went: the measured rounds, including t405.1 at 1:59 under the commit deferral against 4:27
+> without it, the one model the deferral did help.
+
 For the Claude Code session on OVSRV05. Written on 2026-09-20 on a Linux session that has neither
 the Windows toolchain nor the test data, from the OVSRV05 measurement below; the code is not compiled
 there, so the build is the first thing this request asks for.
