@@ -1,0 +1,40 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A05: the bp_ split and union variants with a
+// numeric attribute (_filtered, _inflated, _deflated) gather the whole domain before they store, and
+// then read that attribute for tile no_tile: GetTile(no_tile) indexed the tile array of a multi-tile
+// attribute out of bounds (an assertion in Debug, undefined behaviour in Release). The attribute is
+// now read whole. Twelve disjoint 5 x 5 squares on a domain of three tiles (3, 5 and 4 elements);
+// the per-element minimum area keeps the even squares (1) and drops the odd ones (100).
+// Expected: exit 0 on /checks.
+container oper_bp_numattr_tiled
+{
+	unit<uint32> base := range(uint32, 0, 12);
+	unit<uint32> tiles : nrofrows = 3
+	{
+		attribute<base> lb : [0, 3,  8];
+		attribute<base> ub : [3, 8, 12];
+	}
+	unit<uint32> dom := TiledUnit(tiles/lb, tiles/ub)
+	{
+		attribute<float64> minArea := uint32(id(.)) % 2 == 0 ? 1.0 : 100.0;
+	}
+
+	// square i is [10i, 10i+5] x [0, 5], clockwise as bp_ requires
+	unit<uint32> pts := range(uint32, 0, 60)
+	{
+		attribute<dom>    seq_rel := value(id(.) / 5, dom);
+		attribute<uint32> ord     := id(.) % 5;
+		attribute<int32>  x0      := int32(seq_rel) * 10i;
+		attribute<int32>  dx      := (ord == 2 || ord == 3) ? 5i : 0i;
+		attribute<int32>  dy      := (ord == 1 || ord == 2) ? 5i : 0i;
+		attribute<ipoint> pi      := point_xy(x0 + dx, dy, ipoint);
+	}
+	attribute<ipoint> geometry_i (dom, polygon) := points2polygon(pts/pi, pts/seq_rel, pts/ord);
+
+	container checks
+	{
+		unit<uint32> kept := bp_split_polygon_filtered(geometry_i, dom/minArea);
+
+		parameter<bool> count := #kept == 6, IntegrityCheck = "count == true";
+		parameter<bool> even  := all(uint32(kept/polygon_rel) % 2 == 0), IntegrityCheck = "even == true";
+	}
+}

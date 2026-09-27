@@ -988,7 +988,10 @@ protected:
 		assert(r);
 		assert(argNum);
 
-		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj().get() : nullptr, !argNum || argNum->HasVoidDomainGuarantee() ? 0 : t);
+		// On the delayed path of a split or union the tiles have been joined and t is no_tile: there
+		// is no single tile of an attribute to lock, and ProcessNumOperImpl reads it whole.
+		bool numIsParam = argNum->HasVoidDomainGuarantee();
+		ReadableTileLock readNum1Lock (numIsParam || t != no_tile ? argNum->GetCurrRefObj().get() : nullptr, numIsParam ? 0 : t);
 
 		switch (f) {
 			case PolygonFlags::F_Inflate1:
@@ -1139,7 +1142,9 @@ public:
 		auto geometryDataTowerResourcePtr = debug_cast<ResourceArray<PolygonSetTower>*>(r.get());
 		auto geometryDataTowerPtr = geometryDataTowerResourcePtr->begin();
 
-		auto argNumData = const_array_cast<NumType>(argNum)->GetTile(argNum->HasVoidDomainGuarantee() ? 0 : t);
+		// GetDataRead, not GetTile: on the delayed path t is no_tile and r spans the whole domain, so an
+		// attribute is read whole, as a shadow tile; GetTile(no_tile) indexed the tile array out of bounds
+		auto argNumData = const_array_cast<NumType>(argNum)->GetDataRead(argNum->HasVoidDomainGuarantee() ? 0 : t);
 
 		bool isParam = argNumData.size() == 1;
 		SizeT domainCount = r->size();
