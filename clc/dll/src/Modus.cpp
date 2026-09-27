@@ -490,7 +490,8 @@ void WeightedModusTot(const DataArray<V>* valuesTF, const AbstrDataItem* weightI
 						continue;
 					}
 				}
-			pairs[*valuesIter] += weight;
+			if constexpr (!is_bitvalue_v<scalar_of_t<V>>) // bit values all have a counter
+				pairs[*valuesIter] += weight;
 		}
 	}
 
@@ -577,26 +578,33 @@ void WeightedModusPartitioned(const DataArray<V>* valuesTF, const AbstrDataItem*
 						continue;
 					}
 				}
-			pairs[std::pair<SizeT, V>(pi, *valuesIter)] += weight;
+			if constexpr (!is_bitvalue_v<scalar_of_t<V>>) // bit values all have a counter
+				pairs[std::pair<SizeT, V>(pi, *valuesIter)] += weight;
 		}
 	}
 
 	modusFunc<V> aggrFunc;
-	MergedCounts<decltype(tableRange->first), Float64> mergeBuffer;
-	auto tableB = table.cbegin();
-	ForEachPartition(pCount, pairs.cbegin(), pairs.cend()
-	,	[](auto i) { return i->first.first; }
-	,	[&](SizeT p, auto groupBegin, auto groupEnd)
+	if constexpr (can_table_v<V>)
+		if (tableRange)
 		{
-			if constexpr (can_table_v<V>)
-				if (tableRange)
+			MergedCounts<decltype(tableRange->first), Float64> mergeBuffer; // inside: the range of a string is never completed
+			auto tableB = table.cbegin();
+			ForEachPartition(pCount, pairs.cbegin(), pairs.cend()
+			,	[](auto i) { return i->first.first; }
+			,	[&](SizeT p, auto groupBegin, auto groupEnd)
 				{
 					resBegin[p] = AggregateCounts<V>(aggrFunc, *tableRange, tableB + p * vCount, tableB + (p + 1) * vCount, groupBegin, groupEnd
 					,	[](auto i) { return i->first.second; }
 					,	mergeBuffer
 					);
-					return;
 				}
+			);
+			return;
+		}
+	ForEachPartition(pCount, pairs.cbegin(), pairs.cend()
+	,	[](auto i) { return i->first.first; }
+	,	[&](SizeT p, auto groupBegin, auto groupEnd)
+		{
 			resBegin[p] = aggrFunc(groupBegin, groupEnd
 			,	[](auto i) { return i->second; }
 			,	[](auto i) { return i->first.second; }
