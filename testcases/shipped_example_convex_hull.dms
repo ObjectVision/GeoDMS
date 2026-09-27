@@ -1,0 +1,11 @@
+// Coverage for the shipped examples/convex_hull.dms, like shipped_example_function.dms for
+// examples/function.dms (GeoDMS-Test #24: every shipped .dms is reached from a battery case).
+//
+// The example is self-contained and carries its own /checks container: three rings whose
+// convex hulls are known by hand, checked on the number of hull points and on the areas
+// before and after. Including the SHIPPED copy from %exeDir% is what makes the test cover
+// what the installer puts on a user's machine, rather than the source tree beside it.
+//
+// convex_hull.dms wraps everything in container convex_hull_example, and a config's top-level
+// container IS the desktop root, so its checks are reached as /checks -- the runner default.
+#include <%exeDir%/examples/convex_hull.dms>
