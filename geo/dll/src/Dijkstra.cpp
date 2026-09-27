@@ -474,6 +474,11 @@ struct NodeZoneConnector
 		return true;
 	}
 
+	// The result slot of end point y, or undefined when y did not claim its zone for this origin.
+	// Only the end point that committed a zone owns its slot: with endPoint(Node_rel, DstZone_rel)
+	// several end points feed one zone, and the dense regime used to hand the zone's slot to every
+	// reached one of them (multiplying Link_flow by the number of connectors per zone), while the
+	// sparse regime read the stale m_FoundResPerY slot of an earlier origin for the others.
 	ZoneType Y2Res(ZoneType y) const
 	{
 		dms_assert(IsDefined(m_CurrSrcZoneTick));
@@ -484,10 +489,14 @@ struct NodeZoneConnector
 		{
 			if (!IsDefined(m_ResImpPerDstZone[dstZone]))
 				return UNDEFINED_VALUE(ZoneType);
+			if (m_FoundYPerDstZone && m_FoundYPerDstZone[dstZone] != y) // present exactly when there is a Zone_rel
+				return UNDEFINED_VALUE(ZoneType);
 			return dstZone;
 		}
 
 		if (m_LastCommittedSrcZone[dstZone] != m_CurrSrcZoneTick)
+			return UNDEFINED_VALUE(ZoneType);
+		if (m_FoundYPerDstZone && m_FoundYPerDstZone[dstZone] != y) // written by the commit of this origin, see the stamp above
 			return UNDEFINED_VALUE(ZoneType);
 
 		dms_assert(m_FoundResPerY);
@@ -956,7 +965,7 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 		dms_assert(node < ni.nrV);
 		Float64 impedance = d_vj[node];
 		if (ni.endPoints.Impedances && !dImpIsAltBased)
-			impedance += ni.endPoints.Impedances[dstZone];
+			impedance += ni.endPoints.Impedances[nzc.DstZone2EndPoint(dstZone)]; // an attribute of the end points, not of the zones (the consumer GEO-32 left)
 
 		if (ip.orgMinImp) MakeMax(impedance, ip.orgMinImp[ip.orgMinImpHasVoidDomain ? 0 : orgZone]);
 		if (ip.dstMinImp) MakeMax(impedance, ip.dstMinImp[ip.dstMinImpHasVoidDomain ? 0 : dstZone]);
@@ -1090,6 +1099,22 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 	if (res.LinkFlow && totalPotential)
 	{
 		assert(dh.m_TraceBackDataPtr);
+
+		// Each tree of this origin is walked once, from its root. A start point that another start
+		// point of the zone reached more cheaply hangs in that one's tree and has a parent: walking
+		// up from it ran on through the rest of that tree, as did a second start point on the same
+		// node, and both added the potentials and the link flows of those nodes twice. UpdateALW
+		// skips the former likewise.
+		auto isFirstRootOfOrigin = [&](ZoneType startPointIndex, NodeType node) -> bool
+		{
+			if (tr.m_TreeNodes[node].GetParent())
+				return false;
+			for (ZoneType prev = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); prev != startPointIndex; prev = ni.orgZone_startPoint_inv.NextOrNone(prev))
+				if (LookupOrSame(ni.startPoints.Node_rel, prev) == node)
+					return false;
+			return true;
+		};
+
 		// Reuse nodeALW (dh.m_AltLinkWeight) as the per-node flow accumulator; its
 		// alt-impedance contents have already been consumed by UpdateALW and by the
 		// potential loop above. Zero only the nodes this origin's trees actually
@@ -1098,6 +1123,8 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 		for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
 		{
 			NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
+			if (!isFirstRootOfOrigin(startPointIndex, currNode))
+				continue;
 			treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
 
 			for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
@@ -1112,6 +1139,8 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 		for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
 		{
 			NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
+			if (!isFirstRootOfOrigin(startPointIndex, currNode))
+				continue;
 			treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
 
 			for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))

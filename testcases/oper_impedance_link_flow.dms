@@ -1,0 +1,81 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A07, GEO-A08 and GEO-A09, three defects of the
+// interaction results of impedance_matrix. Each check compares two specifications whose results
+// must be the same.
+//  - GEO-A07: the Link_flow walks ran once per start point of an origin zone, so two start points
+//    on one node (or one start point hanging in another's tree) added every flow twice.
+//  - GEO-A08: with endPoint(Node_rel, DstZone_rel), every reached end point of a zone received that
+//    zone's demand in the Link_flow walk, not only the end point that claimed the zone.
+//  - GEO-A09: the arrival impedance of an end point was looked up at the index of its destination
+//    zone, so D_i used another end point's impedance whenever the two numberings differ.
+// The network is the directed line 0 -> 1 -> 2 -> 3 with links of length 1.
+// Expected: exit 0 on /checks.
+container oper_impedance_link_flow
+{
+	unit<uint32> V: nrofrows = 4;
+	unit<uint32> Link: nrofrows = 3
+	{
+		attribute<float32> dist: [1, 1, 1];
+		attribute<V>       F1:   [0, 1, 2];
+		attribute<V>       F2:   [1, 2, 3];
+	}
+	unit<uint32> OrgZone: nrofrows = 1;
+	unit<uint32> DstZone1: nrofrows = 1;
+	unit<uint32> DstZone2: nrofrows = 2;
+
+	unit<uint32> Start1: nrofrows = 1 // one start point at node 0
+	{
+		attribute<V>       Node_rel:    [0];
+		attribute<OrgZone> OrgZone_rel: [0];
+	}
+	unit<uint32> Start2: nrofrows = 2 // two start points on node 0, in one origin zone
+	{
+		attribute<V>       Node_rel:    [0, 0];
+		attribute<OrgZone> OrgZone_rel: [0, 0];
+	}
+	unit<uint32> End1: nrofrows = 1 // one end point at node 2
+	{
+		attribute<V>        Node_rel:    [2];
+		attribute<float32>  impedance:   [0];
+		attribute<DstZone1> DstZone_rel: [0];
+	}
+	unit<uint32> End2: nrofrows = 2 // node 2 claims the zone; node 3 is reached later
+	{
+		attribute<V>        Node_rel:    [2, 3];
+		attribute<float32>  impedance:   [0, 0];
+		attribute<DstZone1> DstZone_rel: [0, 0];
+	}
+	unit<uint32> EndSame: nrofrows = 2 // end point i in zone i
+	{
+		attribute<V>        Node_rel:    [2, 3];
+		attribute<float32>  impedance:   [0, 100];
+		attribute<DstZone2> DstZone_rel: [0, 1];
+	}
+	unit<uint32> EndSwapped: nrofrows = 2 // the same end points, listed the other way around
+	{
+		attribute<V>        Node_rel:    [3, 2];
+		attribute<float32>  impedance:   [100, 0];
+		attribute<DstZone2> DstZone_rel: [1, 0];
+	}
+
+	parameter<String> spec := 'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,impedance,DstZone_rel);interaction(v_i,w_j,dist_decay):D_i,Link_flow;od:impedance';
+
+	unit<uint32> r11 := impedance_matrix(spec, Link/dist, Link/F1, Link/F2, Start1/Node_rel, Start1/OrgZone_rel, End1/Node_rel, End1/impedance, End1/DstZone_rel, 1f, 1f, 1f);
+	unit<uint32> r21 := impedance_matrix(spec, Link/dist, Link/F1, Link/F2, Start2/Node_rel, Start2/OrgZone_rel, End1/Node_rel, End1/impedance, End1/DstZone_rel, 1f, 1f, 1f);
+	unit<uint32> r12 := impedance_matrix(spec, Link/dist, Link/F1, Link/F2, Start1/Node_rel, Start1/OrgZone_rel, End2/Node_rel, End2/impedance, End2/DstZone_rel, 1f, 1f, 1f);
+	unit<uint32> rSame    := impedance_matrix(spec, Link/dist, Link/F1, Link/F2, Start1/Node_rel, Start1/OrgZone_rel, EndSame/Node_rel,    EndSame/impedance,    EndSame/DstZone_rel,    1f, 1f, 1f);
+	unit<uint32> rSwapped := impedance_matrix(spec, Link/dist, Link/F1, Link/F2, Start1/Node_rel, Start1/OrgZone_rel, EndSwapped/Node_rel, EndSwapped/impedance, EndSwapped/DstZone_rel, 1f, 1f, 1f);
+
+	container checks
+	{
+		attribute<float64> lf11 (Link) := float64(r11/Link_flow);
+		attribute<float64> lf21 (Link) := float64(r21/Link_flow);
+		attribute<float64> lf12 (Link) := float64(r12/Link_flow);
+		attribute<float64> diSame    (OrgZone) := float64(rSame/D_i);
+		attribute<float64> diSwapped (OrgZone) := float64(rSwapped/D_i);
+
+		parameter<bool> flowOnRoute    := lf11[0] > 0.0 && lf11[1] > 0.0 && lf11[2] == 0.0, IntegrityCheck = "flowOnRoute == true";
+		parameter<bool> twoStartPoints := max(abs(lf21 - lf11)) < 1e-6, IntegrityCheck = "twoStartPoints == true";
+		parameter<bool> twoEndPoints   := max(abs(lf12 - lf11)) < 1e-6, IntegrityCheck = "twoEndPoints == true";
+		parameter<bool> endImpedance   := abs(diSwapped[0] - diSame[0]) < 1e-6, IntegrityCheck = "endImpedance == true";
+	}
+}
