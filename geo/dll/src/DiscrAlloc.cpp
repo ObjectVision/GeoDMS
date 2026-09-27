@@ -236,8 +236,9 @@ template <typename S, typename P> struct minmax_traits<shadow_price<S, P> > : mi
 // Every addition and subtraction that produces a shadow price goes through the functions below,
 // and every one of them can throw. That is deliberate: an overflowed shadow price does not give a
 // slightly wrong allocation, it gives one whose optimality argument has silently stopped holding,
-// and CheckAllClaims will not necessarily notice. Since C++20 the wrap itself is defined
-// behaviour, so there is nothing for a sanitizer to catch either. See issue #1196.
+// and CheckAllClaims will not necessarily notice. Signed overflow is undefined behaviour, in C++20
+// as before (C++20 fixed the representation, not the arithmetic), so an unchecked sum may do anything,
+// not only wrap. See issue #1196.
 //
 // The two components overflow for different reasons and have different remedies, so the thrown
 // exception records which one it was:
@@ -553,7 +554,8 @@ struct priority_heap : private my_vec_t<land_unit_id>
 		{}
 
 		// Marginal cost of moving land unit i from src to dst (no shadow prices).
-		// Deliberately unchecked: this runs on the heap's hot path and only decides an ORDER.
+		// Deliberately unchecked: this runs on the heap's hot path and only decides an ORDER. Its operands are
+		// suitabilities, not shadow prices; an overflow here is undefined behaviour, not a defined wrap (GEO-A25).
 		// priority_heap::GetC above is the checked twin. See the note on the checked arithmetic.
 		S GetC(land_unit_id i) const
 		{
@@ -2390,9 +2392,10 @@ UInt32 FindMstDown(
 		bool atMax = targetClaim->AtMax();
 		if (atMax && targetClaim->m_Count < targetClaim->m_ClaimRange.second)
 		{
-			if (targetClaim->m_ShadowPrice + linkCost < minLinkCost)
+			auto candidateCost = CheckedAdd(targetClaim->m_ShadowPrice, linkCost); // checked, as every shadow price sum (GEO-A25, #1196)
+			if (candidateCost < minLinkCost)
 			{
-				minLinkCost = targetClaim->m_ShadowPrice + linkCost;
+				minLinkCost = candidateCost;
 				minLink     = currLink;
 			}
 		}
@@ -2489,9 +2492,10 @@ UInt32 FindMstUp(
 		if (atMin && sourceClaim->m_Count > sourceClaim->m_ClaimRange.first)
 		{
 			dms_assert(sourceClaim->m_ShadowPrice < price_type()); // else it wouldnt be AtMin
-			if (linkCost - sourceClaim->m_ShadowPrice < minLinkCost)
+			auto candidateCost = CheckedSub(linkCost, sourceClaim->m_ShadowPrice); // checked, as every shadow price difference (GEO-A25, #1196)
+			if (candidateCost < minLinkCost)
 			{
-				minLinkCost = linkCost - sourceClaim->m_ShadowPrice;
+				minLinkCost = candidateCost;
 				minLink     = currLink;
 			}
 		}
