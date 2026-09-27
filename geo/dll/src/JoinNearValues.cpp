@@ -19,6 +19,7 @@
 
 #include "vt/CheckedCalc.h"
 #include "geom/SpatialIndex.h"
+#include "geom/SpatialSearchBox.h"
 #include "mem/MyContainers.h"
 
 #include "ParallelTiles.h"
@@ -99,7 +100,6 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		auto nr_B = B->GetCount();
 		auto dist = GetTheCurrValue<DistType>(distRef);
 		auto sqrDist = CheckedMul<DistType>(dist, dist, false);
-		auto distVect = ArgValuesElement(dist, dist);
 		AbstrUnit* AB = AsUnit(resultHolder.GetNew());
 		const AbstrUnit* axDomain = axRef->GetAbstrDomainUnit();
 
@@ -111,7 +111,7 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 
 		auto atn = A->GetNrTiles();
 		std::vector<tile_results_type> resultArrays(atn);
-		parallel_tileloop(atn, [&resultArrays, axDomain, axRef, &spIndex, &bxRefData, distVect, sqrDist](tile_id at)
+		parallel_tileloop(atn, [&resultArrays, axDomain, axRef, &spIndex, &bxRefData, dist, sqrDist](tile_id at)
 		{
 			auto axRefData = const_array_cast<ArgValuesElement>(axRef)->GetTile(at);
 			auto tileFirstIndex = axDomain->GetTileFirstIndex(at);
@@ -122,7 +122,10 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 				if (!IsDefined(ap))
 					continue;
 				SizeT aRow = (&ap - axRefData.begin()) + tileFirstIndex;
-				auto searchBox = Inflate(ap, distVect);
+				// Inflated outward by at least one unit: the index tests a point leaf half-open, so a point at exactly ap + dist on an
+				// axis was never visited, and ArgValuesElement(dist, dist) truncated 1.5 to 1 for integer points (GEO-A12, as #1228 for connect).
+				// The exact test below keeps only the points within dist.
+				auto searchBox = InflatedSearchBox<CoordType>(Range<ArgValuesElement>(ap, ap), dist);
 				second_rels.clear();
 				for (auto bxIter = spIndex.begin(searchBox); bxIter; ++bxIter)
 				{

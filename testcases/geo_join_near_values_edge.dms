@@ -1,0 +1,24 @@
+// GEO-A12: join_near_values finds every pair within maxDist, including a pair at exactly maxDist and, for integer
+// points, a diagonal neighbour within a fractional maxDist. The spatial index tests a point leaf half-open, so
+// B at exactly A + maxDist on an axis was never visited (A=(0,0), B=(10,0), d=10 found nothing, swapped it did), and
+// the search box for ipoint truncated 1.5 to 1, missing (a+1, a+1). Expected: exit 0 on /checks.
+container geo_join_near_values_edge
+{
+	unit<fpoint> F;
+	unit<uint32> FA: nrofrows = 1 { attribute<F> p := point_xy(const(0f, .), const(0f, .), F); }
+	unit<uint32> FB: nrofrows = 1 { attribute<F> p := point_xy(const(10f, .), const(0f, .), F); }
+	unit<uint32> FAB := join_near_values(FA/p, FB/p, 10.0);
+	unit<uint32> FBA := join_near_values(FB/p, FA/p, 10.0);
+
+	unit<ipoint> I;
+	unit<uint32> IA: nrofrows = 1 { attribute<I> p := point_xy(const(5i, .), const(5i, .), I); }
+	unit<uint32> IB: nrofrows = 1 { attribute<I> p := point_xy(const(6i, .), const(6i, .), I); }
+	unit<uint32> IAB := join_near_values(IA/p, IB/p, 1.5);
+
+	container checks
+	{
+		parameter<uint32> nFAB := #FAB, IntegrityCheck = "nFAB == 1";
+		parameter<uint32> nFBA := #FBA, IntegrityCheck = "nFBA == 1";
+		parameter<uint32> nIAB := #IAB, IntegrityCheck = "nIAB == 1";
+	}
+}
