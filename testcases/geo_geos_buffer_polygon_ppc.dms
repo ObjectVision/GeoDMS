@@ -1,0 +1,26 @@
+// GEO-A19: geos_buffer_multi_polygon and geos_buffer of a polygon take their third argument as points per circle, as
+// the point and arc buffers and the bg_ family do. GEOS's own argument is segments per quarter circle, and the polygon
+// variants passed points per circle to it unconverted: 4 times the documented vertex count. A 10 x 10 square buffered
+// by 1 with 16 points per circle gets 4 round corners of a quarter circle each, 4 segments per corner, so about 20
+// vertices; it had about 68. Expected: exit 0 on /checks.
+container geo_geos_buffer_polygon_ppc
+{
+	unit<fpoint> crd;
+	unit<uint32> Sq: nrofrows = 1;
+	unit<uint32> SqPt: nrofrows = 5
+	{
+		attribute<float32> x : [0, 10, 10, 0, 0];
+		attribute<float32> y : [0, 0, 10, 10, 0];
+		attribute<Sq>      s := const(0, ., Sq);
+		attribute<uint32>  o := id(.);
+	}
+	attribute<crd> square (Sq, polygon) := points2polygon(point_xy(SqPt/x, SqPt/y, crd), SqPt/s, SqPt/o);
+	attribute<crd> buffered (Sq, polygon) := geos_buffer_multi_polygon(square, 1.0, 16b);
+
+	unit<uint32> BufPt := sequence2points(buffered);
+
+	container checks
+	{
+		parameter<uint32> nVertices := #BufPt, IntegrityCheck = "nVertices >= 17 && nVertices <= 24";
+	}
+}
