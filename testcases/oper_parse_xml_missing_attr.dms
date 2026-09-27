@@ -1,0 +1,39 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A16: parse_xml gave an entity in which an XML
+// attribute does not occur null when a later entity had the attribute, and 0 (for a string: '') when
+// no later one had it, so the same absence read differently by position, and an attribute that never
+// occurred was 0 throughout. Since 20.22.0 every entity without the attribute gets null.
+//
+// Five b elements: x occurs in the first and the fourth, y in none.
+// Expected: exit 0 on /checks.
+container oper_parse_xml_missing_attr
+{
+	unit<uint32> Doc : nrofrows = 1
+	{
+		attribute<string> xml : ['<r><b x="1"/><b/><b/><b x="2"/><b/></r>'];
+	}
+
+	template scheme
+	{
+		unit<uint32> r
+		{
+			unit<uint32> b
+			{
+				attribute<uint32> x;
+				attribute<uint32> y;
+			}
+		}
+	}
+
+	container parsed := parse_xml(Doc/xml, scheme);
+
+	container checks
+	{
+		unit<uint32> b := parsed/r/b;
+		attribute<uint32> x (b) := parsed/r/b/x;
+		attribute<uint32> y (b) := parsed/r/b/y;
+
+		parameter<bool> count_ok := #b == 5, IntegrityCheck = "count_ok == true";
+		parameter<bool> x_ok     := x[0] == 1 && IsNull(x[1]) && IsNull(x[2]) && x[3] == 2 && IsNull(x[4]), IntegrityCheck = "x_ok == true";
+		parameter<bool> y_ok     := all(IsNull(y)), IntegrityCheck = "y_ok == true";
+	}
+}

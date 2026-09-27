@@ -275,6 +275,11 @@ void StoreAttrValues(AbstrDataItem* adi, Container& c)
 		aval->AssignFromCharPtrs(v.begin(), v.end());
 		lock->SetAbstrValue(i++, *aval);
 	}
+	// An entity in which the attribute does not occur gets null wherever it lies. Attribute::AddValue pads
+	// the ones before an occurrence with undefined; the ones after the last occurrence, and all of them
+	// when the attribute never occurs, are padded here, where the write_only_mustzero lock left them 0.
+	for (SizeT n = adi->GetAbstrDomainUnit()->GetCount(); i < n; ++i)
+		lock->SetNull(i);
 	lock.Commit();
 }
 
