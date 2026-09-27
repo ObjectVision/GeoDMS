@@ -1,0 +1,32 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A12: interpolate_linear(new, org, a) computed an
+// integral y in the unsigned SizeT, so a negative y wrapped: org [0, 10] with a [-10, -20] (int32)
+// gave null at 5 instead of -15. And a null in org took a place on the chart, so a new value below the first real x was
+// interpolated against it: org [10, 20, null] with a [100, 200, 999] gave 0 at 5 instead of 100.
+// Since 20.22.0 the intermediate is signed and a null org value is left off the chart.
+// Expected: exit 0 on /checks.
+container oper_interpolate_linear_signed_null
+{
+	unit<uint32> K : nrofrows = 2
+	{
+		attribute<uint32> org : [0, 10];
+		attribute<int32>  a   : [-10, -20];
+	}
+	unit<uint32> KN : nrofrows = 3
+	{
+		attribute<uint32> org : [10, 20, null];
+		attribute<uint32> a   : [100, 200, 999];
+	}
+	unit<uint32> N : nrofrows = 3
+	{
+		attribute<uint32> x : [5, 15, 30];
+	}
+
+	container checks
+	{
+		attribute<int32>  neg  (N) := interpolate_linear(N/x, K/org, K/a);
+		attribute<uint32> last (N) := interpolate_linear(N/x, KN/org, KN/a);
+
+		parameter<bool> neg_ok  := neg[0] == -15i && neg[1] == -20i && neg[2] == -20i, IntegrityCheck = "neg_ok == true";
+		parameter<bool> first_ok := last[0] == 100 && last[1] == 150 && last[2] == 200, IntegrityCheck = "first_ok == true";
+	}
+}

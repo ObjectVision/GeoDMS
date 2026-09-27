@@ -60,18 +60,23 @@ void DoInterpolateLinear(
 		return;
 	}
 
-	iter_x_t xi = xCoords.begin();
-	SizeT    n  = xCoords.size();
+	SizeT n = xCoords.size();
 
-	OwningPtrSizedArray<SizeT> index(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC( "DoInterpolateLinear: index"));
-	auto indexBegin = index.begin(), indexEnd = index.end(); assert(SizeT(indexEnd - indexBegin) == n);
-	make_index_in_existing_span(indexBegin, indexEnd, xi);
-
+	// A null x has no place on the chart: it sorted before or after every real x, where lower_bound
+	// found it and interpolated towards it, and a float null breaks the order that lower_bound needs.
 	chart_t chart;
 	chart.reserve(n);
+	for (SizeT i = 0; i != n; ++i)
+		if (IsDefined(xCoords[i]))
+			chart.push_back(typename chart_t::value_type(xCoords[i], yCoords[i]));
+	if (chart.empty())
+	{
+		fast_undefine(resultI, resultE);
+		return;
+	}
+	// stable: of equal x values the first one keeps its y, as std::unique below keeps the first
+	std::stable_sort(chart.begin(), chart.end(), [](const chart_elem& lhs, const chart_elem& rhs) { return lhs.first < rhs.first; });
 
-	for(; indexBegin != indexEnd; ++indexBegin)
-		chart.push_back(typename chart_t::value_type(xCoords[*indexBegin], yCoords[*indexBegin]));
 	chart_iter_t
 		chartB = chart.begin(),
 		chartE = chart.end();
@@ -113,7 +118,8 @@ void DoInterpolateLinear(
 						*resultI = chartM->second;
 					else if (IsDefined(chartP->second) && IsDefined(chartM->second))
 					{
-						using intermediate_type = std::conditional_t<std::is_integral_v<T>&& std::is_integral_v<V>, SizeT, Float64>;
+						// signed: y may be negative, and a negative numerator wrapped in the unsigned SizeT that was used here
+						using intermediate_type = std::conditional_t<std::is_integral_v<T>&& std::is_integral_v<V>, Int64, Float64>;
 						intermediate_type dPX = x; dPX -= chartP->first;
 						intermediate_type dXM = chartM->first; dXM -= x;
 						auto y = (chartP->second * dXM + chartM->second * dPX) / (dPX+dXM);
