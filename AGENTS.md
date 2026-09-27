@@ -88,6 +88,16 @@ per topic under `.claude/skills/<name>/SKILL.md`, tracked in git (the rest of `.
 ignored). Claude Code loads a skill by name when its description matches the task; any other
 agent can read them as plain markdown.
 
+**`.agents/skills/` is a byte-identical copy**, for agents that load skills from there. Edit
+only `.claude/skills/`, write without naming an agent (as this file does; a real file name such
+as `C:\dev\tst\CLAUDE.md` stays what it is), and refer to a skill's own scripts relative to its
+folder, since the same text is read from both places. `batch\SyncSkills.bat` mirrors the copy,
+`batch\SyncSkills.bat /check` lists every difference and exits 1; a commit that touches
+`.claude/skills/` runs the first and stages `.agents/skills/` with it. The first copy, of
+2026-09-27, replaced "Claude" by "Codex" throughout, which pointed its script paths at a
+`.Codex\` folder that does not exist and the `tst` and wiki references at `AGENTS.md` files that
+are not there: the reason there is one source now.
+
 | Skill | When |
 |---|---|
 | `geodms-build` | compiling on this shared tree, and which test tier proves what |
