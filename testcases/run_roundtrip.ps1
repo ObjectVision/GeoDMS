@@ -41,7 +41,7 @@ try {
     foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
         $name = $cfg.Name
         $stem = [IO.Path]::GetFileNameWithoutExtension($name)
-        if (($stem -match '_neg') -or ($stem -eq 'fn_test_defcheck')) { continue } # positives only
+        if (($stem -match '_neg\d*(_|$)') -or ($stem -eq 'fn_test_defcheck')) { continue } # positives only, by the rule of run_testcases.ps1
         # fn_test_prelude deliberately '#include's the prelude that the engine ALSO auto-imports.
         # A dump materializes the included prelude functions at root (include directives are erased
         # at parse time), and on reload they collide with the auto-imported prelude ("SubItem 'sqr'

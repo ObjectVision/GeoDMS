@@ -57,7 +57,7 @@ if (Test-Path $knownFile) {
 $results = @()
 foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
     $stem = [IO.Path]::GetFileNameWithoutExtension($cfg.Name)
-    if ($stem -match '_neg') { continue }
+    if ($stem -match '_neg\d*(_|$)') { continue } # the negative-case rule of run_testcases.ps1
     $a = Join-Path $OutDir "$stem.direct.dms"
     $x = Join-Path $OutDir "$stem.xml"
     $b = Join-Path $OutDir "$stem.viaxml.dms"

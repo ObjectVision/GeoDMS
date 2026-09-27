@@ -1,9 +1,12 @@
 # Run the typed higher-order-function testcase suite through GeoDmsRun and classify
 # each case as pass/fail.
 #
-#   Positives (no '_neg' in the name)     must exit 0.
-#   Negatives ('_neg' in the name, or the
-#   'defcheck' definition-check case)      must exit nonzero (they assert a rejection).
+#   Positives (no '_neg' part in the name) must exit 0.
+#   Negatives ('_neg' as a part of the name,
+#   followed by digits, '_' or the end, or
+#   the 'defcheck' definition-check case)  must exit nonzero (they assert a rejection).
+#   So oper_negate_unsigned is a positive, and fn_test_p2_neg1 and oper_modus_range_neg_part_set
+#   are negatives.
 #   Exit code 3 (a Debug assertion)        is ALWAYS a failure.
 #
 # Per-config item overrides live in fnrun_itemmap.txt (one 'file.dms /item/path' per
@@ -69,7 +72,7 @@ try {
         $log  = Join-Path $OutDir "$stem.log"
         & $Exe "/L$log" $cfg.FullName @itemArgs *> (Join-Path $OutDir "$stem.out")
         $code = $LASTEXITCODE
-        $isNeg = ($stem -match '_neg') -or ($stem -eq 'fn_test_defcheck')
+        $isNeg = ($stem -match '_neg\d*(_|$)') -or ($stem -eq 'fn_test_defcheck')
         $verdict = if ($code -eq 3) { 'ASSERT' }
                    elseif ($isNeg -and $code -ne 0) { 'ok(neg)' }
                    elseif (-not $isNeg -and $code -eq 0) { 'ok' }
