@@ -448,6 +448,12 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 		auto uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
 		if (!uBase)
 			return;
+		// The ModelTransformationTag can rotate; the projection built below is axis-aligned and took only
+		// the scale and the origin, so a rotated GeoTIFF got a wrong georeference on its grid domain without
+		// a word. gdal.grid builds the full affine transformation. Reading only the values stays possible.
+		if (pixel_to_world_transform[1] != 0.0 || pixel_to_world_transform[2] != 0.0)
+			throwErrorF("tif", "{} has a rotated georeference, which the tif storage manager cannot give its grid domain; read it with gdal.grid"
+				, GetNameStr());
 		uBase->UpdateMetaInfo();
 		DPoint factor = rowcol2dms_order<Float64>(pixel_to_world_transform[3], pixel_to_world_transform[0]);
 		DPoint offset = rowcol2dms_order<Float64>(pixel_to_world_transform[5], pixel_to_world_transform[4]);

@@ -1,0 +1,23 @@
+// Regression for doc/code-audit-2026-09-27.md STG-A11: the tif storage manager read the rotation of a
+// GeoTIFF's ModelTransformationTag (and of a .tfw world file) and dropped it, giving the grid domain
+// an axis-aligned projection from the scale and origin alone: a silently wrong georeference. Since
+// 20.22.0 it refuses to give a grid domain a rotated georeference and names gdal.grid, which reads
+// the full affine transformation; reading only the values, on a domain without a coordinate base,
+// stays possible (stor_tif_u8_rotated.dms).
+//
+// data/tif_u8_rotated.tif carries a 30 degree rotation; the domain here asks for its georeference.
+// Expected: an error, so exit nonzero on /checks. The check holds on a build that drops the rotation.
+container stor_tif_rotated_domain_neg
+{
+	unit<fpoint> world := BaseUnit('m', fpoint);
+
+	unit<spoint> dom : StorageName = "%currDir%/data/tif_u8_rotated.tif", StorageType = "tif", DialogData = "world"
+	{
+		attribute<uint8> GridData;
+	}
+
+	container checks
+	{
+		parameter<bool> read := #dom == 32 && sum(uint32(dom/GridData)) == 496, IntegrityCheck = "read == true";
+	}
+}

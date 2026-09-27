@@ -158,9 +158,14 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 	MemoInpStreamBuff inpBuf(begin_ptr( buffer ), end_ptr( buffer ) );
 	FormattedInpStream str(&inpBuf);
 
-	DPoint factor, dummy, offset;
+	DPoint factor, rotation, offset;
 
-	str >> factor.X() >> dummy.X() >> dummy.Y() >> factor.Y() >> offset.X() >> offset.Y();
+	str >> factor.X() >> rotation.X() >> rotation.Y() >> factor.Y() >> offset.X() >> offset.Y();
+	// the two rotation terms of a world file were read into a dummy and dropped, which gave a rotated
+	// grid an axis-aligned, wrong georeference without a word; the projection built here cannot rotate
+	if (rotation.X() != 0.0 || rotation.Y() != 0.0)
+		throwErrorF("GeoRef", "{} describes a rotated grid, which this storage manager cannot represent; read the grid with gdal.grid"
+			, geoRefFileName);
 	assert(factor.X() > 0);
 	assert(factor.Y() < 0);
 
