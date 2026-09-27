@@ -115,10 +115,14 @@ protected:
         if (event->type() != QEvent::Show)
             return QObject::eventFilter(watched, event);
 
+        // the filter is installed on qApp and outlives the main window: the Show event of the message box
+        // that reports an exception after the window is gone must not dereference it
         auto menu = qobject_cast<QMenu*>(watched);
         auto mainWindow = MainWindow::TheOne();
         auto primary = mainWindow->m_edit_config_source_action.get();
-        if (!menu || !primary || !menu->actions().contains(primary))
+        if (!primary || !menu->actions().contains(primary))
+        if (!mainWindow)
+            return QObject::eventFilter(watched, event);
             return QObject::eventFilter(watched, event);
 
         auto selected = mainWindow->getCurrentTreeItemOrRoot();
