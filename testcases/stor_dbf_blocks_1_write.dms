@@ -1,0 +1,24 @@
+// Write half of a dbf read that spans several blocks: the dbf storage manager reads whole records a
+// megabyte at a time and takes a column's field from each (STG-A15). 20000 records of about 120
+// bytes make three blocks, the last one partial; stor_dbf_blocks_2_read.dms reads them back and
+// checks every value. Run item: /export (fnrun_itemmap.txt).
+container stor_dbf_blocks_1_write
+{
+	unit<uint32> obj := range(uint32, 0, 20000)
+	{
+		attribute<int32>   a := int32(id(.));
+		attribute<string>  s := 'r' + string(id(.));
+		attribute<float64> f := float64(id(.)) * 0.5;
+	}
+	container export
+	{
+		unit<uint32> tab := obj
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_dbf_blocks.dbf"
+		,	StorageType = "gdalwrite.vect"
+		{
+			attribute<int32>   a := obj/a;
+			attribute<string>  s := obj/s;
+			attribute<float64> f := obj/f;
+		}
+	}
+}

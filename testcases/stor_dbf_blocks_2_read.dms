@@ -1,0 +1,22 @@
+// Read half of stor_dbf_blocks_1_write.dms: every value of every column of a dbf whose records span
+// three read blocks, the last one partial, so a field taken from the wrong record or block shows.
+container stor_dbf_blocks_2_read
+{
+	unit<uint32> tab
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_dbf_blocks.dbf"
+	,	StorageType     = "dbf"
+	,	StorageReadOnly = "True"
+	{
+		attribute<int32>   a;
+		attribute<string>  s;
+		attribute<float64> f;
+	}
+	container checks
+	{
+		parameter<uint32> n  := #tab,                                           IntegrityCheck = "n == 20000";
+		parameter<bool>   ca := all(tab/a == int32(id(tab))),                   IntegrityCheck = "ca == true";
+		parameter<bool>   cs := all(tab/s == 'r' + string(id(tab))),            IntegrityCheck = "cs == true";
+		parameter<bool>   cf := all(tab/f == float64(id(tab)) * 0.5),           IntegrityCheck = "cf == true";
+		parameter<int32>  la := last(tab/a),                                    IntegrityCheck = "la == 19999i";
+	}
+}

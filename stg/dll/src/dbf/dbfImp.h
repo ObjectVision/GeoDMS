@@ -117,7 +117,8 @@ private:
 	UInt32  ActualPosition(UInt32 recordindex) const;
 	UInt32  ActualPosition(UInt32 recordindex, UInt32 columnindex) const;
 
-	void    ReadDataElement (      void* data, UInt32 recordindex, UInt32 columnindex, ValueClassID vc, CharPtr formatspec);
+	bool    ReadRecords(char* buffer, UInt32 firstRecord, UInt32 nrRecords);
+	static void ParseDataElement(void* data, char* fieldBuffer, UInt8 fieldSize, ValueClassID vc);
 	bool    WriteDataElement(const void* data, UInt32 recordindex, UInt32 columnindex, ValueClassID vc, CharPtr formatspec, UInt8 len);
 };
 

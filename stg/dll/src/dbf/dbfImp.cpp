@@ -616,7 +616,7 @@ bool DbfImpl::WriteHeader()
 void FormatSpecification(ValueClassID vc, UInt8 colwidth, UInt8 deccount, bool read, SharedStr& formatspec)
 {
 	// Build a std::format spec applied by WriteDataElement via the myFixedBuffer* helpers.
-	// ReadDataElement parses the field numerically and ignores this spec. Numbers are
+	// ParseDataElement parses the field numerically and ignores this spec. Numbers are
 	// right-aligned by default, matching the former printf "%<width>d" / "%<width>.<dec>f".
 	char s[24];
 
@@ -688,22 +688,17 @@ void ReadAsIntegerOrFloat64AndConvert(T* dataPtr, char* fieldBuffer, char* field
 		ReadAsFloat64AndConvert(dataPtr, fieldBuffer, fieldBufferEnd);
 }
 
-void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex, ValueClassID vc, CharPtr formatspec)
+bool DbfImpl::ReadRecords(char* buffer, UInt32 firstRecord, UInt32 nrRecords)
 {
 	MGD_PRECONDITION(GetFP() != NULL);
-	MGD_PRECONDITION(RecordIndexDefined(recordindex));
-	MGD_PRECONDITION(ColumnIndexDefined(columnindex));
+	MGD_PRECONDITION(firstRecord <= m_RecordCount && nrRecords <= m_RecordCount - firstRecord);
 
-	UInt8 fieldSize = ColumnWidth(columnindex);
+	return fseek(GetFP(), ActualPosition(firstRecord), SEEK_SET) == 0
+		&& fread(buffer, m_RecordSize, nrRecords, GetFP()) == nrRecords;
+}
 
-	dms_assert(fieldSize < 256);
-	char fieldBuffer[256];
-
-	fseek(GetFP(), ActualPosition(recordindex, columnindex), 0);
-	MG_CHECK(fieldSize == 0 || fread(fieldBuffer, fieldSize, 1, GetFP()) == 1);
-
-//	fieldBuffer[fieldSize] = 0;
-
+void DbfImpl::ParseDataElement(void* data, char* fieldBuffer, UInt8 fieldSize, ValueClassID vc)
+{
 	switch (vc)
 	{
 		case ValueClassID::VT_SharedStr:
@@ -717,7 +712,7 @@ void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex
 			)
 				(* ( StringArray::reference * ) data).assign(Undefined());
 			else
-				(* ( StringArray::reference * ) data).assign(fieldBuffer, fieldBufferEnd MG_DEBUG_ALLOCATOR_SRC("ReadDataElement"));
+				(* ( StringArray::reference * ) data).assign(fieldBuffer, fieldBufferEnd MG_DEBUG_ALLOCATOR_SRC("ParseDataElement"));
 			break;
 		}
 		case ValueClassID::VT_Bool    :
@@ -815,21 +810,31 @@ template<class T> FileResult DbfImplStub<T>::ReadData(VecType vec, CharPtr colum
 
 	if (auto r = FileResult::require(m_DbfImpl->ColumnIndexDefined(columnindex), "ColumnIndex not found"); !r)
 		return r;
-
-	SharedStr formatspec;
-	FormatSpecification(vc, m_DbfImpl->ColumnWidth(columnindex), m_DbfImpl->ColumnDecimalCount(columnindex), true, formatspec);
-	CharPtr formatspecCharPtr = formatspec.c_str();
 	 // END TODO, OPT: Move to caller(s)
 
 	UInt32 nrRecs = vec.size();
-	MG_CHECK(nrRecs == m_DbfImpl->RecordCount()); // the file's record count versus the data written 
+	MG_CHECK(nrRecs == m_DbfImpl->RecordCount()); // the file's record count versus the data written
 
-	for (UInt32 recordindex = 0; recordindex != nrRecs; ++recordindex)
+	// Whole records are read a block at a time and the field is taken from each. A seek and a read per
+	// field made the CRT refill its stdio buffer, 64 KB for a dbf, for every single value.
+	constexpr UInt32 BLOCK_SIZE = 1 << 20;
+	UInt32 recordSize = m_DbfImpl->m_RecordSize, fieldOffset = m_DbfImpl->ColumnOffset(columnindex);
+	UInt8  fieldSize = m_DbfImpl->ColumnWidth(columnindex);
+	UInt32 recordsPerBlock = Max<UInt32>(1, BLOCK_SIZE / recordSize);
+	std::vector<char> block(SizeT(Min<UInt32>(recordsPerBlock, nrRecs)) * recordSize);
+
+	for (UInt32 blockStart = 0; blockStart != nrRecs; )
 	{
-		typename VecType::reference ref = vec[recordindex];
-		m_DbfImpl->ReadDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr);
+		UInt32 blockCount = Min<UInt32>(recordsPerBlock, nrRecs - blockStart);
+		if (auto r = FileResult::require(m_DbfImpl->ReadRecords(block.data(), blockStart, blockCount), "the file holds fewer records than its header says"); !r)
+			return r;
+		for (UInt32 i = 0; i != blockCount; ++i)
+		{
+			typename VecType::reference ref = vec[blockStart + i];
+			DbfImpl::ParseDataElement(std::addressof(ref), block.data() + SizeT(i) * recordSize + fieldOffset, fieldSize, vc);
+		}
+		blockStart += blockCount;
 	}
-
 	return {};
 } // ReadData
 
