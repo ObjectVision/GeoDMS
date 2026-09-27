@@ -188,6 +188,14 @@ struct binary_assign_corr: binary_assign<corr_accumulation_type<T>, T, T>
 
 	void operator () (typename binary_assign_corr::assignee_ref a, cref_t<T> x, cref_t<T> y) const
 	{
+		// A row with a null in either argument is left out of all five sums, as m_CovAssign leaves
+		// it out of n, x, y and xy. The squares used to be added regardless: a float null made the
+		// result null, and an integer null (the minimum value) added about 2^62 to xx or yy.
+		if constexpr (has_undefines_v<T>)
+		{
+			if (!IsDefined(x) || !IsDefined(y))
+				return;
+		}
 		m_CovAssign(a, x, y);
 		a.xx = m_SafePlus(a.xx, m_MulX(x, x));
 		a.yy = m_SafePlus(a.yy, m_MulX(y, y));

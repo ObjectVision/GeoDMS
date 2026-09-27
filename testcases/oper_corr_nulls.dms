@@ -1,0 +1,30 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A02: corr left a row with a null in either
+// argument out of n, x, y and xy (as cov does) but still added its squares to xx and yy. A float null
+// made the whole correlation null; an int32 null (its minimum value) added about 2^62 to a sum of
+// squares, so the result came out near 0 without any warning. With the null row left out, y = 2x on
+// the remaining rows gives exactly 1. Also checked: cov ignores the row as before, and the
+// partitioned forms agree. Expected: exit 0 on /checks.
+container oper_corr_nulls
+{
+	unit<uint32> R: nrofrows = 4
+	{
+		attribute<float64> xf: [1, 2, 3, null];
+		attribute<float64> yf: [2, 4, 6, 8];
+		attribute<int32>   xi: [1, 2, 3, null];
+		attribute<int32>   yi: [2, 4, 6, 8];
+		attribute<P>       part := const(0, R, P);
+	}
+	unit<uint32> P: nrofrows = 1;
+
+	container checks
+	{
+		parameter<float64> cf  := corr(R/xf, R/yf);
+		parameter<float64> ci  := float64(corr(R/xi, R/yi));
+		attribute<float64> cfp (P) := corr(R/xf, R/yf, R/part);
+
+		parameter<bool> corrFloat := abs(cf - 1.0) < 1e-9, IntegrityCheck = "corrFloat == true";
+		parameter<bool> corrInt   := abs(ci - 1.0) < 1e-6, IntegrityCheck = "corrInt == true";
+		parameter<bool> corrPart  := abs(cfp[0] - 1.0) < 1e-9, IntegrityCheck = "corrPart == true";
+		parameter<bool> covFloat  := abs(cov(R/xf, R/yf) - 4.0 / 3.0) < 1e-9, IntegrityCheck = "covFloat == true"; // population covariance of (1,2,3) and (2,4,6)
+	}
+}
