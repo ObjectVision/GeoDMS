@@ -1,0 +1,24 @@
+// Regression for doc/code-audit-2026-09-27.md STG-A06: for a layer of mixed geometry types (GeoJSON
+// with points and lines, a CSV with WKT) and no geometry item configured, gdal.vect determines the
+// geometry's composition from the first feature, and dereferenced that feature's geometry without a
+// test: a first feature with "geometry": null, or an empty WKT, crashed the meta info of the table.
+// Since 20.22.0 the first feature that has a geometry decides, and the probed features are freed.
+//
+// The first of the three features has no geometry; the geometry item is left to gdal.vect.
+// Expected: exit 0 on /checks.
+container stor_gdal_vect_first_no_geometry
+{
+	unit<uint32> feats
+	:	StorageName     = "%currDir%/read_first_feature_no_geometry.geojson"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<string> name;
+	}
+
+	container checks
+	{
+		parameter<bool> count := #feats == 3,                           IntegrityCheck = "count == true";
+		parameter<bool> names := asList(feats/name, ',') == 'none,pt,ln', IntegrityCheck = "names == true";
+	}
+}

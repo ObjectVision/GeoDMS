@@ -3149,16 +3149,23 @@ void GdalVectSM::CompareConfiguredGeometryWithGdal(AbstrDataItem* geometry, OGRL
 }
 
 auto GdalVectSM::GetValueComponsitionFromFirstGdalFeature(OGRLayer* layer) const -> ValueComposition {
-	OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
-	auto first_feature = layer->GetNextFeature();
-	layer->GetGeometryColumn();
+	// Interpret the geometry type from the first feature that has a geometry: an empty WKT or a GeoJSON
+	// "geometry": null has none, and GetGeometryRef() then returns null, which was dereferenced here.
+	// The features are owned by the caller of GetNextFeature, so each one is freed (they leaked). The
+	// search stops after a bounded number of features, so a large layer without any geometry is not
+	// read entirely while its meta info is determined; its geometry stays of unknown composition.
+	constexpr int maxFeaturesToProbe = 1000;
 	ValueComposition gdal_vc = ValueComposition::Unknown;
-
-	if (first_feature) // attempt interpreting geometry type using first feature
+	for (int i = 0; i != maxFeaturesToProbe; ++i)
 	{
-		auto geometry_ref = first_feature->GetGeometryRef();
-		first_feature_geometry_type = geometry_ref->getGeometryType();
-		gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
+		gdalVectImpl::FeaturePtr feature = layer->GetNextFeature();
+		if (!feature)
+			break;
+		if (auto geometry_ref = feature->GetGeometryRef())
+		{
+			gdal_vc = gdalVectImpl::OGR2ValueComposition(geometry_ref->getGeometryType());
+			break;
+		}
 	}
 	layer->ResetReading();
 
