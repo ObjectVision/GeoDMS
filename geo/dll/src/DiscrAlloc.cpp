@@ -3296,8 +3296,12 @@ struct ClaimScaler: std::vector<claim_range>
 			// make sure claims are a non-decreasing sequence
 			MakeMax(claimIter->m_ClaimRange.first,
 				muldiv_u32( orgClaimRangePtr->first,  totCount, totSize ) );
-			MakeMax(claimIter->m_ClaimRange.second,
-				muldiv_u32( orgClaimRangePtr->second, totCount, totSize ) + 1);
+			// saturating +1: a null (unlimited) maximum claim scales to UInt32 max when the region is fully sampled, and +1
+			// wrapped it to 0, a maximum below the minimum that forced the region empty for this round (GEO-A24)
+			UInt32 scaledMax = muldiv_u32( orgClaimRangePtr->second, totCount, totSize );
+			if (scaledMax != std::numeric_limits<UInt32>::max())
+				++scaledMax;
+			MakeMax(claimIter->m_ClaimRange.second, scaledMax);
 			MakeMin(claimIter->m_ClaimRange.first,  orgClaimRangePtr->first );
 			MakeMin(claimIter->m_ClaimRange.second, orgClaimRangePtr->second);
 			dms_assert(claimIter->m_ClaimRange.first <= claimIter->m_ClaimRange.second);
