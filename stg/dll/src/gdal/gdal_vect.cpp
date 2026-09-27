@@ -2926,6 +2926,9 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 		reportF(MsgCategory::storage_write, SeverityTypeID::ST_Warning, "gdalwrite.vect, layer {} is written without its geometry, so its features have no shape."
 			, layer_id.AsStdString());
 
+	// one transaction for the layer: OpenFileGDB emulates one by backing up the layer's files, which
+	// a transaction per tile did for every tile
+	GDAL_TransactionFrame transaction_frame(this->m_hDS, gdal_error_frame);
 	SizeT featureIndex = 0, tileFeatureIndex = 0;
 	for (tile_id t = 0, te = adu->GetNrTiles(); t != te; ++t)
 	{
@@ -2933,7 +2936,6 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "gdalwrite.vect, written {} tiles of layer {}",
 				adu->GetNrTiles(), layer_id.AsStdString());
 
-		GDAL_TransactionFrame transaction_frame(this->m_hDS);
 		auto tileReadLocks = ReadableTileHandles(dataReadLocks, t);
 
 		SizeT numExistingFeaturesInTile = adu->GetTileSize(t);
@@ -3007,6 +3009,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 				throwErrorF("gdalwrite.vect", "{} of feature {} failed with OGR error {}", updateExistingFeature ? "SetFeature" : "CreateFeature", featureIndex, int(writeErr));
 		}
 	}
+	transaction_frame.Commit(gdal_error_frame);
 	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layer_id);
 
 

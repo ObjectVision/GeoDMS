@@ -221,19 +221,21 @@ struct GDALDatasetHandle
 	std::unique_ptr < GDALDataset, deleter > dsh_;
 };
 
-struct GDAL_TransactionFrame 
+// The features written between construction and Commit are kept together or not at all: the destructor
+// rolls back what was not committed, so an exception while writing does not leave half a layer. A
+// driver without transactions (ESRI Shapefile, CSV) writes directly, as it did.
+struct GDAL_TransactionFrame
 {
-	GDAL_TransactionFrame(GDALDataset *dsh)
-	{
-		dsh_ = dsh;
-		dsh_->StartTransaction(true); // TODO: force flag specifically added to write using OpenFileGDB, sideeffects?
-	}
-	~GDAL_TransactionFrame()
-	{
-		dsh_->CommitTransaction();
-	}
+	GDAL_TransactionFrame(GDALDataset* dsh, GDAL_ErrorFrame& errorFrame);
+	GDAL_TransactionFrame(const GDAL_TransactionFrame&) = delete;
+	GDAL_TransactionFrame& operator =(const GDAL_TransactionFrame&) = delete;
+	~GDAL_TransactionFrame();
 
-	GDALDataset *dsh_;
+	void Commit(GDAL_ErrorFrame& errorFrame);
+
+private:
+	GDALDataset* m_hDS;
+	bool m_Started = false;
 };
 
 class GDAL_ConfigurationOptionsFrame

@@ -223,6 +223,37 @@ GDAL_ErrorFrame::~GDAL_ErrorFrame()  noexcept(false)
 		ThrowUpWhateverCameUp();
 }
 
+GDAL_TransactionFrame::GDAL_TransactionFrame(GDALDataset* dsh, GDAL_ErrorFrame& errorFrame)
+	: m_hDS(dsh)
+{
+	// force: a driver without transactions of its own, such as OpenFileGDB, emulates one by backing up
+	// the files the transaction changes, at its first write
+	auto err = m_hDS->StartTransaction(true);
+	if (err == OGRERR_UNSUPPORTED_OPERATION)
+		return;
+	errorFrame.ThrowUpWhateverCameUp();
+	if (err != OGRERR_NONE)
+		throwErrorF("gdalwrite.vect", "starting a transaction failed with OGR error {}", int(err));
+	m_Started = true;
+}
+
+void GDAL_TransactionFrame::Commit(GDAL_ErrorFrame& errorFrame)
+{
+	if (!m_Started)
+		return;
+	m_Started = false;
+	auto err = m_hDS->CommitTransaction();
+	errorFrame.ThrowUpWhateverCameUp();
+	if (err != OGRERR_NONE)
+		throwErrorF("gdalwrite.vect", "committing the transaction failed with OGR error {}", int(err));
+}
+
+GDAL_TransactionFrame::~GDAL_TransactionFrame()
+{
+	if (m_Started) // left by an exception before Commit
+		m_hDS->RollbackTransaction();
+}
+
 void GDAL_ErrorFrame::RegisterError(CPLErr eErrClass, int err_no, const char* msg)
 {
 	if (eErrClass > m_eErrClass)
