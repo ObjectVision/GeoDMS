@@ -1322,6 +1322,9 @@ protected:
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
 		domain1Unit->UnifyDomain(domain2Unit, "e1", "e2", UnifyMode(UM_Throw| UM_AllowVoidRight));
+		// One tolerance for all elements: a tolerance per element was accepted and element 0's value applied to all (GEO-A18).
+		if (!e2IsVoid)
+			GetGroup()->throwOperError("the tolerance must be a parameter; a tolerance per element is not supported");
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain1Unit, values1Unit, arg1A->GetValueComposition());
@@ -1331,6 +1334,9 @@ protected:
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
 			Float64 maxError = const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0];
+			// a negative tolerance made GEOS throw its own message, a null was undefined for boost (GEO-A18)
+			if (!IsDefined(maxError) || maxError < 0)
+				GetGroup()->throwOperErrorF("the tolerance must be a defined value of 0 or more, not {}", maxError);
 			auto resItem = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(resItem, dms_rw_mode::write_only_mustzero);
 

@@ -1,0 +1,22 @@
+// GEO-A18: the simplify operators take one tolerance, a parameter. A tolerance per element was accepted and the value
+// of element 0 applied to every element; it is now refused. Expected: exit nonzero on /checks.
+container geo_simplify_tolerance_per_element_neg
+{
+	unit<fpoint> crd;
+	unit<uint32> Sq: nrofrows = 1;
+	unit<uint32> SqPt: nrofrows = 5
+	{
+		attribute<float32> x : [0, 10, 10, 0, 0];
+		attribute<float32> y : [0, 0, 10, 10, 0];
+		attribute<Sq>      s := const(0, ., Sq);
+		attribute<uint32>  o := id(.);
+	}
+	attribute<crd>     square (Sq, polygon) := points2polygon(point_xy(SqPt/x, SqPt/y, crd), SqPt/s, SqPt/o);
+	attribute<float64> tol    (Sq) := const(0.5, Sq);
+	attribute<crd>     simple (Sq, polygon) := geos_simplify_multi_polygon(square, tol);
+
+	container checks
+	{
+		parameter<uint32> n := #sequence2points(simple), IntegrityCheck = "n > 0";
+	}
+}

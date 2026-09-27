@@ -1,0 +1,21 @@
+// GEO-A18: a negative or null simplify tolerance is refused by every simplify operator with the same message; a
+// negative one made GEOS throw its own, and a null was undefined for boost. Expected: exit nonzero on /checks.
+container geo_simplify_tolerance_negative_neg
+{
+	unit<fpoint> crd;
+	unit<uint32> Sq: nrofrows = 1;
+	unit<uint32> SqPt: nrofrows = 5
+	{
+		attribute<float32> x : [0, 10, 10, 0, 0];
+		attribute<float32> y : [0, 0, 10, 10, 0];
+		attribute<Sq>      s := const(0, ., Sq);
+		attribute<uint32>  o := id(.);
+	}
+	attribute<crd> square (Sq, polygon) := points2polygon(point_xy(SqPt/x, SqPt/y, crd), SqPt/s, SqPt/o);
+	attribute<crd> simple (Sq, polygon) := bg_simplify_multi_polygon(square, -1.0);
+
+	container checks
+	{
+		parameter<uint32> n := #sequence2points(simple), IntegrityCheck = "n > 0";
+	}
+}
