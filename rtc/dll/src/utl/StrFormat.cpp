@@ -35,25 +35,35 @@
 // need out-of-line definitions: myVSSPrintF and RepeatedDots. The path
 // helpers moved to splitPath.cpp (2026-08).
 
+// std::vsnprintf on a va_copy of argList, so that argList stays usable for another pass: a va_list that
+// vsnprintf has consumed is indeterminate (with the x86-64 SysV ABI, va_list is an array type, so the
+// callee advances the caller's cursor).
+static int vsnprintfOnCopy(char* buf, SizeT size, CharPtr format, va_list argList)
+{
+	va_list argCopy;
+	va_copy(argCopy, argList);
+	int resultLength = std::vsnprintf(buf, size, format, argCopy);
+	va_end(argCopy);
+	return resultLength;
+}
+
 SharedStr myVSSPrintF(CharPtr format, va_list argList)
 {
 	const SizeT DEFAULT_BUFFER_SIZE = 300;
 
-	std::unique_ptr<char[]> heapBuffer;
-
+	// vsnprintf returns the length of the complete result, but writes at most size-1 characters and a terminating zero;
+	// a negative result means an encoding error
 	char stackBuffer[DEFAULT_BUFFER_SIZE];
-	char* buf  = stackBuffer;
-	SizeT size = DEFAULT_BUFFER_SIZE;
+	int resultLength = vsnprintfOnCopy(stackBuffer, DEFAULT_BUFFER_SIZE, format, argList);
+	MG_CHECK2(resultLength >= 0, "myVSSPrintF: vsnprintf failed on an encoding error");
+	if (SizeT(resultLength) < DEFAULT_BUFFER_SIZE)
+		return SharedStr(CharPtrRange(stackBuffer, stackBuffer + resultLength));
 
-	for (;;) 
-	{
-		SizeT nrCharsWritten = std::vsnprintf(buf, size, format, argList); // returns UInt32(-1) if size of buf is too small
-		if (nrCharsWritten <= size)
-			return SharedStr(CharPtrRange(buf, buf+nrCharsWritten));
-		size *= 2;
-		heapBuffer.reset(new char[size]);
-		buf = heapBuffer.get();
-	}
+	SizeT heapBufferSize = SizeT(resultLength) + 1;
+	std::unique_ptr<char[]> heapBuffer(new char[heapBufferSize]);
+	int heapResultLength = vsnprintfOnCopy(heapBuffer.get(), heapBufferSize, format, argList);
+	MG_CHECK(heapResultLength == resultLength);
+	return SharedStr(CharPtrRange(heapBuffer.get(), heapBuffer.get() + resultLength));
 }
 
 
