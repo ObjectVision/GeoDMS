@@ -783,6 +783,17 @@ void ReadPointZM(typename sequence_traits<T>::seq_t data, OGRLayer* layer, SizeT
 	}
 }
 
+// The read buffer is kept between the chunks (tiles) of a read. reset frees its data, so each chunk starts with the
+// previous chunk's data size reserved: a chunk like the one before then does not grow its data from nothing again,
+// reallocating and copying it on the way.
+template <typename Buffer>
+Buffer& ResetReadBuffer(ResourceHandle& readBuffer, SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+{
+	Buffer& data = MakeAs<Buffer>(readBuffer);
+	data.reset(nrElems, data.actual_data_size() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	return data;
+}
+
 template <typename PolygonType>
 void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS)
 {
@@ -793,8 +804,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
-	dataBufType& data = MakeAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
+	dataBufType& data = ResetReadBuffer<dataBufType>(readBuffer, size MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
 
 	SizeT i=0;
 	auto lch = MakeLCH(
@@ -917,8 +927,7 @@ void ReadMultiPointData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
-	dataBufType& data = MakeAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
+	dataBufType& data = ResetReadBuffer<dataBufType>(readBuffer, size MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
@@ -1026,8 +1035,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<SeqType>::container_type;
-	dataBufType& data = MakeAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
+	dataBufType& data = ResetReadBuffer<dataBufType>(readBuffer, size MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
@@ -1151,8 +1159,7 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
 
-	dataBufType& data = MakeAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadLinestringData"));
+	dataBufType& data = ResetReadBuffer<dataBufType>(readBuffer, size MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadLinestringData"));
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
@@ -1268,8 +1275,7 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 
 	using dataBufType = typename sequence_traits<SeqType>::container_type;
 
-	dataBufType& data = MakeAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadLinestringData"));
+	dataBufType& data = ResetReadBuffer<dataBufType>(readBuffer, size MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadLinestringData"));
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
@@ -1384,8 +1390,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 
 	SizeT numChars = 0;
 	typedef sequence_traits<SharedStr>::container_type dataBufType;
-	dataBufType& data = MakeAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect"));
+	dataBufType& data = ResetReadBuffer<dataBufType>(readBuffer, size MG_DEBUG_ALLOCATOR_SRC("gdal_vect"));
 
 	SizeT i=0;
 	auto lch = MakeLCH(
