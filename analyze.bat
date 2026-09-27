@@ -60,4 +60,6 @@ findstr /R /C:"warning C6" /C:"warning C26" /C:"warning C28" "%WLOG%" 2>nul
 echo.
 echo Full warnings log: %WLOG%   ^(msbuild exit code %RC%, syntactic checks exit code %LINT_RC%^)
 if "%RC%"=="0" set "RC=%LINT_RC%"
-endlocal ^& exit /B %RC%
+REM An unescaped '&': the escaped '^&' made this one command, 'endlocal & exit /B ...' as arguments of
+REM endlocal, so the script ended with the errorlevel of the findstr above instead of %RC%.
+endlocal & exit /B %RC%
