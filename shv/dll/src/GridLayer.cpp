@@ -805,6 +805,9 @@ void GridLayer::CopySelValues()
 
 void GridLayer::PasteSelValuesDirect()
 {
+	if (m_Themes[AN_Feature]) // refused before a PasteHandler exists: PasteNow cannot write through the feature ids, and DrawPaste cannot draw over them
+		throwErrorD("PasteSelValuesDirect", "Cannot paste to Indirect Grid");
+
 	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 	if (ClipBoard::GetCurrFormat() != CF_CELLVALUES)
 		return;
@@ -822,6 +825,9 @@ void GridLayer::PasteSelValuesDirect()
 
 void GridLayer::PasteSelValues()
 {
+	if (m_Themes[AN_Feature]) // as in PasteSelValuesDirect
+		throwErrorD("PasteSelValues", "Cannot paste to Indirect Grid");
+
 	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 	if (ClipBoard::GetCurrFormat() != CF_CELLVALUES)
 		return;
@@ -1612,7 +1618,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 			)
 		);	
 	}
-	if (hasEditAttr && ClipBoard::GetCurrFormat() == CF_CELLVALUES)
+	if (hasEditAttr && !m_Themes[AN_Feature] && ClipBoard::GetCurrFormat() == CF_CELLVALUES) // PasteSelValues refuses an indirect grid
 	{
 		dms_assert(IsVisible());
 		med.m_MenuData.push_back( 
