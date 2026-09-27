@@ -1,0 +1,50 @@
+// The read half of the shapefile MultiPoint case; stor_shp_multipoint_1_write.dms writes the file
+// and carries the description of what is being pinned. On its own this config fails with "Failure
+// to open" because the file does not exist yet.
+//
+// The file the shp storage manager wrote is read twice: by that storage manager (StorageType "shp")
+// and by gdal.vect. Before 20.22.0 both found no features. The file gdalwrite.vect wrote is read by
+// gdal.vect; before 20.22.0 the write failed.
+container stor_shp_multipoint_2_read
+{
+	unit<fpoint> point_rd := BaseUnit('m', fpoint);
+
+	unit<uint32> from_shp : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_multipoint_n.dbf"
+	{
+		attribute<point_rd> geometry (multipoint) : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_multipoint_n.shp", StorageType = "shp";
+	}
+
+	unit<uint32> from_gdal : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_multipoint_n.shp", StorageType = "gdal.vect", StorageReadOnly = "True"
+	{
+		attribute<point_rd> geometry (multipoint);
+		attribute<string>   Label;
+	}
+
+	unit<uint32> from_gdalwrite : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_multipoint_g.shp", StorageType = "gdal.vect", StorageReadOnly = "True"
+	{
+		attribute<point_rd> geometry (multipoint);
+		attribute<string>   Label;
+	}
+
+	container checks
+	{
+		attribute<uint32> shp_n  (from_shp)  := uint32(sequence_element_count(from_shp/geometry));
+		attribute<uint32> gdal_n (from_gdal) := uint32(sequence_element_count(from_gdal/geometry));
+		attribute<uint32> gw_n   (from_gdalwrite) := uint32(sequence_element_count(from_gdalwrite/geometry));
+
+		parameter<bool> shp_features  := #from_shp  == 2, IntegrityCheck = "shp_features == true";
+		parameter<bool> gdal_features := #from_gdal == 2, IntegrityCheck = "gdal_features == true";
+		parameter<bool> shp_points    := shp_n[0]  == 3 && shp_n[1]  == 2, IntegrityCheck = "shp_points == true";
+		parameter<bool> gdal_points   := gdal_n[0] == 3 && gdal_n[1] == 2, IntegrityCheck = "gdal_points == true";
+		parameter<bool> gdal_labels   := asList(from_gdal/Label, ',') == 'three,two', IntegrityCheck = "gdal_labels == true";
+		parameter<bool> gw_features   := #from_gdalwrite == 2, IntegrityCheck = "gw_features == true";
+		parameter<bool> gw_points     := gw_n[0] == 3 && gw_n[1] == 2, IntegrityCheck = "gw_points == true";
+		parameter<bool> gw_labels     := asList(from_gdalwrite/Label, ',') == 'three,two', IntegrityCheck = "gw_labels == true";
+
+		// the last point of each feature, as written: (20, 10) and (110, 60)
+		parameter<bool> shp_last := sum(pointcol(last_point(from_shp/geometry))) == 130f && sum(pointrow(last_point(from_shp/geometry))) == 70f
+			, IntegrityCheck = "shp_last == true";
+		parameter<bool> gw_last  := sum(pointcol(last_point(from_gdalwrite/geometry))) == 130f && sum(pointrow(last_point(from_gdalwrite/geometry))) == 70f
+			, IntegrityCheck = "gw_last == true";
+	}
+}

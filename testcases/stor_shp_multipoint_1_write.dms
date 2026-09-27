@@ -1,0 +1,52 @@
+// Regression for doc/code-audit-2026-09-27.md STG-A02: the shp storage manager wrote a MultiPoint
+// attribute as a shapefile of shape type Point with no records at all, and reported success. The
+// shape type stayed ST_Point for that composition, so the values went into the record list that
+// only the writers of lines and polygons look at, and the point writer wrote its own, empty, list.
+// Since 20.22.0 a MultiPoint attribute is written as shape type MultiPoint (8), which the shp reader
+// already read. gdalwrite.vect refused the same attribute as a field of an unsupported type, since
+// its test of what a geometry is stopped at arcs; since 20.22.0 it writes a MultiPoint geometry.
+//
+// This config only WRITES the file; stor_shp_multipoint_2_read.dms reads it back and checks it. The
+// two belong together and run in this order: run_testcases.ps1 walks the configs sorted by file
+// name (see stor_shp_ringclose_1_write.dms for why a read cannot follow a write in one config).
+//
+// Feature 0 holds three points, feature 1 two.
+container stor_shp_multipoint_1_write
+{
+	unit<fpoint> point_rd := BaseUnit('m', fpoint);
+
+	unit<uint32> region : nrofrows = 2;
+
+	unit<uint32> pts : nrofrows = 5
+	{
+		attribute<float32> px      : [ 0, 10, 20,   100, 110];
+		attribute<float32> py      : [ 0,  5, 10,    50,  60];
+		attribute<region>  mp_rel  : [ 0,  0,  0,     1,   1];
+		attribute<uint32>  ordinal : [ 0,  1,  2,     0,   1];
+		attribute<point_rd> point  := point_xy(px, py, point_rd);
+	}
+
+	attribute<point_rd> mp (region, multipoint) := points2multi_point(pts/point, pts/mp_rel, pts/ordinal);
+
+	container export
+	{
+		// the shp/dbf storage manager: the .dbf on the domain, the .shp on the feature attribute
+		unit<uint32> shp_layer := /region
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_multipoint_n.dbf"
+		{
+			attribute<point_rd> geometry (multipoint) := /mp
+			,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_multipoint_n.shp"
+			,	StorageType = "shp";
+			attribute<string>   Label                  : ['three', 'two'];
+		}
+
+		// gdalwrite.vect: one layer, geometry and fields together
+		unit<uint32> gdal_layer := /region
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_multipoint_g.shp"
+		,	StorageType = "gdalwrite.vect"
+		{
+			attribute<point_rd> geometry (multipoint) := /mp;
+			attribute<string>   Label                  : ['three', 'two'];
+		}
+	}
+}

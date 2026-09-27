@@ -325,7 +325,7 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 				);
 			}
 		}
-		else
+		else // a polyline's linestrings, or a multipoint's points (a multipoint record has no parts of its own)
 		{
 			auto linestringIter = polygon.begin();
 			auto sequenceEnd = polygon.end();
@@ -333,10 +333,12 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 			{
 				auto linestringEnd = std::find(linestringIter, sequenceEnd, UNDEFINED_VALUE(PointType));
 
-				feature.AddPoints(
-					func_iter(linestringIter),
-					func_iter(linestringEnd)
-				);
+				// no empty part: a record with a part and no points fails ShpPolygon::CheckInvariants
+				if (linestringIter != linestringEnd)
+					feature.AddPoints(
+						func_iter(linestringIter),
+						func_iter(linestringEnd)
+					);
 				if (linestringEnd == sequenceEnd)
 					break;
 				linestringIter = ++linestringEnd;
@@ -393,14 +395,22 @@ FileResult ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	if (auto r = FileResult::require(vClass->GetNrDims() == 2, "ShpStorage error: Cannot write attribute data to a .shp file"); !r)
 		return r;
 
-	ShapeTypes shapeType = ShapeTypes::ST_Point;
-	if (vComp == ValueComposition::Sequence)
+	// Every composition gets its own shape type. A MultiPoint attribute used to keep ST_Point and
+	// went through WriteSequences into records that the point writer never looked at: a valid
+	// shapefile with no records, and a write that reported success.
+	ShapeTypes shapeType;
+	switch (vComp)
 	{
+	case ValueComposition::Single:     shapeType = ShapeTypes::ST_Point;      break;
+	case ValueComposition::Polygon:    shapeType = ShapeTypes::ST_Polygon;    break;
+	case ValueComposition::MultiPoint: shapeType = ShapeTypes::ST_MultiPoint; break;
+	case ValueComposition::Sequence:
 		shapeType = ShapeTypes::ST_Polyline;
 		vtId = ValueClassID(int(vtId) + int(ValueClassID::VT_DArc) - int(ValueClassID::VT_DPolygon)); // (D/F/S/I)Poly -> (D/F/S/I)Arc
+		break;
+	default:
+		return FileResult::require(false, "ShpStorage error: a .shp file holds points, multipoints, arcs or polygons; this attribute's value composition is none of these");
 	}
-	if (vComp == ValueComposition::Polygon)
-		shapeType = ShapeTypes::ST_Polygon;
 
 	ShpImp impl;
 	impl.SetShapeType(shapeType);

@@ -2289,6 +2289,16 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 	feature->SetGeometryDirectly(OGRLine); // takes ownership: SetGeometry copied it, and the factory line leaked
 }
 
+template<typename SequenceType>
+void SetMultiPointGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposition vc)
+{
+	dms_assert(vc == ValueComposition::MultiPoint);
+	auto ogrMultiPoint = std::make_unique<OGRMultiPoint>();
+	for (auto&& p : b)
+		ogrMultiPoint->addGeometryDirectly(new OGRPoint(p.X(), p.Y()));
+	feature->SetGeometryDirectly(ogrMultiPoint.release());
+}
+
 template<typename PointType>
 void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> pointSequence)
 {
@@ -2378,6 +2388,18 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 					MG_CHECK(tileFeatureIndex < SizeT(e - b));
 
 					SetArcGeometryForFeature(feature, b[tileFeatureIndex], vc);
+
+					break;
+				}
+				case ValueComposition::MultiPoint:
+				{
+					using sequence_type = typename sequence_traits<value_type>::container_type;
+
+					auto darray = debug_valcast<const DataArray<sequence_type>*>(ado)->GetDataRead(t);
+					auto b = darray.begin(), e = darray.end();
+					MG_CHECK(tileFeatureIndex < SizeT(e - b));
+
+					SetMultiPointGeometryForFeature(feature, b[tileFeatureIndex], vc);
 
 					break;
 				}
@@ -2603,13 +2625,15 @@ OGRwkbGeometryType DmsType2OGRGeometryType(ValueComposition vc)
 		return wkbLineString;
 	case ValueComposition::Polygon:
 		return wkbMultiPolygon;
+	case ValueComposition::MultiPoint:
+		return wkbMultiPoint;
 	}
 	return wkbUnknown;
 }
 
 bool CheckVCAndVCIForGeometry(ValueComposition vc, ValueClassID vci)
 {
-	if (vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+	if (vc <= ValueComposition::MultiPoint && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
 		return true;
 	return false;
 }
