@@ -608,14 +608,15 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		if (indexCollectorPtr)
 		{
 			OptionalIndexCollectorAray indexCollectorRange(indexCollectorPtr, no_tile);
-			SizeT i = 0;
 			for (Int32 r = Top(gridRect), re = Bottom(gridRect); r != re; ++r)
 			{
 				while (c < cRight)
 				{
-					assert(i == Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))));
+					// the cell's own index, also after the skip below: this branch used to keep one index,
+					// never advanced, so every cell tested the entity of cell 0
+					SizeT i = Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r)));
 					SizeT sdIndex = indexCollectorRange.GetEntityIndex(i);
-					if (SelectionID(sdb[sdIndex]))
+					if (IsDefined(sdIndex) && SelectionID(sdb[sdIndex])) // a cell without a feature has no entity
 						selectRect |= shp2dms_order(IPoint(c, r));
 					++c;
 					if (c >= selectRect.first.Col() && c < selectRect.second.Col())
