@@ -473,12 +473,11 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	if (keyExpr.EndP())
 		return {};
 
-	DataControllerMap::iterator dcPtrLoc;
 	{
 		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSection);
 
 		while (true) {
-			dcPtrLoc = s_DcMap.lower_bound(keyExpr);
+			auto dcPtrLoc = s_DcMap.lower_bound(keyExpr);
 			if (dcPtrLoc == s_DcMap.end() || dcPtrLoc->first != keyExpr)
 				break;
 			auto result = MakeSharedFromWeakPtrInsideSync(dcPtrLoc->second);;
@@ -511,7 +510,10 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 		if (!mayCreate)
 			return {};
 	}
-	// we now have uqiue access to dcPtrLoc, as this is only called from one thread and keyExpr cannot be self-referential.
+	// Only the meta thread creates, and keyExpr cannot be self-referential, so no other entry for keyExpr
+	// can appear before the insert below. Other entries can go: ~DataController erases its own from any
+	// thread. That is why the insert takes no hint from the lower_bound above, which may by then point
+	// at an erased neighbour.
 #if defined(MG_DEBUG_LISP_TREE)
 	reportD(SeverityTypeID::ST_MinorTrace, "===GetDataController===");
 	reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
@@ -524,7 +526,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	assert(dcRef->GetLispRef() == keyExpr);
 
 	std::lock_guard scopedcLock(sd_DataControllerMapCriticalSection);
-	s_DcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef.get()));
+	s_DcMap.insert(DataControllerMap::value_type(keyExpr, dcRef.get()));
 	return dcRef;
 }
 
