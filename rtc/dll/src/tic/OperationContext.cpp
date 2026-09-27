@@ -3177,8 +3177,11 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 		{
 			resultHolder.CatchFail(FailType::Data); // Now done by TreeItemDualRef::DoFail
 			auto errPtr = resultHolder.GetFailReason();
-			if (m_FuncDC)
-				errPtr->TellExtraF("in function {}", GetOperGroup()->GetName());
+			// through the funcDC this function holds, not m_FuncDC: a tile worker's CancelIfOutOfInterest or the
+			// completion can reset m_FuncDC between a test of it and GetOperGroup()'s second read, the race the
+			// measure branch above was fixed for (t641)
+			if (funcDC->m_OperatorGroup)
+				errPtr->TellExtraF("in function {}", funcDC->m_OperatorGroup->GetName());
 			if (resultHolder.HasItemName())
 				errPtr->TellExtraF("while calculating {}", resultHolder.GetItemNameStr()); // #795: also for an intermediate result
 			HandleFail(resultHolder.GetOld()); // raw borrow of the current result item (implicit DualRef->TreeItem* conversion was removed)
