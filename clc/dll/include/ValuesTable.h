@@ -14,6 +14,7 @@
 
 #include "ClcBase.h"
 
+#include "mem/MyContainers.h"
 #include "set/CompareFirst.h"
 
 #include "AbstrDataItem.h"
@@ -57,18 +58,13 @@ auto GetValuesRange(const DataArray<V>* tileFunctor) -> typename Unit<V>::range_
 //----------------------------------------------------------------------
 // Tables over the formal range of integral values
 //
-// A table counts integral values with one counter per value of the formal range of their values unit, the range that the
-// modus family assumes them to lie in: a value outside it is an error, which ThrowOutOfFormalRange reports. The range of a
+// A table counts integral values with one counter per value of the formal range of their values unit. The range of a
 // values unit without a range of its own, [MinValue, MaxValue), stands for all defined values, MaxValue included, as in the
-// check mode that DataArrayBase::DoDetermineCheckMode determines; a table over it has a counter for MaxValue too.
+// check mode that DataArrayBase::DoDetermineCheckMode determines; a table over it has a counter for MaxValue too. The range
+// does not bound the values, though: a value outside it is data too, as for the bins below, such as the sentinel that a
+// switch puts beside the values of its first case, whose values unit it takes (#1285). A table counts such values apart,
+// by value as a set does, so that a table and a set count the same values.
 //----------------------------------------------------------------------
-
-// whether range excludes some defined values, which the range of a values unit without a range of its own does not
-template <typename V>
-bool IsRestrictingRange(const Range<V>& range)
-{
-	return IsDefined(range) && !range.inverted() && !range.is_max();
-}
 
 // the number of counters of a table over range, undefined for an undefined range
 template <typename V>
@@ -90,11 +86,13 @@ V TableValue(const Range<V>& range, SizeT i)
 	return V(range.first + i);
 }
 
-template <typename V>
-[[noreturn]] void ThrowOutOfFormalRange(V value, const Range<V>& range)
+// the counts of a table over a range, and those of the values outside it
+template <typename V, typename C>
+struct TableCounts
 {
-	throwErrorF("Range Error", "Value {} not in expected range from {} till {}", value, range.first, range.second);
-}
+	std::vector<C> table;   // table[i] counts TableValue(range, i)
+	my_map_t<V, C> outside;
+};
 
 //----------------------------------------------------------------------
 
@@ -783,7 +781,7 @@ struct WallCountsAsArrayInfo
 
 
 template<typename V, typename C>
-auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> std::vector<C>
+auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> TableCounts<V, C>
 {
 	assert(t + availableThreads <= te);
 	if (availableThreads > 1)
@@ -800,7 +798,10 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 		auto secondHalfValue = futureSecondHalfValue->get();
 
 		for (SizeT i = 0, e = info.vCount; i < e; ++i)
-			firstHalfValue[i] += secondHalfValue[i];
+			firstHalfValue.table[i] += secondHalfValue.table[i];
+		if constexpr (has_undefines_v<V>)
+			for (const auto& [value, count] : secondHalfValue.outside)
+				firstHalfValue.outside[value] += count;
 		return firstHalfValue;
 	}
 
@@ -809,8 +810,9 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 	{
 		MG_CHECK(localInfo.vCount == (1 << nrbits_of_v<V>));
 	}
-	std::vector<C> buffer(localInfo.vCount, 0);
-	auto bufferB = buffer.begin();
+	TableCounts<V, C> result;
+	result.table.resize(localInfo.vCount, 0);
+	auto bufferB = result.table.begin();
 	for (; t != te; ++t)
 	{
 		auto valuesLock = localInfo.values_fta[t]->GetTile(); localInfo.values_fta[t] = nullptr;
@@ -823,21 +825,24 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 				if (!IsDefined(*valuesIter))
 					continue;
 			}
-			auto i = Range_GetIndex_naked_unchecked(localInfo.valuesRange, *valuesIter); // a value outside is reported below, in a debug build too
+			auto i = Range_GetIndex_naked_unchecked(localInfo.valuesRange, *valuesIter); // a value below the range wraps to beyond it
 			if constexpr (has_undefines_v<V>)
 			{
 				if (i >= localInfo.vCount)
-					ThrowOutOfFormalRange<V>(*valuesIter, localInfo.valuesRange);
+				{
+					SafeIncrementCounter(result.outside[*valuesIter]);
+					continue;
+				}
 			}
 			SafeIncrementCounter(bufferB[i]);
 		}
 	}
-	return buffer;
+	return result;
 }
 
 
 template<typename V, typename C>
-auto GetCountsAsArray(const DataArray<V> * valuesDataArray, typename Unit<V>::range_t valuesRange) -> std::vector<C>
+auto GetCountsAsArray(const DataArray<V> * valuesDataArray, typename Unit<V>::range_t valuesRange) -> TableCounts<V, C>
 {
 	SizeT vCount = TableSize(valuesRange);
 	assert(IsDefined(vCount));
@@ -872,7 +877,7 @@ auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount, b
 	{
 		// a bin for each of the 2^N values fits them all: bit values are never sorted, nor null
 		WallCountsAsArrayInfo<V> info = { typename Unit<V>::range_t(0, 1 << nrbits_of_v<V>), SizeT(1) << nrbits_of_v<V>, values_fta.begin() };
-		auto bins = GetWallCountsAsArray<V, C>(info, 0, nrTiles, maxNrThreads);
+		auto bins = GetWallCountsAsArray<V, C>(info, 0, nrTiles, maxNrThreads).table; // all 2^N values have a counter, none lies outside
 
 		ValueCountPairContainerT<V, C> result;
 		result.reserve(bins.size() - SizeT(std::count(bins.begin(), bins.end(), C())) MG_DEBUG_ALLOCATOR_SRC("GetWeededWallCounts"));

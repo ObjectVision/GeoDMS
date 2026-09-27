@@ -1,11 +1,11 @@
 // The modus family on integral values (modus, unique_count_*, modus_count_*, frequency_table, entropy, ..., and
-// modus_weighted; in total and per partition) assumes the values to lie in the formal range of their values unit. It counts
-// them in a table over that range where the table is not larger than the values (v * p <= n) and in a set otherwise; bit
-// values always in a table. Table and set give the same results: each result below is computed under a small range, where
-// the table counts, and under a large one, where the set counts, and both are compared with the expected value.
+// modus_weighted; in total and per partition) counts the values in a table over the formal range of their values unit
+// where the table is not larger than the values (v * p <= n) and in a set otherwise; bit values always in a table. Table
+// and set give the same results: each result below is computed under a small range, where the table counts, and under a
+// large one, where the set counts, and both are compared with the expected value.
 // Further checks: the range of a values unit without a range of its own takes every defined value, MaxValue included;
 // nulls are skipped; summed weights are compared as Float64 (in partition 1, value 1000 weighs 1.5 and beats value 1005
-// with 1.2). A value outside the formal range throws, see the oper_modus_range_neg_* configs.
+// with 1.2). A value outside the formal range is counted like any other, see oper_modus_outside_range.dms (#1285).
 // Expected: exit 0 on /checks.
 container oper_modus_formal_range
 {
