@@ -1916,8 +1916,57 @@ namespace {
 		}
 	}
 
+	// The combinations MakeFieldWriter admits, tested per column before the table is read, so that a column
+	// of another type fails as its own attribute: thrown from inside the tile loop, the conflict failed every
+	// member of the table that was not done yet, the other columns and the geometry included.
+	bool FieldGoesInto(ValueClassID fieldType, ValueClassID targetType)
+	{
+		switch (fieldType)
+		{
+		case ValueClassID::VT_Unknown:
+		case ValueClassID::VT_SharedStr:
+			if (targetType == ValueClassID::VT_SharedStr)
+				return true;
+			break;
+		case ValueClassID::VT_Int64:
+		case ValueClassID::VT_Bool:
+		case ValueClassID::VT_UInt16:
+		case ValueClassID::VT_Int16:
+		case ValueClassID::VT_Int32:
+			break;
+		case ValueClassID::VT_Float32:
+		case ValueClassID::VT_Float64:
+			switch (targetType)
+			{
+			case ValueClassID::VT_Bool: case ValueClassID::VT_UInt2: case ValueClassID::VT_UInt4: case ValueClassID::VT_Int64: case ValueClassID::VT_UInt64:
+				return false;
+			default:
+				break;
+			}
+			break;
+		default:
+			return false;
+		}
+		switch (targetType)
+		{
+#define INSTANTIATE(T) case ValueClassID::VT_##T: return true;
+			INSTANTIATE_NUM_ORG
+			INSTANTIATE_UINTS_NEW
+			INSTANTIATE_BOOL
+#undef INSTANTIATE
+		default:
+			return false;
+		}
+	}
+
+	SharedStr ValueClassName(ValueClassID id)
+	{
+		auto vc = ValueClass::FindByValueClassID(id);
+		return vc ? vc->GetName() : SharedStr("unknown");
+	}
+
 	// the matrix of ReadAttrData: the field's OGR type says how a feature's value is taken, the target's
-	// value type where it goes; the same combinations are admitted
+	// value type where it goes; the same combinations are admitted, see FieldGoesInto
 	field_writer MakeFieldWriter(AbstrDataObject* ado, tile_id t, SizeT fieldIndex, ValueClassID fieldType, ValueClassID targetType)
 	{
 		field_kind kind = field_kind::integer64;
@@ -1966,7 +2015,7 @@ namespace {
 			break;
 		}
 	typeConflict:
-		throwErrorF("gdal.vect", "Cannot read attribute data of type {} into attribute of type {}", int(fieldType), int(targetType));
+		throwErrorF("gdal.vect", "Cannot read attribute data of type {} into attribute of type {}", ValueClassName(fieldType), ValueClassName(targetType));
 	}
 
 } // anonymous namespace
@@ -2005,6 +2054,13 @@ void GdalVectSM::ReadDataItemsAtOnce(std::vector<ReadTarget>& targets)
 		auto fieldDefn = featureDefn->GetFieldDefn(fieldIndex);
 		auto fieldType = fieldDefn ? gdalVectImpl::OGR2ValueType(fieldDefn->GetType(), fieldDefn->GetSubType()) : ValueClassID::VT_Unknown;
 		auto targetType = target.m_Item->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		if (!FieldGoesInto(fieldType, targetType))
+		{
+			target.m_Item->Fail(mySSPrintF("Cannot read attribute data of type {} into attribute of type {}"
+				, ValueClassName(fieldType), ValueClassName(targetType)).c_str(), FailType::Data);
+			target.m_Done = true;
+			continue;
+		}
 		columns.push_back(column{ &target, fieldIndex, fieldType, targetType, nullptr });
 	}
 	if (columns.empty())
@@ -2173,7 +2229,7 @@ ready:
 	m_CurrFeatureIndex += size;
 	return true;
 typeConflict:
-	throwErrorF("gdal.vect", "Cannot read attribute data of type {} into attribute of type {}", int(ft), int(at));
+	throwErrorF("gdal.vect", "Cannot read attribute data of type {} into attribute of type {}", ValueClassName(ft), ValueClassName(at));
 }
 
 void GdalVectSM::SetCurrFeatureIndex(SizeT firstFeatureIndex) const
