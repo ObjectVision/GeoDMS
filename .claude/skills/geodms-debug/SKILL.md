@@ -186,7 +186,9 @@ assertion: `Get-Clipboard -Raw` and `-Format Image`.
   semicolons inside `xy()`; it is not an expression.
 - A probe worth keeping becomes `testcases\fn_test_<topic>.dms` or
   `testcases\oper_<name>.dms` with a `/checks` container, offline and cheap; it needs no
-  packaging edit. Anything that downloads or reads real data goes to
+  packaging edit. The runner takes a case with `_neg` anywhere in its name for a negative
+  that must exit nonzero (`fn_test_ci_neg1`, `oper_alloc_partitioning_neg_null`), so a
+  positive case about `neg` is named `oper_negate_...`, not `oper_neg_...`. Anything that downloads or reads real data goes to
   `batch\TestShippedContent.bat` instead.
 - A regression case proves something only when it fails on the code before the fix. Run it
   on the unfixed binaries first (a battery on a build without the fix does this for every
