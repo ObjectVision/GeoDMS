@@ -31,7 +31,7 @@ struct SharedArrayPtr : SharedPtr<SharedArray<T> >
 	iterator       begin() { return this->has_ptr() ? this->get_ptr()->begin(): iterator(); }
 	iterator       end  () { return  this->has_ptr() ? this->get_ptr()->end()  : iterator(); }
 
-	T& operator [](UInt32 i) { return (*this)[i]; }
+	T& operator [](UInt32 i) { return (*this->get_nonnull())[i]; }
 
 	UInt32 size () const { return this->has_ptr() ? this->get_ptr()->size() : 0;  }
 	bool   empty() const { return this->has_ptr() ? this->get_ptr()->empty(): true; }
@@ -54,7 +54,7 @@ struct SharedConstArrayPtr : SharedPtr<const SharedArray<T> >
 	const_iterator begin() const { return this->has_ptr() ? this->get_ptr()->begin(): const_iterator(); }
 	const_iterator end  () const { return this->has_ptr() ? this->get_ptr()->end()  : const_iterator(); }
 
-	typename param_type<T>::type operator [](UInt32 i) const { return (*this)[i]; }
+	typename param_type<T>::type operator [](UInt32 i) const { return (*this->get_nonnull())[i]; }
 
 	UInt32 size () const { return this->has_ptr() ? this->get_ptr()->size(): 0;  }
 	bool   empty() const { return this->has_ptr() ? this->get_ptr()->empty() : true; }
