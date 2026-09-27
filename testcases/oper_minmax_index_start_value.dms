@@ -1,0 +1,30 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A07: max_index and min_index compared every value
+// with a start value, MIN_VALUE or MAX_VALUE of the value type, and took it only when strictly
+// better. For unsigned and bool data MIN_VALUE is 0, so max_index of values that are all 0 (in the
+// whole domain or in one partition) stayed null; min_index likewise when all values equal MAX_VALUE.
+// Since 20.22.0 the first defined value of a partition is taken as it is, and a later one only when
+// strictly better, so a tie still gives the first index. The min_index case of MAX_VALUE is the same
+// code path and is not repeated here.
+// Expected: exit 0 on /checks.
+container oper_minmax_index_start_value
+{
+	unit<uint32> P : nrofrows = 2;
+
+	unit<uint32> D : nrofrows = 6
+	{
+		attribute<uint32> zero : [0, 0, 0, 0, 0, 0];
+		attribute<uint32> v    : [0, 0, 0, 3, 5, 5];
+		attribute<P>      part : [0, 0, 0, 1, 1, 1];
+	}
+
+	container checks
+	{
+		parameter<D>     max_zero     := max_index(D/zero);
+		attribute<D>     max_part (P) := max_index(D/v, D/part);
+		attribute<D>     min_part (P) := min_index(D/v, D/part);
+
+		parameter<bool> max_zero_ok := uint32(max_zero) == 0, IntegrityCheck = "max_zero_ok == true";
+		parameter<bool> max_part_ok := uint32(max_part[0]) == 0 && uint32(max_part[1]) == 4, IntegrityCheck = "max_part_ok == true";
+		parameter<bool> min_part_ok := uint32(min_part[0]) == 0 && uint32(min_part[1]) == 3, IntegrityCheck = "min_part_ok == true";
+	}
+}

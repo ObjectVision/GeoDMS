@@ -62,24 +62,20 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
-			tile_id nrTiles = arg1_DomainUnit->GetNrTiles();
-
-			bool arg1HasUndefined = arg1A->HasUndefinedValues();
-
 			SizeT p = arg2_ValuesUnit->GetCount();
 			IndexAssignerSizeT indices(res, resLock.get(), no_tile, 0, p);
 			fast_undefine(indices.m_Indices, indices.m_Indices + p);
 
 			ResourceHandle valueArray;
 
-			Calculate(p, valueArray, indices.m_Indices, arg1A, arg1HasUndefined, arg2A);
+			Calculate(p, valueArray, indices.m_Indices, arg1A, arg2A);
 
 			indices.Store();
 			resLock.Commit();
 		}
 		return true;
 	}
-	virtual void Calculate(SizeT p, ResourceHandle& valueArray, SizeT* indices, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrDataItem* arg2A) const = 0;
+	virtual void Calculate(SizeT p, ResourceHandle& valueArray, SizeT* indices, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const = 0;
 };
 
 template <typename V, typename Comparator>
@@ -91,7 +87,7 @@ public:
 	MinMaxIndexOperator(AbstrOperGroup& og): AbstrMinMaxIndexOperator(og, DataArray<V>::GetStaticClass())
 	{}
 
-	void Calculate(SizeT nr_p, ResourceHandle& valueArray, SizeT* indices, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrDataItem* arg2A) const override
+	void Calculate(SizeT nr_p, ResourceHandle& valueArray, SizeT* indices, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
 	{
 		typedef typename sequence_traits<V>::container_type valueContainer;
 		if (!valueArray)
@@ -112,7 +108,9 @@ public:
 			if (p >= nr_p)
 				continue;
 
-			if (IsDefined(valueData[i]) && comp(valueData[i], values[p]))
+			// the first defined value of a partition is taken as it is: compared with the start value, an
+			// extreme that equals it (0 for max_index of unsigned or bool data) would leave the index null
+			if (IsDefined(valueData[i]) && (!IsDefined(indices[p]) || comp(valueData[i], values[p])))
 			{
 				values[p] = valueData[i];
 				indices[p] = i;
