@@ -142,3 +142,28 @@ xml('xml_entity_text.xml', HEADER + '< TreeItem name = "xt" >\n< Descr > a &amp;
 # hanging. Written compact, as the XML writer does
 xml('xml_attr_entity.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<TreeItem name="xae"><DATAITEM name="xap" ValuesUnit="str&amp;ing&unknown;"><CalcRule>&apos;v&apos;</CalcRule></DATAITEM></TreeItem>\n')
 
+# ---------------------------------------------------------------- dBase III table (STG-A03, STG-A04 of doc/code-audit-2026-09-27.md)
+def dbf(name, fields, records):
+    # fields: (name, type 'N' or 'C', length, decimals); records: tuples of the raw field texts.
+    # A numeric field is right-aligned and blank-filled, as dBase writes it; an empty text is a NULL.
+    rec_len = 1 + sum(f[2] for f in fields)
+    hdr_len = 32 + 32 * len(fields) + 1
+    head = struct.pack('<BBBBIHH20x', 3, 126, 9, 27, len(records), hdr_len, rec_len)
+    descr = b''
+    for fname, ftype, flen, fdec in fields:
+        descr += fname.encode('ascii').ljust(11, b'\0') + ftype.encode('ascii') + b'\0' * 4 + struct.pack('<BB', flen, fdec) + b'\0' * 14
+    body = b''
+    for rec in records:
+        body += b' ' + b''.join(v.encode('ascii').rjust(f[2]) if f[1] == 'N' else v.encode('ascii').ljust(f[2]) for v, f in zip(rec, fields))
+    data = head + descr + b'\r' + body + b'\x1a'
+    with open(os.path.join(OUT, name), 'wb') as f:
+        f.write(data)
+    print(name, len(data), 'bytes')
+
+# an 18-digit id beyond 2^53 (int64 used to read as all zeros), NULL numerics written as blanks and as
+# '*' fill (one used to fail the whole column), and an ESRI long integer N(10,0)
+dbf('dbf_int64_null.dbf',
+    [('ID', 'N', 18, 0), ('VAL', 'N', 10, 0), ('NAME', 'C', 4, 0)],
+    [('123456789012345678', '42', 'a'),
+     ('', '**********', 'b'),
+     ('-5', '-7', 'c')])

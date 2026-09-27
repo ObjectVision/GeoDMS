@@ -16,6 +16,8 @@
 
 #include "dbfImp.h"
 #include <memory> // std::addressof
+#include <algorithm> // std::all_of
+#include <charconv> // std::from_chars
 
 #include "dbg/debug.h"
 #include "vt/BaseBounds.h"
@@ -93,13 +95,17 @@ ValueClassID DbfTypeToValueClassID(const TDbfType dt, const UInt8 len, const UIn
 	switch (dt)
 	{
 		case dtNumeric:
+			// An integer column wider than 10 digits holds values beyond the Int32 range and is
+			// typed Int64; N(10,0), the usual width of an ESRI long integer, stays Int32.
 			return (dc > 0)
 				?	(len > 6 ? ValueClassID::VT_Float64 : ValueClassID::VT_Float32)
-				:	(len > 4) 
-					?	ValueClassID::VT_Int32 
-					:	(len > 2)
-						?	ValueClassID::VT_Int16
-						:	ValueClassID::VT_Int8;
+				:	(len > 10)
+					?	ValueClassID::VT_Int64
+					:	(len > 4)
+						?	ValueClassID::VT_Int32
+						:	(len > 2)
+							?	ValueClassID::VT_Int16
+							:	ValueClassID::VT_Int8;
 
 		case dtCharacter:
 		case dtDate:
@@ -640,10 +646,46 @@ Float64 ReadAsFloat64(CharPtr fieldBuffer, CharPtr filedBufferEnd)
 	return tmp;
 }
 
+// dBase, ESRI and shapelib/GDAL store a NULL numeric as a field of blanks, or of '*' characters.
+// Parsing such a field threw "unexpected character", so a single NULL failed the whole column.
+static bool IsNullNumericField(CharPtr fieldBuffer, CharPtr fieldBufferEnd)
+{
+	return std::all_of(fieldBuffer, fieldBufferEnd, [](char c) { return c == ' ' || c == '*' || c == 0; });
+}
+
 template <typename T>
 void ReadAsFloat64AndConvert(T* dataPtr, char* fieldBuffer, char* fieldBufferEnd)
 {
-	*dataPtr = Convert<T>(ReadAsFloat64(fieldBuffer, fieldBufferEnd));
+	if (IsNullNumericField(fieldBuffer, fieldBufferEnd))
+		*dataPtr = UNDEFINED_VALUE(T);
+	else
+		*dataPtr = Convert<T>(ReadAsFloat64(fieldBuffer, fieldBufferEnd));
+}
+
+// 64-bit integers are parsed as integers: through Float64 they lose precision above 2^53, and the
+// ids that make a modeller configure int64 (16 to 18 digits) are exactly the ones beyond it. A field
+// that is not a plain integer, such as one with decimals, still goes through Float64.
+template <typename T>
+void ReadAsIntegerOrFloat64AndConvert(T* dataPtr, char* fieldBuffer, char* fieldBufferEnd)
+{
+	if (IsNullNumericField(fieldBuffer, fieldBufferEnd))
+	{
+		*dataPtr = UNDEFINED_VALUE(T);
+		return;
+	}
+	CharPtr first = fieldBuffer, last = fieldBufferEnd;
+	while (first != last && *first == ' ')
+		++first;
+	while (first != last && (last[-1] == ' ' || last[-1] == 0))
+		--last;
+	if (first != last && *first == '+')
+		++first;
+	T value;
+	auto [ptr, ec] = std::from_chars(first, last, value);
+	if (ec == std::errc() && ptr == last)
+		*dataPtr = value;
+	else
+		ReadAsFloat64AndConvert(dataPtr, fieldBuffer, fieldBufferEnd);
 }
 
 void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex, ValueClassID vc, CharPtr formatspec)
@@ -689,8 +731,16 @@ void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex
 		case ValueClassID::VT_UInt16  : ReadAsFloat64AndConvert((UInt16 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
 		case ValueClassID::VT_Int32   : ReadAsFloat64AndConvert(( Int32 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
 		case ValueClassID::VT_UInt32  : ReadAsFloat64AndConvert((UInt32 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
+#if defined(DMS_TM_HAS_INT64)
+		// instantiated by INSTANTIATE_NUM_ORG on 64-bit builds, but without a case here every value
+		// kept the zero of the write_only_mustzero lock, without an error
+		case ValueClassID::VT_Int64   : ReadAsIntegerOrFloat64AndConvert(( Int64*) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_UInt64  : ReadAsIntegerOrFloat64AndConvert((UInt64*) data, fieldBuffer, fieldBuffer+fieldSize); break;
+#endif
 		case ValueClassID::VT_Float32 : ReadAsFloat64AndConvert((Float32*) data, fieldBuffer, fieldBuffer+fieldSize); break;
 		case ValueClassID::VT_Float64 : ReadAsFloat64AndConvert((Float64*) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		default:
+			throwErrorF("DBF", "reading values of value class {} is not supported", int(vc));
 	}
 }
 
@@ -726,6 +776,10 @@ bool DbfImpl::WriteDataElement(const void *data, UInt32 recordindex, UInt32 colu
 		case ValueClassID::VT_UInt16  : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (UInt16*) data);	break;
 		case ValueClassID::VT_Int32   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Int32*) data);	break;
 		case ValueClassID::VT_UInt32  : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (UInt32*) data);	break;
+#if defined(DMS_TM_HAS_INT64)
+		case ValueClassID::VT_Int64   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Int64*) data);	break;
+		case ValueClassID::VT_UInt64  : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (UInt64*) data);	break;
+#endif
 		case ValueClassID::VT_Float32 : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Float32*) data);	break;
 		case ValueClassID::VT_Float64 : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Float64*) data);	break;
 		default         : return false;

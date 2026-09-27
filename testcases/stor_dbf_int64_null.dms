@@ -1,0 +1,29 @@
+// Regression for doc/code-audit-2026-09-27.md STG-A03 and STG-A04: the dbf reader had no case for
+// 64-bit integers, so an int64 or uint64 attribute read as all zeros without an error, and it failed
+// the whole column on the first NULL numeric, which dBase, ESRI and GDAL write as blanks or as '*'
+// fill. 64-bit integers are now parsed as integers (an 18-digit id is beyond the 2^53 that Float64
+// holds exactly), and a NULL numeric reads as null. Fixture: data/dbf_int64_null.dbf, written by
+// data/make_fixtures.py. Expected: exit 0 on /checks.
+container stor_dbf_int64_null
+{
+	unit<uint32> tab
+	:	StorageName     = "%currDir%/data/dbf_int64_null.dbf"
+	,	StorageType     = "dbf"
+	,	StorageReadOnly = "True"
+	{
+		attribute<int64>  ID;
+		attribute<int32>  VAL;
+		attribute<string> NAME;
+	}
+
+	container checks
+	{
+		parameter<bool> count   := #tab == 3, IntegrityCheck = "count == true";
+		parameter<bool> names   := asList(tab/NAME, ',') == 'a,b,c', IntegrityCheck = "names == true";
+		parameter<bool> bigId   := tab/ID[0] == int64(123456789) * int64(1000000000) + int64(12345678), IntegrityCheck = "bigId == true"; // 123456789012345678
+		parameter<bool> nullId  := IsNull(tab/ID[1]), IntegrityCheck = "nullId == true";
+		parameter<bool> negId   := int32(tab/ID[2]) == -5i, IntegrityCheck = "negId == true";
+		parameter<bool> val     := tab/VAL[0] == 42i && tab/VAL[2] == -7i, IntegrityCheck = "val == true";
+		parameter<bool> nullVal := IsNull(tab/VAL[1]), IntegrityCheck = "nullVal == true";
+	}
+}
