@@ -1,0 +1,36 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A15: a dms_ dissolve on a values unit without a
+// declared range (plain dpoint) derives its lattice from the coordinates of all its elements, and
+// threw "no lattice can be derived for this dissolve" when there were none: an empty domain, or only
+// empty polygons, such as dms_union_polygon(dms_intersect(a, b)) of two sets that do not overlap. One
+// null or non-finite point anywhere also ended the count. The other polygon families return an empty
+// result there. Since 20.22.0 the dms_ dissolve does too, and a point that cannot be framed only
+// leaves its own element out of the frame.
+// Expected: exit 0 on /checks.
+container oper_dms_dissolve_empty
+{
+	unit<uint32> E  : nrofrows = 2;
+	unit<uint32> Pt : nrofrows = 10
+	{
+		attribute<float64> x   : [0, 0, 2, 2, 0,   10, 10, 12, 12, 10];
+		attribute<float64> y   : [0, 2, 2, 0, 0,    0,  2,  2,  0,  0];
+		attribute<E>       seq : [0, 0, 0, 0, 0,    1,  1,  1,  1,  1];
+		attribute<uint32>  ord : [0, 1, 2, 3, 4,    0,  1,  2,  3,  4];
+	}
+	attribute<dpoint> a (E, polygon) := points2polygon(point_xy(Pt/x, Pt/y, dpoint), Pt/seq, Pt/ord);
+	attribute<dpoint> b (E, polygon) := points2polygon(point_xy(Pt/x + 100.0, Pt/y, dpoint), Pt/seq, Pt/ord); // far from a
+
+	unit<uint32> Z   : nrofrows = 0;
+	unit<uint32> ZPt : nrofrows = 0;
+	attribute<dpoint> none (Z, polygon) := points2polygon(const(point_xy(0.0, 0.0, dpoint), ZPt), const(0, ZPt, Z), id(ZPt));
+
+	container checks
+	{
+		attribute<dpoint> inter (E, polygon) := dms_intersect(a, b);
+		parameter<dpoint> dissolved (polygon) := dms_union_polygon(inter);
+		parameter<dpoint> dissolved_empty_domain (polygon) := dms_union_polygon(none);
+
+		parameter<bool> inter_empty      := sum(sequence_element_count(inter)) == 0, IntegrityCheck = "inter_empty == true";
+		parameter<bool> dissolved_ok     := sequence_element_count(dissolved) == 0, IntegrityCheck = "dissolved_ok == true";
+		parameter<bool> empty_domain_ok  := sequence_element_count(dissolved_empty_domain) == 0, IntegrityCheck = "empty_domain_ok == true";
+	}
+}

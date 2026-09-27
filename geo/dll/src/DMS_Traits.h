@@ -1875,6 +1875,16 @@ struct DmsOverlayEngine
 				any = true;
 			}
 		}
+		// the box of another element's usable statistics joined into this one
+		void Merge(const CoordStats& other)
+		{
+			if (!other.usable || !other.any)
+				return;
+			MakeMin(minX, other.minX); MakeMin(minY, other.minY);
+			MakeMax(maxX, other.maxX); MakeMax(maxY, other.maxY);
+			MakeMax(maxAbs, other.maxAbs);
+			any = true;
+		}
 		Float64 Extent() const { return any ? Max<Float64>(maxX - minX, maxY - minY) : 0.0; }
 		Float64 MaxAbs() const { return maxAbs; }
 	};

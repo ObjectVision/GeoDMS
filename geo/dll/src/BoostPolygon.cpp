@@ -1766,14 +1766,23 @@ public:
 		{
 			typename Engine::CoordStats stats;
 			auto polyData = const_array_cast<SequenceType>(polyDataA);
-			for (tile_id u = 0, ue = polyDataA->GetAbstrDomainUnit()->GetNrTiles(); u != ue && stats.usable; ++u)
+			// per element, joining only the elements whose points are all defined and finite: one null
+			// point used to end the whole count, so that a dissolve without a declared range found no
+			// lattice at all; such an element is left to the operation itself
+			for (tile_id u = 0, ue = polyDataA->GetAbstrDomainUnit()->GetNrTiles(); u != ue; ++u)
 			{
 				auto tileData = polyData->GetTile(u);
-				for (auto pi = tileData.begin(), pe = tileData.end(); pi != pe && stats.usable; ++pi)
-					stats.Add(*pi);
+				for (auto pi = tileData.begin(), pe = tileData.end(); pi != pe; ++pi)
+				{
+					typename Engine::CoordStats elemStats;
+					elemStats.Add(*pi);
+					stats.Merge(elemStats);
+				}
 			}
-			if (stats.usable && stats.any)
+			if (stats.any)
 				frame = dms_overlay::DmsFrameFor<P>(stats.minX, stats.minY, stats.maxX, stats.maxY);
+			else // nothing to frame: an empty domain, or only empty polygons, whose result is empty on any lattice
+				frame = dms_overlay::DmsFrameFor<P>(0, 0, 0, 0);
 		}
 		if (!frame.defined())
 			throwErrorF(operName, "no lattice can be derived for this dissolve: the values unit declares no range and the data has no defined finite coordinates");
@@ -1860,7 +1869,8 @@ public:
 			}
 			auto bagResourcePtr = debug_cast<ResourceArray<Bag>*>(r.get());
 			assert(bagResourcePtr->size() == domainCount);
-			const auto& frame = bagResourcePtr->begin()->frame;
+			// an empty partition unit has no bag to take the frame from; its elements are skipped or refused below
+			const auto frame = domainCount ? bagResourcePtr->begin()->frame : dms_overlay::DmsFrameFor<P>(0, 0, 0, 0);
 
 			Engine& engine = EngineOf(ctx);
 			engine.SetFixedFrame(frame.cell, frame.originX, frame.originY);
