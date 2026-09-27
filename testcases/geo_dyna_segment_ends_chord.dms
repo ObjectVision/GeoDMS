@@ -1,0 +1,25 @@
+// GEO-A17: dyna_segment_with_ends on two connected segments. After the end point of the first
+// segment, the first chord of the second segment must start at that end point, not at the last
+// interior sample of the first segment. (0,0)-(0,10) and (0,10)-(0,20) sampled every 3 give the
+// chords 0-3, 3-6, 6-9, 9-10, 10-13, 13-16, 16-19 and 19-20; the stale start made the fifth 9-13.
+container geo_dyna_segment_ends_chord
+{
+	unit<dpoint> Crd;
+	unit<uint32> Segment: nrofrows = 2
+	{
+		attribute<Crd> a := point_xy(const(0.0, .), float64(id(.)) * 10.0, Crd);
+		attribute<Crd> b := point_xy(const(0.0, .), float64(id(.)) * 10.0 + 10.0, Crd);
+	}
+	unit<uint32> Sampled := dyna_segment_with_ends(Segment/a, Segment/b, 3.0)
+	{
+		attribute<float64> dx  := pointcol(point) - pointcol(NextPoint);
+		attribute<float64> dy  := pointrow(point) - pointrow(NextPoint);
+		attribute<float64> len := sqrt(dx * dx + dy * dy);
+	}
+	container checks
+	{
+		parameter<uint32>  n       := #Sampled,         IntegrityCheck = "n == 8";
+		parameter<float64> longest := max(Sampled/len), IntegrityCheck = "longest <= 3.0000001";
+		parameter<float64> total   := sum(Sampled/len), IntegrityCheck = "total > 19.9999 && total < 20.0001";
+	}
+}

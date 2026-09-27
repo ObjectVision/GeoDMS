@@ -1244,9 +1244,9 @@ public:
 					nrPoints++;
 			}
 			SizeT nrPointsHere = (segmLength+carry) / dist;
-			assert((segmLength+carry) >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
 			carry += (segmLength - dist * nrPointsHere);
-			assert(carry >= 0);
+			if (carry < 0) // the division can round up, which leaves a carry of minus a rounding error (GEO-A17); the write pass clamps alike
+				carry = 0;
 
 			if (withEnds && carry)
 			{
@@ -1303,14 +1303,13 @@ public:
 					currPointIndex++;
 				}
 			}
-			SizeT nrPointsHere = (segmLength +carry) / dist;
-			dms_assert(segmLength+carry >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
+			SizeT nrPointsHere = (segmLength +carry) / dist; // may round up by a rounding error; the carry is clamped below, as in the count pass (GEO-A17)
 
 			if (nrPointsHere)
 			{
 				segment /= segmLengthOrg; // norm
 				DPoint currLoc = *i1;
-				dms_assert(carry <= dist);
+				dbg_assert(carry <= dist);
 				currLoc += segment * (dist - carry);
 				ri1.Write(currLoc);
 				if (resSub2)
@@ -1343,7 +1342,8 @@ public:
 			}
 
 			carry += (segmLength - dist * nrPointsHere);
-			dms_assert(carry >= 0);
+			if (carry < 0) // as in the count pass; a dms_assert here was __assume in Release (GEO-A17)
+				carry = 0;
 
 			if (withEnds)
 			{
@@ -1351,7 +1351,10 @@ public:
 				{
 					ri1.Write(*i2);
 					if (resSub2)
+					{
 						ri2.Write(prevLoc);
+						prevLoc = *i2; // the next chord of a connected segment starts at this end point, not at the last sample before it (GEO-A17)
+					}
 					if (resSub3) // absent for a void point domain, as at every other write above
 						ri3.WriteUInt32(nrOrgEntity);
 					if (resSub4)
