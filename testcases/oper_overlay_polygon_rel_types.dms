@@ -1,0 +1,42 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A14: the *_overlay_polygon and
+// *_polygon_connectivity operators wrote first_rel and second_rel through a uint32 channel, whatever
+// the domains of their arguments. For a uint8 domain (twelve provinces in a unit<uint8>) the checked
+// cast of that channel failed as an internal error, and on a uint32 domain that does not start at 0
+// the row number was written instead of the value. Since 20.22.0 both relations are values of their
+// argument's domain.
+//
+// Four squares on a uint8 domain, overlaid with a band on range(uint32, 10, 11) that meets the first
+// three: first_rel is 0, 1 and 2, second_rel is 10 each time, for the dms_ and the bp_ variant.
+// Expected: exit 0 on /checks.
+container oper_overlay_polygon_rel_types
+{
+	// points2polygon takes no uint8 relation, so the squares are built on uint32 and looked up
+	unit<uint32> Sq4u  : nrofrows = 4;
+	unit<uint8>  Sq4   : nrofrows = 4;
+	unit<uint32> Sq4Pt : nrofrows = 20;
+	attribute<int32>  sx   (Sq4Pt) : [ 0,0,2,2,0,   3,3,5,5,3,   6,6,8,8,6,   9,9,11,11,9 ];
+	attribute<int32>  sy   (Sq4Pt) : [ 0,2,2,0,0,   0,2,2,0,0,   0,2,2,0,0,   0,2,2, 0,0 ];
+	attribute<Sq4u>   sseq (Sq4Pt) : [ 0,0,0,0,0,   1,1,1,1,1,   2,2,2,2,2,   3,3,3,3,3 ];
+	attribute<uint32> sord (Sq4Pt) : [ 0,1,2,3,4,   0,1,2,3,4,   0,1,2,3,4,   0,1,2,3,4 ];
+	attribute<ipoint> squares_u (Sq4u, polygon) := points2polygon(point_xy(sx, sy, ipoint), sseq, sord);
+	attribute<ipoint> squares   (Sq4,  polygon) := squares_u[value(uint32(id(Sq4)), Sq4u)];
+
+	unit<uint32> Band := range(uint32, 10, 11);
+	unit<uint32> RPt  : nrofrows = 5;
+	attribute<int32>  bx   (RPt) : [ 1, 1, 7, 7, 1 ];
+	attribute<int32>  by   (RPt) : [ 0, 2, 2, 0, 0 ];
+	attribute<Band>   bseq (RPt) : [ 10, 10, 10, 10, 10 ];
+	attribute<uint32> bord (RPt) : [ 0, 1, 2, 3, 4 ];
+	attribute<ipoint> strip (Band, polygon) := points2polygon(point_xy(bx, by, ipoint), bseq, bord);
+
+	container checks
+	{
+		unit<uint32> dms_ov := dms_overlay_polygon(squares, strip);
+		unit<uint32> bp_ov  := bp_overlay_polygon(squares, strip);
+
+		parameter<bool> dms_ok := #dms_ov == 3 && sum(uint32(dms_ov/first_rel)) == 3 && all(uint32(dms_ov/second_rel) == 10)
+			, IntegrityCheck = "dms_ok == true";
+		parameter<bool> bp_ok  := #bp_ov == 3 && sum(uint32(bp_ov/first_rel)) == 3 && all(uint32(bp_ov/second_rel) == 10)
+			, IntegrityCheck = "bp_ok == true";
+	}
+}

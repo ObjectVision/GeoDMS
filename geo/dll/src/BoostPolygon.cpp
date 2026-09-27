@@ -26,6 +26,7 @@
 #include "utl/Registry.h"
 #include "utl/StrFormat.h"
 
+#include "IndexAssigner.h"
 #include "ParallelTiles.h"
 #include "LispTreeType.h"
 #include "LockLevels.h"
@@ -591,9 +592,18 @@ public:
 		res->SetCount(ThrowingConvert<ResultingDomainType>(count));
 
 		locked_tile_write_channel<PolygonType> resGWriter(resG);
-		locked_tile_write_channel<UInt32> res1Writer(res1);
-		locked_tile_write_channel<UInt32> res2Writer(res2);
 
+		// first_rel and second_rel are row numbers of the arguments' domains; the index assigners turn them
+		// into values of those domains, whatever their value type and wherever their range starts, as
+		// polygon_connectivity does. They were written through a UInt32 channel, whose checked cast failed
+		// for any other domain type (twelve provinces in a unit<uint8>), and which wrote the row number
+		// instead of the value on a uint32 domain that does not start at 0.
+		std::optional<DataWriteLock> res1Lock, res2Lock;
+		std::optional<IndexAssignerSizeT> res1Indices, res2Indices;
+		if (res1) { res1Lock.emplace(res1); res1Indices.emplace(res1, res1Lock->get(), no_tile, 0, count); }
+		if (res2) { res2Lock.emplace(res2); res2Indices.emplace(res2, res2Lock->get(), no_tile, 0, count); }
+
+		SizeT i = 0;
 		if (resData)
 		{
 			for (auto& resTiles : *resData) // ordered by (t, u)
@@ -605,16 +615,18 @@ public:
 				{
 					if constexpr (MustProduceGeometries)
 						if (resG) resGWriter.Write(std::move(resElemData.m_Geometry));
-					if (res1) res1Writer.Write(resElemData.m_OrgRel.first);
-					if (res2) res2Writer.Write(resElemData.m_OrgRel.second);
+					if (res1Indices) res1Indices->m_Indices[i] = resElemData.m_OrgRel.first;
+					if (res2Indices) res2Indices->m_Indices[i] = resElemData.m_OrgRel.second;
+					++i;
 				}
 			}
 		}
+		MG_CHECK(i == count);
 
 		if constexpr (MustProduceGeometries)
 			if (resG) { MG_CHECK(resGWriter.IsEndOfChannel()); resGWriter.Commit(); }
-		if (res1) { MG_CHECK(res1Writer.IsEndOfChannel()); res1Writer.Commit(); }
-		if (res2) { MG_CHECK(res2Writer.IsEndOfChannel()); res2Writer.Commit(); }
+		if (res1Indices) { res1Indices->Store(); res1Lock->Commit(); }
+		if (res2Indices) { res2Indices->Store(); res2Lock->Commit(); }
 	}
 };
 
