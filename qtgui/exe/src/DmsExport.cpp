@@ -11,6 +11,7 @@
 #include "ExportInfo.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
+#include "utl/splitPath.h"
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
 #include "TicInterface.h"
@@ -205,10 +206,18 @@ void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr
     if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
         return;
 
-    for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem->GetNextItem())
+    // Each table goes to <folder>/<name of the export>/<name of the table>.csv. The loop used to
+    // discard its increment and so exported the first table forever, and wrote the tables into a
+    // folder named after the whole file name, extension included, as files without an extension.
+    auto folderName = getFileNameBase(fullFileName.c_str());
+    CharPtr extension = getFileNameExtension(fullFileName.c_str());
+    for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem = tableItem->GetNextItem())
         if (CurrentItemCanBeExportedAsTable(tableItem))
         {
-            auto subFileName = DelimitedConcat(fullFileName.c_str(), tableItem->GetName().c_str());
+            auto tableFileName = *extension
+                ? tableItem->GetName() + "." + extension
+                : tableItem->GetName();
+            auto subFileName = DelimitedConcat(folderName.c_str(), tableFileName.c_str());
             DoExportTableToCSV(tableItem, subFileName);
         }
 }
