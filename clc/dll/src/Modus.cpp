@@ -538,7 +538,7 @@ void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, const AbstrDataIte
 // The same per partition of [0, pCount): the table has vCount sums per partition, and the pairs are kept by partition and
 // value. A value whose partition is null or outside [0, pCount) adds nothing.
 template<typename V, typename OIV>
-void WeightedModusPart(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, const typename Unit<V>::range_t* tableRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
+void WeightedModusPartitioned(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, const typename Unit<V>::range_t* tableRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
 	SizeT vCount = 0;
 	if constexpr (can_table_v<V>)
@@ -611,7 +611,7 @@ void WeightedModusPartDispatcher(const DataArray<V>* valuesTF, const AbstrDataIt
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
 		auto valuesRange = GetValuesRange<V>(valuesTF);
-		WeightedModusPart<V>(valuesTF, weightItem, indicesItem, resBegin, &valuesRange, nrP);
+		WeightedModusPartitioned<V>(valuesTF, weightItem, indicesItem, resBegin, &valuesRange, nrP);
 	}
 	else
 	{
@@ -624,11 +624,11 @@ void WeightedModusPartDispatcher(const DataArray<V>* valuesTF, const AbstrDataIt
 			auto n = valuesTF->GetTiledRangeData()->GetElemCount();
 			if (IsDefined(v) && (!nrP || v <= n / nrP)) // memory condition v*p<=n, thus TableTime <= 2n.
 			{
-				WeightedModusPart<V>(valuesTF, weightItem, indicesItem, resBegin, &valuesRange, nrP);
+				WeightedModusPartitioned<V>(valuesTF, weightItem, indicesItem, resBegin, &valuesRange, nrP);
 				return;
 			}
 		}
-		WeightedModusPart<V>(valuesTF, weightItem, indicesItem, resBegin, nullptr, nrP);
+		WeightedModusPartitioned<V>(valuesTF, weightItem, indicesItem, resBegin, nullptr, nrP);
 	}
 }
 
@@ -820,7 +820,7 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
 		auto result = mutable_array_cast<ValueType>(res); assert(result);
-		// write_only_all, like ModusPart above: WeightedModusPart assigns every element of
+		// write_only_all, like ModusPart above: WeightedModusPartitioned assigns every element of
 		// [0, nrP) -- gaps and tail included -- so no zero-fill is needed. Asking for mustzero here was
 		// unsatisfiable anyway: AbstrOperAccPartBin opens the lock write_only_all (deliberately -- the
 		// partial-aggregation family initialises via TAcc1Func::Init, not via the allocator), and an
