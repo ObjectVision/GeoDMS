@@ -635,27 +635,44 @@ auto dataitem_get_value_as_int(const AbstrDataItem* adi, SizeT i) -> Int32 {
 // write_only_all mode (fresh allocation) rather than the read_write mode used by the
 // DMS_NumericAttr_Set*Array C functions, which clone the previous data object and so
 // crash on an attribute that has no data yet. The domain range is prepared first so the
-// data object can be sized; the values list length should equal the domain element count.
-void dataitem_set_values_from_float_list(py_geodms::MutableDataItem self, const std::vector<Float64>& data) {
-	AbstrDataItem* adi = self.m_adi.get();
+// data object can be sized. The list must hold exactly one value per domain element, and it
+// is written tile by tile, as the getters above read: the bulk setters write one tile and
+// check their length only in a Debug build, so a longer list, or one spanning tiles, used to
+// be written past the end of the first tile, and a shorter one left the rest undefined.
+template <typename T>
+void dataitem_set_values_from_list(AbstrDataItem* adi, const std::vector<T>& data, CharPtr funcName,
+	void (AbstrDataObject::* setValues)(tile_loc, SizeT, const T*))
+{
 	MG_USERCHECK2(adi, "invalid dereference of a null data item");
 	adi->SetTSF(TSF_HasConfigData); // mark as authoritative primary data so dependents don't recompute it
-	DMS_Unit_GetCount(adi->GetAbstrDomainUnit());
+	SizeT n = DMS_Unit_GetCount(adi->GetAbstrDomainUnit());
+	if (data.size() != n)
+		throwErrorF(funcName, "the list has {} values, but the domain of {} has {} elements", data.size(), adi->GetFullName().c_str(), n);
 	DataWriteLock lock(adi, dms_rw_mode::write_only_all);
-	if (!data.empty())
-		lock->SetValuesAsFloat64Array(lock->GetTiledLocation(0), data.size(), data.data());
+	if (n)
+	{
+		auto trd = lock->GetTiledRangeData();
+		SizeT index = 0;
+		while (index != n)
+		{
+			tile_loc tl = lock->GetTiledLocation(index);
+			if (!IsDefined(tl.first))
+				throwErrorF(funcName, "element {} of the domain of {} lies in no tile", index, adi->GetFullName().c_str());
+			SizeT len = trd->GetTileSize(tl.first) - tl.second;
+			MakeMin(len, n - index);
+			(lock.get()->*setValues)(tl, len, data.data() + index);
+			index += len;
+		}
+	}
 	lock.Commit();
 }
 
+void dataitem_set_values_from_float_list(py_geodms::MutableDataItem self, const std::vector<Float64>& data) {
+	dataitem_set_values_from_list(self.m_adi.get(), data, "set_values_from_float_list", &AbstrDataObject::SetValuesAsFloat64Array);
+}
+
 void dataitem_set_values_from_int_list(py_geodms::MutableDataItem self, const std::vector<Int32>& data) {
-	AbstrDataItem* adi = self.m_adi.get();
-	MG_USERCHECK2(adi, "invalid dereference of a null data item");
-	adi->SetTSF(TSF_HasConfigData); // mark as authoritative primary data so dependents don't recompute it
-	DMS_Unit_GetCount(adi->GetAbstrDomainUnit());
-	DataWriteLock lock(adi, dms_rw_mode::write_only_all);
-	if (!data.empty())
-		lock->SetValuesAsInt32Array(lock->GetTiledLocation(0), data.size(), data.data());
-	lock.Commit();
+	dataitem_set_values_from_list(self.m_adi.get(), data, "set_values_from_int_list", &AbstrDataObject::SetValuesAsInt32Array);
 }
 
 PYBIND11_MODULE(geodms, m) {

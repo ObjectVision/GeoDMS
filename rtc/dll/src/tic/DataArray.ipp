@@ -423,7 +423,7 @@ void DataArrayBase<V>::SetValuesAsFloat64Array(tile_loc tl, SizeT len, const Flo
 
 		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-		assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		MG_CHECK( tl.second <= tl.second + len && tl.second + len <= data.size() ); // a check in Release too: these are exported and fed by Python
 
 		auto pi = data.begin() + tl.second;
 		auto pe = pi + len;
@@ -443,7 +443,7 @@ void DataArrayBase<V>::SetValuesAsInt32Array  (tile_loc tl, SizeT len, const Int
 
 		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		MG_CHECK( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
 		auto pi = data.begin() + tl.second;
 		auto pe = pi + len;
@@ -463,7 +463,7 @@ void DataArrayBase<V>::SetValuesAsUInt8Array  (tile_loc tl, SizeT len, const UIn
 
 		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		MG_CHECK( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
 		auto pi = data.begin() + tl.second;
 		auto pe = pi + len;
@@ -483,7 +483,7 @@ void DataArrayBase<V>::FillWithFloat64Values  (tile_loc tl, SizeT len, Float64 f
 
 		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		MG_CHECK( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
 		auto pi = data.begin() + tl.second;
 
@@ -502,7 +502,7 @@ void DataArrayBase<V>::FillWithUInt32Values  (tile_loc tl, SizeT len, UInt32 fil
 
 		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		MG_CHECK( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
 		auto pi = data.begin() + tl.second;
 
@@ -521,7 +521,7 @@ void DataArrayBase<V>::FillWithInt32Values  (tile_loc tl, SizeT len, Int32 fillV
 
 		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		MG_CHECK( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
 		auto pi = data.begin() + tl.second;
 
@@ -540,7 +540,7 @@ void DataArrayBase<V>::FillWithUInt8Values  (tile_loc tl, SizeT len, UInt8 fillV
 
 		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		MG_CHECK( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
 		auto pi = data.begin() + tl.second;
 
