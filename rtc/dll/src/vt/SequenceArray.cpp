@@ -822,7 +822,25 @@ void sequence_array<T>::StreamIn (BinaryInpStream& ar, bool mayResize)
 		);
 
 	ar >> m_Values;
-	m_ActualDataSize = m_Values.size();
+
+	// The index pairs come from a file (fss, a compound storage): a corrupt or truncated .dmsdata must
+	// not leave sequences that point outside the value pool, which every later read would follow. The
+	// checks that would have caught it are Debug-only, and m_ActualDataSize, set here, skips the #1154
+	// consistency check in Lock as well. An empty or undefined sequence has two equal indices.
+	SizeT nrValues = m_Values.size(), nrUsed = 0;
+	for (SizeT i = 0; i != s; ++i)
+	{
+		const auto& seq = m_Indices[i];
+		if (seq.first == seq.second)
+			continue;
+		if (!(seq.first < seq.second && seq.second <= nrValues))
+			throwErrorF("StreamIn", "sequence {} of the input stream refers to the values [{}, {}) of a pool of {}; the stream is corrupt"
+				, i, SizeT(seq.first), SizeT(seq.second), nrValues);
+		nrUsed += seq.second - seq.first;
+	}
+	if (nrUsed > nrValues)
+		throwErrorF("StreamIn", "the sequences of the input stream refer to {} values of a pool of {}; the stream is corrupt", nrUsed, nrValues);
+	m_ActualDataSize = nrValues;
 
 	MG_DEBUGCODE( checkActualDataSize(); );
 }
