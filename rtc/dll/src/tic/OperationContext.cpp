@@ -2126,7 +2126,7 @@ garbage_can OperationContext::separateResources(task_status status)
 	{
 		assert(status != task_status::done);
 		for (const auto& supplier : m_Suppliers)
-			m_Waiters.erase(this->weak_from_this());
+			supplier->m_Waiters.erase(this->weak_from_this()); // was m_Waiters: this context stayed a waiter of its suppliers, pinning its block and receiving their later failure
 
 		releaseBin |= std::move(m_Suppliers);
 		assert(m_Suppliers.empty());
