@@ -135,3 +135,10 @@ xml('xml_entity.xml', HEADER + '< TreeItem name = "xb" >\n< Descr > a &amp; < / 
 # entity followed by text, on both sides of a decoded character: the whole point of the case is the
 # character right after the ';', which used to be swallowed
 xml('xml_entity_text.xml', HEADER + '< TreeItem name = "xt" >\n< Descr > a &amp; b &lt;c&gt; < / Descr >\n< / TreeItem >\n')
+# INF-A01 of doc/code-audit-2026-09-27.md: entities in an ATTRIBUTE value, which since #1261 is decoded
+# too, a known one and an unknown one; every such value used to hang the load. Only properties fixed at
+# construction are attributes (name, ValuesUnit, DomainUnit, ValueType), and no valid value of those
+# holds an entity, so the value is an unknown values unit: the load must end with that error instead of
+# hanging. Written compact, as the XML writer does
+xml('xml_attr_entity.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<TreeItem name="xae"><DATAITEM name="xap" ValuesUnit="str&amp;ing&unknown;"><CalcRule>&apos;v&apos;</CalcRule></DATAITEM></TreeItem>\n')
+

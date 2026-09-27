@@ -338,25 +338,39 @@ bool XmlParser::ReadElem(XmlElement& element)
 
 // In place, over the five entities of XmlConstMap only; unrelated to the exported HtmlDecode(WeakStr)
 // of utl/Encodes.h, which has its own table.
+//
+// It scans forward once and keeps an unknown entity as it stands. It used to restart its search for
+// '&' from the beginning after every entity and to leave an unknown one in place, so a '&' that did
+// not decode, with a ';' anywhere after it, was found again forever; and since CompCharPtr matched no
+// ';'-terminated name, that was every entity: an attribute value with '&amp;' hung the load.
 static void HtmlDecodeInPlace(SharedStr& token)
 {
-	SharedCharArray* sca = token.GetAsMutableCharArray();
-	if (!sca)
+	CharPtr curr = token.cbegin(), end = token.csend();
+	if (std::find(curr, end, '&') == end)
 		return;
-	SharedCharArray::iterator nextPos = 0;
-	SharedCharArray::iterator end;
-	while (end = sca->end(), (nextPos = std::find(sca->begin(), end, '&')) != end)
+
+	std::string result;
+	result.reserve(end - curr);
+	while (true)
 	{
-		SharedCharArray::iterator semicolPos = std::find(++nextPos, end, ';');
-		if (semicolPos == end)
-			return;
-		char ch = SymbolGetChar(nextPos); //, semicolPos);
-		if (ch) 
+		CharPtr ampPos = std::find(curr, end, '&');
+		result.append(curr, ampPos);
+		if (ampPos == end)
+			break;
+		CharPtr semicolPos = std::find(ampPos + 1, end, ';');
+		char ch = (semicolPos != end) ? SymbolGetChar(ampPos + 1) : 0; // SymbolGetChar stops at the ';'
+		if (ch)
 		{
-			nextPos[-1] = ch;
-			sca->erase(nextPos, semicolPos - nextPos + 1);
+			result.push_back(ch);
+			curr = semicolPos + 1;
+		}
+		else
+		{
+			result.push_back('&');
+			curr = ampPos + 1;
 		}
 	}
+	token = SharedStr(CharPtrRange(result.data(), result.data() + result.size()));
 }
 
 // The characters that end a name inside a tag. Anything else that is not white space belongs to

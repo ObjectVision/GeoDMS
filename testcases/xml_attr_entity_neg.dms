@@ -1,0 +1,21 @@
+// Regression for doc/code-audit-2026-09-27.md INF-A01: an attribute value with an entity reference
+// hung the load of an .xml configuration. The entity table's comparator ordered a ';'-terminated
+// name before its key but not the key before it, so no entity in an attribute value was ever found,
+// and the decoder then searched from the start again, finding the same '&' forever. Element text was
+// unaffected (see xml_entity.dms), which is why this went unnoticed until every attribute value was
+// decoded (#1261). Known entities now decode; an unknown one stays as written.
+//
+// Only properties fixed at construction are XML attributes (name, ValuesUnit, DomainUnit, ValueType),
+// and no valid value of those holds an entity, so data/xml_attr_entity.xml gives its item the values
+// unit "str&amp;ing&unknown;". The load must end, with the error that "str&ing&unknown;" is not a
+// values unit, instead of hanging. On a build without the fix this case does not end: the battery
+// has no time limit.
+// Expected: an error, so exit nonzero on /checks.
+container xml_attr_entity_neg
+{
+	container xmlpart { #include <../data/xml_attr_entity.xml> }
+	container checks
+	{
+		parameter<string> value := xmlpart/xae/xap, IntegrityCheck = "value == 'v'";
+	}
+}

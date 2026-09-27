@@ -15,18 +15,24 @@
 const UInt32 MAX_TOKEN_LEN = 32;
 
 // Orders entity names that are terminated by ';' OR by NUL: the keys in XmlConstMap are plain names,
-// while SymbolGetChar may receive a ';'-terminated slice of a longer text. Anything else, such as a
-// name followed by other characters, compares as if truncated at the first ';'.
+// while SymbolGetChar may receive a ';'-terminated slice of a longer text. Both sides are compared
+// as if truncated at their first ';' or NUL, so "amp;b" and "amp" are equal. The previous version
+// treated the two terminators asymmetrically, "amp;b" ordered before "amp" but not the reverse, so a
+// ';'-terminated name never found its key and every entity in an attribute value was unknown.
 struct CompCharPtr
 {
+	static bool IsEnd(char c) { return c == 0 || c == ';'; }
+
 	bool operator ()(CharPtr a, CharPtr b) const
 	{
-		while ((signed char&)*a >= (signed char&)*b && *a != ';')
+		for (;; ++a, ++b)
 		{
-			if (!*b || *b == ';' || (signed char&)*a++ > (signed char&)*b++) 
-				return false;
+			bool aEnd = IsEnd(*a), bEnd = IsEnd(*b);
+			if (aEnd || bEnd)
+				return aEnd && !bEnd; // a proper prefix orders first; equal names are not less
+			if (*a != *b)
+				return static_cast<unsigned char>(*a) < static_cast<unsigned char>(*b);
 		}
-		return *b != ';';
 	}
 };
 
