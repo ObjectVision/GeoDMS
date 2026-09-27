@@ -216,8 +216,9 @@ struct asUniqueListFunc {
 //											Formal ranges
 // *****************************************************************************
 
-// Integral values are assumed to lie in the formal range of their values unit (see TableSize in ValuesTable.h). Whether a
-// table or a set counts them, a counted value outside it throws, so that the result does not depend on which one counts.
+// A table counts integral values over the formal range of their values unit (see TableSize in ValuesTable.h), which does
+// not bound them: a value outside it is counted apart, and aggregated with the table in value order, so that a table and
+// a set count the same values and give the same result, the first of the most occurring values included (#1285).
 
 template <typename V>
 auto GetFormalRange(const DataArray<V>* valuesTF) -> Range<V>
@@ -228,22 +229,38 @@ auto GetFormalRange(const DataArray<V>* valuesTF) -> Range<V>
 	return vrd->GetRange();
 }
 
-// Checks values counted in ascending order, which puts their extremes at the ends; a null, counted when nulls are, comes
-// first (see ValueCountKeyCompare).
-template <typename V, typename CIter>
-void CheckCountedValues(CIter b, CIter e, const Range<V>& range, auto valueF)
+// the (value, count) pairs in which AggregateTable merges the counts of a table over a Range<RV> with those of the values
+// outside it
+template <typename RV, typename C> using MergedCounts = my_vec_t<std::pair<RV, C>>;
+
+// Aggregates the counts of a table over range, [tb, te), with those of the values outside it, [ob, oe), in ascending order
+// of value, as a set gives them: the values below the range, those of the table, the values above it. The table goes to
+// aggrFunc as it is when no value lies outside; otherwise the counts are merged in mergeBuffer, without the empty counters,
+// which no aggrFunc takes into account. Bit values all have a counter.
+template <typename V, typename RV, typename C, typename TIter, typename OIter>
+auto AggregateTable(auto aggrFunc, const Range<RV>& range, TIter tb, TIter te, OIter ob, OIter oe, auto outsideValueF, MergedCounts<RV, C>& mergeBuffer)
 {
-	if (!IsRestrictingRange(range))
-		return;
-	if (b != e && !IsDefined(valueF(b)))
-		++b;
-	if (b == e)
-		return;
-	if (!IsIncluding(range, valueF(b)))
-		ThrowOutOfFormalRange<V>(valueF(b), range);
-	--e;
-	if (!IsIncluding(range, valueF(e)))
-		ThrowOutOfFormalRange<V>(valueF(e), range);
+	if constexpr (has_undefines_v<V>)
+		if (ob != oe)
+		{
+			mergeBuffer.clear();
+			for (; ob != oe && outsideValueF(ob) < range.first; ++ob)
+				mergeBuffer.emplace_back(outsideValueF(ob), ob->second);
+			for (auto ti = tb; ti != te; ++ti)
+				if (*ti != C())
+					mergeBuffer.emplace_back(TableValue(range, ti - tb), *ti);
+			for (; ob != oe; ++ob)
+				mergeBuffer.emplace_back(outsideValueF(ob), ob->second);
+
+			return aggrFunc(mergeBuffer.cbegin(), mergeBuffer.cend()
+			,	[](auto i) { return i->second; }
+			,	[](auto i) { return i->first; }
+			);
+		}
+	return aggrFunc(tb, te
+	,	[ ](auto i) { return *i; }
+	,	[&](auto i) { return TableValue(range, i - tb); }
+	);
 }
 
 // *****************************************************************************
@@ -256,8 +273,6 @@ void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>:
 {
 	auto values_fta = GetFutureTileArray(tileFunctor);
 	auto counters = GetWeededWallCounts<V, SizeT>(values_fta, SizeT(-1), valueMustBeDefined);
-	if constexpr (is_integral_v<V>)
-		CheckCountedValues<V>(counters.begin(), counters.end(), GetFormalRange(tileFunctor), [](auto i) { return i->first; });
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }
@@ -268,11 +283,12 @@ void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>:
 template<typename V, typename R, typename AggrFunc>
 void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R>::container_type::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
 {
-	auto buffer = GetCountsAsArray<V, SizeT>(tileFunctor, valuesRange);
+	auto counts = GetCountsAsArray<V, SizeT>(tileFunctor, valuesRange);
+	MergedCounts<decltype(valuesRange.first), SizeT> mergeBuffer;
 
-	resData = aggrFunc(buffer.begin(), buffer.end()
-	, [ ](auto i) { return *i; }
-	, [&](auto i) { return TableValue(valuesRange, i - buffer.begin()); }
+	resData = AggregateTable<V>(aggrFunc, valuesRange, counts.table.cbegin(), counts.table.cend(), counts.outside.cbegin(), counts.outside.cend()
+	,	[](auto i) { return i->first; }
+	,	mergeBuffer
 	);
 }
 
@@ -319,8 +335,7 @@ void ModusTotDispatcher(const DataArray<V>* valuesTF, typename sequence_traits<R
 template<typename V, typename OIV, typename AggrFunc>
 void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array part_fta
 	, future_tile_array<V> values_fta
-	, OIV resBegin, SizeT pCount, bool valueMustBeDefined, AggrFunc aggrFunc  // countable dommain unit of result; P can be Void.
-	, const Range<V>* formalRange) // of integral values
+	, OIV resBegin, SizeT pCount, bool valueMustBeDefined, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
 {
 	assert(values_fta.size() == part_fta.size());
 
@@ -342,8 +357,6 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array pa
 		while (++i != e)
 			if (i->first.first != p)
 				break;
-		if constexpr (is_integral_v<V>)
-			CheckCountedValues<V>(pb, i, *formalRange, getValue);
 		while (ri < p)
 			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
 		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
@@ -361,6 +374,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 	SizeT vCount = TableSize(valuesRange);
 	my_vec_t<SizeT> buffer(vCount*pCount, 0);
 	auto bufferB = buffer.begin();
+	my_map_t<std::pair<SizeT, V>, SizeT> outside; // by partition and value, as a set counts them
 
 	for (tile_id t =0, tn = values_fta.size(); t != tn; ++t)
 	{
@@ -379,24 +393,34 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 			auto pi = indexGetter->Get(i);
 			if (pi >= pCount)
 				continue;
-			auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
+			auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter); // a value below the range wraps to beyond it
 			if constexpr (has_undefines_v<V>)
 				if (vi >= vCount)
-					ThrowOutOfFormalRange<V>(*valuesIter, valuesRange);
+				{
+					SafeIncrementCounter(outside[std::pair<SizeT, V>(pi, *valuesIter)]);
+					continue;
+				}
 			SafeIncrementCounter(bufferB[ pi * vCount + vi]);
 		}
 	}
 
-	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
+	MergedCounts<decltype(valuesRange.first), SizeT> mergeBuffer;
+	auto oi = outside.cbegin(), oe = outside.cend();
+	SizeT p = 0;
+	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin, ++p)
 	{
-		*resBegin = aggrFunc(bufferB, bufferB + vCount
-		, [ ](auto i) { return *i; }
-		, [&](auto i) { return TableValue(valuesRange, i - bufferB); }
+		auto ob = oi;
+		while (oi != oe && oi->first.first == p)
+			++oi;
+		*resBegin = AggregateTable<V>(aggrFunc, valuesRange, bufferB, bufferB + vCount, ob, oi
+		,	[](auto i) { return i->first.second; }
+		,	mergeBuffer
 		);
 
 		bufferB += vCount;
 	}
 	assert(bufferB == buffer.end());
+	assert(oi == oe);
 }
 
 // *****************************************************************************
@@ -424,7 +448,6 @@ void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* we
 					counters[*valuesIter] += weight;
 			}
 	}
-	CheckCountedValues<V>(counters.begin(), counters.end(), GetFormalRange(valuesTF), [](auto i) { return i->first; });
 
 	modusFunc<V> aggrFunc;
 
@@ -440,6 +463,7 @@ void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* 
 {
 	auto vCount = TableSize(valuesRange);
 	my_vec_t<Float64> buffer(vCount, 0);
+	my_map_t<V, Float64> outside;
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -455,21 +479,26 @@ void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* 
 			if constexpr (has_undefines_v<V>)
 				if (!IsDefined(*valuesIter))
 					continue;
-			auto v = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
+			Float64 weight = weightsGetter->Get(weightIter);
+			if (!IsDefined(weight)) // see WeightedModusTotBySet
+				continue;
+			auto v = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter); // a value below the range wraps to beyond it
 			if constexpr (has_undefines_v<V>)
 				if (v >= vCount)
-					ThrowOutOfFormalRange<V>(*valuesIter, valuesRange);
-			Float64 weight = weightsGetter->Get(weightIter);
-			if (IsDefined(weight)) // see WeightedModusTotBySet
-				buffer[v] += weight;
+				{
+					outside[*valuesIter] += weight;
+					continue;
+				}
+			buffer[v] += weight;
 		}
 	}
 
 	modusFunc<V> aggrFunc;
+	MergedCounts<decltype(valuesRange.first), Float64> mergeBuffer;
 
-	resData = aggrFunc(buffer.begin(), buffer.end()
-	, [ ](auto i) { return *i; }
-	, [&](auto i) { return TableValue(valuesRange, i - buffer.begin()); }
+	resData = AggregateTable<V>(aggrFunc, valuesRange, buffer.cbegin(), buffer.cend(), outside.cbegin(), outside.cend()
+	,	[](auto i) { return i->first; }
+	,	mergeBuffer
 	);
 }
 
@@ -532,7 +561,6 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 	modusFunc<V> aggrFunc;
 	auto getCount = [](auto counterPtr) { return counterPtr->second; };
 	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
-	auto formalRange = GetFormalRange(valuesTF);
 
 	auto i = wieghtAccumulators.begin(), e = wieghtAccumulators.end();
 	SizeT ri = 0;
@@ -543,7 +571,6 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 		while (++i != e)
 			if (i->first.first != p)
 				break;
-		CheckCountedValues<V>(pb, i, formalRange, getValue);
 		while (ri < p)
 			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
 		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
@@ -559,6 +586,7 @@ void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem*
 	SizeT vCount = TableSize(valuesRange);
 	my_vec_t<Float64> buffer(vCount*pCount, 0);
 	my_vec_t<Float64>::iterator bufferB = buffer.begin();
+	my_map_t<std::pair<SizeT, V>, Float64> outside; // by partition and value, as a set sums them
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -578,26 +606,35 @@ void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem*
 				auto pi = indexGetter->Get(i);
 				if (pi >= pCount)
 					continue;
-				auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
+				auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter); // a value below the range wraps to beyond it
 				if constexpr (has_undefines_v<V>)
 					if (vi >= vCount)
-						ThrowOutOfFormalRange<V>(*valuesIter, valuesRange);
+					{
+						outside[std::pair<SizeT, V>(pi, *valuesIter)] += weight;
+						continue;
+					}
 				bufferB[pi * vCount + vi] += weight;
 			}
 	}
 
 	modusFunc<V> aggrFunc;
-
-	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
+	MergedCounts<decltype(valuesRange.first), Float64> mergeBuffer;
+	auto oi = outside.cbegin(), oe = outside.cend();
+	SizeT p = 0;
+	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin, ++p)
 	{
-		*resBegin = aggrFunc(bufferB, bufferB + vCount
-		, [ ](auto i) { return *i; }
-		, [&](auto i) { return TableValue(valuesRange, i - bufferB); }
+		auto ob = oi;
+		while (oi != oe && oi->first.first == p)
+			++oi;
+		*resBegin = AggregateTable<V>(aggrFunc, valuesRange, bufferB, bufferB + vCount, ob, oi
+		,	[](auto i) { return i->first.second; }
+		,	mergeBuffer
 		);
 
 		bufferB += vCount;
 	}
 	assert(bufferB == buffer.end());
+	assert(oi == oe);
 }
 
 template<typename V, typename OIV>
@@ -761,10 +798,8 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 					ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, range, pdi.resCount, m_AggrFunc);
 					return;
 				}
-				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, this->m_ValueMustBeDefined, m_AggrFunc, &range);
 			}
-			else
-				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, this->m_ValueMustBeDefined, m_AggrFunc, nullptr);
+			ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, this->m_ValueMustBeDefined, m_AggrFunc);
 		}
 	}
 

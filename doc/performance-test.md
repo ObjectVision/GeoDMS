@@ -573,3 +573,128 @@ against 8.65 / 9.15 and 14.89 / 15.79. No retry, `room 0` or stall line exists a
   says nothing about the build. Wall times of the large models vary by tens of percent between
   runs on one binary, as the background says; the memory figures and the absence of the deferral
   lines do not.
+
+## Results (OVSRV10), 20.22.0
+
+Run on 2026-09-27 on OVSRV10, 127 GB, 32 logical processors, `MemoryFlushThreshold` 90 (the ledger
+lines of the 20.20.0.m column on this machine read `budget 117094 MB`). Tree `C:\dev\GeoDMS_2026` on
+`main` at `1ec17232f` (version 20.22.0), so without deferral as in round 3 above, plus `ccda904fa`
+and `53c0931b4` (the low-RAM brake keeps one context activated or running), which had been verified
+in Debug only. GeoDMS-Test at `e452efc`, which does not have the `/SH` commit `e11c1ac` of the
+section above (it is not on origin), so t1742 still depends on the account.
+
+Binaries: Release x64 of `all22.sln`, linked 03:45 to 03:56 by the Visual Studio 18 build of the
+version bump; Debug x64 with the VS18 msbuild, 03:58 to 04:01; `linux-x64-release` with CMake in
+WSL, `libDmRtc.so` 04:38 and `GeoDmsRun` 04:48. Uncommitted edits to `clc/dll/src/Modus.cpp`,
+`clc/dll/include/ValuesTable.h` and nine `testcases/oper_modus_*` configs appeared in the tree
+from 09:53, after both builds; the figures below are of `1ec17232f` as committed.
+
+Before the rounds: `testcases\run_testcases.bat` on Release 377 cases, 0 bad;
+`testcases\run_xml_roundtrip.bat` 212 configurations, 210 matching, the 2 listed known diffs, 0
+bad. `batch\TestDebugUnit.bat` lists one line, `operator.dms results/unit_test_log FAILED` (exit
+nonzero, no crash event, no log of the run); the same command run five times on its own afterwards
+exited 0 each time, so the failure is intermittent or was caused by the load of the moment, and is
+not explained.
+
+Running on the machine: until 04:49 the NetworkModel_PBL recompute (a GeoDmsRun at 33 to 89 GB),
+during the Debug build, the unit suite and the Linux build. It was stopped at 04:49 for the rounds
+and restarted at 11:21. During both rounds: the idle VS18 `devenv` with its idle MSBuild nodes, the
+Claude desktop app, nothing else of GeoDMS.
+
+- `.m`: `full.py -version local-msbuild-release`, 04:49 to 06:36, 27 experiments, no reuse, all
+  `ok` except t720_2BURP.
+- `.l`: `full.py -version local-linux-release`, 06:40 to 11:20, 32 experiments, all `ok` except
+  t720_2BURP. A first attempt at 06:36 ended every test `unavailable` within seconds:
+  `profiler.py` runs a `.l` test through `<bin>/profiler/run_with_sampler.sh`, which only
+  `nsi/CreateLinuxSetup.sh` stages, and the build removes `build/linux-x64-release/bin` first.
+  The two sampler scripts were installed there by hand, the column deleted and the round rerun.
+
+### A regression: t720_2BURP, #1285
+
+On both flavours t720_2BURP ends after 13 to 17 seconds with exit 1:
+`[[.../smoothing_loop/iter0/NextValue/MedianFiltering]] Range Error Error: Value 135546 not in
+expected range from 0 till 135545`, in `modus`. It comes from `b932df281` (modus family: integral
+values lie in the formal range): the argument is an `attribute<uint32>` whose `switch` carries the
+range of the values unit of its first case, `FindContiguousCells`, and its sentinels
+`#FindContiguousCells+1` and `+2` lie beyond it. A 20-line probe (in the issue) reproduces it; the
+installed 20.21.0.m computes it. 20.20.0.m took 6:35 on the test and 20.19.2.m 5:36.
+
+### Wall time and memory, `.m`
+
+Wall time is the span between the first and the last timestamp of the GeoDMS log; then Highest
+CommitCharge / PeakLiveLarge in MB. All three columns were measured on this machine; 20.20.0.m on
+2026-09-11 with the deferral of both commits and checks.
+
+| test | 20.22.0.m | 20.20.0.m | 20.19.2.m |
+|---|---|---|---|
+| t020 | 0:03:07, 2008 / 2614 | 0:09:45, 2016 / 2591 | 0:03:25, 1959 / 2592 |
+| t060 | 0:01:43, 8417 / 7826 | 0:01:21, 13859 / 13317 | 0:01:40, 6332 / 7353 |
+| t101 | 0:01:25, 1965 / 955 | 0:01:39, 1959 / 956 | 0:01:37, 676 / 967 |
+| t300 | 0:00:49, 9203 / 11059 | 0:00:36, 9636 / 13708 | 0:01:07, 5740 / 11276 |
+| t301 | 0:02:10, 23483 / 5273 | 0:03:31, 21584 / 4851 | 0:02:04, 20193 / 4224 |
+| t405.1 | 0:03:35, 8537 / 9637 | 0:02:44, 10809 / 11426 | 0:09:47, 8315 / 9421 |
+| t405.2 | 0:12:54, 32245 / 34939 | 0:05:49, 71705 / 72103 | 0:14:32, 34635 / 34938 |
+| t405.3 | 0:12:40, 31392 / 34588 | 0:05:33, 82337 / 74075 | 0:13:23, 31681 / 34587 |
+| t410 | 0:03:39, 1240 / 1444 | 0:05:45, 1480 / 1463 | 0:03:54, 1171 / 1463 |
+| t641.1 | 0:28:42, 155147 / 137010 | 0:27:45, 356521 / 345458 | 0:31:29, 187226 / 144550 |
+| t641.2 | 0:19:36, 189035 / 170287 | 0:20:38, 270446 / 255833 | 0:21:02, 188431 / 170025 |
+| t720 | fails, see above | 0:06:35, 25851 / 21449 | 0:05:36, 24359 / 20767 |
+| t810 | 0:02:57, 27959 / 23252 | 0:03:31, 32609 / 25294 | 0:03:10, 31033 / 22508 |
+| t910 | 0:00:34, 2516 / 4888 | 0:00:38, 4850 / 4784 | 0:00:32, 3520 / 6465 |
+| t2000 | 0:07:18, 72139 / 66983 | 0:09:07, 73764 / 68669 | 0:07:50, 72389 / 68367 |
+
+`Calling EmptyWorkingSet` lines: t641.1 20 against 278 and 21, t641.2 4 against 234 and 7, t405.3
+0 against 2 and 0, every other test 0. `deferred commits: retry` lines: none in any 20.22.0.m log,
+against 1 to 176 per test in the 20.20.0.m column (t020 176, t720 114, t410 96, t2000 85, t405.2
+84); no `made no progress` line. The `vmcalls` drain: t641.1 58 489 calls draining 2678 MB
+against 144 943 and 16 049 MB for 20.20.0.m and 59 822 and 2118 MB for 20.19.2.m; t641.2 236 892
+calls and 34 691 MB against 944 830 and 150 146 MB, and 293 812 and 48 273 MB.
+
+### Wall time and memory, `.l`
+
+| test | 20.22.0.l | 20.20.0.l |
+|---|---|---|
+| t020 | 0:03:24, 6298 / 2608 | 0:06:29, 6579 / 2586 |
+| t060 | 0:02:44, 12480 / 7826 | 0:02:19, 14586 / 11284 |
+| t300 | 0:01:19, 11721 / 11076 | 0:00:47, 9961 / 14397 |
+| t405.1 | 0:06:22, 11030 / 9644 | 0:06:07, 11580 / 11730 |
+| t405.2 | 0:21:03, 50560 / 34588 | 0:15:54, 90917 / 82687 |
+| t405.3 | 0:20:57, 34500 / 34588 | 0:15:49, 100209 / 82687 |
+| t410 | 0:03:31, 2450 / 1691 | 0:09:00, 2522 / 1690 |
+| t641.1 | 1:04:53, 108419 / 136993 | 2:17:37, 110243 / 317077 |
+| t641.2 | 1:57:34, 110713 / 169627 | 3:45:03, 109938 / 251750 |
+| t810 | 0:04:54, 31799 / 23207 | 0:07:25, 36241 / 25290 |
+| t2000 | 0:16:29, 93313 / 77165 | 0:25:05, 80456 / 65669 |
+
+On `.l` the CommitCharge line is the engine's own figure under WSL and says less than
+PeakLiveLarge. 20.20.0.l logged one `made no progress` stall on t641.1; 20.22.0.l none, and no
+retry line on any test.
+
+### Reading
+
+- On this machine the build without deferral is the 20.19.x memory with the 20.20.0 wall time
+  on t641: t641.1 0:28:42 at 155 GB commit and 137 GB live, against 0:27:45 at 357 and 345 GB for
+  20.20.0.m and 0:31:29 at 187 and 145 GB for 20.19.2.m; t641.2 0:19:36 at 189 and 170 GB. On
+  OVSRV05 (64 GB, section above) t641.1 lost its 20.20.0 speed; with 127 GB it does not. Why the
+  two machines differ is not measured; one reading is that the deferral's gain on OVSRV05 came from
+  overlap that 64 GB could only afford by paging, but no run here tests that.
+- On `.l` the effect is larger: t641.1 and t641.2 take half the 20.20.0.l time, at 137 against
+  317 GB and 170 against 252 GB of live memory.
+- The one loss is t405.2 and t405.3, as on OVSRV05: 12:54 and 12:40 against 5:49 and 5:33 for
+  20.20.0.m (and 21 against 16 minutes on `.l`), at less than half the memory, and slightly
+  faster than 20.19.2.m. That is the commit deferral's gain returned.
+- t020, t410, t810 and t2000 are faster than both 20.20.0.m and 20.19.2.m; t301 is faster than
+  20.20.0.m and 6 seconds slower than 20.19.2.m. t060 is 22 seconds slower than 20.20.0.m and in
+  line with 20.19.2.m; t300 is 13 seconds slower than 20.20.0.m and 18 faster than 20.19.2.m.
+- These are single runs. The memory figures and the retry, stall and trim counts hold; wall time
+  differences below a minute or two on the large models do not, until a second round or a paired
+  `/SB1` run confirms them.
+
+### How to measure on OVSRV10 from here
+
+Compare only columns of this machine, and record the `MemoryFlushThreshold` of each. OVSRV10 has
+the RAM to run t641 and t2000 almost without trimming, which makes it the machine to see memory
+change on; OVSRV05 remains the one for behaviour under RAM pressure. Stop the NetworkModel_PBL
+recompute for the duration (its chain step peaks at about 110 GB; it can be stopped between
+steps), and before a `.l` round install the sampler scripts into the build's `bin/profiler`.
+

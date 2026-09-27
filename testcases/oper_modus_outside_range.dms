@@ -1,0 +1,125 @@
+// #1285: the modus family on integral values (modus, unique_count_*, modus_count_*, frequency_table, entropy, ..., and
+// modus_weighted; in total and per partition) counts a value outside the range of its values unit like any other value.
+// Such values are data: value() makes them, and so does a switch, whose result takes the values unit of its first case
+// while a later case gives a sentinel beyond that unit's range, as t720_2BURP does. A table over the range counts them
+// apart and aggregates them with its counters in value order, so table and set give the same result, the lowest of the
+// most occurring values included, whether it lies below the range, in it or above it. Each result below is computed
+// under a small range, where the table counts, and under a large one, where the set counts; see
+// oper_modus_formal_range.dms for the choice between them.
+// From b932df281 until this fix a value outside the range threw a Range Error, which failed t720_2BURP; no published
+// release did so.
+// Expected: exit 0 on /checks.
+container oper_modus_outside_range
+{
+	unit<uint8>  P2     : nrofrows = 2;
+	unit<uint32> Small  := range(uint32, 1000, 1006);         // 6 values: a table, also for 2 partitions (6 * 2 <= 12)
+	unit<uint32> Large  := range(uint32, 1000, 1100);         // 100 values: a set
+	unit<int16>  SSmall := range(int16, int16(-3), int16(3));
+	unit<int16>  SLarge := range(int16, int16(-100), int16(100));
+
+	// 999 lies below both ranges, 1050 above Small but in Large, 1200 above both
+	unit<uint32> D : nrofrows = 12
+	{
+		attribute<uint32>  raw : [1050, 1050, 1050, 1001,  999,  999, 1200, 1200, 1002, 1002,  999, 1003];
+		attribute<float64> w   : [ 0.5,  0.5,  0.5,  1.2,  0.8,  0.8,  1.0,  1.1,  0.3,  0.3,  0.1,  2.0];
+		attribute<P2>      part := value(uint8(id(.) / 6), P2);
+
+		attribute<Small>   vs  := value(raw, Small);
+		attribute<Large>   vl  := value(raw, Large);
+		attribute<SSmall>  ss  := value(int16(int32(raw) - int32(1003)), SSmall); // -4 below SSmall, 47 above it, 197 above both
+		attribute<SLarge>  sl  := value(int16(int32(raw) - int32(1003)), SLarge);
+	}
+
+	// the configuration of #1285: a switch takes the values unit of its first case, Clusters, and its last case adds the
+	// sentinel #Clusters + 1, which lies outside it; the declared uint32 defers to the values unit of the calculation
+	unit<uint32> Clusters : nrofrows = 4;
+	unit<uint8>  Parts    : nrofrows = 4;
+	unit<uint32> Dom : nrofrows = 8
+	{
+		attribute<Clusters> cl   := const(1, ., Clusters);
+		attribute<bool>     big  := id(.) < 4;
+		attribute<uint8>    part := uint8(id(.) / 2);
+		attribute<P2>       half := value(uint8(id(.) / 4), P2);
+	}
+	parameter<uint32> val_Not := #Clusters + 1;
+	attribute<uint32> Declared (Dom) := switch(case(Dom/big, Dom/cl), val_Not); // 1, 1, 1, 1, 5, 5, 5, 5
+
+	// 20 tiles, so that the table of the total is counted by more than one thread: 50 and 500 lie outside R10, 5000
+	// times each, and each value of R10 occurs 1000 times
+	unit<uint32> T := TiledUnit(value(1000, range(uint32, 0, 20000)));
+	unit<uint32> R10    := range(uint32, 100, 110);           // 10 values: a table
+	unit<uint32> RLarge := range(uint32, 0, 60000);           // 60000 values > 20000: a set
+	unit<uint8>  P4     : nrofrows = 4;
+	attribute<uint32> traw (T) := iif(id(T) % 4 == 0, 50, iif(id(T) % 4 == 1, 500, 100 + id(T) % 10));
+	attribute<R10>    tvs  (T) := value(traw, R10);
+	attribute<RLarge> tvl  (T) := value(traw, RLarge);
+	attribute<P4>     tpart(T) := value(uint8(id(T) / 5000), P4);
+
+	container checks
+	{
+		// in total, table (_t) and set (_s): 999 and 1050 occur 3 times, and the lower one, below the range, is the modus
+		parameter<uint32>  m_t   := uint32(modus(D/vs)),                 IntegrityCheck = "m_t == 999";
+		parameter<uint32>  m_s   := uint32(modus(D/vl)),                 IntegrityCheck = "m_s == 999";
+		parameter<int16>   sm_t  := int16(modus(D/ss)),                  IntegrityCheck = "sm_t == int16(-4)";
+		parameter<int16>   sm_s  := int16(modus(D/sl)),                  IntegrityCheck = "sm_s == int16(-4)";
+		parameter<uint32>  uc_t  := unique_count_uint32(D/vs),           IntegrityCheck = "uc_t == 6";
+		parameter<uint32>  uc_s  := unique_count_uint32(D/vl),           IntegrityCheck = "uc_s == 6";
+		parameter<uint32>  mc_t  := modus_count_uint32(D/vs),            IntegrityCheck = "mc_t == 3";
+		parameter<uint32>  mc_s  := modus_count_uint32(D/vl),            IntegrityCheck = "mc_s == 3";
+		// the strings are checked on the int16 values, which stay below 1000: a thousands separator depends on a user setting
+		parameter<string>  ft_t  := frequency_table(D/ss),               IntegrityCheck = "ft_t == '-4: 3; -2: 1; -1: 2; 0: 1; 47: 3; 197: 2'";
+		parameter<string>  ft_s  := frequency_table(D/sl),               IntegrityCheck = "ft_s == ft_t";
+		parameter<bool>    ftu   := frequency_table(D/vs) == frequency_table(D/vl), IntegrityCheck = "ftu == true";
+		parameter<string>  ul_t  := as_unique_list(D/ss),                IntegrityCheck = "ul_t == '-4; -2; -1; 0; 47; 197'";
+		parameter<string>  ul_s  := as_unique_list(D/sl),                IntegrityCheck = "ul_s == ul_t";
+		parameter<bool>    ent   := entropy(D/vs) == entropy(D/vl),      IntegrityCheck = "ent == true";
+		parameter<bool>    aent  := average_entropy(D/vs) == average_entropy(D/vl), IntegrityCheck = "aent == true";
+		parameter<string>  ftn   := frequency_table_with_null(D/ss),     IntegrityCheck = "ftn == ft_t";
+
+		// per partition: 1050 (3 times) above the range, then 1002 in it before 1200 above it (2 times each)
+		parameter<string>  mp_t  := asList(string(uint32(modus(D/vs, D/part))), ','), IntegrityCheck = "mp_t == '1050,1002'";
+		parameter<string>  mp_s  := asList(string(uint32(modus(D/vl, D/part))), ','), IntegrityCheck = "mp_s == '1050,1002'";
+		parameter<string>  smp_t := asList(string(int16(modus(D/ss, D/part))), ','),  IntegrityCheck = "smp_t == '47,-1'";
+		parameter<string>  smp_s := asList(string(int16(modus(D/sl, D/part))), ','),  IntegrityCheck = "smp_s == '47,-1'";
+		parameter<string>  ucp_t := asList(string(unique_count_uint32(D/vs, D/part)), ','), IntegrityCheck = "ucp_t == '3,4'";
+		parameter<string>  ucp_s := asList(string(unique_count_uint32(D/vl, D/part)), ','), IntegrityCheck = "ucp_s == '3,4'";
+		parameter<string>  mcp_t := asList(string(modus_count_uint32(D/vs, D/part)), ','),  IntegrityCheck = "mcp_t == '3,2'";
+		parameter<string>  mcp_s := asList(string(modus_count_uint32(D/vl, D/part)), ','),  IntegrityCheck = "mcp_s == '3,2'";
+		parameter<string>  ftp_t := asList(frequency_table(D/ss, D/part), '|'), IntegrityCheck = "ftp_t == '-4: 2; -2: 1; 47: 3|-4: 1; -1: 2; 0: 1; 197: 2'";
+		parameter<string>  ftp_s := asList(frequency_table(D/sl, D/part), '|'), IntegrityCheck = "ftp_s == ftp_t";
+		parameter<bool>    ftpu  := asList(frequency_table(D/vs, D/part), '|') == asList(frequency_table(D/vl, D/part), '|'), IntegrityCheck = "ftpu == true";
+
+		// weighted: in total 1200 above the range weighs 2.1 and beats 1003 in it with 2.0; per partition 999 below the
+		// range weighs 1.6 and beats 1050 with 1.5, and 1200 wins again
+		parameter<uint32>  w_t   := uint32(modus_weighted(D/vs, D/w)),   IntegrityCheck = "w_t == 1200";
+		parameter<uint32>  w_s   := uint32(modus_weighted(D/vl, D/w)),   IntegrityCheck = "w_s == 1200";
+		parameter<int16>   sw_t  := int16(modus_weighted(D/ss, D/w)),    IntegrityCheck = "sw_t == int16(197)";
+		parameter<int16>   sw_s  := int16(modus_weighted(D/sl, D/w)),    IntegrityCheck = "sw_s == int16(197)";
+		parameter<string>  wp_t  := asList(string(uint32(modus_weighted(D/vs, D/w, D/part))), ','), IntegrityCheck = "wp_t == '999,1200'";
+		parameter<string>  wp_s  := asList(string(uint32(modus_weighted(D/vl, D/w, D/part))), ','), IntegrityCheck = "wp_s == '999,1200'";
+		parameter<string>  swp_t := asList(string(int16(modus_weighted(D/ss, D/w, D/part))), ','),  IntegrityCheck = "swp_t == '-4,197'";
+		parameter<string>  swp_s := asList(string(int16(modus_weighted(D/sl, D/w, D/part))), ','),  IntegrityCheck = "swp_s == '-4,197'";
+
+		// #1285: the sentinel 5 is counted; in total by the table (4 counters <= 8 values), per quarter by the set
+		// (4 * 4 > 8), per half by the table (4 * 2 <= 8), whose second half holds only the sentinel
+		parameter<uint32>  vu    := #ValuesUnit(Declared),               IntegrityCheck = "vu == 4";
+		parameter<uint32>  s_m   := uint32(modus(Declared)),             IntegrityCheck = "s_m == 1";
+		parameter<string>  s_ft  := frequency_table(Declared),           IntegrityCheck = "s_ft == '1: 4; 5: 4'";
+		parameter<string>  s_mp  := asList(string(modus(Declared, Dom/part[Parts])), ','), IntegrityCheck = "s_mp == '1,1,5,5'";
+		parameter<string>  s_mh  := asList(string(modus(Declared, Dom/half)), ','),        IntegrityCheck = "s_mh == '1,5'";
+		parameter<string>  s_wh  := asList(string(modus_weighted(Declared, const(1.0, Dom), Dom/half)), ','), IntegrityCheck = "s_wh == '1,5'";
+
+		// tiled: 50 below R10 and 500 above it occur 5000 times each, and the lower one is the modus
+		parameter<uint32>  t_m_t  := uint32(modus(tvs)),                 IntegrityCheck = "t_m_t == 50";
+		parameter<uint32>  t_m_s  := uint32(modus(tvl)),                 IntegrityCheck = "t_m_s == 50";
+		parameter<uint32>  t_mc_t := modus_count_uint32(tvs),            IntegrityCheck = "t_mc_t == 5000";
+		parameter<uint32>  t_uc_t := unique_count_uint32(tvs),           IntegrityCheck = "t_uc_t == 12";
+		parameter<string>  t_ft_t := frequency_table(tvs),               IntegrityCheck = "t_ft_t == frequency_table(tvl)";
+		parameter<string>  t_mp_t := asList(string(modus(tvs, tpart)), ','), IntegrityCheck = "t_mp_t == '50,50,50,50'";
+		parameter<string>  t_mp_s := asList(string(modus(tvl, tpart)), ','), IntegrityCheck = "t_mp_s == '50,50,50,50'";
+
+		// weighted by the value modulo 7: 500 above R10 weighs 5000 * 3, more than any other value
+		parameter<uint32>  t_w_t  := uint32(modus_weighted(tvs, float64(traw % 7))), IntegrityCheck = "t_w_t == 500";
+		parameter<uint32>  t_w_s  := uint32(modus_weighted(tvl, float64(traw % 7))), IntegrityCheck = "t_w_s == 500";
+	}
+}
