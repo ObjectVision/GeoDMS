@@ -1,0 +1,21 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A01: the total forms of cov, corr and
+// modus_weighted paired their arguments element by element over the first argument's domain
+// without unifying the domains, so a second argument on a smaller domain was read out of bounds.
+// They now require one domain, as their partitioned forms do.
+// Expected: exit nonzero on /checks (the domains of the two arguments differ).
+container oper_cov_domains_neg
+{
+	unit<uint32> A: nrofrows = 10
+	{
+		attribute<float64> x := float64(id(.));
+	}
+	unit<uint32> B: nrofrows = 5
+	{
+		attribute<float64> y := float64(id(.));
+	}
+
+	container checks
+	{
+		parameter<float64> c := cov(A/x, B/y), IntegrityCheck = "c >= 0.0";
+	}
+}

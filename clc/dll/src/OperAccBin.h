@@ -39,9 +39,7 @@ struct AbstrOperAccTotBin : public BinaryOperator
 		gr->SetBetterNotInMetaScripting();
 	}
 
-	// mirrors CreateResult below: two data arguments, VOID-domain result (K15).
-	// NB deliberately SEPARATE domain variables: this CreateResult does NOT
-	// unify the argument domains, so no shared-domain claim would be honest.
+	// mirrors CreateResult below: two data arguments on one domain, VOID-domain result (K15).
 	// A wildcard (AbstrDataItem) argument class -- the weighted-modus weight
 	// vector -- leaves its variable member-unconstrained (review finding)
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
@@ -49,7 +47,7 @@ struct AbstrOperAccTotBin : public BinaryOperator
 		auto resCls = dynamic_cast<const DataItemClass*>(GetResultClass());
 		if (!resCls)
 			return false;
-		sig_var D1 = sb.UnitVar("D1"), D2 = sb.UnitVar("D2");
+		sig_var D = sb.UnitVar("D");
 		sig_var V1 = sb.UnitVar("V1"), V2 = sb.UnitVar("V2"), R = sb.UnitVar("R");
 		ValueComposition vc1 = ValueComposition::Single, vc2 = ValueComposition::Single;
 		if (auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0)))
@@ -63,8 +61,8 @@ struct AbstrOperAccTotBin : public BinaryOperator
 			vc2 = arg2Cls->GetValuesType()->GetValueComposition();
 		}
 		sb.MemberValueClass(R, resCls->GetValuesType());
-		sb.ArgAttr(0, V1, D1, vc1);
-		sb.ArgAttr(1, V2, D2, vc2);
+		sb.ArgAttr(0, V1, D, vc1);
+		sb.ArgAttr(1, V2, D, vc2);
 		sb.ResultAttr(R, sb.VoidDomain(), m_ValueComposition);
 		return true;
 	}
@@ -73,12 +71,17 @@ struct AbstrOperAccTotBin : public BinaryOperator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		assert(args.size() == 2);
-		
+
 		const AbstrDataItem *arg1A= AsDataItem(args[0]);
 		const AbstrDataItem *arg2A= AsDataItem(args[1]);
 
 		assert(arg1A);
 		assert(arg2A);
+
+		// Calculate pairs the elements of both arguments tile by tile and index by index, over the
+		// tiles of the first; a second argument on another domain, smaller or tiled otherwise, was
+		// read out of bounds. The partitioned twin (AbstrOperAccPartBin) unifies them as well.
+		arg1A->GetAbstrDomainUnit()->UnifyDomain(arg2A->GetAbstrDomainUnit(), "Domain of the first argument", "Domain of the second argument", UM_Throw);
 
 		if (!resultHolder)
 		{
