@@ -116,10 +116,7 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 		grow(sz, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		assert(m_Size >= sz); // Prostcondition of grow.
 		if (sz < m_Size)
-		{
-			array_traits<T>::Destroy(this->m_Ptr + sz, m_Size - sz); // possibly nop, but possibly not
-			m_Size = sz; // drop trailing if shrinking was requested, without destroying them (yet).
-		}
+			shrink(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 
 	void reallocSO(SizeT sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) 
@@ -136,10 +133,7 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 				std::uninitialized_default_construct(begin(), end());
 		}
 		else if (sz < m_Size)
-		{
-			array_traits<T>::Destroy(this->m_Ptr + sz, m_Size - sz); // possibly nop, but possibly not
-			m_Size = sz; // drop trailing if shrinking was requested, without destroying them (yet).
-		}
+			shrink(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 
 private:
@@ -155,6 +149,17 @@ private:
 				std::uninitialized_default_construct(localIter, local.end());
 			swap(local);
 		}
+	}
+
+	// Keeps the first sz elements in a block of their own. The stock takes a block back only whole, from its start
+	// and with the size it was allocated with, so the old block goes to local, whose destructor destroys all its
+	// elements and frees it.
+	void shrink(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
+	{
+		assert(sz < m_Size);
+		OwningPtrSizedArray local(sz, Internal_tag() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		raw_copy(begin(), begin() + sz, local.begin());
+		swap(local);
 	}
 
 private:
