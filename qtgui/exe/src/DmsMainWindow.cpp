@@ -2372,7 +2372,11 @@ void MainWindow::updateToolsMenu() const {
 }
 
 void MainWindow::updateSettingsMenu() const {
-    m_config_options_action->setEnabled(DmsConfigOptionsWindow::hasOverridableConfigOptions());
+    // a slot: an exception from probing the configuration must not leave it; the option then stays disabled
+    bool hasOptions = false;
+    try { hasOptions = DmsConfigOptionsWindow::hasOverridableConfigOptions(); }
+    catch (...) {}
+    m_config_options_action->setEnabled(hasOptions);
 }
 
 void MainWindow::updateWindowMenu() const {

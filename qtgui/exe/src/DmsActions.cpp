@@ -428,7 +428,7 @@ void createDmsActions() {
     // settings menu
     main_window->m_settings_menu = std::make_unique<QMenu>(QObject::tr("&Settings"));
     main_window->menuBar()->addMenu(main_window->m_settings_menu.get());
-    main_window->connect(main_window->m_tools_menu.get(), &QMenu::aboutToShow, main_window, &MainWindow::updateSettingsMenu);
+    main_window->connect(main_window->m_settings_menu.get(), &QMenu::aboutToShow, main_window, &MainWindow::updateSettingsMenu); // was the Tools menu
 
     main_window->m_gui_options_action = std::make_unique<QAction>(QObject::tr("&Gui Options"));
     main_window->connect(main_window->m_gui_options_action.get(), &QAction::triggered, main_window, &MainWindow::gui_options);

@@ -662,6 +662,8 @@ bool IsOverridableConfigSetting(const TreeItem* tiCursor)
         return false;
     auto adi = AsDataItem(tiCursor);
     auto avu = adi->GetAbstrValuesUnit();
+    if (!avu) // a values unit that does not resolve, such as a mistyped one
+        return false;
     return avu->GetUnitClass() == Unit<SharedStr>::GetStaticClass();
 }
 
