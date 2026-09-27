@@ -1,0 +1,13 @@
+// STG-14, STG-A10: a TIFF whose strip is shorter than StripByteCounts declares (data/tif_u8_truncated.tif, 12 bytes short).
+// Since 353a4664e the read error libtiff reports is an error of the item ("TIFFFillStrip Error: Read error on strip 0"),
+// as in gdal.grid; before, the whole tile read as the undefined default, which is what this case checked until then.
+// Expected: exit nonzero on /checks.
+container stor_tif_u8_truncated_neg
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<uint8> img (dom): StorageName = "%currDir%/data/tif_u8_truncated.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<uint32> ndef := sum(uint32(IsDefined(img))), IntegrityCheck = "ndef == 0";
+	}
+}
