@@ -1,0 +1,19 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A05: modus_count_uint8 returned the count of the
+// modal value converted to uint8 without a check, so 300 equal values gave 44. Its twins
+// unique_count, pcount_uint8 and count_uint8 report such an overflow. Since 20.22.0 modus_count_uintN
+// does too.
+// Expected: an error, so exit nonzero on /checks. The check accepts exactly the old wrapped count,
+// so the config exits 0 only on a build that still wraps.
+container oper_modus_count_overflow_neg
+{
+	unit<uint32> D := range(uint32, 0, 300)
+	{
+		attribute<uint32> v := const(7, .);
+	}
+
+	container checks
+	{
+		parameter<uint8> mc := modus_count_uint8(D/v);
+		parameter<bool>  wrapped := uint32(mc) == 300 % 256, IntegrityCheck = "wrapped == true";
+	}
+}

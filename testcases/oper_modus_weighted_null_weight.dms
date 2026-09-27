@@ -1,0 +1,33 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A03: modus_weighted without a partition added
+// every weight to its value's total, a null weight too, which made that total NaN. NaN then won the
+// comparison of totals (c <= max is false for NaN), after which every later value beat it: values
+// [1, 1, 2] with weights [5, null, 1] gave 2, where the partitioned form, which skips null weights,
+// gave 1. Since 20.22.0 the total form skips null weights as well, in the table path (a values
+// range no larger than the domain) and in the set path (a larger one).
+// Expected: exit 0 on /checks.
+container oper_modus_weighted_null_weight
+{
+	unit<uint32> P1 : nrofrows = 1;
+	unit<uint8>  V3 : nrofrows = 3;                // 3 values over 3 elements: the table path
+	unit<uint32> VS := range(uint32, 1000, 1100);  // 100 values over 3 elements: the set path
+
+	unit<uint32> D : nrofrows = 3
+	{
+		attribute<uint8>   raw     : [1, 1, 2];
+		attribute<float64> w       : [5.0, null, 1.0];
+		attribute<V3>      v_table := value(raw, V3);
+		attribute<VS>      v_set   := value(uint32(raw) + 1000, VS); // not 'vs': names are case-insensitive
+		attribute<P1>      part    := const(0, ., P1);
+	}
+
+	container checks
+	{
+		parameter<V3> tot_table := modus_weighted(D/v_table, D/w);
+		parameter<VS> tot_set   := modus_weighted(D/v_set, D/w);
+		attribute<V3> part_table (P1) := modus_weighted(D/v_table, D/w, D/part);
+
+		parameter<bool> table_ok := uint32(tot_table) == 1, IntegrityCheck = "table_ok == true";
+		parameter<bool> set_ok   := uint32(tot_set) == 1001, IntegrityCheck = "set_ok == true";
+		parameter<bool> part_ok  := uint32(part_table[0]) == 1, IntegrityCheck = "part_ok == true";
+	}
+}

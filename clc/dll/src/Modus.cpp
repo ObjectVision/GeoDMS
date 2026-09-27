@@ -87,7 +87,7 @@ struct modusCountFunc {
 		CIter p = arg_max(b, e, countF);
 		if (p == e)
 			return 0;
-		return countF(p);
+		return ThrowingConvert<Counter>(countF(p)); // as uniqueCountFunc and count_uintN: an overflow is an error, not a wrapped count
 	}
 };
 
@@ -418,7 +418,11 @@ void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* we
 		SizeT weightsIter = 0;
 		for (; valuesIter != valuesEnd; ++weightsIter, ++valuesIter)
 			if (IsDefined(*valuesIter))
-				counters[*valuesIter] += weightsGetter->Get(weightsIter);
+			{
+				Float64 weight = weightsGetter->Get(weightsIter);
+				if (IsDefined(weight)) // as the partitioned twins: a null weight would make the value's total NaN, which then wins arg_max
+					counters[*valuesIter] += weight;
+			}
 	}
 	CheckCountedValues<V>(counters.begin(), counters.end(), GetFormalRange(valuesTF), [](auto i) { return i->first; });
 
@@ -455,7 +459,9 @@ void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* 
 			if constexpr (has_undefines_v<V>)
 				if (v >= vCount)
 					ThrowOutOfFormalRange<V>(*valuesIter, valuesRange);
-			buffer[v] += weightsGetter->Get(weightIter);
+			Float64 weight = weightsGetter->Get(weightIter);
+			if (IsDefined(weight)) // see WeightedModusTotBySet
+				buffer[v] += weight;
 		}
 	}
 
