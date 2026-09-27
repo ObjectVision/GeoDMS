@@ -403,6 +403,37 @@ void treeitem_CheckNonNull_mutable(py_geodms::MutableTreeItem self) {
 	MG_USERCHECK2(self.item, "invalid dereference of item nullptr");
 }
 
+// asDataItem / asUnitItem: AsDataItem and AsUnit are a static_cast in Release, so a container passed
+// here was mis-cast, and the null that find() gives for a missing name crashed on the first method
+// call of the wrapper. Both now raise a Python exception that says which of the two it was.
+const AbstrDataItem* treeitem_AsDataItem_const(py_geodms::ConstTreeItem self) {
+	treeitem_CheckNonNull_const(self);
+	auto adi = AsDynamicDataItem(self.item.get());
+	MG_USERCHECK2(adi, "asDataItem: this item is not a data item; isDataItem() tells");
+	return adi;
+}
+
+AbstrDataItem* treeitem_AsDataItem_mutable(py_geodms::MutableTreeItem self) {
+	treeitem_CheckNonNull_mutable(self);
+	auto adi = AsDynamicDataItem(self.item.get());
+	MG_USERCHECK2(adi, "asDataItem: this item is not a data item; isDataItem() tells");
+	return adi;
+}
+
+const AbstrUnit* treeitem_AsUnit_const(py_geodms::ConstTreeItem self) {
+	treeitem_CheckNonNull_const(self);
+	auto au = AsDynamicUnit(self.item.get());
+	MG_USERCHECK2(au, "asUnitItem: this item is not a unit; isUnitItem() tells");
+	return au;
+}
+
+AbstrUnit* treeitem_AsUnit_mutable(py_geodms::MutableTreeItem self) {
+	treeitem_CheckNonNull_mutable(self);
+	auto au = AsDynamicUnit(self.item.get());
+	MG_USERCHECK2(au, "asUnitItem: this item is not a unit; isUnitItem() tells");
+	return au;
+}
+
 auto treeitem_find_const(py_geodms::ConstTreeItem self, CharPtr itemPath) -> py_geodms::ConstTreeItem { // const TreeItem* self
 	treeitem_CheckNonNull_const(self);
 	auto foundItem = self.item->ResolveItemPath(CharPtrRange(itemPath));
@@ -755,9 +786,9 @@ PYBIND11_MODULE(geodms, m) {
 			"True for the template item itself")
 		.def("update", [](py_geodms::ConstTreeItem self) { treeitem_CheckNonNull_const(self); DMS_TreeItem_Update(self.item.get()); }, "Force (re)calculation of this item and its suppliers")
 		.def("isDataItem", [](py_geodms::ConstTreeItem self) -> bool { return IsDataItem(self.item.get()); })
-		.def("asDataItem", [](py_geodms::ConstTreeItem self) -> py_geodms::DataItem { return AsDataItem(self.item.get()); })
+		.def("asDataItem", [](py_geodms::ConstTreeItem self) -> py_geodms::DataItem { return treeitem_AsDataItem_const(self); })
 		.def("isUnitItem", [](py_geodms::ConstTreeItem self) -> bool { return IsUnit(self.item.get()); })
-		.def("asUnitItem", [](py_geodms::ConstTreeItem self) -> py_geodms::UnitItem{ return AsUnit(self.item.get()); })
+		.def("asUnitItem", [](py_geodms::ConstTreeItem self) -> py_geodms::UnitItem{ return treeitem_AsUnit_const(self); })
 		;
 
 	// mutable treeitem
@@ -795,11 +826,11 @@ PYBIND11_MODULE(geodms, m) {
 		.def("set_storage_manager", &treeitem_set_storage_manager,
 			py::arg("storage_name"), py::arg("storage_type"), py::arg("read_only") = true,
 			"Attach a storage manager (e.g. type 'gdal.vect', 'gdal.grid') to this item")
-		.def("disable_storage", [](py_geodms::MutableTreeItem self) { self.item->DisableStorage(); }, "Force in-memory / calculator-only operation")
+		.def("disable_storage", [](py_geodms::MutableTreeItem self) { treeitem_CheckNonNull_mutable(self); self.item->DisableStorage(); }, "Force in-memory / calculator-only operation")
 		.def("isDataItem", [](py_geodms::MutableTreeItem self) -> bool { return IsDataItem(self.item.get()); })
-		.def("asDataItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableDataItem { return AsDataItem(self.item.get()); })
+		.def("asDataItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableDataItem { return treeitem_AsDataItem_mutable(self); })
 		.def("isUnitItem", [](py_geodms::MutableTreeItem self) -> bool { return IsUnit(self.item.get()); })
-		.def("asUnitItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableUnitItem { return AsUnit(self.item.get()); })
+		.def("asUnitItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableUnitItem { return treeitem_AsUnit_mutable(self); })
 		;
 
 	// const unit
