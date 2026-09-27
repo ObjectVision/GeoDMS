@@ -266,9 +266,11 @@ FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	{
 		pd->UpdateMetaInfo();
 		ValueClassID streamTypeID = GetStreamType(pd.get())->GetValueClassID();
+		// the bits per pixel of the grid about to be written, from its own value type: the file is not
+		// open yet, and asking m_pImp for them dereferenced its null handle
 		if (streamTypeID == ValueClassID::VT_UInt32 || (streamTypeID == ValueClassID::VT_Int32
 			&& pd->GetNameID() == PALETTE_DATA_ID
-			&& m_pImp->GetNrBitsPerPixel() <= MAX_BITS_PAL
+			&& GetStreamType(current_writable_dataitem)->GetBitSize() <= MAX_BITS_PAL
 			))
 		{
 			irc.Add(pd.get());

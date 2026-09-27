@@ -458,7 +458,11 @@ void TifImp::SetDataMode(UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasP
 
 void TifImp::WriteStrip(UInt32 row, const void* data, UInt32 size)
 {
-	TIFFWriteEncodedStrip(m_TiffHandle, row, const_cast<void*>(data), size);
+	TifErrorFrame errFrame;
+	tmsize_t result = TIFFWriteEncodedStrip(m_TiffHandle, row, const_cast<void*>(data), size);
+	errFrame.ThrowUpWhateverCameUp();
+	if (result < 0)
+		throwErrorF("tif", "writing strip {} of {} failed", row, TIFFFileName(m_TiffHandle));
 }
 
 bool TifImp::ReadNextDir()
@@ -686,16 +690,29 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 }
 
 
+// libtiff reports an error to the handler, which records it only into the innermost TifErrorFrame, and
+// there was none here (only Open and Close had one): a tile or strip that failed to decode was read as
+// the default colour, a corrupt TIFF as nodata without a message, and a failed write went unnoticed.
+// The gdal.grid twin throws on both.
 SizeT TifImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 strip_y, SizeT tileByteSize) const
 {
-	if (IsTiledTiff())
-		return TIFFReadTile(m_TiffHandle, stripBuff, tile_x, tile_y, 0, 0);
-	else
-		return TIFFReadEncodedStrip(m_TiffHandle, strip_y, stripBuff, tileByteSize);
+	TifErrorFrame errFrame;
+	tmsize_t result = IsTiledTiff()
+		? TIFFReadTile(m_TiffHandle, stripBuff, tile_x, tile_y, 0, 0)
+		: TIFFReadEncodedStrip(m_TiffHandle, strip_y, stripBuff, tileByteSize);
+	errFrame.ThrowUpWhateverCameUp();
+	if (result < 0)
+		throwErrorF("tif", "reading the tile at ({}, {}) of {} failed", tile_x, tile_y, TIFFFileName(m_TiffHandle));
+	return result;
 }
 
 SizeT TifImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y)
 {
-	return TIFFWriteTile(m_TiffHandle, stripBuff, tile_x, tile_y, 0, 0);
+	TifErrorFrame errFrame;
+	tmsize_t result = TIFFWriteTile(m_TiffHandle, stripBuff, tile_x, tile_y, 0, 0);
+	errFrame.ThrowUpWhateverCameUp();
+	if (result < 0)
+		throwErrorF("tif", "writing the tile at ({}, {}) of {} failed", tile_x, tile_y, TIFFFileName(m_TiffHandle));
+	return result;
 }
 
