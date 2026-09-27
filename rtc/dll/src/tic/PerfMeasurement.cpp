@@ -74,7 +74,8 @@ SizeT ResolvedNrElements(const TreeItem* item)
 auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& resultHolder
 	, const ArgRefs& args) -> PerformanceEstimationData
 {
-	assert(IsPerformanceLogging());
+	// also called for admission by resource-aware scheduling, which does not require the logging
+	assert(IsPerformanceLogging() || GetResourceScheduling() != resource_scheduling::off);
 
 	try {
 		return oper->EstimatePerformance(resultHolder, args);

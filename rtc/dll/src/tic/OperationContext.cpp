@@ -1910,6 +1910,8 @@ void MemoryLedger_Release(OperationContext* self)
 
 // Bring m_Estimate up to date for the admission gate, from a runnable OC whose suppliers are done.
 // No lock held here; a failure to estimate leaves whatever we had (never blocks the operation).
+static const ArgRefs* GetTaskArgRefs(const task_func_type& taskFunc); // defined after OC_CalcResultFunc
+
 void OperationContext::RefreshEstimateForAdmission()
 {
 	if (GetResourceScheduling() == resource_scheduling::off)
@@ -1931,6 +1933,13 @@ void OperationContext::RefreshEstimateForAdmission()
 	// (RunOperator's report). Measured on ObjectVision/BAG-Tools#2: five of five resource-aware runs
 	// (/SQ and /Sq alike) of a 40-fileset parse_xml died within seconds, with 0xC0000374 or an access
 	// violation in ~OperationContext freeing m_Estimate, on 20.19.3.m and on the dev tree.
+	//
+	// The arguments are the ones this context runs with, copied from its own task function under
+	// the lock. They used to be fetched with FuncDC::GetArgs, which runs on the meta thread only
+	// (it asserts so, and it may MakeResult and DetermineState the argument DCs and even calculate a
+	// calc_always argument): on a pool worker, where this mostly runs, a Debug build stopped at the
+	// first context and a Release build raced the meta thread.
+	ArgRefs args;
 	{
 		DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -1938,18 +1947,19 @@ void OperationContext::RefreshEstimateForAdmission()
 			return;
 		if (m_Estimate && m_Estimate->confidence <= estimate_confidence::declared)
 			return;
+		auto taskArgs = GetTaskArgRefs(m_TaskFunc);
+		if (!taskArgs)
+			return;
+		args = *taskArgs;
 	}
 	auto funcDC = GetFuncDC();
 	assert(funcDC); // #1248: every OperationContext is FuncDC-bound now that the item writer is gone
-	if (!funcDC->m_Operator)
-		return;
-	auto args = funcDC->GetArgs(false, false);
-	if (!args)
+	if (!funcDC || !funcDC->m_Operator)
 		return;
 	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC.get_nonnull());
 	if (!resultHolder)
 		return;
-	auto fresh = EstimateOperPerformance(funcDC->m_Operator, resultHolder, *args);
+	auto fresh = EstimateOperPerformance(funcDC->m_Operator, resultHolder, args);
 	if (fresh.confidence > estimate_confidence::declared) // only replace with something trustworthy
 		return;
 
@@ -2459,6 +2469,15 @@ struct OC_CalcResultFunc {
 		assert(!self->m_FuncDC || IsDataCurrCompleted(self->m_Result->GetCurrUltimateItem().get()) || self->GetResult()->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
 	}
 };
+
+// The arguments a scheduled context will run with, while its task function still holds them (until
+// the run takes it, under cs_ThreadMessing). Null for any other task function.
+static const ArgRefs* GetTaskArgRefs(const task_func_type& taskFunc)
+{
+	assert(cs_ThreadMessing.IsHeldByAnyThread());
+	auto calcResultFunc = taskFunc.target<OC_CalcResultFunc>();
+	return calcResultFunc ? &calcResultFunc->argRefs : nullptr;
+}
 
 // High-level scheduling for CalcResult with arguments and optional context.
 bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr_t context)
