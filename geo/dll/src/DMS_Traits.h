@@ -1542,10 +1542,13 @@ struct DmsOverlayEngine
 	// wound clockwise and starting at its lexicographically first vertex, collinear vertices
 	// dropped at write time. For such a ring the result is therefore the full path's, exactly.
 	//
-	// A walk counts as a single ring when no vertex occurs in it twice, the closing point aside.
-	// Every other walk goes through the sweep: more than one ring, whether the others are holes,
-	// further shells or overlaps, and a ring that touches itself at a vertex. So does an element
-	// that cannot be framed, has fewer than three distinct points, or encloses no area.
+	// A walk counts as a single ring when no vertex occurs in it twice, the closing point aside, and
+	// the ring is simple on the lattice (IsSimpleRing): no two edges cross and no edge meets the
+	// pixel of a vertex other than its own ends. Every other walk goes through the sweep: more than
+	// one ring, whether the others are holes, further shells or overlaps, a ring that touches
+	// itself at a vertex or along an edge, and a bow tie, whose crossing edges share no vertex and
+	// whose signed area is not zero when its two lobes differ in size. So does an element that
+	// cannot be framed, has fewer than three distinct points, or encloses no area.
 
 	// The rings of a when it is a single ring, as CleanToRings would give them; false, with no
 	// rings, when it is not, and the caller takes the full path.
@@ -1574,6 +1577,8 @@ struct DmsOverlayEngine
 		std::sort(m_SingleSorted.begin(), m_SingleSorted.end(), LexLess);
 		if (std::adjacent_find(m_SingleSorted.begin(), m_SingleSorted.end()) != m_SingleSorted.end())
 			return false; // a vertex visited twice: more than one ring, or one that touches itself
+		if (!IsSimpleRing(pts))
+			return false; // crossing or touching edges, or too many candidate pairs to tell cheaply
 
 		int orientation = RingOrientation(pts);
 		if (!orientation)
@@ -1587,6 +1592,69 @@ struct DmsOverlayEngine
 		ring.pts.assign(pts.begin(), pts.end());
 		ring.isShell = true;
 		m_Rings.push_back(std::move(ring));
+		return true;
+	}
+
+	// Is the closed walk pts, at least three vertices and none twice, a ring that the sweep would
+	// give back as it is? The sweep snaps every edge to each hot pixel it passes, so beside a proper
+	// crossing, an edge that meets the pixel of a vertex other than its own ends would be rerouted
+	// too: a vertex on another edge, a collinear overlap, a spike back along the previous edge, or
+	// just a vertex within half a pixel of an edge. With integer coordinates an edge meets a
+	// vertex's pixel only when the vertex lies in the edge's bounding box, so the candidate pairs
+	// are the pairs of edges whose boxes meet, found by a sweep over x. That is cheap for the rings
+	// the shortcut is for; when a ring yields more candidates than a small multiple of its size,
+	// the answer is false and the caller takes the full path, which is right for any ring.
+	bool IsSimpleRing(const std::vector<GPoint>& pts)
+	{
+		const SizeT n = pts.size();
+		auto next = [n](SizeT i) { return i + 1 == n ? 0 : i + 1; };
+
+		auto& boxes = m_SingleBoxes;
+		auto& order = m_SingleOrder;
+		boxes.resize(n);
+		order.resize(n);
+		for (SizeT i = 0; i != n; ++i)
+		{
+			const GPoint& a = pts[i];
+			const GPoint& b = pts[next(i)];
+			boxes[i] = EdgeBox{ std::min(a.X(), b.X()), std::max(a.X(), b.X()), std::min(a.Y(), b.Y()), std::max(a.Y(), b.Y()) };
+			order[i] = i;
+		}
+		std::sort(order.begin(), order.end(), [&boxes](SizeT i, SizeT j) { return boxes[i].xLo < boxes[j].xLo; });
+
+		// the ends of edge j that are not ends of edge i, tested against edge i's pixels
+		auto meetsOtherEnd = [&pts, &next](SizeT i, SizeT j)
+		{
+			const GPoint& a = pts[i];
+			const GPoint& b = pts[next(i)];
+			for (const GPoint& v : { pts[j], pts[next(j)] })
+				if (v != a && v != b && SegmentMeetsPixel(a, b, v))
+					return true;
+			return false;
+		};
+
+		SizeT budget = 32 * n + 1024;
+		auto& active = m_SingleActive;
+		active.clear();
+		for (SizeT j : order)
+		{
+			const EdgeBox& bj = boxes[j];
+			std::erase_if(active, [&boxes, &bj](SizeT i) { return boxes[i].xHi < bj.xLo; });
+			for (SizeT i : active)
+			{
+				if (!budget--)
+					return false;
+				const EdgeBox& bi = boxes[i];
+				if (bi.yHi < bj.yLo || bj.yHi < bi.yLo)
+					continue;
+				if (meetsOtherEnd(i, j) || meetsOtherEnd(j, i))
+					return false;
+				bool adjacent = next(i) == j || next(j) == i;
+				if (!adjacent && ProperCrossing(Segment{ pts[i], pts[next(i)] }, Segment{ pts[j], pts[next(j)] }))
+					return false;
+			}
+			active.push_back(j);
+		}
 		return true;
 	}
 
@@ -2112,6 +2180,9 @@ private:
 	std::vector<std::vector<GPoint>> m_OutPts; // the rings as written, without collinear vertices
 	std::vector<GPoint>     m_ShellStarts, m_HoleStarts; // Store's way back
 	std::vector<GPoint>     m_SinglePts, m_SingleSorted;  // SingleRingToRings' scratch
+	struct EdgeBox { Int64 xLo, xHi, yLo, yHi; };
+	std::vector<EdgeBox>    m_SingleBoxes;                // IsSimpleRing's scratch
+	std::vector<SizeT>      m_SingleOrder, m_SingleActive;
 };
 
 // The engines of one eagerly calculated operation whose tiles run in parallel: one per thread, so
