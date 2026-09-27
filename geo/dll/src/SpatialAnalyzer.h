@@ -248,14 +248,16 @@ D Districter<T, D>::GetDistricts(UGrid<D> output, bool rule8)
 	m_Processed = DistrSelVecType(this->GridSize(), false MG_DEBUG_ALLOCATOR_SRC("GetDistricts"));
 	//	vector_zero_n(m_Processed, GridSize());
 	
-	D resNrDistricts = 0; bool isFirstDistrict = true;
+	D resNrDistricts = 0;
 	for (; FindFirstNotProcessedPoint(point); ++resNrDistricts)
 	{
-		if (!resNrDistricts && !isFirstDistrict)
+		// test before labelling: the id after the largest one is the null value (255 for uint8), so the
+		// wrap to 0 that was tested for came one district late, and exactly 2^bits districts gave an
+		// empty unit while the cells carried ids up to the null
+		if (resNrDistricts > MAX_VALUE(D))
 			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only {} bytes per cell", sizeof(D));
 
 		GetDistrict(output.GetDataPtr(), point, resNrDistricts, rule8);
-		isFirstDistrict = false;
 	}
 	return resNrDistricts;
 }

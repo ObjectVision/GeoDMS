@@ -1,0 +1,25 @@
+// The positive side of oper_reg_count_uint8_full_neg.dms (doc/code-audit-2026-09-27.md GEO-A23):
+// 254 cells of one class in one region, the largest count a uint8 holds, are counted as 254.
+// Expected: exit 0 on /checks.
+container oper_reg_count_uint8_max
+{
+	unit<uint32> D := range(uint32, 0, 254);
+	unit<uint32> R : nrofrows = 1;
+	unit<uint8>  C : nrofrows = 1
+	{
+		attribute<string> label : ['c0'];
+	}
+	container regios
+	{
+		attribute<R> A (D) := const(0, D, R);
+	}
+	attribute<C>      src  (D) := const(0, D, C);
+	attribute<string> refs (C) : ['A'];
+
+	container counts := reg_count_uint8(src, C/label, regios, refs);
+
+	container checks
+	{
+		parameter<bool> max_ok := counts/c0[0] == uint8(254), IntegrityCheck = "max_ok == true";
+	}
+}

@@ -150,9 +150,11 @@ struct RegTileCounterBase : UnitProcessor
 				auto& counts = countsArray[lu];
 				if (j >= counts.size())
 					continue;
-				++(counts[j]);
-				if (!counts[j])
+				// test before the increment: the count after the largest value is the null value (255 for uint8),
+				// not 0, so testing for a wrap after it stored exactly 255 cells as null
+				if (counts[j] >= MAX_VALUE(CounterType))
 					throwErrorF("RegCount", "Overflow in count for region {} of class {}", j, lu);
+				++(counts[j]);
 			}
 		}
 	}

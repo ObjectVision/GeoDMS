@@ -1,0 +1,15 @@
+// The positive side of oper_district_uint8_full_neg.dms (doc/code-audit-2026-09-27.md GEO-A22): 255
+// districts, the most a uint8 district unit holds, give a unit of 255 rows.
+// Expected: exit 0 on /checks.
+container oper_district_uint8_max
+{
+	unit<spoint> grid := range(point_xy(0s, 0s), point_xy(255s, 1s));
+	attribute<uint8> src (grid) := uint8(pointcol(id(grid)) % 2s);
+
+	unit<uint8> D := district_uint8(src);
+
+	container checks
+	{
+		parameter<bool> count_ok := #D == 255, IntegrityCheck = "count_ok == true";
+	}
+}

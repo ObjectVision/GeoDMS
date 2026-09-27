@@ -1,0 +1,21 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A22: district_uint8 tested for too many districts
+// by a wrap of its counter to 0, but the id after the largest one is the null value 255, so a 256th
+// district got id 255, the counter then wrapped, and exactly 256 districts gave a unit of 0 rows
+// while the cells carried ids 0 to 255; only a 257th district was reported. Since 20.22.0 the 256th
+// is reported. oper_district_uint8_max.dms is the positive side.
+//
+// One row of 256 cells with alternating values: every cell is a district of its own.
+// Expected: an error, so exit nonzero on /checks. The check accepts exactly the old empty unit, so
+// the config exits 0 only on a build that still wraps.
+container oper_district_uint8_full_neg
+{
+	unit<spoint> grid := range(point_xy(0s, 0s), point_xy(256s, 1s));
+	attribute<uint8> src (grid) := uint8(pointcol(id(grid)) % 2s);
+
+	unit<uint8> D := district_uint8(src);
+
+	container checks
+	{
+		parameter<bool> empty := #D == 0, IntegrityCheck = "empty == true";
+	}
+}
