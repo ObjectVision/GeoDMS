@@ -1,10 +1,10 @@
 // Regression for doc/code-audit-2026-09-27.md CLC-A08: neg of an unsigned value gives the signed type
 // of the same width, and a value above that type's maximum wrapped: neg(uint8(200)) gave 56 and
 // neg(uint32(3000000000)) gave 1294967296. add, sub and mul report such an overflow; since 20.22.0 neg
-// does too. oper_neg_unsigned.dms is the positive side.
+// does too. oper_negate_unsigned.dms is the positive side.
 // Expected: an error, so exit nonzero on /checks. The check accepts exactly the old wrapped result,
 // so the config exits 0 only on a build that still wraps.
-container oper_neg_unsigned_neg
+container oper_negate_unsigned_neg
 {
 	unit<uint32> D : nrofrows = 1
 	{

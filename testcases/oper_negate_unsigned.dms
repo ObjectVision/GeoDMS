@@ -1,9 +1,9 @@
-// The positive side of oper_neg_unsigned_neg.dms (doc/code-audit-2026-09-27.md CLC-A08): neg of an
+// The positive side of oper_negate_unsigned_neg.dms (doc/code-audit-2026-09-27.md CLC-A08): neg of an
 // unsigned value that fits the signed type of the same width is its negation, and neg of a null is
 // null: the check against the signed maximum must not take the unsigned null, the largest value,
 // for an overflow.
 // Expected: exit 0 on /checks.
-container oper_neg_unsigned
+container oper_negate_unsigned
 {
 	unit<uint32> D : nrofrows = 3
 	{
