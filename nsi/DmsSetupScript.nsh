@@ -263,6 +263,7 @@ Section uninstall
   Delete $INSTDIR\GeoDmsRun.exe
   Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\RewriteExpr.lsp
+  Delete $INSTDIR\prelude.dms
   Delete $INSTDIR\profiler.py
   Delete $INSTDIR\regression.py
   Delete $INSTDIR\*.dll
@@ -283,12 +284,16 @@ Section uninstall
   Delete $INSTDIR\proj4data\*.*
   Delete $INSTDIR\styles\*.*
   Delete $INSTDIR\tls\*.*
-  Delete $INSTDIR\library\geometry
-  Delete $INSTDIR\library\basedata_nl\rdc
-  Delete $INSTDIR\library\basedata_nl
+  ; Delete removes files, not folders: these lines used to name the folders themselves, so the shipped
+  ; library and example .dms files stayed behind and every RMDir below, $INSTDIR included, failed.
+  ; The same lines as in DmsSetupScriptX64-cmake.nsi.
+  Delete $INSTDIR\library\geometry\*.*
+  Delete $INSTDIR\library\basedata_nl\rdc\*.*
+  Delete $INSTDIR\library\basedata_nl\*.*
+  Delete $INSTDIR\library\*.*
   RMDir /r $INSTDIR\examples\testcases\data
   Delete $INSTDIR\examples\testcases\*.*
-  Delete $INSTDIR\examples
+  Delete $INSTDIR\examples\*.*
 
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Qt GUI ${GeoDmsVersion}.lnk"
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall.lnk"

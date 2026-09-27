@@ -269,6 +269,7 @@ Section uninstall
   Delete $INSTDIR\GeoDmsRun.exe
   Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\RewriteExpr.lsp
+  Delete $INSTDIR\prelude.dms
   Delete $INSTDIR\profiler.py
   Delete $INSTDIR\regression.py
   Delete $INSTDIR\geodms*.pyd
