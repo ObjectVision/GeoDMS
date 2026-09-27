@@ -1,0 +1,23 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A04: strongly_connected_components skipped links
+// whose from-node was null or out of range, but not links whose to-node was, and indexed its
+// per-node arrays with that to-node: a heap write out of bounds in Release, an assertion in Debug.
+// Such links are now ignored, as connected_parts ignores them. Link 3 below points to null.
+// Expected: exit 0 on /checks.
+container strongly_connected_null_node
+{
+	unit<uint32> V: nrofrows = 4;
+	unit<uint32> E: nrofrows = 4
+	{
+		attribute<V> F1: [0, 1, 2, 3];
+		attribute<V> F2: [1, 0, 3, null];
+	}
+	unit<uint32> P := strongly_connected_components(E/F1, E/F2);
+
+	container checks
+	{
+		parameter<bool> count    := #P == 3, IntegrityCheck = "count == true";
+		parameter<bool> cycle    := P/part_rel[0] == P/part_rel[1], IntegrityCheck = "cycle == true";
+		parameter<bool> chain    := P/part_rel[2] != P/part_rel[3], IntegrityCheck = "chain == true";
+		parameter<bool> distinct := P/part_rel[0] != P/part_rel[2] && P/part_rel[0] != P/part_rel[3], IntegrityCheck = "distinct == true";
+	}
+}

@@ -346,8 +346,19 @@ auto stronglyConnectedComponentsIterative(NodeType nrV, LinkType nrE, const Data
 	my_vec_t<LinkType>
 		link1(nrV, UNDEFINED_VALUE(LinkType)),
 		nextLink1(nrE, UNDEFINED_VALUE(LinkType));
+
+	// As InvertIntoLinkedList, but a link is also left out when its to-node is null or outside the
+	// node set, as connected_parts ignores it: the traversal indexes its per-node arrays with the
+	// to-node of every listed link.
+	auto fromNodeIter = tile_read_channel(arg1);
+	for (LinkType e = 0; e != nrE; ++e, ++fromNodeIter)
 	{
-		InvertIntoLinkedList<NodeType, LinkType>(nrE, nrV, tile_read_channel(arg1), begin_ptr(link1), begin_ptr(nextLink1));
+		NodeType fromNode = *fromNodeIter;
+		if (fromNode < nrV && node2Data[e] < nrV)
+		{
+			nextLink1[e] = link1[fromNode];
+			link1[fromNode] = e;
+		}
 	}
 	return stronglyConnectedComponentsIterativeWithInvertedLinks<NodeType, LinkType, PartType, PartLinkType>(nrV, nrE, begin_ptr(link1), begin_ptr(nextLink1), node2Data, resSubData);
 }
