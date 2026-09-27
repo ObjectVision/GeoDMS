@@ -364,8 +364,8 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				default: MG_CHECK2(false, "unexpected how_to_proceed"); // an assert here was __assume(false) in Release
 				}
 
-			dms_assert(!SuspendTrigger::DidSuspend());
-
+			// No assert that nothing suspended: the check below is load-bearing, and a dms_assert, __assume in Release,
+			// would let the optimiser fold it away (TIC-A32).
 			// these two checks solve for_each(xx[SubItem(Combine(...), 'Nr_1')])
 			if (SuspendTrigger::DidSuspend()) goto suspended;
 			if (WasFailed(FailType::Data))           goto failed;

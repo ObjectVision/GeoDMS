@@ -828,7 +828,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetSourceObject(const TreeItem* t
 		if (!ti->IsFailed())
 		{
 			const TreeItem* si = ti->GetSourceItem();
-			dms_assert(si != ti); 
+			dbg_assert(si != ti); // not dms_assert: in Release that is __assume, which folds the guard below away (TIC-A32)
 			if (si != ti) // the Release guard for the assert above
 				return si;
 		}

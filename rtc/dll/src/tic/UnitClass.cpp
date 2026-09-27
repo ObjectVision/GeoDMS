@@ -214,7 +214,7 @@ UnitClassRegComponentLock::~UnitClassRegComponentLock()
 	if (--s_nrLocks)
 		return;
 
-	dms_assert(g_UnitClassRegister.Empty());
+	dbg_assert(g_UnitClassRegister.Empty()); // not dms_assert: in Release that is __assume, which folds the fallback below away (TIC-A32)
 	if (!g_UnitClassRegister.Empty())
 	{
 		RegisterType::const_iterator
