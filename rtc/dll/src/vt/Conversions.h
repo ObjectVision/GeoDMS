@@ -81,12 +81,25 @@ struct check_defined_func
 	}
 };
 
+// A floating source converted to an integral target (RTC-A02): the bound MIN_VALUE(U) or MAX_VALUE(U) may not be
+// representable in T and then rounds to the power of two just outside U's range (2^31 for Int32 in a float, 2^63 for
+// Int64 in a double), so the value at the rounded bound itself must be refused: compare strictly there.
+template <typename T, typename U>
+constexpr bool float_to_integral_v = std::is_floating_point_v<T> && std::is_integral_v<U>;
+
 template <typename T, typename U>
 struct check_min_func
 {
 	bool operator () (typename param_type<T>::type v) const
 	{
-		return v >= T(MIN_VALUE(U));
+		if constexpr (float_to_integral_v<T, U> && std::is_signed_v<U>)
+		{
+			const T minT = T(MIN_VALUE(U));
+			const T lowest = -(T(std::numeric_limits<U>::max() / 2 + 1) * T(2)); // -2^digits, exact in T
+			return (minT <= lowest) ? v > minT : v >= minT;
+		}
+		else
+			return v >= T(MIN_VALUE(U));
 	}
 };
 
@@ -95,7 +108,14 @@ struct check_max_func
 {
 	bool operator () (typename param_type<T>::type v) const
 	{
-		return v <= T(MAX_VALUE(U));
+		if constexpr (float_to_integral_v<T, U>)
+		{
+			const T maxT = T(MAX_VALUE(U));
+			const T beyond = T(std::numeric_limits<U>::max() / 2 + 1) * T(2); // 2^digits, exact in T
+			return (maxT >= beyond) ? v < maxT : v <= maxT;
+		}
+		else
+			return v <= T(MAX_VALUE(U));
 	}
 };
 
@@ -107,17 +127,20 @@ struct check_def_mf
 	>
 {};
 
+// The value bits of a floating type are not its range: from a floating source both checks always apply (RTC-A02).
+// Float32 has 31 value bits, so Int32, UInt32, Int64 and UInt64 targets got no max check, and Float64 into Int64 or
+// UInt64 none either, and no min check into Int64: UInt32(5e9f) gave 705032704.
 template <typename T, typename U>
 struct check_min_mf
-	:	std::conditional< (is_signed<T>::value && ((!is_signed<U>::value) || ( nrvalbits_of<U>::value < nrvalbits_of<T>::value)) )
+	:	std::conditional< (is_signed<T>::value && ((!is_signed<U>::value) || ( nrvalbits_of<U>::value < nrvalbits_of<T>::value) || float_to_integral_v<T, U>) )
 		,	check_min_func<T,U>
 		,	ok_func
 	>
 {};
 
 template <typename T, typename U>
-struct check_max_mf 
-	:	std::conditional< (nrvalbits_of<U>::value < nrvalbits_of<T>::value)
+struct check_max_mf
+	:	std::conditional< (nrvalbits_of<U>::value < nrvalbits_of<T>::value) || float_to_integral_v<T, U>
 		,	check_max_func<T,U>
 		,	ok_func
 	>

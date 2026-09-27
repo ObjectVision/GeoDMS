@@ -1,0 +1,26 @@
+// RTC-A02: a float converted to an integral type is checked against the range of that type, whatever the number of
+// value bits of the float. The checks were skipped when the target had as many value bits as the source, so float32
+// into (u)int32 or (u)int64, and float64 into (u)int64, got no range check: uint32(5e9f) gave 705032704. A value at
+// the power of two just outside the range, where the bound itself rounds in the float (2^63 for int64 in a float64),
+// is out of range as well. Out of range gives null, as it did for the narrower targets. Expected: exit 0 on /checks.
+container oper_convert_float_range
+{
+	parameter<float32> f5e9    := 5000000000f;
+	parameter<float32> f2p31   := 2147483648f;          // 2^31
+	parameter<float64> d2p63   := 9223372036854775808.0; // 2^63
+	parameter<float64> d2p64   := 18446744073709551616.0; // 2^64
+	parameter<float64> dm2p64  := -18446744073709551616.0;
+
+	container checks
+	{
+		parameter<bool> u32_of_f5e9   := IsNull(uint32(f5e9)),  IntegrityCheck = "u32_of_f5e9 == true";
+		parameter<bool> i32_of_f2p31  := IsNull(int32(f2p31)),  IntegrityCheck = "i32_of_f2p31 == true";
+		parameter<bool> i64_of_d2p63  := IsNull(int64(d2p63)),  IntegrityCheck = "i64_of_d2p63 == true";
+		parameter<bool> u64_of_d2p64  := IsNull(uint64(d2p64)), IntegrityCheck = "u64_of_d2p64 == true";
+		parameter<bool> i64_of_dm2p64 := IsNull(int64(dm2p64)), IntegrityCheck = "i64_of_dm2p64 == true";
+
+		// in range stays exact
+		parameter<bool> u32_ok := uint32(4000000000.0) == 4000000000, IntegrityCheck = "u32_ok == true";
+		parameter<bool> i64_ok := int64(-9007199254740992.0) == -9007199254740992i64, IntegrityCheck = "i64_ok == true";
+	}
+}

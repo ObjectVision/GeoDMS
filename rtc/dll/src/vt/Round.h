@@ -47,9 +47,9 @@ typename scalar_replace<V, N>::type
 	// NaN-safe: without this guard, `return v` would convert NaN to 0x80000000 (UNDEFINED).
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
-	if (v < MIN_VALUE(R))
+	if (v <= MIN_VALUE(R)) // <=, not <: MIN_VALUE(R) may round in V, and the value at the bound itself would then convert out of range (RTC-A02)
 		return MIN_VALUE(R);
-	if (v > MAX_VALUE(R))
+	if (v >= MAX_VALUE(R)) // >=, not >: MAX_VALUE(Int64) is 2^63 as a double, and 2^63 itself would then convert out of range (RTC-A02)
 		return MAX_VALUE(R);
 
 	return v;
@@ -85,9 +85,9 @@ typename scalar_replace<V, N>::type
 	// the (double->int) conversion below would produce 0x80000000 (UNDEFINED).
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
-	if (v < MIN_VALUE(R))
+	if (v <= MIN_VALUE(R)) // <=, not <: MIN_VALUE(R) may round in V, and the value at the bound itself would then convert out of range (RTC-A02)
 		return MIN_VALUE(R);
-	if (v > MAX_VALUE(R))
+	if (v >= MAX_VALUE(R)) // >=, not >: MAX_VALUE(Int64) is 2^63 as a double, and 2^63 itself would then convert out of range (RTC-A02)
 		return MAX_VALUE(R);
 
 	R lv = v;
@@ -130,7 +130,7 @@ RoundDownPositiveAndFloorAtZero(const V& v)
 			return 0;
 	}
 
-	if (v > MAX_VALUE(R))
+	if (v >= MAX_VALUE(R)) // >=, not >: MAX_VALUE(Int64) is 2^63 as a double, and 2^63 itself would then convert out of range (RTC-A02)
 		return MAX_VALUE(R);
 
 	R uv = v;
@@ -175,7 +175,7 @@ typename scalar_replace_u<V, N>::type
 			return 0;
 	}
 
-	if (v > MAX_VALUE(R))
+	if (v >= MAX_VALUE(R)) // >=, not >: MAX_VALUE(Int64) is 2^63 as a double, and 2^63 itself would then convert out of range (RTC-A02)
 		return MAX_VALUE(R);
 
 	R uv = v;
@@ -215,9 +215,9 @@ typename scalar_replace<V, N>::type
 	// that breaks invariants downstream (e.g. GRect ctor in shv/GeoTypes.h).
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
-	if (v < MIN_VALUE(R))
+	if (v <= MIN_VALUE(R)) // <=, not <: MIN_VALUE(R) may round in V, and the value at the bound itself would then convert out of range (RTC-A02)
 		return MIN_VALUE(R);
-	if (v > MAX_VALUE(R))
+	if (v >= MAX_VALUE(R)) // >=, not >: MAX_VALUE(Int64) is 2^63 as a double, and 2^63 itself would then convert out of range (RTC-A02)
 		return MAX_VALUE(R);
 
 	R lv = v;
@@ -261,7 +261,7 @@ typename scalar_replace_u<V, N>::type
 		if (v < V(0))
 			return 0;
 	}
-	if (v > MAX_VALUE(R))
+	if (v >= MAX_VALUE(R)) // >=, not >: MAX_VALUE(Int64) is 2^63 as a double, and 2^63 itself would then convert out of range (RTC-A02)
 		return MAX_VALUE(R);
 	R uv = v;
 	if (V(uv) < v) // round up if a fractional part was truncated
