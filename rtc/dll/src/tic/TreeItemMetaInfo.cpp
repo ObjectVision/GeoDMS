@@ -71,12 +71,7 @@
 #include "UsingCache.h"
 #include "stg/MemoryMappedDataStorageManager.h"
 
-#include <any>
 #include <unordered_set>
-
-namespace SuspendTrigger { void DeferScope_KeepAlive(const void* key, std::any keepAlive); void DeferScope_Release(const void* key); } // TriggerOperator.cpp, same module (#1259)
-bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
-bool IsInsideInlineOperation(); // idem
 
 //----------------------------------------------------------------------
 // implement Actor callback functions
@@ -1049,8 +1044,7 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 // which the evaluation below leaves Validated (shared by identity with the #1180-folded
 // conditions, deduplicated per #1182).
 //
-// Returns AVS_SuspendedOrFailed for SUSPENSION only, or for a deferred verdict inside a
-// SuspendTrigger::DeferScope (#1259); a verdict, either way, returns AVS_Ready
+// Returns AVS_SuspendedOrFailed for SUSPENSION only; a verdict, either way, returns AVS_Ready
 // and a failure is recorded on self (FailType::Validate). No progress is marked here: self's
 // DoUpdate does that, and a parent validated on behalf of a descendant must not skip ahead of
 // its own data phase.
@@ -1127,33 +1121,6 @@ static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
 
 				std::shared_ptr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
 				assert(adiCheckerResult->GetInterestCount());
-				// #1259 The check needs data that is still being produced. Waiting for it here is the second
-				// place, next to CommitDataChanges, where the supplier walk stalled on the meta thread; inside
-				// a DeferScope the verdict is left for a retry of the update loop, so that the walk goes on
-				// and the producers of the next items get scheduled alongside this one.
-				// The holders of an earlier deferral of this same check are released only now, after
-				// the new handle above has been taken, so the check's OperationContext stays alive
-				// across retries; and they are released here whether the verdict is taken now or not.
-				SuspendTrigger::DeferScope_Release(self);
-				// A check is not deferred (user ruling 2026-09-15): the verdict is taken as soon as its data is
-				// ready, below. Deferring it was measured a net loss on the two regression models that defer checks
-				// by the thousands (GeoDMS-Test, 20.20.0.m vs the same binary with /SB1, same machine state): their
-				// producers are exactly what the next phase needs, so the lookahead buys no breadth, while it costs
-				// memory -- t641.2: ~18k registrations per pass, commit 173 -> 338 GB, +14 % wall -- and the update
-				// loop's re-walk of every registration per retry -- t2000: 52k registrations, 8500 retries, no memory
-				// change, +16 % wall. A deferred check is also invisible to the ledger: not noted, not charged, not
-				// counted against s_MaxDeferred. The commit deferral in CommitDataChanges stays; it is what the BAG
-				// import gains from.
-				constexpr bool deferIntegrityChecks = false;
-				if (deferIntegrityChecks && SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && LedgerHasRoomForDeferral()
-					&& IsCalculating(adiCheckerResult.get()) && !IsDataReady(adiCheckerResult.get()) && !adiCheckerResult->WasFailed()) // with room, while its producer holds the write lock, not inside an inline run: as in CommitDataChanges
-				{
-					SuspendTrigger::DeferScope::Register();
-					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerDC); // the interest CalledCalcHandle took: dropping it cancels the scheduled check
-					SuspendTrigger::DeferScope_KeepAlive(self, iCheckerFD);
-					StartOperationContextsAsWaiter(); // the check runs while the walk goes on, as in CommitDataChanges
-					return AVS_SuspendedOrFailed;
-				}
 				if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
 				{
 					if (adiCheckerResult->WasFailed())
@@ -1292,9 +1259,6 @@ ActorVisitState TreeItem::DoUpdate()
 
 		if (SuspendTrigger::DidSuspend())
 			return AVS_SuspendedOrFailed;
-
-		if (!result && !WasFailed(FailType::Committed))
-			return AVS_SuspendedOrFailed; // #1259 deferred: the producer is in flight, the update loop retries the commit
 
 		assert(result || WasFailed(FailType::Committed));
 

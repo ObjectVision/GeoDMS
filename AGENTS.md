@@ -68,6 +68,19 @@ it too. A new shipped file needs a `shipped_*.dms` case that includes it, or the
 names it. Because the cases read the output folder, an edit under `library\` or
 `testcases\` is green there only after a build has mirrored it; the gate says so.
 
+## A session runs on the user's own machine, in a local working copy, never on a cloud clone
+
+A Claude Code session on this project runs locally, on one of the user's machines (OVSRV05,
+OVSRV08, OVSRV10, the dev machine), in a working copy that is already checked out there
+(`C:\dev\GeoDMS`, `C:\dev\GeoDMS_2026`, ...). Remote Control of such a local session is allowed,
+so that it can be driven from another device; it stays a local session in a local working copy.
+Do not start a session on a cloud-hosted clone of the repository (Claude Code on the web, a cloud
+environment): it has no Windows toolchain, no msbuild, no test data, no `C:\dev`, and no write
+access to GitHub, so everything it produces ends as a patch that someone has to carry over by
+hand. That happened on 2026-09-20: the bounded check deferral of #1259 and the 20.21.1 bump were
+written in a cloud session that could neither build, run `full.py`, nor push, and were delivered
+as `git am` patches. Every recipe in this file and in `.claude/skills/` assumes the local tree.
+
 ## Skills: the operational recipes live in `.claude/skills/`
 
 This file holds the policy; the recipes that apply it on this machine are skills, one folder

@@ -220,8 +220,8 @@ namespace {
 
 } // anonymous namespace
 
-// Declared at its use in TreeItemDataUsage.cpp, as LedgerHasRoomForDeferral is: this is private to
-// the MMD write side and the header reaches most of Clc.
+// Declared at its use in TreeItemDataUsage.cpp: this is private to the MMD write side and the
+// header reaches most of Clc.
 bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item)
 {
 	assert(IsMetaThread());

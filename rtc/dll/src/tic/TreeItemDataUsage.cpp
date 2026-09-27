@@ -28,12 +28,7 @@
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
 
-bool LedgerHasRoomForDeferral(); // OperationContext.cpp, same module (#1259)
 bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item); // stg/MemoryMappedDataStorageManager.cpp, same module (#1264)
-bool IsInsideInlineOperation(); // idem
-void LedgerNoteDeferral(const TreeItem* item);
-UInt32 LedgerDeferredCommits(); // idem
-void LedgerNoteReady(const TreeItem* item);
 #include "act/UpdateMark.h"
 #include "act/Waiter.h"
 #include "dbg/debug.h"
@@ -608,39 +603,6 @@ bool TreeItem::CommitDataChanges() const
 	if ((!IsCalculatingOrReady(GetCurrRangeItem().get()) && !PrepareDataUsage(DrlType::Suspendible)) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in {}", DMS_TreeItem_GetAssociatedFilename(this)); });
-
-	// #1259 The producer is in flight. Waiting for it here, on the meta thread and inside the
-	// supplier walk, is what serialised every stored item of a run: nothing after this item was
-	// scheduled until it was written. Inside a DeferScope the commit is deferred instead: this
-	// item stays below Committed, the walk goes on to schedule the next supplier's producer, and
-	// the update loop comes back for the write once the data is ready.
-	// Only while a producer holds the range item's write lock: that is the one state in which a
-	// retry can find the data ready without this thread's help. A range item that is neither
-	// ready nor being produced (its producer is done and a sub-item's data was released since,
-	// or it never had a producer) is waited for below as before #1259, which loads what the
-	// write needs or fails with the message it always gave. And only while the budget has room
-	// or other commits are in flight: without room the deferral stops the walk at this item,
-	// which is then the one producer started beyond the budget, and the retries drain what is
-	// in flight with the meta thread free to commit; not starting it starved the walk instead
-	// (the ready items behind it were never reached). With nothing in flight the wait below is
-	// the pre-#1259 path, which /SB1 forces for every commit. Never inside an operation that
-	// runs inline on this thread: that run expects the data.
-	if (SuspendTrigger::DeferScope::IsAllowed() && !IsInsideInlineOperation() && (LedgerHasRoomForDeferral() || LedgerDeferredCommits())
-		&& IsCalculating(GetCurrRangeItem().get()) && !IsDataReady(GetCurrRangeItem().get()) && !GetCurrRangeItem()->WasFailed())
-	{
-		// the producer runs or is queued: waiting for it here would only idle the meta thread;
-		// its memory is counted as in flight until ready. The pool is told now, not when the
-		// pass ends: a pass over a large graph takes seconds, and the stack of the hung Hestia
-		// run showed every worker parked while the walk held the scheduled producers. And told
-		// as a waiter, as the Join of the wait below would be: above MemoryFlushThreshold,
-		// collectOperationContexts keeps as many contexts activated or running as there are
-		// waiting Joins, and one at least.
-		LedgerNoteDeferral(this);
-		SuspendTrigger::DeferScope::Register();
-		StartOperationContextsAsWaiter();
-		return false; // deferred, not failed
-	}
-	LedgerNoteReady(this); // ready, or about to be waited for: no longer in flight
 
 	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem().get()) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in {}", DMS_TreeItem_GetAssociatedFilename(this)); });
