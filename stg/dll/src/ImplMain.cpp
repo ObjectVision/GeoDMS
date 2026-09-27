@@ -89,7 +89,13 @@ FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool transl
 #endif
 
 	if (m_FP != nullptr)
+	{
+		// the buffer size the callers ask for (16 pages for a .dbf or .shp, 1 for a header): it was
+		// ignored since the call was commented out, so every file ran through the 4 KB CRT default
+		if (nrPagesInBuffer)
+			setvbuf(m_FP, nullptr, _IOFBF, SizeT(nrPagesInBuffer) * 4096);
 		return {}; // success
+	}
 
 	// emit a detailed error message, including the filename and the reason for failure
 	CharPtr hint = "";
