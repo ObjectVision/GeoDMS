@@ -10,6 +10,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/deadline_timer.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/ssl.hpp>
 
 #include <boost/beast/core.hpp>
@@ -55,7 +56,12 @@
 #define MG_DEBUG_WMS
 #endif
 
-#define WMS_TIMER_SECONDS 3
+// The time one step of a tile request (connect, handshake, sending the request, reading the
+// response) may take; at expiry the loader closes its socket, the step fails and the tile is
+// marked undefined, so a stalled server or a dropped network cannot keep a loader alive.
+#define WMS_TIMER_SECONDS 20
+// The time the whole legend fetch may take; it runs on the GUI thread
+#define WMS_LEGEND_SECONDS 10
 #define WMS_MAX_CONCURRRENT_REQUESTS 8
 
 namespace wms {
@@ -186,8 +192,24 @@ namespace wms {
 			m_Timer.expires_from_now(boost::posix_time::seconds(WMS_TIMER_SECONDS));
 			m_Timer.async_wait([self = shared_from_this()](boost::system::error_code ec)
 			{
+				if (ec == boost::asio::error::operation_aborted)
+					return; // the step completed in time, or a next step re-armed the timer
 				MG_DEBUGCODE(self->report(MsgCategory::background_layer_request, ("TimerExpired: " + ec.message()).c_str(), true));
+				// the pending step now completes with an error, and report_status marks the tile undefined
+				self->m_TimedOut = true;
+				self->CloseSocket();
 			});
+		}
+		void CloseSocket()
+		{
+			boost::system::error_code ignored;
+			m_SslSocket.lowest_layer().close(ignored);
+		}
+		void Abort() // the layer is going away: end this request now, without waiting for the timer
+		{
+			boost::system::error_code ignored;
+			m_Timer.cancel(ignored);
+			CloseSocket();
 		}
 		void Run(const Host& host) // in separate method because shared_from_this can only be called after completion of make_shared<TileLoader>(...);
 		{
@@ -241,6 +263,8 @@ namespace wms {
 					if (owner)  self->on_handshake(ec);
 				}
 			);
+
+			SetTimer();
 		}
 
 		void on_handshake(const boost::system::error_code& ec) {
@@ -289,6 +313,7 @@ namespace wms {
 		http::response<http::string_body> m_Response; // Declare a container to hold the response
 		boost::beast::flat_buffer m_Buffer;// This buffer is used for reading and must be persisted
 		boost::asio::deadline_timer m_Timer;
+		bool m_TimedOut = false;
 	};
 
 	std::atomic<UInt32> TileLoader::s_InstanceCount = 0;
@@ -315,6 +340,7 @@ namespace wms {
 
 		std::map<tile_id, image_info> m_ImageMap;
 		mutable std::vector<tile_id> m_ImageStack;
+		std::vector<std::weak_ptr<TileLoader>> m_Loaders; // the requests this cache started, to abort when it goes away
 		static leveled_critical_section s_ImageAccess;
 
 		TileCache(WeakStr hostName, WeakStr targetTemplStr, WeakStr fileTemplStr, image_format_type ift)
@@ -332,6 +358,15 @@ namespace wms {
 				status = image_status::undefined;
 			}
 #endif
+			// The layer is gone, so no answer can still be used. End this cache's requests now rather than
+			// wait for a slow or stalled server: the close runs on the io_context, which owns the sockets.
+			{
+				leveled_critical_section::scoped_lock lock(s_ImageAccess);
+				for (auto& weakLoader : m_Loaders)
+					if (auto loader = weakLoader.lock())
+						boost::asio::post(*m_Host.m_IOC, [loader] { loader->Abort(); });
+				m_Loaders.clear();
+			}
 			ProcessPendingTasks();
 		}
 		void Status(tile_id t, image_status s)
@@ -418,6 +453,8 @@ namespace wms {
 							.replace("@TR@", AsString(key.second.Row(), FormattingFlags::None).c_str())
 							.replace("@TC@", AsString(key.second.Col(), FormattingFlags::None).c_str());
 						std::shared_ptr<TileLoader> tileLoader = std::make_shared<TileLoader>(layer, m_Host, target, m_ImageMap.at(key).m_FileName, key, m_ImageFormatType);
+						std::erase_if(m_Loaders, [](const std::weak_ptr<TileLoader>& weakLoader) { return weakLoader.expired(); });
+						m_Loaders.emplace_back(tileLoader);
 						tileLoader->Run(m_Host);
 						return GVS_Yield;
 					}
@@ -470,7 +507,10 @@ namespace wms {
 			//report(SeverityTypeID::ST_MinorTrace, what, "OK", true);
 			return false;
 		}
-		report(MsgCategory::background_layer_request, SeverityTypeID::ST_Warning, what, ec.message().c_str(), true);
+		auto msg = m_TimedOut
+			? mySSPrintF("no response within {} seconds, the request is abandoned", WMS_TIMER_SECONDS)
+			: SharedStr(ec.message().c_str());
+		report(MsgCategory::background_layer_request, SeverityTypeID::ST_Warning, what, msg.c_str(), true);
 
 		auto owner = m_Owner.lock();
 		if (owner)
@@ -478,38 +518,71 @@ namespace wms {
 		return true;
 	}
 
-	// One-shot synchronous HTTPS GET of a legend image into a local cache file
-	// (issue #405). Legends are small and fetched only when the user reveals the
-	// legend, so a blocking fetch on the GUI thread is acceptable; the cached file
+	// One-shot HTTPS GET of a legend image into a local cache file (issue #405). Legends are small
+	// and fetched only when the user reveals the legend, so the fetch runs on the GUI thread, but
+	// on an io_context of its own and for at most WMS_LEGEND_SECONDS: a server that stalls in any
+	// step costs that much once, as the layer then remembers the legend as failed. The cached file
 	// is then decoded by the same GDAL reader used for the tiles.
 	bool FetchUrlToFile(const SharedStr& hostName, const SharedStr& target, const SharedStr& localFile)
 	{
 		try {
-			auto ioc = GetIOC();
+			boost::asio::io_context ioc;
 			ssl::context ctx(boost::asio::ssl::context::sslv23);
 			ctx.set_default_verify_paths();
 			ctx.set_verify_mode(ssl::verify_none);
 
-			tcp::resolver resolver(*ioc);
-			auto results = resolver.resolve(hostName.c_str(), "https");
-
-			ssl_socket stream(*ioc, ctx);
+			tcp::resolver resolver(ioc);
+			ssl_socket stream(ioc, ctx);
 			stream.set_verify_mode(ssl::verify_none);
-			boost::asio::connect(stream.lowest_layer(), results.begin(), results.end());
-			stream.handshake(ssl::stream_base::client);
 
 			http::request<http::empty_body> req{ http::verb::get, target.c_str(), 11 };
 			req.set(http::field::host, hostName.c_str());
 			req.set(http::field::user_agent, "GeoDMS");
 			req.set(http::field::connection, "close");
-			http::write(stream, req);
 
 			boost::beast::flat_buffer buffer;
 			http::response<http::dynamic_body> res;
-			http::read(stream, buffer, res);
+			boost::system::error_code result;
 
-			boost::system::error_code ec;
-			stream.shutdown(ec); // many servers close without a clean TLS shutdown; ignore ec
+			// every handler runs inside ioc.run_for below, while these locals live
+			resolver.async_resolve(hostName.c_str(), "https", [&](const boost::system::error_code& ecResolve, const tcp::resolver::results_type& results)
+			{
+				if (ecResolve) { result = ecResolve; return; }
+				boost::asio::async_connect(stream.lowest_layer(), results, [&](const boost::system::error_code& ecConnect, const tcp::endpoint&)
+				{
+					if (ecConnect) { result = ecConnect; return; }
+					stream.async_handshake(ssl::stream_base::client, [&](const boost::system::error_code& ecHandshake)
+					{
+						if (ecHandshake) { result = ecHandshake; return; }
+						http::async_write(stream, req, [&](const boost::system::error_code& ecWrite, std::size_t)
+						{
+							if (ecWrite) { result = ecWrite; return; }
+							http::async_read(stream, buffer, res, [&](const boost::system::error_code& ecRead, std::size_t) { result = ecRead; });
+						});
+					});
+				});
+			});
+
+			ioc.run_for(std::chrono::seconds(WMS_LEGEND_SECONDS));
+			if (!ioc.stopped())
+			{
+				boost::system::error_code ignored;
+				resolver.cancel();
+				stream.lowest_layer().close(ignored);
+				ioc.run(); // the pending step completes with operation_aborted
+				reportF(MsgCategory::background_layer_request, SeverityTypeID::ST_Warning
+					, "Legend fetch https://{}{} got no response within {} seconds"
+					, hostName.c_str(), target.c_str(), WMS_LEGEND_SECONDS);
+				return false;
+			}
+			if (result)
+			{
+				reportF(MsgCategory::background_layer_request, SeverityTypeID::ST_Warning
+					, "Legend fetch https://{}{} failed: {}"
+					, hostName.c_str(), target.c_str(), result.message());
+				return false;
+			}
+			// no TLS shutdown: the request asked the server to close, and many servers close without one
 
 			if (res.result() != http::status::ok)
 			{
@@ -550,7 +623,8 @@ namespace wms {
 		if (!owner)
 			return;
 
-		m_SslSocket.lowest_layer().shutdown(tcp::socket::shutdown_both);
+		boost::system::error_code ignored; // the timer may have closed the socket after the read completed
+		m_SslSocket.lowest_layer().shutdown(tcp::socket::shutdown_both, ignored);
 		{
 			leveled_critical_section::scoped_lock lock(TileCache::s_ImageAccess);
 			image_status& curr = owner->m_TileCache->m_ImageMap[m_Key].m_Status;
