@@ -236,13 +236,15 @@ namespace Bmp
 			}
 //*/
 		}
-		else
+		else if (w && h)
 		{
-			ReadableTileLock tileLock(ado.get(), no_tile);
+			// One tile: address it as tile 0. A single-tile array asserts t == 0 in GetTile, so no_tile stopped every
+			// bmp write in a Debug build (stor_bmp_1_write).
+			ReadableTileLock tileLock(ado.get(), 0);
 			for (UInt32 r=h, rw = h*w; r>0;)
 			{
 				--r; rw -= w;
-				ado->GetValuesAsUInt8Array(tile_loc(no_tile, rw), w, buffPtr);
+				ado->GetValuesAsUInt8Array(tile_loc(0, rw), w, buffPtr);
 				imp.SetRow(Mirror(r, h), buffPtr);
 			}
 		}
