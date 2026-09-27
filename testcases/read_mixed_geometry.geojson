@@ -1,0 +1,6 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","properties":{"name":"pt"},"geometry":{"type":"Point","coordinates":[0,0]}},
+{"type":"Feature","properties":{"name":"ln"},"geometry":{"type":"LineString","coordinates":[[0,0],[1,0],[2,1]]}},
+{"type":"Feature","properties":{"name":"pg"},"geometry":{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}},
+{"type":"Feature","properties":{"name":"mp"},"geometry":{"type":"MultiPoint","coordinates":[[5,5],[6,6]]}}
+]}

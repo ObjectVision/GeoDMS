@@ -1,0 +1,31 @@
+// Regression for doc/code-audit-2026-09-27.md STG-A01: reading a gdal.vect geometry as MultiPoint
+// handed every geometry type to toMultiPoint(), a static down-cast without a check, so on a layer
+// that also holds lines or polygons (GeoJSON, a CSV with WKT, a generic PostGIS geometry) the
+// coordinates of a line or polygon were read as a point count and a pointer. Each type now gives its
+// own vertices, as stored: a point 1, the line 3, the polygon ring 5 (its closing vertex included),
+// the multipoint 2. Expected: exit 0 on /checks.
+container stor_read_multipoint_mixed
+{
+	unit<fpoint> point_m := BaseUnit('m', fpoint);
+
+	unit<uint32> feats
+	:	StorageName     = "%currDir%/read_mixed_geometry.geojson"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		attribute<point_m> geometry (multipoint);
+		attribute<string>  name;
+	}
+
+	container checks
+	{
+		attribute<uint32> nPoints (feats) := sequence_element_count(feats/geometry);
+
+		parameter<bool> count := #feats == 4,                          IntegrityCheck = "count == true";
+		parameter<bool> names := asList(feats/name, ',') == 'pt,ln,pg,mp', IntegrityCheck = "names == true";
+		parameter<bool> pt    := nPoints[0] == 1, IntegrityCheck = "pt == true";
+		parameter<bool> ln    := nPoints[1] == 3, IntegrityCheck = "ln == true";
+		parameter<bool> pg    := nPoints[2] == 5, IntegrityCheck = "pg == true";
+		parameter<bool> mp    := nPoints[3] == 2, IntegrityCheck = "mp == true";
+	}
+}

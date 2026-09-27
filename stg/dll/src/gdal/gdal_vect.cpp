@@ -609,6 +609,52 @@ void AddMultiPoint(typename DataArray<PolygonType>::reference dataElemRef, OGRMu
 		AddPoint<PolygonType>(dataElemRef, debug_cast<OGRPoint*>(geoMultiPoint->getGeometryRef(p)));
 }
 
+// Adds the vertices of any geometry to a MultiPoint element, as they are stored: a ring gives its
+// closing vertex too. Curves and curved surfaces are linearised first. Returns false for a type
+// that has no representation as a set of points.
+template <typename PolygonType>
+bool AddVertices(typename DataArray<PolygonType>::reference dataElemRef, OGRGeometry* geo)
+{
+	switch (wkbFlatten(geo->getGeometryType()))
+	{
+		case wkbPoint:
+			if (!geo->IsEmpty())
+				AddPoint<PolygonType>(dataElemRef, geo->toPoint());
+			return true;
+
+		case wkbLineString:
+			AddLineString<PolygonType>(dataElemRef, geo->toLineString());
+			return true;
+
+		case wkbPolygon:
+			for (OGRLinearRing* ring : *geo->toPolygon())
+				AddLineString<PolygonType>(dataElemRef, ring);
+			return true;
+
+		case wkbMultiPoint:
+		case wkbMultiLineString:
+		case wkbMultiPolygon:
+		case wkbGeometryCollection:
+			for (OGRGeometry* part : *geo->toGeometryCollection())
+				if (!AddVertices<PolygonType>(dataElemRef, part))
+					return false;
+			return true;
+
+		case wkbCircularString:
+		case wkbCompoundCurve:
+		case wkbCurvePolygon:
+		case wkbMultiCurve:
+		case wkbMultiSurface:
+		{
+			std::unique_ptr<OGRGeometry> linear(geo->getLinearGeometry()); // a new geometry, owned here
+			return linear && AddVertices<PolygonType>(dataElemRef, linear.get());
+		}
+
+		default:
+			return false;
+	}
+}
+
 template <typename SeqType>
 void AddMultiPointZM(typename DataArray<SeqType>::reference dataElemRef, OGRMultiPoint* geoMultiPoint, bool isZ)
 {
@@ -946,74 +992,17 @@ void ReadMultiPointData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 			continue;
 		}
 
-		auto geometry_type = geo->getGeometryType();
-
-		switch (geometry_type) {
-
-			case OGRwkbGeometryType::wkbPoint:
-			case OGRwkbGeometryType::wkbPoint25D:
-			case OGRwkbGeometryType::wkbPointM:
-			case OGRwkbGeometryType::wkbPointZM:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbMultiPoint:
-			case OGRwkbGeometryType::wkbMultiPoint25D:
-			case OGRwkbGeometryType::wkbMultiPointM:
-			case OGRwkbGeometryType::wkbMultiPointZM:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbLineString:
-			case OGRwkbGeometryType::wkbLineString25D:
-			case OGRwkbGeometryType::wkbLineStringM:
-			case OGRwkbGeometryType::wkbLineStringZM:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbCircularString:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbCompoundCurve:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbPolygon:
-			case OGRwkbGeometryType::wkbPolygon25D:
-			case OGRwkbGeometryType::wkbPolygonM:
-			case OGRwkbGeometryType::wkbPolygonZM:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbCurvePolygon:
-			case OGRwkbGeometryType::wkbCurvePolygonM:
-			case OGRwkbGeometryType::wkbCurvePolygonZM:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbMultiPolygon:
-			case OGRwkbGeometryType::wkbMultiPolygon25D:
-			case OGRwkbGeometryType::wkbMultiPolygonM:
-			case OGRwkbGeometryType::wkbMultiPolygonZM:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbMultiLineString:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			case OGRwkbGeometryType::wkbMultiSurface:
-				AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint());
-				break;
-
-			default:
-				reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS MultiPoint.\n"
-					"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
-					, i + firstIndex, OGRGeometryTypeToName(geometry_type));
-				Assign(dataElemRef, Undefined());
-				break;
-			}
+		// Every geometry type used to be handed to toMultiPoint(), a static down-cast without a check:
+		// on a layer that also holds lines or polygons (GeoJSON, a CSV with a WKT column, a generic
+		// PostGIS geometry column) a line or polygon was read as if it were a multipoint, coordinates
+		// as a count and a pointer. Each type now gives its own vertices.
+		if (!AddVertices<PolygonType>(dataElemRef, geo))
+		{
+			reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS MultiPoint.\n"
+				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
+				, i + firstIndex, OGRGeometryTypeToName(geo->getGeometryType()));
+			Assign(dataElemRef, Undefined());
+		}
 
 		assert(data.data_size() == data.actual_data_size()); // no fragmentation
 	}
