@@ -22,6 +22,7 @@
 #include "mci/ValueClassID.h"
 #include "mci/ValueClass.h"
 #include "utl/IncrementalLock.h"
+#include "utl/scoped_exit.h"
 
 #include "AbstrUnit.h"
 #include "DataArray.h"
@@ -814,9 +815,9 @@ void GridLayer::PasteSelValuesDirect()
 		InvalidatePasteArea();
 
 	m_PasteHandler = std::make_unique<PasteHandler>(dataHandle);
+	auto clearPaste = make_scoped_exit([this] { ClearPaste(); }); // also when PasteNow throws, e.g. when its DataWriteLock finds the grid read-locked: a PasteHandler left behind stays drawn
 
 	PasteNow();
-	ClearPaste();
 }
 
 void GridLayer::PasteSelValues()
