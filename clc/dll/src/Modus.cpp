@@ -217,8 +217,7 @@ struct asUniqueListFunc {
 // *****************************************************************************
 
 // A table counts integral values over the formal range of their values unit (see TableSize in ValuesTable.h), which does
-// not bound them: a value outside it is counted apart, and aggregated with the table in value order, so that a table and
-// a set count the same values and give the same result, the first of the most occurring values included (#1285).
+// not bound them (#1285): see Counts of values below for how the values outside it are counted and aggregated.
 
 template <typename V>
 auto GetFormalRange(const DataArray<V>* valuesTF) -> Range<V>
@@ -229,39 +228,88 @@ auto GetFormalRange(const DataArray<V>* valuesTF) -> Range<V>
 	return vrd->GetRange();
 }
 
-// the (value, count) pairs in which AggregateTable merges the counts of a table over a Range<RV> with those of the values
-// outside it
+// *****************************************************************************
+//											Counts of values
+// *****************************************************************************
+
+// Whether values of type V can be counted in a table over a range of them: bit values and integral values, points of them
+// included; not floats or strings.
+template <typename V>
+constexpr bool can_table_v = is_bitvalue_v<scalar_of_t<V>> || is_integral_v<scalar_of_t<V>>;
+
+// The counts of one group, table and set in one. A table has a counter per value of a range of integral values, where
+// those lie close together. The values that have no counter in it come as (value, count) pairs in ascending order of value:
+// all of them without a table (floats, strings, integral values too sparse for one), and with a table those outside its
+// range (#1285). Each value is counted in one place, table or pairs, and every aggregation of the family takes the counts
+// in ascending order of value, as a set holds them: the pairs below the range, the table, the pairs above it. A table and a
+// set therefore count the same values and give the same result, the first of the most occurring values included.
+
+// the (value, count) pairs in which AggregateCounts merges the counters of a table over a Range<RV> with the other pairs
 template <typename RV, typename C> using MergedCounts = my_vec_t<std::pair<RV, C>>;
 
-// Aggregates the counts of a table over range, [tb, te), with those of the values outside it, [ob, oe), in ascending order
-// of value, as a set gives them: the values below the range, those of the table, the values above it. The table goes to
-// aggrFunc as it is when no value lies outside; otherwise the counts are merged in mergeBuffer, without the empty counters,
-// which no aggrFunc takes into account. Bit values all have a counter.
-template <typename V, typename RV, typename C, typename TIter, typename OIter>
-auto AggregateTable(auto aggrFunc, const Range<RV>& range, TIter tb, TIter te, OIter ob, OIter oe, auto outsideValueF, MergedCounts<RV, C>& mergeBuffer)
+// the part of AggregateCounts where there are pairs: as they are without a table, merged with the table otherwise
+template <typename RV, typename C, typename TIter, typename PIter>
+auto AggregateCountsWithPairs(auto aggrFunc, const Range<RV>& range, TIter tb, TIter te, PIter pb, PIter pe, auto pairValueF, MergedCounts<RV, C>& mergeBuffer)
 {
-	if constexpr (has_undefines_v<V>)
-		if (ob != oe)
-		{
-			mergeBuffer.clear();
-			for (; ob != oe && outsideValueF(ob) < range.first; ++ob)
-				mergeBuffer.emplace_back(outsideValueF(ob), ob->second);
-			for (auto ti = tb; ti != te; ++ti)
-				if (*ti != C())
-					mergeBuffer.emplace_back(TableValue(range, ti - tb), *ti);
-			for (; ob != oe; ++ob)
-				mergeBuffer.emplace_back(outsideValueF(ob), ob->second);
+	if (tb == te)
+		return aggrFunc(pb, pe
+		,	[](auto i) { return i->second; }
+		,	pairValueF
+		);
 
-			return aggrFunc(mergeBuffer.cbegin(), mergeBuffer.cend()
-			,	[](auto i) { return i->second; }
-			,	[](auto i) { return i->first; }
-			);
-		}
+	mergeBuffer.clear();
+	for (; pb != pe && pairValueF(pb) < range.first; ++pb)
+		mergeBuffer.emplace_back(pairValueF(pb), pb->second);
+	for (auto ti = tb; ti != te; ++ti)
+		if (*ti != C())
+			mergeBuffer.emplace_back(TableValue(range, ti - tb), *ti);
+	for (; pb != pe; ++pb)
+		mergeBuffer.emplace_back(pairValueF(pb), pb->second);
+
+	return aggrFunc(mergeBuffer.cbegin(), mergeBuffer.cend()
+	,	[](auto i) { return i->second; }
+	,	[](auto i) { return i->first; }
+	);
+}
+
+// Aggregates the counts of one group: the counters [tb, te) of a table over range, and the pairs [pb, pe) of the values
+// that have no counter, ascending, each with its value in pairValueF and its count in ->second. The table goes to aggrFunc
+// as it is when there are no such pairs, the pairs as they are when there is no table; otherwise both are merged in
+// mergeBuffer, without the empty counters, which no aggregation takes into account. Bit values all have a counter.
+template <typename V, typename RV, typename C, typename TIter, typename PIter>
+auto AggregateCounts(auto aggrFunc, const Range<RV>& range, TIter tb, TIter te, PIter pb, PIter pe, auto pairValueF, MergedCounts<RV, C>& mergeBuffer)
+{
+	if constexpr (!is_bitvalue_v<scalar_of_t<V>>)
+		if (pb != pe)
+			return AggregateCountsWithPairs<RV, C>(aggrFunc, range, tb, te, pb, pe, pairValueF, mergeBuffer);
 	return aggrFunc(tb, te
 	,	[ ](auto i) { return *i; }
 	,	[&](auto i) { return TableValue(range, i - tb); }
 	);
 }
+
+// Calls aggregateGroup(p, groupBegin, groupEnd) for every partition p of [0, pCount), with the run of the pairs [pb, pe),
+// sorted by partition and value, whose partition pairPartitionF gives as p; the run is empty for a partition without values.
+template <typename PIter>
+void ForEachPartition(SizeT pCount, PIter pb, PIter pe, auto pairPartitionF, auto aggregateGroup)
+{
+	for (SizeT p = 0; p != pCount; ++p)
+	{
+		auto groupBegin = pb;
+		while (pb != pe && pairPartitionF(pb) == p)
+			++pb;
+		aggregateGroup(p, groupBegin, pb);
+	}
+	assert(pb == pe); // the counters skip the values of a partition outside [0, pCount)
+}
+
+// The modus family counts integral values in a table over their formal range when the table is not larger than the values:
+//      Table: O(n+v*p) processing with O(v*p) temp memory
+//	and Set:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
+// so where v*p <= n, TableTime O(n+v*p) <= O(2n) < O(n*log(min(n,v))). The totals are the case p=1. Bit values always go
+// to the table; values that are not countable, such as strings and floats, always to the set. The unweighted counts go
+// to a table, or to GetWeededWallCounts and GetPartitionedWallCounts, which count in parallel and in bins where they can;
+// the weights are summed in one serial pass, into a table that is empty for the set.
 
 // *****************************************************************************
 //											ModusTot
@@ -286,17 +334,11 @@ void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R
 	auto counts = GetCountsAsArray<V, SizeT>(tileFunctor, valuesRange);
 	MergedCounts<decltype(valuesRange.first), SizeT> mergeBuffer;
 
-	resData = AggregateTable<V>(aggrFunc, valuesRange, counts.table.cbegin(), counts.table.cend(), counts.outside.cbegin(), counts.outside.cend()
+	resData = AggregateCounts<V>(aggrFunc, valuesRange, counts.table.cbegin(), counts.table.cend(), counts.outside.cbegin(), counts.outside.cend()
 	,	[](auto i) { return i->first; }
 	,	mergeBuffer
 	);
 }
-
-// The modus family counts integral values in a table over their formal range when the table is not larger than the values:
-//      Table: O(n+v*p) processing with O(v*p) temp memory
-//	and Set:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
-// so where v*p <= n, TableTime O(n+v*p) <= O(2n) < O(n*log(min(n,v))). ModusTotal is the case p=1. Bit values always go
-// to the table; values that are not countable, such as strings and floats, always to the set.
 
 template <typename V, typename R, typename AggrFunc>
 void ModusTotDispatcher(const DataArray<V>* valuesTF, typename sequence_traits<R>::container_type::reference resData, bool valueMustBeDefined, AggrFunc aggrFunc)
@@ -339,31 +381,20 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array pa
 {
 	assert(values_fta.size() == part_fta.size());
 
-	using value_type = std::pair<SizeT, V>;
-	auto tn = values_fta.size();
-
 	auto counters = GetPartitionedWallCounts<V, SizeT>(values_fta
 		, indicesItem, part_fta
-		, 0, tn, pCount, valueMustBeDefined);
+		, 0, values_fta.size(), pCount, valueMustBeDefined);
 
-	auto i = counters.begin(), e = counters.end();
-	SizeT ri = 0;
-	auto getCount = [](auto counterPtr) { return counterPtr->second; };
-	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
-	while (i != e)
-	{
-		SizeT p = i->first.first;
-		auto pb = i;
-		while (++i != e)
-			if (i->first.first != p)
-				break;
-		while (ri < p)
-			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
-		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
-		ri = p + 1;
-	}
-	while (ri < pCount)
-		resBegin[ri++] = aggrFunc(e, e, getCount, getValue);
+	ForEachPartition(pCount, counters.begin(), counters.end()
+	,	[](auto i) { return i->first.first; }
+	,	[&](SizeT p, auto groupBegin, auto groupEnd)
+		{
+			resBegin[p] = aggrFunc(groupBegin, groupEnd
+			,	[](auto i) { return i->second; }
+			,	[](auto i) { return i->first.second; }
+			);
+		}
+	);
 }
 
 template<typename V, typename OIV, typename AggrFunc>
@@ -372,8 +403,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 	, AggrFunc aggrFunc)
 {
 	SizeT vCount = TableSize(valuesRange);
-	my_vec_t<SizeT> buffer(vCount*pCount, 0);
-	auto bufferB = buffer.begin();
+	my_vec_t<SizeT> table(vCount*pCount, 0);
 	my_map_t<std::pair<SizeT, V>, SizeT> outside; // by partition and value, as a set counts them
 
 	for (tile_id t =0, tn = values_fta.size(); t != tn; ++t)
@@ -400,105 +430,84 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 					SafeIncrementCounter(outside[std::pair<SizeT, V>(pi, *valuesIter)]);
 					continue;
 				}
-			SafeIncrementCounter(bufferB[ pi * vCount + vi]);
+			SafeIncrementCounter(table[pi * vCount + vi]);
 		}
 	}
 
 	MergedCounts<decltype(valuesRange.first), SizeT> mergeBuffer;
-	auto oi = outside.cbegin(), oe = outside.cend();
-	SizeT p = 0;
-	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin, ++p)
-	{
-		auto ob = oi;
-		while (oi != oe && oi->first.first == p)
-			++oi;
-		*resBegin = AggregateTable<V>(aggrFunc, valuesRange, bufferB, bufferB + vCount, ob, oi
-		,	[](auto i) { return i->first.second; }
-		,	mergeBuffer
-		);
-
-		bufferB += vCount;
-	}
-	assert(bufferB == buffer.end());
-	assert(oi == oe);
-}
-
-// *****************************************************************************
-//											WeightedModusTot
-// *****************************************************************************
-
-// assume v >> n; time complexity: n*log(min(v, n))
-template<typename V>
-void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData)
-{
-	my_map_t<V, Float64> counters;
-
-	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
-	{
-		auto valuesLock  = valuesTF->GetLockedDataRead(t);
-		auto valuesIter  = valuesLock.begin(), valuesEnd   = valuesLock.end();
-		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator::Create(weightItem, t) );
-
-		SizeT weightsIter = 0;
-		for (; valuesIter != valuesEnd; ++weightsIter, ++valuesIter)
-			if (IsDefined(*valuesIter))
-			{
-				Float64 weight = weightsGetter->Get(weightsIter);
-				if (IsDefined(weight)) // as the partitioned twins: a null weight would make the value's total NaN, which then wins arg_max
-					counters[*valuesIter] += weight;
-			}
-	}
-
-	modusFunc<V> aggrFunc;
-
-	resData = aggrFunc(counters.begin(), counters.end()
-	, [](auto i) { return i->second; }
-	, [](auto i) { return i->first; }
+	auto tableB = table.cbegin();
+	ForEachPartition(pCount, outside.cbegin(), outside.cend()
+	,	[](auto i) { return i->first.first; }
+	,	[&](SizeT p, auto groupBegin, auto groupEnd)
+		{
+			resBegin[p] = AggregateCounts<V>(aggrFunc, valuesRange, tableB + p * vCount, tableB + (p + 1) * vCount, groupBegin, groupEnd
+			,	[](auto i) { return i->first.second; }
+			,	mergeBuffer
+			);
+		}
 	);
-
 }
 
+// *****************************************************************************
+//											WeightedModus
+// *****************************************************************************
+
+// Sums the weights of the values of the whole domain: in a table over *tableRange when there is one, and by value for the
+// values that have no counter in it, all of them without a table. A null value or a null weight adds nothing: a null weight
+// made the sum of its value NaN, which then won the comparison.
 template<typename V>
-void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData, const typename Unit<V>::range_t& valuesRange)
+void WeightedModusTot(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData, const typename Unit<V>::range_t* tableRange)
 {
-	auto vCount = TableSize(valuesRange);
-	my_vec_t<Float64> buffer(vCount, 0);
-	my_map_t<V, Float64> outside;
+	SizeT vCount = 0;
+	if constexpr (can_table_v<V>)
+		if (tableRange)
+			vCount = TableSize(*tableRange);
+	my_vec_t<Float64> table(vCount, 0);
+	my_map_t<V, Float64> pairs;
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{
 		auto valuesLock  = valuesTF->GetLockedDataRead(t);
 		auto valuesIter  = valuesLock.begin(),
 		     valuesEnd   = valuesLock.end();
-		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator(weightItem, t).Create() );
+		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator::Create(weightItem, t) );
 
-		SizeT weightIter  = 0;
-
-		for (; valuesIter != valuesEnd; ++weightIter, ++valuesIter)
+		for (SizeT i = 0; valuesIter != valuesEnd; ++i, ++valuesIter)
 		{
 			if constexpr (has_undefines_v<V>)
 				if (!IsDefined(*valuesIter))
 					continue;
-			Float64 weight = weightsGetter->Get(weightIter);
-			if (!IsDefined(weight)) // see WeightedModusTotBySet
+			Float64 weight = weightsGetter->Get(i);
+			if (!IsDefined(weight))
 				continue;
-			auto v = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter); // a value below the range wraps to beyond it
-			if constexpr (has_undefines_v<V>)
-				if (v >= vCount)
+			if constexpr (can_table_v<V>)
+				if (vCount)
 				{
-					outside[*valuesIter] += weight;
-					continue;
+					auto vi = Range_GetIndex_naked_unchecked(*tableRange, *valuesIter); // a value below the range wraps to beyond it
+					if (vi < vCount)
+					{
+						table[vi] += weight;
+						continue;
+					}
 				}
-			buffer[v] += weight;
+			pairs[*valuesIter] += weight;
 		}
 	}
 
 	modusFunc<V> aggrFunc;
-	MergedCounts<decltype(valuesRange.first), Float64> mergeBuffer;
-
-	resData = AggregateTable<V>(aggrFunc, valuesRange, buffer.cbegin(), buffer.cend(), outside.cbegin(), outside.cend()
+	if constexpr (can_table_v<V>)
+		if (tableRange)
+		{
+			MergedCounts<decltype(tableRange->first), Float64> mergeBuffer;
+			resData = AggregateCounts<V>(aggrFunc, *tableRange, table.cbegin(), table.cend(), pairs.cbegin(), pairs.cend()
+			,	[](auto i) { return i->first; }
+			,	mergeBuffer
+			);
+			return;
+		}
+	resData = aggrFunc(pairs.cbegin(), pairs.cend()
+	,	[](auto i) { return i->second; }
 	,	[](auto i) { return i->first; }
-	,	mergeBuffer
 	);
 }
 
@@ -507,86 +516,36 @@ void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, const AbstrDataIte
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
-		WeightedModusTotByTable<V>(valuesTF, weightItem, resData, GetValuesRange<V>(valuesTF));
+		auto valuesRange = GetValuesRange<V>(valuesTF);
+		WeightedModusTot<V>(valuesTF, weightItem, resData, &valuesRange);
 	}
 	else
 	{
-		auto valuesRange = GetFormalRange(valuesTF);
-		auto v = TableSize(valuesRange);
-		if (IsDefined(v) && v <= valuesTF->GetTiledRangeData()->GetElemCount())
-			WeightedModusTotByTable<V>(valuesTF, weightItem, resData, valuesRange);
-		else
-			WeightedModusTotBySet<V>(valuesTF, weightItem, resData);
-	}
-}
-
-// *****************************************************************************
-//											WeightedModusPart
-// *****************************************************************************
-
-// assume v >> n; time complexity: n*log(min(v, n))
-template<typename V, typename OIV>
-void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	SizeT pCount)  // countable dommain unit of result; P can be Void.
-{
-	typedef std::pair<SizeT, V> value_type;
-	my_map_t<value_type, Float64> wieghtAccumulators;
-
-	for (tile_id t=0, tn= valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
-	{
-		auto valuesLock  = valuesTF->GetLockedDataRead(t);
-		auto valuesIter  = valuesLock.begin(),
-			 valuesEnd   = valuesLock.end();
-
-		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(indicesItem, t) );
-		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator::Create(weightItem, t) );
-
-		SizeT i=0;
-		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
-			if (IsDefined(*valuesIter))
+		if constexpr (can_table_v<V>)
+		{
+			auto valuesRange = GetFormalRange(valuesTF);
+			auto v = TableSize(valuesRange);
+			if (IsDefined(v) && v <= valuesTF->GetTiledRangeData()->GetElemCount())
 			{
-				Float64 weight = weightsGetter->Get(i);
-				if (IsDefined(weight))
-				{
-					SizeT p = indexGetter->Get(i);
-					if (IsDefined(p))
-					{
-						assert(p < pCount);
-						wieghtAccumulators[value_type(p, *valuesIter)] += weight;
-					}
-				}
+				WeightedModusTot<V>(valuesTF, weightItem, resData, &valuesRange);
+				return;
 			}
+		}
+		WeightedModusTot<V>(valuesTF, weightItem, resData, nullptr);
 	}
-	modusFunc<V> aggrFunc;
-	auto getCount = [](auto counterPtr) { return counterPtr->second; };
-	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
-
-	auto i = wieghtAccumulators.begin(), e = wieghtAccumulators.end();
-	SizeT ri = 0;
-	while (i != e)
-	{
-		SizeT p = i->first.first;
-		auto pb = i;
-		while (++i != e)
-			if (i->first.first != p)
-				break;
-		while (ri < p)
-			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
-		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
-		ri = p + 1;
-	}
-	while (ri < pCount)
-		resBegin[ri++] = aggrFunc(e, e, getCount, getValue);
 }
 
+// The same per partition of [0, pCount): the table has vCount sums per partition, and the pairs are kept by partition and
+// value. A value whose partition is null or outside [0, pCount) adds nothing.
 template<typename V, typename OIV>
-void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, typename Unit<V>::range_t valuesRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
+void WeightedModusPart(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, const typename Unit<V>::range_t* tableRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
-	SizeT vCount = TableSize(valuesRange);
-	my_vec_t<Float64> buffer(vCount*pCount, 0);
-	my_vec_t<Float64>::iterator bufferB = buffer.begin();
-	my_map_t<std::pair<SizeT, V>, Float64> outside; // by partition and value, as a set sums them
+	SizeT vCount = 0;
+	if constexpr (can_table_v<V>)
+		if (tableRange)
+			vCount = TableSize(*tableRange);
+	my_vec_t<Float64> table(vCount * pCount, 0);
+	my_map_t<std::pair<SizeT, V>, Float64> pairs;
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -597,44 +556,53 @@ void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem*
 		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(indicesItem, t) );
 		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator::Create(weightItem, t) );
 
-		SizeT weightIter = 0;
-		Float64 weight;
-		SizeT i=0;
-		for (; valuesIter != valuesEnd; ++weightIter, ++i, ++valuesIter)
-			if (IsDefined(*valuesIter) && IsDefined(weight = weightsGetter->Get(weightIter)))
-			{
-				auto pi = indexGetter->Get(i);
-				if (pi >= pCount)
+		for (SizeT i = 0; valuesIter != valuesEnd; ++i, ++valuesIter)
+		{
+			if constexpr (has_undefines_v<V>)
+				if (!IsDefined(*valuesIter))
 					continue;
-				auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter); // a value below the range wraps to beyond it
-				if constexpr (has_undefines_v<V>)
-					if (vi >= vCount)
+			Float64 weight = weightsGetter->Get(i);
+			if (!IsDefined(weight))
+				continue;
+			auto pi = indexGetter->Get(i);
+			if (pi >= pCount)
+				continue;
+			if constexpr (can_table_v<V>)
+				if (vCount)
+				{
+					auto vi = Range_GetIndex_naked_unchecked(*tableRange, *valuesIter); // a value below the range wraps to beyond it
+					if (vi < vCount)
 					{
-						outside[std::pair<SizeT, V>(pi, *valuesIter)] += weight;
+						table[pi * vCount + vi] += weight;
 						continue;
 					}
-				bufferB[pi * vCount + vi] += weight;
-			}
+				}
+			pairs[std::pair<SizeT, V>(pi, *valuesIter)] += weight;
+		}
 	}
 
 	modusFunc<V> aggrFunc;
-	MergedCounts<decltype(valuesRange.first), Float64> mergeBuffer;
-	auto oi = outside.cbegin(), oe = outside.cend();
-	SizeT p = 0;
-	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin, ++p)
-	{
-		auto ob = oi;
-		while (oi != oe && oi->first.first == p)
-			++oi;
-		*resBegin = AggregateTable<V>(aggrFunc, valuesRange, bufferB, bufferB + vCount, ob, oi
-		,	[](auto i) { return i->first.second; }
-		,	mergeBuffer
-		);
-
-		bufferB += vCount;
-	}
-	assert(bufferB == buffer.end());
-	assert(oi == oe);
+	MergedCounts<decltype(tableRange->first), Float64> mergeBuffer;
+	auto tableB = table.cbegin();
+	ForEachPartition(pCount, pairs.cbegin(), pairs.cend()
+	,	[](auto i) { return i->first.first; }
+	,	[&](SizeT p, auto groupBegin, auto groupEnd)
+		{
+			if constexpr (can_table_v<V>)
+				if (tableRange)
+				{
+					resBegin[p] = AggregateCounts<V>(aggrFunc, *tableRange, tableB + p * vCount, tableB + (p + 1) * vCount, groupBegin, groupEnd
+					,	[](auto i) { return i->first.second; }
+					,	mergeBuffer
+					);
+					return;
+				}
+			resBegin[p] = aggrFunc(groupBegin, groupEnd
+			,	[](auto i) { return i->second; }
+			,	[](auto i) { return i->first.second; }
+			);
+		}
+	);
 }
 
 template<typename V, typename OIV>
@@ -642,19 +610,25 @@ void WeightedModusPartDispatcher(const DataArray<V>* valuesTF, const AbstrDataIt
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
-		WeightedModusPartByTable<V>(valuesTF, weightItem, indicesItem, resBegin, GetValuesRange<V>(valuesTF), nrP);
+		auto valuesRange = GetValuesRange<V>(valuesTF);
+		WeightedModusPart<V>(valuesTF, weightItem, indicesItem, resBegin, &valuesRange, nrP);
 	}
 	else
 	{
 		assert(IsNotUndef(nrP)); //consequence of the checks on indexRange: values Unit of index has been used as domain of the result
 
-		auto valuesRange = GetFormalRange(valuesTF);
-		auto v = TableSize(valuesRange);
-		auto n = valuesTF->GetTiledRangeData()->GetElemCount();
-		if (IsDefined(v) && (!nrP || v <= n / nrP)) // memory condition v*p<=n, thus TableTime <= 2n.
-			WeightedModusPartByTable<V>(valuesTF, weightItem, indicesItem, resBegin, valuesRange, nrP);
-		else
-			WeightedModusPartBySet<V>(valuesTF, weightItem, indicesItem, resBegin, nrP);
+		if constexpr (can_table_v<V>)
+		{
+			auto valuesRange = GetFormalRange(valuesTF);
+			auto v = TableSize(valuesRange);
+			auto n = valuesTF->GetTiledRangeData()->GetElemCount();
+			if (IsDefined(v) && (!nrP || v <= n / nrP)) // memory condition v*p<=n, thus TableTime <= 2n.
+			{
+				WeightedModusPart<V>(valuesTF, weightItem, indicesItem, resBegin, &valuesRange, nrP);
+				return;
+			}
+		}
+		WeightedModusPart<V>(valuesTF, weightItem, indicesItem, resBegin, nullptr, nrP);
 	}
 }
 
@@ -846,7 +820,7 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
 		auto result = mutable_array_cast<ValueType>(res); assert(result);
-		// write_only_all, like ModusPart above: WeightedModusPartByTable/BySet assign every element of
+		// write_only_all, like ModusPart above: WeightedModusPart assigns every element of
 		// [0, nrP) -- gaps and tail included -- so no zero-fill is needed. Asking for mustzero here was
 		// unsatisfiable anyway: AbstrOperAccPartBin opens the lock write_only_all (deliberately -- the
 		// partial-aggregation family initialises via TAcc1Func::Init, not via the allocator), and an
