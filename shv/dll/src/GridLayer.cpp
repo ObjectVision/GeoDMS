@@ -509,11 +509,22 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 {
 	DBG_START("GridLayer", "SelectDistrict", MG_DEBUG_DISTRICT);
 
+	// The districter reads the theme and writes the selection as a grid of Size(gridRect) cells. On
+	// an indirect grid both are attributes of the feature entity instead, and reading or writing
+	// them at cell offsets runs off their end.
+	if (m_Themes[AN_Feature])
+		throwErrorD("SelectDistrict", "Cannot select a district on an Indirect Grid");
+
 	IRect gridRect = GetGeoCrdUnit()->GetRangeAsIRect();
 	IPoint gridSize = Convert<IGridPoint>(Size(gridRect));
 	IPoint gridLoc = RoundDown<4>( GetGeoTransformation().Reverse( pnt ) );
 
-	dms_assert(IsIncluding(gridRect, gridLoc));
+	// A click outside the grid selects no district, as in SelectPoint; the flood fill would start
+	// from a cell outside its buffers.
+	if (!IsIncluding(gridRect, gridLoc))
+		return;
+	// the districter counts cells from the first cell of the grid, not from its range origin
+	UPoint seedLoc = Convert<UPoint>(gridLoc - gridRect.first);
 
 	DBG_TRACE(("gridLoc = {}", AsString(gridLoc).c_str()));
 	DBG_TRACE(("gridIdx = {}", Range_GetIndex_naked(gridRect, gridLoc)));
@@ -538,7 +549,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 			selAttr, selObj,
 			gridSize,
 			sequence_traits<Bool>::seq_t(resVector.begin(), resVector.size()),
-			gridLoc,
+			seedLoc,
 			changedRect
 		);
 		AssignValues(sequence_traits<Bool>::cseq_t(resVector.begin(), resVector.size()));
@@ -554,12 +565,14 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 			themeAttr, themeAttr->GetRefObj().get(),
 			gridSize,
 			mutable_array_cast<SelectionID>( dwl )->GetDataWrite(no_tile, dms_rw_mode::read_write),
-			gridLoc,
+			seedLoc,
 			changedRect
 		);
 		dwl.Commit();
 	}
 	changedRect.second += UPoint(1, 1);
+	IRect changedGridRect = Convert<IRect>(changedRect);
+	changedGridRect += gridRect.first; // back from cell offsets to grid coordinates
 
 	dataChangeLock.ProcessChange();
 	viewChangeLock.ProcessChange();
@@ -568,7 +581,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 	else if (!changedRect.empty())
 	{
 		TRect borderExtents(-1, -1, 1, 1);
-		InvalidateWorldRect(GetGeoTransformation().Apply(Convert<CrdRect>(changedRect)), &borderExtents);
+		InvalidateWorldRect(GetGeoTransformation().Apply(Convert<CrdRect>(changedGridRect)), &borderExtents);
 	}
 }
 
@@ -1585,15 +1598,16 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 	bool hasEditAttr  = HasEditAttr();
 	bool hasSelection = bool(m_Themes[AN_Selections]);
 
-	med.m_MenuData.push_back( 
-		MenuItem(
-			hasEditAttr && IsDefined(GetCurrClassID())
-				?	"Fill District with " + GetCurrClassLabel()
-				:	SharedStr("Select District"),
-			std::make_unique<CmdSelectDistrict>( med.m_WorldCrd ),
-			this
-		)
-	);	
+	if (!m_Themes[AN_Feature]) // SelectDistrict refuses an indirect grid
+		med.m_MenuData.push_back(
+			MenuItem(
+				hasEditAttr && IsDefined(GetCurrClassID())
+					?	"Fill District with " + GetCurrClassLabel()
+					:	SharedStr("Select District"),
+				std::make_unique<CmdSelectDistrict>( med.m_WorldCrd ),
+				this
+			)
+		);
 
 	if	(hasEditAttr && hasSelection)
 	{
