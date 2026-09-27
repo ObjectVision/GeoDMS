@@ -8,8 +8,10 @@ The plan defines ITEMS, a list of (message_file, whole_files, partial_files) and
 element {path: text} for a file whose committed content is given instead of taken from the working
 copy. message_file is relative to the plan's folder; paths are relative to the repository.
 partial_files maps a path to key strings: the zero-context hunks of `git diff -U0 HEAD -- path` that
-contain one of them are committed. --from NN starts at the item whose message file name begins with
-NN. The word VERIFIED in a message is replaced by --verified.
+contain one of them are committed, renumbered so that each lands where it stands in the working copy;
+the hunks a key misses are listed, so read that list in the --dry run: a change that spans two hunks
+needs a key for each. --from NN starts at the item whose message file name begins with NN. The word
+VERIFIED in a message is replaced by --verified.
 """
 import argparse, importlib.util, os, re, subprocess, sys, tempfile
 
@@ -21,13 +23,42 @@ def git(repo, *args, input=None, env=None):
     return r.stdout
 
 
+HUNK_HEADER = re.compile(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@')
+
+
+def renumbered(hunks):
+    """Give each hunk the new-side start it has when only these hunks are applied.
+
+    `git apply --unidiff-zero` has no context to find a hunk by, so it looks from the new-side line
+    number on; for a pure insertion, whose preimage is empty, that number is the position. Taken
+    from the full diff it counts the lines of every hunk before it, also the ones left out, and
+    the insertion lands that many lines too low (a release-note bullet in the next section)."""
+    out, delta = [], 0
+    for h in hunks:
+        m = HUNK_HEADER.match(h)
+        a, b = int(m.group(1)), int(m.group(2) or 1)
+        d = int(m.group(4) or 1)
+        c = a + delta + (1 if b == 0 else 0) - (1 if d == 0 else 0)  # a count of 0 names the line before
+        out.append('@@ -%s +%d%s @@' % (m.group(1) + (',' + m.group(2) if m.group(2) else ''), c,
+                                         ',' + m.group(4) if m.group(4) else '') + h[m.end():])
+        delta += d - b
+    return out
+
+
 def selected_hunks(repo, path, keys):
     d = git(repo, 'diff', '-U0', 'HEAD', '--', path).decode('utf-8', 'surrogateescape')
     parts = re.split(r'(?m)^(?=@@ )', d)
     sel = [h for h in parts[1:] if any(k in h for k in keys)]
     if not sel:
         raise RuntimeError('no hunk of %s contains any of %s' % (path, keys))
-    return parts[0] + ''.join(sel)
+    left = [h for h in parts[1:] if h not in sel]
+    if left:
+        # a change split over several hunks is committed half when a key misses one of them
+        print('  %s: %d of %d hunks left for a later item:' % (path, len(left), len(parts) - 1))
+        for h in left:
+            lines = h.splitlines()
+            print('    %s  %s' % (lines[0], next((l for l in lines[1:] if l.strip('+- ')), '')[:100]))
+    return parts[0] + ''.join(renumbered(sel))
 
 
 def commit_item(repo, branch, idx, msgfile, whole, partial, content, verified, dry):

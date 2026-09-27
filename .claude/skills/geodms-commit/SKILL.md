@@ -126,6 +126,17 @@ arrive as one hunk and the first item takes both. Pick keys that occur in exactl
 hunks, such as a comment the fix added. A message file may contain the word `VERIFIED`,
 which `--verified "<text>"` replaces, so the battery result goes into every message at once.
 
+- A hunk that no key matches stays in the working copy for a later item, and the script
+  lists those hunks per file. A change can span several zero-context hunks (a check added
+  above a moved line, say); a key that matches only one of them commits the change half, and
+  the commit does not compile. Read the list in the `--dry` run and give every hunk of the
+  change a key. This happened on 2026-09-27 with the menu filter of QT-A06, which needed a
+  corrective commit.
+- Zero context leaves `git apply --unidiff-zero` nothing to find a hunk by but its new-side
+  line number, and a pure insertion lands exactly there. From the full diff that number
+  counts the hunks left out as well, so the script renumbers the chosen hunks as if they
+  were the whole diff. Before it did, release-note bullets landed a few lines low, in the
+  next section.
 - `--dry` prints per item the `--stat` of what it would commit and commits nothing. Every
   item's stat is against the same `HEAD` then, so read it for the files, not the counts.
 - Each commit moves the branch with `update-ref <branch> <new> <old>`, which refuses when
