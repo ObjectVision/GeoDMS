@@ -1359,8 +1359,19 @@ bool MainWindow::CloseConfig() {
         const auto subWindows = m_mdi_area->subWindowList();
         has_active_dms_views = subWindows.size();
         for (auto* subWindow : subWindows)
+        {
+            // The calculation times window is owned by m_calculation_times_window and reused for
+            // the next configuration: close it (its event filter takes it out of the MDI area), but
+            // never delete it. Deleting it here left that unique_ptr dangling, so the next timing
+            // report crashed in end_timing and ~MainWindow deleted it a second time.
+            if (subWindow == m_calculation_times_window.get())
+            {
+                subWindow->close();
+                continue;
+            }
             if (subWindow->close())
                 delete subWindow;
+        }
     }
     const auto direct_children = this->findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
     for (auto* widget : direct_children) {
