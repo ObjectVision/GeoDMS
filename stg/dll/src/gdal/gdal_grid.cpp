@@ -556,16 +556,17 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 	grid_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
 
 	GDAL_ErrorFrame gdal_error_frame;
-	auto smi = GdalMetaInfo(storageHolder, curr);
-	DoOpenStorage(smi, dms_rw_mode::read_only);
-	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+	// A dataset of its own, as in GdalVectSM::GetPropTables: this runs on the GUI thread and must
+	// not open or close the m_hDS a reader of the same storage may be using.
+	DetachedGdalMetaInfo smi(storageHolder, curr);
+	auto hDS = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
 
 	// Raster xy size
-	auto raster_x_size = m_hDS->GetRasterXSize();
-	auto raster_y_size = m_hDS->GetRasterYSize();
+	auto raster_x_size = hDS->GetRasterXSize();
+	auto raster_y_size = hDS->GetRasterYSize();
 	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
 
-	auto ds_metainfo_image_structure = gdal_ds_handle->GetMetadata("IMAGE_STRUCTURE");
+	auto ds_metainfo_image_structure = hDS->GetMetadata("IMAGE_STRUCTURE");
 	if (ds_metainfo_image_structure)
 	{
 		// Compression
@@ -582,16 +583,17 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 
 
 	// Spatial reference
-	auto srs = m_hDS->GetSpatialRef();
+	auto srs = hDS->GetSpatialRef();
 	if (srs)
 	{
 		char* pszWKT = nullptr;
 		srs->exportToPrettyWkt(&pszWKT, false);
 		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
+		CPLFree(pszWKT);
 	}
 
 	// Bands
-	auto bands = m_hDS->GetBands();
+	auto bands = hDS->GetBands();
 	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of bands"), AsString(bands.size())} });
 
 	int band_index = 0;
@@ -602,7 +604,6 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 		grid_dataset_properties.push_back({ 3, {GetTokenID_mt("Value type"), SharedStr(raster_data_type)} });
 	}
 
-	DoCloseStorage(false);
 	return grid_dataset_properties;
 }
 

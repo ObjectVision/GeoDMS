@@ -3332,21 +3332,24 @@ prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 	vector_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
 
 	GDAL_ErrorFrame gdal_error_frame;
-	auto smi = GdalMetaInfo(storageHolder, curr);
-	DoOpenStorage(smi, dms_rw_mode::read_only);
-	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+	// A dataset of its own. This runs on the GUI thread, and it used to open and close the manager's
+	// m_hDS without the storage lock, closing the dataset under a reader of the same storage; it also
+	// opened the file a second time for nothing and never freed the WKT.
+	DetachedGdalMetaInfo smi(storageHolder, curr);
+	auto hDS = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
 
 	// Spatial reference
-	auto srs = m_hDS->GetSpatialRef();
+	auto srs = hDS->GetSpatialRef();
 	if (srs)
 	{
 		char* pszWKT = nullptr;
 		srs->exportToPrettyWkt(&pszWKT, false);
 		vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
+		CPLFree(pszWKT);
 	}
 
 	// Layers
-	auto layers = m_hDS->GetLayers();
+	auto layers = hDS->GetLayers();
 	vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of layers"), AsString(layers.size())} });
 	for (auto layer : layers)
 	{
@@ -3370,7 +3373,6 @@ prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 		}
 	}
 
-	DoCloseStorage(false);
 	return vector_dataset_properties;
 }
 

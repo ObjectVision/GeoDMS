@@ -248,6 +248,16 @@ private:
 // *****************************************************************************
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite);
 
+// The meta info of a dataset opened with Gdal_DoOpenStorage beside the one the storage manager reads
+// through, for the GUI's dataset information page (GetPropTables). Destroying a StorageMetaInfo
+// closes its storage manager, which closes the shared dataset without the storage lock, possibly
+// under a running reader; this one lets go of the manager first.
+struct DetachedGdalMetaInfo : GdalMetaInfo
+{
+	using GdalMetaInfo::GdalMetaInfo;
+	~DetachedGdalMetaInfo() override { m_StorageManager.reset(); }
+};
+
 
 using gdal_transform = double[6];
 
