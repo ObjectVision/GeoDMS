@@ -12,6 +12,7 @@
 #include "geom/PointOrder.h"
 #include "geom/SpatialIndex.h"
 #include "ptr/LifetimeProtector.h"
+#include "vt/RangeIndex.h"
 
 #include <cmath>
 
@@ -168,13 +169,28 @@ public:
 			UInt32 nrSegments   = segmentEntity  ->GetCount();
 			UInt32 nrBuildings  = buildingEntity  ->GetCount();
 
+			// Every view the loop below reads through is held in a named local for the whole loop. A
+			// multi-tile or lazily computed argument hands out a tile that its data object holds only
+			// weakly, so an iterator taken from a temporary GetDataRead() pointed into freed memory
+			// as soon as that temporary was destroyed.
 			auto arg1Data = arg1->GetDataRead();
 			auto arg2Data = arg2->GetDataRead();
+			auto arg3Data = arg3->GetDataRead();
+			auto arg4Data = arg4->GetDataRead();
+			auto arg5Data = arg5->GetDataRead();
+			auto buildingPoints = arg6->GetDataRead();
+			auto buildingHoogte = arg7->GetDataRead();
 
 			dms_assert(nrCalcPoints == arg1Data.size());
-			dms_assert(nrCalcPoints == arg2Data.size()); // on the locked view: an assert must not take a lock of its own
-			dms_assert(nrBuildings  == arg6->GetDataRead().size());
-			dms_assert(nrBuildings  == arg7->GetDataRead().size());
+			dms_assert(nrCalcPoints == arg2Data.size()); // on the locked views: an assert must not take a lock of its own
+			dms_assert(nrCalcPoints == arg3Data.size());
+			dms_assert(nrSegments   == arg4Data.size());
+			dms_assert(nrSegments   == arg5Data.size());
+			dms_assert(nrBuildings  == buildingPoints.size());
+			dms_assert(nrBuildings  == buildingHoogte.size());
+
+			// a segment id is a value of the segment entity, not an index into it
+			auto segmentRange = debug_cast<const Unit<UInt32>*>(segmentEntity)->GetRange();
 
 			HeightType minHeight = arg8->GetDataRead()[0];
 			CoordType  maxDist   = arg9->GetDataRead()[0];
@@ -201,22 +217,22 @@ public:
 				auto r3 = mutable_array_cast<PointType>(res3Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); auto ri3 = r3.begin();
 				auto r4 = mutable_array_cast<CoordType>(res4Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); auto ri4 = r4.begin();
 
-				auto buildingPoints = arg6->GetDataRead(); auto buildingPointsBegin = buildingPoints.begin();
-				auto buildingHoogte = arg7->GetDataRead(); auto buildingHoogteBegin = buildingHoogte.begin();
+				auto buildingPointsBegin = buildingPoints.begin();
+				auto buildingHoogteBegin = buildingHoogte.begin();
 
-				SpatialIndexType spIndex(buildingPointsBegin, arg6->GetDataRead().end(), 0);
+				SpatialIndexType spIndex(buildingPointsBegin, buildingPoints.end(), 0);
 
 				auto
 					pointPtr = arg1Data.begin(),
 					pointEnd = arg1Data.end();
 				auto
-					hoogtePtr = arg2->GetDataRead().begin();
+					hoogtePtr = arg2Data.begin();
 				auto
-					segmentIdPtr = arg3->GetDataRead().begin();
+					segmentIdPtr = arg3Data.begin();
 				auto
-					segmentBegin = arg4->GetDataRead().begin();
+					segmentBegin = arg4Data.begin();
 				auto
-					segmentEnd   = arg5->GetDataRead().begin();
+					segmentEnd   = arg5Data.begin();
 
 				UInt32 dbgCalcPointCounter = 0;
 				for (;pointPtr != pointEnd; ++dbgCalcPointCounter, ++ri1, ++ri2, ++ri3, ++ri4, ++segmentIdPtr, ++hoogtePtr, ++pointPtr)
@@ -230,8 +246,12 @@ public:
 						continue;
 
 					HeightType hoogte = *hoogtePtr;
-					UInt32     segmentId = *segmentIdPtr;
-					PointType segmVec  = segmentEnd  [segmentId] - segmentBegin[segmentId];
+					// a null segment relation (an unmatched lookup, say) or one outside the segment entity
+					// gives the point no street; it used to index the segment arrays out of bounds
+					SizeT segmentIndex = Range_GetIndex_checked(segmentRange, *segmentIdPtr);
+					if (!IsDefined(segmentIndex))
+						continue;
+					PointType segmVec  = segmentEnd  [segmentIndex] - segmentBegin[segmentIndex];
 					PointType diagVec  = shp2dms_order<scalar_type>(-segmVec.Row(),  segmVec.Col()); // sight-axis is perpendicular to street direction
 					PointType contrVec = shp2dms_order<scalar_type>( diagVec.Col(), -diagVec.Row()); // sort of complex conjugate to reverse rotatie building and sight-axis to to x-axis
 					SqrDistType norm = Norm<SqrDistType>(segmVec);
@@ -245,7 +265,7 @@ public:
 					{
 						typename Arg6Type::const_iterator buildingPtr = (*iter)->get_ptr();
 						UInt32 buildingNr = buildingPtr - buildingPointsBegin;
-						Float64 hoogteDiff = Int64(buildingHoogteBegin[buildingNr]) - *hoogtePtr;
+						Float64 hoogteDiff = Int64(buildingHoogteBegin[buildingNr]) - hoogte;
 						if (hoogteDiff < minHeight)
 							continue;
 						if (buildingPtr->size() < 2)

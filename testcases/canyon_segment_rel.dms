@@ -1,0 +1,48 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A02 and GEO-A03: canyon indexed the segment
+// begin and end arrays with the raw value of the segment relation, so a segment entity whose range
+// does not start at 0 read the wrong segment (here: past the end of a one-segment array), and a null
+// relation read far out of bounds. It also took iterators from temporary read locks of the segment
+// arguments, which a multi-tile or lazily computed argument frees at once. The relation is now
+// mapped through the range of the segment entity; a null or out-of-range relation gives the point
+// no street. Point 0 looks along a street from (0,-10) to (0,10) at a building 5 to 7 units to the
+// side, 10 units higher; point 1 has no street. Expected: exit 0 on /checks.
+container canyon_segment_rel
+{
+	unit<fpoint> Crd;
+
+	unit<uint32> Segment := range(uint32, 1, 2) // one segment, with id 1
+	{
+		attribute<Crd> sb := const(point_xy(0f, -10f, Crd), Segment);
+		attribute<Crd> se := const(point_xy(0f,  10f, Crd), Segment);
+	}
+	unit<uint32> CalcPoint: nrofrows = 2
+	{
+		attribute<Crd>     loc := const(point_xy(0f, 0f, Crd), CalcPoint);
+		attribute<int16>   h: [0, 0];
+		attribute<Segment> seg: [1, null];
+	}
+	unit<uint32> BuildingPoint: nrofrows = 5
+	{
+		attribute<float32>  x: [5, 7, 7, 5, 5];
+		attribute<float32>  y: [-1, -1, 1, 1, -1];
+		attribute<Crd>      point := point_xy(x, y, Crd);
+		attribute<Building> seq: [0, 0, 0, 0, 0];
+		attribute<uint32>   ord: [0, 1, 2, 3, 4];
+	}
+	unit<uint32> Building: nrofrows = 1
+	{
+		attribute<Crd>   geometry (arc) := points2sequence(BuildingPoint/point, BuildingPoint/seq, BuildingPoint/ord);
+		attribute<int16> h: [10];
+	}
+	parameter<int16>   minHeight := value(0, int16);
+	parameter<float32> maxDist   := 100f;
+
+	container result := canyon(CalcPoint/loc, CalcPoint/h, CalcPoint/seg, Segment/sb, Segment/se, Building/geometry, Building/h, minHeight, maxDist);
+
+	container checks
+	{
+		parameter<bool> seen     := result/RRC[0] > 0f || result/LRC[0] > 0f, IntegrityCheck = "seen == true";
+		parameter<bool> noStreet := result/RRC[1] == 0f && result/LRC[1] == 0f, IntegrityCheck = "noStreet == true";
+		parameter<bool> noLoc    := IsNull(result/RLoc[1]) && IsNull(result/LLoc[1]), IntegrityCheck = "noLoc == true";
+	}
+}
