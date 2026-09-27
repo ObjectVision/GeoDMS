@@ -116,7 +116,12 @@ FileResult WriteGeoRefFile(const AbstrDataItem* grid_adi, WeakStr geoRefFileName
 		// In DMS we defined grid as a series of half-open intervals starting from BottomLeft corner of BottomLeft cell.
 		const UnitProjection* colProj = colDomain->GetProjection(); // note that this doesn't have to be the composite projection
 		auto affine_transformation = GetAffineTransformationFromGridDataItem(grid_adi);
-		
+		// a world file has room for rotation terms, but Factor and Offset describe an axis-separable
+		// transformation only (asserted in a Debug build alone): refuse a rotated grid rather than
+		// write it without its rotation
+		if (!affine_transformation.IsAxisSeparable())
+			throwErrorF("GeoRef", "writing {}: a rotated or sheared grid georeference cannot be written yet", grid_adi->GetFullName().c_str());
+
 		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Factor().X());
 		fprintf(bmpwHnd, "%.9G\n", Float64(0.0));
 		fprintf(bmpwHnd, "%.9G\n", Float64(0.0));

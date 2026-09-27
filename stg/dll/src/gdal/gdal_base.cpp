@@ -1272,6 +1272,10 @@ auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> gdal_
 
 	auto grid_adi = AsDataItem(storageHolder);
 	auto affine_transformation = GetAffineTransformationFromGridDataItem(grid_adi, false);
+	// Factor and Offset describe an axis-separable transformation only, and assert that in a Debug
+	// build alone: a rotated grid was written with the defaults of those members in Release.
+	if (!affine_transformation.IsAxisSeparable())
+		throwErrorF("GDAL", "writing {}: a rotated or sheared grid georeference cannot be written yet", grid_adi->GetFullName().c_str());
 
 	gdal_affine_transformation.x_offset = affine_transformation.Offset().X();
 	gdal_affine_transformation.y_offset = affine_transformation.Offset().Y();
@@ -1946,10 +1950,17 @@ CrdTransformation GetTransformation(gdal_transform gdalTr)
 			shp2dms_order(gdalTr[1], gdalTr[5])
 		);
 
-	// rotated georeference: full 2x3 affine (level d). In dms order (in.first=L=row, in.second=P=col;
-	// out.first=Yworld, out.second=Xworld):
-	//   out.first  = gdalTr[5]*L + gdalTr[4]*P + gdalTr[3]
-	//   out.second = gdalTr[2]*L + gdalTr[1]*P + gdalTr[0]
+	// rotated georeference: full 2x3 affine (level d), [a b c; d e f] with out.first = a*in.first +
+	// b*in.second + c and out.second = d*in.first + e*in.second + f. Which of P (col) and L (row) is
+	// in.first follows the point order of the build, as shp2dms_order does in the branch above. The
+	// row/col matrix used to be applied in the default col/row build too, which transposed every
+	// rotated georeference and did not even reduce to the axis-aligned branch at zero rotation.
+#if defined(DMS_POINT_ROWCOL)
+	// in.first = L (row), in.second = P (col); out.first = Yworld, out.second = Xworld
 	return CrdTransformation::Affine2x3({ gdalTr[5], gdalTr[4], gdalTr[3],  gdalTr[2], gdalTr[1], gdalTr[0] });
+#else
+	// in.first = P (col), in.second = L (row); out.first = Xworld, out.second = Yworld
+	return CrdTransformation::Affine2x3({ gdalTr[1], gdalTr[2], gdalTr[0],  gdalTr[4], gdalTr[5], gdalTr[3] });
+#endif
 }
 
