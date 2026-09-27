@@ -1,0 +1,28 @@
+// Regression for doc/code-audit-2026-09-27.md RTC-A01: rounded_convert from a floating-point value
+// to an unsigned integer target rounded in the SIGNED type of the target's size, because Round<N>
+// takes its result type from the (signed) source, and then clamped at that type's maximum after the
+// range checks had passed: 200.2 into uint8 gave 127, 40000.4 into uint16 gave 32767, 3e9 into
+// uint32 gave 2147483647. UpConvertFunc had been fixed for exactly this; RoundedConvertFunc now
+// rounds in the target's signedness too. Expected: exit 0 on /checks.
+container oper_rounded_convert_unsigned
+{
+	unit<uint8>  U8;
+	unit<uint16> U16;
+	unit<uint32> U32;
+	unit<int16>  I16;
+
+	container checks
+	{
+		parameter<U8>  r8  := rounded_convert(200.2, U8);
+		parameter<U16> r16 := rounded_convert(40000.4, U16);
+		parameter<U32> r32 := rounded_convert(3000000000.4, U32);
+		parameter<U8>  h8  := rounded_convert(199.5, U8);  // halves round up
+		parameter<I16> s16 := rounded_convert(-20000.6, I16); // signed targets as before
+
+		parameter<bool> c8  := uint32(r8)  == 200,        IntegrityCheck = "c8 == true";
+		parameter<bool> c16 := uint32(r16) == 40000,      IntegrityCheck = "c16 == true";
+		parameter<bool> c32 := uint32(r32) == 3000000000, IntegrityCheck = "c32 == true";
+		parameter<bool> ch8 := uint32(h8)  == 200,        IntegrityCheck = "ch8 == true";
+		parameter<bool> cs  := int32(s16)  == -20001i,    IntegrityCheck = "cs == true";
+	}
+}

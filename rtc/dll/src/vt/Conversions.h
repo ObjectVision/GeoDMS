@@ -186,8 +186,16 @@ struct RoundedConvertFunc
 	template <typename T>
 	U operator ()(const T& val) const
 	{
+		// Round in the TARGET's signedness, as UpConvertFunc does: Round<N> derives its result scalar
+		// from the floating-point SOURCE, which is signed, so an unsigned target was rounded in the
+		// signed type of its size and clamped at its maximum: rounded_convert(200.2, uint8) gave 127.
 		if constexpr (std::is_floating_point_v<scalar_of_t<T>> && is_integral_v<scalar_of_t<U>>)
-			return Round<sizeof(scalar_of_t<U>)>(val);
+		{
+			if constexpr (is_signed<scalar_of_t<U>>::value)
+				return Round<sizeof(scalar_of_t<U>)>(val);
+			else
+				return RoundPositive<sizeof(scalar_of_t<U>)>(val);
+		}
 		else
 			return U(val);
 	}
