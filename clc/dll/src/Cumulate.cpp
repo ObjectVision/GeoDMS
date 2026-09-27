@@ -11,6 +11,7 @@
 #include "RtcTypeLists.h"
 
 #include "vt/CheckedCalc.h"
+#include "vt/Conversions.h"
 #include "utl/TypeListOper.h"
 
 #include "AbstrUnit.h"
@@ -100,6 +101,9 @@ namespace Cumulate
 			ResType* result = mutable_array_cast<ValueType>(res);
 			assert(result);
 
+			// the running sum is kept in the wider accumulation type and every partial sum is stored through a
+			// checked conversion, as sum reports an overflow: stored as it was, a partial sum that did not fit
+			// the values type wrapped (uint8 [200, 100] gave [200, 44]) or became null
 			ResultValueType value;
 			TInitAssigner init;
 			init(value);
@@ -118,13 +122,13 @@ namespace Cumulate
 					{
 						if (IsDefined(*arg1Ptr))
 							m_UniAssigner(value, *arg1Ptr);
-						*resPtr = value;
+						*resPtr = ThrowingConvert<ValueType>(value);
 					}
 				else
 					for (auto arg1Ptr = arg1Data.begin(), arg1End = arg1Data.end(); arg1Ptr != arg1End; ++resPtr, ++arg1Ptr)
 					{
 						m_UniAssigner(value, *arg1Ptr);
-						*resPtr = value;
+						*resPtr = ThrowingConvert<ValueType>(value);
 					}
 			}
 		}
@@ -255,10 +259,10 @@ namespace Cumulate
 								{
 									m_UniAssigner(*valuePtr, *arg1Ptr);
 								}
-								*resPtr = *valuePtr;
+								*resPtr = ThrowingConvert<ValueType>(*valuePtr);
 							}
 							else if (tp == 0)
-								*resPtr = UNDEFINED_VALUE(ResultValueType);
+								*resPtr = UNDEFINED_VALUE(ValueType);
 						}
 					else
 						for (; arg1Ptr != arg1End; ++resPtr, ++arg2Ptr, ++arg1Ptr)
@@ -269,10 +273,10 @@ namespace Cumulate
 								assert(ppos < partRangeSize);
 								auto valuePtr = valueArray.begin() + ppos;
 								m_UniAssigner(*valuePtr, *arg1Ptr);
-								*resPtr = *valuePtr;
+								*resPtr = ThrowingConvert<ValueType>(*valuePtr);
 							}
 							else if (tp == 0)
-								*resPtr = UNDEFINED_VALUE(ResultValueType);
+								*resPtr = UNDEFINED_VALUE(ValueType);
 						}
 				}
 			}

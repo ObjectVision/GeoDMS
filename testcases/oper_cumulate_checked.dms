@@ -1,0 +1,27 @@
+// The positive side of oper_cumulate_overflow_neg.dms (doc/code-audit-2026-09-27.md CLC-A04): the
+// partial sums of cumulate are stored through a checked conversion since 20.22.0, which must leave
+// sums that fit untouched, negative ones and nulls included, in the total and the partitioned form.
+// A null value adds nothing and repeats the running sum; an element with a null partition gets null.
+// Expected: exit 0 on /checks.
+container oper_cumulate_checked
+{
+	unit<uint8> P : nrofrows = 2;
+
+	unit<uint32> D : nrofrows = 5
+	{
+		attribute<int32> v    : [5, -20, null, 7, 100];
+		attribute<P>     part : [0, 1, 0, null, 1];
+		attribute<uint8> u    : [200, 50, 4, 0, 0]; // up to 254, the largest uint8 that is not null
+	}
+
+	container checks
+	{
+		attribute<int32> tot  (D) := cumulate(D/v);
+		attribute<int32> part (D) := cumulate(D/v, D/part);
+		attribute<uint8> u8   (D) := cumulate(D/u);
+
+		parameter<bool> tot_ok  := tot[0] == 5i && tot[1] == -15i && tot[2] == -15i && tot[3] == -8i && tot[4] == 92i, IntegrityCheck = "tot_ok == true";
+		parameter<bool> part_ok := part[0] == 5i && part[1] == -20i && part[2] == 5i && IsNull(part[3]) && part[4] == 80i, IntegrityCheck = "part_ok == true";
+		parameter<bool> u8_ok   := u8[1] == uint8(250) && u8[4] == uint8(254), IntegrityCheck = "u8_ok == true";
+	}
+}

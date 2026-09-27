@@ -1,0 +1,19 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A04: cumulate kept its running sum in a wider type
+// but stored every partial sum into the values type unchecked, so cumulate of uint8 [200, 100] gave
+// [200, 44], an int32 sum past 2^31 wrapped, and a uint32 partial sum of 2^32-1 became null. sum
+// reports such an overflow. Since 20.22.0 cumulate does too.
+// Expected: an error, so exit nonzero on /checks. The check accepts exactly the old wrapped result,
+// so the config exits 0 only on a build that still wraps.
+container oper_cumulate_overflow_neg
+{
+	unit<uint32> D : nrofrows = 2
+	{
+		attribute<uint8> v : [200, 100];
+	}
+
+	container checks
+	{
+		attribute<uint8> c (D) := cumulate(D/v);
+		parameter<bool> wrapped := c[1] == uint8(44), IntegrityCheck = "wrapped == true";
+	}
+}
