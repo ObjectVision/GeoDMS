@@ -38,7 +38,10 @@ del "%ResultFolder%\DPGeneral_missing_file_error.tmp" 2>nul
 set command=%GeoDmsQtCmdBase% /T%TstDir%\dmsscript\DPGeneral_missing_file_error.dmsscript /S1 /S2 /S3 %TstDir%\Unit\GUI\cfg\DPGeneral_missing_file_error.dms test_log
 echo Command: %command%
 %command%
-echo GUI exit code: %ERRORLEVEL%
+REM Since #1239 the GUI exits 1 when its /T script reports an error; such a run did not do what the
+REM comparison below assumes, so it fails the case whatever the comparison says.
+set "GUI_RC=%ERRORLEVEL%"
+echo GUI exit code: %GUI_RC%
 
 echo ===============================================
 echo Running DPGeneral_missing_file_error (compare)
@@ -46,15 +49,17 @@ echo ===============================================
 set cmd2=%GeoDmsRunCmdBase% /S1 /S2 /S3 "%TstDir%\Unit\GUI\cfg\DPGeneral_missing_file_error.dms" test_log
 echo Command: %cmd2%
 %cmd2%
-if %ERRORLEVEL% EQU 0 (
+set "RUN_RC=%ERRORLEVEL%"
+if not "%GUI_RC%"=="0" set "RUN_RC=1"
+if %RUN_RC% EQU 0 (
     echo PASS: DPGeneral_missing_file_error
     echo PASS: DPGeneral_missing_file_error >> "%ResultFileName%"
     if exist "%ResultDir%\unit\gui\DPGeneral_MF_error.txt" (
         FOR /F "usebackq tokens=* delims=" %%x in ("%ResultDir%\unit\gui\DPGeneral_MF_error.txt") DO echo %%x
     )
 ) else (
-    echo FAIL: DPGeneral_missing_file_error
-    echo FAIL: DPGeneral_missing_file_error >> "%ResultFileName%"
+    echo FAIL: DPGeneral_missing_file_error, GUI exit %GUI_RC%
+    echo FAIL: DPGeneral_missing_file_error, GUI exit %GUI_RC% >> "%ResultFileName%"
 )
 
 echo.
@@ -63,10 +68,12 @@ echo Running DPGeneral_explicit_supplier_error (GUI)
 echo ===============================================
 del "%ResultFolder%\DPGeneral_explicit_supplier_error.tmp" 2>nul
 
-set command=%GeoDmsQtCmdBase% /T%TstDir%\dmsscript\DPGeneral_explicit_supplier_error.dmsscript /S1 /S2 /S3 %TstDir%\Unit\GUI\cfg\DPGeneral_explicit_supplier_error.dms test_log %ResultDir%\unit\gui\DPGeneral_ES_error.txt
+REM Only the config and the item: a path after them was taken by the GUI as a further item to activate.
+set command=%GeoDmsQtCmdBase% /T%TstDir%\dmsscript\DPGeneral_explicit_supplier_error.dmsscript /S1 /S2 /S3 %TstDir%\Unit\GUI\cfg\DPGeneral_explicit_supplier_error.dms test_log
 echo Command: %command%
 %command%
-echo GUI exit code: %ERRORLEVEL%
+set "GUI_RC=%ERRORLEVEL%"
+echo GUI exit code: %GUI_RC%
 
 echo ===============================================
 echo Running DPGeneral_explicit_supplier_error (compare)
@@ -74,15 +81,17 @@ echo ===============================================
 set cmd2=%GeoDmsRunCmdBase% /S1 /S2 /S3 "%TstDir%\Unit\GUI\cfg\DPGeneral_explicit_supplier_error.dms" test_log
 echo Command: %cmd2%
 %cmd2%
-if %ERRORLEVEL% EQU 0 (
+set "RUN_RC=%ERRORLEVEL%"
+if not "%GUI_RC%"=="0" set "RUN_RC=1"
+if %RUN_RC% EQU 0 (
     echo PASS: DPGeneral_explicit_supplier_error
     echo PASS: DPGeneral_explicit_supplier_error >> "%ResultFileName%"
     if exist "%ResultDir%\unit\gui\DPGeneral_ES_error.txt" (
         FOR /F "usebackq tokens=* delims=" %%x in ("%ResultDir%\unit\gui\DPGeneral_ES_error.txt") DO echo %%x
     )
 ) else (
-    echo FAIL: DPGeneral_explicit_supplier_error
-    echo FAIL: DPGeneral_explicit_supplier_error >> "%ResultFileName%"
+    echo FAIL: DPGeneral_explicit_supplier_error, GUI exit %GUI_RC%
+    echo FAIL: DPGeneral_explicit_supplier_error, GUI exit %GUI_RC% >> "%ResultFileName%"
 )
 
 echo.
