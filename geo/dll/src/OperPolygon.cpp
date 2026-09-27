@@ -753,8 +753,21 @@ public:
 
 		// ==== then proces all input-tiles again and collect to the resulting polygon tile
 		OwningPtrSizedArray<SizeT> currOrdinals;
-		if (!arg3) 
+		if (!arg3)
 			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys, value_construct MG_DEBUG_ALLOCATOR_SRC("Points2SequenceOperator.Ordinals"));
+
+		// With given ordinals, a sequence of n points must receive each of 0..n-1 once. A duplicate
+		// left another slot unwritten, and the sequences were sized with resize_uninitialized, so the
+		// result silently held an uninitialised point. With n points and no duplicate among n slots,
+		// no slot can stay empty either.
+		std::vector<SizeT> seqOffsets;
+		std::vector<bool>  isWritten;
+		if (arg3)
+		{
+			seqOffsets.resize(nrPolys);
+			std::exclusive_scan(nrPointsPerSeq.begin(), nrPointsPerSeq.end(), seqOffsets.begin(), SizeT(0));
+			isWritten.resize(nrPoints);
+		}
 
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
 		{
@@ -771,13 +784,25 @@ public:
 			for (SizeT i=0, n = arg1Data.size(); i!=n; ++i)
 			{
 				if constexpr (hasSeqDomainArg)
+				{
+					// relative to the first value of the sequence unit, as in the count above: with
+					// range(uint32, 1, 11), say, the points were counted under v-1 but written to v
 					polyNr = arg2Data[i];
+					polyNr -= polyIndexRange.first;
+				}
 				if (polyNr < nrPolys)
 				{
 					UInt32 orderNr = (arg3) ? b3[i] : currOrdinals[polyNr]++;
 
 					if (orderNr >= nrPointsPerSeq[polyNr])
 						this->GetGroup()->throwOperErrorF("unexpected orderNr {} for sequence {} which has {} elements", orderNr, polyNr, nrPointsPerSeq[polyNr]);
+					if (arg3)
+					{
+						auto slot = isWritten[seqOffsets[polyNr] + orderNr];
+						if (slot)
+							this->GetGroup()->throwOperErrorF("orderNr {} occurs more than once in sequence {}", orderNr, polyNr);
+						slot = true;
+					}
 					typename ResultType::reference polygon = *(br + polyNr);
 					polygon[orderNr] = b1[i];
 				}

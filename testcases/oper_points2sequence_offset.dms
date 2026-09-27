@@ -1,0 +1,39 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A11: points2sequence, points2polygon and points2arc
+// counted the points of each sequence at their offset from the first value of the sequence unit,
+// but wrote them at the raw value. On a sequence unit such as range(uint32, 1, 3) the points counted
+// for sequence 1 went to sequence 2 and those of sequence 2 past the end, which either threw a
+// misleading "unexpected orderNr" or left uninitialised points. Both passes now use the offset.
+// The relation is called seq_rel: names are case-insensitive, and an attribute seq would hide the unit
+// Seq inside Pt. The checks compare whole attributes, as a literal subscript is not an offset into a
+// unit that starts at 1.
+// Expected: exit 0 on /checks.
+container oper_points2sequence_offset
+{
+	unit<uint32> Seq := range(uint32, 1, 3) // sequences 1 and 2
+	{
+		attribute<uint32>  expN  : [2, 3];
+		attribute<float64> expX0 : [0, 10];
+	}
+	unit<uint32> Pt: nrofrows = 5
+	{
+		attribute<float64> x: [0, 1, 10, 11, 12];
+		attribute<float64> y: [0, 0, 5, 5, 6];
+		attribute<dpoint>  point := point_xy(x, y, dpoint);
+		attribute<Seq>     seq_rel: [1, 1, 2, 2, 2];
+		attribute<uint32>  ord: [0, 1, 0, 1, 2];
+	}
+	attribute<dpoint> lines   (Seq, arc) := points2sequence(Pt/point, Pt/seq_rel);
+	attribute<dpoint> lines_o (Seq, arc) := points2sequence(Pt/point, Pt/seq_rel, Pt/ord);
+
+	container checks
+	{
+		attribute<uint32>  n    (Seq) := sequence_element_count(lines);
+		attribute<uint32>  n_o  (Seq) := sequence_element_count(lines_o);
+		attribute<float64> x0   (Seq) := pointcol(first_point(lines));
+		attribute<float64> x0_o (Seq) := pointcol(first_point(lines_o));
+
+		parameter<bool> counts  := all(n == Seq/expN) && all(n_o == Seq/expN), IntegrityCheck = "counts == true";
+		parameter<bool> placed  := all(x0 == Seq/expX0), IntegrityCheck = "placed == true";
+		parameter<bool> placedO := all(x0_o == Seq/expX0), IntegrityCheck = "placedO == true";
+	}
+}
