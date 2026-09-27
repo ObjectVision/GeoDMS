@@ -1,0 +1,31 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A06: ordinal is registered with a uint32 result for
+// every domain value type, but it wrote its result through the cardinality type of the argument, which
+// is uint8 or uint16 for 8- and 16-bit values and uint64 for 64-bit values and ipoint / upoint. The
+// cast to that type failed as an internal error, so ordinal worked for 32-bit values only (and for
+// spoint / wpoint). Since 20.22.0 the result is written as uint32 for every value type; for a 64-bit
+// values unit with more elements than uint32 can count, ordinal reports that instead.
+// Expected: exit 0 on /checks.
+container oper_ordinal_widths
+{
+	unit<uint8>  V8  := range(uint8,  uint8(10),  uint8(20));
+	unit<int16>  V16 := range(int16,  int16(-100), int16(100));
+	unit<int64>  V64 := range(int64,  int64(-5),  int64(5));
+
+	unit<uint32> D : nrofrows = 3
+	{
+		attribute<V8>  a8  : [10, 12, 19];
+		attribute<V16> a16 : [-100, 0, 99];
+		attribute<V64> a64 : [-5, 0, 4];
+	}
+
+	container checks
+	{
+		attribute<uint32> o8  (D) := ordinal(D/a8);
+		attribute<uint32> o16 (D) := ordinal(D/a16);
+		attribute<uint32> o64 (D) := ordinal(D/a64);
+
+		parameter<bool> o8_ok  := o8[0]  == 0 && o8[1]  == 2   && o8[2]  == 9,   IntegrityCheck = "o8_ok == true";
+		parameter<bool> o16_ok := o16[0] == 0 && o16[1] == 100 && o16[2] == 199, IntegrityCheck = "o16_ok == true";
+		parameter<bool> o64_ok := o64[0] == 0 && o64[1] == 5   && o64[2] == 9,   IntegrityCheck = "o64_ok == true";
+	}
+}

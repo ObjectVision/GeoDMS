@@ -219,7 +219,9 @@ template <class V>
 class OrdinalOperator : public UnaryOperator
 {
 	typedef DataArray<V> ArgType;
-	typedef typename cardinality_type<V>::type result_type;
+	// the registered result, whatever the argument: the cardinality type of V is narrower for 8- and 16-bit
+	// values and wider for 64-bit values and ipoint / upoint, and a cast to it failed as an internal error
+	typedef UInt32 result_type;
 public:
 	// Override Operator
 	OrdinalOperator()
@@ -248,6 +250,12 @@ public:
 
 		const Unit<V>* v = const_unit_cast<V>( adi->GetAbstrValuesUnit() );
 		typename Unit<V>::range_t vRange = v->GetRange();
+		if constexpr (sizeof(typename cardinality_type<V>::type) > sizeof(result_type))
+		{
+			SizeT nrValues = v->GetCount();
+			if (!IsDefined(nrValues) || nrValues > MAX_VALUE(result_type))
+				throwErrorF("ordinal", "the values unit of the argument has more elements than a uint32 ordinal number can count");
+		}
 
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
