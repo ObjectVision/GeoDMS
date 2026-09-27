@@ -1,0 +1,27 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A09: regex_search(str, regex, flags) and
+// regex_match(str, regex, flags) read their flags from a fourth argument, a line copied from
+// regex_replace(str, regex, format, flags), so the third argument they do take was ignored and every
+// call ran with match_default. Since 20.22.0 the third argument is used.
+//
+// Flag 1 is boost's match_not_bol: '^' does not match at the start of the string.
+// Expected: exit 0 on /checks.
+container oper_regex_flags
+{
+	unit<uint32> dom : nrofrows = 2
+	{
+		attribute<string> s : ['abc', 'xabc'];
+	}
+
+	container checks
+	{
+		attribute<bool>   m_default (dom) := regex_match(dom/s, '^abc');
+		attribute<bool>   m_not_bol (dom) := regex_match(dom/s, '^abc', uint32(1));
+		attribute<string> s_default (dom) := regex_search(dom/s, '^.');
+		attribute<string> s_not_bol (dom) := regex_search(dom/s, '^.', uint32(1));
+
+		parameter<bool> match_default  := m_default[0] && !m_default[1], IntegrityCheck = "match_default == true";
+		parameter<bool> match_not_bol  := !m_not_bol[0] && !m_not_bol[1], IntegrityCheck = "match_not_bol == true";
+		parameter<bool> search_default := s_default[0] == 'a' && s_default[1] == 'x', IntegrityCheck = "search_default == true";
+		parameter<bool> search_not_bol := !IsDefined(s_not_bol[0]) && !IsDefined(s_not_bol[1]), IntegrityCheck = "search_not_bol == true";
+	}
+}

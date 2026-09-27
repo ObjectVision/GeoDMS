@@ -62,10 +62,10 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 			boost::regex rx( GetTheCurrValue<SharedStr>(args[1]).c_str() );
 
 			boost::regex_constants::match_flag_type flags = boost::regex_constants::match_default;
-			if (args.size() >= 4)
+			if (args.size() >= 3) // (str, regex, flags): the flags are the third argument, not the fourth of regex_replace
 			{
-				DataReadLock lock3(AsDataItem(args[3]));
-				flags = (boost::regex_constants::match_flag_type)GetTheCurrValue<UInt32>(args[3]);
+				DataReadLock lock2(AsDataItem(args[2]));
+				flags = (boost::regex_constants::match_flag_type)GetTheCurrValue<UInt32>(args[2]);
 			}
 
 			DataReadLock a1Lock(arg1A);
@@ -144,10 +144,10 @@ struct RegexMatchOperator : CommonOperGroup, TernaryOperator
 
 			boost::regex rx( GetTheCurrValue<SharedStr>(args[1]).c_str() );
 			boost::regex_constants::match_flag_type flags = boost::regex_constants::match_default;
-			if (args.size() >= 4)
+			if (args.size() >= 3) // (str, regex, flags): the flags are the third argument, not the fourth of regex_replace
 			{
-				DataReadLock lock3( AsDataItem(args[3]) );
-				flags = (boost::regex_constants::match_flag_type)GetTheCurrValue<UInt32>( args[3] );
+				DataReadLock lock2( AsDataItem(args[2]) );
+				flags = (boost::regex_constants::match_flag_type)GetTheCurrValue<UInt32>( args[2] );
 			}
 
 			DataReadLock a1Lock(arg1A);
