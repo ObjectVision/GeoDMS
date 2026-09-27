@@ -499,8 +499,10 @@ auto UsingCache::FindNamespace(TokenID url, bool allowAbsolutePath) const -> Sha
 			return {};
 		if (m_Context->GetTreeParent())
 			return {};
-		// we look for context ref of instantiated template in cache
-		dms_assert(url.GetStrLock().c_str()[0] == '/');
+		// we look for context ref of instantiated template in cache, which is an absolute path; a plain identifier,
+		// as the BUSY branch of FindItem passes with allowAbsolutePath false, is not found here (TIC-A24)
+		if (urlAsString.empty() || *urlAsString.begin() != '/')
+			return {};
 		return SessionData::Curr()->GetConfigRoot()->ResolveItemPath(urlAsString);
 	}
 	while (n--)
