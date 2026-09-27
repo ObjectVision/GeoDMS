@@ -2273,6 +2273,9 @@ public:
 		{
 			assert(adiDstZoneLocation);
 			assert(adiEuclidicSqrDist);
+			// an impedance_table has no origin zones; CheckFlags lets startPoint(Node_rel,OrgZone_loc) through
+			// for it, and the null orgZones was dereferenced right here
+			MG_USERCHECK2(orgZones, "an OrgZone_loc for the euclid filter needs origin zones, which an impedance_table does not have; use impedance_matrix");
 			orgZones->UnifyDomain(adiOrgZoneLocation->GetAbstrDomainUnit(), "OrgZones", "OrgZoneLoc", UM_Throw);
 			MG_USERCHECK(adiOrgZoneLocation->GetValueComposition() == ValueComposition::Single);
 			MG_USERCHECK(adiOrgZoneLocation->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueWrap<euclid_location_t>::GetStaticClass()->GetValueClassID());
@@ -2501,7 +2504,7 @@ public:
 			: nullptr;
 
 		AbstrDataItem* resLinkFlow = flags(df & DijkstraFlag::ProdLinkFlow)
-			? CreateDataItem(resultContext, GetTokenID_mt("Link_flow"), e, adiOrgMass->GetAbstrValuesUnit()).get() // owned by resultContext
+			? CreateDataItem(resultContext, GetTokenID_mt("Link_flow"), e, orgMassUnit).get() // owned by resultContext; without v_i each origin weighs 1, and adiOrgMass was null here
 			: nullptr;
 		AbstrDataItem* resSrcZone = flags(df & DijkstraFlag::ProdOdOrgZone_rel)
 			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_rel"), resultUnit, orgZonesOrVoid).get() // owned by resultContext

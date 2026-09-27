@@ -1,0 +1,45 @@
+// Regression for doc/code-audit-2026-09-27.md GEO-A29 (b): interaction:Link_flow without the origin
+// masses v_i took the values unit of Link_flow from the v_i argument, which is then absent: a null
+// dereference while the result was being set up. Without v_i every origin weighs 1, as for the
+// other interaction products, so since 20.22.0 Link_flow gets the default mass unit then and equals
+// the Link_flow of v_i = 1. The network is the directed line 0 -> 1 -> 2 -> 3 of
+// oper_impedance_link_flow.dms.
+// Expected: exit 0 on /checks.
+container oper_impedance_link_flow_no_vi
+{
+	unit<uint32> V: nrofrows = 4;
+	unit<uint32> Link: nrofrows = 3
+	{
+		attribute<float32> dist: [1, 1, 1];
+		attribute<V>       F1:   [0, 1, 2];
+		attribute<V>       F2:   [1, 2, 3];
+	}
+	unit<uint32> OrgZone: nrofrows = 1;
+	unit<uint32> DstZone: nrofrows = 1;
+	unit<uint32> Start: nrofrows = 1
+	{
+		attribute<V>       Node_rel:    [0];
+		attribute<OrgZone> OrgZone_rel: [0];
+	}
+	unit<uint32> End: nrofrows = 1
+	{
+		attribute<V>       Node_rel:    [2];
+		attribute<float32> impedance:   [0];
+		attribute<DstZone> DstZone_rel: [0];
+	}
+
+	parameter<string> specVi   := 'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,impedance,DstZone_rel);interaction(v_i,w_j,dist_decay):Link_flow;od:impedance';
+	parameter<string> specNoVi := 'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,impedance,DstZone_rel);interaction(w_j,dist_decay):Link_flow;od:impedance';
+
+	unit<uint32> withVi := impedance_matrix(specVi,   Link/dist, Link/F1, Link/F2, Start/Node_rel, Start/OrgZone_rel, End/Node_rel, End/impedance, End/DstZone_rel, 1f, 1f, 1f);
+	unit<uint32> noVi   := impedance_matrix(specNoVi, Link/dist, Link/F1, Link/F2, Start/Node_rel, Start/OrgZone_rel, End/Node_rel, End/impedance, End/DstZone_rel, 1f, 1f);
+
+	container checks
+	{
+		attribute<float64> lfVi   (Link) := float64(withVi/Link_flow);
+		attribute<float64> lfNoVi (Link) := float64(noVi/Link_flow);
+
+		parameter<bool> flowOnRoute := lfNoVi[0] > 0.0 && lfNoVi[1] > 0.0 && lfNoVi[2] == 0.0, IntegrityCheck = "flowOnRoute == true";
+		parameter<bool> sameAsVi1   := max(abs(lfNoVi - lfVi)) < 1e-6, IntegrityCheck = "sameAsVi1 == true";
+	}
+}
