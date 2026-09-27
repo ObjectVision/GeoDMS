@@ -5,6 +5,9 @@
 #
 # Negatives (_neg / defcheck) are skipped: they intentionally fail to load or compute.
 #
+# As in run_testcases.ps1, the cases' %LocalDataDir% is <OutDir>\LocalData, so that the storage
+# round trips of runs with different OutDirs do not share their files.
+#
 # Usage: run_roundtrip.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <folder>]
 # Exit code: 0 if every positive round-trips, 1 otherwise.
 param(
@@ -18,6 +21,12 @@ $Exe = (Resolve-Path $Exe).Path
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $OutDir = (Resolve-Path $OutDir).Path
 
+# GeoDMS takes the environment variable GEODMS_directories_LocalDataDir before the LocalDataDir setting.
+$localDataDir = Join-Path $OutDir 'LocalData'
+New-Item -ItemType Directory -Force $localDataDir | Out-Null
+$prevLocalDataDir = $env:GEODMS_directories_LocalDataDir
+$env:GEODMS_directories_LocalDataDir = $localDataDir -replace '\\', '/'
+
 $map = @{}
 $mapFile = Join-Path $here 'fnrun_itemmap.txt'
 if (Test-Path $mapFile) {
@@ -28,32 +37,37 @@ if (Test-Path $mapFile) {
 }
 
 $results = @()
-foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
-    $name = $cfg.Name
-    $stem = [IO.Path]::GetFileNameWithoutExtension($name)
-    if (($stem -match '_neg') -or ($stem -eq 'fn_test_defcheck')) { continue } # positives only
-    # fn_test_prelude deliberately '#include's the prelude that the engine ALSO auto-imports.
-    # A dump materializes the included prelude functions at root (include directives are erased
-    # at parse time), and on reload they collide with the auto-imported prelude ("SubItem 'sqr'
-    # is already defined"). This config therefore cannot round-trip by construction; the function
-    # rendering itself is correct. Documented in doc/function_serializer.md.
-    if ($stem -eq 'fn_test_prelude') { continue }
-    # typed: a one-element array leaves an if-expression as a bare string, which @-splats per character
-    [string[]]$itemArgs = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
-    $item = $itemArgs -join ' '
-    $dump = Join-Path $OutDir "$stem.dms"
-    Remove-Item $dump -ErrorAction SilentlyContinue
+try {
+    foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
+        $name = $cfg.Name
+        $stem = [IO.Path]::GetFileNameWithoutExtension($name)
+        if (($stem -match '_neg') -or ($stem -eq 'fn_test_defcheck')) { continue } # positives only
+        # fn_test_prelude deliberately '#include's the prelude that the engine ALSO auto-imports.
+        # A dump materializes the included prelude functions at root (include directives are erased
+        # at parse time), and on reload they collide with the auto-imported prelude ("SubItem 'sqr'
+        # is already defined"). This config therefore cannot round-trip by construction; the function
+        # rendering itself is correct. Documented in doc/function_serializer.md.
+        if ($stem -eq 'fn_test_prelude') { continue }
+        # typed: a one-element array leaves an if-expression as a bare string, which @-splats per character
+        [string[]]$itemArgs = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
+        $item = $itemArgs -join ' '
+        $dump = Join-Path $OutDir "$stem.dms"
+        Remove-Item $dump -ErrorAction SilentlyContinue
 
-    # 1. dump the loaded config back to DMS syntax
-    & $Exe $cfg.FullName '@dumpconfig' $dump *> (Join-Path $OutDir "$stem.dump.out")
-    if (($LASTEXITCODE -ne 0) -or -not (Test-Path $dump)) {
-        $results += [pscustomobject]@{ config = $stem; item = $item; verdict = 'DUMP-FAIL' }
-        continue
+        # 1. dump the loaded config back to DMS syntax
+        & $Exe $cfg.FullName '@dumpconfig' $dump *> (Join-Path $OutDir "$stem.dump.out")
+        if (($LASTEXITCODE -ne 0) -or -not (Test-Path $dump)) {
+            $results += [pscustomobject]@{ config = $stem; item = $item; verdict = 'DUMP-FAIL' }
+            continue
+        }
+        # 2. reload the DUMPED config and recompute the item (IntegrityChecks re-verify)
+        & $Exe "/L$(Join-Path $OutDir "$stem.reload.log")" $dump @itemArgs *> (Join-Path $OutDir "$stem.reload.out")
+        $verdict = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'RELOAD-FAIL' }
+        $results += [pscustomobject]@{ config = $stem; item = $item; verdict = $verdict }
     }
-    # 2. reload the DUMPED config and recompute the item (IntegrityChecks re-verify)
-    & $Exe "/L$(Join-Path $OutDir "$stem.reload.log")" $dump @itemArgs *> (Join-Path $OutDir "$stem.reload.out")
-    $verdict = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'RELOAD-FAIL' }
-    $results += [pscustomobject]@{ config = $stem; item = $item; verdict = $verdict }
+}
+finally {
+    $env:GEODMS_directories_LocalDataDir = $prevLocalDataDir # leave the caller's session as it was
 }
 $results | Format-Table -AutoSize | Out-String -Width 120
 $bad = $results | Where-Object { $_.verdict -ne 'ok' }

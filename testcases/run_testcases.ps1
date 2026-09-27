@@ -20,6 +20,10 @@
 # stor_shp_ringclose_1_write.dms / stor_shp_ringclose_2_read.dms. Do not rename one half
 # without the other.
 #
+# The cases' %LocalDataDir%, where those round trips keep their files (GeoDmsTestcases), is
+# <OutDir>\LocalData, so that batteries run with different OutDirs at the same time neither read
+# nor overwrite each other's files.
+#
 # Usage: run_testcases.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <logfolder>]
 # Exit code: 0 if every case matched its expected outcome, 1 otherwise.
 param(
@@ -39,6 +43,12 @@ catch {
 }
 $OutDir = (Resolve-Path $OutDir).Path
 
+# GeoDMS takes the environment variable GEODMS_directories_LocalDataDir before the LocalDataDir setting.
+$localDataDir = Join-Path $OutDir 'LocalData'
+New-Item -ItemType Directory -Force $localDataDir | Out-Null
+$prevLocalDataDir = $env:GEODMS_directories_LocalDataDir
+$env:GEODMS_directories_LocalDataDir = $localDataDir -replace '\\', '/'
+
 $map = @{}
 $mapFile = Join-Path $here 'fnrun_itemmap.txt'
 if (Test-Path $mapFile) {
@@ -49,21 +59,26 @@ if (Test-Path $mapFile) {
 }
 
 $results = @()
-foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
-    $name = $cfg.Name
-    $stem = [IO.Path]::GetFileNameWithoutExtension($name)
-    # typed: a one-element array leaves an if-expression as a bare string, which @-splats per character
-    [string[]]$itemArgs = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
-    $item = $itemArgs -join ' '
-    $log  = Join-Path $OutDir "$stem.log"
-    & $Exe "/L$log" $cfg.FullName @itemArgs *> (Join-Path $OutDir "$stem.out")
-    $code = $LASTEXITCODE
-    $isNeg = ($stem -match '_neg') -or ($stem -eq 'fn_test_defcheck')
-    $verdict = if ($code -eq 3) { 'ASSERT' }
-               elseif ($isNeg -and $code -ne 0) { 'ok(neg)' }
-               elseif (-not $isNeg -and $code -eq 0) { 'ok' }
-               else { 'UNEXPECTED' }
-    $results += [pscustomobject]@{ config = $stem; item = $item; exit = $code; verdict = $verdict }
+try {
+    foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
+        $name = $cfg.Name
+        $stem = [IO.Path]::GetFileNameWithoutExtension($name)
+        # typed: a one-element array leaves an if-expression as a bare string, which @-splats per character
+        [string[]]$itemArgs = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
+        $item = $itemArgs -join ' '
+        $log  = Join-Path $OutDir "$stem.log"
+        & $Exe "/L$log" $cfg.FullName @itemArgs *> (Join-Path $OutDir "$stem.out")
+        $code = $LASTEXITCODE
+        $isNeg = ($stem -match '_neg') -or ($stem -eq 'fn_test_defcheck')
+        $verdict = if ($code -eq 3) { 'ASSERT' }
+                   elseif ($isNeg -and $code -ne 0) { 'ok(neg)' }
+                   elseif (-not $isNeg -and $code -eq 0) { 'ok' }
+                   else { 'UNEXPECTED' }
+        $results += [pscustomobject]@{ config = $stem; item = $item; exit = $code; verdict = $verdict }
+    }
+}
+finally {
+    $env:GEODMS_directories_LocalDataDir = $prevLocalDataDir # leave the caller's session as it was
 }
 $results | Format-Table -AutoSize | Out-String -Width 120
 $bad = $results | Where-Object { $_.verdict -in 'ASSERT','UNEXPECTED' }
