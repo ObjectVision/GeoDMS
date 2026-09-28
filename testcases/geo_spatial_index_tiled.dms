@@ -1,0 +1,45 @@
+// GEO-A33: spatialIndex takes the root box of its quadtree over all tiles, and writes every element of the
+// result. It took the bounds per tile, so the ids of two tiles were cells of two different roots and not
+// comparable; with a lower and upper bound given as parameters and the level as an attribute only element 0
+// was written; and a null bound asserted in a Debug build. Now:
+//  - the ids of a domain of two tiles equal those of the same bounds on a domain of one tile;
+//  - bounds given as parameters give every element of the level's domain the id of that one box;
+//  - a null bound gives a null id.
+// Expected: exit 0 on /checks.
+container geo_spatial_index_tiled
+{
+	unit<uint32> Flat: nrofrows = 4
+	{
+		attribute<float64> x  : [0, 1, 8, 9];
+		attribute<dpoint>  lb := point_xy(x, x, dpoint);
+		attribute<dpoint>  ub := point_xy(x + 1.0, x + 1.0, dpoint);
+		attribute<uint32>  si := spatialIndex(lb, ub, uint4(3));
+	}
+	unit<uint32> Tiled := TiledUnit(value(2, range(uint32, 0, 4))) // 2 tiles of 2 elements
+	{
+		attribute<Flat>    rel := value(id(.), Flat);
+		attribute<dpoint>  lb  := Flat/lb[rel];
+		attribute<dpoint>  ub  := Flat/ub[rel];
+		attribute<uint32>  si  := spatialIndex(lb, ub, uint4(3));
+		attribute<uint32>  siFlat := Flat/si[rel];
+	}
+	unit<uint32> Levels: nrofrows = 3
+	{
+		attribute<uint4>  level : [1, 2, 3];
+		attribute<uint32> si    := spatialIndex(point_xy(0.0, 0.0, dpoint), point_xy(4.0, 4.0, dpoint), level);
+	}
+	unit<uint32> WithNull: nrofrows = 3
+	{
+		attribute<float64> x  : [0, null, 9];
+		attribute<dpoint>  lb := point_xy(x, x, dpoint);
+		attribute<dpoint>  ub := point_xy(x + 1.0, x + 1.0, dpoint);
+		attribute<uint32>  si := spatialIndex(lb, ub, uint4(3));
+	}
+
+	container checks
+	{
+		parameter<uint32> nSame   := sum(uint32(Tiled/si == Tiled/siFlat)), IntegrityCheck = "nSame == 4";
+		parameter<uint32> nLevels := sum(uint32(Levels/si == 0)),           IntegrityCheck = "nLevels == 3";
+		parameter<uint32> nNull   := sum(uint32(IsNull(WithNull/si))),      IntegrityCheck = "nNull == 1";
+	}
+}

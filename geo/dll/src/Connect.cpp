@@ -1927,7 +1927,8 @@ template <typename RangeType, typename PointIter>
 RangeType GetBounds(PointIter lbFirst, PointIter lbLast, PointIter ubFirst, RangeType bounds)
 {
 	for (; lbFirst!=lbLast; ++ubFirst, ++lbFirst)
-		bounds |= RangeType(*lbFirst, *ubFirst);
+		if (IsDefined(*lbFirst) && IsDefined(*ubFirst))
+			bounds |= RangeType(*lbFirst, *ubFirst);
 	return bounds;
 }
 
@@ -1967,40 +1968,78 @@ struct SpatialIndexOper : TernaryAttrOper< QuadIdType, T, T, LevelType>
 	using PointType = T;
 	using RangeType = Range<T>;
 	using CoordType = PointType::field_type;
+	using base_type = TernaryAttrOper< QuadIdType, T, T, LevelType>;
 
 	SpatialIndexOper(AbstrOperGroup* gr)
-		: TernaryAttrOper< QuadIdType, T, T, LevelType>(gr, default_unit_creator<QuadIdType>, ValueComposition::Single,	false)
+		: base_type(gr, default_unit_creator<QuadIdType>, ValueComposition::Single,	false)
 	{}
 
-	void CalcTile(sequence_traits<QuadIdType>::seq_t resData, sequence_traits<T>::cseq_t arg1Data, sequence_traits<T>::cseq_t ubData, sequence_traits<LevelType>::cseq_t levelData, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	// The root box of the quadtree must be known before any id is computed, and it spans all tiles: the ids of
+	// different tiles are then cells of one root and comparable. The per-tile path of TernaryAttrOper took the
+	// bounds of each tile on its own, looped over the lower bounds only, so bounds given as parameters wrote
+	// element 0 of the result and left the others, and a null bound reached the IsIncluding assert (GEO-A33).
+	// So the result is computed here: first the bounds over all tiles, then every element of every tile.
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		bool e1Void = af & AF1_ISPARAM;
-		bool e2Void = af & AF2_ISPARAM;
-		bool e3Void = af & AF3_ISPARAM;
+		if (!base_type::CreateResult(resultHolder, args, false))
+			return false;
+		if (!mustCalc)
+			return true;
 
-		// TODO: Make Tile aware
-		// ISSUE: GetBounds should analyse all tiles to get the boundingBox before indexing can start.
-		if (e1Void != e2Void)
+		auto lbA = AsDataItem(args[0]);
+		auto ubA = AsDataItem(args[1]);
+		auto levelA = AsDataItem(args[2]);
+		auto isVoid = [](const AbstrDataItem* adi) { return adi->GetAbstrDomainUnit()->GetValueType() == ValueWrap<Void>::GetStaticClass(); };
+		bool lbVoid = isVoid(lbA), ubVoid = isVoid(ubA), levelVoid = isVoid(levelA);
+		if (lbVoid != ubVoid)
 			this->GetGroup()->throwOperError("LowerBounds and UpperBounds are required to have the same domain");
 
-		auto
-			lbIter = arg1Data.begin()
-		,	lbEnd  = arg1Data.end();
-		auto ubIter = ubData.begin();
+		DataReadLock lbLock(lbA), ubLock(ubA), levelLock(levelA);
+		auto lbArray = const_array_cast<T>(lbA);
+		auto ubArray = const_array_cast<T>(ubA);
+		auto levelArray = const_array_cast<LevelType>(levelA);
 
-		auto levelIter = levelData.begin();
-
-		UInt32 level = 0; if (e3Void) level = LevelType(*levelIter);
-
-		auto resIter = resData.begin();
-
-		RangeType boundingBox = GetBounds<RangeType>(lbIter, lbEnd, ubIter, RangeType()); // TODO: bring Outside tile stuff by implementing PreCalculate for ternary operators
-
-		for (;lbIter != lbEnd; ++resIter, ++ubIter, ++lbIter)
+		RangeType boundingBox;
+		for (tile_id t = 0, tn = lbA->GetAbstrDomainUnit()->GetNrTiles(); t != tn; ++t)
 		{
-			if (!e3Void) { level = LevelType(*levelIter); ++levelIter; }
-			*resIter = CalcSpatialIndex<PointType>(RangeType(*lbIter, *ubIter), boundingBox, level);
+			auto lbData = lbArray->GetTile(t);
+			auto ubData = ubArray->GetTile(t);
+			boundingBox = GetBounds<RangeType>(lbData.begin(), lbData.end(), ubData.begin(), boundingBox);
 		}
+
+		auto res = AsDataItem(resultHolder.GetNew());
+		DataWriteLock resLock(res);
+		auto resArray = mutable_array_cast<QuadIdType>(resLock.get());
+		parallel_tileloop(res->GetAbstrDomainUnit()->GetNrTiles(), [&](tile_id t)
+			{
+				auto resData = resArray->GetWritableTile(t);
+				auto lbData = lbArray->GetTile(lbVoid ? 0 : t);
+				auto ubData = ubArray->GetTile(ubVoid ? 0 : t);
+				auto levelData = levelArray->GetTile(levelVoid ? 0 : t);
+				auto lbIter = lbData.begin();
+				auto ubIter = ubData.begin();
+				auto levelIter = levelData.begin();
+				for (auto resIter = resData.begin(), resEnd = resData.end(); resIter != resEnd; ++resIter)
+				{
+					PointType lb = *lbIter, ub = *ubIter;
+					UInt32 level = LevelType(*levelIter);
+					if (!lbVoid) ++lbIter;
+					if (!ubVoid) ++ubIter;
+					if (!levelVoid) ++levelIter;
+					if (IsDefined(lb) && IsDefined(ub))
+						*resIter = CalcSpatialIndex<PointType>(RangeType(lb, ub), boundingBox, level);
+					else
+						*resIter = UNDEFINED_OR_ZERO(QuadIdType);
+				}
+			}
+		);
+		resLock.Commit();
+		return true;
+	}
+
+	void CalcTile(sequence_traits<QuadIdType>::seq_t, sequence_traits<T>::cseq_t, sequence_traits<T>::cseq_t, sequence_traits<LevelType>::cseq_t, ArgFlags MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		throwIllegalAbstract(MG_POS, "SpatialIndexOper::CalcTile"); // CreateResult computes every tile itself
 	}
 };
 
