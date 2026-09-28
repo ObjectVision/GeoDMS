@@ -1,0 +1,20 @@
+// The read half of stor_mmd_cat_1_write.dms (TIC-A34): the dictionary declares the unique result with cat_range,
+// and the store reads back with its 3 codes. The store itself, obj with nrofrows, is categorical as well: 2 in all.
+container stor_mmd_cat_2_read
+{
+	unit<uint32> store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_cat.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+	parameter<string> dict
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_cat.mmd/0Dictionary.dms"
+	,	StorageType = "str"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<uint32> n_codes := #store/codes,              IntegrityCheck = "n_codes == 3";
+		parameter<uint32> n_cat   := strcount(dict, 'cat_range'), IntegrityCheck = "n_cat == 2";
+	}
+}

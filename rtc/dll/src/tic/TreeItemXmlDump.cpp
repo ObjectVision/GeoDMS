@@ -554,9 +554,11 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 			if (!tilingRule.empty())
 				xmlOutStr->DumpSubTag(CALCRULE_NAME, tilingRule.c_str(), true);
 			else
-				// "range": the property's registered name (RangeProp in UnitClassReg.h). A dump that wrote
-				// Range made every reader of it -- the MMD dictionary above all -- report a case mix-up.
-				xmlOutStr->DumpSubTag("range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
+				// "range" or "cat_range": the property's registered names (RangeProp in UnitClassReg.h), whose
+				// SetValue assigns TSF_Categorical from the name, so a categorical unit (the result of unique,
+				// subset or union) must be written as cat_range to read back categorical (TIC-A34). A dump that
+				// wrote Range made every reader of it -- the MMD dictionary above all -- report a case mix-up.
+				xmlOutStr->DumpSubTag(au->GetTSF(TSF_Categorical) ? "cat_range" : "range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
 		}
 	}
 

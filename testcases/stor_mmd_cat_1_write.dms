@@ -1,0 +1,18 @@
+// TIC-A34: the MMD dictionary writes a categorical unit with cat_range, so that it reads back categorical. It wrote
+// range for every unit, and the reader's range property clears the categorical flag, so a stored unique, subset or
+// union result came back non-categorical. This config only WRITES the store; stor_mmd_cat_2_read.dms reads it back
+// and checks the dictionary. The two run in this order (sorted by file name).
+container stor_mmd_cat_1_write
+{
+	unit<uint32> obj : nrofrows = 6
+	{
+		attribute<int32> code : [3, 1, 3, 2, 1, 3];
+	}
+
+	unit<uint32> store := obj
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_cat.mmd"
+	{
+		attribute<int32> code := obj/code;
+		unit<uint32> codes := unique(obj/code);
+	}
+}
