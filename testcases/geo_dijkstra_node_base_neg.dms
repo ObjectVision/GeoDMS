@@ -1,0 +1,21 @@
+// GEO-A20: the node unit of impedance_table (and the rest of the dijkstra family) must have a range that starts at
+// 0. On a unit of imported ids such as range(uint32, 1, 4), a node id of 3 passed the range check and was used as
+// an index into arrays of 3 elements, one past the end. It is refused with "the node unit must have a range that
+// starts at 0". Expected: exit nonzero on /checks.
+container geo_dijkstra_node_base_neg
+{
+	unit<uint32> Node := range(uint32, 1, 4);
+	unit<uint32> Link : nrofrows = 2
+	{
+		attribute<Node>    N1_rel := value(uint32(id(.)) + 1, Node);
+		attribute<Node>    N2_rel := value(uint32(id(.)) + 2, Node);
+		attribute<float64> imp    : [1.0, 1.0];
+	}
+	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr := const(value(1, Node), .); }
+	attribute<float64> d (Node) := impedance_table('directed;startPoint(Node_rel)', Link/imp, Link/N1_rel, Link/N2_rel, StartSet/nr);
+
+	container checks
+	{
+		parameter<float64> s := sum(d), IntegrityCheck = "s >= 0.0";
+	}
+}

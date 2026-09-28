@@ -1,0 +1,18 @@
+// GEO-A20: the node unit of connected_parts must have a range that starts at 0; a node id was used as an index, so
+// on range(uint32, 1, 4) the part of node v was written for node v+1, and the last one past the end. It is refused
+// with "the node unit, the values unit of the node relations, must have a range that starts at 0". Expected: exit nonzero on /checks.
+container geo_connected_parts_node_base_neg
+{
+	unit<uint32> Node := range(uint32, 1, 4);
+	unit<uint32> Link : nrofrows = 2
+	{
+		attribute<Node> F1 := value(uint32(id(.)) + 1, Node);
+		attribute<Node> F2 := value(uint32(id(.)) + 2, Node);
+	}
+	unit<uint32> Parts := connected_parts(Link/F1, Link/F2);
+
+	container checks
+	{
+		parameter<uint32> n := #Parts, IntegrityCheck = "n > 0";
+	}
+}

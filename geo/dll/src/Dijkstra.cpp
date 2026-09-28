@@ -2670,6 +2670,14 @@ public:
 				if (dstMass < 0)
 					throwErrorD("dijkstra", "the destination mass argument contains a negative value");
 
+			// Node and zone ids index the arrays from 0: on a unit whose range starts elsewhere, as for imported ids
+			// (range(uint32, 1, N + 1)), a node or zone id of N passed the range check and wrote one past the end (GEO-A20).
+			std::pair<const AbstrUnit*, CharPtr> idUnits[] = { { v, "node unit" }, { orgZonesOrVoid, "origin zone unit" }, { dstZones, "destination zone unit" } };
+			for (auto [u, role] : idUnits)
+				if (u->GetValueType() != ValueWrap<Void>::GetStaticClass() && !u->IsOrdinalAndZeroBased())
+					throwErrorF("dijkstra", "the {} must have a range that starts at 0, as its ids are used as indices, but its range is {}"
+						, role, u->GetRangeAsStr(FormattingFlags::None).c_str());
+
 			NetworkInfo<NodeType, ZoneType, ImpType> networkInfo(
 				v->GetCount(), e->GetCount()
 			,	x->GetCount(), y->GetCount()

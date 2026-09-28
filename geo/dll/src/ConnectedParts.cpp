@@ -117,6 +117,9 @@ public:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
+			// node ids index the arrays from 0; on a unit whose range starts elsewhere the parts of node v went to v+1 (GEO-A20)
+			if (!arg1A->GetAbstrValuesUnit()->IsOrdinalAndZeroBased())
+				this->GetGroup()->throwOperErrorF("the node unit, the values unit of the node relations, must have a range that starts at 0, as its ids are used as indices, but its range is {}", arg1A->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::None).c_str());
 	
 			const Arg1Type* arg1 = const_array_cast<NodeType>(arg1Lock);
 			const Arg2Type* arg2 = const_array_cast<NodeType>(arg2Lock);
@@ -425,6 +428,9 @@ public:
 
 		DataReadLock arg1Lock(arg1A);
 		DataReadLock arg2Lock(arg2A);
+		// node ids index the arrays from 0; on a unit whose range starts elsewhere the parts of node v went to v+1 (GEO-A20)
+		if (!arg1A->GetAbstrValuesUnit()->IsOrdinalAndZeroBased())
+			this->GetGroup()->throwOperErrorF("the node unit, the values unit of the node relations, must have a range that starts at 0, as its ids are used as indices, but its range is {}", arg1A->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::None).c_str());
 
 		const Arg1Type* arg1 = const_array_cast<NodeType>(arg1Lock); assert(arg1);
 		const Arg2Type* arg2 = const_array_cast<NodeType>(arg2Lock); assert(arg2);
