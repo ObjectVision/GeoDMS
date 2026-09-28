@@ -27,8 +27,10 @@ void TForm::Init(RadiusType radius, bool isCircle)
 { 
 	DBG_START("TForm", "Init", true);
 
-	assert(radius <= MAX_VALUE(FormType));
-	m_Defined	= false; 
+	// A null radius (65535) wrapped -m_Radius-1 to 0 and the loops below never ended; one above 32767 does not fit the
+	// signed form offsets. A plain assert checked it in Debug only (GEO-A31).
+	MG_USERCHECK2(IsDefined(radius) && radius <= MAX_VALUE(FormType), "diversity: the radius must be a defined value of at most 32767");
+	m_Defined	= false;
 	m_Radius	= radius;
 	m_IsCircle	= isCircle;
 	Float64 sqrRadiusAsF64 = Float64(m_Radius)* Float64(m_Radius);

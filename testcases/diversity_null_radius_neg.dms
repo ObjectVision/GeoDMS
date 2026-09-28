@@ -1,0 +1,17 @@
+// GEO-A31: diversity with a null radius is refused with "diversity: the radius must be a defined value of at most
+// 32767". The null (65535 for uint16) wrapped the form's offsets to 0 and the scan never ended, in every build, as a
+// radius above 32767 did not fit the signed offsets either. Expected: exit nonzero on /checks.
+container diversity_null_radius_neg
+{
+	unit<spoint> G := range(spoint, point_yx(0s, 0s), point_yx(4s, 4s))
+	{
+		unit<uint8> Vals: nrofrows = 3;
+		attribute<Vals> v := value(uint8(pointrow(id(.))) % 3b, Vals);
+	}
+	attribute<G/Vals> div (G) := diversity(G/v, null_w, uint16(1));
+
+	container checks
+	{
+		parameter<uint32> n := sum(uint32(IsDefined(div))), IntegrityCheck = "n > 0";
+	}
+}
