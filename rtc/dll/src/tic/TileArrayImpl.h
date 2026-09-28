@@ -19,6 +19,9 @@
 #include "mem/FixedAlloc.h"
 #include "mem/tiledata.h"
 
+#include <memory>
+#include <mutex>
+
 template <typename V>
 struct HeapTileArray : GeneratedTileFunctor<V>
 {
@@ -34,6 +37,7 @@ struct HeapTileArray : GeneratedTileFunctor<V>
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode) ->locked_seq_t override;
 	auto GetTile(tile_id t) const ->locked_cseq_t override;
 	mutable tiles_t m_Seqs;
+	mutable std::unique_ptr<std::once_flag[]> m_TileInitFlags; // one per tile, see InitTile
 };
 
 template <typename V>
@@ -146,19 +150,24 @@ HeapTileArray<V>::HeapTileArray(const AbstrTileRangeData* trd, bool mustClear)
 	}
 */
 	m_Seqs = std::move(seqs);
+	m_TileInitFlags = std::make_unique<std::once_flag[]>(tn);
 }
 
-extern std::mutex s_mutableTileRecSection;
-
+// A tile is allocated by its first access and never reset. call_once runs that allocation, and the zeroing, outside
+// any shared lock, and its completion makes the pointer safe to read without one. Every access to a tile of any heap
+// tile array of the process used to take one std::mutex, and the first one allocated and zeroed under it, so a
+// parallel_tileloop that writes a tiled result serialised its tile allocations (TIC-A06). A throwing allocation
+// leaves the flag unset, and the next access tries again.
 template <typename V>
-void InitTile(std::shared_ptr<tile<V>>& tilePtr, const AbstrTileRangeData* trd, tile_id t, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
+void InitTile(std::once_flag& initFlag, std::shared_ptr<tile<V>>& tilePtr, const AbstrTileRangeData* trd, tile_id t, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	auto sectionLock = std::unique_lock(s_mutableTileRecSection);
-	if (!tilePtr)
-	{
-		tilePtr = std::make_shared<tile<V>>();
-		reallocSO(*tilePtr, trd->GetTileSize(t), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	}
+	std::call_once(initFlag, [&]
+		{
+			auto newTile = std::make_shared<tile<V>>();
+			reallocSO(*newTile, trd->GetTileSize(t), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			tilePtr = std::move(newTile);
+		}
+	);
 	assert(tilePtr);
 	assert(tilePtr->size() == trd->GetTileSize(t));
 }
@@ -170,7 +179,7 @@ auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 	this->CheckFailure();
 
 	auto& tilePtr = m_Seqs[t];
-	InitTile(tilePtr, this->GetTiledRangeData().get(), t, rwMode != dms_rw_mode::write_only_all MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
+	InitTile(m_TileInitFlags[t], tilePtr, this->GetTiledRangeData().get(), t, rwMode != dms_rw_mode::write_only_all MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
 	return locked_seq_t(std::static_pointer_cast<void>(tilePtr), GetSeq(*tilePtr));
 }
@@ -182,7 +191,7 @@ auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	this->CheckFailure();
 
 	auto& tilePtr = m_Seqs[t];
-	InitTile(tilePtr, this->GetTiledRangeData().get(), t, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
+	InitTile(m_TileInitFlags[t], tilePtr, this->GetTiledRangeData().get(), t, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
 	return locked_cseq_t(std::static_pointer_cast<const void>(tilePtr), GetConstSeq(*tilePtr));
 }

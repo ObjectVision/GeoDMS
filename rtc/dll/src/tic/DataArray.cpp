@@ -43,8 +43,6 @@
 //	Shadow creation 
 //----------------------------------------------------------------------
 
-std::mutex s_mutableTileRecSection;
-
 template <typename V>
 void CloseMutableShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>::cseq_t shadowData)
 {
