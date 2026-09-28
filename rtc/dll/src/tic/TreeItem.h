@@ -353,7 +353,8 @@ public:
 	// Data lifecycle: prepare, commit, cleanup. Some may suspend via Actor mechanisms.
 	bool TryPrepareDataUsage() const; // called in idle time for items that will soon be visible, returns false when Suspended
 	bool CommitDataChanges() const;
-	garbage_can TryCleanupMem() const; // overridden by AbstrDataItem
+	// nodiscard: the can is what frees the data, so a caller keeps it until its own locks are released (TIC-A12)
+	[[nodiscard]] garbage_can TryCleanupMem() const; // overridden by AbstrDataItem
 	garbage_can DropValue();
 	TIC_CALL bool PrepareDataUsageImpl(DrlType drlType) const;
 	TIC_CALL bool PrepareDataUsage(DrlType drlType) const;

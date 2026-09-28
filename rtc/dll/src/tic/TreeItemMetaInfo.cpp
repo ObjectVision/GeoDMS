@@ -1265,8 +1265,9 @@ ActorVisitState TreeItem::DoUpdate()
 		SetProgress(ProgressState::Committed);
 
 		auto uti = _GetHistoricUltimateItem(this);
+		garbage_can garbage; // declared before the lock, so the data is freed after the lock is released (TIC-A12)
 		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::CommitDataChanges") sg_ActorLockMap, uti.get());
-		uti->TryCleanupMem();
+		garbage = uti->TryCleanupMem();
 
 		if (!result) 
 		{

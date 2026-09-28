@@ -1529,8 +1529,9 @@ void TreeItem::SetKeepDataState(bool value)
 			// memory anyway, so only clean up when the ultimate is still live.
 			if (auto uti = _GetHistoricUltimateItem(this))
 			{
+				garbage_can garbage; // declared before the lock, so the data is freed after the lock is released (TIC-A12)
 				actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::SetKeepDataState") sg_ActorLockMap, uti.get()); // datalockcount 1->0 or drop of interest is
-				uti->TryCleanupMem();
+				garbage = uti->TryCleanupMem();
 			}
 		}
 	}

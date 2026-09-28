@@ -151,6 +151,7 @@ void DataReadLockAtom::release() noexcept
 		}
 	}
 
+	garbage_can garbage; // declared before the lock, so the data is freed after the lock is released (TIC-A12)
 	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("DataReadLockAtom::release") sg_ActorLockMap, m_Item.get()); // datalockcount 1->0 or drop of interest is
 	dms_assert(m_Item->m_DataLockCount > 0);
 	{
@@ -159,7 +160,7 @@ void DataReadLockAtom::release() noexcept
 	}
 
 	if (m_Item->m_DataLockCount == 0 && !m_Item->PartOfInterest())
-		m_Item->TryCleanupMem();
+		garbage = m_Item->TryCleanupMem();
 }
 
 DataReadLockAtom::~DataReadLockAtom() noexcept
