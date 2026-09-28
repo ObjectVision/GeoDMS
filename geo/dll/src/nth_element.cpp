@@ -343,8 +343,8 @@ struct NthElementTot: AbstrPthElementTot<I>
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		assert(resData.size() == 1);
 
-		// Count defined
-		UInt32 N = 0;
+		// Count defined, in SizeT: a UInt32 count wrapped beyond 4.29e9 defined values (GEO-A26)
+		SizeT N = 0;
 		auto tn = argVA->GetAbstrDomainUnit()->GetNrTiles();
 		for (tile_id t=0; t!=tn; ++t)
 		{
@@ -567,7 +567,7 @@ struct NthElementWeightedTot: AbstrNthElementWeightedTot<W>
 			count_best_total(N, argVData.begin(), argVData.end());
 		}
 
-		sequence_traits<UInt32>::container_type indexVector; indexVector.reserve(N MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedTot buffer"));
+		sequence_traits<SizeT>::container_type indexVector; indexVector.reserve(N MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedTot buffer")); // SizeT indices (GEO-A26)
 
 		SizeT i = 0;
 		auto argVData = argV->GetLockedDataRead();
@@ -725,6 +725,13 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 					copy.push_back(*iv MG_DEBUG_ALLOCATOR_SRC("RthElementTot buffer"));
 		}
 		Float64 rr = r;
+		// a null ratio, one outside [0, 1] or no defined value at all gives null; converting such an rr to SizeT was
+		// undefined behaviour (GEO-A26)
+		if (!N || !(rr >= 0.0 && rr <= 1.0))
+		{
+			resData[0] = UNDEFINED_OR_MAX(V);
+			return;
+		}
 		rr *= (N - 1);
 
 		SizeT pos = rr;
@@ -751,7 +758,7 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 // RthElementPart
 //   Partitioned ratio-th selection with interpolation per partition.
 // *****************************************************************************
-template <typename V, typename I=UInt32> 
+template <typename V, typename I=SizeT> // SizeT: beyond 4.29e9 defined values a UInt32 total wrapped and the copy under-allocated (GEO-A26)
 struct RthElementPart: AbstrPthElementPart<RatioType>
 {
 	typedef RatioType    R;
@@ -824,8 +831,13 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		{
 			I pCount = partCount[i];
 			Float64 rr = arg2Data[e2Void ? 0 : i];
+			if (!pCount || !(rr >= 0.0 && rr <= 1.0)) // a null ratio, one outside [0, 1] or an empty partition gives null (GEO-A26)
+			{
+				resData[i] = UNDEFINED_OR_MAX(V);
+				continue;
+			}
 			rr *= (pCount - 1);
-			UInt32 pos = rr;
+			SizeT pos = rr;
 			if (pos<pCount)
 			{
 				auto cbi = copy.begin() + cumul[i];

@@ -1,0 +1,29 @@
+// GEO-A26: rth_element with a ratio that is null or outside [0, 1] gives null, over the whole domain and per
+// partition; converting such a ratio times (n - 1) to an index was undefined behaviour. A ratio in [0, 1] is
+// unchanged: r = 0.5 is the median, with interpolation between the two middle values of an even count.
+// Expected: exit 0 on /checks.
+container oper_rth_element_ratio
+{
+	unit<uint32> Dom: nrofrows = 6
+	{
+		attribute<float32> v : [1, 2, 3, 10, 20, 30];
+		attribute<Part>    p : [0, 0, 0, 1, 1, 1];
+	}
+	unit<uint8> Part: nrofrows = 3; // part 2 is empty
+	attribute<float32> rPart (Part) : [0.5, null, 0.5];
+
+	parameter<float32> med       := rth_element(Dom/v, 0.5f);
+	parameter<float32> negative  := rth_element(Dom/v, -0.5f);
+	parameter<float32> nullRatio := rth_element(Dom/v, null_f);
+	attribute<float32> medPart (Part) := rth_element(Dom/v, rPart, Dom/p);
+
+	container checks
+	{
+		parameter<bool> cMed   := med == 6.5f,                 IntegrityCheck = "cMed == true";
+		parameter<bool> cNeg   := IsNull(negative),            IntegrityCheck = "cNeg == true";
+		parameter<bool> cNull  := IsNull(nullRatio),           IntegrityCheck = "cNull == true";
+		parameter<bool> cPart0 := medPart[0b] == 2f,           IntegrityCheck = "cPart0 == true";
+		parameter<bool> cPart1 := IsNull(medPart[1b]),         IntegrityCheck = "cPart1 == true";
+		parameter<bool> cPart2 := IsNull(medPart[2b]),         IntegrityCheck = "cPart2 == true";
+	}
+}
