@@ -1067,7 +1067,16 @@ SharedTreeItem DataController_GetErrorSource(const DataController* dc, UInt32 se
 			return foundErrroSource;
 
 		if (argNr == 0 && operatorGroup->HasDynamicArgPolicies())
-			firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(dc->CalcCertainResult()->GetOld())))->GetIndexedValue(0);
+		{
+			// The first argument says what the following ones are (for_each_* with its spec string). Read it when it is
+			// there, as the calculation does (FuncDC in MoreDataControllers.cpp), and stop when it is not: a diagnosis
+			// calculates nothing. This line used to call CalcCertainResult on dc, the failed function itself, which
+			// recalculated it and read its result, a container for for_each, as the string argument (TIC-A28).
+			auto firstArg = args->m_DC->GetOld();
+			if (!firstArg || !IsDataItem(firstArg) || firstArg->WasFailed(FailType::Data) || !IsDataReady(firstArg->GetCurrUltimateItem().get()))
+				return {};
+			firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(firstArg)))->GetIndexedValue(0);
+		}
 
 		args = args->m_Next.get();
 		++argNr;
