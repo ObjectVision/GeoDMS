@@ -124,12 +124,25 @@ bool IsLowOnFreeRAM() {
 	return info.IsLowOnFreeRAM();
 }
 
+// The machine's RAM does not change while the process runs, so the OS is asked once; only the MemoryRAM_MAX_GB clamp
+// can change, and it is applied per call. The callers run under the scheduling mutex, two or three times per admission,
+// and each call was a GlobalMemoryStatusEx, or on Linux a parse of /proc/meminfo (TIC-A13). A failed query throws
+// and is asked again at the next call.
 SizeT TotalAllowedPhysicalMemory() {
-	memory_info info;
 #if defined(WIN32)
-	return SizeT(info.memStat.ullTotalPhys); // already reduced by the MemoryRAM_MAX_GB clamp
+	static const UInt64 s_TotalPhys = []
+		{
+			MEMORYSTATUSEX memStat;
+			memStat.dwLength = sizeof(MEMORYSTATUSEX);
+			if (!GlobalMemoryStatusEx(&memStat))
+				throwLastSystemError("GlobalMemoryStatusEx");
+			return UInt64(memStat.ullTotalPhys);
+		}();
+	UInt64 maxPhys = UInt64(RTC_GetRegDWord(RegDWordEnum::MemoryRAM_MAX_GB)) * (1024 * 1024 * 1024); // 0 means: don't simulate a smaller machine
+	return SizeT(maxPhys && s_TotalPhys > maxPhys ? maxPhys : s_TotalPhys);
 #else
-	return SizeT(info.totalPhysKB) * 1024;
+	static const SizeT s_TotalPhys = SizeT(memory_info().totalPhysKB) * 1024;
+	return s_TotalPhys;
 #endif
 }
 

@@ -607,6 +607,25 @@ garbage_can OperationContext::disconnect_waiters()
 /// a pair of context_array that contains the collected operations and garbage that must be destructed before calling GetOperGroup, but after the cs_ThreadMessing lock.
 /// </returns>
 //
+// The low-RAM brake asks the OS for the machine's free RAM (GlobalMemoryStatusEx, a parse of /proc/meminfo on Linux)
+// under cs_ThreadMessing, in nearly every activation pass: every Join iteration and every context end. The answer is
+// kept for 20 ms, as LedgerObservedCommitBytes keeps its observation for 100 ms; the statics are guarded by
+// cs_ThreadMessing, under which the brake runs (TIC-A13).
+static bool  sd_IsLowOnFreeRAM = false;
+static Int64 sd_IsLowOnFreeRAMNs = 0;
+
+static bool IsLowOnFreeRAMRateLimited()
+{
+	assert(!cs_ThreadMessing.try_lock());
+	auto nowNs = std::chrono::steady_clock::now().time_since_epoch().count();
+	if (!sd_IsLowOnFreeRAMNs || nowNs - sd_IsLowOnFreeRAMNs > 20'000'000)
+	{
+		sd_IsLowOnFreeRAMNs = nowNs;
+		sd_IsLowOnFreeRAM = IsLowOnFreeRAM();
+	}
+	return sd_IsLowOnFreeRAM;
+}
+
 // Collect and activate OperationContexts in the current phase until RAM pressure
 // or queue exhaustion. Returns the list of activated contexts (as weak_ptrs)
 // and a garbage_can for post-lock destruction.
@@ -667,7 +686,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 			// otherwise find its work parked with nothing running.
 			if (!isLowOnFreeRamTested && s_NrActivatedOrRunningOperations[nextPhaseNumber] >= Max<UInt32>(s_NrWaitingJoins, 1))
 			{
-				if (IsLowOnFreeRAM())
+				if (IsLowOnFreeRAMRateLimited())
 				{
 					s_IsInLowRamMode = true;
 					break;
