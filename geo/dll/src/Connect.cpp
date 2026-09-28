@@ -866,6 +866,10 @@ public:
 		const AbstrDataItem* argMaxDist = (HasMaxDist) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argMinDist = (HasMinDist) ? AsDataItem(args[argCount++]) : nullptr;
 		assert(args.size() == argCount);
+		// The minimum distance argument is accepted by the signature but not implemented: it was unified, locked and
+		// stepped per row and never read, so the result was unfiltered without a word (GEO-A32). Refuse it until the filter exists.
+		if constexpr (HasMinDist)
+			this->GetGroup()->throwOperError("the minimum distance argument is not implemented; leave it out, or select the results by their distance afterwards");
 
 		// #1228: a reversed member is given the points first and the arcs second;
 		// from here on arg1A is the arc geometry and arg2A the points, whichever
@@ -1433,6 +1437,10 @@ public:
 		const AbstrDataItem* argMaxDist = (HasMaxDist) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argMinDist = (HasMinDist) ? AsDataItem(args[argCount++]) : nullptr;
 		dms_assert(args.size() == argCount);
+		// The minimum distance argument is accepted by the signature but not implemented: it was unified, locked and
+		// stepped per row and never read, so the result was unfiltered without a word (GEO-A32). Refuse it until the filter exists.
+		if constexpr (HasMinDist)
+			this->GetGroup()->throwOperError("the minimum distance argument is not implemented; leave it out, or select the results by their distance afterwards");
 
 		// #1228: a reversed member is given the points first and the arcs second;
 		// from here on arg1A is the arc geometry and arg2A the points, whichever

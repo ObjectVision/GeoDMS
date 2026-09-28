@@ -1,0 +1,26 @@
+// GEO-A32: the minimum distance argument of connect, connect_info and dist_info (the argument after the maximum
+// distance) is refused with "the minimum distance argument is not implemented": it was accepted and never read, so
+// the result was not filtered on it, without a word. Expected: exit nonzero on /checks.
+container geo_connect_min_dist_neg
+{
+	unit<uint32> ArcPoints : nrofrows = 2
+	{
+		attribute<fpoint> point   := point_xy(float32(id(.)) * 10f, const(0f, .), fpoint);
+		attribute<Road>   seq_rel : [0, 0];
+		attribute<uint32> ordinal := id(.);
+	}
+	unit<uint32> Road : nrofrows = 1
+	{
+		attribute<fpoint> geometry (Road, arc) := points2sequence(ArcPoints/point, ArcPoints/seq_rel, ArcPoints/ordinal);
+	}
+	unit<uint32> Pnt : nrofrows = 1
+	{
+		attribute<fpoint> geometry := const(point_xy(5f, 3f, fpoint), .);
+	}
+	container ci := connect_info(Road/geometry, Pnt/geometry, 10.0, 1.0);
+
+	container checks
+	{
+		parameter<float64> d := sum(ci/dist), IntegrityCheck = "d >= 0.0";
+	}
+}
