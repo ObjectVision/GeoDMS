@@ -1,0 +1,26 @@
+// GEO-A27: a null in the kernel of the potential family counts as 0, as a null in the data does. A 1/dist kernel
+// has a null centre; left in, the NaN made every bin of the FFT'd kernel NaN and every cell of the result null,
+// and potentialSlow multiplied it into its sums. The result with a null centre equals the result with a 0 centre.
+// Expected: exit 0 on /checks.
+container oper_potential_kernel_null
+{
+	unit<spoint> G4  := range(point_xy(0s, 0s), point_xy(4s, 4s));
+	unit<spoint> KD3 := range(point_xy(0s, 0s), point_xy(3s, 3s));
+
+	attribute<float32> src4     (G4)  : [ 1,2,3,4, 5,6,7,8, 9,10,11,12, 13,14,15,16 ];
+	attribute<float32> wgtNull  (KD3) : [ 0.5,0.5,0.5, 0.5,null,0.5, 0.5,0.5,0.5 ];
+	attribute<float32> wgtZero  (KD3) : [ 0.5,0.5,0.5, 0.5,0,0.5, 0.5,0.5,0.5 ];
+
+	attribute<float32> baseNull (G4) := potential    (src4, wgtNull);
+	attribute<float32> baseZero (G4) := potential    (src4, wgtZero);
+	attribute<float32> slowNull (G4) := potentialSlow(src4, wgtNull);
+	attribute<float32> slowZero (G4) := potentialSlow(src4, wgtZero);
+
+	container checks
+	{
+		parameter<uint32> nDefBase := sum(uint32(IsDefined(baseNull))),                  IntegrityCheck = "nDefBase == 16";
+		parameter<uint32> nDefSlow := sum(uint32(IsDefined(slowNull))),                  IntegrityCheck = "nDefSlow == 16";
+		parameter<bool>   eqBase   := all(abs(baseNull - baseZero) <= 0.001f),           IntegrityCheck = "eqBase == true";
+		parameter<bool>   eqSlow   := all(abs(slowNull - slowZero) <= 0.001f),           IntegrityCheck = "eqSlow == true";
+	}
+}

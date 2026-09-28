@@ -391,6 +391,21 @@ public:
         dms_assert(weightGrid);
 
         auto weightShadowTile = weightGrid->GetDataRead(); // Single-tile assumption for kernel
+
+        // A null in the kernel counts as 0, as a null in the data does (GEO-A27). Left in, a NaN made every bin of the
+        // FFT'd kernel NaN, so every tile came out null, and potentialSlow multiplied it into the sums; a 1/dist kernel
+        // has a null centre. The cleansed copy is held by the kernel_info's weightShadowTile.
+        if (std::any_of(weightShadowTile.begin(), weightShadowTile.end(), [](const T& v) { return !IsDefined(v); }))
+        {
+            auto cleansed = std::make_shared<std::vector<T>>(weightShadowTile.begin(), weightShadowTile.end());
+            for (auto& v : *cleansed)
+                if (!IsDefined(v))
+                    v = T();
+            return PrepareConvolutionKernel<T>(m_AnalysisType,
+                                               TileCRef(cleansed),
+                                               UGrid<const T>(weightSize, cleansed->data()),
+                                               maxDataTileSize);
+        }
         return PrepareConvolutionKernel<T>(m_AnalysisType,
                                            weightShadowTile.m_TileHolder,
                                            UGrid<const T>(weightSize, weightShadowTile.begin()),
