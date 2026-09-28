@@ -53,11 +53,13 @@ Point<T> MinDistToRange(Point<T> v, Range<Point<T>> r)
 // Section      : Distance Measures
 //----------------------------------------------------------------------
 
+// The segment vectors are taken in R (see Diff): in the coordinate type an arc drawn towards smaller unsigned
+// coordinates had wrapped vectors, and its projection and distance were wrong (GEO-A34).
 template <typename R, typename T>
 inline Point<T> Project2Segm(const Point<T>& p, const Point<T>& a, const Point<T>& b)
 {
-	Point<T> ab = b-a;
-	Point<T> ap = p-a;
+	Point<R> ab = Diff<R>(b, a);
+	Point<R> ap = Diff<R>(p, a);
 
 	R c = InProduct<R>(ab, ap);
 	if (c<=0)
@@ -66,14 +68,17 @@ inline Point<T> Project2Segm(const Point<T>& p, const Point<T>& a, const Point<T
 	if (c > abSqrDist)
 		return b;
 
-	return a + Convert<Point<T> >(Convert<Point<R> >(ab) * (InProduct<R>(ap, ab) / abSqrDist));
+	if constexpr (std::is_unsigned_v<T>) // the offset from a can be negative; the projection itself lies between a and b
+		return Convert<Point<T> >(Convert<Point<R> >(a) + ab * (InProduct<R>(ap, ab) / abSqrDist));
+	else
+		return a + Convert<Point<T> >(ab * (InProduct<R>(ap, ab) / abSqrDist));
 }
 
 template <typename R, typename T>
 inline R SqrDist2Segm(const Point<T>& p, const Point<T>& a, const Point<T>& b)
 {
-	Point<T> ab = b-a;
-	Point<T> ap = p-a;
+	Point<R> ab = Diff<R>(b, a);
+	Point<R> ap = Diff<R>(p, a);
 
 	R c = InProduct<R>(ab, ap);
 	if ( c<=0 )
@@ -154,7 +159,7 @@ bool ArcProjectionHandle<R, T>::Project2LineString(ConstPointPtr arcBegin, Const
 		i = j,
 		nearestSegm = nullptr;
 
-	if (MakeSafeMin(Norm<sqrdist_type>(m_Point - *arcBegin)))
+	if (MakeSafeMin(SqrDist<sqrdist_type>(m_Point, *arcBegin)))
 		nearestSegm = arcBegin;
 
 	for (; ++j != arcEnd; i = j)

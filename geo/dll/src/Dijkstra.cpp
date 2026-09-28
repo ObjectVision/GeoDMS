@@ -434,10 +434,11 @@ struct NodeZoneConnector
 		dms_assert(dstZone < m_NetworkInfoPtr->nrDstZones);
 
 		// euclid(): reject the pair on straight-line distance before it costs a result slot or
-		// eats into the limit() mass budget. Note that SqrDist subtracts in the euclid_location_t
-		// (SPoint) domain, so a component difference beyond the Int16 range wraps -- always to a
-		// SMALLER magnitude, hence to a smaller sqrDist. The filter can therefore fail to prune a
-		// far pair, but never prunes a near one: it stays conservative and the result stays right.
+		// eats into the limit() mass budget. SqrDist subtracts the euclid_location_t (SPoint)
+		// coordinates in sqr_dist_t (UInt32), so it is exact while the squared distance fits in 32
+		// bits; beyond that the sum wraps to a SMALLER value. The filter can therefore fail to prune
+		// a very far pair, but never prunes a near one: it stays conservative and the result stays
+		// right. Until GEO-A34 the difference was taken in Int16 and wrapped beyond 32767 already.
 		if (m_OrgZoneLocations)
 		{
 			auto dstLocation = m_NetworkInfoPtr->endPoints.Zone_location[dstZone];

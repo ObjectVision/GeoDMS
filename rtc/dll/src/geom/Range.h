@@ -337,6 +337,24 @@ Range<T> Deflate(Range<T> r, T p) { return Range<T>(r.first+p, r.second-p); }
 template <class T> inline
 Range<T> Inflate(T center, T radius) { return Range<T>(center-radius, center+radius); }
 
+// For unsigned coordinates the box is clamped at 0 and at the largest value that is not null: center - radius
+// wrapped, so the search box around a point nearer to 0 than the radius was empty (GEO-A34).
+template <class T> inline
+Range<Point<T>> Inflate(Point<T> center, Point<T> radius)
+{
+	if constexpr (std::is_unsigned_v<T>)
+	{
+		auto lo = [](T c, T r) { return c > r ? T(c - r) : T(0); };
+		auto hi = [](T c, T r) { return r < MaxValue<T>() - c ? T(c + r) : MaxValue<T>(); };
+		return Range<Point<T>>(
+			Point<T>(lo(center.first, radius.first), lo(center.second, radius.second)),
+			Point<T>(hi(center.first, radius.first), hi(center.second, radius.second))
+		);
+	}
+	else
+		return Range<Point<T>>(center - radius, center + radius);
+}
+
 template <class T> inline T Left  (Range<Point<T> > r) { return r.first .Col(); }
 template <class T> inline T Top   (Range<Point<T> > r) { return r.first .Row(); }
 template <class T> inline T Right (Range<Point<T> > r) { return r.second.Col(); }

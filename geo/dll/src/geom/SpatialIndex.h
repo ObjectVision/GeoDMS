@@ -457,12 +457,23 @@ struct SpatialIndex
 			)
 			{
 				maxDepth = depth - 1;
-				SqrDistType result = Norm<SqrDistType>(
-					PointType(
-						Max<DistType>(p.first  - nodePtr->m_BoundingBox.first.first , nodePtr->m_BoundingBox.second.first  - p.first),
-						Max<DistType>(p.second - nodePtr->m_BoundingBox.first.second, nodePtr->m_BoundingBox.second.second - p.second)
-					)
-				);
+				SqrDistType result;
+				if constexpr (std::is_integral_v<DistType>)
+				{
+					// the farthest side of the box per axis, in Float64: in the coordinate type the side p lies beyond
+					// gave a negative difference, which wrapped for unsigned coordinates and won the Max (GEO-A34)
+					const auto& bb = nodePtr->m_BoundingBox;
+					Float64 dx = Max<Float64>(Float64(p.first ) - Float64(bb.first.first ), Float64(bb.second.first ) - Float64(p.first ));
+					Float64 dy = Max<Float64>(Float64(p.second) - Float64(bb.first.second), Float64(bb.second.second) - Float64(p.second));
+					result = SqrDistType(dx * dx + dy * dy);
+				}
+				else
+					result = Norm<SqrDistType>(
+						PointType(
+							Max<DistType>(p.first  - nodePtr->m_BoundingBox.first.first , nodePtr->m_BoundingBox.second.first  - p.first),
+							Max<DistType>(p.second - nodePtr->m_BoundingBox.first.second, nodePtr->m_BoundingBox.second.second - p.second)
+						)
+					);
 				if (sqrDist)
 					MakeMin(result, *sqrDist);
 				return result;

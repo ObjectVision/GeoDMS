@@ -38,7 +38,7 @@ SqrMaxDistTo(T c, T a, T b)
 	dms_assert(a <= b);
 	return Max(
 		(a<c) ? Sqr(sqr_acc_type<T>::type(c-a)) : 0
-	,	(b>c) ? Sqr(sqr_acc_type<T>::type(c-b)) : 0
+	,	(b>c) ? Sqr(sqr_acc_type<T>::type(b-c)) : 0 // b-c, not c-b, which wraps for unsigned coordinates (GEO-A34)
 	);
 }
 

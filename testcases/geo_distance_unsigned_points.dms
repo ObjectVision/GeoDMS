@@ -1,0 +1,50 @@
+// GEO-A34: distances between points with unsigned coordinates are computed from a signed difference. The
+// distance kernels subtracted in the coordinate type, so 9 - 10 on a wpoint wrapped to 65535:
+//  - join_near_values found B = (9, 10) near A = (10, 10) within 2, but not A near B;
+//  - connect_info found no upoint arc at all for the point (5, 5) near the arc between (0, 2) and (20, 2),
+//    drawn either way: the proximity bound and the search box around the point wrapped, and the segment
+//    vectors of the arc drawn towards 0 wrapped as well. Expected are distance 3 and cut point (5, 2).
+// An arc that lies exactly on the axis x = 0 or y = 0 is still not found: the index compares two boxes
+// strictly on both sides, and the search box of an unsigned point cannot reach below 0.
+// Expected: exit 0 on /checks.
+container geo_distance_unsigned_points
+{
+	unit<wpoint> W;
+	unit<uint32> A: nrofrows = 1 { attribute<W> p := const(point_xy(uint16(10), uint16(10), W), .); }
+	unit<uint32> B: nrofrows = 1 { attribute<W> p := const(point_xy(uint16(9),  uint16(10), W), .); }
+	unit<uint32> AB := join_near_values(A/p, B/p, 2.0);
+	unit<uint32> BA := join_near_values(B/p, A/p, 2.0);
+
+	unit<upoint> U;
+	unit<uint32> ArcPoints0 : nrofrows = 2 // road 0 runs from (20, 2) to (0, 2)
+	{
+		attribute<uint32> x       : [20, 0];
+		attribute<U>      point   := point_xy(x, const(2, .), U);
+		attribute<Road0>  seq_rel : [0, 0];
+		attribute<uint32> ordinal := id(.);
+	}
+	unit<uint32> ArcPoints1 : nrofrows = 2 // road 1 runs back, from (0, 2) to (20, 2)
+	{
+		attribute<uint32> x       : [0, 20];
+		attribute<U>      point   := point_xy(x, const(2, .), U);
+		attribute<Road1>  seq_rel : [0, 0];
+		attribute<uint32> ordinal := id(.);
+	}
+	unit<uint32> Road0 : nrofrows = 1 { attribute<U> geometry (arc) := points2sequence(ArcPoints0/point, ArcPoints0/seq_rel, ArcPoints0/ordinal); }
+	unit<uint32> Road1 : nrofrows = 1 { attribute<U> geometry (arc) := points2sequence(ArcPoints1/point, ArcPoints1/seq_rel, ArcPoints1/ordinal); }
+	unit<uint32> Pnt : nrofrows = 1 { attribute<U> geometry := const(point_xy(5, 5, U), .); }
+
+	container ci0 := connect_info(Road0/geometry, Pnt/geometry);
+	container ci1 := connect_info(Road1/geometry, Pnt/geometry);
+
+	container checks
+	{
+		parameter<uint32> nAB := #AB, IntegrityCheck = "nAB == 1";
+		parameter<uint32> nBA := #BA, IntegrityCheck = "nBA == 1";
+
+		parameter<float64> d0 := sum(ci0/dist), IntegrityCheck = "d0 == 3.0";
+		parameter<float64> d1 := sum(ci1/dist), IntegrityCheck = "d1 == 3.0";
+		parameter<uint32>  c0 := sum(uint32(ci0/CutPoint == const(point_xy(5, 2, U), Pnt))), IntegrityCheck = "c0 == 1";
+		parameter<uint32>  c1 := sum(uint32(ci1/CutPoint == const(point_xy(5, 2, U), Pnt))), IntegrityCheck = "c1 == 1";
+	}
+}

@@ -367,10 +367,29 @@ inline ReturnType Norm(PU point)
 	return InProduct<ReturnType>(point, point);
 }
 
+// The difference p1 - p2 in ReturnType. Integer coordinates are converted before they are subtracted: in the
+// coordinate type an unsigned difference wraps (9 - 10 is 65535 on a wpoint) and a 16-bit one is cut back to
+// 16 bits (spoint), which made the distance kernels over such points wrong (GEO-A34). Float coordinates are
+// subtracted in their own type, as before, so their results do not change.
+template <typename ReturnType, typename T>
+inline Point<ReturnType> Diff(const Point<T>& p1, const Point<T>& p2)
+{
+	if constexpr (std::is_integral_v<T>)
+		return Point<ReturnType>(ReturnType(p1.first) - ReturnType(p2.first), ReturnType(p1.second) - ReturnType(p2.second));
+	else
+		return Point<ReturnType>(ReturnType(p1.first - p2.first), ReturnType(p1.second - p2.second));
+}
+
 template <typename ReturnType, typename PU>
-inline ReturnType SqrDist(PU p1, PU p2)
+inline ReturnType SqrDist(PU p1, PU p2) // for point types of their own, such as GPoint
 {
 	return Norm<ReturnType>(p1-p2);
+}
+
+template <typename ReturnType, typename T>
+inline ReturnType SqrDist(const Point<T>& p1, const Point<T>& p2)
+{
+	return Norm<ReturnType>(Diff<ReturnType>(p1, p2));
 }
 
 template <typename T> struct is_fixed_size_element : is_numeric<T> {};
