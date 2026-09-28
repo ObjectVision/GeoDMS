@@ -1,0 +1,46 @@
+// GEO-A20: the atomic region unit must have a range that starts at 0, as the allocation operators index
+// the atomic region counts and the partitionings with its ids. AtomicRegion is range(uint16, 1, 4) here:
+// the land units were counted per atomic region at id - 1 and looked up at the id itself, so every land
+// unit was allocated against the region and count of the next atomic region, and the top value 3 was
+// refused as out of range.
+// Expected: exit nonzero on /checks
+// ("the atomic region unit must have a range that starts at 0 ...").
+// See oper_alloc_partitioning.dms, the same allocation on zero-based units.
+container oper_alloc_atomic_region_base_neg
+{
+	unit<uint8>  Parts : nrofrows = 2 { attribute<string> name : ['PA', 'PB']; }
+	unit<uint8>  LuType : nrofrows = 2
+	{
+		attribute<string> name         : ['LuA', 'LuB'];
+		attribute<Parts>  partitioning : [0, 1];
+	}
+	unit<uint8>  RegA : nrofrows = 2;
+	unit<uint8>  RegB : nrofrows = 1;
+
+	unit<uint16> AtomicRegion := range(uint16, uint16(1), uint16(4))
+	{
+		attribute<RegA> PA : [0, 1, 1];
+		attribute<RegB> PB : [0, 0, 0];
+	}
+	unit<uint32> Cell : nrofrows = 8
+	{
+		attribute<uint32>       raw : [1, 1, 2, 2, 1, 1, 2, 1];
+		attribute<AtomicRegion> ar  := value(uint16(raw), AtomicRegion);
+	}
+	container Suit
+	{
+		attribute<int32> LuA (Cell) : [9, 8, 7, 6, 5, 4, 3, 2];
+		attribute<int32> LuB (Cell) : [2, 3, 4, 5, 6, 7, 8, 9];
+	}
+	container CMin { attribute<uint32> LuA (RegA) : [0, 0]; attribute<uint32> LuB (RegB) : [0]; }
+	container CMax { attribute<uint32> LuA (RegA) : [1, 4]; attribute<uint32> LuB (RegB) : [8]; }
+	parameter<int32> thr := 0i;
+	container Feasible;
+
+	container da := discrete_alloc(LuType/name, Cell, Suit, LuType/partitioning, Parts/name, AtomicRegion, Cell/ar, CMin, CMax, thr, Feasible);
+
+	container checks
+	{
+		parameter<bool> flag := da/statusFlag, IntegrityCheck = "flag == true";
+	}
+}

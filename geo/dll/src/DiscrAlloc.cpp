@@ -2032,9 +2032,23 @@ void PreparePartitionings(htp_info_t<S, P, AR, AT>& htpInfo, const AbstrUnit* al
 		assert(atomicRegionUnit);
 		assert(htpInfo.m_NrUniqueRegions == 0);
 
+		// Atomic region and region ids index the counts, the partitionings and the claims from 0. On a unit whose range
+		// starts elsewhere, as for imported ids (range(uint32, 1, N + 1)), the land units were counted at id - first but
+		// looked up at the id itself, the claims of region v + 1 bound region v, and the top value was refused (GEO-A20).
+		auto checkZeroBased = [](const AbstrUnit* u, SharedStr role)
+			{
+				if (!u->IsOrdinalAndZeroBased())
+					throwErrorF("discrete_alloc", "the {} must have a range that starts at 0, as its ids are used as indices, but its range is {}"
+						, role, u->GetRangeAsStr(FormattingFlags::None).c_str());
+			};
+		checkZeroBased(atomicRegionUnit, SharedStr("atomic region unit"));
+
 		for (UInt32 j = 0; j != p; ++j)
 		{
 			partitioning_info_t<AR>& pInfo = htpInfo.m_Partitionings[j];
+
+			if (pInfo.m_HasPartitioningDI) // otherwise the partitioning is the atomic region unit itself
+				checkZeroBased(pInfo.GetPartitioningUnit().get(), mySSPrintF("region unit of partitioning {}", pInfo.GetName()));
 
 			UInt32 nrRegions = pInfo.GetPartitioningUnit()->GetCount();
 
