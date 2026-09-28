@@ -37,6 +37,13 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 	:	m_SerFunc(f) 
 	{}
 
+	// the _with_null forms of asExprList and asItemList (CLC-A10); a serialiser without the option ignores it
+	void SetWithNull(bool withNull)
+	{
+		if constexpr (requires { m_SerFunc.m_WithNull; })
+			m_SerFunc.m_WithNull = withNull;
+	}
+
 	SharedStr InitialValue() const 
 	{
 		return {};
@@ -97,6 +104,13 @@ struct unary_assign_string_partial_accumulation : unary_partial_accumulation<Sha
 	unary_assign_string_partial_accumulation(const TSerFunc& assignFunc = TSerFunc())
 		:	m_AssignFunc(assignFunc) {}
 
+	// the _with_null forms of asExprList and asItemList (CLC-A10); a serialiser without the option ignores it
+	void SetWithNull(bool withNull)
+	{
+		if constexpr (requires { m_AssignFunc.m_WithNull; })
+			m_AssignFunc.m_WithNull = withNull;
+	}
+
 	void InspectData(length_finder_array& lengthFinderArray, value_cseq input, const IndexGetter* indices) const
 	{ 
 		aggr_fw_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
@@ -122,6 +136,33 @@ private:
 //											asexprlist
 /*****************************************************************************/
 
+// The expression that gives the null value of T, as registered in OperConv.cpp; nullptr for a type without one.
+template <typename T>
+constexpr CharPtr NullValueExpr()
+{
+	if constexpr (std::is_same_v<T, UInt8    >) return "null_b";
+	else if constexpr (std::is_same_v<T, UInt16   >) return "null_w";
+	else if constexpr (std::is_same_v<T, UInt32   >) return "null_u";
+	else if constexpr (std::is_same_v<T, UInt64   >) return "null_u64";
+	else if constexpr (std::is_same_v<T, Int8     >) return "null_c";
+	else if constexpr (std::is_same_v<T, Int16    >) return "null_s";
+	else if constexpr (std::is_same_v<T, Int32    >) return "null_i";
+	else if constexpr (std::is_same_v<T, Int64    >) return "null_i64";
+	else if constexpr (std::is_same_v<T, Float32  >) return "null_f";
+	else if constexpr (std::is_same_v<T, Float64  >) return "null_d";
+	else if constexpr (std::is_same_v<T, SPoint   >) return "null_sp";
+	else if constexpr (std::is_same_v<T, WPoint   >) return "null_wp";
+	else if constexpr (std::is_same_v<T, IPoint   >) return "null_ip";
+	else if constexpr (std::is_same_v<T, UPoint   >) return "null_up";
+	else if constexpr (std::is_same_v<T, FPoint   >) return "null_fp";
+	else if constexpr (std::is_same_v<T, DPoint   >) return "null_dp";
+	else if constexpr (std::is_same_v<T, SharedStr>) return "null_str";
+	else return nullptr;
+}
+
+// asExprList leaves a null value out; asExprList_with_null (m_WithNull) writes it as the expression of the null value of
+// its value type, null_i for int32, so that the list parses back (CLC-A10). Before, both wrote every value, a null of a
+// number as null and a null string as ''.
 template <typename T> 
 struct unary_ser_asexprlist : unary_assign<OutStreamBuff, T>
 {
@@ -129,12 +170,22 @@ struct unary_ser_asexprlist : unary_assign<OutStreamBuff, T>
 
 	void operator()(typename unary_ser_asexprlist::assignee_ref assignee, typename unary_ser_asexprlist::arg1_cref arg) const
 	{ 
+		bool isNull = !IsDefined(arg);
+		if (isNull && !m_WithNull)
+			return;
 		FormattedOutStream os(&assignee, FormattingFlags::None);
 		if (assignee.CurrPos())
 			os << ";";
+		if constexpr (NullValueExpr<T>() != nullptr)
+			if (isNull)
+			{
+				os << NullValueExpr<T>();
+				return;
+			}
 		WriteDataString(os, arg);
 	}
 
+	bool m_WithNull = false;
 	using dms_result_type = SharedStr;
 };
 
@@ -214,12 +265,26 @@ struct unary_ser_asitemlist
 
 	using dms_result_type = SharedStr;
 
+	// asItemList leaves a null value out, as it leaves out an empty string; asItemList_with_null (m_WithNull) writes it
+	// as null_str, the expression of a null string (CLC-A10).
 	void operator()(assignee_ref assignee, arg1_cref arg) const	
 	{ 
+		if (!IsDefined(arg))
+		{
+			if (!m_WithNull)
+				return;
+			if (assignee.CurrPos())
+				assignee.WriteByte(',');
+			constexpr CharPtr nullStr = "null_str";
+			assignee.WriteBytes(nullStr, std::char_traits<char>::length(nullStr));
+			return;
+		}
 		if (assignee.CurrPos() && arg.size())
 			assignee.WriteByte(',');
 		assignee.WriteBytes(begin_ptr( arg ), arg.size());
 	}
+
+	bool m_WithNull = false;
 };
 
 // total: 

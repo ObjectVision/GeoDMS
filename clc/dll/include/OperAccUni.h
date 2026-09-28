@@ -578,7 +578,11 @@ struct OperAccPartUniSer : FuncOperAccPartUni<TAcc1Func, OperAccPartUni<typename
 
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
-		CalcOperAccPartUniSer<TAcc1Func>(res, arg1A, arg2A, this->m_Acc1Func);
+		// the _with_null forms are registered with valueMustBeDefined false (CLC-A10)
+		TAcc1Func acc1Func = this->m_Acc1Func;
+		if constexpr (requires { acc1Func.SetWithNull(true); })
+			acc1Func.SetWithNull(!this->m_ValueMustBeDefined);
+		CalcOperAccPartUniSer<TAcc1Func>(res, arg1A, arg2A, acc1Func);
 	}
 };
 

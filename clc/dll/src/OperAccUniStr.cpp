@@ -70,10 +70,15 @@ struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 
 		Assign(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0], this->m_Acc1Func.InitialValue());
 
+		// the _with_null forms are registered with valueMustBeDefined false, which was never read (CLC-A10)
+		TAcc1Func acc1Func = this->m_Acc1Func;
+		if constexpr (requires { acc1Func.SetWithNull(true); })
+			acc1Func.SetWithNull(!this->m_ValueMustBeDefined);
+
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 		for (tile_id t = 0; t!=tn; ++t)
-			this->m_Acc1Func(resultData[0], arg1->GetTile(t));
+			acc1Func(resultData[0], arg1->GetTile(t));
 	}
 };
 

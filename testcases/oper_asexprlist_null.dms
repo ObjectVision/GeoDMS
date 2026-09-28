@@ -1,0 +1,36 @@
+// CLC-A10: asExprList and asItemList leave a null value out; their _with_null forms write it as the expression of the
+// null value of its value type, null_i for int32 and null_str for a string, so that the list parses back and a
+// modeller can see or replace it. Before, the _with_null forms were registered but behaved as the plain ones:
+// asExprList wrote every value, a null number as null and a null string as '', and asItemList left nulls out.
+// Expected: exit 0 on /checks.
+container oper_asexprlist_null
+{
+	unit<uint8> P: nrofrows = 2;
+	unit<uint32> D: nrofrows = 3
+	{
+		attribute<int32>  i : [3, null, 1];
+		attribute<string> s : ['a', null, 'c'];
+		attribute<P>      part : [0, 0, 1];
+	}
+	parameter<string> ei   := asExprList(D/i);
+	parameter<string> eiN  := asExprList_with_null(D/i);
+	parameter<string> es   := asExprList(D/s);
+	parameter<string> esN  := asExprList_with_null(D/s);
+	parameter<string> is   := asItemList(D/s);
+	parameter<string> isN  := asItemList_with_null(D/s);
+	attribute<string> eiP  (P) := asExprList(D/i, D/part);
+	attribute<string> eiPN (P) := asExprList_with_null(D/i, D/part);
+
+	container checks
+	{
+		parameter<bool> c_ei   := ei  == '3;1',          IntegrityCheck = "c_ei == true";
+		parameter<bool> c_eiN  := eiN == '3;null_i;1',   IntegrityCheck = "c_eiN == true";
+		parameter<bool> c_es   := strlen(es) == 7 && strcount(es, 'null') == 0,         IntegrityCheck = "c_es == true";  // 'a';'c'
+		parameter<bool> c_esN  := strlen(esN) == 16 && strcount(esN, 'null_str') == 1, IntegrityCheck = "c_esN == true"; // 'a';null_str;'c'
+		parameter<bool> c_is   := is  == 'a,c',          IntegrityCheck = "c_is == true";
+		parameter<bool> c_isN  := isN == 'a,null_str,c', IntegrityCheck = "c_isN == true";
+		parameter<bool> c_eiP0 := eiP[0b]  == '3',        IntegrityCheck = "c_eiP0 == true";
+		parameter<bool> c_eiP1 := eiP[1b]  == '1',        IntegrityCheck = "c_eiP1 == true";
+		parameter<bool> c_eiPN := eiPN[0b] == '3;null_i', IntegrityCheck = "c_eiPN == true";
+	}
+}
