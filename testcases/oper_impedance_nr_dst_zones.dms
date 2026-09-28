@@ -1,0 +1,33 @@
+// GEO-A30: OrgZone_NrDstZones counts the destination zones an origin reaches, in both regimes. Without cut()
+// or limit() impedance_matrix runs in the dense regime, where every destination zone owns a result slot, and
+// NrDstZones reported that slot count, so every origin got the number of destination zones, reached or not.
+// The network is the directed line 0 -> 1 -> 2 with links of length 1; node 3 has no link. From node 0 the
+// end points on nodes 0, 1 and 2 are reached, from node 2 only the one on node 2. The sparse run, with a cut
+// far above every impedance, reaches the same zones and gives the same counts.
+// Expected: exit 0 on /checks.
+container oper_impedance_nr_dst_zones
+{
+	unit<uint32> V: nrofrows = 4;
+	unit<uint32> Link: nrofrows = 2
+	{
+		attribute<float32> dist: [1, 1];
+		attribute<V>       F1:   [0, 1];
+		attribute<V>       F2:   [1, 2];
+	}
+	unit<uint32> Start: nrofrows = 2 { attribute<V> Node_rel: [0, 2]; }
+	unit<uint32> End:   nrofrows = 4 { attribute<V> Node_rel: [0, 1, 2, 3]; }
+
+	unit<uint32> dense  := impedance_matrix('directed;startPoint(Node_rel);endPoint(Node_rel);interaction:NrDstZones'
+		, Link/dist, Link/F1, Link/F2, Start/Node_rel, End/Node_rel);
+	unit<uint32> sparse := impedance_matrix('directed;startPoint(Node_rel);endPoint(Node_rel);cut(OrgZone_max_imp);interaction:NrDstZones'
+		, Link/dist, Link/F1, Link/F2, Start/Node_rel, End/Node_rel, 100f);
+
+	container checks
+	{
+		attribute<uint32> nDense  (Start) := uint32(dense/OrgZone_NrDstZones);
+		attribute<uint32> nSparse (Start) := uint32(sparse/OrgZone_NrDstZones);
+
+		parameter<bool> denseCounts  := nDense[0] == 3 && nDense[1] == 1,   IntegrityCheck = "denseCounts == true";
+		parameter<bool> sparseCounts := nSparse[0] == 3 && nSparse[1] == 1, IntegrityCheck = "sparseCounts == true";
+	}
+}

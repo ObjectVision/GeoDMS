@@ -402,6 +402,7 @@ struct NodeZoneConnector
 	void ResetSrc(ZoneType orgZone)
 	{
 		++m_CurrSrcZoneTick;
+		m_NrReachedZones = 0;
 		if (IsDense())
 		{
 			fast_undefine(m_ResImpPerDstZone.begin(), m_ResImpPerDstZone.begin() + m_NetworkInfoPtr->nrDstZones);
@@ -471,6 +472,7 @@ struct NodeZoneConnector
 		m_ResImpPerDstZone[dstZone] = dstImp;
 		if (m_FoundYPerDstZone)
 			m_FoundYPerDstZone[dstZone] = y;
+		++m_NrReachedZones;
 		return true;
 	}
 
@@ -512,6 +514,16 @@ struct NodeZoneConnector
 		if (IsDense())
 			return m_NetworkInfoPtr->nrDstZones;
 		return (ZoneType)m_FoundYPerRes.size();
+	}
+
+	// The number of destination zones this origin reached, the count NrDstZones reports. In the sparse regime it
+	// equals ZonalResCount(); in the dense regime every destination zone owns a result slot, reached or not, and
+	// NrDstZones used to report that slot count (GEO-A30).
+	ZoneType NrReachedZones() const
+	{
+		dms_assert(IsDefined(m_CurrSrcZoneTick));
+		dms_assert(IsDense() || m_NrReachedZones == m_FoundYPerRes.size());
+		return m_NrReachedZones;
 	}
 
 	bool IsConnected(ZoneType zoneID) const
@@ -582,6 +594,7 @@ struct NodeZoneConnector
 	const network_info* m_NetworkInfoPtr = nullptr;
 
 	ZoneType m_CurrSrcZoneTick = UNDEFINED_VALUE(ZoneType);
+	ZoneType m_NrReachedZones = 0;
 
 	OwningPtrSizedArray<ImpType>  m_ResImpPerDstZone;
 	OwningPtrSizedArray<ZoneType> m_FoundYPerDstZone;
@@ -917,7 +930,7 @@ SizeT WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 	}
 
 	if (res.orgZone_NrDstZones)
-		res.orgZone_NrDstZones[orgZone] = zonalResultCount;
+		res.orgZone_NrDstZones[orgZone] = nzc.NrReachedZones();
 
 	return resultCountBase;
 }
@@ -2160,7 +2173,7 @@ public:
 			od(DijkstraFlag::ProdOrgDemand,        "M_ix",                no_sig_var, OZ, ValueComposition::Single);
 			od(DijkstraFlag::ProdDstFactor,        "C_j",                 no_sig_var, DZ, ValueComposition::Single);
 			od(DijkstraFlag::ProdDstSupply,        "M_xj",                no_sig_var, DZ, ValueComposition::Single);
-			od(DijkstraFlag::ProdOrgNrDstZones,    "OrgZone_NrDstZones",  DZ,         OZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdOrgNrDstZones,    "OrgZone_NrDstZones",  no_sig_var, OZ, ValueComposition::Single);
 			od(DijkstraFlag::ProdOrgSumImp,        "OrgZone_SumImp",      I,          OZ, ValueComposition::Single);
 			od(DijkstraFlag::ProdOrgSumLinkAttr,   "OrgZone_SumLinkAttr", no_sig_var, OZ, ValueComposition::Single);
 			od(DijkstraFlag::ProdOrgMaxImp,        "OrgZone_MaxImp",      I,          OZ, ValueComposition::Single);
@@ -2487,8 +2500,9 @@ public:
 			? CreateDataItem(resultContext, GetTokenID_mt("M_xj"), dstZones, mijMassUnit).get() // owned by resultContext
 			: nullptr;
 
+		// a count, so a plain count unit: in the destination zone unit the count of an origin that reaches every zone lay outside its own range (GEO-A30)
 		AbstrDataItem* resOrgNrDstZones = flags(df & DijkstraFlag::ProdOrgNrDstZones)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_NrDstZones"), orgZonesOrVoid, dstZones).get() // owned by resultContext
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_NrDstZones"), orgZonesOrVoid, Unit<ZoneType>::GetStaticClass()->CreateDefault()).get() // owned by resultContext
 			: nullptr;
 
 		AbstrDataItem* resOrgSumImp = flags(df & DijkstraFlag::ProdOrgSumImp)
