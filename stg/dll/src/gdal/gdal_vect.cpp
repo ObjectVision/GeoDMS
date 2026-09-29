@@ -794,11 +794,12 @@ void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* la
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Point Feature {}", i + firstIndex); }
 	);
 
+	bool interleaved = hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i!=size; ++i)
 	{
 		typename DataArray<PointType>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
 		if (feat)
 			if (OGRGeometry* geo = feat->GetGeometryRef())
 				if (OGRPoint* point = dynamic_cast<OGRPoint*>(geo))
@@ -827,10 +828,11 @@ void ReadPointZM(typename sequence_traits<T>::seq_t data, OGRLayer* layer, SizeT
 		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("Reading {} coordinate of Point Feature {}", isZ ? "Z" : "M", i + firstIndex); }
 	);
 
+	bool interleaved = hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i != size; ++i)
 	{
 		typename DataArray<T>::reference dataElemRef = data[i];
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
 		if (geo)
 		{
@@ -872,11 +874,12 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature {}", i + firstIndex); }
 	);
 
+	bool interleaved = m_hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i!=size; ++i)
 	{
 		typename DataArray<PolygonType>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat ->GetGeometryRef() : nullptr;
 
 		if (!geo) {
@@ -995,11 +998,12 @@ void ReadMultiPointData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature {}", i + firstIndex); }
 	);
 
+	bool interleaved = m_hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i != size; ++i)
 	{
 		typename DataArray<PolygonType>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
 
 		if (!geo) {
@@ -1046,11 +1050,12 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading {} coordinates of Feature {}", isZ ? "Z": "M", i + firstIndex); }
 	);
 
+	bool interleaved = m_hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i != size; ++i)
 	{
 		typename DataArray<SeqType>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
 
 		if (!geo) {
@@ -1170,11 +1175,12 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature {}", i + firstIndex); }
 	);
 
+	bool interleaved = m_hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i != size; ++i)
 	{
 		typename DataArray<PolygonType>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
 
 		if (!geo) {
@@ -1286,11 +1292,12 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading {} coordinates of Feature {}", isZ ? "Z": "M", i + firstIndex); }
 	);
 
+	bool interleaved = m_hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i != size; ++i)
 	{
 		typename DataArray<SeqType>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
 
 		if (!geo) {
@@ -1401,11 +1408,12 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading String Element {}", i + firstIndex); }
 	);
 
+	bool interleaved = hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (i=0; i!=size; ++i)
 	{
 		DataArray<SharedStr>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr  feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat ->GetGeometryRef() : nullptr;
 		if (geo)
 		{
@@ -1618,14 +1626,14 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading String Field {}", i + firstIndex); }
 	);
 
+	bool interleaved = hDS->TestCapability(ODsCRandomLayerRead); // once per read, not per feature (STG-A30)
 	for (; i!=size; ++i)
 	{
-		if (!(i & 0xf000))
+		if (!(i & 0x0fff)) // every 4096 rows; 0xf000 checked 4096 rows in a row of every 65536 (STG-A30)
 			ASyncContinueCheck();
 
 		DataArray<SharedStr>::reference dataElemRef = data[i];
-		bool dataset_has_random_layer_read_capability = hDS->TestCapability(ODsCRandomLayerRead);
-		gdalVectImpl::FeaturePtr feat = dataset_has_random_layer_read_capability ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		gdalVectImpl::FeaturePtr feat = interleaved ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
 		if (!feat)
 		{
 			Assign(dataElemRef, Undefined());
