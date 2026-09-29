@@ -310,6 +310,15 @@ Conventions that the existing pages follow, worth matching:
 - **Keep the issue debrief and the wiki distinct**: the issue records what was wrong, how it was
   diagnosed and what was measured; the wiki records only what a modeller must now do differently.
 
+## Plan documents: the status line moves with the status
+
+The design and plan documents in the repository root, `doc/` and `doc/development/` open with a
+status line. A commit that lands, finishes, drops or reverts work that such a document plans
+changes that line in the same commit: dated, and naming the commit or the phase. The code audit
+of 2026-09-27 found seven documents that said "no code changes yet", "uncommitted" or "deferred"
+for work that had landed weeks earlier (PLN-A08); a reader picking work from them would have
+redone it.
+
 ## Build & headless-run gotchas
 
 - **`'pwsh.exe' is not recognized` post-build line is noise.** A post-build event shells out to

@@ -1,6 +1,11 @@
 # Plan: extend `CrdTransformation` to rotation, 3D rotation and projective tilting
 
-Status: design / planning. No code changed yet.
+Status (2026-09-29): phases 1 to 6 landed on 2026-06-18 (73a15ee38 for 1 to 3, 139217657 to
+5d699a737 for 4 and 5, 0aa886eb1 to 118c4f0e9 for 6), with the navigation gestures of phase 7 and the
+view tilt of phase 8, and their fixes up to 2026-06-21 (c058dcd00), from branch `MapView_Tilting`;
+phase 9, z-attribute vector layers, has no commit. Since 20.22.0 `tif` and world files refuse a rotated
+georeference (225d2ea3d), and `gdal.grid` reads one in the build's point order (106342e56).
+Until the code audit of 2026-09-27 (PLN-A08) this line said "No code changed yet".
 
 ## 0. Scope and vocabulary
 

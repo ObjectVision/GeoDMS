@@ -1,6 +1,6 @@
 # K11 — Container / Record Types in the Definition-Time Type Language (scope)
 
-Scoping for the remaining-work item **"K11 — container-shaped types in `DefType`"** (`typed-hof-remaining-work.md` §2, `[substantial]`, deferred). Motivating case: a user composite type used as a formal parameter whose *structure* is checked — e.g. a network relating edges twice to nodes, both unsigned-integer units:
+Scoping for the remaining-work item **"K11 — container-shaped types in `DefType`"** (`typed-hof-remaining-work.md` §2, `[substantial]`, deferred when this scope was written on 2026-07-25). *Status (2026-09-29): K11a-1 to K11a-4 and K11b landed between 2026-07-26 and 2026-07-28 (08ac5c8f5 to 04df0de56); sections 4 and 5 record each step.* Motivating case: a user composite type used as a formal parameter whose *structure* is checked — e.g. a network relating edges twice to nodes, both unsigned-integer units:
 
 ```
 network_links: unit<uint32> { nodeset: unit<uint32>; F1, F2: attribute<nodeset>; }

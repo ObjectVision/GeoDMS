@@ -1,6 +1,9 @@
 # dms_union_polygon in bp's shape: one lattice, one noding, one sweep
 
-Status: implemented in the working tree on 2026-09-07 (uncommitted), for GeoDMS #1214 follow-up.
+Status: implemented on 2026-09-07 and committed as f136489d7 on 2026-09-08, for GeoDMS #1214 follow-up.
+The one-element shortcut is for single rings only, and since e73a7d403 (#1283) only a ring that is
+simple on the lattice skips the sweep; the `Prepare` hook described below was not implemented.
+Until the code audit of 2026-09-27 (PLN-A08) this line said "uncommitted". The rest of this paragraph is as written then.
 Five incremental builds. On the fifth, tier 1 is 16 of 16: the eight `oper_dms_overlay*.dms`
 cases (the parity path, untouched), `oper_dms_family.dms`, the new `oper_dms_union_counts.dms`
 and `oper_dms_union_steep.dms`, `oper_minkowski.dms`, the ring_encoding and t020 synthetic

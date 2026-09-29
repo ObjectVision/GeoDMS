@@ -1,6 +1,13 @@
 # Teardown leak & TreeItem ownership cycles (investigation handoff)
 
-Branch `MapView_Tilting`, 2026-06-27. **All work below is uncommitted.** This note is the restart
+*Status (2026-09-29): historical. The work below was committed in 723c670b1 on the day this note was
+written, and the leak it hunts was closed by the `std::shared_ptr` migration of the TreeItem family on
+2026-06-28 (3f17a26e5 to ae5fecde5; the temporary instrumentation of section 4 went in bae0848ce). The
+tile-functor cycle of section 3 came back through the apply function that `OperAttrBin` captured, and
+was cut again in 0fc692c63 (TIC-A10). Until the code audit of 2026-09-27 (PLN-A08) the next line said that all work was
+uncommitted.*
+
+Branch `MapView_Tilting`, 2026-06-27. This note is the restart
 handoff for the DataController / LispRef teardown leak hunt and the surrounding ownership-model work.
 
 ---

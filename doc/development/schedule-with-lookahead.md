@@ -1,6 +1,10 @@
 # Schedule with lookahead — resource-estimating, throttling and (re)ordering OperationContext execution
 
-*Status: design plan (no code changes yet). Drafted 2026-07-28 on branch `hof_syntax`.*
+*Status (2026-09-29): P0 and P1 are done; P2, the ledger and the admission gate, is in behind the
+`/SQ` scheduling flag, default off (§8.1.2, §8.1.33), and the free-store drainage that came out of it
+ships since 20.11.0 (§8.1.32); §8 reports nothing of P3 to P5. §8.1 is the running log. The deferral
+of commits and IntegrityChecks that 20.20.0 added under #1259 is gone again (a7127224f, 92eaa7150).
+Drafted 2026-07-28 on branch `hof_syntax`. Until the code audit of 2026-09-27 (PLN-A08) this line said "no code changes yet".*
 *Scope: `rtc/dll/src/tic` scheduling core, `Operator` interface, storage-read path, `PhaseContainer`.*
 
 ---
