@@ -89,14 +89,6 @@ if errorlevel 1 (
     if ErrorLevel 2 goto :build_failed
 )
 
-REM Wipe the build OUTPUT folder (the final DLLs/EXEs/import-libs that NSIS
-REM packages) before building, so obsolete binaries from before a component
-REM rename/removal cannot linger in bin\Release\x64 and ship in the installer.
-REM Intermediate .obj/.tlog live under each project's IntDir (not here), so this
-REM stays a fast incremental compile + full relink/redeploy, not a full rebuild.
-REM (Runs after the lock check above so no held handle can block the rmdir.)
-if exist "bin\Release\x64" rmdir /s /q "bin\Release\x64"
-
 REM Mirror the vcpkg roots that DmsDef.props passes to msbuild as command-line options
 REM (VcpkgAdditionalInstallOptions: --binarysource / --downloads-root) into the environment,
 REM so the drift check below queries the SAME cache + tools the build will use. Querying the
@@ -115,8 +107,17 @@ REM baseline bump. CHOICE has a 30s timeout defaulting to Yes so Build.bat stays
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\vcpkg-drift-check.ps1" -Triplet x64-windows-v145
 if errorlevel 1 if not errorlevel 2 (
     choice /C YN /T 30 /D Y /M "Continue with this build"
-    if errorlevel 2 goto :eof
+    if errorlevel 2 goto :build_failed
 )
+
+REM Wipe the build OUTPUT folder (the final DLLs/EXEs/import-libs that NSIS
+REM packages) before building, so obsolete binaries from before a component
+REM rename/removal cannot linger in bin\Release\x64 and ship in the installer.
+REM Intermediate .obj/.tlog live under each project's IntDir (not here), so this
+REM stays a fast incremental compile + full relink/redeploy, not a full rebuild.
+REM (Runs after the lock check above so no held handle can block the rmdir, and after the
+REM drift check above, so that answering N there leaves the previous build in place: BAT-A34.)
+if exist "bin\Release\x64" rmdir /s /q "bin\Release\x64"
 
 REM Re-apply the qtdeploy.targets MSB4023 fix if the Qt VS Tools extension has clobbered it
 REM again. The extension re-extracts %LOCALAPPDATA%\QtMsBuild from its package not only on

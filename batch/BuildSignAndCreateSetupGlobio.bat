@@ -53,13 +53,14 @@ if errorlevel 1 (
     if errorlevel 2 goto :build_failed
 )
 
-if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
-
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\vcpkg-drift-check.ps1" -Triplet x64-windows-v143 -ManifestRoot "%geodms_rootdir%\vcpkg-globio" -InstallRoot "%geodms_rootdir%\vcpkg_installed_GLOBIO"
 if errorlevel 1 if not errorlevel 2 (
     choice /C YN /T 30 /D Y /M "Continue with the G build"
     if errorlevel 2 goto :build_failed
 )
+
+REM After the drift check, so that answering N there leaves the previous build in place (BAT-A34).
+if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\patch-qtdeploy-targets.ps1"
 
