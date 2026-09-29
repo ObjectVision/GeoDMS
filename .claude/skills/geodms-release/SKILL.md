@@ -32,6 +32,14 @@ script's gate still runs `unit_linux.sh` on the build tree, not on the installed
 uninstaller of the `.m` and `.g` setups left `examples`, `library`, `prelude.dms` and the
 folder behind; it now deletes them, as the `.c` one did. A setup run since then that still
 leaves them behind means the uninstall section is wrong again.
+Before it installs, each Windows script removes a previous installation of the same version
+with that installation's own uninstaller, so a file the new `.nsh` no longer lists cannot
+survive into the post-install suite; the `.m` script installed over it until BAT-A35, and
+it now also stops when makensis, signtool or the installer fails. Answering N at the vcpkg
+drift question of the `.m` or `.g` script leaves the previous build output in place; the
+output folder is wiped after that question (BAT-A34). The Linux script removes an old
+`.p7s` before it signs and fails when signing writes none (BAT-A36), so a `.sha256.p7s` in
+`distr\` belongs to the `.sha256` of the same run.
 
 ## Who runs what
 
