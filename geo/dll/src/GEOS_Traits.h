@@ -1000,9 +1000,16 @@ struct geos_operator_wrapper
 {
 	auto operator()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const->std::unique_ptr<geos::geom::Geometry>
 	{
+		return (*this)(a, b, false, false);
+	}
+
+	// aIsValid or bIsValid: the caller has validated that operand, and cleaned it if need be, once for many elements;
+	// a parameter operand was validated, and repaired and warned about, for every element of the other (GEO-A36)
+	auto operator()(const geos::geom::Geometry* a, const geos::geom::Geometry* b, bool aIsValid, bool bIsValid) const->std::unique_ptr<geos::geom::Geometry>
+	{
 		std::unique_ptr<geos::geom::Geometry> result;
-		if (!a || a->isValid())
-			if (!b || b->isValid())
+		if (aIsValid || !a || a->isValid())
+			if (bIsValid || !b || b->isValid())
 				result = m_BinOper(a, b);
 			else
 			{
@@ -1012,7 +1019,7 @@ struct geos_operator_wrapper
 		else
 		{
 			auto aClean = clean_geos_geometry(a);
-			if (!b || b->isValid())
+			if (bIsValid || !b || b->isValid())
 				result = m_BinOper(aClean.get(), b);
 			else
 			{

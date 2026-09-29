@@ -632,13 +632,23 @@ struct bg_checked_operation {
 	template <typename A, typename B>
 	void operator ()(A&& a, B&& b, auto& r) const
 	{
-		checkWindingOrders(a);
-		checkWindingOrders(b);
+		(*this)(std::forward<A>(a), std::forward<B>(b), r, false, false);
+	}
+
+	// aIsValid or bIsValid: the caller has checked that operand, and cleaned it if need be, once for many elements;
+	// a parameter operand was checked, and repaired and warned about, for every element of the other (GEO-A36)
+	template <typename A, typename B>
+	void operator ()(A&& a, B&& b, auto& r, bool aIsValid, bool bIsValid) const
+	{
+		if (!aIsValid)
+			checkWindingOrders(a);
+		if (!bIsValid)
+			checkWindingOrders(b);
 
 		d_DebugCount++;
 
-		if (boost::geometry::is_valid(a))
-			if (boost::geometry::is_valid(b))
+		if (aIsValid || boost::geometry::is_valid(a))
+			if (bIsValid || boost::geometry::is_valid(b))
 				m_op(std::forward<A>(a), std::forward<B>(b), r);
 			else
 			{
@@ -646,7 +656,7 @@ struct bg_checked_operation {
 				m_op(std::forward<A>(a), std::move(bb), r);
 			}
 		else
-			if (boost::geometry::is_valid(b))
+			if (bIsValid || boost::geometry::is_valid(b))
 			{
 				auto aa = clean_bg_geometry(a);
 				m_op(std::move(aa), std::forward<B>(b), r);

@@ -948,12 +948,25 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 		bg_polygon_t helperPolygon;
 		bg_multi_polygon_t currMP1, currMP2, resMP;
 
+		// A parameter operand is checked, and cleaned if need be, once per tile, not for every element (GEO-A36).
+		auto cleanParam = [](bg_multi_polygon_t& mp)
+			{
+				checkWindingOrders(mp);
+				if (!boost::geometry::is_valid(mp))
+					mp = clean_bg_geometry(std::move(mp));
+			};
 		bool domain1IsVoid = (af & AF1_ISPARAM);
 		bool domain2IsVoid = (af & AF2_ISPARAM);
 		if (domain1IsVoid)
+		{
 			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
+			cleanParam(currMP1);
+		}
 		if (domain2IsVoid)
+		{
 			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
+			cleanParam(currMP2);
+		}
 
 		for (SizeT i = 0; i != n; ++i)
 		{
@@ -962,7 +975,7 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 			if (!domain2IsVoid)
 				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
 			resMP.clear();
-			m_Oper(currMP1, currMP2, resMP);
+			m_Oper(currMP1, currMP2, resMP, domain1IsVoid, domain2IsVoid);
 			bg_store_multi_polygon(resData[i], resMP);
 		}
 	}
@@ -1070,12 +1083,18 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 
 		std::unique_ptr<geos::geom::Geometry> currMP1, currMP2, resMP;
 
+		// A parameter operand is validated, and cleaned if need be, once per tile, not for every element (GEO-A36).
+		auto cleanParam = [](std::unique_ptr<geos::geom::Geometry>& mp)
+			{
+				if (mp && !mp->isValid())
+					mp = clean_geos_geometry(mp.get());
+			};
 		bool domain1IsVoid = (af & AF1_ISPARAM);
 		bool domain2IsVoid = (af & AF2_ISPARAM);
 		if (domain1IsVoid)
-			currMP1 = geos_create_polygons(arg1Data[0]);
+			cleanParam(currMP1 = geos_create_polygons(arg1Data[0]));
 		if (domain2IsVoid)
-			currMP2 = geos_create_polygons(arg2Data[0]);
+			cleanParam(currMP2 = geos_create_polygons(arg2Data[0]));
 
 		for (SizeT i = 0; i != n; ++i)
 		{
@@ -1083,7 +1102,7 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 				currMP1 = geos_create_polygons(arg1Data[i]);
 			if (!domain2IsVoid)
 				currMP2 = geos_create_polygons(arg2Data[i]);
-			resMP = m_Oper(currMP1.get(), currMP2.get());
+			resMP = m_Oper(currMP1.get(), currMP2.get(), domain1IsVoid, domain2IsVoid);
 			geos_assign_geometry(resData[i], resMP.get());
 		}
 	}
