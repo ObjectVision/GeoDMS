@@ -258,14 +258,28 @@ struct SpatialIndex
 			if (IsSplit() || NrObjects() <= 3)
 				return false;
 
-			// any gain from splitting?
-			PointType center = Center(m_BoundingBox);
-			return SpatialIndexImpl::MustSplit(m_FirstLeaf, center);
+			// any gain from splitting? Only if the leaves that lie in one quadrant have more than one extent between them
+			assert(m_QuadrantLeafExtentsDiffer == SpatialIndexImpl::MustSplit(m_FirstLeaf, Center(m_BoundingBox)));
+			return m_QuadrantLeafExtentsDiffer;
 		}
 
-		void AddLeaf(LeafType* lf) 
-		{ 
+		void AddLeaf(LeafType* lf)
+		{
 			++m_NrObjects;
+
+			// What MustSplit asks, kept up to date here: it rescanned the whole leaf list on every insert, k * k / 2
+			// comparisons for k coincident objects, which never split (GEO-A54). A leaf added to a node that has split
+			// (one that lies in no quadrant) stays with it and needs no record.
+			if (!IsSplit() && SpatialIndexImpl::InOneQuadrant(lf->GetExtents(), Center(m_BoundingBox)))
+			{
+				if (!m_HasQuadrantLeaf)
+				{
+					m_QuadrantLeafExtents = lf->GetExtents();
+					m_HasQuadrantLeaf = true;
+				}
+				else if (m_QuadrantLeafExtents != lf->GetExtents())
+					m_QuadrantLeafExtentsDiffer = true;
+			}
 
 			lf->SetNext( m_FirstLeaf );
 			m_FirstLeaf = lf;
@@ -301,6 +315,10 @@ struct SpatialIndex
 		SizeT     m_OffsetToFirstQuadrant;  // index of first quadrant node (always allocated in groups of 4).
 		LeafType* m_FirstLeaf;  // index of first leaf; leafs form a singly-linked list
 		SizeT     m_NrObjects;
+
+		// the extents of the first leaf added that lies in one quadrant, and whether a later one had others; see AddLeaf
+		std::decay_t<decltype(std::declval<const LeafType&>().GetExtents())> m_QuadrantLeafExtents = {};
+		bool      m_HasQuadrantLeaf = false, m_QuadrantLeafExtentsDiffer = false;
 	};
 	typedef my_vec_t<Node> NodeContainer;
 
