@@ -449,6 +449,10 @@ echo "     $(cat "${SHA256FILE}")"
 #   sha256sum -c <pkg>.tar.gz.sha256
 # ---------------------------------------------------------------------------
 SIG="${SHA256FILE}.p7s"
+# A signature left by an earlier run for the same version would otherwise ship beside the new
+# checksum when this run does not sign, or fails to: the final Get-Item reported its length and the
+# run ended as a success (BAT-A36).
+rm -f "${SIG}"
 
 if [[ -n "${SIGN_THUMBPRINT}" ]] && command -v powershell.exe &>/dev/null; then
     echo "Signing checksum with GlobalSign EV certificate (token: ${SIGN_THUMBPRINT})..."
@@ -458,6 +462,7 @@ if [[ -n "${SIGN_THUMBPRINT}" ]] && command -v powershell.exe &>/dev/null; then
     SIG_WIN=$(wslpath -w "${SIG}")
 
     powershell.exe -NoProfile -Command "
+\$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName 'System.Security'
 \$cert = Get-Item ('Cert:\CurrentUser\My\\${SIGN_THUMBPRINT}')
 \$bytes  = [System.IO.File]::ReadAllBytes('${SHA256_WIN}')
@@ -469,6 +474,10 @@ Add-Type -AssemblyName 'System.Security'
 [System.IO.File]::WriteAllBytes('${SIG_WIN}', \$cms.Encode())
 Write-Host ('  -> ${SIG_WIN} (' + (Get-Item '${SIG_WIN}').Length + ' bytes)')
 "
+    if [[ ! -s "${SIG}" ]]; then
+        echo "ERROR: signing wrote no ${SIG}" >&2
+        exit 1
+    fi
 
     echo ""
     echo "  Recipients verify with (fetch root CA independently from GlobalSign):"
