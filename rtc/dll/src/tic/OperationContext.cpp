@@ -1233,6 +1233,23 @@ bool OperationContext::collectTaskImpl(garbage_can& garbage)
 		garbage |= std::move(m_ResKeeper);
 	m_ResKeeper = std::move(resKeeper);
 
+	// Only the stealing paths (FindAndLicenceOnePriorityTasks) pop from s_RadioActives, and a context the pool
+	// runs through selfCaller never passes them, so its entry stayed, pinning the context's allocation, and
+	// when it belonged to a blocked phase and stood at the front, the phase fence stopped all stealing behind
+	// it although it could no longer run. Trim the front here: an entry that
+	// expired or is no longer 'activated' can not be licensed anyway (getUniqueLicenseToRun); a context put
+	// back to 'scheduled' is pushed again when it is collected again. A context that may be the last owner
+	// dies in the caller's garbage, outside cs_ThreadMessing.
+	while (!s_RadioActives.empty())
+	{
+		auto frontSPtr = s_RadioActives.front().lock();
+		if (frontSPtr && frontSPtr->getStatus() == task_status::activated)
+			break;
+		s_RadioActives.pop_front();
+		if (frontSPtr)
+			garbage |= std::move(frontSPtr);
+	}
+
 	std::weak_ptr<OperationContext> selfWptr = shared_from_this();
 	s_RadioActives.emplace_back(selfWptr);
 	return true;
