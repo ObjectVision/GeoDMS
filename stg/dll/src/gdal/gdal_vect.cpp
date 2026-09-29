@@ -370,6 +370,9 @@ void GdalVectlMetaInfo::OnClose(StorageCloseHandle* self)
 	gdv->m_IsOwner = false;
 	gdv->m_CurrFeatureIndex = 0;
 	gdv->m_CurrFieldIndex = -1;
+	// the geometry buffer of the last tile read; kept, it lived as long as the storage manager, a second copy of a
+	// whole column for an untiled domain, and made the next unrelated read reserve that size up front (STG-A25)
+	gdv->m_ReadBuffer.reset();
 }
 
 auto GdalVectlMetaInfo::GetGeometryDataItem() const -> const AbstrDataItem*
