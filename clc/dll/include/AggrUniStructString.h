@@ -68,6 +68,31 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 		aggr1_total<TSerFunc>(writerStreamBuff, input.begin(), input.end(), m_SerFunc);
 	}
 
+	// All tiles at once, as OperAsListTot does: every tile measured, the result sized once, then written. Tile by tile
+	// through operator() the result was resized once per tile, which copied what it held so far each time (CLC-A20).
+	template <typename GetTile>
+	void AccumulateTiles(accumulation_ref output, tile_id tn, GetTile&& getTile) const
+	{
+		SizeT sz = output.size();
+
+		InfiniteNullOutStreamBuff lengthFinderStreamBuff;
+		lengthFinderStreamBuff.m_CurrPos += sz;
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			auto input = getTile(t);
+			aggr1_total<TSerFunc>(lengthFinderStreamBuff, input.begin(), input.end(), m_SerFunc);
+		}
+		output.resize_uninitialized(lengthFinderStreamBuff.CurrPos() MG_DEBUG_ALLOCATOR_SRC("unary_assign_string_total_accumulation::AccumulateTiles"));
+
+		ThrowingMemoOutStreamBuff writerStreamBuff(ByteRange(begin_ptr(output), end_ptr(output)));
+		writerStreamBuff.m_Curr += sz;
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			auto input = getTile(t);
+			aggr1_total<TSerFunc>(writerStreamBuff, input.begin(), input.end(), m_SerFunc);
+		}
+	}
+
 	TSerFunc m_SerFunc;
 };
 

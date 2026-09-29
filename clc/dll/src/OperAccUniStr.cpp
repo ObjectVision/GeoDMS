@@ -77,8 +77,12 @@ struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
-		for (tile_id t = 0; t!=tn; ++t)
-			acc1Func(resultData[0], arg1->GetTile(t));
+		auto getTile = [arg1](tile_id t) { return arg1->GetTile(t); };
+		if constexpr (requires { acc1Func.AccumulateTiles(resultData[0], tn, getTile); }) // the list forms (CLC-A20)
+			acc1Func.AccumulateTiles(resultData[0], tn, getTile);
+		else
+			for (tile_id t = 0; t!=tn; ++t)
+				acc1Func(resultData[0], getTile(t));
 	}
 };
 
