@@ -235,9 +235,9 @@ struct ConnectNeighbourPointOperator : AbstrConnectNeighbourPointOperator
 		auto destBegin = spIndex.first_leaf();
 		dms_assert(pointData.begin() == destBegin);
 
-		neighbour_iter<SpatialIndexType> iter(&spIndex);
-
-		for (SizeT i=0; i!=resSize; ++i)
+		// in parallel, one iterator per block of 4096 points, as the point-to-point connect; it ran serially (GEO-A55).
+		// The spatial index and the index getter are only read.
+		parallel_for_if_separable<SizeT, UInt32>(0, resSize, [&pointData, destBegin, indexGetter, resBuffer, iter = neighbour_iter<SpatialIndexType>(&spIndex)](SizeT i) mutable
 		{
 			SizeT clusterID = i;
 			if (indexGetter)
@@ -248,7 +248,7 @@ struct ConnectNeighbourPointOperator : AbstrConnectNeighbourPointOperator
 			if (!IsDefined(point))
 			{
 				resBuffer[i] = UNDEFINED_VALUE(UInt32);
-				continue;
+				return;
 			}
 			typename DataArray<PointType>::const_iterator foundDestPointPtr = nullptr;
 
@@ -271,9 +271,10 @@ struct ConnectNeighbourPointOperator : AbstrConnectNeighbourPointOperator
 				}
 			}
 
-			// store results 
+			// store results
 			resBuffer[i] = foundDestIndex;
 		}
+		);
 	}
 };
 
@@ -465,7 +466,9 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 					, AsString(t), AsString(tn));
 		};
 
-		parallel_for_if_separable<SizeT, UInt32>(0, point2End - point2Begin, [point2Begin, weights1, weights2, destBegin, resBuffer, &spIndex, &reporter](auto i)
+		// One iterator per block: parallel_for_if_separable copies this function per block of 4096 points, and Reset
+		// reuses the iterator's two heaps, where an iterator per point allocated them for every point (GEO-A55).
+		parallel_for_if_separable<SizeT, UInt32>(0, point2End - point2Begin, [point2Begin, weights1, weights2, destBegin, resBuffer, &reporter, iter = neighbour_iter<SpatialIndexType>(&spIndex)](auto i) mutable
 		{
 			if (IsDefined(point2Begin[i]))
 			{
@@ -475,7 +478,6 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 					dms_assert(weights2);
 					minWeight = weights2->Get(i);
 				}
-				neighbour_iter<SpatialIndexType> iter(&spIndex);
 				iter.Reset(point2Begin[i]);
 				for (; iter; ++iter)
 				{
