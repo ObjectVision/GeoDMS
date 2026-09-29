@@ -172,23 +172,47 @@ if errorlevel 1 goto :shipped_failed
 REM CHOICE /M  "Run setup creation %GeoDmsVersion%?"
 REM if ErrorLevel 2 goto :afterNSIS
 
-mkdir distr
+REM makensis, signtool and the installer are checked, and the previous installation of this
+REM version is uninstalled first, as the .c and .g scripts do (BAT-A35). Installing over it left
+REM a file that the .nsh no longer lists in place, where the post-install suite still found it,
+REM and the question that stood here nested its quotes and ignored its answer.
+mkdir distr 2>nul
 cd nsi
 "C:\Program Files (x86)\NSIS\makensis.exe" DmsSetupScriptX64.nsi
+if errorlevel 1 (
+    cd ..
+    goto :nsis_failed
+)
 cd ..
+
+set "INSTALLER=distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe"
+if not exist "%INSTALLER%" (
+    echo NSIS produced no installer at %INSTALLER%
+    goto :nsis_failed
+)
 
 CHOICE /M  "NSIS OK (more than  55Mb) and ready to sign Setup?"
 if ErrorLevel 2 exit /B
 
 :afterNSIS
 set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe
-"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe"
+"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "%INSTALLER%"
+if errorlevel 1 (
+    CHOICE /M "Signing failed. Retry"
+    if not errorlevel 2 goto afterNSIS
+    goto :sign_failed
+)
 CHOICE /M  "Signing OK? Ready to run installation?"
 if ErrorLevel 2 goto afterNSIS
 
-if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" CHOICE /M "Removed "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" or accept testing with an overwritten folder ?"
+set "INSTALL_DIR=C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%"
+if exist "%INSTALL_DIR%" (
+    echo --- silent uninstall of previous %INSTALL_DIR% ---
+    if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
+)
 
-"distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe" /S
+"%INSTALLER%" /S
+if errorlevel 1 goto :install_failed
 
 del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
@@ -224,4 +248,16 @@ exit /B 1
 
 :build_failed
 echo *** Build failed - NSIS, signing, install and unit tests skipped ***
+exit /B 1
+
+:nsis_failed
+echo *** NSIS step failed - signing, install and unit tests skipped ***
+exit /B 1
+
+:sign_failed
+echo *** Signing failed - install and unit tests skipped ***
+exit /B 1
+
+:install_failed
+echo *** The silent install of %INSTALLER% failed - unit tests skipped ***
 exit /B 1
