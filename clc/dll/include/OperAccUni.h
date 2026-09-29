@@ -482,7 +482,9 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 		for (; t < te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
-			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]) );
+			// the getter holds the partition tile it needs; the future is released here, as the Buffered twin does,
+			// where it held every partition tile until the whole aggregation ended (CLC-A19)
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]) ); pdi.part_fta[t] = nullptr;
 
 			m_Acc1Func(resData, arg1Data, indexGetter.get());
 		}
