@@ -1,5 +1,6 @@
 @echo off
 cls
+setlocal
 
 REM ============================================================================
 REM  Build.bat -- build, sign, create + install GeoDMS setups for all flavours.
@@ -25,9 +26,15 @@ REM still `call` it (for the version numbers) but the guard makes those calls
 REM reuse this header instead of rewriting it -- which stops a later F5 in MSVC
 REM from re-running msbuild and emitting .pdb files that no longer match the
 REM installed binaries. (cd to repo root: the header paths are relative to it.)
+REM By its full path, as every other call since 39c0b5fed: with NoDefaultCurrentDirectoryInExePath=1
+REM the bare name is not found, GEODMS_VERSION_HEADER_DONE stays unset and every flavour rewrites
+REM buildstamp.h (BAT-A37). setlocal above keeps these variables out of the calling console.
 cd /d "%~dp0"
 set "GEODMS_VERSION_HEADER_DONE="
-call GeoDmsVersion.cmd
+call "%~dp0GeoDmsVersion.cmd"
+if errorlevel 1 goto :version_failed
+if not defined DMS_VERSION_MAJOR goto :version_failed
+if not defined GEODMS_VERSION_HEADER_DONE goto :version_failed
 
 echo === [m] msbuild setup ===
 call "%~dp0batch\BuildSignAndCreateSetup.bat"
@@ -50,4 +57,8 @@ exit /B 0
 
 :failed
 echo *** A flavor setup FAILED - stopping (remaining flavors skipped). ***
+exit /B 1
+
+:version_failed
+echo *** GeoDmsVersion.cmd failed - no flavor built. ***
 exit /B 1

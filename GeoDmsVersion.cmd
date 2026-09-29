@@ -51,7 +51,11 @@ REM RtcVersionNumbers.h only changes when a human bumps it.
 REM Builds that never run a .bat get a buildstamp.h from the generate-if-missing
 REM hooks in Directory.Build.targets (msbuild) and CMakeLists.txt (cmake); those
 REM write ISO 8601, and :write_buildstamp below matches them.
-if not defined GEODMS_VERSION_HEADER_DONE call :write_buildstamp
+REM A stamp that cannot be written fails this call, which the callers check (BAT-A37).
+if not defined GEODMS_VERSION_HEADER_DONE (
+	call :write_buildstamp
+	if errorlevel 1 exit /B 1
+)
 
 exit /B 0
 
@@ -83,7 +87,7 @@ echo #define DMS_BUILD_TIME "%_dms_stamp_time%">> "%DMS_BUILDSTAMP_HEADER%"
 set "_dms_stamp_date="
 set "_dms_stamp_time="
 set GEODMS_VERSION_HEADER_DONE=1
-goto :eof
+exit /B 0
 
 :stamp_failed
 echo *** GeoDmsVersion.cmd: could not format the build timestamp via powershell. ***
