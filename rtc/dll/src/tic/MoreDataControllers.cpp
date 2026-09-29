@@ -427,7 +427,15 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		// members are reached through SubItem is what the interested form is for, and it already
 		// carries storage_read_table and the PhaseContainer members, which have the same shape.
 		if (IsNew() && GetOperator()->CanRunParallel())
+		{
+			// TIC-A04: a member of a members-on-demand result that is wanted while the result's operation
+			// runs may not have been collected by it; wait for that operation to end, so that the check
+			// below sees the result ready and the member not, and the member is read on its own.
+			if (m_OperatorGroup->HasMembersOnDemand() && HasWantedMemberOnDemandWhileCalculating(curr.get()))
+				if (!WaitForReadyOrSuspendTrigger(curr->GetCurrUltimateItem().get()))
+					return {}; // suspended, or the result failed
 			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(curr.get());
+		}
 		else
 			mustStartCalc = !IsAllDataCurrStandby(curr.get());
 	}

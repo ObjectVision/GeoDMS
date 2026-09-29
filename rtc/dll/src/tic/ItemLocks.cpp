@@ -699,6 +699,26 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 	return true;
 }
 
+// TIC-A04: while the operation of a members-on-demand result runs (storage_read_table), the check above
+// reports the whole result as calculating, so a member that gained interest after the operation collected
+// its members would connect to an operation that does not read it, and fail with "neither calculating nor
+// ready nor failed" once it ends. This tells the caller to wait for that operation to end first; the #1167
+// re-entry then reads the member on its own.
+bool HasWantedMemberOnDemandWhileCalculating(const TreeItem* cacheRoot)
+{
+	assert(IsMetaThread());
+	assert(cacheRoot);
+	if (!cacheRoot->IsCacheItem())
+		return false;
+	auto ultimateRoot = cacheRoot->GetCurrUltimateItem();
+	if (!ultimateRoot || !IsCalculating(ultimateRoot.get()))
+		return false;
+	for (auto member = ultimateRoot->WalkConstSubTree(ultimateRoot.get()); member; member = ultimateRoot->WalkConstSubTree(member))
+		if (member->GetTSF(TSF_MemberOnDemand) && member->GetInterestCount() && !IsDataReady(member))
+			return true;
+	return false;
+}
+
 bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item)
 {
 	assert(IsMetaThread());
