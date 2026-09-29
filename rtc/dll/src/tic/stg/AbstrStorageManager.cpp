@@ -60,7 +60,7 @@ static std::mutex sd_asm;
 
 StorageMetaInfo::~StorageMetaInfo()
 {
-	if (m_StorageManager)
+	if (m_StorageManager && m_ClosesStorageOnDestruction)
 	{
 		m_StorageManager->CloseStorage();
 	}

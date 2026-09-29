@@ -300,6 +300,9 @@ bool ReadDataItemInto(NonmappableStorageManager* sm_, StorageMetaInfoPtr smi, Ab
 		{
 			auto readerFarm = std::make_shared<reader_clone_farm>();
 
+			// The functor keeps smi for as long as the data object lives and lets it go on whatever thread
+			// releases that, without the section of sm: it must not close sm then (TIC-A03).
+			smi->KeepStorageOpenOnDestruction();
 			auto tileGenerator = [target, sm, smi, readerFarm](AbstrDataObject* self, tile_id t)
 			{
 				auto context = TreeItemContextHandle(target, "storage read");

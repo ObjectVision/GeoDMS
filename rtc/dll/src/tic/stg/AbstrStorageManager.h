@@ -165,10 +165,17 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	// reading operation keeps alive.
 	void SetDataTarget(const TreeItem* target) { m_DataTarget = make_shared_tree(target, existing_obj{}); }
 
+	// TIC-A03: a meta info that outlives the section of its manager, as the one a lazy tile reader keeps,
+	// must not close that manager when it dies: it may die on any thread, while another attribute of the
+	// same storage is being read. Such a reader reads through reader clones; the manager itself is closed
+	// by the next StorageCloseHandle or by its own destruction.
+	void KeepStorageOpenOnDestruction() { m_ClosesStorageOnDestruction = false; }
+
 protected:
 	SharedPtr<AbstrStorageManager> m_StorageManager;
 	std::shared_ptr<const TreeItem> m_StorageHolder, m_Curr;
 	std::shared_ptr<const TreeItem> m_DataTarget; // #587, see SetDataTarget; null: m_Curr receives the data
+	bool m_ClosesStorageOnDestruction = true; // see KeepStorageOpenOnDestruction; not a bitfield, as it is set without a lock
 public:
 	SharedStr m_RelativeName;
 	bool      m_MustRememberFailure :1 = true;
