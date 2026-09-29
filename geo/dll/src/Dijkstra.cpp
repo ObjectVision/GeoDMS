@@ -89,10 +89,11 @@
 // Concurrency
 //   Origin zones are independent, so per-OD and per-origin outputs need no locking: each task
 //   writes only its own slice. What IS shared in the scalar engine are the outputs indexed by
-//   DESTINATION zone (dstZone_Factor, dstZone_Supply) and the sequence-allocating LinkSet writes
-//   -- those take the fine-grained locks in WriteBlock; link flow is accumulated per worker and
-//   summed afterwards. The pareto engine produces per-OD outputs only and therefore needs no
-//   locks at all. All per-worker scratch (heap, tree, connector, potentials) lives in
+//   DESTINATION zone (dstZone_Factor, dstZone_Supply) and link flow, which are accumulated per
+//   worker and summed afterwards, and the sequence-allocating LinkSet writes, which take the lock
+//   in WriteBlock once per origin. The destination totals took a global lock per od pair until
+//   GEO-A39, and the link sets one per od row. The pareto engine produces per-OD outputs only and
+//   therefore needs no locks at all. All per-worker scratch (heap, tree, connector, potentials) lives in
 //   dms_combinables and is allocated once per worker rather than once per origin.
 //
 // Endpoint impedances
@@ -738,10 +739,8 @@ struct ResultInfo {
 struct WriteBlock {
 	WriteBlock()
 		: od_LS(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.LS")
-		, dstFactor(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.dstZone_Factor")
-		, dstSupply(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.dstZone_Supply")
 	{}
-	leveled_critical_section od_LS, dstFactor, dstSupply;
+	leveled_critical_section od_LS;
 };
 
 // *****************************************************************************
@@ -957,7 +956,7 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 ,	const ImpType* d_vj, const ImpType* la_vj, bool dImpIsAltBased
 ,	my_vec_t<ImpType>& pot_ij
 ,	my_vec_t<MassType>& resLinkFlow
-,	WriteBlock& writeBlocks
+,	my_vec_t<MassType>& resDstFactor, my_vec_t<MassType>& resDstSupply // per worker, summed after the loop over the origins
 ,	const ResultInfo<ZoneType, ImpType, MassType>& res)
 {
 	auto& nodeALW = dh.m_AltLinkWeight;
@@ -1063,8 +1062,8 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 				dms_assert(dstZone < ni.nrDstZones);
 				if (res.dstZone_Factor)
 				{
-					leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
-					res.dstZone_Factor[dstZone] += pot_ij[j];
+					dms_assert(dstZone < resDstFactor.size());
+					resDstFactor[dstZone] += pot_ij[j];
 				}
 				if (res.dstZone_Supply || (flags(df & (DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOrgSumImp | DijkstraFlag::ProdOrgSumLinkAttr))))
 				{
@@ -1072,8 +1071,8 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 						pot_ij[j] *= ip.tgDstMass[ip.tgDstMassHasVoidDomain ? 0 : dstZone];
 					if (res.dstZone_Supply)
 					{
-						leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
-						res.dstZone_Supply[dstZone] += pot_ij[j];
+						dms_assert(dstZone < resDstSupply.size());
+						resDstSupply[dstZone] += pot_ij[j];
 					}
 				}
 
@@ -1200,40 +1199,39 @@ void WriteLinkSets(const GraphInfo<NodeType, LinkType, ImpType>& graph
 ,	const ResultInfo<ZoneType, ImpType, MassType>& res)
 {
 	assert(dh.m_TraceBackDataPtr);
+
+	// The routes of all rows of this origin are walked outside the lock, one after another into one buffer, and
+	// written under it in one go: the lock guards only the allocation in the shared sequence array. It was taken per
+	// od row, around a second walk of the traceback (GEO-A39).
+	std::vector<LinkType> links;
+	std::vector<SizeT> rowEnds(zonalResultCount);
 	for (ZoneType j = 0; j != zonalResultCount; ++j)
 	{
-		NodeType node = nzc.Res2EndNode(j);
-		if (!IsDefined(node))
-			continue;
-		SizeT linkCount = 0;
-		NodeType walk = node;
-		while (true)
-		{
-			LinkType currLink = dh.m_TraceBackDataPtr[walk];
-			if (!IsDefined(currLink))
-				break;
-			if (graph.linkF2Data[currLink] == walk)
-				walk = graph.linkF1Data[currLink];
-			else
-				walk = graph.linkF2Data[currLink];
-			++linkCount;
-		}
-		walk = node;
-		leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
+		NodeType walk = nzc.Res2EndNode(j);
+		if (IsDefined(walk))
+			while (true)
+			{
+				LinkType currLink = dh.m_TraceBackDataPtr[walk];
+				if (!IsDefined(currLink))
+					break;
+				if (graph.linkF2Data[currLink] == walk)
+					walk = graph.linkF1Data[currLink];
+				else
+					walk = graph.linkF2Data[currLink];
+				links.push_back(currLink);
+			}
+		rowEnds[j] = links.size();
+	}
+
+	leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
+	SizeT rowBegin = 0;
+	for (ZoneType j = 0; j != zonalResultCount; rowBegin = rowEnds[j++])
+	{
+		if (!IsDefined(nzc.Res2EndNode(j)))
+			continue; // an unreached row keeps its empty sequence, as before
 		auto resLinkSetRef = res.od_LS[resultCountBase + j];
-		resLinkSetRef.resize_uninitialized(linkCount MG_DEBUG_ALLOCATOR_SRC("Dijkstra.LinkSet"));
-		auto outIt = resLinkSetRef.begin();
-		while (true)
-		{
-			LinkType currLink = dh.m_TraceBackDataPtr[walk];
-			if (!IsDefined(currLink))
-				break;
-			if (graph.linkF2Data[currLink] == walk)
-				walk = graph.linkF1Data[currLink];
-			else
-				walk = graph.linkF2Data[currLink];
-			*outIt++ = currLink;
-		}
+		resLinkSetRef.resize_uninitialized(rowEnds[j] - rowBegin MG_DEBUG_ALLOCATOR_SRC("Dijkstra.LinkSet"));
+		std::copy(links.begin() + rowBegin, links.begin() + rowEnds[j], resLinkSetRef.begin());
 	}
 }
 
@@ -1315,6 +1313,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	dms_combinable< my_vec_t<ImpType>> pot_ijC;
 
 	dms_combinable<my_vec_t<MassType> >  resLinkFlowC;
+	dms_combinable<my_vec_t<MassType> >  resDstFactorC, resDstSupplyC;
 
 	// Default masses if void-domain singletons
 	MassType orgMass = 1.0; if (tgOrgMass && tgOrgMassHasVoidDomain)
@@ -1344,7 +1343,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 		&resultHolder,
 		&writeBlocks,
 		&ni, &graph, &node_endPoint_inv, &zoneCount, &resultCount, &processTimer,
-		&nzcC, &dhC, &trC, &pot_ijC, &resLinkFlowC,
+		&nzcC, &dhC, &trC, &pot_ijC, &resLinkFlowC, &resDstFactorC, &resDstSupplyC,
 		&res
 		](ZoneType orgZone)
 		{
@@ -1358,6 +1357,12 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 			auto& nodeALW = dh.m_AltLinkWeight;
 			auto& nodeLA = dh.m_LinkAttr;
 			auto& resLinkFlow = resLinkFlowC.local();
+			auto& resDstFactor = resDstFactorC.local();
+			auto& resDstSupply = resDstSupplyC.local();
+			if (res.dstZone_Factor && resDstFactor.empty())
+				resDstFactor.resize(ni.nrDstZones, 0);
+			if (res.dstZone_Supply && resDstSupply.empty())
+				resDstSupply.resize(ni.nrDstZones, 0);
 
 			assert(orgZone < ni.nrOrgZones);
 			assert(dh.Empty());
@@ -1564,7 +1569,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 			// Interaction & aggregate metrics
 			if (flags(df & DijkstraFlag::InteractionOrMaxImp))
 				AccumulateInteraction(ip, ni, node_endPoint_inv, nzc, dh, tr, df, orgZone, zonalResultCount
-					, d_vj, la_vj, altLinkWeights != nullptr, pot_ijC.local(), resLinkFlow, writeBlocks, res);
+					, d_vj, la_vj, altLinkWeights != nullptr, pot_ijC.local(), resLinkFlow, resDstFactor, resDstSupply, res);
 
 			// Reconstruct per-OD link sets if requested
 			if (res.od_LS)
@@ -1589,6 +1594,19 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				for (auto flowPtr = localLinkFlow.begin(), flowEnd = localLinkFlow.end(); flowPtr != flowEnd; ++flowPtr, ++linkFlowPtr)
 					*linkFlowPtr += *flowPtr;
 		});
+	// and the destination totals, likewise
+	auto addTo = [](MassType* target)
+		{
+			return [target](my_vec_t<MassType>& local)
+				{
+					for (SizeT z = 0, n = local.size(); z != n; ++z)
+						target[z] += local[z];
+				};
+		};
+	if (res.dstZone_Factor)
+		resDstFactorC.combine_each(addTo(res.dstZone_Factor));
+	if (res.dstZone_Supply)
+		resDstSupplyC.combine_each(addTo(res.dstZone_Supply));
 	
 	if (CancelableFrame::CurrActiveCanceled())
 		return UNDEFINED_VALUE(SizeT);
