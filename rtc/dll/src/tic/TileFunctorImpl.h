@@ -121,14 +121,13 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 	FutureTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr
 	, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 	: DelayedTileFunctor<V>(resultAdi, tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
-	, aFunc(aFunc_)
 	{
 		assert(tiledDomainRangeData->GetNrTiles() > 1);
+		// Each tile record takes its own copy of the apply function and drops it once the tile is computed; the
+		// functor keeps none, so what the function captures is released with the last uncomputed tile.
 		for (tile_id t = 0; t != tiledDomainRangeData->GetNrTiles(); ++t)
-			this->m_ActiveTiles[t] = std::make_shared<tile_record>(pFunc_(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+			this->m_ActiveTiles[t] = std::make_shared<tile_record>(pFunc_(t), aFunc_, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
 	}
-
-	ApplyFunc aFunc;
 };
 
 template <typename V, typename PrepareState, bool MustZero, typename PrepareFunc, typename ApplyFunc>

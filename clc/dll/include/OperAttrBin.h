@@ -152,11 +152,17 @@ public:
 		auto arg2 = MakeSharedFromBorrowedObjectPtr(const_array_cast<Arg2ValueType>(arg2A)); assert(arg2);
 
 		using prepare_data = std::pair<std::shared_ptr<typename Arg1Type::future_tile>, std::shared_ptr<typename Arg2Type::future_tile>>;
+		// The apply function is kept by the functor, which the result item owns through its data object, so it
+		// holds the item weakly: a strong capture closed the cycle item -> data object -> functor -> item that
+		// the functor's own weak m_ResultAdi avoids. The check and the CatchFail stay: a consumer that holds a
+		// future tile of this result calls it directly, past DelayedTileFunctor::GetTile.
+		std::weak_ptr<AbstrDataItem> resultWPtr = resultAdi;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t) }; }
-			, [resultAdi, this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
+			, [resultWPtr, this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-				if (resultAdi->WasFailed(FailType::Data))
+				auto resultAdi = resultWPtr.lock();
+				if (resultAdi && resultAdi->WasFailed(FailType::Data))
 					resultAdi->ThrowFail();
 				try {
 					auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
@@ -166,7 +172,8 @@ public:
 				}
 				catch (...)
 				{
-					resultAdi->CatchFail(FailType::Data);
+					if (resultAdi)
+						resultAdi->CatchFail(FailType::Data);
 					throw;
 				}
 			}
