@@ -225,60 +225,60 @@ namespace Cumulate
 			bool arg1HasUndefinedValues = arg1A->HasUndefinedValues();
 			const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
 
-			auto partitionSet = arg2->GetValueRangeData();
-			for (tile_id tp=0, tpe= partitionSet->GetNrTiles(); tp!=tpe; ++tp)
+			// One pass over the data, with an accumulator for every partition of the whole range. A pass per tile of the
+			// partition unit reread every data tile for each of them, with a lock per tile each time (CLC-A21). For a partition
+			// unit of one tile, the common case, the accumulators are what they were; for a tiled one they now span its
+			// whole range instead of one tile of it.
+			auto partRange = arg2->GetValueRangeData()->GetRange();
+			SizeT partRangeSize = Cardinality(partRange);
+			OwningPtrSizedArray<ResultValueType> valueArray( partRangeSize, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Cumulate: valueArray"));
+			TInitAssigner init;
+			for (auto valuePtr = valueArray.begin(), valueEnd = valueArray.end(); valuePtr!=valueEnd; ++valuePtr)
+				init(*valuePtr);
+
+			for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
 			{
-				auto partRange = partitionSet->GetTileRange(tp);
-				SizeT partRangeSize = Cardinality(partRange);
-				OwningPtrSizedArray<ResultValueType> valueArray( partRangeSize, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Cumulate: valueArray"));
-				TInitAssigner init;
-				for (auto valuePtr = valueArray.begin(), valueEnd = valueArray.end(); valuePtr!=valueEnd; ++valuePtr)
-					init(*valuePtr);
+				auto arg1Data = arg1->GetTile(t);
+				auto arg2Data = arg2->GetTile(t);
+				auto resData  = result->GetWritableTile(t);
+				assert(arg1Data.size() == resData.size());
+				assert(arg2Data.size() == resData.size());
+				
+				auto arg1Ptr = arg1Data.begin(), arg1End = arg1Data.end();
+				auto arg2Ptr = arg2Data.begin();
+				auto resPtr = resData.begin();
 
-				for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
-				{
-					auto arg1Data = arg1->GetTile(t);
-					auto arg2Data = arg2->GetTile(t);
-					auto resData  = result->GetWritableTile(t);
-					assert(arg1Data.size() == resData.size());
-					assert(arg2Data.size() == resData.size());
-					
-					auto arg1Ptr = arg1Data.begin(), arg1End = arg1Data.end();
-					auto arg2Ptr = arg2Data.begin();
-					auto resPtr = resData.begin();
-
-					if (arg1HasUndefinedValues)
-						for (; arg1Ptr != arg1End; ++resPtr, ++arg2Ptr, ++arg1Ptr)
+				if (arg1HasUndefinedValues)
+					for (; arg1Ptr != arg1End; ++resPtr, ++arg2Ptr, ++arg1Ptr)
+					{
+						SizeT ppos = Range_GetIndex_checked(partRange, *arg2Ptr);
+						if (IsDefined(ppos))
 						{
-							SizeT ppos = Range_GetIndex_checked(partRange, *arg2Ptr);
-							if (IsDefined(ppos))
+							assert(ppos < partRangeSize);
+							auto valuePtr = valueArray.begin() + ppos;
+							if (IsDefined(*arg1Ptr))
 							{
-								assert(ppos < partRangeSize);
-								auto valuePtr = valueArray.begin() + ppos;
-								if (IsDefined(*arg1Ptr))
-								{
-									m_UniAssigner(*valuePtr, *arg1Ptr);
-								}
-								*resPtr = ThrowingConvert<ValueType>(*valuePtr);
-							}
-							else if (tp == 0)
-								*resPtr = UNDEFINED_VALUE(ValueType);
-						}
-					else
-						for (; arg1Ptr != arg1End; ++resPtr, ++arg2Ptr, ++arg1Ptr)
-						{
-							SizeT ppos = Range_GetIndex_checked(partRange, *arg2Ptr);
-							if (IsDefined(ppos))
-							{
-								assert(ppos < partRangeSize);
-								auto valuePtr = valueArray.begin() + ppos;
 								m_UniAssigner(*valuePtr, *arg1Ptr);
-								*resPtr = ThrowingConvert<ValueType>(*valuePtr);
 							}
-							else if (tp == 0)
-								*resPtr = UNDEFINED_VALUE(ValueType);
+							*resPtr = ThrowingConvert<ValueType>(*valuePtr);
 						}
-				}
+						else
+							*resPtr = UNDEFINED_VALUE(ValueType);
+					}
+				else
+					for (; arg1Ptr != arg1End; ++resPtr, ++arg2Ptr, ++arg1Ptr)
+					{
+						SizeT ppos = Range_GetIndex_checked(partRange, *arg2Ptr);
+						if (IsDefined(ppos))
+						{
+							assert(ppos < partRangeSize);
+							auto valuePtr = valueArray.begin() + ppos;
+							m_UniAssigner(*valuePtr, *arg1Ptr);
+							*resPtr = ThrowingConvert<ValueType>(*valuePtr);
+						}
+						else
+							*resPtr = UNDEFINED_VALUE(ValueType);
+					}
 			}
 		}
 	protected:
