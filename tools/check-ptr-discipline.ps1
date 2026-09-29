@@ -15,7 +15,9 @@
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$srcDirs = 'rtc','tic','stx','stg','clc','geo','shv','sym','qtgui','python','exe','run' |
+# The module folders with sources. tic and sym went into rtc and exe is gone; the tic and sym
+# folders that remain hold only untracked build leftovers (PLN-A06).
+$srcDirs = 'rtc','stx','stg','clc','geo','shv','qtgui','python','run' |
     ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ }
 
 $files = Get-ChildItem $srcDirs -Recurse -File -Include *.h,*.cpp,*.ipp
