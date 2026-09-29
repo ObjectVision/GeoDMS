@@ -40,14 +40,26 @@
 // The criteria may have different numeric value types; they are compared as Float64. The
 // partition relation is any attribute to a domain unit. A row with an undefined partition
 // or an undefined (or NaN) criterion is never optimal and dominates nothing.
+//
+// Groups are independent, so the work is split by group (#1286). The rows are first brought
+// together per partition: (partition, row) pairs, collected in row order and sorted with a
+// stable radix sort on the partition only, so that the rows of a group stay in ascending
+// order; a partition that is already ascending needs no sort at all. Then, per block of
+// whole groups and in parallel, every group copies its keys and raw criteria into one
+// contiguous record per row, sorts those records and sweeps them. The order within a group
+// is the one given above, and the row id breaks the last tie, so the result does not depend
+// on how the groups are numbered or ordered. The per-row passes (reading the arguments,
+// collecting the pairs, writing the result) run in parallel per chunk of rows.
 
 #include <algorithm>
 #include <cmath>
 #include <deque>
 #include <execution>
+#include <limits>
 #include <memory>
 
 #include "mci/CompositeCast.h"
+#include "ptr/OwningPtrSizedArray.h"
 #include "set/VectorFunc.h"
 #include "mem/MyContainers.h"
 #include "utl/StrFormat.h"
@@ -56,6 +68,7 @@
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "IndexGetterCreator.h"
+#include "ParallelTiles.h"
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -64,6 +77,150 @@
 
 CommonOperGroup cog_pareto_optimal("pareto_optimal");
 CommonOperGroup cog_pareto_optimal_eps("pareto_optimal_eps");
+
+namespace pareto_impl
+{
+	// rows per work item of the per-row passes; a multiple of the 32-bit block of a Bool tile,
+	// so that the chunks of one result tile never write the same block
+	constexpr SizeT CHUNK_SIZE = SizeT(1) << 16;
+
+	// rows per block of whole groups in the sweep; a group larger than this is a block of its own
+	constexpr SizeT GROUP_BLOCK_SIZE = SizeT(1) << 16;
+
+	// a group of at least this many rows sorts its records with std::execution::par
+	constexpr SizeT LARGE_GROUP_SIZE = SizeT(1) << 18;
+
+	// calls chunkFunc(c, first, last) for the chunks [first, last) of [0, count), in parallel
+	template <typename ChunkFunc>
+	void ForEachChunk(SizeT count, ChunkFunc&& chunkFunc)
+	{
+		SizeT nrChunks = (count + CHUNK_SIZE - 1) / CHUNK_SIZE;
+		parallel_for<SizeT>(nrChunks, [count, &chunkFunc](SizeT c)
+			{
+				SizeT first = c * CHUNK_SIZE;
+				chunkFunc(c, first, std::min(count, first + CHUNK_SIZE));
+			}
+		);
+	}
+
+	// one criterion of one tile, read as Float64; holds the tile for the chunks that read it
+	struct AbstrCritTileReader
+	{
+		virtual ~AbstrCritTileReader() {}
+		virtual void Read(SizeT first, SizeT count, Float64* out) const = 0;
+	};
+
+	template <typename V>
+	struct CritTileReader : AbstrCritTileReader
+	{
+		CritTileReader(typename DataArray<V>::locked_cseq_t&& data)
+			: m_Data(std::move(data))
+		{}
+
+		void Read(SizeT first, SizeT count, Float64* out) const override
+		{
+			assert(first + count <= m_Data.size());
+			auto dataPtr = m_Data.begin() + first;
+			for (SizeT i = 0; i != count; ++i, ++dataPtr)
+			{
+				V v = *dataPtr;
+				out[i] = IsDefined(v) ? Float64(v) : UNDEFINED_VALUE(Float64);
+			}
+		}
+
+		typename DataArray<V>::locked_cseq_t m_Data;
+	};
+
+	auto CreateCritTileReader(const AbstrDataItem* critA, tile_id t, SizeT tileSize) -> std::unique_ptr<AbstrCritTileReader>
+	{
+		std::unique_ptr<AbstrCritTileReader> result;
+		visit<typelists::num_objects>(critA->GetAbstrValuesUnit(), [critA, t, tileSize, &result] <typename V> (const Unit<V>*)
+			{
+				auto tileData = const_array_cast<V>(critA)->GetTile(t);
+				MG_CHECK(tileData.size() == tileSize); // the criteria share the tiling of the partition relation
+				result = std::make_unique<CritTileReader<V>>(std::move(tileData));
+			}
+		);
+		MG_CHECK(result);
+		return result;
+	}
+
+	struct PartRow
+	{
+		SizeT part;
+		SizeT row;
+	};
+
+	// Stable LSD radix sort of the pairs on their partition, RADIX_BITS per pass and only as many
+	// passes as the spread maxPart - minPart needs, with the chunk histograms and the scatter in
+	// parallel. Stability keeps the rows of a group in the ascending order in which they were
+	// collected, so no row id has to be compared.
+	void SortOnPartition(OwningPtrSizedArray<PartRow>& pairs, SizeT minPart, SizeT maxPart)
+	{
+		constexpr UInt32 RADIX_BITS = 11;
+		constexpr SizeT  RADIX = SizeT(1) << RADIX_BITS;
+
+		UInt32 nrPasses = 0;
+		for (SizeT spread = maxPart - minPart; spread; spread >>= RADIX_BITS)
+			++nrPasses;
+		if (!nrPasses)
+			return;
+
+		const SizeT m = pairs.size();
+		const SizeT nrChunks = (m + CHUNK_SIZE - 1) / CHUNK_SIZE;
+		OwningPtrSizedArray<PartRow> buffer(m, dont_initialize MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: radix buffer"));
+		OwningPtrSizedArray<SizeT>   offsets(nrChunks * RADIX, dont_initialize MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: radix offsets"));
+
+		PartRow* src = pairs.begin();
+		PartRow* dst = buffer.begin();
+		for (UInt32 pass = 0; pass != nrPasses; ++pass)
+		{
+			const UInt32 shift = RADIX_BITS * pass;
+			auto digit = [minPart, shift](const PartRow& pr) { return ((pr.part - minPart) >> shift) & (RADIX - 1); };
+
+			ForEachChunk(m, [src, &offsets, &digit](SizeT c, SizeT first, SizeT last)
+				{
+					SizeT* hist = offsets.begin() + c * RADIX;
+					std::fill(hist, hist + RADIX, SizeT(0));
+					for (SizeT i = first; i != last; ++i)
+						++hist[digit(src[i])];
+				}
+			);
+
+			// exclusive offsets per (digit, chunk), digit-major: the chunks of one digit keep their order
+			SizeT sum = 0;
+			bool allOneDigit = false;
+			for (SizeT b = 0; b != RADIX; ++b)
+			{
+				SizeT digitCount = 0;
+				for (SizeT c = 0; c != nrChunks; ++c)
+				{
+					SizeT& cell = offsets[c * RADIX + b];
+					SizeT count = cell;
+					cell = sum;
+					sum += count;
+					digitCount += count;
+				}
+				if (digitCount == m)
+					allOneDigit = true;
+			}
+			assert(sum == m);
+			if (allOneDigit)
+				continue; // this pass would only copy
+
+			ForEachChunk(m, [src, dst, &offsets, &digit](SizeT c, SizeT first, SizeT last)
+				{
+					SizeT* offset = offsets.begin() + c * RADIX;
+					for (SizeT i = first; i != last; ++i)
+						dst[offset[digit(src[i])]++] = src[i];
+				}
+			);
+			std::swap(src, dst);
+		}
+		if (src != pairs.begin())
+			pairs.swap(buffer);
+	}
+}
 
 struct ParetoOptimalOperator : VariadicOperator
 {
@@ -137,160 +294,276 @@ struct ParetoOptimalOperator : VariadicOperator
 
 	static void Calculate(DataArray<Bool>* res, const AbstrDataItem* partA, const std::vector<const AbstrDataItem*>& critItems, const std::vector<Float64>& eps)
 	{
+		using namespace pareto_impl;
+
 		const AbstrUnit* e = partA->GetAbstrDomainUnit();
 		const SizeT     n  = e->GetCount();
 		const tile_id   nt = e->GetNrTiles();
 		const arg_index d  = critItems.size();
 		assert(eps.size() == d);
 
-		// 1. the partition per row, as SizeT; an undefined partition excludes the row
-		my_vec_t<SizeT> part(n);
-		{
-			std::unique_ptr<IndexGetter> partGetter(IndexGetterCreator::Create(partA, no_tile));
-			for (SizeT i = 0; i != n; ++i)
-				part[i] = partGetter->Get(i);
-		}
+		// the chunks of the per-row passes, numbered tile by tile
+		std::vector<SizeT> tileChunkBase(nt + 1, 0);
+		for (tile_id t = 0; t != nt; ++t)
+			tileChunkBase[t + 1] = tileChunkBase[t] + (e->GetTileSize(t) + CHUNK_SIZE - 1) / CHUNK_SIZE;
+		const SizeT nrChunks = tileChunkBase[nt];
 
-		// 2. the criteria as Float64 columns, whatever their numeric value types
-		std::vector<my_vec_t<Float64>> crit(d);
+		struct ChunkInfo
+		{
+			SizeT rowFirst = 0, rowLast = 0; // the rows of the chunk
+			SizeT count = 0;                 // the rows that take part
+			SizeT firstPart = 0, lastPart = 0, minPart = 0, maxPart = 0;
+			bool  ascending = true;          // the partition does not decrease within the chunk
+		};
+		std::vector<ChunkInfo> chunkInfo(nrChunks);
+
+		// 1. per chunk of rows, in parallel: the criteria as Float64 columns, whatever their numeric
+		//    value types, and the partition of the rows that take part, those with a defined partition
+		//    and defined criteria; UNDEFINED for the others
+		OwningPtrSizedArray<SizeT> part(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: partition"));
+		std::vector<OwningPtrSizedArray<Float64>> crit;
+		crit.reserve(d);
+		std::vector<Float64*> critCol(d);
 		for (arg_index k = 0; k != d; ++k)
 		{
-			const AbstrDataItem* critA = critItems[k];
-			my_vec_t<Float64>& col = crit[k];
-			col.resize(n);
-			visit<typelists::num_objects>(critA->GetAbstrValuesUnit(), [critA, &col, e, nt] <typename V> (const Unit<V>*)
-				{
-					auto da = const_array_cast<V>(critA);
-					for (tile_id t = 0; t != nt; ++t)
+			crit.emplace_back(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: criterion"));
+			critCol[k] = crit.back().begin();
+		}
+
+		parallel_for<SizeT>(nt, [&](SizeT tt)
+			{
+				tile_id t = tile_id(tt);
+				const SizeT tileFirst = e->GetTileFirstIndex(t);
+				const SizeT tileSize  = e->GetTileSize(t);
+				std::unique_ptr<IndexGetter> partGetter(IndexGetterCreator::Create(partA, t));
+				std::vector<std::unique_ptr<AbstrCritTileReader>> readers;
+				for (arg_index k = 0; k != d; ++k)
+					readers.emplace_back(CreateCritTileReader(critItems[k], t, tileSize));
+
+				ForEachChunk(tileSize, [&](SizeT c, SizeT first, SizeT last)
 					{
-						auto tileData = da->GetTile(t);
-						SizeT first = e->GetTileFirstIndex(t);
-						for (SizeT i = 0, m = tileData.size(); i != m; ++i)
+						for (arg_index k = 0; k != d; ++k)
+							readers[k]->Read(first, last - first, critCol[k] + tileFirst + first);
+
+						ChunkInfo& ci = chunkInfo[tileChunkBase[t] + c];
+						ci.rowFirst = tileFirst + first;
+						ci.rowLast  = tileFirst + last;
+						for (SizeT i = first; i != last; ++i)
 						{
-							V v = tileData[i];
-							col[first + i] = IsDefined(v) ? Float64(v) : UNDEFINED_VALUE(Float64);
+							const SizeT row = tileFirst + i;
+							SizeT p = partGetter->Get(i);
+							if (IsDefined(p))
+								for (arg_index k = 0; k != d; ++k)
+								{
+									Float64 v = critCol[k][row];
+									if (!(IsDefined(v) && v == v)) // v == v: not NaN, which has no place in a strict weak order
+									{
+										p = UNDEFINED_VALUE(SizeT);
+										break;
+									}
+								}
+							part[row] = p;
+							if (!IsDefined(p))
+								continue;
+							if (!ci.count)
+								ci.firstPart = ci.minPart = ci.maxPart = p;
+							else
+							{
+								if (p < ci.lastPart)
+									ci.ascending = false;
+								ci.minPart = std::min(ci.minPart, p);
+								ci.maxPart = std::max(ci.maxPart, p);
+							}
+							ci.lastPart = p;
+							++ci.count;
 						}
 					}
-				}
-			);
-		}
+				);
+			}
+		);
 
-		// 3. the rows that take part: a defined partition and defined criteria
-		my_vec_t<SizeT> idx;
-		idx.reserve(n);
-		for (SizeT i = 0; i != n; ++i)
+		// 2. the (partition, row) pairs of the rows that take part, in row order, collected per chunk
+		//    in parallel; the partition may already be ascending, which makes the groups the runs
+		SizeT m = 0;
+		SizeT minPart = std::numeric_limits<SizeT>::max(), maxPart = 0;
+		bool  ascending = true;
+		const ChunkInfo* prevFilled = nullptr;
+		std::vector<SizeT> chunkOffset(nrChunks);
+		for (SizeT c = 0; c != nrChunks; ++c)
 		{
-			if (!IsDefined(part[i]))
+			const ChunkInfo& ci = chunkInfo[c];
+			chunkOffset[c] = m;
+			m += ci.count;
+			if (!ci.count)
 				continue;
-			bool ok = true;
-			for (arg_index k = 0; k != d && ok; ++k)
-			{
-				Float64 v = crit[k][i];
-				ok = IsDefined(v) && v == v; // v == v: not NaN, which has no place in a strict weak order
-			}
-			if (ok)
-				idx.push_back(i);
+			minPart = std::min(minPart, ci.minPart);
+			maxPart = std::max(maxPart, ci.maxPart);
+			if (!ci.ascending || (prevFilled && ci.firstPart < prevFilled->lastPart))
+				ascending = false;
+			prevFilled = &ci;
 		}
 
-		// 4. epsilon-dominance (#1282): the dominance keys are the buckets floor(crit / eps) where
-		//    eps > 0 and the raw values elsewhere. A quotient within a millionth of a bucket width
-		//    below an edge counts as the higher bucket, as in the engine's Imp2Bucket.
-		bool anyEps = false;
-		std::vector<my_vec_t<Float64>> bucket(d);
-		std::vector<const my_vec_t<Float64>*> key(d);
-		for (arg_index k = 0; k != d; ++k)
-		{
-			if (eps[k] > 0.0)
+		OwningPtrSizedArray<PartRow> pairs(m, dont_initialize MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: pairs"));
+		parallel_for<SizeT>(nrChunks, [&](SizeT c)
 			{
-				anyEps = true;
-				bucket[k].resize(n);
-				const Float64 epsK = eps[k];
-				for (SizeT i : idx)
-					bucket[k][i] = std::floor(crit[k][i] / epsK + 1e-6);
-				key[k] = &bucket[k];
+				PartRow* out = pairs.begin() + chunkOffset[c];
+				for (SizeT row = chunkInfo[c].rowFirst, rowLast = chunkInfo[c].rowLast; row != rowLast; ++row)
+					if (IsDefined(part[row]))
+						*out++ = PartRow{ part[row], row };
+				assert(out == pairs.begin() + chunkOffset[c] + chunkInfo[c].count);
 			}
-			else
-				key[k] = &crit[k];
-		}
+		);
+		part.reset();
 
-		// 5. lexicographic order on (partition, keys, raw criteria, row id): the offline form of the
-		//    order in which the bi-criteria Dijkstra pops its labels; the raw criteria only order
-		//    within equal buckets, so that the best row of a box comes first
-		auto lexLess = [&part, &key, &crit, d, anyEps](SizeT a, SizeT b) -> bool
-		{
-			if (part[a] != part[b])
-				return part[a] < part[b];
-			for (arg_index k = 0; k != d; ++k)
-				if ((*key[k])[a] != (*key[k])[b])
-					return (*key[k])[a] < (*key[k])[b];
-			if (anyEps)
-				for (arg_index k = 0; k != d; ++k)
-					if (crit[k][a] != crit[k][b])
-						return crit[k][a] < crit[k][b];
-			return a < b;
-		};
-		if (idx.size() > 4096)
-			std::sort(std::execution::par, idx.begin(), idx.end(), lexLess);
-		else
-			std::sort(idx.begin(), idx.end(), lexLess);
+		// 3. the rows together per partition, in ascending row order within each group
+		if (!ascending)
+			SortOnPartition(pairs, minPart, maxPart);
 
-		// 6. the sweep per partition. Every earlier row of the group has key1 <= the row under
-		//    test (and, when equal on all keys, a lower raw value or id), so dominance reduces to
-		//    the remaining keys: with one criterion only the first row of the group survives,
-		//    with two the row survives iff its key2 is strictly below the minimum key2 accepted
-		//    so far, with more it must escape every accepted row of the group.
-		my_vec_t<UInt8> keep(n, UInt8(0));
-		my_vec_t<SizeT> front;   // the accepted rows of the current group, d >= 3 only
-		SizeT   currPart = UNDEFINED_VALUE(SizeT);
-		bool    hasAccepted = false;
-		Float64 minKey2 = 0.0;
-		for (SizeT r : idx)
-		{
-			if (part[r] != currPart)
+		// 4. per block of whole groups, in parallel: per group, the dominance keys and the raw criteria
+		//    in one contiguous record per row, the records sorted lexicographically, and the sweep.
+		//    The keys are the buckets floor(crit / eps) where eps > 0 (#1282; a quotient within a
+		//    millionth of a bucket width below an edge counts as the higher bucket, as in the engine's
+		//    Imp2Bucket) and the raw values elsewhere; after the d keys a record holds the raw values
+		//    of the bucketed criteria, which order the rows within equal buckets, so that the best row
+		//    of a box comes first. The raw value of an unbucketed criterion equals its key and orders
+		//    nothing more. The group index breaks the last tie; it is the row order.
+		//    Sweep: every earlier record of the group has key1 <= the record under test (and, when
+		//    equal on all keys, a lower raw value or row), so dominance reduces to the remaining keys:
+		//    with one criterion only the first row of the group survives, with two the row survives iff
+		//    its key2 is strictly below the minimum key2 accepted so far, with more it must escape every
+		//    accepted row of the group.
+		OwningPtrSizedArray<UInt8> keep(n, value_construct MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: keep"));
+		const SizeT recSize = d + SizeT(std::count_if(eps.begin(), eps.end(), [](Float64 epsK) { return epsK > 0.0; }));
+
+		// the first position at or after p that starts a group
+		auto groupStart = [&pairs, m](SizeT p) -> SizeT
 			{
-				currPart = part[r];
-				hasAccepted = false;
-				front.clear();
-			}
-			bool dominated;
-			if (d == 1)
-				dominated = hasAccepted;
-			else if (d == 2)
-				dominated = hasAccepted && (*key[1])[r] >= minKey2;
-			else
+				if (p == 0 || p >= m)
+					return std::min(p, m);
+				SizeT prevPart = pairs[p - 1].part;
+				if (pairs[p].part != prevPart)
+					return p;
+				return std::upper_bound(pairs.begin() + p, pairs.end(), prevPart, [](SizeT v, const PartRow& pr) { return v < pr.part; }) - pairs.begin();
+			};
+
+		const SizeT nrBlocks = (m + GROUP_BLOCK_SIZE - 1) / GROUP_BLOCK_SIZE;
+		parallel_for<SizeT>(nrBlocks, [&](SizeT b)
 			{
-				dominated = false;
-				for (SizeT f : front)
+				SizeT gs = groupStart(b * GROUP_BLOCK_SIZE);
+				const SizeT blockEnd = groupStart((b + 1) * GROUP_BLOCK_SIZE);
+
+				my_vec_t<Float64> rec;
+				my_vec_t<SizeT>   perm;
+				my_vec_t<SizeT>   front; // the accepted records of the current group, d >= 3 only
+				while (gs != blockEnd)
 				{
-					bool dom = true;
-					for (arg_index k = 1; k != d && dom; ++k)
-						dom = (*key[k])[f] <= (*key[k])[r];
-					if (dom)
+					SizeT ge = gs + 1;
+					while (ge != blockEnd && pairs[ge].part == pairs[gs].part)
+						++ge;
+					const SizeT g = ge - gs;
+					const PartRow* groupPairs = pairs.begin() + gs;
+					gs = ge;
+
+					if (g == 1)
 					{
-						dominated = true;
-						break;
+						keep[groupPairs[0].row] = 1;
+						continue;
+					}
+
+					rec.resize(g * recSize);
+					perm.resize(g);
+					for (SizeT j = 0; j != g; ++j)
+					{
+						const SizeT row = groupPairs[j].row;
+						Float64* recJ = rec.data() + j * recSize;
+						SizeT rawPos = d;
+						for (arg_index k = 0; k != d; ++k)
+						{
+							Float64 v = critCol[k][row];
+							if (eps[k] > 0.0)
+							{
+								recJ[k] = std::floor(v / eps[k] + 1e-6);
+								recJ[rawPos++] = v;
+							}
+							else
+								recJ[k] = v;
+						}
+						perm[j] = j;
+					}
+
+					auto recLess = [recData = rec.data(), recSize](SizeT a, SizeT b) -> bool
+						{
+							const Float64* recA = recData + a * recSize;
+							const Float64* recB = recData + b * recSize;
+							for (SizeT k = 0; k != recSize; ++k)
+								if (recA[k] != recB[k])
+									return recA[k] < recB[k];
+							return a < b;
+						};
+					if (g >= LARGE_GROUP_SIZE)
+						std::sort(std::execution::par, perm.begin(), perm.end(), recLess);
+					else
+						std::sort(perm.begin(), perm.end(), recLess);
+
+					bool    hasAccepted = false;
+					Float64 minKey2 = 0.0;
+					front.clear();
+					for (SizeT j : perm)
+					{
+						const Float64* recJ = rec.data() + j * recSize;
+						bool dominated;
+						if (d == 1)
+							dominated = hasAccepted;
+						else if (d == 2)
+							dominated = hasAccepted && recJ[1] >= minKey2;
+						else
+						{
+							dominated = false;
+							for (SizeT f : front)
+							{
+								const Float64* recF = rec.data() + f * recSize;
+								bool dom = true;
+								for (arg_index k = 1; k != d && dom; ++k)
+									dom = recF[k] <= recJ[k];
+								if (dom)
+								{
+									dominated = true;
+									break;
+								}
+							}
+						}
+						if (dominated)
+							continue;
+						keep[groupPairs[j].row] = 1;
+						if (d == 1)
+							break;
+						hasAccepted = true;
+						if (d == 2)
+							minKey2 = recJ[1];
+						else
+							front.push_back(j);
 					}
 				}
 			}
-			if (dominated)
-				continue;
-			keep[r] = 1;
-			hasAccepted = true;
-			if (d == 2)
-				minKey2 = (*key[1])[r];
-			else if (d > 2)
-				front.push_back(r);
-		}
+		);
+		pairs.reset();
+		crit.clear();
 
-		// 7. the result, tile by tile
-		for (tile_id t = 0; t != nt; ++t)
-		{
-			auto resData = res->GetWritableTile(t, dms_rw_mode::write_only_all);
-			SizeT first = e->GetTileFirstIndex(t);
-			auto resI = resData.begin();
-			for (SizeT i = 0, m = resData.size(); i != m; ++i, ++resI)
-				*resI = (keep[first + i] != 0);
-		}
+		// 5. the result, per chunk of rows of each tile in parallel
+		parallel_for<SizeT>(nt, [&](SizeT tt)
+			{
+				tile_id t = tile_id(tt);
+				auto resData = res->GetWritableTile(t, dms_rw_mode::write_only_all);
+				const SizeT tileFirst = e->GetTileFirstIndex(t);
+				ForEachChunk(resData.size(), [&resData, &keep, tileFirst](SizeT, SizeT first, SizeT last)
+					{
+						auto resI = resData.begin() + first;
+						for (SizeT i = first; i != last; ++i, ++resI)
+							*resI = (keep[tileFirst + i] != 0);
+					}
+				);
+			}
+		);
 	}
 
 	arg_index m_NrCriteria;

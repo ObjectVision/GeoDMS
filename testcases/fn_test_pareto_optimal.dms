@@ -3,7 +3,10 @@ container fn_test_pareto_optimal
 	// pareto_optimal(partition_rel, crit1, ..., critN): the rows that no other row of the same
 	// partition weakly dominates, all criteria minimised, exact duplicates keeping their first
 	// occurrence. Checked by hand on small tables and against the self-join formulation
-	// (join_equal_values + any) on a generated table with ties and duplicates.
+	// (join_equal_values + any) on a generated table with ties and duplicates. Since #1286 the
+	// operator groups the rows with a radix sort and sweeps blocks of groups in parallel; T4, T5
+	// and T6 are large enough to reach those paths (several chunks, radix passes, groups that span
+	// blocks, a tiled domain).
 
 	unit<uint8> G : nrofrows = 2;
 
@@ -91,8 +94,114 @@ container fn_test_pareto_optimal
 		attribute<bool> covered := any(pairs/covers, pairs/second_rel);
 	}
 
+	// ---- #1286: several chunks of rows, radix passes and blocks of groups. 200,000 rows in 20,000
+	// groups of ten, a uint64 partition in no particular order whose spread takes five radix passes,
+	// some rows without a partition or with a null criterion, against the self-join formulation
+	unit<uint32> P4 : nrofrows = 20000;
+	unit<uint32> T4 : nrofrows = 200000
+	{
+		attribute<uint32>  i     := id(.);
+		attribute<P4>      p_rel := value(mod(i * 7919, 20000), P4);
+		attribute<uint64>  p64   := iif(i % 997 == 0, null_u64, uint64(p_rel) * 1000003u64 + 12345u64);
+		attribute<uint32>  c1    := uint32(mod(uint64(i) * 104729u64, 13u64));
+		attribute<float64> c2    := iif(i % 1009 == 0, null_d, float64(mod(uint64(i) * 1299709u64, 11u64)) - 5.0);
+		attribute<uint32>  c3    := uint32(mod(uint64(i) * 8887u64, 7u64));
+		attribute<bool>    valid := IsDefined(p64) && IsDefined(c2);
+
+		attribute<bool> po3     := pareto_optimal(p64, c1, c2, c3);
+		attribute<bool> po2     := pareto_optimal(p64, c1, c2);
+		attribute<bool> po_zero := pareto_optimal_eps(p64, c1, 0.0, c2, 0.0, c3, 0.0);
+		attribute<bool> po_eps  := pareto_optimal_eps(p64, c1, 0.0, c2, 2.0, c3, 2.0);
+
+		unit<uint32> pairs := join_equal_values_uint32(p_rel, p_rel)
+		{
+			attribute<bool> both   := valid[first_rel] && valid[second_rel];
+			attribute<bool> is_le3 := both && c1[first_rel] <= c1[second_rel] && c2[first_rel] <= c2[second_rel] && c3[first_rel] <= c3[second_rel];
+			attribute<bool> is_eq3 := c1[first_rel] == c1[second_rel] && c2[first_rel] == c2[second_rel] && c3[first_rel] == c3[second_rel];
+			attribute<bool> less3  := is_le3 && (not(is_eq3) || first_rel < second_rel);
+			attribute<bool> is_le2 := both && c1[first_rel] <= c1[second_rel] && c2[first_rel] <= c2[second_rel];
+			attribute<bool> is_eq2 := c1[first_rel] == c1[second_rel] && c2[first_rel] == c2[second_rel];
+			attribute<bool> less2  := is_le2 && (not(is_eq2) || first_rel < second_rel);
+			attribute<bool> covers := both && po_eps[first_rel] && c1[first_rel] <= c1[second_rel] && c2[first_rel] < c2[second_rel] + 2.0 && float64(c3[first_rel]) < float64(c3[second_rel]) + 2.0;
+		}
+		attribute<bool> ref3    := valid && not(any(pairs/less3, pairs/second_rel));
+		attribute<bool> ref2    := valid && not(any(pairs/less2, pairs/second_rel));
+		attribute<bool> covered := any(pairs/covers, pairs/second_rel);
+	}
+
+	// ---- #1286: groups larger than a block of the sweep and than the size from which a group sorts
+	// in parallel: two groups of 300,000 rows. Row j of a group has c1 a permutation of j % 200 and lies
+	// on the front c1 + c2 = 199 when (j / 200) % 3 == 0, one above it otherwise, so only the first
+	// occurrence of each front point survives: the rows j < 200. With c2 in buckets of 2, the front
+	// points with an odd c1 share the bucket of their predecessor and fall. The groups interleave
+	// (suffix a: a partition with a spread of 2^40, six radix passes of which five have one digit) or
+	// follow each other (suffix b: an ascending partition, no sort).
+	unit<uint32> T5 : nrofrows = 600000
+	{
+		attribute<uint32>  i     := id(.);
+
+		attribute<uint64>  pa    := uint64(i % 2) * 1099511627776u64 + 5u64;
+		attribute<uint32>  ja    := i / 2;
+		attribute<uint32>  c1a   := ((ja % 200) * 7) % 200;
+		attribute<float64> c2a   := float64(199 - c1a) + float64(uint32((ja / 200) % 3 != 0));
+		attribute<uint32>  c3a   := (ja / 200) % 3;
+		attribute<bool>    po2a  := pareto_optimal(pa, c1a, c2a);
+		attribute<bool>    po3a  := pareto_optimal(pa, c1a, c2a, c3a);
+		attribute<bool>    poea  := pareto_optimal_eps(pa, c1a, 0.0, c2a, 2.0, c3a, 0.0);
+		attribute<bool>    expa  := ja < 200;
+		attribute<bool>    expea := ja < 200 && c1a % 2 == 0;
+
+		attribute<uint32>  pb    := i / 300000;
+		attribute<uint32>  jb    := i % 300000;
+		attribute<uint32>  c1b   := ((jb % 200) * 7) % 200;
+		attribute<float64> c2b   := float64(199 - c1b) + float64(uint32((jb / 200) % 3 != 0));
+		attribute<uint32>  c3b   := (jb / 200) % 3;
+		attribute<bool>    po2b  := pareto_optimal(pb, c1b, c2b);
+		attribute<bool>    po3b  := pareto_optimal(pb, c1b, c2b, c3b);
+		attribute<bool>    poeb  := pareto_optimal_eps(pb, c1b, 0.0, c2b, 2.0, c3b, 0.0);
+		attribute<bool>    expb  := jb < 200;
+		attribute<bool>    expeb := jb < 200 && c1b % 2 == 0;
+	}
+
+	// ---- #1286: the interleaved layout of T5 on a domain of tiles of 70,001 rows, which are no
+	// multiple of a chunk or of a 32-bit block of the result
+	unit<uint32> T6 := TiledUnit(value(70001, range(uint32, 0, 600000)))
+	{
+		attribute<uint32>  i     := id(.);
+		attribute<uint64>  pa    := uint64(i % 2) * 1099511627776u64 + 5u64;
+		attribute<uint32>  ja    := i / 2;
+		attribute<uint32>  c1a   := ((ja % 200) * 7) % 200;
+		attribute<float64> c2a   := float64(199 - c1a) + float64(uint32((ja / 200) % 3 != 0));
+		attribute<uint32>  c3a   := (ja / 200) % 3;
+		attribute<bool>    po2a  := pareto_optimal(pa, c1a, c2a);
+		attribute<bool>    po3a  := pareto_optimal(pa, c1a, c2a, c3a);
+		attribute<bool>    poea  := pareto_optimal_eps(pa, c1a, 0.0, c2a, 2.0, c3a, 0.0);
+		attribute<bool>    expa  := ja < 200;
+		attribute<bool>    expea := ja < 200 && c1a % 2 == 0;
+	}
+
 	container checks
 	{
+		parameter<uint32> c_t4_diff3  := sum(uint32(T4/po3 != T4/ref3)),                           IntegrityCheck = "c_t4_diff3 == 0";
+		parameter<uint32> c_t4_diff2  := sum(uint32(T4/po2 != T4/ref2)),                           IntegrityCheck = "c_t4_diff2 == 0";
+		parameter<uint32> c_t4_zero   := sum(uint32(T4/po_zero != T4/po3)),                        IntegrityCheck = "c_t4_zero == 0";
+		parameter<uint32> c_t4_some   := sum(uint32(T4/po3)),                                      IntegrityCheck = "c_t4_some > 20000 && c_t4_some < 200000";
+		parameter<uint32> c_t4e_sub   := sum(uint32(T4/po_eps && not(T4/po3))),                    IntegrityCheck = "c_t4e_sub == 0";
+		parameter<uint32> c_t4e_less  := sum(uint32(T4/po_eps)),                                   IntegrityCheck = "c_t4e_less > 19000 && c_t4e_less < c_t4_some";
+		parameter<uint32> c_t4e_cover := sum(uint32(T4/po3 && not(T4/po_eps) && not(T4/covered))), IntegrityCheck = "c_t4e_cover == 0";
+
+		parameter<uint32> c_t5_2a  := sum(uint32(T5/po2a != T5/expa)),  IntegrityCheck = "c_t5_2a == 0";
+		parameter<uint32> c_t5_3a  := sum(uint32(T5/po3a != T5/expa)),  IntegrityCheck = "c_t5_3a == 0";
+		parameter<uint32> c_t5_ea  := sum(uint32(T5/poea != T5/expea)), IntegrityCheck = "c_t5_ea == 0";
+		parameter<uint32> c_t5_2b  := sum(uint32(T5/po2b != T5/expb)),  IntegrityCheck = "c_t5_2b == 0";
+		parameter<uint32> c_t5_3b  := sum(uint32(T5/po3b != T5/expb)),  IntegrityCheck = "c_t5_3b == 0";
+		parameter<uint32> c_t5_eb  := sum(uint32(T5/poeb != T5/expeb)), IntegrityCheck = "c_t5_eb == 0";
+		parameter<uint32> c_t5_na  := sum(uint32(T5/po2a)),             IntegrityCheck = "c_t5_na == 400";
+		parameter<uint32> c_t5_nea := sum(uint32(T5/poea)),             IntegrityCheck = "c_t5_nea == 200";
+		parameter<uint32> c_t6_2a  := sum(uint32(T6/po2a != T6/expa)),  IntegrityCheck = "c_t6_2a == 0";
+		parameter<uint32> c_t6_3a  := sum(uint32(T6/po3a != T6/expa)),  IntegrityCheck = "c_t6_3a == 0";
+		parameter<uint32> c_t6_ea  := sum(uint32(T6/poea != T6/expea)), IntegrityCheck = "c_t6_ea == 0";
+
 		parameter<uint32> c_t2e_c2    := sum(uint32(T2e/po_c2 != T2e/exp_c2)),     IntegrityCheck = "c_t2e_c2 == 0";
 		parameter<uint32> c_t2e_both  := sum(uint32(T2e/po_both != T2e/exp_both)), IntegrityCheck = "c_t2e_both == 0";
 		parameter<uint32> c_t2e_zero  := sum(uint32(T2e/po_zero != T2/expected)),  IntegrityCheck = "c_t2e_zero == 0";
