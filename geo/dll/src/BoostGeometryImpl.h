@@ -35,6 +35,8 @@
 #include "GEOS_Traits.h"
 #include "minkowski.h"
 
+#include <geos/geom/MultiPoint.h>
+#include <geos/geom/Point.h>
 #include <geos/simplify/DouglasPeuckerSimplifier.h>
 
 #include <CGAL/minkowski_sum_2.h> // cgal_minkowski_sum uses CGAL's own exact convolution
@@ -1876,6 +1878,20 @@ struct BufferPointOperator : public AbstrBufferOperator
 	}
 };
 
+// The discs of all points of a multipoint in one call: GEOS buffers a MultiPoint as the union of its point discs,
+// noding their rings together once, where unioning the discs one by one was quadratic in the number of points (GEO-A40).
+template <typename PointSeq>
+auto geos_buffer_multi_point(const PointSeq& points, Float64 bufferDistance, int quadrantSegments) -> std::unique_ptr<geos::geom::Geometry>
+{
+	std::vector<std::unique_ptr<geos::geom::Point>> geosPoints;
+	geosPoints.reserve(points.size());
+	for (const auto& p : points)
+		geosPoints.emplace_back(geos_factory()->createPoint(geos::geom::Coordinate(p.X(), p.Y())));
+	if (geosPoints.empty())
+		return {};
+	return geos_factory()->createMultiPoint(std::move(geosPoints))->buffer(bufferDistance, quadrantSegments);
+}
+
 template <typename P, geometry_library GL>
 struct BufferMultiPointOperator : public AbstrBufferOperator
 {
@@ -1978,25 +1994,22 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			else if constexpr (GL == geometry_library::cgal)
 			{
 				auto cgalCircle = cgal_circle<CoordType>(bufferDistance, pointsPerCircle);
+				std::vector<CGAL::Polygon_2<CGAL_Traits::Kernel>> discs;
 				do {
-					CGAL_Traits::Polygon_set result;
+					// every disc first, then one divide and conquer union, as cgal_buffer_multi_linestring does;
+					// joining the discs one by one into the set was quadratic in the number of points (GEO-A40)
+					discs.clear();
+					discs.reserve(polyData[i].size());
 					for (const auto& p : polyData[i])
 					{
-						// Define the translation vector (dx, dy)
-						CGAL_Traits::Kernel::Vector_2 translation_vector(p.X(), p.Y());
-
-						// Define the affine transformation for translation
-						CGAL::Aff_transformation_2<CGAL_Traits::Kernel> translate(CGAL::TRANSLATION, translation_vector);
-
-						// Create a new polygon for the translated version
-						CGAL::Polygon_2<CGAL_Traits::Kernel> translated_polygon;
-
-						// Apply the translation to each vertex of the original polygon
+						CGAL::Aff_transformation_2<CGAL_Traits::Kernel> translate(CGAL::TRANSLATION, CGAL_Traits::Kernel::Vector_2(p.X(), p.Y()));
+						auto& translated_polygon = discs.emplace_back();
 						for (auto vertex : cgalCircle)
 							translated_polygon.push_back(translate.transform(vertex));
-						result.join( translated_polygon );
 					}
-					// Store the translated polygon
+					CGAL_Traits::Polygon_set result;
+					if (!discs.empty())
+						result.join(discs.begin(), discs.end());
 					cgal_assign_polygon_set(resData[i], result);
 
 					// move to nextPoint
@@ -2006,18 +2019,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			}
 			else if constexpr (GL == geometry_library::geos)
 			{
-				std::unique_ptr<geos::geom::Geometry> geosResult;
-				for (const auto& p : polyData[i])
-				{
-					auto point = geos_factory()->createPoint(geos::geom::Coordinate(p.X(), p.Y()));
-					auto bufferGeometry = point->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
-
-					if (!geosResult)
-						geosResult = std::move(bufferGeometry);
-					else
-						geosResult = geosResult->Union(bufferGeometry.get());
-				}
-
+				auto geosResult = geos_buffer_multi_point(polyData[i], bufferDistance, (pointsPerCircle + 3) / 4);
 				geos_assign_geometry(resData[i], geosResult.get());
 
 				// move to next geometry
@@ -2414,16 +2416,7 @@ struct GeosBufferOperator : public AbstrBufferOperator
 			}
 			case ValueComposition::MultiPoint: // as geos_buffer_multi_point
 			{
-				std::unique_ptr<geos::geom::Geometry> geosResult;
-				for (const auto& p : polyData[i])
-				{
-					auto point = geos_factory()->createPoint(geos::geom::Coordinate(p.X(), p.Y()));
-					auto bufferGeometry = point->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
-					if (!geosResult)
-						geosResult = std::move(bufferGeometry);
-					else
-						geosResult = geosResult->Union(bufferGeometry.get());
-				}
+				auto geosResult = geos_buffer_multi_point(polyData[i], bufferDistance, (pointsPerCircle + 3) / 4);
 				geos_assign_geometry(resData[i], geosResult.get());
 				break;
 			}
