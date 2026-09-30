@@ -2548,27 +2548,45 @@ void SetField(OGRFeature* feature, int i, UInt64 b)
 }
 
 
-bool GdalVectSM::WriteFieldElement(const AbstrDataItem* adi, int field_index, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
-{
-	const AbstrDataObject* ado = adi->GetRefObj().get();
-	auto				   avu = adi->GetAbstrValuesUnit();
 
-	GDAL_ErrorFrame frame;
-	
+// STG-A16: the value of one field for the features of one tile. Made once per tile and field: it holds the
+// tile's data, so writing a feature's value is a SetField, where the feature loop locked the item, opened
+// an error frame, dispatched on the value type and looked the tile up again for every feature and field.
+struct AbstrFieldTileWriter
+{
+	virtual ~AbstrFieldTileWriter() = default;
+	virtual void Write(OGRFeature* feature, SizeT tileFeatureIndex) const = 0;
+};
+
+template <typename field_type>
+struct FieldTileWriter : AbstrFieldTileWriter
+{
+	FieldTileWriter(typename DataArray<field_type>::locked_cseq_t&& tileData, int fieldIndex)
+		: m_TileData(std::move(tileData)), m_FieldIndex(fieldIndex)
+	{}
+	void Write(OGRFeature* feature, SizeT tileFeatureIndex) const override
+	{
+		SetField(feature, m_FieldIndex, *(m_TileData.begin() + tileFeatureIndex));
+	}
+	typename DataArray<field_type>::locked_cseq_t m_TileData;
+	int m_FieldIndex;
+};
+
+std::unique_ptr<AbstrFieldTileWriter> MakeFieldTileWriter(const AbstrDataItem* adi, int field_index, tile_id t, SizeT nrFeaturesInTile)
+{
 	using field_types = tl::type_list<Float32, Float64, Bool, UInt2, UInt4, Int8, UInt8, Int16, UInt16, Int32, UInt32, Int64, UInt64, SharedStr>;
 
-	visit<field_types>(avu,
-		[this, ado, adi, feature, tileFeatureIndex, field_index, t, &frame] <typename field_type> (const Unit<field_type>*) 
+	std::unique_ptr<AbstrFieldTileWriter> result;
+	visit<field_types>(adi->GetAbstrValuesUnit(),
+		[adi, field_index, t, nrFeaturesInTile, &result] <typename field_type> (const Unit<field_type>*)
 		{
-			auto darray = const_array_cast<field_type>(adi)->GetDataRead(t); // GetDataRead(t) can also accept tile t
-
-			auto b = darray.begin(), e = darray.end();
-			MG_CHECK(tileFeatureIndex < SizeT(e - b));
-
-			SetField(feature, field_index, *(b+tileFeatureIndex) );
+			auto darray = const_array_cast<field_type>(adi)->GetDataRead(t);
+			MG_CHECK(nrFeaturesInTile <= SizeT(darray.end() - darray.begin()));
+			result = std::make_unique<FieldTileWriter<field_type>>(std::move(darray), field_index);
 		}
 	);
-	return true;
+	MG_CHECK(result);
+	return result;
 }
 
 std::vector<DataReadLock> ReadableDataHandles(TokenID layer_id, DataItemsWriteStatusInfo& dataItemsStatusInfo)
@@ -2976,6 +2994,25 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 			}
 			// destroy protoFeature
 		}
+
+		// STG-A16: per tile, the items of this round are locked once and each field gets its writer
+		std::vector<std::shared_ptr<const AbstrDataItem>> geometryItems;
+		std::vector<std::unique_ptr<AbstrFieldTileWriter>> fieldWriters;
+		for (auto& writableField : fieldIDMapping)
+		{
+			if (not writableField.second.writeInThisRound())
+				continue;
+
+			std::weak_ptr<const AbstrDataItem> adi_w = writableField.second.m_DataHolder;
+			auto adi_n = adi_w.lock();
+			if (!adi_n)
+				throwTaskCanceled();
+			if (writableField.second.isGeometry)
+				geometryItems.emplace_back(std::move(adi_n));
+			else
+				fieldWriters.emplace_back(MakeFieldTileWriter(adi_n.get(), writableField.second.field_index, t, numExistingFeaturesInTile));
+		}
+
 		for (; tileFeatureIndex < numExistingFeaturesInTile; ++tileFeatureIndex, ++featureIndex)
 		{
 			bool updateExistingFeature = featureIndex < numExistingFeatures;
@@ -2988,23 +3025,10 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 			gdalVectImpl::FeaturePtr curFeature = nextFeature;
 
 			// write explicitly configured fields
-			for (auto& writableField : fieldIDMapping)
-			{
-				if (not writableField.second.writeInThisRound())
-					continue;
-
-				std::weak_ptr<const AbstrDataItem> adi_w = writableField.second.m_DataHolder;
-				auto adi_n = adi_w.lock();
-				if (!adi_n)
-					throwTaskCanceled();
-				if (writableField.second.isGeometry)
-					WriteGeometryElement(adi_n.get(), curFeature, t, tileFeatureIndex);
-				else
-				{
-					dbg_assert(writableField.second.field_index == curFeature->GetFieldIndex(SharedStr(writableField.second.nameID).c_str()));
-					WriteFieldElement(adi_n.get(), writableField.second.field_index, curFeature, t, tileFeatureIndex);
-				}
-			}
+			for (const auto& geometryItem : geometryItems)
+				WriteGeometryElement(geometryItem.get(), curFeature, t, tileFeatureIndex);
+			for (const auto& fieldWriter : fieldWriters)
+				fieldWriter->Write(curFeature, tileFeatureIndex);
 
 			// write implicit orphan geometry, if available
 			if (!m_DataItemsStatusInfo.hasGeometry(layer_id))
