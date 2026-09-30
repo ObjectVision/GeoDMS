@@ -1,0 +1,44 @@
+// Step 5 of the code audit of 2026-09-27, group 5.
+// CLC-A17: overlay32 of two partitionings of 1000 regions each on a 10 x 10 grid. The product of the region
+// counts (1,000,000) is far above the number of cells, so the observed combinations are collected as a sorted
+// set rather than in a dense table. Either way the atomic regions are numbered in ascending product order,
+// product = P1 + 1000 * P2, so the region of cell (r, c), with P1 = r and P2 = c, is 10 * c + r.
+// CLC-A30: regex_search and regex_replace run once per element and keep the result for the write pass; over 3
+// tiles with a null, an empty string and a string without a match, the results must be what they were.
+// Expected: exit 0 on /checks.
+container oper_overlay_sparse_regex_tiles
+{
+	unit<spoint> G := range(spoint, point_xy(0s, 0s), point_xy(10s, 10s));
+	unit<uint16> R1 := range(uint16, 0w, 1000w);
+	unit<uint16> R2 := range(uint16, 0w, 1000w);
+	unit<uint8> Parts: nrofrows = 2
+	{
+		attribute<string> name: ['P1', 'P2'];
+	}
+	container Grids
+	{
+		attribute<R1> P1 (G) := value(uint16(pointRow(id(G))), R1);
+		attribute<R2> P2 (G) := value(uint16(pointCol(id(G))), R2);
+	}
+	unit<uint32> ov := overlay32(Parts/name, G, Grids);
+
+	unit<uint32> S := TiledUnit(value(3, range(uint32, 0, 8))) // 3 tiles: 3, 3 and 2 elements
+	{
+		attribute<string> s: ['ab12cd', 'x7', null, '', 'no digits', '1a2b3c', 'q99', 'z'];
+		attribute<string> expFound: ['12cd', '7', null, null, null, '1a', '99', null];
+		attribute<string> expRepl:  ['ab#cd', 'x#', null, '', 'no digits', '#a#b#c', 'q#', 'z'];
+	}
+	attribute<string> found    (S) := regex_search(S/s, '[0-9]+[a-z]*');
+	attribute<string> replaced (S) := regex_replace(S/s, '[0-9]+', '#');
+
+	container checks
+	{
+		parameter<uint32> ovCount   := #ov, IntegrityCheck = "ovCount == 100";
+		parameter<uint32> ovBadMap  := sum(uint32(ov/UnionData != value(10 * uint32(pointCol(id(G))) + uint32(pointRow(id(G))), ov))), IntegrityCheck = "ovBadMap == 0";
+		parameter<uint32> ovBadP1   := sum(uint32(uint32(ov/P1) != id(ov) % 10)), IntegrityCheck = "ovBadP1 == 0";
+		parameter<uint32> ovBadP2   := sum(uint32(uint32(ov/P2) != id(ov) / 10)), IntegrityCheck = "ovBadP2 == 0";
+
+		parameter<uint32> foundBad  := sum(uint32(not(eq_or_both_null(found, S/expFound)))), IntegrityCheck = "foundBad == 0";
+		parameter<uint32> replBad   := sum(uint32(not(eq_or_both_null(replaced, S/expRepl)))), IntegrityCheck = "replBad == 0";
+	}
+}

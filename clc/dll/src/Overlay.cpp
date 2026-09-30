@@ -15,6 +15,9 @@
 
 #include "TileArrayImpl.h"
 #include "mem/MyContainers.h"
+
+#include <algorithm>
+#include <execution>
 #include "DataCheckMode.h"
 #include "OperationContext.h"
 #include "Unit.h"
@@ -210,50 +213,85 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 		}
 	}
 	// count atomicRegionID's in the atomicMap and count the unique nr of observed combinations
-	UInt32 nrAtomicRegions = 0;                                    // the unique nr of observed combinations
-	my_vec_t<UInt32> atomicRegionCounts(visitor.m_AtomicRegionFactor, 0); // # of observed combinations in the atomic map
-
+	SizeT nrCells = 0;
 	for (tile_id t = 0; t != visitor.m_NrTiles; ++t)
-	{
-		auto prodIdMap = visitor.m_ProdIdMapDO->GetLockedDataRead(t);
+		nrCells += domain->GetTileSize(t);
 
-		for (typename sequence_traits<ProdID>::const_pointer
-			prodIdMapIter = prodIdMap.begin(),
-			prodIdMapEnd = prodIdMap.end()
-			;	prodIdMapIter != prodIdMapEnd
-			;	++prodIdMapIter
-			)
-		{
-			if (IsDefined(*prodIdMapIter))
-			{
-				dms_assert(*prodIdMapIter < visitor.m_AtomicRegionFactor);
-				if (atomicRegionCounts[*prodIdMapIter]++ == 0)
-					++nrAtomicRegions;
-			}
-		}
-	}
+	// CLC-A17: the table of observed combinations is dense over the product of all region counts, 4 bytes
+	// per possible combination whatever the number of cells: three partitionings of 1000 regions made it
+	// 4 GB, zeroed and scanned in full. When that product is more than a few times the number of cells,
+	// the observed products are collected, sorted and made unique instead. Both give the combinations in
+	// ascending product order, so the atomic regions are numbered the same either way.
+	bool useTable = SizeT(visitor.m_AtomicRegionFactor) <= 4 * nrCells;
 
-	MG_CHECK(nrAtomicRegions <= MAX_VALUE(ResID));
-	resAtomicRegions->SetCount(nrAtomicRegions);
+	UInt32 nrAtomicRegions = 0;                                    // the unique nr of observed combinations
+	my_vec_t<UInt32> atomicRegionCounts;                           // table: # of observed combinations in the atomic map, then their id
+	std::vector<ProdID> observedProducts;                          // set: the observed combinations, ascending
 
-	// collect atomicRegionIds and replace atomicRegionCounts by atomicRegionIds
 	typedef std::pair<UInt32, ProdID> atomic_region_count_t;
 	my_vec_t<atomic_region_count_t> atomicRegions;   // 1 per atomic region (== ar )
-	atomicRegions.reserve(nrAtomicRegions);
 
-	my_vec_t<UInt32>::iterator
-		arcBeg = atomicRegionCounts.begin(),
-		arcPtr = arcBeg,
-		arcEnd = atomicRegionCounts.end();
-	while(arcPtr != arcEnd)
+	if (useTable)
 	{
-		if (*arcPtr)
+		atomicRegionCounts.resize(visitor.m_AtomicRegionFactor, 0);
+		for (tile_id t = 0; t != visitor.m_NrTiles; ++t)
 		{
-			*arcPtr = atomicRegions.size(); // id[prodNr] == curr atomic region ID
-			atomicRegions.push_back(atomic_region_count_t(*arcPtr, arcPtr - arcBeg));  // (aantal, prodNr)
-		}	
-		++arcPtr;
+			auto prodIdMap = visitor.m_ProdIdMapDO->GetLockedDataRead(t);
+
+			for (typename sequence_traits<ProdID>::const_pointer
+				prodIdMapIter = prodIdMap.begin(),
+				prodIdMapEnd = prodIdMap.end()
+				;	prodIdMapIter != prodIdMapEnd
+				;	++prodIdMapIter
+				)
+			{
+				if (IsDefined(*prodIdMapIter))
+				{
+					dms_assert(*prodIdMapIter < visitor.m_AtomicRegionFactor);
+					if (atomicRegionCounts[*prodIdMapIter]++ == 0)
+						++nrAtomicRegions;
+				}
+			}
+		}
+		MG_CHECK(nrAtomicRegions <= MAX_VALUE(ResID));
+
+		// collect atomicRegionIds and replace atomicRegionCounts by atomicRegionIds
+		atomicRegions.reserve(nrAtomicRegions);
+
+		my_vec_t<UInt32>::iterator
+			arcBeg = atomicRegionCounts.begin(),
+			arcPtr = arcBeg,
+			arcEnd = atomicRegionCounts.end();
+		while(arcPtr != arcEnd)
+		{
+			if (*arcPtr)
+			{
+				*arcPtr = atomicRegions.size(); // id[prodNr] == curr atomic region ID
+				atomicRegions.push_back(atomic_region_count_t(*arcPtr, arcPtr - arcBeg));  // (id, prodNr)
+			}	
+			++arcPtr;
+		}
 	}
+	else
+	{
+		observedProducts.reserve(nrCells);
+		for (tile_id t = 0; t != visitor.m_NrTiles; ++t)
+		{
+			auto prodIdMap = visitor.m_ProdIdMapDO->GetLockedDataRead(t);
+			for (auto prodId: prodIdMap)
+				if (IsDefined(prodId))
+					observedProducts.push_back(prodId);
+		}
+		std::sort(std::execution::par, observedProducts.begin(), observedProducts.end());
+		observedProducts.erase(std::unique(observedProducts.begin(), observedProducts.end()), observedProducts.end());
+		nrAtomicRegions = observedProducts.size();
+		MG_CHECK(nrAtomicRegions <= MAX_VALUE(ResID));
+
+		atomicRegions.reserve(nrAtomicRegions);
+		for (UInt32 id = 0; id != nrAtomicRegions; ++id)
+			atomicRegions.push_back(atomic_region_count_t(id, observedProducts[id]));  // (id, prodNr)
+	}
+	resAtomicRegions->SetCount(nrAtomicRegions);
 	dms_assert(atomicRegions.size() == nrAtomicRegions);
 
 	// number atomicRegionMap according to (id+1) in atomicRegionCounts
@@ -269,6 +307,18 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 		ResID* arm_end  = atomicRegionMap.end();
 
 		auto prodIdMap = visitor.m_ProdIdMapDO->GetLockedDataRead(t);
+		if (!useTable)
+		{
+			// a binary search per cell in the observed products, which it only reads: in parallel
+			std::transform(std::execution::par, prodIdMap.begin(), prodIdMap.end(), arm_iter, [&observedProducts](ProdID prodId) -> ResID
+				{
+					if (!IsDefined(prodId))
+						return UNDEFINED_VALUE(ResID);
+					return std::lower_bound(observedProducts.begin(), observedProducts.end(), prodId) - observedProducts.begin();
+				}
+			);
+			continue;
+		}
 		for (sequence_traits<ProdID>::const_pointer prodIdMapIter = prodIdMap.begin(); 
 			arm_iter != arm_end; 
 			++prodIdMapIter, ++arm_iter)
