@@ -1,0 +1,49 @@
+container geo_connect_multi_cut
+{
+	// GEO-A53: connect (FastConnect) orders the cuts of an arc as one sorted run per arc and writes the
+	// result in one pass. Road 0 runs (0,0) -> (4,0) -> (10,0) and is cut five times: inside segment 0 at
+	// x=2, on its middle vertex at x=4, twice at the same place x=7 in segment 1 (p1 and p3, a tie) and at
+	// x=9. Road 1 runs (0,20) -> (10,20) and is not cut. The cuts are applied from the end of the arc, so
+	// the tails follow the arc backwards: [9,10], [7,9], [7,7], [4,7], [2,4], and road 0 keeps [0,2].
+	unit<uint32> RoadPoints : nrofrows = 5
+	{
+		attribute<float64> px      : [0, 4, 10,  0, 10];
+		attribute<float64> py      : [0, 0,  0, 20, 20];
+		attribute<dpoint>  point   := point_xy(px, py, dpoint);
+		attribute<Road>    seq_rel : [0, 0, 0, 1, 1];
+		attribute<uint32>  ordinal : [0, 1, 2, 0, 1];
+	}
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<dpoint> geometry (arc) := points2sequence(RoadPoints/point, RoadPoints/seq_rel, RoadPoints/ordinal);
+	}
+	unit<uint32> Pnt : nrofrows = 5
+	{
+		attribute<float64> px       : [2,  7, 4, 7, 9];
+		attribute<float64> py       : [1, -1, 3, 1, 5];
+		attribute<dpoint>  geometry := point_xy(px, py, dpoint);
+	}
+
+	unit<uint32> net := connect(Road/geometry, Pnt/geometry)
+	{
+		attribute<float64> len    := arc_length(geometry, float64);
+		attribute<float64> firstX := PointCol(first_point(geometry));
+		attribute<float64> lastX  := PointCol(last_point(geometry));
+		attribute<float64> w      := float64(id(.));
+	}
+
+	container checks
+	{
+		// 2 roads, 5 connection edges, 5 tails
+		parameter<uint32>  n        := #net                                           , IntegrityCheck = "n == 12";
+		parameter<float64> len      := sum(net/len)                                   , IntegrityCheck = "len == 31.0";  // 20 of road and 1+1+3+1+5 of connections
+		parameter<float64> road0    := net/lastX[0]                                    , IntegrityCheck = "road0 == 2.0";
+		parameter<float64> road1    := net/lastX[1]                                    , IntegrityCheck = "road1 == 10.0";
+		parameter<uint32>  nrNull   := sum(uint32(!IsDefined(net/arc_rel)))           , IntegrityCheck = "nrNull == 5";
+		parameter<uint32>  relSum   := sum(net/arc_rel)                                , IntegrityCheck = "relSum == 1";
+		// rows 2 to 6 connect the points in their order, rows 7 to 11 are the tails
+		parameter<float64> wFirst   := sum(net/w * net/firstX)                         , IntegrityCheck = "wFirst == 0.0 * 0.0 + 1.0 * 0.0 + 130.0 + 244.0";
+		parameter<float64> wLast    := sum(net/w * net/lastX)                          , IntegrityCheck = "wLast == 0.0 * 2.0 + 1.0 * 10.0 + 130.0 + 319.0";
+		parameter<uint32>  nrPoints := #sequence2points(net/geometry)                 , IntegrityCheck = "nrPoints == 24"; // every sequence has 2 points
+	}
+}

@@ -8,8 +8,9 @@
 #pragma hdrstop
 #endif
 
+#include <algorithm>
 #include <atomic>
-#include <map>
+#include <execution>
 
 #include "mem/MyContainers.h"
 
@@ -74,12 +75,13 @@ struct CutInfo
 	bool     foundAny : 1 = false;  // whether a valid connection was found
 	Float64  segmFraction = 0.0;    // position along segment [0,1] for deterministic ordering
 
-	// For sorting: first by arc, then by segment, then by position along segment
+	// For sorting: first by arc, then by segment, then by position along segment, then by point
 	bool operator<(const CutInfo& rhs) const
 	{
 		if (arcIndex != rhs.arcIndex) return arcIndex < rhs.arcIndex;
 		if (segmIndex != rhs.segmIndex) return segmIndex < rhs.segmIndex;
-		return segmFraction < rhs.segmFraction;
+		if (segmFraction != rhs.segmFraction) return segmFraction < rhs.segmFraction;
+		return pointIndex < rhs.pointIndex;
 	}
 };
 
@@ -1312,7 +1314,7 @@ class FastConnectOperator : ConnectInfoBaseType<CT, HasMaxDist, HasMinDist>
 	//
 	// !inSegm and inArc  => the cut is on the segment END vertex arc[segmIndex+1] -> 1.0.
 	// !inSegm and !inArc => the cut is on the arc's terminal/begin vertex -> 0.0 (and such
-	// cuts are excluded from cutsPerArc, so this only orders correctly-by-construction).
+	// cuts are excluded from the split cuts, so this only orders correctly-by-construction).
 	//
 	// The old 'inArc ? 0.0 : 1.0' put the END-vertex cut at 0.0, mis-sorting it
 	// before co-segment interior cuts; processed end-to-beginning the interior cut
@@ -1750,7 +1752,7 @@ public:
 			}
 
 			// ============================================================
-			// PHASE 2: Consolidation - group cuts by arc, sort, assign indices
+			// PHASE 2: Consolidation - order the cuts that split an arc
 			// ============================================================
 
 			R nrValidConnections = 0;
@@ -1758,137 +1760,128 @@ public:
 				if (ci.foundAny)
 					++nrValidConnections;
 
-			// Group cuts that need splitting by original arc
-			my_map_t<R, my_vec_t<CutInfoType*>> cutsPerArc;
-			for (auto& ci : allCutInfos)
-			{
+			// GEO-A53: one vector of the cuts that split an arc, sorted by (arc, segment, position, point),
+			// and walked per run of one arc, instead of a map node and a vector per cut arc
+			my_vec_t<const CutInfoType*> splitCuts;
+			splitCuts.reserve(nrValidConnections);
+			for (const auto& ci : allCutInfos)
 				if (ci.foundAny && ci.inArc)
-					cutsPerArc[ci.arcIndex].push_back(&ci);
-			}
+					splitCuts.push_back(&ci);
+			std::sort(std::execution::par, splitCuts.begin(), splitCuts.end(), [](const CutInfoType* a, const CutInfoType* b) { return *a < *b; });
 
-			// Sort cuts within each arc by position (segment index, then fraction)
-			for (auto& [arcIdx, cuts] : cutsPerArc)
+			// Plan the result per cut arc. Its cuts are applied from its end to its beginning: a cut splits off
+			// the tail behind it, and the arc keeps its points up to the cut and ends in the cut point. So the arc
+			// at each moment is its original points up to some size, of which the last is replaced by the cut
+			// point of the last split; recording that size and last point is enough to write each resulting
+			// sequence once, straight into the result.
+			struct TailPlan { const CutInfoType* ci; SizeT arcSize; const PointType* last; SizeT size; };
+			struct ArcPlan { R arcIndex; SizeT size; const PointType* last; };
+			my_vec_t<TailPlan> tailPlans;
+			my_vec_t<ArcPlan> arcPlans;
+			tailPlans.reserve(splitCuts.size());
+
+			SizeT resultDataSize = nrValidConnections * 2; // connection edges have 2 points each
+			for (tile_id t = 0; t < arg1A->GetAbstrDomainUnit()->GetNrTiles(); ++t)
+				resultDataSize += const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t).get_sa().actual_data_size();
+
+			for (auto runBegin = splitCuts.begin(), cutsEnd = splitCuts.end(); runBegin != cutsEnd; )
 			{
-				std::sort(cuts.begin(), cuts.end(), [](const CutInfoType* a, const CutInfoType* b) {
-					if (a->segmIndex != b->segmIndex) return a->segmIndex < b->segmIndex;
-					return a->segmFraction < b->segmFraction;
-				});
-			}
+				R arcIdx = (*runBegin)->arcIndex;
+				auto runEnd = std::find_if(runBegin, cutsEnd, [arcIdx](const CutInfoType* ci) { return ci->arcIndex != arcIdx; });
 
-			// Count total number of new tail arcs (one per split point, but accounting for multiple cuts on same arc)
-			R nrNewTails = 0;
-			for (auto& [arcIdx, cuts] : cutsPerArc)
-				nrNewTails += cuts.size();
+				auto arc = arg1Data[arcIdx];
+				SizeT arcSize = arc.size();
+				const PointType* last = arcSize ? begin_ptr(arc) + (arcSize - 1) : nullptr;
+				bool isSplit = false;
+				for (auto cutIter = runEnd; cutIter != runBegin; )
+				{
+					// Process from end to beginning to preserve segment indices
+					const CutInfoType* ci = *--cutIter;
+					if (ci->segmIndex + 1 >= arcSize)
+						continue; // Invalid segment index
+
+					SizeT tailSize = arcSize - ci->segmIndex - (ci->inSegm ? 0 : 1);
+					if (tailSize > 1)
+					{
+						tailPlans.push_back({ ci, arcSize, last, tailSize });
+						resultDataSize += tailSize;
+						resultDataSize -= arcSize;
+						arcSize = ci->segmIndex + 2; // the points up to the cut segment, and the cut point
+						resultDataSize += arcSize;
+						last = &ci->cutPoint;
+						isSplit = true;
+					}
+				}
+				if (isSplit)
+					arcPlans.push_back({ arcIdx, arcSize, last });
+				runBegin = runEnd;
+			}
 
 			// ============================================================
 			// PHASE 3: Build result geometry
 			// ============================================================
 
-			R maxResCount = arg1Count + nrValidConnections + nrNewTails;
+			R actualNrTails = static_cast<R>(tailPlans.size());
+			resDomain->SetCount(arg1Count + nrValidConnections + actualNrTails);
 
-			typename sequence_traits<typename ResultSubType::value_type>::container_type
-				resultSubData(maxResCount MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.indices"));
+			DataWriteLock resLock(resSub);
+			auto resSubData = mutable_array_cast<PolygonType>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+			resSubData.get_sa().data_reserve(resultDataSize MG_DEBUG_ALLOCATOR_SRC("Connect: resSubData.data_reserve"));
 
-			// Calculate data size for reservation
-			SizeT actualDataSize = 0;
-			for (tile_id t = 0; t < arg1A->GetAbstrDomainUnit()->GetNrTiles(); ++t)
-				actualDataSize += const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t).get_sa().actual_data_size();
-			actualDataSize += nrValidConnections * 2; // connection edges have 2 points each
-			actualDataSize += nrNewTails * 4; // rough estimate for tail points
+			auto ri = resSubData.begin();
 
-			resultSubData.data_reserve(actualDataSize MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.sequences"));
-
-			// Copy original arcs (they will be modified for splits)
-			auto resIter = resultSubData.begin();
-			for (tile_id t = 0; t < arg1A->GetAbstrDomainUnit()->GetNrTiles(); ++t)
+			// Original arcs, those with a cut up to their last cut point
+			auto arcPlanIter = arcPlans.begin();
+			for (R arcIdx = 0; arcIdx != arg1Count; ++arcIdx, ++ri)
 			{
-				auto arg1TileData = const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t);
-				resIter = std::copy(arg1TileData.begin(), arg1TileData.end(), resIter);
-			}
-			auto resOriginalArcsEnd = resIter;
-
-			// Reserve space for connection edges
-			auto resConnectionsBegin = resIter;
-			resIter += nrValidConnections;
-			auto resConnectionsEnd = resIter;
-
-			// Reserve space for tail arcs
-			auto resTailsBegin = resIter;
-
-			// Prepare arc_rel data
-			OwningPtrSizedArray<R> nrOrgEntityData(nrNewTails, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
-
-			// Process cuts per arc and create tails (sequential, maintains deterministic order)
-			R tailIndex = 0;
-			for (auto& [originalArcIdx, cuts] : cutsPerArc)
-			{
-				// Process cuts in spatial order along the arc
-				typename ResultSubType::reference arcRef = resultSubData[originalArcIdx];
-
-				for (SizeT cutIdx = cuts.size(); cutIdx > 0; --cutIdx)
+				auto arc = arg1Data[arcIdx];
+				if (arcPlanIter != arcPlans.end() && arcPlanIter->arcIndex == arcIdx)
 				{
-					// Process from end to beginning to preserve segment indices
-					CutInfoType* ci = cuts[cutIdx - 1];
-
-					if (ci->segmIndex + 1 >= arcRef.size())
-						continue; // Invalid segment index
-
-					// Create tail from cut point to end
-					auto tailIter = resTailsBegin + tailIndex;
-					SizeT tailSize = arcRef.size() - ci->segmIndex - (ci->inSegm ? 0 : 1);
-					if (tailSize > 1)
-					{
-						tailIter->resize_uninitialized(tailSize MG_DEBUG_ALLOCATOR_SRC("Connect tail"));
-						auto tailPtr = tailIter->begin();
-
-						if (ci->inSegm)
-							*tailPtr++ = ci->cutPoint;
-
-						auto arcCut = arcRef.begin() + ci->segmIndex + 1;
-						auto arcEnd = arcRef.end();
-						fast_copy(arcCut, arcEnd, tailPtr);
-
-						// Truncate original arc
-						arcRef.erase(arcCut + 1, arcEnd);
-						*(arcRef.begin() + ci->segmIndex + 1) = ci->cutPoint;
-
-						nrOrgEntityData[tailIndex] = originalArcIdx;
-						++tailIndex;
-					}
+					auto resArc = *ri;
+					resArc.resize_uninitialized(arcPlanIter->size MG_DEBUG_ALLOCATOR_SRC("Connect cut arc"));
+					auto resPtr = fast_copy(begin_ptr(arc), begin_ptr(arc) + (arcPlanIter->size - 1), resArc.begin());
+					*resPtr = *arcPlanIter->last;
+					++arcPlanIter;
 				}
+				else
+					*ri = arc;
 			}
-			auto resTailsEnd = resTailsBegin + tailIndex;
+			assert(arcPlanIter == arcPlans.end());
 
-			// Create connection edges (can be done in parallel)
-			R connectionIndex = 0;
-			for (auto& ci : allCutInfos)
+			// Connection edges
+			for (const auto& ci : allCutInfos)
 			{
 				if (ci.foundAny)
 				{
-					auto connEdgeIter = resConnectionsBegin + connectionIndex;
-					auto& connEdge = *connEdgeIter;
+					auto connEdge = *ri;
 					connEdge.resize_uninitialized(2 MG_DEBUG_ALLOCATOR_SRC("Connect edge"));
 
 					connEdge[0] = ci.srcPoint; // kept by the discovery phase, which had the point at hand
 					connEdge[1] = ci.cutPoint;
-					++connectionIndex;
+					++ri;
 				}
 			}
 
-			// Set result counts
-			R actualNrTails = tailIndex;
-			resDomain->SetCount(arg1Count + nrValidConnections + actualNrTails);
+			// Tail arcs, per arc from its end to its beginning; the arc_rel of each is its original arc
+			OwningPtrSizedArray<R> nrOrgEntityData(actualNrTails, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
+			for (SizeT tailIndex = 0; tailIndex != tailPlans.size(); ++tailIndex, ++ri)
+			{
+				const TailPlan& tp = tailPlans[tailIndex];
+				auto tail = *ri;
+				tail.resize_uninitialized(tp.size MG_DEBUG_ALLOCATOR_SRC("Connect tail"));
+				auto tailPtr = tail.begin();
 
-			// Write results
-			DataWriteLock resLock(resSub);
-			auto resSubData = mutable_array_cast<PolygonType>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+				if (tp.ci->inSegm)
+					*tailPtr++ = tp.ci->cutPoint;
 
-			resSubData.get_sa().data_reserve(resultSubData.actual_data_size() MG_DEBUG_ALLOCATOR_SRC("Connect: resSubData.data_reserve"));
+				auto arc = arg1Data[tp.ci->arcIndex];
+				tailPtr = fast_copy(begin_ptr(arc) + (tp.ci->segmIndex + 1), begin_ptr(arc) + (tp.arcSize - 1), tailPtr);
+				*tailPtr = *tp.last;
 
-			auto ri = resSubData.begin();
-			ri = fast_copy(resultSubData.begin(), resOriginalArcsEnd, ri); // Original arcs (modified)
-			ri = fast_copy(resConnectionsBegin, resConnectionsEnd, ri);     // Connection edges
-			ri = fast_copy(resTailsBegin, resTailsEnd, ri);                 // Tail arcs
+				nrOrgEntityData[tailIndex] = tp.ci->arcIndex;
+			}
+			assert(ri == resSubData.end());
+			assert(resSubData.get_sa().actual_data_size() == resultDataSize);
 
 			resLock.Commit();
 
