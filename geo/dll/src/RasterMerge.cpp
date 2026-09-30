@@ -12,6 +12,7 @@
 #include "utl/TypeListOper.h"
 
 #include "vt/RangeIndex.h"
+#include "ParallelTiles.h"
 #include "ViewPortInfoEx.h"
 
 #include "Unit.h"
@@ -81,26 +82,41 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 			drlArgs.push_back(DataReadLock(AsDataItem(args[a])));
 
 		const AbstrUnit* e1_range = AsUnit(e1->GetCurrRangeItem()).get();
-		for (tile_id t=0, tn=e1_range->GetNrTiles(); t!=tn; ++t)
+		tile_id tn = e1_range->GetNrTiles();
+
+		// GEO-A59: whether an argument has the domain of the result is a property of the argument, not of a
+		// tile. It was asked per tile and per argument inside the tile loop, which also ran UnifyDomain in the
+		// calculation of each tile; now it is asked once per argument, before the tiles, which lets the tiles
+		// run in parallel: each writes only its own result tile. As before, a merge (not raster_merge) of an
+		// argument with another domain fails, and only when there is a tile to fill.
+		arg_index nrArg = args.size();
+		std::vector<UInt8> argIsSame(nrArg, false);
+		if (tn)
+			for (arg_index a=2; a!=nrArg; ++a)
+			{
+				const AbstrUnit* argDU = AsDataItem(args[a])->GetAbstrDomainUnit();
+				// m_IsIndexed ? "Domain of Index" : "First argument", "Domain of any subsequent attribute"
+				bool isSame = e1->UnifyDomain(argDU, "", "", UM_AllowVoidRight);
+				if (!m_IsRasterMerge && !isSame)
+					e1->UnifyDomain(argDU, "e1", "Domain of a subsequent attribute", UM_AllowVoidRight | UM_Throw);
+				argIsSame[a] = isSame;
+			}
+
+		parallel_tileloop(tn, [&](tile_id t)
 		{
 			InitTile(dwlReg.get(), t);
 
 			// move to AbstrTileRageData
 			auto currTileRect = e1_range->GetTiledRangeData()->GetTileRangeAsI64Rect(t);
 
-			for (arg_index a=2, nrArg=args.size(); a!=nrArg; ++a)
+			for (arg_index a=2; a!=nrArg; ++a)
 			{
 				const AbstrDataItem* argDi = AsDataItem(args[a]);
 				const AbstrUnit* argDU = argDi->GetAbstrDomainUnit();
 				const AbstrUnit* argDU_range = AsUnit(argDU->GetCurrRangeItem()).get();
 
-				// m_IsIndexed ? "Domain of Index" : "First argument", "Domain of any subsequent attribute"
-				bool isSame = e1->UnifyDomain(argDU, "", "", UM_AllowVoidRight);
-				if (!m_IsRasterMerge || isSame)
+				if (!m_IsRasterMerge || argIsSame[a])
 				{
-					if (!isSame)
-						e1->UnifyDomain(argDU, "e1", "Domain of a subsequent attribute", UM_AllowVoidRight | UM_Throw);
-
 					ViewPortInfoEx<Int64> vpi(res, e1_range, t, e1_range, t);
 					if (vpi.IsGridCurrVisible())
 						CopyWhere(dwlReg.get(), arg1A, t, argDi, t, vpi, a - 2);
@@ -134,7 +150,7 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 					}
 				}
 			}
-		}
+		});
 		dwlReg.Commit();
 
 		return true;
