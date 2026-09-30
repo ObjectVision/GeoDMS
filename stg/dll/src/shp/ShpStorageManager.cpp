@@ -134,7 +134,24 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 
 	SeqLock<sequence_array<ShpPointIndex> > lockParts (pImp->m_SeqParts , dms_rw_mode::read_only);
 	SeqLock<sequence_array<ShpPoint>      > lockPoints(pImp->m_SeqPoints, dms_rw_mode::read_only);
-				
+
+	// STG-A30: the size of the data is known before the first shape is written, so reserve it once instead
+	// of letting the data store grow, and copy what it holds, a doubling at a time
+	SizeT dataSize = 0;
+	for (UInt32 p = 0, n = polyData.size(); p != n; ++p)
+	{
+		auto polygonSize = pImp->ShapeSet_NrPoints(p);
+		if (!polygonSize)
+			continue;
+		UInt32 nrExtraParts = pImp->ShapeSet_NrParts(p) - 1;
+		dataSize += SizeT(polygonSize) + nrExtraParts;
+		if (mustCloseRings)
+			for (UInt32 partI = 0; partI <= nrExtraParts; ++partI)
+				if (!IsRingClosed(pImp->ShapeSet_GetPoints(p, partI)))
+					++dataSize;
+	}
+	polyData.get_sa().data_reserve(dataSize MG_DEBUG_ALLOCATOR_SRC("ShpStorageManager.ReadSequences"));
+
 	typename DataArray<PolygonType>::iterator polygonPtr = polyData.begin();
 	for (UInt32 p=0, n=polyData.size(); p!=n; ++p, ++polygonPtr)
 	{
