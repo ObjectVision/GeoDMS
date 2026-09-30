@@ -133,6 +133,7 @@
 #include <limits>
 #include <memory>
 #include <memory_resource>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -2360,9 +2361,15 @@ struct DmsPolySet
 // The reducer of an assoc_tower over DmsPolySet: the union of two partial results. Pairwise and
 // associative, so the tower keeps the fold logarithmically deep, as union_geos_multi_polygon
 // does for GEOS.
+//
+// A caller that folds many operands passes its engine, so that the folds share its buffers instead
+// of each growing a new engine's from nothing: a Minkowski sum folds a cell per ring edge and
+// kernel part of every element (GEO-A35). Without one, each fold makes an engine of its own.
 template <typename P>
 struct union_dms_polygons
 {
+	DmsOverlayEngine<P>* m_Engine = nullptr;
+
 	void operator ()(DmsPolySet<P>& lhs, DmsPolySet<P>&& rhs) const
 	{
 		if (rhs.empty())
@@ -2378,7 +2385,8 @@ struct union_dms_polygons
 		// each of which derives its cell from its own extent.
 		Float64 cell = Max<Float64>(lhs.m_Cell, rhs.m_Cell);
 
-		DmsOverlayEngine<P> engine(BoolOp::Union, "dms_union_polygon");
+		std::optional<DmsOverlayEngine<P>> ownEngine;
+		DmsOverlayEngine<P>& engine = m_Engine ? *m_Engine : ownEngine.emplace(BoolOp::Union, "dms_union_polygon");
 		engine.SetFixedCell(cell);
 
 		dms_polygon_t<P> result;

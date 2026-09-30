@@ -507,9 +507,10 @@ void dms_minkowski_add_cell(assoc_tower<dms_overlay::DmsPolySet<P>, dms_overlay:
 	tower.add(std::move(cellSet));
 }
 
+// The engine is the caller's, one per tile: the clean and every fold of every element go through it (GEO-A35).
 template <typename P, typename R>
-void dms_minkowski_sum(dms_overlay::DmsPolySet<P>& res, const R& geometry, const PreparedMinkowskiKernel& kernel
-	, Float64 cell, CharPtr operName)
+void dms_minkowski_sum(dms_overlay::DmsOverlayEngine<P>& engine, dms_overlay::DmsPolySet<P>& res, const R& geometry, const PreparedMinkowskiKernel& kernel
+	, Float64 cell)
 {
 	using namespace dms_overlay;
 
@@ -520,14 +521,14 @@ void dms_minkowski_sum(dms_overlay::DmsPolySet<P>& res, const R& geometry, const
 	// The geometry read once, under the even-odd rule: every cell below is built from these rings,
 	// and a translate of a canonical value is canonical, so nothing downstream re-reads the source.
 	DmsPolySet<P> base;
-	dms_clean_into(base, geometry, cell, operName);
+	dms_clean_into(engine, base, geometry, cell);
 	if (base.empty())
 		return;
 
 	std::vector<dms_ring_t<P>> rings;
 	dms_collect_rings<P>(base.m_Poly, rings);
 
-	assoc_tower<DmsPolySet<P>, union_dms_polygons<P>> tower;
+	assoc_tower<DmsPolySet<P>, union_dms_polygons<P>> tower(union_dms_polygons<P>{ &engine });
 	std::vector<DPoint> scratch;
 
 	for (const auto& part : kernel.parts)
@@ -558,8 +559,8 @@ void dms_minkowski_sum(dms_overlay::DmsPolySet<P>& res, const R& geometry, const
 // A (-) K = A \ ((box \ A) (+) -K), with box the bounding box of A grown by the pad, the same
 // identity the other three backends erode with.
 template <typename P, typename R>
-void dms_minkowski_difference(dms_overlay::DmsPolySet<P>& res, const R& geometry, const PreparedMinkowskiKernel& reflectedKernel
-	, Float64 pad, Float64 cell, CharPtr operName)
+void dms_minkowski_difference(dms_overlay::DmsOverlayEngine<P>& engine, dms_overlay::DmsPolySet<P>& res, const R& geometry, const PreparedMinkowskiKernel& reflectedKernel
+	, Float64 pad, Float64 cell)
 {
 	using namespace dms_overlay;
 
@@ -568,7 +569,7 @@ void dms_minkowski_difference(dms_overlay::DmsPolySet<P>& res, const R& geometry
 		return;
 
 	DmsPolySet<P> base;
-	dms_clean_into(base, geometry, cell, operName);
+	dms_clean_into(engine, base, geometry, cell);
 	if (base.empty())
 		return;
 
@@ -585,7 +586,6 @@ void dms_minkowski_difference(dms_overlay::DmsPolySet<P>& res, const R& geometry
 	for (auto corner : { DPoint(x0, y0), DPoint(x0, y1), DPoint(x1, y1), DPoint(x1, y0), DPoint(x0, y0) })
 		box.m_Poly.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("dms_minkowski_difference") dms_minkowski_point<P>(corner));
 
-	DmsOverlayEngine<P> engine(BoolOp::Difference, operName);
 	engine.SetFixedCell(cell);
 
 	dms_polygon_t<P> outside;
@@ -598,7 +598,7 @@ void dms_minkowski_difference(dms_overlay::DmsPolySet<P>& res, const R& geometry
 	}
 
 	DmsPolySet<P> grownOutside;
-	dms_minkowski_sum<P>(grownOutside, outside, reflectedKernel, cell, operName);
+	dms_minkowski_sum<P>(engine, grownOutside, outside, reflectedKernel, cell);
 	if (grownOutside.empty())
 	{
 		res = std::move(base);
@@ -606,6 +606,7 @@ void dms_minkowski_difference(dms_overlay::DmsPolySet<P>& res, const R& geometry
 	}
 
 	res.m_Cell = cell;
+	engine.SetFixedCell(cell); // as the sum left it, but said here, where it is relied on
 	engine.ApplyRanges(res.m_Poly, BoolOp::Difference, base.m_Poly, grownOutside.m_Poly);
 }
 
@@ -868,11 +869,14 @@ struct MinkowskiEngine
 			// that for an erosion.
 			Float64 cell = dms_minkowski_cell<P>(geometryRef, Erode ? m_Kernel.reach + m_Pad : m_Kernel.reach);
 
+			if (!m_DmsEngine)
+				m_DmsEngine.emplace(dms_overlay::BoolOp::Union, m_OperName);
+
 			dms_overlay::DmsPolySet<P> result;
 			if constexpr (Erode)
-				dms_minkowski_difference<P>(result, geometryRef, m_Kernel, m_Pad, cell, m_OperName);
+				dms_minkowski_difference<P>(*m_DmsEngine, result, geometryRef, m_Kernel, m_Pad, cell);
 			else
-				dms_minkowski_sum<P>(result, geometryRef, m_Kernel, cell, m_OperName);
+				dms_minkowski_sum<P>(*m_DmsEngine, result, geometryRef, m_Kernel, cell);
 
 			if (result.empty())
 				return;
@@ -896,6 +900,10 @@ private:
 	CGAL_Traits::Polygon_set m_CgalGeometry, m_CgalResult;
 
 	BpMinkowskiState<CoordType, GL == geometry_library::boost_polygon> m_Bp;
+
+	// dms: the one engine of the tile, made at its first element; each element of the tile, and each
+	// fold of it, reuses its buffers (GEO-A35)
+	std::conditional_t<GL == geometry_library::dms, std::optional<dms_overlay::DmsOverlayEngine<P>>, bool> m_DmsEngine = {};
 };
 
 // *****************************************************************************
