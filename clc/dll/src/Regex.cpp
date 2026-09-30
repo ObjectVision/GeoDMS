@@ -79,27 +79,33 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 				{
 					auto data = arg1->GetLockedDataRead(t);
 
+					// CLC-A30: the search runs once per element; its match is kept, as a range into the argument
+					// tile that stays locked, for the write pass, which ran the search a second time.
+					std::vector<std::pair<const char*, const char*>> matches(data.size(), { nullptr, nullptr });
 					SizeT totalSize = 0;
-					for (auto i=data.begin(), e=data.end(); i!=e; ++i)
+					auto matchPtr = matches.begin();
+					for (auto i=data.begin(), e=data.end(); i!=e; ++i, ++matchPtr)
 					{
 						boost::cmatch matchResult;
 
 						if (i->IsDefined() && boost::regex_search(i->begin(), i->end(), matchResult, rx, flags))
+						{
+							*matchPtr = { matchResult[0].first, matchResult[0].second };
 							totalSize += (matchResult[0].second - matchResult[0].first);
+						}
 					}
 
 					DataArray<SharedStr>::locked_seq_t resData = res->GetLockedDataWrite(t, dms_rw_mode::write_only_mustzero);
 					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 					auto resI = resData.begin();
 
-					for (auto i=data.begin(), e=data.end(); i!=e; ++resI, ++i)
+					for (const auto& match: matches)
 					{
-						boost::cmatch matchResult;
-
-						if (i->IsDefined() && boost::regex_search(i->begin(), i->end(), matchResult, rx, flags))
-							resI->assign(matchResult[0].first, matchResult[0].second MG_DEBUG_ALLOCATOR_SRC("RegexSearch"));
+						if (match.first)
+							resI->assign(match.first, match.second MG_DEBUG_ALLOCATOR_SRC("RegexSearch"));
 						else
 							resI->assign(Undefined());
+						++resI;
 					}
 					dms_assert(resData.get_sa().actual_data_size() == totalSize); // the count predicts the data; the capacity can be a larger store
 				}
@@ -251,39 +257,35 @@ struct RegexReplaceOperator : CommonOperGroup, QuaternaryOperator
 				{
 					auto data = arg1->GetTile(t);
 
-					count_iterator totalSize = 0;
-					for (auto i=data.begin(), e=data.end(); i!=e; ++i)
+					// CLC-A30: the replacement runs once per element, into one buffer for the tile; the write
+					// pass copies each element's part, where it ran the replacement a second time. An element
+					// that is not defined keeps the end offset of its predecessor and is written as undefined.
+					std::string replaced;
+					std::vector<SizeT> ends(data.size());
+					auto endPtr = ends.begin();
+					for (auto i=data.begin(), e=data.end(); i!=e; ++i, ++endPtr)
 					{
 						if (i->IsDefined())
-						{
-							totalSize = 
-								boost::regex_replace(
-									totalSize, 
-									i->begin(), i->end(), 
-									rx, fmt, flags
-								);
-						}
+							boost::regex_replace(std::back_inserter(replaced), i->begin(), i->end(), rx, fmt, flags);
+						*endPtr = replaced.size();
 					}
+					SizeT totalSize = replaced.size();
 
 					DataArray<SharedStr>::locked_seq_t resData = res->GetWritableTile(t, dms_rw_mode::write_only_mustzero);
 					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr + : RegexReplaceOperator.data_reserve()"));
 					auto resI = resData.begin();
 
-					for (auto i=data.begin(), e=data.end(); i!=e; ++resI, ++i)
+					SizeT begin = 0;
+					endPtr = ends.begin();
+					for (auto i=data.begin(), e=data.end(); i!=e; ++resI, ++i, ++endPtr)
 					{
 						if (i->IsDefined())
-						{
-							resI->clear();
-							boost::regex_replace(
-								std::insert_iterator<DataArray<SharedStr>::reference>(*resI, (*resI).end()), 
-								i->begin(), i->end(), 
-								rx, fmt, flags
-							);
-						}
+							resI->assign(replaced.data() + begin, replaced.data() + *endPtr MG_DEBUG_ALLOCATOR_SRC("RegexReplace"));
 						else
 							resI->assign(Undefined());
+						begin = *endPtr;
 					}
-					dms_assert(resData.get_sa().actual_data_size() == SizeT(totalSize)); // the count predicts the data; the capacity can be a larger store
+					dms_assert(resData.get_sa().actual_data_size() == totalSize); // the count predicts the data; the capacity can be a larger store
 				}
 			);
 			resLock.Commit();
