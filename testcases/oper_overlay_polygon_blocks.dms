@@ -1,0 +1,73 @@
+// Pins doc/code-audit-2026-09-27.md GEO-A37: the *_overlay_polygon operators run the elements of a
+// tile of their first argument in blocks of 256, in parallel, and a block converts a polygon of the
+// second argument once, when one of its elements first meets it. 900 squares in one tile are four
+// blocks, and each zone is met by hundreds of them, so the blocks and that reuse are both exercised.
+//
+// 30 x 30 squares of side 2 on [0, 60]^2, overlaid with four zones that meet at x = 31 and y = 31,
+// an odd coordinate, so that column 15 and row 15 of the squares straddle a zone border and no
+// square only touches one. Every square lies in one zone except those: 29 x 29 squares give one
+// pair each, the 29 others of column 15 and the 29 others of row 15 give two, and the square at
+// (15, 15) gives four, 961 pairs in all. The zones cover 31 x 31, 29 x 31, 31 x 29 and 29 x 29
+// of the squares, 3600 together.
+//
+// Offline and cheap by design (testcases/ rule). Expected: exit 0 on /checks.
+container oper_overlay_polygon_blocks
+{
+	unit<uint32> Sq : nrofrows = 900;
+	unit<uint32> SqPt : nrofrows = 4500
+	{
+		attribute<Sq>     seq := value(id(.) / 5, Sq);
+		attribute<uint32> ord := id(.) % 5;
+		attribute<int32>  x   := int32(uint32(seq) % 30) * 2i + ((ord == 2 || ord == 3) ? 2i : 0i);
+		attribute<int32>  y   := int32(uint32(seq) / 30) * 2i + ((ord == 1 || ord == 2) ? 2i : 0i);
+	}
+	attribute<ipoint> squares_i (Sq, polygon) := points2polygon(point_xy(SqPt/x, SqPt/y, ipoint), SqPt/seq, SqPt/ord);
+	attribute<dpoint> squares_d (Sq, polygon) := points2polygon(point_xy(float64(SqPt/x), float64(SqPt/y), dpoint), SqPt/seq, SqPt/ord);
+
+	// the zones, clockwise as bp_ requires: lower left, lower right, upper left, upper right
+	unit<uint32> Zone : nrofrows = 4
+	{
+		attribute<int32> x0 : [-1, 31, -1, 31];
+		attribute<int32> x1 : [31, 61, 31, 61];
+		attribute<int32> y0 : [-1, -1, 31, 31];
+		attribute<int32> y1 : [31, 31, 61, 61];
+		attribute<float64> expectedArea : [961, 899, 899, 841];
+	}
+	unit<uint32> ZonePt : nrofrows = 20
+	{
+		attribute<Zone>   seq := value(id(.) / 5, Zone);
+		attribute<uint32> ord := id(.) % 5;
+		attribute<int32>  x   := (ord == 2 || ord == 3) ? Zone/x1[seq] : Zone/x0[seq];
+		attribute<int32>  y   := (ord == 1 || ord == 2) ? Zone/y1[seq] : Zone/y0[seq];
+	}
+	attribute<ipoint> zones_i (Zone, polygon) := points2polygon(point_xy(ZonePt/x, ZonePt/y, ipoint), ZonePt/seq, ZonePt/ord);
+	attribute<dpoint> zones_d (Zone, polygon) := points2polygon(point_xy(float64(ZonePt/x), float64(ZonePt/y), dpoint), ZonePt/seq, ZonePt/ord);
+
+	container checks
+	{
+		unit<uint32> bg   := bg_overlay_polygon(squares_d, zones_d);
+		unit<uint32> geos := geos_overlay_polygon(squares_d, zones_d);
+		unit<uint32> cgal := cgal_overlay_polygon(squares_d, zones_d);
+		unit<uint32> dms  := dms_overlay_polygon(squares_d, zones_d);
+		unit<uint32> bp   := bp_overlay_polygon(squares_i, zones_i);
+
+		// the pairs, the area per zone, and every square in at least one pair
+		parameter<bool> bg_ok   := #bg == 961   && all(sum(area(bg/geometry, float64), bg/second_rel) == Zone/expectedArea)     && all(pcount(bg/first_rel) >= 1)
+			, IntegrityCheck = "bg_ok == true";
+		parameter<bool> geos_ok := #geos == 961 && all(sum(area(geos/geometry, float64), geos/second_rel) == Zone/expectedArea) && all(pcount(geos/first_rel) >= 1)
+			, IntegrityCheck = "geos_ok == true";
+		parameter<bool> cgal_ok := #cgal == 961 && all(sum(area(cgal/geometry, float64), cgal/second_rel) == Zone/expectedArea) && all(pcount(cgal/first_rel) >= 1)
+			, IntegrityCheck = "cgal_ok == true";
+		parameter<bool> dms_ok  := #dms == 961  && all(sum(area(dms/geometry, float64), dms/second_rel) == Zone/expectedArea)   && all(pcount(dms/first_rel) >= 1)
+			, IntegrityCheck = "dms_ok == true";
+		parameter<bool> bp_ok   := #bp == 961   && all(sum(float64(area(bp/geometry)), bp/second_rel) == Zone/expectedArea)   && all(pcount(bp/first_rel) >= 1)
+			, IntegrityCheck = "bp_ok == true";
+
+		// The pairs of a tile come out ordered on (second_rel, first_rel), whatever order the blocks finished
+		// in: StoreRes sorts them on a Point whose row is the second relation.
+		attribute<bool> bg_prec  (bg)  := id(bg)  == 0 || bg/second_rel[sub_or_null(id(bg), 1)]   < bg/second_rel  || (bg/second_rel[sub_or_null(id(bg), 1)]   == bg/second_rel  && bg/first_rel[sub_or_null(id(bg), 1)]   < bg/first_rel);
+		attribute<bool> dms_prec (dms) := id(dms) == 0 || dms/second_rel[sub_or_null(id(dms), 1)] < dms/second_rel || (dms/second_rel[sub_or_null(id(dms), 1)] == dms/second_rel && dms/first_rel[sub_or_null(id(dms), 1)] < dms/first_rel);
+		parameter<bool> order_ok := all(bg_prec) && all(dms_prec)
+			, IntegrityCheck = "order_ok == true";
+	}
+}

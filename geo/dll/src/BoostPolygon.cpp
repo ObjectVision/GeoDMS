@@ -230,7 +230,7 @@ protected:
 			}
 
 			std::atomic<tile_id> intersectCount = 0;
-			PolygonOperContexts contexts([this] { return CreateContext(); }); // one per thread, for every tile pair it works on
+			PolygonOperContexts contexts([this] { return CreateContext(); }); // one per thread, for every block of elements it works on
 
 			for (tile_id u=0, ue = domain2Unit->GetNrTiles(); u != ue; ++u)
 			{
@@ -246,8 +246,7 @@ protected:
 						{
 							ReadableTileLock readPoly1Lock (arg1A->GetCurrRefObj().get(), t);
 
-							auto ctx = contexts.local();
-							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle, ctx.get());
+							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle, contexts);
 
 							++intersectCount;
 						}
@@ -269,7 +268,7 @@ protected:
 	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& polyInfoHandle) const =0;
 	virtual void CreatePointHandle(const AbstrDataItem* pointDataA, tile_id t, ResourceHandle& pointBoxDataHandle) const =0;
 	virtual bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const=0;
-	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContext* ctx) const=0;
+	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContexts& contexts) const=0;
 	virtual std::unique_ptr<PolygonOperContext> CreateContext() const { return std::make_unique<PolygonOperContext>(); }
 	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData) const=0;
 
@@ -310,6 +309,13 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 	using ScalarType = scalar_of_t<PointType>;
 	using SpatialIndexType = SpatialIndex<ScalarType, typename ArgType::const_iterator>;
 	using SpatialIndexArrayType = std::vector<SpatialIndexType>;
+
+	// A polygon of the second argument as the library of this operator takes it; bp_ and dms_ take the
+	// point sequence itself.
+	using ConvertedPolygonType = std::conditional_t<GL == geometry_library::boost_geometry, bg_multi_polygon_t
+		, std::conditional_t<GL == geometry_library::cgal, CGAL_Traits::Polygon_set
+		, std::conditional_t<GL == geometry_library::geos, std::unique_ptr<geos::geom::Geometry>
+		, bool>>>;
 
 public:
 	PolygonOverlayOperator(AbstrOperGroup& gr, bool unaryOperation)
@@ -361,7 +367,7 @@ public:
 			return AbstrPolygonOverlayOperator::CreateContext();
 	}
 
-	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContext* ctx) const override
+	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContexts& contexts) const override
 	{
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8))
 		{
@@ -404,9 +410,14 @@ public:
 
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
-		// avoid overhead of parallel_for context switch admin 
+		// The elements of tile t run in blocks, in parallel; a first argument of one tile ran on one thread.
+		// A block converts a polygon of the second argument once, when one of its elements first meets it,
+		// and bg_ and geos_ check it, and clean it if need be, at that moment only; each element is converted
+		// and checked once for all its candidates. Both were done for every candidate pair (GEO-A37).
+		// StoreRes sorts the results of a tile pair, so the order in which the blocks finish does not show.
+		using ConvertedPolygons = std::unordered_map<SizeT, ConvertedPolygonType>; // by the index of the polygon in the tile of the second argument
 		bool onlyForwardMatches = this->m_OnlyForwardMatches;
-		serial_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, onlyForwardMatches, ctx](SizeT i)->void
+		auto processElement = [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, onlyForwardMatches](SizeT i, PolygonOperContext* ctx, ConvertedPolygons& converted)->void
 		{
 			Point<SizeT> orgRels;
 			PolygonType lastResGeometry;
@@ -448,24 +459,38 @@ public:
 
 					bg_ring_t helperRing;
 					bg_polygon_t helperPolygon;
-					bg_multi_polygon_t currMP1, currMP2, resMP;
+					bg_multi_polygon_t currMP1, resMP;
+
+					auto checkAndClean = [](bg_multi_polygon_t& mp)
+						{
+							checkWindingOrders(mp);
+							if (!boost::geometry::is_valid(mp))
+								mp = clean_bg_geometry(std::move(mp));
+						};
 
 					assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
 					if (currMP1.empty())
 						return;
+					checkAndClean(currMP1);
 
 					bg_intersection intersectionFunctor;
 					for (; iter; ++iter)
 					{
+						SizeT j = ((*iter)->get_ptr()) - poly2Array.begin();
 						orgRels.first = p1_rel;
-						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						orgRels.second = p2Offset + j;
 						if (onlyForwardMatches && orgRels.first >= orgRels.second)
 							continue;
 
-						assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
+						auto [pos, isNew] = converted.try_emplace(j);
+						if (isNew)
+						{
+							assign_multi_polygon(pos->second, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
+							checkAndClean(pos->second);
+						}
 
 						resMP.clear();
-						intersectionFunctor(currMP1, std::move(currMP2), resMP);
+						intersectionFunctor(currMP1, pos->second, resMP, true, true);
 						if (resMP.empty())
 							continue;
 
@@ -494,12 +519,14 @@ public:
 						if (onlyForwardMatches && orgRels.first >= orgRels.second)
 							continue;
 
-						CGAL_Traits::Polygon_set poly2;
-						assign_multi_polygon(poly2, *((*iter)->get_ptr()), true, helperPoly, helperRing);
+						SizeT j = ((*iter)->get_ptr()) - poly2Array.begin();
+						auto [pos, isNew] = converted.try_emplace(j);
+						if (isNew)
+							assign_multi_polygon(pos->second, *((*iter)->get_ptr()), true, helperPoly, helperRing);
 
 						CGAL_Traits::Polygon_set res;
 
-						res.intersection(poly1, poly2);
+						res.intersection(poly1, pos->second);
 
 						if (res.is_empty())
 							continue;
@@ -515,20 +542,32 @@ public:
 				}
 				else if constexpr (GL == geometry_library::geos)
 				{
+					auto checkAndClean = [](std::unique_ptr<geos::geom::Geometry>& mp)
+						{
+							if (mp && !mp->isValid())
+								mp = clean_geos_geometry(mp.get());
+						};
+
 					auto mp1 = geos_create_polygons(*polyPtr);
+					checkAndClean(mp1);
 					geos_intersection intersectionFunctor;
 
 					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 					{
+						SizeT j = ((*iter)->get_ptr()) - poly2Array.begin();
 						orgRels.first = p1_rel;
-						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						orgRels.second = p2Offset + j;
 						if (onlyForwardMatches && orgRels.first >= orgRels.second)
 							continue;
 
-						CGAL_Traits::Polygon_set poly2;
-						auto mp2 = geos_create_polygons(*((*iter)->get_ptr()));
+						auto [pos, isNew] = converted.try_emplace(j);
+						if (isNew)
+						{
+							pos->second = geos_create_polygons(*((*iter)->get_ptr()));
+							checkAndClean(pos->second);
+						}
 
-						auto res = intersectionFunctor(mp1.get(), mp2.get());
+						auto res = intersectionFunctor(mp1.get(), pos->second.get(), true, true);
 
 						if (!res || res->isEmpty())
 							continue;
@@ -544,8 +583,8 @@ public:
 				}
 				else if constexpr (GL == geometry_library::dms)
 				{
-					// The engine of this tile pair's context, reused over every candidate pair of every
-					// element of the tile, and by the tile pairs that take the context after it: its
+					// The engine of this block's context, reused over every candidate pair of every
+					// element of the block, and by the blocks that take the context after it: its
 					// scratch is what the sweep allocates. Each pair is an independent binary
 					// intersection, so it derives its own frame, exactly as dms_intersect does.
 					dms_overlay::DmsOverlayEngine<P>& engine = DmsEngineContext<P>::EngineOf(ctx);
@@ -578,7 +617,18 @@ public:
 				errMsg->TellExtraF("while processing intersection of row {} with row {}", orgRels.first, orgRels.second);
 				throw DmsException(errMsg);
 			}
-		});
+		};
+
+		constexpr SizeT blockSize = 256;
+		SizeT nrElems = poly1Array.size();
+		parallel_for<SizeT>((nrElems + blockSize - 1) / blockSize, [&processElement, &contexts, nrElems](SizeT blockNr)->void
+			{
+				auto ctx = contexts.local();
+				ConvertedPolygons converted;
+				for (SizeT i = blockNr * blockSize, ie = std::min(nrElems, i + blockSize); i != ie; ++i)
+					processElement(i, ctx.get(), converted);
+			}
+		);
 	}
 
 	void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resDataHandle) const override
