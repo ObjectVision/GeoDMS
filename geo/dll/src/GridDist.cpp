@@ -24,6 +24,7 @@
 #include "CheckedDomain.h"
 #include "mem/MyContainers.h"
 #include "vt/RangeIndex.h"
+#include "ParallelTiles.h"
 #include "geom/PointOrder.h"
 #include "utl/scoped_exit.h"
 
@@ -392,15 +393,42 @@ public:
 		intertile_map itMap(useShadowTile ? 0 : tn);
 		tile_id nrTilesRemaining = tn;
 
-		int offsets[9] = {}; // TODO OPTIMIZE: memoize the offsets for the previous used nrC
-		NodeType nrUsedC_for_offsets_memoization = 0;
-		ZoneID zonalID = 0;
+		// GEO-A43: the start points go to their tiles once, in their original order, rather than each tile
+		// scanning all of them in every iteration.
+		std::vector<std::vector<std::pair<SizeT, ImpType>>> startNodesPerTile(tn);
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			Range<GridType> range = useShadowTile ? gridSet->GetRange() : gridSet->GetTileRange(t);
+			auto& startNodes = startNodesPerTile[t];
+			const GridType* first = srcNodes.begin();
+			const GridType* last  = srcNodes.end();
+			if (diStartPointImp)
+			{
+				const ImpType* firstDist = startCosts.begin();
+				MG_CHECK(firstDist);
+				for (; first != last; ++firstDist, ++first)
+				{
+					SizeT index = Range_GetIndex_checked(range, *first);
+					if (IsDefined(index) && ((!firstDist) || *firstDist >= ImpType()))
+						startNodes.emplace_back(index, *firstDist);
+				}
+			}
+			else
+			{
+				for (; first != last; ++first)
+				{
+					SizeT index = Range_GetIndex_checked(range, *first);
+					if (IsDefined(index))
+						startNodes.emplace_back(index, ImpType());
+				}
+			}
+		}
 
-		SizeT nrIterations = 0, nrPrevBorderCases = 0;
-		while (nrTilesRemaining)
-		{ 
-			// iterate through the set of tiles
-			for (tile_id t = 0; t!=tn; ++t) if (useShadowTile || !itMap[t].m_IsDone)
+		// One tile of an iteration: a Dijkstra over the tile from its start points and the border cases that
+		// the previous exchange gave it. It reads only its own inputs and writes only its own result and
+		// trace-back tiles and itMap[t], so the dirty tiles of an iteration run in parallel (GEO-A43), with
+		// the same outcome as one after the other: the exchange between the tiles stays serial.
+		auto processTile = [&](tile_id t)
 			{
 				auto pseudoTile = useShadowTile ? no_tile : t;
 				auto costData  = diGridImp->GetDataRead(pseudoTile);
@@ -416,11 +444,9 @@ public:
 					dh.m_MaxImp = maxImp;
 
 				NodeType nrC = Width(range);
-				if (nrC != nrUsedC_for_offsets_memoization)
-				{
-					for (UInt32 i = 1; i != 9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
-					nrUsedC_for_offsets_memoization = nrC;
-				}
+				int offsets[9] = {};
+				for (UInt32 i = 1; i != 9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
+				ZoneID zonalID = 0;
 				assert(costData.size() == nrV); typename sequence_traits<ImpType>::cseq_t::const_iterator costDataPtr = costData.begin();
 
 				assert(resultData   .size() == nrV); dh.m_ResultDataPtr    = resultData.begin();
@@ -429,31 +455,9 @@ public:
 				fast_fill(resultData   .begin(), resultData   .end(), dh.m_MaxImp);
 				fast_fill(traceBackData.begin(), traceBackData.end(), LinkType(0) );
 
-				{
-					// SetStartNodes from srcNodes
-					const GridType* first = srcNodes.begin();
-					const GridType* last  = srcNodes.end();
-					if (diStartPointImp)
-					{
-						const ImpType* firstDist = startCosts.begin();
-						MG_CHECK(firstDist);
-						for (; first != last; ++firstDist, ++first)
-						{
-							SizeT index = Range_GetIndex_checked(range, *first);
-							if (IsDefined(index) && ((!firstDist) || *firstDist >= ImpType()))
-								dh.InsertNode(index, *firstDist, LinkType(0));
-						}
-					}
-					else
-					{
-						for (; first != last; ++first)
-						{
-							SizeT index = Range_GetIndex_checked(range, *first);
-							if (IsDefined(index))
-								dh.InsertNode(index, ImpType(), LinkType(0));
-						}
-					}
-				}
+				// SetStartNodes from srcNodes, bucketed per tile before the iterations (GEO-A43)
+				for (const auto& startNode : startNodesPerTile[t])
+					dh.InsertNode(startNode.first, startNode.second, LinkType(0));
 
 				if (!useShadowTile)
 				{
@@ -521,8 +525,21 @@ public:
 				for (auto& x : resultData)
 					if (x >= dh.m_MaxImp)
 						x = UNDEFINED_VALUE(ImpType);
+			};
+
+		SizeT nrIterations = 0, nrPrevBorderCases = 0;
+		while (nrTilesRemaining)
+		{ 
+			if (useShadowTile)
+				processTile(0);
+			else
+			{
+				std::vector<tile_id> dirtyTiles;
+				for (tile_id t = 0; t != tn; ++t)
+					if (!itMap[t].m_IsDone)
+						dirtyTiles.push_back(t);
+				parallel_tileloop(dirtyTiles.size(), [&processTile, &dirtyTiles](tile_id i) { processTile(dirtyTiles[i]); });
 			}
-			
 
 			if (useShadowTile)
 				break;

@@ -1,0 +1,58 @@
+// Step 5 of the code audit of 2026-09-27, group 4: potential (GEO-A42), raster_merge (GEO-A59) and griddist
+// (GEO-A43) on a domain of 16 tiles, against the same computation on an untiled domain with the same range.
+// GEO-A42 lets a data tile of potential wait only on the result tiles its kernel reaches, GEO-A59 runs the tiles
+// of raster_merge in parallel, GEO-A43 runs the dirty tiles of an iteration of griddist in parallel; none may
+// change a result. Each pair is compared by its sum and by a sum weighted with the row and the column, so that
+// a value in the wrong cell shows. Expected: exit 0 on /checks.
+container geo_tiled_potential_merge_griddist
+{
+	unit<spoint> GT := TiledUnit(value(point_xy(10s, 10s, spoint), range(spoint, point_xy(0s, 0s), point_xy(40s, 40s)))); // 16 tiles
+	unit<spoint> GU := range(spoint, point_xy(0s, 0s), point_xy(40s, 40s));
+	unit<spoint> K7 := range(spoint, point_xy(0s, 0s), point_xy(7s, 7s));
+
+	attribute<float64> rowT (GT) := float64(pointRow(id(GT)));
+	attribute<float64> colT (GT) := float64(pointCol(id(GT)));
+	attribute<float64> rowU (GU) := float64(pointRow(id(GU)));
+	attribute<float64> colU (GU) := float64(pointCol(id(GU)));
+
+	// ---- potential: a 7x7 kernel reaches the neighbouring tiles
+	attribute<float32> krn  (K7) := const(0.5f, K7);
+	attribute<float32> srcT (GT) := float32((int32(pointRow(id(GT))) * 7i + int32(pointCol(id(GT))) * 13i) % 11i);
+	attribute<float32> srcU (GU) := float32((int32(pointRow(id(GU))) * 7i + int32(pointCol(id(GU))) * 13i) % 11i);
+	attribute<float32> potT (GT) := potential(srcT, krn);
+	attribute<float32> potU (GU) := potentialSlow(srcU, krn);
+
+	// ---- raster_merge: three value grids, the index changes every 7 rows and every 9 columns
+	unit<uint8> MC := range(uint8, 0b, 3b);
+	attribute<MC>      idxT (GT) := value(uint8((int32(pointRow(id(GT))) / 7i + int32(pointCol(id(GT))) / 9i) % 3i), MC);
+	attribute<float32> v0 (GT) := float32(rowT);
+	attribute<float32> v1 (GT) := float32(colT) + 100f;
+	attribute<float32> v2 (GT) := float32(rowT + colT) + 1000f;
+	attribute<float32> mergedT (GT) := raster_merge(idxT, float32, v0, v1, v2);
+	attribute<float32> expectT (GT) := idxT == value(0b, MC) ? v0 : idxT == value(1b, MC) ? v1 : v2;
+
+	// ---- griddist: costs that vary per cell, five start points in different tiles
+	attribute<float64> impT (GT) := 1.0 + float64((int32(pointRow(id(GT))) * 31i + int32(pointCol(id(GT))) * 17i) % 5i);
+	attribute<float64> impU (GU) := 1.0 + float64((int32(pointRow(id(GU))) * 31i + int32(pointCol(id(GU))) * 17i) % 5i);
+	unit<uint32> Start: nrofrows = 5
+	{
+		attribute<int16> r: [ 2, 35, 18, 5, 33];
+		attribute<int16> c: [ 3,  4, 21, 36, 38];
+		attribute<GT> locT := point_yx(r, c, GT);
+		attribute<GU> locU := point_yx(r, c, GU);
+	}
+	attribute<float64> distT (GT) := griddist(impT, Start/locT, const(0.0, Start));
+	attribute<float64> distU (GU) := griddist_untiled(impU, Start/locU, const(0.0, Start));
+
+	container checks
+	{
+		parameter<float64> potSum    := sum(float64(potT)), IntegrityCheck = "potSum > 1000.0";
+		parameter<float64> distSum   := sum(distT), IntegrityCheck = "distSum > 1000.0";
+		parameter<float64> potDiff   := abs(sum(float64(potT)) - sum(float64(potU))), IntegrityCheck = "potDiff < 0.01";
+		parameter<float64> potWDiff  := abs(sum(float64(potT) * (rowT * 41.0 + colT)) - sum(float64(potU) * (rowU * 41.0 + colU))), IntegrityCheck = "potWDiff < 1.0";
+		parameter<uint32>  mergeBad  := sum(uint32(mergedT <> expectT)), IntegrityCheck = "mergeBad == 0";
+		parameter<float64> distDiff  := abs(sum(distT) - sum(distU)), IntegrityCheck = "distDiff < 1e-6";
+		parameter<float64> distWDiff := abs(sum(distT * (rowT * 41.0 + colT)) - sum(distU * (rowU * 41.0 + colU))), IntegrityCheck = "distWDiff < 1e-3";
+		parameter<uint32>  distNull  := sum(uint32(not(IsDefined(distT)))), IntegrityCheck = "distNull == 0";
+	}
+}
