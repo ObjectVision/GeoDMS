@@ -1003,14 +1003,35 @@ protected:
 			{
 				SizeT domainCount = resDomain->GetCount();
 				ResourceArrayHandle r;
-				auto ctx = CreateContext(); // the tiles run one after the other here, so one context serves the whole operation
-				for (tile_id t=0, te = domain1Unit->GetNrTiles(); t != te; ++t)
+				auto ctx = CreateContext(); // for the tiles that run one after the other, and for the store
+				auto calculateTile = [this, &r, domainCount, domain1Unit, argPoly, argPart, &processTimer, itemRefPtr = itemRef.c_str()](tile_id t, PolygonOperContext* tileCtx)
 				{
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
 					// #1283: r spans the whole domain here, so an unpartitioned element's slot is its tile's first index plus its index within the tile
-					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, ctx.get(), processTimer, itemRef.c_str());
+					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, tileCtx, processTimer, itemRefPtr);
+				};
+				tile_id te = domain1Unit->GetNrTiles();
+				if (!(m_Flags & PolygonFlags::F_DoUnion) && !argPart && te > 1)
+				{
+					// A split without a union is delayed only because the count of its result must be known
+					// before it is stored. Each element has a slot of its own there, so the tiles run in
+					// parallel, once the first has made r (GEO-A38).
+					calculateTile(0, ctx.get());
+					PolygonOperContexts contexts([this] { return CreateContext(); }); // one per thread
+					parallel_tileloop(te - 1, [&calculateTile, &contexts](tile_id t)
+						{
+							auto tileCtx = contexts.local();
+							calculateTile(t + 1, tileCtx.get());
+						}
+					);
+				}
+				else
+				{
+					// a union folds the elements of several tiles into one slot: the tiles run one after the other
+					for (tile_id t = 0; t != te; ++t)
+						calculateTile(t, ctx.get());
 				}
 				DataWriteLock resGeometryHandle; // will be assigned after establishing the count of resUnit
 				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, ctx.get(), processTimer, itemRef.c_str());
@@ -1314,14 +1335,21 @@ public:
 
 			geometryPtr = OwningPtrSizedArray<typename traits_t::multi_polygon_type>(domainCount, value_construct MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
 
-			typename traits_t::polygon_set_data_type::clean_resources cleanResources;
-			for (SizeT i = 0; i != domainCount; ++i, ++geometryDataTowerPtr) // TODO G8: parallel_for and cleanResources in a threadLocal thing
-			{
-				typename traits_t::polygon_set_data_type geometryData = geometryDataTowerPtr->get_result();
-				geometryData.get(geometryPtr[i], cleanResources);
-				geometryData = typename traits_t::polygon_set_data_type(); // free no longer required resources
-
-			}
+			// Getting a slot cleans it, the costly part of a bp_ store, and each slot is got on its own: the
+			// slots run in blocks, in parallel, with clean resources per block; one by one when there are
+			// few, as the partitions of a dissolve (GEO-A38).
+			SizeT blockSize = domainCount < 1024 ? 1 : 16;
+			auto resultPtr = geometryPtr.begin();
+			parallel_for<SizeT>((domainCount + blockSize - 1) / blockSize, [geometryDataTowerPtr, resultPtr, domainCount, blockSize](SizeT blockNr)
+				{
+					typename traits_t::polygon_set_data_type::clean_resources cleanResources;
+					for (SizeT i = blockNr * blockSize, ie = std::min(domainCount, i + blockSize); i != ie; ++i)
+					{
+						typename traits_t::polygon_set_data_type geometryData = geometryDataTowerPtr[i].get_result();
+						geometryData.get(resultPtr[i], cleanResources);
+					}
+				}
+			);
 			r.reset();
 		}
 		if (m_Flags & PolygonFlags::F_DoSplit)
@@ -1569,34 +1597,23 @@ public:
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			assert(resUnit);
+			// The parts of each slot, counted once for both the count and the relation, without building
+			// them: that walk of the arrangement was done twice, and built every part each time (GEO-A38).
+			std::vector<SizeT> nrSplitsOf(domainCount, 0);
 			SizeT splitCount = 0;
-			auto geometryTowerIter = geometryTowerPtr;
-			for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
-			{
-				if (!geometryTowerIter->empty())
-				{
-					std::vector<traits_t::Polygon_with_holes> geometryList;
-					geometryTowerIter->front().polygons_with_holes(std::back_inserter(geometryList));
-					splitCount += geometryList.size();
-				}
-			}
+			for (SizeT i = 0; i != domainCount; ++i)
+				if (!geometryTowerPtr[i].empty())
+					splitCount += (nrSplitsOf[i] = geometryTowerPtr[i].front().number_of_polygons_with_holes());
 			resUnit->SetCount(splitCount); // we must be in delayed store now
 			if (resNrOrgEntity)
 			{
 				DataWriteLock resRelLock(resNrOrgEntity);
 				SizeT splitCount2 = 0;
-				geometryTowerIter = geometryTowerPtr;
-				for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
+				for (SizeT i = 0; i != domainCount; ++i)
 				{
-					if (!geometryTowerIter->empty())
-					{
-						std::vector<traits_t::Polygon_with_holes> geometryList;
-						geometryTowerIter->front().polygons_with_holes(std::back_inserter(geometryList));
-						SizeT nrSplits = geometryList.size();
-						SizeT nextCount = splitCount2 + nrSplits;
-						while (splitCount2 != nextCount)
-							resRelLock->SetValueAsSizeT(splitCount2++, i);
-					}
+					SizeT nextCount = splitCount2 + nrSplitsOf[i];
+					while (splitCount2 != nextCount)
+						resRelLock->SetValueAsSizeT(splitCount2++, i);
 				}
 				resRelLock.Commit();
 			}
