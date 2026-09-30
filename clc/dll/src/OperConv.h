@@ -49,7 +49,10 @@
 #include <functional>
 #include <iterator>
 #include <algorithm>
+#include <map>
+#include <mutex>
 #include <optional>
+#include <thread>
 
 #include "ogr_spatialref.h"
 #include "geom/Transform.h"
@@ -578,14 +581,36 @@ void do_transform(const AbstrUnit* dstUnit, const AbstrUnit* srcUnit, CIT srcBeg
 	);
 }
 
-template <typename TR, typename TA, typename TCF, typename CIT, typename RIT>
-void do_convert(const AbstrUnit* dstUnit, const AbstrUnit* srcUnit, CIT srcIter, CIT srcEnd, RIT dstIter)
+// The conversion functors of one convert operation, one per thread, shared by the tiles that
+// thread converts. The functor of a projection makes its transformation under
+// cs_SpatialRefBlockCreation, about a millisecond, and convert made one for every tile, all of them
+// one after the other (CLC-A18). OGRCoordinateTransformation is not thread-safe, so, as
+// MappingState does for mapping (#298), each thread gets its own rather than one shared.
+template <typename TR, typename TA, typename TCF>
+struct ConvertState
 {
 	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
 
-	auto functor = FunctorType{ dstUnit, srcUnit };
-	functor.Dispatch(dstIter, srcIter, srcEnd);
-}
+	ConvertState(const AbstrUnit* dstUnit, const AbstrUnit* srcUnit)
+		: m_DstUnit(make_shared_tree(dstUnit, existing_obj{}))
+		, m_SrcUnit(make_shared_tree(srcUnit, existing_obj{}))
+	{}
+
+	FunctorType& GetFunctor() const
+	{
+		auto id = std::this_thread::get_id();
+		std::lock_guard lock(m_FunctorMutex);
+		auto& slot = m_PerThreadFunctor[id];
+		if (!slot)
+			slot = std::make_unique<FunctorType>(m_DstUnit.get(), m_SrcUnit.get());
+		return *slot;
+	}
+
+	std::shared_ptr<const AbstrUnit> m_DstUnit, m_SrcUnit;
+
+	mutable std::mutex m_FunctorMutex;
+	mutable std::map<std::thread::id, std::unique_ptr<FunctorType>> m_PerThreadFunctor;
+};
 
 // *****************************************************************************
 //			Operator Classes
@@ -633,7 +658,7 @@ public:
 		return futureTileFunctor.release();
 	}
 
-	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const override
+	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t, void* tileState) const override
 	{
 		auto argData = const_array_cast<TA>(argDataA)->GetTile(t);
 		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetWritableTile(t, dms_rw_mode::write_only_all);
@@ -650,6 +675,7 @@ class ConvertAttrOperator : public AbstrCastedUnaryAttrOperator
 	typedef DataArray<TA>    Arg1Type;
 	typedef Unit<field_type> Arg2Type;
 	using ConversionFunctor = TypeConversionF<mustRoundToNearest>;
+	using StateType = ConvertState<TR, TA, ConversionFunctor>;
 
 public:
 	ConvertAttrOperator(AbstrOperGroup* gr, bool reverseArgs = false)
@@ -668,17 +694,16 @@ public:
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
 		auto arg1 = const_array_cast<TA>(arg1A);
-		auto dstUnit = make_shared_tree(debug_cast<const Arg2Type*>(argUnitA), existing_obj{});
-		auto srcUnit = make_shared_tree(arg1A->GetAbstrValuesUnit(), existing_obj{});
+		auto state = std::make_shared<const StateType>(debug_cast<const Arg2Type*>(argUnitA), arg1A->GetAbstrValuesUnit());
 		assert(arg1);
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-			, [srcUnit, dstUnit](typename sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
+			, [state](typename sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto argData = arg1FutureData->GetTile();
-				do_convert<TR, TA, ConversionFunctor>(dstUnit.get(), srcUnit.get(), argData.begin(), argData.end(), resData.begin());
+				state->GetFunctor().Dispatch(resData.begin(), argData.begin(), argData.end());
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
@@ -686,12 +711,18 @@ public:
 		return futureTileFunctor.release();
 	}
 
-	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const override
+	auto CreateTileState(const AbstrDataItem* argDataA, const AbstrUnit* argUnitA) const -> std::shared_ptr<void> override
+	{
+		return std::make_shared<StateType>(argUnitA, argDataA->GetAbstrValuesUnit());
+	}
+
+	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t, void* tileState) const override
 	{
 		auto argData = const_array_cast<TA>(argDataA)->GetDataRead(t);
 		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t, dms_rw_mode::write_only_all);
 
-		do_convert<TR, TA, ConversionFunctor>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
+		assert(tileState);
+		static_cast<const StateType*>(tileState)->GetFunctor().Dispatch(resultData.begin(), argData.begin(), argData.end());
 	}
 };
 

@@ -93,11 +93,12 @@ public:
 			else
 			{
 				DataWriteLock resLock(res, dms_rw_mode::write_only_all);
+				auto tileState = CreateTileState(argDataA, argUnitA);
 
-				parallel_tileloop(nrTiles, [this, argDataA, argUnitA, &resLock, res](tile_id t)->void
+				parallel_tileloop(nrTiles, [this, argDataA, argUnitA, &resLock, res, tileStatePtr = tileState.get()](tile_id t)->void
 					{
 						try {
-							this->Calculate(resLock.get(), argDataA, argUnitA, t);
+							this->Calculate(resLock.get(), argDataA, argUnitA, t, tileStatePtr);
 						}
 						catch (const DmsException& x)
 						{
@@ -110,7 +111,11 @@ public:
 		}
 		return true;
 	}
-	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
+	// What the tiles of one operation share, made once before them and handed to each Calculate:
+	// convert keeps its conversion functors there, one per thread, since one for a projection is
+	// costly to make (CLC-A18). Nothing by default.
+	virtual auto CreateTileState(const AbstrDataItem* argDataA, const AbstrUnit* argUnitA) const -> std::shared_ptr<void> { return {}; }
+	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t, void* tileState) const =0;
 	virtual auto CreateFutureTileCaster(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> = 0;
 
 	// mirrors CreateResult above: one data argument and one unit argument; the
@@ -401,7 +406,7 @@ public:
 
 		return futureTileFunctor.release();
 	}
-	void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, const AbstrUnit* argUnit, tile_id t) const override
+	void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, const AbstrUnit* argUnit, tile_id t, void* tileState) const override
 	{
 		assert(arg1A);
 		const Arg1Type* arg1 = const_array_cast<Arg1Values>(arg1A);
