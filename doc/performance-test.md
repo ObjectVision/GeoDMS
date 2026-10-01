@@ -760,3 +760,83 @@ after the NetworkModel_PBL chain was stopped at 04:49) was not measured.
   OVSRV05, which is dedicated and idle, or need a reference column measured in the same round.
 - Before a round on OVSRV10 that is meant for times: no large GeoDMS processes in the hours before (or a
   reboot), the NetworkModel_PBL chain stopped, no scans or copies of `C:\LocalData` of one's own.
+
+# Known causes of differences between versions
+
+Changes found in the code history that explain why a figure differs between versions, recorded here so
+that a round is not bisected for a cause that is already known.
+
+## FixedAlloc's free stacks: which sizes they keep, and since when
+
+Established on 2026-10-01 from the history of `rtc/dll/src/mem/FixedAlloc.cpp`; no new measurement.
+
+`AllocateFromStock` serves a request from a free stack only when `SpecialSize` admits it. The request
+then takes the object store of the next power of 2 (`BlockListIndex`), `VirtualAllocChunk::commit`
+commits that whole store, and when the block is freed the store goes onto its class's free stack still
+committed. A request that `SpecialSize` refuses goes to `std::allocator` (the CRT heap) at the size asked
+for and goes back there when freed; FixedAlloc keeps none of it.
+
+| versions | code | sizes served from a free stack |
+|---|---|---|
+| 8.035 to 8.6.0 | `SpecialSize`: `sz > 4 KB && sz <= 256 MB`, from before the start of the git history | every size above 4 KB up to 256 MB, rounded up to a power of 2 |
+| 8.6.1 to 19.3.0 | `be8e162fc` (2022-12-05), `MG_CACHE_ALLOC_ONLY_SPECIALSIZE` | only the exact powers of 2 from 8 KB to 1 MB: the buffers of a full default tile, 2^16 elements of 1/8 to 16 bytes |
+| 20.0.0 and later | `87bdc62d1` (2026-05-08, "drop power-of-2 guard from SpecialSize") | every size from 8 KB to 1 MB, rounded up to the next power of 2 |
+
+`87bdc62d1` is already in `v20.0.0` (2026-05-11), on its first-parent line, even though the 20.0.4
+release notes list it among the changes since 20.0.0c. 19.3.0 (2026-04-03) is the last release without
+it. In June 2024 `SpecialSize` returned `true` for every size for two days (`eeb127377`, reverted by
+`78503eedd`); both commits first appear in 15.4.0, so no release shipped that state.
+
+**Since `87bdc62d1`, no size above 1 MB goes through a free stack.** `SpecialSize` admits
+`(1 << log2_default_segment_size) / 8` to `(1 << log2_default_segment_size) * sizeof(Float64) * 2`, and
+`log2_default_segment_size` is 16 (`RtcBase.h`), which gives 8 KB to 1 MB. The 256 MB of
+`ALLOC_OBJSSIZE_MAX` only sets how many free-stack classes exist (`NR_FREE_STACK_ALLOCS`, 4 KB to
+256 MB). The classes above 1 MB are never reached. Until 2026-10-01 two texts said otherwise, and
+both are corrected now. One was the comment above `s_AllocSizeHistogram` in `FixedAlloc.cpp`, which
+called 256 MB the cut-off above which requests bypass the free stacks. The other was §8.1.23 of
+`doc/development/schedule-with-lookahead.md`, which said "Pool classes span 4 KB–256 MB". The comment
+above `VirtualAllocChunk::recommit` and §8.1.20 already gave the range correctly.
+
+**What 20.0.0 changed for committed memory.** Before 20.0.0, a request between 8 KB and 1 MB that was
+not a power of 2 went to the CRT heap at its own size. Examples are the buffers of a domain's last,
+shorter tile, the sequence and string payloads of a tile, and a growing vector. Since 20.0.0 such a
+request takes a power-of-2 store:
+
+1. While the block lives, up to twice its size is committed: a 520 KB request commits a 1 MB store.
+   Until 20.22.0 the census (`PeakLiveLarge`) counted the size asked for, so the rounding showed up only
+   in `Highest CommitCharge`. Since `52e6c7da4` (20.22.0), `my_vector`, `my_vec_t`, the sequence pools
+   and `BitVector` take the whole store as their capacity, and the census counts the store.
+2. After the block is freed, its store stays committed on the free stack for the rest of the run. No
+   version decommits a free-stack store when it is freed: `release()` was a no-op through 20.9.0, and
+   since 20.10.0 `DECOMMIT_MIN_SIZE` decommits only stores of 2 MB and up, a size no free-stack class
+   reaches. Before 20.0.0 this retention applied only to the power-of-2 tile buffers.
+
+So from 20.0.0 through 20.10.0 every non-power-of-2 size between 8 KB and 1 MB that a model churns
+adds to a committed dead pool that is not returned during the run. Since 20.11.0, drainage gives part
+of it back (`7938d2605`, on by default since `30df2d1a3`; §8.1.24 and §8.1.32): while the machine's RAM
+use is above `MemoryFlushThreshold`, it decommits the cold half of each free stack. Below the threshold
+the pool stays committed, as in 20.0.0. The `drained Nx = M[MB]` figure of the `vmcalls` line says how
+much came back; for t641.1 in the 20.22.0.m round on OVSRV10 above that was 2678 MB.
+
+**How large the effect is has not been measured.** No A/B of `87bdc62d1` against its parent exists. What
+has been measured is the whole free-stack pool, power-of-2 and other sizes together, in §8.1.14 of
+`schedule-with-lookahead.md`. That run used t641 with the gate enforcing 100 GB on the document's 128 GB
+host (OVSRV10). Without decommit, `Highest CommitCharge` was 179 256 MB against a `PeakLiveLarge` of
+144 449 MB on t641_1, and 197 179 against 175 973 MB on t641_2. A local build that decommitted every
+freed store brought commit down to live (143 793 and 175 626 MB). So the pool held about 35 GB and
+21 GB at the peak. §8.1.23 measured the committed dead pool at 53 to 112 GB over the course of t641.
+
+To measure the share of `87bdc62d1`, use the current tree with `&& IsIntegralPowerOf2OrZero(sz)`
+restored in `SpecialSize`, A/B against HEAD on t641_1 and t641_2 with `run_exp.py` on OVSRV10, and
+compare `Highest CommitCharge`, `PeakLiveLarge` and the drained megabytes. Building `87bdc62d1` and its
+parent instead would also measure the five months of other changes since.
+
+**Reading a comparison of rounds:**
+
+- A higher `Highest CommitCharge` from 20.0.0 on, against 19.x, with an unchanged `PeakLiveLarge` is this
+  retention and rounding, not a leak.
+- Between 20.10.x and earlier and 20.11.0 and later, drainage changes commit charge on any model that
+  pushes RAM use past `MemoryFlushThreshold`. Compare at the same threshold and on the same machine.
+- `PeakLiveLarge` from 20.22.0 on includes the rounding of the containers named above. The gap between
+  `Highest CommitCharge` and `PeakLiveLarge` is therefore smaller from 20.22.0 on, partly through
+  bookkeeping.

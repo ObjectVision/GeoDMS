@@ -1167,10 +1167,10 @@ constexpr size_t LARGE_ALLOC_THRESHOLD = 4096;
 
 
 // Size histogram of large allocations, bucketed by log2. Answers "what sizes is t641 actually
-// asking for", and in particular how much lives above ALLOC_OBJSSIZE_MAX (2^28 = 256 MB), which is
-// the cut-off above which requests bypass the free-stack allocators entirely and go to
-// std::allocator -- i.e. the population that would come back under the lock-free allocator's control
-// if ALLOC_OBJSSIZE_MAX_BITS and log2_max_chunk_size were raised.
+// asking for". Only 8 KB .. 1 MB of it is served by a free stack (SpecialSize); every larger
+// request goes to std::allocator at the size asked for. ALLOC_OBJSSIZE_MAX (2^28 = 256 MB) only
+// bounds the free-stack classes that exist, and the classes above 1 MB are never reached, so the
+// buckets above 1 MB are the population that SpecialSize keeps out of the lock-free allocator.
 static std::atomic<UInt64> s_AllocSizeHistogram[64] = {};
 
 // Allocations at or above this are individually logged under PerformanceLogging (/SP), WITH the
