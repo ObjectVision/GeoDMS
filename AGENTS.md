@@ -106,6 +106,7 @@ are not there: the reason there is one source now.
 | `geodms-issues` | text that lands on GitHub issues: debriefs, closing, new issues |
 | `geodms-wiki` | documenting a behaviour change on the wiki |
 | `geodms-release` | building the setups and publishing a GitHub release |
+| `geodms-perf` | a slower regression round or an operator timing: A/B against a kept build, rerunning one full.py experiment, per machine |
 
 When a recipe changes (a script moves, a guard is added, a convention is settled), update the
 skill in the same commit; a skill that contradicts the scripts is worse than none.
