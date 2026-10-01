@@ -2281,7 +2281,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 				auto mp = geos_create_polygons(polyData[i]);
 				if (mp && !mp->isEmpty())
 				{
-					auto resMP = mp->buffer(bufferDistance, (pointsPerCircle + 3) / 4); // GEOS takes segments per quarter circle, as for points and arcs (GEO-A19)
+					auto resMP = mp->buffer(bufferDistance, pointsPerCircle); // given to GEOS as segments per quarter circle, unlike the point and arc buffers; models are calibrated on it (GEO-A19 reverted, t641)
 					geos_assign_geometry(resData[i], resMP.get());
 				}
 				if (processTimer.PassedSecs())
@@ -2427,7 +2427,7 @@ struct GeosBufferOperator : public AbstrBufferOperator
 				auto mp = geos_create_polygons(polyData[i]);
 				if (mp && !mp->isEmpty())
 				{
-					auto resMP = mp->buffer(bufferDistance, (pointsPerCircle + 3) / 4); // GEOS takes segments per quarter circle, as for points and arcs (GEO-A19)
+					auto resMP = mp->buffer(bufferDistance, pointsPerCircle); // given to GEOS as segments per quarter circle, unlike the point and arc buffers; models are calibrated on it (GEO-A19 reverted, t641)
 					geos_assign_geometry(resData[i], resMP.get());
 				}
 				break;

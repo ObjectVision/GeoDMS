@@ -1,8 +1,9 @@
-// GEO-A19: geos_buffer_multi_polygon and geos_buffer of a polygon take their third argument as points per circle, as
-// the point and arc buffers and the bg_ family do. GEOS's own argument is segments per quarter circle, and the polygon
-// variants passed points per circle to it unconverted: 4 times the documented vertex count. A 10 x 10 square buffered
-// by 1 with 16 points per circle gets 4 round corners of a quarter circle each, 4 segments per corner, so about 20
-// vertices; it had about 68. Expected: exit 0 on /checks.
+// geos_buffer_multi_polygon and geos_buffer of a polygon give their third argument to GEOS as it is, which GEOS takes
+// as segments per quarter circle; the point and arc buffers and the bg_ family convert it from points per circle. The
+// difference is kept on purpose: models are calibrated on it (RSopen buffers its buildings with 4, the regression test
+// t641). 20.22.0 converted it for polygons too (doc/code-audit-2026-09-27.md GEO-A19); 20.22.1 reverts that.
+// A 10 x 10 square buffered by 1 with 16 gets 4 round corners of 16 segments each, about 68 vertices, where the
+// conversion gave about 20. Expected: exit 0 on /checks.
 container geo_geos_buffer_polygon_ppc
 {
 	unit<fpoint> crd;
@@ -21,6 +22,6 @@ container geo_geos_buffer_polygon_ppc
 
 	container checks
 	{
-		parameter<uint32> nVertices := #BufPt, IntegrityCheck = "nVertices >= 17 && nVertices <= 24";
+		parameter<uint32> nVertices := #BufPt, IntegrityCheck = "nVertices >= 60 && nVertices <= 72";
 	}
 }
