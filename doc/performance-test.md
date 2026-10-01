@@ -698,3 +698,65 @@ change on; OVSRV05 remains the one for behaviour under RAM pressure. Stop the Ne
 recompute for the duration (its chain step peaks at about 110 GB; it can be stopped between
 steps), and before a `.l` round install the sampler scripts into the build's `bin/profiler`.
 
+## Results (OVSRV10), 20.22.1
+
+Run on 2026-10-01 on OVSRV10, 127 GB, 32 logical processors. Tree `C:\dev\GeoDMS_2026` on `main` at
+`d46a6e199` (version 20.22.1, with CLC-A07 and GEO-A19 reverted), Release x64 of `all22.sln`, Geo.dll
+linked 11:57. GeoDMS-Test at `7423f6a`.
+
+- `.m`: `full.py -version local-msbuild-release`, 12:00 to 14:13, 28 experiments, no reuse, all `ok`.
+  The 28-09 round of an earlier 20.22.1 build is kept aside as `C:\LocalData\GeoDMS-Test\_aside_20_22_1_m_20260928`.
+
+Running on the machine: no other model (the NetworkModel_PBL chain ended on 30-09 at 23:20), no build.
+A `du` over `C:\LocalData\runs` of this session's own ran from about 12:00 during the first experiments.
+Before the round, between 08:48 and 11:00, the same session ran t2000 four times and the t641 chain once
+on kept builds (bisecting the t2000 and t641 result changes), so the machine started the round after
+hours of 75 to 190 GB processes.
+
+### The round is slower; the engine is not
+
+The round took 127.6 min against 104.0 min for 20.22.0.m on 27-09 (section above); per experiment:
+
+| experiment | 20.20.0.m | 20.22.0.m (27-09) | 20.22.1.m (28-09) | 20.22.1.m (01-10) |
+|---|---|---|---|---|
+| t020_polygons | 9.8 | 3.1 | 4.7 | 6.4 |
+| t405_2 zonder fence | 5.8 | 12.9 | 15.5 | 15.6 |
+| t405_3 met fence | 5.5 | 12.7 | 16.4 | 14.9 |
+| t641_1 MakeBaseData | 27.8 | 28.7 | 37.8 | 34.0 |
+| t641_2 Allocatie | 20.6 | 19.6 | 25.1 | 21.7 |
+| t2000 | 9.1 | 7.3 | 8.6 | 8.2 |
+| t720_2BURP | 6.6 | 0.2 (failed, #1285) | 6.3 | 5.9 |
+
+Minutes, wall time of the GeoDMS log. t405 at 5 to 6 min under 20.20.0 is the commit deferral, removed in
+20.22.0 (#1259), and t720 in 20.22.0 failed after 13 to 17 s, so neither is a regression of 20.22.1.
+
+An interleaved A/B the same afternoon, on kept copies of the two builds, `1ec17232f` (20.22.0) and
+`d46a6e199`, one after the other with nothing else running, each experiment rerun with full.py's own
+command and environment (`.claude/skills/geodms-perf`, `run_exp.py`):
+
+| experiment | 20.22.0 | 20.22.1 |
+|---|---|---|
+| t020_polygons, two pairs | 219, 226 s | 228, 220 s |
+| t405_1 prepare | 196 s | 207 s |
+| t405_2 zonder fence | 848 s | 844 s |
+| t641_1 MakeBaseData | 2082 s | 1998 s |
+| t641_2 Allocatie | 1571 s | 1489 s |
+
+The two builds are equal within the spread, and 20.22.1 is 4 to 5 % faster on t641. The same 20.22.0
+binary took 28.7 min for t641_1 in its own round of 27-09 and 34.7 min in this A/B, and 12.9 against
+14.1 min for t405_2: the round-to-round spread of this machine is about 20 % on the models that commit
+more than the RAM, larger than anything the engine changed. The memory lines show the state differed:
+in both rounds t641_1 drained 57 000 to 58 000 times with at most 6 GB uncommitted, in the A/B 760 000
+times with 61 GB uncommitted, for either build. Which part of the machine's state causes the difference
+(standby and modified lists after the morning's large runs, the pagefile, the 27-09 round starting right
+after the NetworkModel_PBL chain was stopped at 04:49) was not measured.
+
+### Reading
+
+- No experiment of 20.22.1 is slower than 20.22.0 on the same machine in the same state. The round's
+  extra 24 minutes are the machine, mostly t641 and t405, plus t020 during the disk scan.
+- A round on OVSRV10 is a correctness check and a memory measurement; its wall times are comparable
+  between versions only through an A/B in one sitting. Wall-time comparisons between rounds belong on
+  OVSRV05, which is dedicated and idle, or need a reference column measured in the same round.
+- Before a round on OVSRV10 that is meant for times: no large GeoDMS processes in the hours before (or a
+  reboot), the NetworkModel_PBL chain stopped, no scans or copies of `C:\LocalData` of one's own.

@@ -34,7 +34,10 @@ t641.1 loss of OVSRV05 did not show on OVSRV10). So:
 A slower full.py round is a hypothesis, not a regression. On 2026-09-28 a "t810 regression" was
 bisected for hours and turned out to be machine drift (load from other sessions in the morning); on
 2026-10-01 t020 took 6.4 min in a round against 3.1 min for 20.22.0, and an A/B of the same two builds
-gave 219 to 226 s against 220 to 228 s. The round had run next to a disk scan of the agent's own.
+gave 219 to 226 s against 220 to 228 s. The round had run next to a disk scan of the agent's own. The
+same 20.22.0 binary took 28.7 min for t641_1 in its round of 27-09 and 34.7 min in an A/B of 01-10: on
+OVSRV10 the spread between days is about 20 % for a model that commits more than the RAM, more than any
+engine change of that release (`doc/performance-test.md`, Results (OVSRV10), 20.22.1).
 
 So before any bisect:
 
