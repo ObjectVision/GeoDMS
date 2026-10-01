@@ -808,6 +808,7 @@ null, overflow or domain check that one member of an operator family has and its
 - **Where**: `clc/dll/src/OperAccMinMax.cpp:98`, :115 (strict comparison), :136-137.
 - For unsigned and bool data the start value is 0 and `0 < 0` is false, so `max_index` of an all-zero attribute (or partition) stays undefined; `min_index` likewise when all values equal `MAX_VALUE(T)`. `arg1HasUndefined` (computed by a possible full scan at :67) is unused.
 - **Fix**: a per-partition "seen" flag, or accept the first defined value unconditionally (as `unary_assign_minmax_ifdefined`); drop `arg1HasUndefined`.
+- **Reverted 2026-10-01**: the fix (1109e6532, the first defined value of a partition taken unconditionally) changed the regression test t2000 (Hestia hybrid heat pumps per zichtjaar, up to 0.33 % fewer in 2025). Hestia chooses an option per dwelling with `max_index(isSelected, rel)` on bool data and relies on the null where nothing is selected, which `makedefined` then turns into no measure; the fix made that the first option. With the old comparison restored on HEAD, t2000 gives its 20.22.0 values exactly. The null for an all-zero partition is kept as the documented behaviour, and `oper_minmax_index_start_value.dms` now checks it. The unused `arg1HasUndefined` stays removed.
 
 #### CLC-A08 · BUG · CONFIRMED · Medium · S — `neg` on unsigned values wraps
 - **Where**: `clc/dll/include/AttrUniStructNum.h:65` (`-signed_type_t<T>(x)`), registered for `num_objects` at `OperAttrUni.cpp:122`.

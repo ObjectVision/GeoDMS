@@ -108,9 +108,12 @@ public:
 			if (p >= nr_p)
 				continue;
 
-			// the first defined value of a partition is taken as it is: compared with the start value, an
-			// extreme that equals it (0 for max_index of unsigned or bool data) would leave the index null
-			if (IsDefined(valueData[i]) && (!IsDefined(indices[p]) || comp(valueData[i], values[p])))
+			// a value is taken only when it is strictly better than the start value, MIN_VALUE for max_index and
+			// MAX_VALUE for min_index, so a partition whose values all equal it keeps a null index: max_index of
+			// bool data is the first true and null where none is, which configurations rely on to mean that
+			// nothing was selected. 20.22.0 took the first defined value instead (CLC-A07), which turned that
+			// null into the first element and changed the choices of the Hestia regression test t2000.
+			if (IsDefined(valueData[i]) && comp(valueData[i], values[p]))
 			{
 				values[p] = valueData[i];
 				indices[p] = i;
