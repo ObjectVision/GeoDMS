@@ -365,6 +365,7 @@ struct OdbcMetaInfo : StorageMetaInfo
 
 class ODBCStorageReader
 {
+	static constexpr UInt32 s_StringFrameBytes = 4 << 20; // the buffer of one fetch of a string column
 public:
 	// colItem is the configured attribute, which names the column; valuesClass is that of the data object that
 	// receives the values, which since #587 belongs to a cache member and is not the data object of either item yet
@@ -464,13 +465,14 @@ public:
 		return m_RecordCount;
 	}
 
-	SQLLEN GetActualSizeEstimate()
+	// the sum of the actual sizes of the first nrRecords rows of the fetched frame; nrRecords must not exceed the frame size
+	static SQLLEN GetActualSizeEstimate(const SQLLEN* actualSizes, UInt32 nrRecords)
 	{
 		SQLLEN c = 0;
-		for (const SQLLEN *b = GetColumn()->ActualSizes(), *e = b + GetRecordCount(); b!=e; ++b)
+		for (const SQLLEN *b = actualSizes, *e = b + nrRecords; b!=e; ++b)
 		{
 			SQLLEN s = *b;
-			if (s != SQL_NULL_DATA) 
+			if (s != SQL_NULL_DATA)
 				c += s;
 		}
 		return c;
@@ -550,60 +552,57 @@ public:
 		TRecordSet* recordSet = GetRecordSet(); // does not open the recordset
 		dms_assert(recordSet);
 
-		// ============== SetFrameSize: applied once only on closed rs, then open in case of chars
-
 		UInt32 recordCount = GetRecordCount(); // not yet opened?
-		UInt32 recordsRead = 0;
-		const UInt32 recordsPerFrame  = 1;
+		dms_assert(data.size() == recordCount);
 		if (!recordSet->UnbindAllInternal())   // only possible when recordset is not yet opened
 			m_ODBCStorageManager->throwItemError("UnbindAllInternal Failed");
-		recordSet->SetFrameSize(recordsPerFrame);  // only possible when rs is not yet opened
+
+		// ============== Frame size: as many rows as fit in s_StringFrameBytes of buffer (STG-A30; it was one row per fetch).
+		// The column width is known once the recordset is open, and the frame size can only be set on a closed one,
+		// so open it to learn the width, then release it; the open lock below reopens it with the new frame size.
+		const UInt32 buffElemSize = GetColumn()->ElementSize();
+		const UInt32 recordsPerFrame = Max<UInt32>(1, Min<UInt32>(recordCount, s_StringFrameBytes / Max<UInt32>(buffElemSize, 1)));
+		recordSet->UnLockThis();
+		m_Column = nullptr;
+		recordSet->SetFrameSize(recordsPerFrame);  // closes the recordset when the frame size changes
 
 		TRecordSetOpenLock rsOpenLock(recordSet);
 		TColumn* column = GetColumn();
 		dms_assert(column->IsVarSized());
+		dms_assert(UInt32(column->ElementSize()) == buffElemSize);
 
-		m_CharBuffer.resize(column->BufferSize()); // NYI: lees in begrensde blokken; NYI: read directly into data.get_sa()
+		m_CharBuffer.resize(column->BufferSize()); // NYI: read directly into data.get_sa()
 		recordSet->BindExternal(GetColIndex(), &*m_CharBuffer.begin(), m_CharBuffer.size());
 
-		// get the stuff already in order to get size estimate
-		for (; recordsRead < recordCount; recordsRead += recordsPerFrame)
+		for (UInt32 recordsRead = 0; recordsRead < recordCount; )
 		{
-			recordSet->Next(recordsPerFrame);
-			
-			dms_assert(!recordSet->EndOfFile()); 
+			UInt32 recordsInFrame = Min<UInt32>(recordsPerFrame, recordCount - recordsRead);
+			recordSet->Next(recordsInFrame); // fetches the next frame; the last one can be short
+			dms_assert(!recordSet->EndOfFile());
 
-			// ============== provide total size estimate from the actual size array
-			// certainly opens recordset
+			const SQLLEN* actualSizePtr = column->ActualSizes();
+			dms_assert(actualSizePtr);
 
-			dms_assert(data.size() == recordCount);
-			if (recordsPerFrame == recordCount)
-				data.get_sa().data_reserve(GetActualSizeEstimate() MG_DEBUG_ALLOCATOR_SRC("ODBC"));
+			// the total size is known in advance only when one frame holds every row
+			if (recordsInFrame == recordCount)
+				data.get_sa().data_reserve(GetActualSizeEstimate(actualSizePtr, recordsInFrame) MG_DEBUG_ALLOCATOR_SRC("ODBC"));
 
 			sequence_array<char>::iterator stringPtr = data.begin() + recordsRead;
-
-			UInt32  buffElemSize = column->ElementSize();
-			CharPtr 
-				buffPtr = CharPtr(column->Buffer()),
-				buffEnd = buffPtr + buffElemSize * recordsPerFrame;
-
-			const SQLLEN* actualSizePtr = GetColumn()->ActualSizes();
-			dms_assert(actualSizePtr);
-			while (buffPtr != buffEnd)
+			CharPtr buffPtr = CharPtr(column->Buffer());
+			for (UInt32 i = 0; i != recordsInFrame; ++i, ++stringPtr, buffPtr += buffElemSize)
 			{
-				SQLLEN actualSize = *actualSizePtr++;
+				SQLLEN actualSize = actualSizePtr[i];
 
 				if (actualSize == SQL_NULL_DATA)
 					(*stringPtr).assign( Undefined() );
 				else
 				{
 					if (ThrowingConvert<unsigned_type<SQLLEN>::type>(actualSize) > buffElemSize)
-						m_ODBCStorageManager->throwItemErrorF("ReadStrings cannot read {} chars for row {} with a buffersize of only {} bytes", actualSize, recordsRead, buffElemSize);
+						m_ODBCStorageManager->throwItemErrorF("ReadStrings cannot read {} chars for row {} with a buffersize of only {} bytes", actualSize, recordsRead + i, buffElemSize);
 					(*stringPtr).assign( buffPtr, buffPtr+actualSize MG_DEBUG_ALLOCATOR_SRC("ODBC.ReadStrings"));
 				}
-				++stringPtr;
-				buffPtr += buffElemSize;
 			}
+			recordsRead += recordsInFrame;
 		}
 	}
 private:
