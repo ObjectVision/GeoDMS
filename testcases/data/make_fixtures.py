@@ -167,3 +167,15 @@ dbf('dbf_int64_null.dbf',
     [('123456789012345678', '42', 'a'),
      ('', '**********', 'b'),
      ('-5', '-7', 'c')])
+
+# read through the ODBC storage manager with the Access dBASE driver (stor_odbc_dbf.dms): a folder of its own,
+# since the driver's database is the folder (DBQ) and each .dbf in it a table. Numerics, a NULL numeric written
+# as blanks, and strings of different lengths, an empty one included, read row by row.
+os.makedirs(os.path.join(OUT, 'odbc'), exist_ok=True)
+dbf(os.path.join('odbc', 'odbc_t1.dbf'),
+    [('ID', 'N', 4, 0), ('I', 'N', 6, 0), ('F', 'N', 10, 3), ('S', 'C', 12, 0)],
+    [('1', '7',   '1.500',  'alpha'),
+     ('2', '',    '2.250',  'be'),
+     ('3', '-3',  '',       ''),
+     ('4', '120', '-0.125', 'gamma delta'),
+     ('5', '0',   '10.000', 'e')])

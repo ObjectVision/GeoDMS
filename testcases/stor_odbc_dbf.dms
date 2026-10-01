@@ -1,0 +1,45 @@
+// Reading through the ODBC storage manager, with the Access dBASE driver over data/odbc/odbc_t1.dbf
+// (written by data/make_fixtures.py). Since the storage reads became operators (#587) the reader asked
+// the configured column item for its data object to learn the values type, while the values go to a
+// cache member: every column, numeric or string, failed with "Check Failed Error: ado" before a row was
+// read, in 20.21.0 as well. The values type now comes from the data object that receives the values.
+// The driver reads a blank numeric field and a blank character field as NULL.
+// tab reads every column of the table, tabS a query of the string column alone (the reported case).
+// Needs the 64-bit "Microsoft Access dBASE Driver" (Access Database Engine), so Windows only; the battery
+// runs on Windows only. Expected: exit 0 on /checks.
+container stor_odbc_dbf
+{
+	unit<uint32> tab
+	:	StorageName     = "DRIVER={Microsoft Access dBASE Driver (*.dbf, *.ndx, *.mdx)};DBQ=%currDir%/data/odbc"
+	,	StorageType     = "ODBC"
+	,	SqlString       = "SELECT * FROM odbc_t1 ORDER BY ID"
+	,	StorageReadOnly = "True"
+	{
+		attribute<int32>   ID;
+		attribute<int32>   I;
+		attribute<float64> F;
+		attribute<string>  S;
+	}
+	unit<uint32> tabS
+	:	StorageName     = "DRIVER={Microsoft Access dBASE Driver (*.dbf, *.ndx, *.mdx)};DBQ=%currDir%/data/odbc"
+	,	StorageType     = "ODBC"
+	,	SqlString       = "SELECT S FROM odbc_t1 ORDER BY ID"
+	,	StorageReadOnly = "True"
+	{
+		attribute<string>  S;
+	}
+
+	container checks
+	{
+		parameter<bool> count   := #tab == 5 && #tabS == 5,               IntegrityCheck = "count == true";
+		parameter<bool> ids     := sum(tab/ID) == 15i,                     IntegrityCheck = "ids == true";
+		parameter<bool> ints    := sum(tab/I) == 124i,                     IntegrityCheck = "ints == true";
+		parameter<bool> nullI   := IsNull(tab/I[1]) && tab/I[2] == -3i,    IntegrityCheck = "nullI == true";
+		parameter<bool> floats  := sum(tab/F) == 13.625,                   IntegrityCheck = "floats == true";
+		parameter<bool> nullF   := IsNull(tab/F[2]) && tab/F[3] == -0.125, IntegrityCheck = "nullF == true";
+		parameter<bool> strs    := asList(tab/S, ',') == 'alpha,be,gamma delta,e', IntegrityCheck = "strs == true";
+		parameter<bool> nullS   := IsNull(tab/S[2]),                       IntegrityCheck = "nullS == true"; // the driver reads a blank field as NULL
+		parameter<bool> strsS   := asList(tabS/S, ',') == asList(tab/S, ','),      IntegrityCheck = "strsS == true";
+		parameter<bool> strLen  := sum(strlen(tabS/S)) == 19,              IntegrityCheck = "strLen == true";
+	}
+}

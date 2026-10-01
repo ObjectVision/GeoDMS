@@ -366,7 +366,9 @@ struct OdbcMetaInfo : StorageMetaInfo
 class ODBCStorageReader
 {
 public:
-	ODBCStorageReader(ODBCStorageManager* odbcstoragemanager, const OdbcMetaInfo* smi, TreeItem* tableHolder, CharPtr columnName, AbstrDataItem* colItem)
+	// colItem is the configured attribute, which names the column; valuesClass is that of the data object that
+	// receives the values, which since #587 belongs to a cache member and is not the data object of either item yet
+	ODBCStorageReader(ODBCStorageManager* odbcstoragemanager, const OdbcMetaInfo* smi, TreeItem* tableHolder, CharPtr columnName, const AbstrDataItem* colItem, const ValueClass* valuesClass)
 		:	m_ODBCStorageManager(odbcstoragemanager)
 		,	m_OdbcInfo(smi)
 		,	m_TableHolder(make_shared_tree(tableHolder, existing_obj{})) // borrow the tree-owned table holder (co-own its real control block)
@@ -375,7 +377,7 @@ public:
 		,	m_RecordCount(-1)
 		,	m_ColIndex(0)
 		,	m_RecordSet(0)
-		,	m_InternalValueClass(0)
+		,	m_InternalValueClass(valuesClass)
 		,	m_Column(0)
 	{
 		DBG_START("ODBCStorageReader", "Constructor", false);
@@ -419,15 +421,8 @@ public:
 		return m_RecordSet;
 	}
 
-	const ValueClass* GetInternalValueClass()
+	const ValueClass* GetInternalValueClass() const
 	{
-		if (!m_InternalValueClass)
-		{
-			MG_CHECK(m_ColItem);
-			auto ado = m_ColItem->GetDataObj();
-			MG_CHECK(ado);
-			m_InternalValueClass = ado->GetValuesType();
-		}
 		dms_assert(m_InternalValueClass);
 		return m_InternalValueClass;
 	}
@@ -617,7 +612,7 @@ private:
 	UInt32               m_RecordCount;
 	UInt32               m_ColIndex;    // 1-based
 	SharedStr            m_Name;
-	AbstrDataItem*       m_ColItem;
+	const AbstrDataItem* m_ColItem;
 	const ValueClass*    m_InternalValueClass;
 	ODBCStorageManager*  m_ODBCStorageManager;
 	const OdbcMetaInfo*  m_OdbcInfo;
@@ -743,10 +738,11 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
-	std::shared_ptr<TreeItem> tableHolder = make_shared_tree(const_cast<TreeItem*>(smi->CurrRD()->GetTreeParent().get()), existing_obj{}); // the configured table, also when the data goes to a cache member (#587)
+	auto cfg = smi->CurrRD(); // the configured attribute names the column and its table, also when the data goes to a cache member (#587)
+	std::shared_ptr<TreeItem> tableHolder = make_shared_tree(const_cast<TreeItem*>(cfg->GetTreeParent().get()), existing_obj{});
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
-	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder.get(), adi->GetName().c_str(), adi);
+	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder.get(), cfg->GetName().c_str(), cfg.get(), borrowedReadResultHolder->GetValuesType());
 
 	adi->GetAbstrDomainUnit()->ValidateCount(ir.GetRecordCount());
 
