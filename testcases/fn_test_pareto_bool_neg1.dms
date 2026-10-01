@@ -1,0 +1,20 @@
+// #1287: pareto_optimal_eps reads its arguments by type, a numeric criterion followed by its epsilon and
+// a bool criterion without one. Here the numeric price is followed by the bool needsCar, which is then
+// its epsilon and is refused with "pareto_optimal_eps: argument 3 must be a numeric parameter, the
+// epsilon of criterion 1 (argument 2): ...". Expected: exit nonzero on /checks.
+container fn_test_pareto_bool_neg1
+{
+	unit<uint32> P : nrofrows = 1;
+	unit<uint32> E : nrofrows = 4
+	{
+		attribute<P>       part     : [0, 0, 0, 0];
+		attribute<float64> price    : [1, 2, 3, 4];
+		attribute<bool>    needsCar : [true, false, false, true];
+		attribute<bool>    po       := pareto_optimal_eps(part, price, needsCar);
+	}
+
+	container checks
+	{
+		parameter<uint32> n := sum(uint32(E/po)), IntegrityCheck = "n > 0";
+	}
+}

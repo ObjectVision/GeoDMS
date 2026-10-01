@@ -37,9 +37,19 @@
 // every exact-optimal row that drops out has a surviving row of its partition that is
 // less than eps better or equal on every criterion (its bucket is <= on all of them).
 //
-// The criteria may have different numeric value types; they are compared as Float64. The
-// partition relation is any attribute to a domain unit. A row with an undefined partition
-// or an undefined (or NaN) criterion is never optimal and dominates nothing.
+// A criterion may also be bool (#1287), minimised like the others: false before true, so a
+// criterion where true is better is written not(x). A bool criterion has no epsilon, which
+// makes pareto_optimal_eps read its arguments by type: a numeric criterion is followed by its
+// epsilon, a bool criterion is not, as in pareto_optimal_eps(part, price, 10.0, needsCar,
+// needsBike). The same number of arguments can therefore be read in more than one way (five:
+// two numeric criteria, or one numeric and two bool ones), so there is one operator per number
+// of arguments, and the criteria read from them may be at most eight. In the sort and the sweep
+// a bool criterion is a criterion of 0 and 1 with epsilon 0.
+//
+// The criteria may have different value types, numeric or bool; they are compared as Float64.
+// The partition relation is any attribute to a domain unit. A row with an undefined partition
+// or an undefined (or NaN) criterion is never optimal and dominates nothing; a bool, uint2 or
+// uint4 criterion is never undefined.
 //
 // Groups are independent, so the work is split by group (#1286). The rows are first brought
 // together per partition: (partition, row) pairs, collected in row order and sorted with a
@@ -59,12 +69,13 @@
 #include <memory>
 
 #include "mci/CompositeCast.h"
+#include "mci/ValueClass.h"
+#include "mci/ValueClassID.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "set/VectorFunc.h"
 #include "mem/MyContainers.h"
 #include "utl/StrFormat.h"
 
-#include "CheckedDomain.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "IndexGetterCreator.h"
@@ -89,6 +100,10 @@ namespace pareto_impl
 
 	// a group of at least this many rows sorts its records with std::execution::par
 	constexpr SizeT LARGE_GROUP_SIZE = SizeT(1) << 18;
+
+	// the most criteria of one call; pareto_optimal has an operator for each number of arguments up to
+	// 1 + MAX_CRITERIA, pareto_optimal_eps up to 1 + 2 * MAX_CRITERIA and checks the number it reads
+	constexpr arg_index MAX_CRITERIA = 8;
 
 	// calls chunkFunc(c, first, last) for the chunks [first, last) of [0, count), in parallel
 	template <typename ChunkFunc>
@@ -124,7 +139,7 @@ namespace pareto_impl
 			for (SizeT i = 0; i != count; ++i, ++dataPtr)
 			{
 				V v = *dataPtr;
-				out[i] = IsDefined(v) ? Float64(v) : UNDEFINED_VALUE(Float64);
+				out[i] = IsBitValueOrDefined(v) ? Float64(v) : UNDEFINED_VALUE(Float64); // a bit value (bool: 0 or 1) is always defined
 			}
 		}
 
@@ -134,7 +149,7 @@ namespace pareto_impl
 	auto CreateCritTileReader(const AbstrDataItem* critA, tile_id t, SizeT tileSize) -> std::unique_ptr<AbstrCritTileReader>
 	{
 		std::unique_ptr<AbstrCritTileReader> result;
-		visit<typelists::num_objects>(critA->GetAbstrValuesUnit(), [critA, t, tileSize, &result] <typename V> (const Unit<V>*)
+		visit<typelists::numerics>(critA->GetAbstrValuesUnit(), [critA, t, tileSize, &result] <typename V> (const Unit<V>*)
 			{
 				auto tileData = const_array_cast<V>(critA)->GetTile(t);
 				MG_CHECK(tileData.size() == tileSize); // the criteria share the tiling of the partition relation
@@ -226,38 +241,66 @@ struct ParetoOptimalOperator : VariadicOperator
 {
 	// The result class is the concrete DataArray<Bool>: the operator lookup of an expression that
 	// uses the result (a != on it, a uint32() of it) matches on that class before anything is calculated.
-	// withEps: the arguments after the partition come in (criterion, epsilon) pairs.
-	ParetoOptimalOperator(arg_index nrCriteria, bool withEps)
-		: VariadicOperator(withEps ? &cog_pareto_optimal_eps : &cog_pareto_optimal, DataArray<Bool>::GetStaticClass(), 1 + nrCriteria * (withEps ? 2 : 1))
-		, m_NrCriteria(nrCriteria), m_WithEps(withEps)
+	// withEps: a numeric criterion is followed by its epsilon, a bool criterion is not (#1287).
+	ParetoOptimalOperator(arg_index nrArgs, bool withEps)
+		: VariadicOperator(withEps ? &cog_pareto_optimal_eps : &cog_pareto_optimal, DataArray<Bool>::GetStaticClass(), nrArgs)
+		, m_WithEps(withEps)
 	{
-		fast_fill(m_ArgClasses.get(), m_ArgClasses.get() + (1 + nrCriteria * (withEps ? 2 : 1)), AbstrDataItem::GetStaticClass());
+		fast_fill(m_ArgClasses.get(), m_ArgClasses.get() + nrArgs, AbstrDataItem::GetStaticClass());
 	}
 
 	CharPtr Name() const { return m_WithEps ? "pareto_optimal_eps" : "pareto_optimal"; }
-	arg_index CritArg(arg_index k) const { return m_WithEps ? 1 + 2 * k : 1 + k; } // argument index of criterion k (0-based)
-	arg_index EpsArg (arg_index k) const { assert(m_WithEps); return 2 + 2 * k; }
+
+	// the arguments of a criterion and of its epsilon; NO_EPS when it has none, as every criterion of
+	// pareto_optimal and every bool criterion of pareto_optimal_eps
+	static constexpr arg_index NO_EPS = 0;
+	struct CritArgs { arg_index crit, eps; };
+
+	// the criteria in argument order, read by type: in pareto_optimal_eps a numeric criterion takes the
+	// next argument as its epsilon and a bool criterion does not
+	auto GetCritArgs(const ArgSeqType& args) const -> std::vector<CritArgs>
+	{
+		std::vector<CritArgs> result;
+		for (arg_index i = 1; i != args.size(); )
+		{
+			const SizeT k = result.size() + 1; // the number of the criterion in the messages
+			const AbstrDataItem* critA = AsDataItem(args[i]);
+			MG_USERCHECK2(critA, mySSPrintF("{}: argument {} must be a numeric or bool attribute (criterion {})", Name(), i + 1, k).c_str());
+			const ValueClass* vc = critA->GetAbstrValuesUnit()->GetValueType();
+			MG_USERCHECK2(vc->IsNumericOrBool(), mySSPrintF("{}: criterion {} (argument {}) must be numeric or bool", Name(), k, i + 1).c_str());
+			CritArgs critArgs{ i++, NO_EPS };
+			if (m_WithEps && vc->GetValueClassID() != ValueClassID::VT_Bool)
+			{
+				MG_USERCHECK2(i != args.size(), mySSPrintF("{}: criterion {} (argument {}) is numeric and must be followed by its epsilon; only a bool criterion has none", Name(), k, critArgs.crit + 1).c_str());
+				critArgs.eps = i++;
+			}
+			result.emplace_back(critArgs);
+		}
+		MG_USERCHECK2(result.size() <= pareto_impl::MAX_CRITERIA, mySSPrintF("{}: {} criteria given, at most {} are supported", Name(), result.size(), pareto_impl::MAX_CRITERIA).c_str());
+		return result;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		assert(args.size() == 1 + m_NrCriteria * (m_WithEps ? 2 : 1));
 		const AbstrDataItem* partA = AsDataItem(args[0]);
 		MG_USERCHECK2(partA, mySSPrintF("{}: the first argument must be the partition relation, an attribute to a domain unit", Name()).c_str());
 		const AbstrUnit* e = partA->GetAbstrDomainUnit();
 		MG_USERCHECK2(partA->GetAbstrValuesUnit()->CanBeDomain(), mySSPrintF("{}: the first argument must be a relation to a domain unit (unsigned integer values)", Name()).c_str());
 
-		for (arg_index k = 0; k != m_NrCriteria; ++k)
+		const std::vector<CritArgs> critArgs = GetCritArgs(args);
+		const arg_index nrCriteria = arg_index(critArgs.size());
+		for (arg_index k = 0; k != nrCriteria; ++k)
 		{
-			const AbstrDataItem* critA = AsDataItem(args[CritArg(k)]);
-			MG_USERCHECK2(critA, mySSPrintF("{}: argument {} must be a numeric attribute (criterion {})", Name(), CritArg(k) + 1, k + 1).c_str());
-			e->UnifyDomain(critA->GetAbstrDomainUnit(), "e1", mySSPrintF("e{}", CritArg(k) + 1).c_str(), UM_Throw);
-			MG_USERCHECK2(critA->GetAbstrValuesUnit()->GetValueType()->IsNumeric(), mySSPrintF("{}: criterion {} must be numeric", Name(), k + 1).c_str());
-			if (m_WithEps)
+			const AbstrDataItem* critA = AsDataItem(args[critArgs[k].crit]);
+			e->UnifyDomain(critA->GetAbstrDomainUnit(), "e1", mySSPrintF("e{}", critArgs[k].crit + 1).c_str(), UM_Throw);
+			if (critArgs[k].eps != NO_EPS)
 			{
-				const AbstrDataItem* epsA = AsDataItem(args[EpsArg(k)]);
-				MG_USERCHECK2(epsA, mySSPrintF("{}: argument {} must be a numeric parameter (epsilon of criterion {})", Name(), EpsArg(k) + 1, k + 1).c_str());
-				checked_domain<Void>(epsA, mySSPrintF("epsilon of criterion {}", k + 1).c_str());
-				MG_USERCHECK2(epsA->GetAbstrValuesUnit()->GetValueType()->IsNumeric(), mySSPrintF("{}: epsilon of criterion {} must be numeric", Name(), k + 1).c_str());
+				const AbstrDataItem* epsA = AsDataItem(args[critArgs[k].eps]);
+				MG_USERCHECK2(epsA && epsA->HasVoidDomainGuarantee() && epsA->GetAbstrValuesUnit()->GetValueType()->IsNumeric()
+				,	mySSPrintF("{}: argument {} must be a numeric parameter, the epsilon of criterion {} (argument {}): a numeric criterion is followed by its epsilon, a bool criterion is not"
+					,	Name(), critArgs[k].eps + 1, k + 1, critArgs[k].crit + 1
+					).c_str()
+				);
 			}
 		}
 
@@ -270,14 +313,14 @@ struct ParetoOptimalOperator : VariadicOperator
 			for (arg_index i = 0; i != args.size(); ++i)
 				argLocks.emplace_back(AsDataItem(args[i]));
 
-			std::vector<const AbstrDataItem*> critItems(m_NrCriteria);
-			std::vector<Float64> eps(m_NrCriteria, 0.0);
-			for (arg_index k = 0; k != m_NrCriteria; ++k)
+			std::vector<const AbstrDataItem*> critItems(nrCriteria);
+			std::vector<Float64> eps(nrCriteria, 0.0); // 0: exact, as for every bool criterion
+			for (arg_index k = 0; k != nrCriteria; ++k)
 			{
-				critItems[k] = AsDataItem(args[CritArg(k)]);
-				if (m_WithEps)
+				critItems[k] = AsDataItem(args[critArgs[k].crit]);
+				if (critArgs[k].eps != NO_EPS)
 				{
-					eps[k] = AsDataItem(args[EpsArg(k)])->GetCurrRefObj()->GetValueAsFloat64(0); // argLocks holds it; GetRefObj is meta-thread only and this may run on a worker
+					eps[k] = AsDataItem(args[critArgs[k].eps])->GetCurrRefObj()->GetValueAsFloat64(0); // argLocks holds it; GetRefObj is meta-thread only and this may run on a worker
 					MG_USERCHECK2(IsDefined(eps[k]) && eps[k] >= 0.0, mySSPrintF("{}: the epsilon of criterion {} must be a defined, nonnegative value", Name(), k + 1).c_str());
 				}
 			}
@@ -317,8 +360,8 @@ struct ParetoOptimalOperator : VariadicOperator
 		};
 		std::vector<ChunkInfo> chunkInfo(nrChunks);
 
-		// 1. per chunk of rows, in parallel: the criteria as Float64 columns, whatever their numeric
-		//    value types, and the partition of the rows that take part, those with a defined partition
+		// 1. per chunk of rows, in parallel: the criteria as Float64 columns, whatever their numeric or
+		//    bool value types, and the partition of the rows that take part, those with a defined partition
 		//    and defined criteria; UNDEFINED for the others
 		OwningPtrSizedArray<SizeT> part(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: partition"));
 		std::vector<OwningPtrSizedArray<Float64>> crit;
@@ -566,13 +609,14 @@ struct ParetoOptimalOperator : VariadicOperator
 		);
 	}
 
-	arg_index m_NrCriteria;
-	bool      m_WithEps;
+	bool m_WithEps;
 };
 
 namespace
 {
-	// one instance per arity: the partition relation plus one to eight criteria, without and with epsilons
-	ParetoOptimalOperator po1(1, false), po2(2, false), po3(3, false), po4(4, false), po5(5, false), po6(6, false), po7(7, false), po8(8, false);
-	ParetoOptimalOperator pe1(1, true ), pe2(2, true ), pe3(3, true ), pe4(4, true ), pe5(5, true ), pe6(6, true ), pe7(7, true ), pe8(8, true );
+	// one instance per number of arguments: the partition relation plus one to eight criteria, and in
+	// pareto_optimal_eps an epsilon after each numeric criterion, so 2 (one bool criterion) to 17
+	ParetoOptimalOperator po2 (2, false), po3 (3, false), po4 (4, false), po5 (5, false), po6 (6, false), po7 (7, false), po8 (8, false), po9 (9, false);
+	ParetoOptimalOperator pe2 (2, true ), pe3 (3, true ), pe4 (4, true ), pe5 (5, true ), pe6 (6, true ), pe7 (7, true ), pe8 (8, true ), pe9 (9, true );
+	ParetoOptimalOperator pe10(10, true), pe11(11, true), pe12(12, true), pe13(13, true), pe14(14, true), pe15(15, true), pe16(16, true), pe17(17, true);
 }
