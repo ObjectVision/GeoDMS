@@ -877,6 +877,33 @@ lines), and the part after it.
 t101 split the same way spends 6 to 7 s before `impedance_matrix` (a `connect` of 4066 points, 1 s on
 its own) and the rest in one dense `impedance_matrix` of 16.5 million od pairs.
 
+### t410 and GEO-A54: builds of `a847e23a3` and `e5e7c8d0b`
+
+On 2026-10-02 the tree was checked out at `a847e23a3` (GEO-A41) and then at `e5e7c8d0b` (GEO-A54, which
+changes `geo/dll/src/geom/SpatialIndex.h` only), each built with the VS18 msbuild (08:11 to 08:21, and
+08:21 to 08:24, which recompiled 13 files of `Geo.dll`, `Connect.cpp` among them) and kept as
+`C:\LocalData\GeoDMS_engine\bisect_a847e23a3` and `bisect_e5e7c8d0b`; then `main` again and rebuilt (08:24
+to 08:34). t410 with full.py's command, threshold 60, nothing else running. Seconds: total, the part before
+the first `impedance_matrix` line, and the points discovered 79 s in. The result file is the same in every
+run.
+
+| run, 08:34 to 09:04 | total | before | discovered |
+|---|---|---|---|
+| `a847e23a3`, three runs | 295, 289, 290 | 153, 154, 150 | 271 951, 270 740, 281 184 |
+| `e5e7c8d0b`, interleaved | 302, 302, 300 | 166, 166, 164 | 257 031, 257 452, 259 346 |
+
+The four builds in one sitting, in the order 20.22.0, `a847e23a3`, `e5e7c8d0b`, 20.22.1 and back:
+
+| run, 09:05 to 09:44 | total | before | discovered |
+|---|---|---|---|
+| 20.22.0 (`1ec17232f`) | 289, 287 | 148, 150 | 276 761, 275 062 |
+| `a847e23a3` | 289, 288 | 151, 153 | 275 076, 272 379 |
+| `e5e7c8d0b` | 299, 305 | 162, 166 | 260 748, 257 158 |
+| 20.22.1 (`fd30ef780`) | 304, 305 | 165, 162 | 258 079, 261 167 |
+
+20.22.0 and the parent of GEO-A54 are equal, and so are GEO-A54 and 20.22.1; the step lies in that one
+commit, in the `connect_ne`, and the `impedance_matrix` part after it is equal in all eight runs.
+
 ### Reading
 
 - Correct: all 27 `ok`, including t010, t641_2 and t2000, which were red on OVSRV10 before CLC-A07 and
@@ -897,10 +924,11 @@ its own) and the rest in one dense `impedance_matrix` of 16.5 million od pairs.
   GEO-A34 (`fccd29343`) leaves the arithmetic for float coordinates as it was, and t410 runs on `dpoint`;
   GEO-A41 (`a847e23a3`) does not apply to the arcs-first connect. GEO-A54 (`e5e7c8d0b`) adds the extents of
   a leaf and two flags to every node of the quadtree, which for `dpoint` grows a node from 64 bytes, one
-  cache line, to 104, so every query walks larger nodes. That makes GEO-A54 the candidate; it is not
-  confirmed. The check is
-  an A/B of t410 on builds of `a847e23a3` and `e5e7c8d0b`, which had not been run when this section was
-  written.
+  cache line, to 104, so every query walks larger nodes. The builds of `a847e23a3` and `e5e7c8d0b` below
+  confirm it: GEO-A54 is the whole t410 loss, and nothing else between 20.22.0 and 20.22.1 changes t410.
+  It costs the arcs-first connect of 337 497 points 11 to 14 s per adjacent pair, 7 to 9 %; the gain it
+  was made for is on coincident objects (join_near_values over 49 000 coincident points, 2.1 s to
+  0.008 s).
 - t720 takes 10:12 against 9:12 for 20.21.1.m and 9:16 for 20.19.3.m. It has no A/B: 20.22.0 fails it,
   and a comparison needs a build of 20.21.1 (`92eaa7150`). t641.1 and t641.2 are 2 to 3 % slower in the
   round, within the spread between sittings; an A/B pair of them takes three and a half hours and was
