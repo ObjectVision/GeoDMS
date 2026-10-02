@@ -2323,9 +2323,12 @@ classes (FixedAlloc.cpp:386-449 — up in `get_reserved_or_reset_objectstore`, d
 `add_to_freestack`), i.e. the subset of `req` that lives in pool-class stores, maintained as a
 cross-check of the live counter (its own comment says so). The pooled-free volume appears in
 the `[memory]` reports instead: `freed` − `uncommitted` = stores sitting on free stacks still
-committed. Pool classes span 4 KB–256 MB (`NR_FREE_STACK_ALLOCS`), and `DECOMMIT_MIN_SIZE`
-(FixedAlloc.cpp:282) decommits freed stores of 2 MB and up at release — so the committed dead
-pool is exactly the freed < 2 MB classes, which never decommit. Three corrections follow:
+committed. Pool classes exist from 4 KB to 256 MB (`NR_FREE_STACK_ALLOCS`), but `SpecialSize`
+admits only 8 KB to 1 MB, so no class above 1 MB is ever used. `DECOMMIT_MIN_SIZE`
+(FixedAlloc.cpp:282) decommits freed stores of 2 MB and up at release, a size no used class
+reaches — so the committed dead pool is every freed free-stack store, none of which is
+decommitted at release. (Corrected on 2026-10-01: this sentence said that the pool classes span
+4 KB–256 MB; see `doc/performance-test.md`, "FixedAlloc's free stacks".) Three corrections follow:
 
 - §8.1.20's t641_2 finding ("99.6 % of requested-live bytes are FREE-STACK blocks: freed,
   pooled, still committed... actually-live ~0.6 G") had the right ratio and the wrong

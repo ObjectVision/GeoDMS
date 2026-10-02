@@ -1,0 +1,108 @@
+// #1289: the spatial index split a node without end when Center could not halve its box. Center is (first + second) / 2,
+// so for an integer box [a, a+1] with a >= 0 it is a, both a and a+1 lie in the high half, and the high-high child is the
+// box again: a node with enough objects to split at two places in that box was split, its objects all went to that child,
+// which had to split again, and so on until memory ran out (2.4 GB in 0.8 s on each join below). The same for negative
+// integers when the objects all lie on the side of the box that keeps it whole, for two floats one ULP apart whose sum
+// rounds down, and for arcs. Now that split is not made and the node keeps its objects. A node splits from 16 objects on
+// (SpatialIndex.h, MinObjectsToSplit), so each set below has more than that. Each join is checked against the pairs it
+// must find; a self-join at distance 0.5 of integer points counts the pairs at the same place.
+// Expected: exit 0 on /checks.
+container geo_spatial_index_unit_box
+{
+	// ipoint, box [(0,0), (1,0)]: 16 at (0,0) and 8 at (1,0); the 17th insert finds 16 objects at two places, and the
+	// inserts after it find the node again
+	unit<ipoint> I;
+	unit<uint32> IA: nrofrows = 1 { attribute<I> p := point_xy(const(0i, .), const(0i, .), I); }
+	unit<uint32> IB: nrofrows = 24
+	{
+		attribute<int32> x := id(.) % 3 == 1 ? 1i : 0i;
+		attribute<I>     p := point_xy(x, const(0i, .), I);
+	}
+	unit<uint32> IAB  := join_near_values(IA/p, IB/p, 1.0);
+	unit<uint32> IBB  := join_near_values(IB/p, IB/p, 0.5);
+
+	// wpoint, the same places in an unsigned coordinate
+	unit<wpoint> W;
+	unit<uint32> WA: nrofrows = 1 { attribute<W> p := point_xy(const(0w, .), const(0w, .), W); }
+	unit<uint32> WB: nrofrows = 24
+	{
+		attribute<uint16> x := id(.) % 3 == 1 ? 1w : 0w;
+		attribute<W>      p := point_xy(x, const(0w, .), W);
+	}
+	unit<uint32> WAB := join_near_values(WA/p, WB/p, 1.0);
+
+	// ipoint, box [(-1,0), (0,1)]: (-1 + 0) / 2 truncates to 0, so x = -1 is low and x = 0 high, but the first 19 lie
+	// at x = -1, 10 at y = 0 and 9 at y = 1, all in the x-low, y-high quadrant, whose box is the box again. The last, at
+	// (0,0), lies in another quadrant and does split the node.
+	unit<uint32> NA: nrofrows = 1 { attribute<I> p := point_xy(const(-1i, .), const(0i, .), I); }
+	unit<uint32> NB: nrofrows = 20
+	{
+		attribute<int32> x := id(.) == 19 ? 0i : -1i;
+		attribute<int32> y := id(.) % 2 == 1 && id(.) != 19 ? 1i : 0i;
+		attribute<I>     p := point_xy(x, y, I);
+	}
+	unit<uint32> NAB := join_near_values(NA/p, NB/p, 1.0);
+	unit<uint32> NBB := join_near_values(NB/p, NB/p, 0.5);
+
+	// dpoint: 1.0 and 1 + 2^-52 sum to 2 + 2^-52, a tie rounded to even, 2, so Center is 1.0 and both lie high
+	unit<dpoint> D;
+	unit<uint32> DA: nrofrows = 1 { attribute<D> p := point_xy(const(1.0, .), const(0.0, .), D); }
+	unit<uint32> DB: nrofrows = 24
+	{
+		attribute<float64> x := id(.) % 3 == 1 ? 1.0000000000000002 : 1.0;
+		attribute<D>       p := point_xy(x, const(0.0, .), D);
+	}
+	unit<uint32> DAB := join_near_values(DA/p, DB/p, 1.0);
+	unit<uint32> DBB := join_near_values(DB/p, DB/p, 1.0);
+
+	// fpoint: 1.0f and 1 + 2^-23, the same tie
+	unit<fpoint> F;
+	unit<uint32> FA: nrofrows = 1 { attribute<F> p := point_xy(const(1.0f, .), const(0.0f, .), F); }
+	unit<uint32> FB: nrofrows = 24
+	{
+		attribute<float32> x := id(.) % 3 == 1 ? 1.0000001f : 1.0f;
+		attribute<F>       p := point_xy(x, const(0.0f, .), F);
+	}
+	unit<uint32> FAB := join_near_values(FA/p, FB/p, 1.0);
+
+	// arcs: twelve along y = 0 and eight along y = 1 in the box [(0,0), (1,1)], all in its high-high quadrant. connect
+	// over them must give what it gives over the same arcs twice as large, where the split separates them.
+	unit<uint32> RoadPoints : nrofrows = 40
+	{
+		attribute<int32>  px      := int32(id(.) % 2);
+		attribute<int32>  py      := id(.) < 24 ? 0i : 1i;
+		attribute<Road>   seq_rel := value(id(.) / 2, Road);
+		attribute<uint32> ordinal := id(.) % 2;
+	}
+	unit<uint32> Road : nrofrows = 20
+	{
+		attribute<I> geometry  (arc) := points2sequence(point_xy(RoadPoints/px, RoadPoints/py, I), RoadPoints/seq_rel, RoadPoints/ordinal);
+		attribute<I> geometry2 (arc) := points2sequence(point_xy(RoadPoints/px * 2i, RoadPoints/py * 2i, I), RoadPoints/seq_rel, RoadPoints/ordinal);
+	}
+	unit<uint32> Pnt : nrofrows = 1 { attribute<I> geometry := point_xy(const(0i, .), const(0i, .), I); }
+	unit<uint32> net  := connect(Road/geometry,  Pnt/geometry)
+	{
+		attribute<int32> ends := PointCol(first_point(geometry)) + PointRow(first_point(geometry)) + PointCol(last_point(geometry)) + PointRow(last_point(geometry));
+	}
+	unit<uint32> net2 := connect(Road/geometry2, Pnt/geometry)
+	{
+		attribute<int32> ends := PointCol(first_point(geometry)) + PointRow(first_point(geometry)) + PointCol(last_point(geometry)) + PointRow(last_point(geometry));
+	}
+
+	container checks
+	{
+		parameter<uint32>  nIAB    := #IAB,                        IntegrityCheck = "nIAB == 24";
+		parameter<uint32>  sumIAB  := sum(uint32(IAB/second_rel)), IntegrityCheck = "sumIAB == 276";  // 0 + 1 + ... + 23
+		parameter<uint32>  nIBB    := #IBB,                        IntegrityCheck = "nIBB == 320";    // 16 * 16 at (0,0) + 8 * 8 at (1,0)
+		parameter<uint32>  nWAB    := #WAB,                        IntegrityCheck = "nWAB == 24";
+		parameter<uint32>  nNAB    := #NAB,                        IntegrityCheck = "nNAB == 20";     // (0,0) and (-1,1) at distance 1
+		parameter<uint32>  nNBB    := #NBB,                        IntegrityCheck = "nNBB == 182";    // 10 * 10 + 9 * 9 + 1 * 1
+		parameter<float64> dxD     := max(DB/x) - min(DB/x),       IntegrityCheck = "dxD > 0.0";      // the literal is one ULP above 1.0
+		parameter<uint32>  nDAB    := #DAB,                        IntegrityCheck = "nDAB == 24";
+		parameter<uint32>  nDBB    := #DBB,                        IntegrityCheck = "nDBB == 576";
+		parameter<float32> dxF     := max(FB/x) - min(FB/x),       IntegrityCheck = "dxF > 0.0f";
+		parameter<uint32>  nFAB    := #FAB,                        IntegrityCheck = "nFAB == 24";
+		parameter<uint32>  nNet    := #net,                        IntegrityCheck = "nNet == #net2";
+		parameter<int32>   endsNet := sum(net/ends),               IntegrityCheck = "endsNet > 0i && endsNet * 2i == sum(net2/ends)"; // the point lies at (0,0)
+	}
+}
