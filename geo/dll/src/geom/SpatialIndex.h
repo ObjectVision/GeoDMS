@@ -278,8 +278,11 @@ struct SpatialIndex
 			if (IsSplit() || NrObjects() < MinObjectsToSplit)
 				return false;
 
-			// any gain from splitting? Only if the leaves that lie in one quadrant have more than one extent between them
-			assert(m_QuadrantLeafExtentsDiffer == SpatialIndexImpl::MustSplit(m_FirstLeaf, Center(m_BoundingBox)));
+			// any gain from splitting? Only if the leaves that lie in one quadrant have more than one extent between them.
+			// The record AddLeaf keeps of that is checked against a scan of the leaves when their number is a power of 2, so
+			// the check costs a node of k objects 2k in total; on every insert it cost k * k / 2, which made a Debug build
+			// crawl on a node of many coincident or refused objects.
+			assert((NrObjects() & (NrObjects() - 1)) || m_QuadrantLeafExtentsDiffer == SpatialIndexImpl::MustSplit(m_FirstLeaf, Center(m_BoundingBox)));
 			return m_QuadrantLeafExtentsDiffer;
 		}
 
