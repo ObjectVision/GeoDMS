@@ -1103,6 +1103,115 @@ the follow-up, with the same pairs.
 - Memory is equal or lower than 20.22.0.m: t2000 5.4 GB less live, t810 2.4 GB less, t641.2 382 trims
   against 471.
 
+## Results (OVSRV05), 20.22.1 at `1315b0357`: the quadtree changes of #1289
+
+Run on 2026-10-02 from 18:33 to 21:52 on OVSRV05, threshold 60 as above. Tree `C:\dev\GeoDMS` on `main` at
+`1315b0357`: the round above (`fd30ef780`) plus the GEO-A54 follow-up `20134d443` (64-byte nodes) and the
+three #1289 commits, `108459dd2` (a node no longer splits into a copy of itself when `Center` cannot halve
+its box), `271922804` (a node splits from 16 objects instead of 4, `SpatialIndex::MinObjectsToSplit`) and
+`1315b0357` (a Debug-only check); the only code they change is `geo/dll/src/geom/SpatialIndex.h`.
+GeoDMS-Test at `1b8aa71`, as above. Built with the VS18 msbuild, 18:29:22 to 18:31:41, exit 0, which
+recompiled the 13 files of `Geo.dll` that include the header (`Geo.dll` 18:31:08, the other DLLs of the
+morning's rebuild of `main`); `testcases\run_testcases.bat` 443 cases, 0 bad. Kept as
+`C:\LocalData\GeoDMS_engine\head_1315b0357`. The `20_22_1_m` column of the round above went to
+`_Archive\20_22_1_m_fd30ef780_20261001`, its report with it, and its intermediates to
+`C:\LocalData\runs\_aside_20_22_1_m_fd30ef780_20261001`; full.py ran 32 experiments with no reuse.
+
+Running on the machine: two VS18 `devenv` windows, open since 12:53 and 14:58, mostly idle; the Claude
+desktop app's main process at a full core from about 18:50 to about 21:30 (295 to 301 s of CPU per
+5 minutes, 4 % of the 24 logical processors), the Chrome Remote Desktop host at 10 to 20 % of a core.
+The #1289 session had agreed to start nothing until the round had finished.
+
+### Nine of 27 report rows are red, all from the split threshold
+
+The report gives 18 of 27 `ok`. Every red row is a changed result, not a crash or a slower run: exit 0
+everywhere except t060, whose file comparison failed (99). The same experiments were rerun with
+`run_exp.py` on the kept builds, and on `C:\LocalData\GeoDMS_engine\spi_knob`, a build of the #1289
+session after `108459dd2` that reads the split threshold from `GEODMS_SPI_MINOBJECTS`, run with 4 and with
+16 one after the other:
+
+| test | `fd30ef780` | `node64_geoa54` (`20134d443`) | `spi_knob`, 4 | `spi_knob`, 16 | `1315b0357` |
+|---|---|---|---|---|---|
+| t010 | OK | | OK | `point_in_ranked_polygon` fails | `point_in_ranked_polygon` fails |
+| t100 connect points | 6 639 850 | 6 639 850 | 6 639 850 | 6 639 852 | 6 639 852 |
+| t102 OD cells | 7 812 324 | 7 812 324 | 7 812 324 | 7 812 314 | 7 812 314 |
+| t101 cells that differ from the reference | 0 | | 0 | 8180 | 8180 |
+| t301 panden that differ from the reference | 0 | | 0 | 16 048 | 16 048 |
+| t060 gpkg against the reference | same | | same | differs | differs |
+| t910 Transport Accessibility difference | −1 051 036 480 | | −1 051 036 480 | −1 050 769 728 | −1 050 769 728 |
+| t2000 hWP_asl StartJaar, R5_2025 | 50 003, 93 069 | | 50 003, 93 069 | 49 997, 92 671 | 49 997, 92 671 |
+| t641.2 2050 Woningen, Banen | 9 590 219, 9 893 365 | | | | 9 590 281, 9 893 214 |
+
+t010 fails `point_in_ranked_polygon/test_attr` and `point_in_ranked_polygon/rank_constant/test_attr`, in
+all four tilings. t641.2 was not rerun (the chain takes about 100 minutes per setting); its change is of the
+same kind. On the one binary, 4 gives the results of every earlier round and 16 the results of this one,
+so the threshold is the whole change; the GEO-A54 follow-up and `108459dd2` change no result.
+
+Why a threshold changes a result: these operators let the order in which the quadtree hands out its
+candidates decide between candidates that qualify equally. `point_in_polygon` (`OperPolygon.cpp`, the
+kernel at line 1388) returns the first polygon found that contains the point, so a point inside two
+polygons, such as a BAG verblijfsobject on the shared wall of two panden (t301 and t060 through
+`MakeSnapshot.dms`), gets whichever the index visits first. `point_in_ranked_polygon` keeps the first of
+equal rank (`thisRank > foundRank`), which in `rank_constant` is every polygon. `connect` takes the first of
+equally near arcs. With 16 objects per node instead of 4 the tree has other nodes and other leaf lists, and
+the first candidate is another one. The results of the earlier rounds were no more defined than these;
+they were the visiting order of a quadtree with 4 objects per node, which the references recorded.
+
+### Wall time, the span between the first and the last timestamp of the GeoDMS log
+
+| test | `1315b0357` (02-10) | `fd30ef780` (01-10) | 20.22.0.m | 20.21.1.m | 20.20.0.m | 20.19.3.m | against 20.22.0.m |
+|---|---|---|---|---|---|---|---|
+| t020 | 0:04:12 | 0:05:03 | 0:04:02 | 0:03:56 | 0:03:47 | 0:03:44 | 1.04 |
+| t060 | 0:02:07 | 0:01:47 | 0:02:22 | 0:02:11 | 0:01:46 | 0:01:59 | 0.89 |
+| t101 | 0:03:34 | 0:03:50 | 0:03:31 | 0:03:16 | 0:03:16 | 0:03:08 | 1.01 |
+| t200 | 0:00:38 | 0:00:40 | 0:00:38 | 0:00:37 | 0:00:32 | 0:00:32 | 1.00 |
+| t300 | 0:01:58 | 0:01:09 | 0:01:55 | 0:01:56 | 0:00:43 | 0:01:19 | 1.03 |
+| t301 | 0:02:43 | 0:02:48 | 0:02:38 | 0:02:31 | 0:02:26 | 0:02:31 | 1.03 |
+| t405.1 | 0:04:27 | 0:04:44 | 0:04:31 | 0:04:29 | 0:01:57 | 0:11:37 | 0.99 |
+| t405.2 | 0:18:46 | 0:20:47 | 0:19:07 | 0:18:22 | 0:15:21 | 0:18:24 | 0.98 |
+| t405.3 | 0:18:42 | 0:20:36 | 0:18:39 | 0:18:26 | 0:15:09 | 0:18:09 | 1.00 |
+| t410 | 0:04:03 | 0:05:34 | 0:04:56 | 0:04:49 | 0:04:38 | 0:04:43 | 0.82 |
+| t611 | 0:00:31 | 0:00:34 | 0:00:31 | 0:00:31 | 0:00:31 | 0:00:30 | 1.00 |
+| t641.1 | 0:52:49 | 0:53:08 | 0:51:32 | 0:51:50 | 0:24:11 | 0:50:55 | 1.02 |
+| t641.2 | 0:46:06 | 0:44:25 | 0:43:25 | 0:44:06 | 0:58:50 | 0:46:27 | 1.06 |
+| t710 | 0:01:11 | 0:01:08 | 0:01:02 | 0:01:01 | 0:01:03 | 0:01:01 | 1.15 |
+| t720 | 0:09:30 | 0:10:12 | failed, #1285 | 0:09:12 | 0:09:18 | 0:09:16 | - |
+| t810 | 0:05:02 | 0:05:14 | 0:05:02 | 0:05:12 | 0:04:49 | 0:04:57 | 1.00 |
+| t910 | 0:00:50 | 0:00:53 | 0:00:50 | 0:00:48 | 0:00:44 | 0:00:46 | 1.00 |
+| t2000 | 0:17:58 | 0:19:36 | 0:16:52 | 0:17:01 | 0:17:11 | 0:16:25 | 1.07 |
+
+Summed over the 32 logs: 196.8 min, against 203.7 for `fd30ef780`, 183.6 for 20.22.0.m (of which t720,
+failing early, 0.4), 191.8 for 20.21.1.m, 167.9 for 20.20.0.m and 198.0 for 20.19.3.m. The timings of the
+threshold pairs, 4 against 16 on `spi_knob` in one sitting: t910 55 and 52 s, t301 170 and 171 s, t060 104 s
+and 100 s, t101 194 and 196 s, t2000 1069 and 1073 s.
+
+Memory against `fd30ef780`, Highest CommitCharge / PeakLiveLarge in MB: t2000 80 796 / 77 250 against
+63 591 / 64 231 (20.22.0.m 66 137 / 69 628), which is not the threshold's: the pair gives 67 770 / 63 563
+at 4 and 62 282 / 60 570 at 16, and the A/B above 62 871 to 67 277 MB live for either build; t405.2 and t405.3 48 922 and 47 771 / 31 383 against
+30 830 and 30 854 / 31 383, a commit peak that moved between 29.5 and 46.9 GB on one build in the A/B
+above; t720 21 261 / 19 754 against 17 902 / 18 758; t710 5874 / 3508 against 6792 / 4183; t300 and
+t405.1 1.1 GB more and 1.8 GB less commit at the same PeakLiveLarge; every other test within
+300 MB on both figures.
+
+### Reading
+
+- Not releasable as it stands: `271922804` changes the results of nine release tests, t010's operator
+  test among them, and model outputs with them (t2000's heat pumps, t641.2's allocation, t910's
+  accessibility). None of them is wrong in a way the code would notice; all of them depend on how the
+  quadtree is split, and `point_in_polygon`, `point_in_ranked_polygon` and `connect` resolve ties by its
+  visiting order. Two ways out, both outside this measurement: break those ties by a property of the
+  candidates (the lowest polygon or arc index, say), which makes the results independent of the tree but
+  changes the references once more; or keep the threshold at 4, which restores every earlier result and
+  gives up the #1289 speedup.
+- The speedup is real: t410 4:03 against 4:56 for 20.22.0.m and 5:34 for the round above, as the #1289
+  session measured (`connect_ne` 98 s against about 150 s). Nothing measured
+  is slower for the threshold: in the pairs on one binary t101, t301, t910, t060 and t2000 take the same
+  time at 4 and at 16 (within 4 s), so the expected cost on an unfiltered nearest-arc search does not
+  show in these tests.
+- The rest of the round is at the 20.22.0.m times, within the drift between sittings that the section
+  above measured (t641.2 +6 %, t710 +9 s); t405.2 and t405.3 are back to 18:46 and 18:42, the round above
+  having been the slow sitting.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
