@@ -2,12 +2,13 @@
 # folders side by side.
 #
 # usage: python durations.py <folder> [<folder> ...]
-#   <folder>  relative to C:/LocalData/GeoDMS-Test, e.g. Regression/20_22_0_m, or an absolute path; the
-#             experiment logs are in its log/ subfolder
+#   <folder>  a full.py result folder, e.g. 20_22_0_m, looked up in the results base of machine_paths.py
+#             and then in its parent, where OVSRV10 keeps a round moved aside (_aside_<label>_<date>), or an
+#             absolute path; the experiment logs are in its log/ subfolder
 import sys, os, re, glob
 from datetime import datetime
+from machine_paths import RESULTS_BASE
 
-BASE = r"C:\LocalData\GeoDMS-Test"
 folders = sys.argv[1:]
 ts = re.compile(rb'(20\d\d-\d\d-\d\d \d\d:\d\d:\d\d)')
 
@@ -28,9 +29,15 @@ def peak(p):
     m = re.search(rb'Highest CommitCharge: (\d+)\[MB\]', tail)
     return int(m.group(1)) / 1024 if m else None
 
+def locate(fo):
+    if os.path.isabs(fo):
+        return fo
+    tries = [os.path.join(base, fo) for base in (RESULTS_BASE, os.path.dirname(RESULTS_BASE))]
+    return next((t for t in tries if os.path.isdir(t)), tries[0])
+
 data, names = {}, set()
 for fo in folders:
-    root = fo if os.path.isabs(fo) else os.path.join(BASE, fo)
+    root = locate(fo)
     data[fo] = {}
     for p in glob.glob(os.path.join(root, 'log', '*.txt')):
         n = os.path.basename(p)[:-4]

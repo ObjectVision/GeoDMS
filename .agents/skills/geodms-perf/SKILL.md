@@ -6,9 +6,24 @@ description: Investigating GeoDMS performance, on a single operator or on the fu
 # Investigating GeoDMS performance
 
 Policy for builds and test runs is in geodms-build (ask first, check that the tree is quiet); this
-skill is the measuring on top of it. The scripts are in `scripts/` beside this file; run them with the
-user's Python 3.13 (`C:\Users\MaartenHilferink\AppData\Local\Programs\Python\Python313\python.exe`),
-since they unpickle full.py's experiment files.
+skill is the measuring on top of it. The scripts are in `scripts/` beside this file; run them with a
+Python 3.13 that has the harness's packages, since `run_exp.py` unpickles full.py's experiment files and
+their class imports psutil and bokeh: on OVSRV10 the user's
+`C:\Users\MaartenHilferink\AppData\Local\Programs\Python\Python313\python.exe`, on OVSRV05
+`C:\Python313\python.exe` (`py -3.13`).
+
+The scripts find this machine's folders in `scripts/machine_paths.py`, the way full.py finds them:
+
+- The GeoDMS-Test working copy is `%TstDir%`, default `C:\dev\tst` (OVSRV10). On OVSRV05 it is
+  `C:\dev\ProjDir_Jip\GeoDMS-Test`, and its `C:\dev\tst` junction is not always there:
+  `set TstDir=C:\dev\ProjDir_Jip\GeoDMS-Test` first.
+- full.py's result folders are in `%ResultsBaseDir%`, else in the `ResultsBaseDir` of
+  `<TstDir>\batch\local_settings.json`, the file full.py itself reads (OVSRV05:
+  `C:\LocalData\GeoDMS_Test_Results`), else in OVSRV10's `C:\LocalData\GeoDMS-Test\Regression`.
+- The rest, the engine folder, results folder and local data that a round used, `run_exp.py` reads from
+  the experiment's own environment (`GeoDmsPath`, `results_folder`, `GEODMS_DIRECTORIES_LOCALDATADIR`), so
+  it redirects a `.m` round (`bin\Release\x64`), a `.c` round (`build\windows-x64-release\bin`) or one of an
+  installed version alike.
 
 ## Every figure carries its machine
 
@@ -52,29 +67,36 @@ So before any bisect:
 ## Comparing rounds: durations.py
 
 ```
-python scripts\durations.py Regression/20_20_0_m Regression/20_22_0_m Regression/20_22_1_m
+python scripts\durations.py 20_20_0_m 20_22_0_m 20_22_1_m
 ```
 
 Wall time per experiment log (first to last timestamp) and the `Highest CommitCharge` of the process,
-side by side, with totals. A folder that was moved aside (`_aside_<label>_<date>`) is passed by its name
-under `C:\LocalData\GeoDMS-Test`. Read the outliers against `doc/performance-test.md` first: some are
-known, such as t405 at 5 to 6 min under the 20.20.0 deferral of commits (which cost 70 to 80 GB and was
+side by side, with totals. A folder name is looked up in the results base and then in its parent, which
+is where OVSRV10 keeps a round that was moved aside (`C:\LocalData\GeoDMS-Test\_aside_<label>_<date>`,
+passed as `_aside_<label>_<date>`); an absolute path is taken as it is. Read the outliers against
+`doc/performance-test.md` first: some are known, such as t405 at 5 to 6 min under the 20.20.0 deferral of commits (which cost 70 to 80 GB and was
 removed in 20.22.0, #1259) against 13 to 16 min since, or a 0.2 min t720 in 20.22.0, which was a run
 that failed early (#1285), not a fast one.
 
 ## Rerunning one experiment: run_exp.py
 
 ```
-python scripts\run_exp.py <label> <tag> <engine dir> <experiment> [<experiment> ...]
+python scripts\run_exp.py [--dry-run] <label> <tag> <engine dir> <experiment> [<experiment> ...]
 python scripts\run_exp.py 20_22_1_m t2000_A C:/LocalData/GeoDMS_engine/bisect_1ec17232f t2000_hestia_hWP_asl_statistics
 python scripts\run_exp.py 20_22_1_m t641_B C:/LocalData/GeoDMS_engine/head_d46a6e199 t641_1_RSopen_MakeBaseData t641_2_RSopen_Allocatie "t641_2_RSopen_Allocatie@/t641_2_RSopen_Indicator_results/result_json"
+python scripts\run_exp.py 20_22_1_m t101_A C:/LocalData/GeoDMS_engine/ovsrv05_1ec17232f "t101_network_od_pc4_dense@@statistics /netwerk/WegenMetLokaties/PC4/nr_orgNode"
 ```
 
 It reads the experiment from `<label>`'s `.bin` files, so the command line and environment are exactly
-what full.py used, and redirects the log, the local data (`C:\LocalData\runs\fp_<tag>`) and the results
-(`PERF_OUT`, default `scratch\perf_runs\<tag>`) per tag, so runs on different builds do not share data.
-It prints `rc` and seconds per experiment and the metrics of every `*.result.json`, which is how a
-changed result is told from a slower one. Traps it handles, each of which cost a failed run:
+what full.py used, and redirects the log, the local data (`fp_<tag>` beside the round's own, so
+`C:\LocalData\runs\fp_<tag>` on both machines) and the results (`PERF_OUT`, default
+`scratch\perf_runs\<tag>` in the tree the script is in) per tag, so runs on different builds do not share
+data. It prints `rc` and seconds per experiment and the metrics of every `*.result.json`, which is how a
+changed result is told from a slower one; a metric that holds counts instead of a value (`n_total`,
+`n_diff`: t101, t200, t300, ...) is printed whole. `--dry-run` loads the experiments and prints the
+environment entries it changed, the folders it would delete and the command it would start, and touches
+nothing; use it before a long chain on a machine where the scripts have not run yet. Traps it handles,
+each of which cost a failed run:
 
 - The configurations read their results folder from `<tmpFileDir>\results_folder.txt`, which full.py
   writes before a round, without a newline; without it the run stops at once with a StrStorageManager error.
@@ -82,6 +104,12 @@ changed result is told from a slower one. Traps it handles, each of which cost a
   quotes the whole path and starts the process without a shell.
 - Indicator steps (`t641_1_2_...`, `t641_2_RSopen_indicator`, `t405_*_2_...`) have no `.bin`; write them as
   `<experiment>@<items>`, the experiment whose environment they share with their own items.
+- A bare item computes nothing (geodms-debug); `<items>` may start with a verb, as in
+  `<experiment>@@statistics <item>`. The log is named after the first item that is not a verb, with its
+  slashes as underscores (`t101_network_od_pc4_dense_netwerk_WegenMetLokaties_PC4_nr_orgNode.txt`).
+- A round run before full.py gave each round its own local data (`<LocalDataDir>\runs\<label>`) is
+  refused, since its data would be shared with every other run. Take the `.bin` of a round run since; the
+  experiments are the same.
 - A chain must run in order on one tag: t641_2 reads the base data t641_1 wrote under the same local data folder.
 - Delete `C:\LocalData\runs\fp_<tag>` afterwards; a t641 chain leaves tens of GB.
 
@@ -101,9 +129,9 @@ sub-items as `@` items (`t020_polygons@/Ops/ManySmall/geos/ok /Ops/ManySmall/bg/
 ## A full.py round that measures the build you think it does
 
 - full.py caches results per version label: a local build under an existing label reuses the cached
-  `.bin` files ("reused and not recalculated"). Move `Regression\<label>` and `C:\LocalData\runs\<label>`
-  aside (`_aside_<label>_<date>`, never delete what another session may want to compare) and check that
-  the new log has 0 such lines.
+  `.bin` files ("reused and not recalculated"). Move `<label>` out of the results base and
+  `C:\LocalData\runs\<label>` aside (`_aside_<label>_<date>`, never delete what another session may want
+  to compare) and check that the new log has 0 such lines.
 - Start it from an interactive scheduled task, so that it survives the agent app updating itself.
 - Note in the result what else ran on the machine; a build, a battery or a disk scan of your own during
   the round invalidates its times, not its results.
