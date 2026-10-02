@@ -24,14 +24,22 @@
 #
 # Cost: three runs per configuration, so about twice the plain testcases battery, and offline.
 #
-# Usage: run_xml_roundtrip.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <logfolder>]
+# Each run is held to the limits of case_guard.ps1, as in run_testcases.ps1: -MaxCommitGB of
+# commit (default 8) and -TimeoutSec of wall clock (default 300), 0 switching one off. A run that
+# reaches one fails its configuration as LIMIT(commit) or LIMIT(time), and the later runs of that
+# configuration are skipped.
+#
+# Usage: run_xml_roundtrip.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <logfolder>] [-MaxCommitGB <GB>] [-TimeoutSec <s>]
 # Exit code: 0 if every configuration matched or is listed with the same verdict, 1 otherwise.
 param(
     [Parameter(Mandatory)][string]$Exe,
-    [string]$OutDir
+    [string]$OutDir,
+    [double]$MaxCommitGB = 8,
+    [double]$TimeoutSec = 300
 )
 $here = $PSScriptRoot
 if (-not $here) { $here = Split-Path -Parent $MyInvocation.MyCommand.Definition }
+. (Join-Path $here 'case_guard.ps1')
 if (-not $OutDir) { $OutDir = Join-Path $here '_out_xml_roundtrip' }
 $Exe = (Resolve-Path $Exe).Path
 try { New-Item -ItemType Directory -Force $OutDir -ErrorAction Stop | Out-Null }
@@ -63,13 +71,22 @@ foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
     $b = Join-Path $OutDir "$stem.viaxml.dms"
     foreach ($f in $a, $x, $b) { if (Test-Path $f) { Remove-Item -LiteralPath $f } }
 
-    & $Exe $cfg.FullName '@dumpconfig' $a *> (Join-Path $OutDir "$stem.1.out"); $c1 = $LASTEXITCODE
-    & $Exe $cfg.FullName '@dumpconfig' $x *> (Join-Path $OutDir "$stem.2.out"); $c2 = $LASTEXITCODE
-    if ($c1 -ne 0 -or $c2 -ne 0 -or -not (Test-Path $a) -or -not (Test-Path $x)) {
-        $results += [pscustomobject]@{ config = $stem; verdict = 'DUMPFAIL'; delta = "$c1/$c2" }
+    $run = 1; $r = Invoke-GuardedRun $Exe @($cfg.FullName, '@dumpconfig', $a) (Join-Path $OutDir "$stem.1.out") $MaxCommitGB $TimeoutSec "$stem.1"; $c1 = $r.ExitCode
+    if (-not $r.Limit) {
+        $run = 2; $r = Invoke-GuardedRun $Exe @($cfg.FullName, '@dumpconfig', $x) (Join-Path $OutDir "$stem.2.out") $MaxCommitGB $TimeoutSec "$stem.2"; $c2 = $r.ExitCode
+    }
+    if (-not $r.Limit) {
+        if ($c1 -ne 0 -or $c2 -ne 0 -or -not (Test-Path $a) -or -not (Test-Path $x)) {
+            $results += [pscustomobject]@{ config = $stem; verdict = 'DUMPFAIL'; delta = "$c1/$c2" }
+            continue
+        }
+        $run = 3; $r = Invoke-GuardedRun $Exe @($x, '@dumpconfig', $b) (Join-Path $OutDir "$stem.3.out") $MaxCommitGB $TimeoutSec "$stem.3"; $c3 = $r.ExitCode
+    }
+    if ($r.Limit) {
+        "LIMIT: $stem, run ${run}: $($r.Note)" # straight away, so that a run which seemed to stall says why
+        $results += [pscustomobject]@{ config = $stem; verdict = "LIMIT($($r.Limit))"; delta = "run $run" }
         continue
     }
-    & $Exe $x '@dumpconfig' $b *> (Join-Path $OutDir "$stem.3.out"); $c3 = $LASTEXITCODE
     if ($c3 -ne 0 -or -not (Test-Path $b)) {
         $results += [pscustomobject]@{ config = $stem; verdict = 'READFAIL'; delta = "$c3" }
         continue
@@ -83,13 +100,15 @@ foreach ($cfg in Get-ChildItem (Join-Path $here '*.dms') | Sort-Object Name) {
     $results += [pscustomobject]@{ config = $stem; verdict = $verdict; delta = $d.Count }
 }
 $results | Where-Object { $_.verdict -ne 'ok' } | Format-Table -AutoSize | Out-String -Width 120
-$bad = @($results | Where-Object { $_.verdict -in 'DIFFERS','NOW-MATCHES','READFAIL','DUMPFAIL' })
+$bad = @($results | Where-Object { $_.verdict -in 'DIFFERS','NOW-MATCHES','READFAIL','DUMPFAIL' -or $_.verdict -like 'LIMIT*' })
+Get-GuardSummary $MaxCommitGB $TimeoutSec
 "TOTAL=$($results.Count) OK=$(@($results | Where-Object verdict -eq 'ok').Count) KNOWN=$(@($results | Where-Object verdict -eq 'ok(known)').Count) BAD=$($bad.Count)"
 if ($bad.Count) {
     "FAILED CASES:"
     $bad | Format-Table -AutoSize | Out-String -Width 120
     "A DIFFERS is a fidelity loss: compare <config>.direct.dms with <config>.viaxml.dms in $OutDir."
     "A NOW-MATCHES means xml_roundtrip_known_diff.txt lists a configuration that no longer differs; remove its line."
+    "A LIMIT means a run reached the commit or wall-clock limit (-MaxCommitGB, -TimeoutSec); <config>.<run>.out in $OutDir ends with the line that says which."
     exit 1
 }
 "ALL ROUNDTRIPS AS EXPECTED"

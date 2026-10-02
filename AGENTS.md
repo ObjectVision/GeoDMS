@@ -17,6 +17,22 @@ battery + a few `fn_probe_*` probes + `tmpl_regress.dms`, with the `fe_names.txt
 gitignored `testcases/_out*/`. One-off investigation configs (controls, repros) still
 belong in gitignored `scratch/`, not `testcases/`.
 
+**Every GeoDmsRun that these runners start is held to two limits** (`testcases/case_guard.ps1`,
+dot-sourced by `run_testcases.ps1`, `run_xml_roundtrip.ps1` and `run_roundtrip.ps1`): a Windows
+job object caps the process at 8 GB of commit, and it is killed after 300 s of wall clock.
+`-MaxCommitGB` and `-TimeoutSec` override them (0 switches one off), on a `.bat` after the exe:
+`run_testcases.bat "" -TimeoutSec 900`. A case that reaches either fails as `LIMIT(commit)` or
+`LIMIT(time)`, negatives included, and its `.out` ends with a line naming the limit; the
+`GUARD per GeoDmsRun:` line above `TOTAL=` gives the round's highest peak commit and longest run
+(0.24 GB and 1.6 s on the Release build of 2026-10-02). Before that, a case that ran away took
+memory until the allocator failed, which on a shared machine is everybody's commit:
+`geo_spatial_index_unit_box.dms` (#1289) grows by gigabytes per second on any build before
+`108459dd2`, and the battery is run against such builds when bisecting or testing a kept build
+from `C:\LocalData\GeoDMS_engine`. On `node64_geoa54` it now ends as `LIMIT(commit)` after about 10 s.
+Do not raise a limit to get a case through: a case that needs that much does not belong in this
+battery. A `.out` holds GeoDmsRun's stdout and stderr as it wrote them; until 2026-10-02 it was
+PowerShell's UTF-16 rendering, with a `NativeCommandError` block around the first stderr line.
+
 **A second battery runs over the same configurations: `testcases/run_xml_roundtrip.bat`** (#1261).
 It dumps each one in DMS syntax and in the XML notation, reads the XML back, dumps that in DMS
 syntax too, and compares the two DMS dumps: both are the same writer over what should be the

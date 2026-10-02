@@ -27,14 +27,24 @@
 # <OutDir>\LocalData, so that batteries run with different OutDirs at the same time neither read
 # nor overwrite each other's files.
 #
-# Usage: run_testcases.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <logfolder>]
+# Each case runs under the limits of case_guard.ps1: at most -MaxCommitGB of commit (default 8)
+# and -TimeoutSec of wall clock (default 300); 0 switches a limit off. A case that reaches one is
+# a failure, LIMIT(commit) or LIMIT(time), whatever its exit code and whether or not it is a
+# negative: a runaway on an older exe (bisecting, a kept build) then ends at the limit instead of
+# taking the machine's memory. A case's .out file holds its stdout and stderr as GeoDmsRun wrote
+# them, plus a closing line naming the limit when one stopped it.
+#
+# Usage: run_testcases.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <logfolder>] [-MaxCommitGB <GB>] [-TimeoutSec <s>]
 # Exit code: 0 if every case matched its expected outcome, 1 otherwise.
 param(
     [Parameter(Mandatory)][string]$Exe,
-    [string]$OutDir
+    [string]$OutDir,
+    [double]$MaxCommitGB = 8,
+    [double]$TimeoutSec = 300
 )
 $here = $PSScriptRoot
 if (-not $here) { $here = Split-Path -Parent $MyInvocation.MyCommand.Definition }
+. (Join-Path $here 'case_guard.ps1')
 if (-not $OutDir) { $OutDir = Join-Path $here '_out' }
 $Exe = (Resolve-Path $Exe).Path
 try { New-Item -ItemType Directory -Force $OutDir -ErrorAction Stop | Out-Null }
@@ -70,10 +80,12 @@ try {
         [string[]]$itemArgs = if ($map.ContainsKey($name)) { $map[$name] } else { '/checks' }
         $item = $itemArgs -join ' '
         $log  = Join-Path $OutDir "$stem.log"
-        & $Exe "/L$log" $cfg.FullName @itemArgs *> (Join-Path $OutDir "$stem.out")
-        $code = $LASTEXITCODE
+        $r = Invoke-GuardedRun $Exe (@("/L$log", $cfg.FullName) + $itemArgs) (Join-Path $OutDir "$stem.out") $MaxCommitGB $TimeoutSec $stem
+        $code = $r.ExitCode
         $isNeg = ($stem -match '_neg\d*(_|$)') -or ($stem -eq 'fn_test_defcheck')
-        $verdict = if ($code -eq 3) { 'ASSERT' }
+        if ($r.Limit) { "LIMIT: ${stem}: $($r.Note)" } # straight away, so that a run which seemed to stall says why
+        $verdict = if ($r.Limit) { "LIMIT($($r.Limit))" }
+                   elseif ($code -eq 3) { 'ASSERT' }
                    elseif ($isNeg -and $code -ne 0) { 'ok(neg)' }
                    elseif (-not $isNeg -and $code -eq 0) { 'ok' }
                    else { 'UNEXPECTED' }
@@ -84,9 +96,11 @@ finally {
     $env:GEODMS_directories_LocalDataDir = $prevLocalDataDir # leave the caller's session as it was
 }
 $results | Format-Table -AutoSize | Out-String -Width 120
-$bad = $results | Where-Object { $_.verdict -in 'ASSERT','UNEXPECTED' }
+# @(): a single [pscustomobject] has no .Count in Windows PowerShell 5.1, so one bad case printed 'BAD='
+$bad = @($results | Where-Object { $_.verdict -in 'ASSERT','UNEXPECTED' -or $_.verdict -like 'LIMIT*' })
+Get-GuardSummary $MaxCommitGB $TimeoutSec
 "TOTAL=$($results.Count) BAD=$($bad.Count)"
-if ($bad) {
+if ($bad.Count) {
     "FAILED CASES:"
     $bad | Format-Table -AutoSize | Out-String -Width 120
     exit 1

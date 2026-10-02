@@ -150,14 +150,17 @@ If the build cannot be run exactly this way, stop and ask.
 | Tier | What | Cost | Proves |
 |---|---|---|---|
 | 0 | a headless `GeoDmsRun` probe with `@statistics` or an IntegrityCheck (geodms-debug) | seconds | the one thing you changed, on the data |
-| 1 | `testcases\run_testcases.bat` | minutes, offline | the typed-function battery, ~240 configs, positives exit 0, `_neg` exit nonzero, exit 3 always fails |
+| 1 | `testcases\run_testcases.bat` | minutes, offline | the typed-function battery, ~440 configs, positives exit 0, `_neg` exit nonzero, exit 3 and a guard limit always fail |
 | 2 | `batch\TestReleaseUnit.bat` / `TestDebugUnit.bat` (`.m`), `TestCMakeReleaseUnit.bat` / `TestCMakeDebugUnit.bat` (`.c`), `TestGlobioReleaseUnit.bat` / `TestGlobioDebugUnit.bat` (`.g`) | 5 to 15 min | the `tst` unit suite, plus tier 1 (`.m`, `.g`), plus (Release) the shipped-content test |
 | 3 | `python full.py -version <installed>` in `C:\dev\tst\batch` | hours | the project regressions; the only thing that trips threading, stack-pressure and meta-thread bugs |
 
 Rules per tier:
 
 - Tier 1 runs from a normal tool call, after the ask above. Its logs land in `testcases\_out\`; per-case item
-  overrides live in `testcases\fnrun_itemmap.txt`, default item `/checks`.
+  overrides live in `testcases\fnrun_itemmap.txt`, default item `/checks`. Every case is held to 8 GB
+  of commit and 300 s (`testcases\case_guard.ps1`; `-MaxCommitGB`, `-TimeoutSec`) and fails as
+  `LIMIT(...)` when it reaches either, so running it against an older or kept build (bisecting) cannot
+  take the machine's memory.
 - Tier 2 must run in a visible console, never piped headless: the suite ends by launching
   Notepad++ on the result file and pausing, which hangs without a console. Register an
   interactive scheduled task (`schtasks /Create ... /IT` then `/Run`) and read the results

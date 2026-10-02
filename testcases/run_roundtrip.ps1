@@ -8,14 +8,21 @@
 # As in run_testcases.ps1, the cases' %LocalDataDir% is <OutDir>\LocalData, so that the storage
 # round trips of runs with different OutDirs do not share their files.
 #
-# Usage: run_roundtrip.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <folder>]
+# Each run is held to the limits of case_guard.ps1, as in run_testcases.ps1: -MaxCommitGB of
+# commit (default 8) and -TimeoutSec of wall clock (default 300), 0 switching one off. A run that
+# reaches one fails its configuration as LIMIT(commit) or LIMIT(time).
+#
+# Usage: run_roundtrip.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <folder>] [-MaxCommitGB <GB>] [-TimeoutSec <s>]
 # Exit code: 0 if every positive round-trips, 1 otherwise.
 param(
     [Parameter(Mandatory)][string]$Exe,
-    [string]$OutDir
+    [string]$OutDir,
+    [double]$MaxCommitGB = 8,
+    [double]$TimeoutSec = 300
 )
 $here = $PSScriptRoot
 if (-not $here) { $here = Split-Path -Parent $MyInvocation.MyCommand.Definition }
+. (Join-Path $here 'case_guard.ps1')
 if (-not $OutDir) { $OutDir = Join-Path $here '_out_rt' }
 $Exe = (Resolve-Path $Exe).Path
 New-Item -ItemType Directory -Force $OutDir | Out-Null
@@ -55,14 +62,20 @@ try {
         Remove-Item $dump -ErrorAction SilentlyContinue
 
         # 1. dump the loaded config back to DMS syntax
-        & $Exe $cfg.FullName '@dumpconfig' $dump *> (Join-Path $OutDir "$stem.dump.out")
-        if (($LASTEXITCODE -ne 0) -or -not (Test-Path $dump)) {
+        $r = Invoke-GuardedRun $Exe @($cfg.FullName, '@dumpconfig', $dump) (Join-Path $OutDir "$stem.dump.out") $MaxCommitGB $TimeoutSec "$stem.dump"
+        if ($r.Limit) {
+            "LIMIT: $stem, dump: $($r.Note)"
+            $results += [pscustomobject]@{ config = $stem; item = $item; verdict = "LIMIT($($r.Limit))" }
+            continue
+        }
+        if (($r.ExitCode -ne 0) -or -not (Test-Path $dump)) {
             $results += [pscustomobject]@{ config = $stem; item = $item; verdict = 'DUMP-FAIL' }
             continue
         }
         # 2. reload the DUMPED config and recompute the item (IntegrityChecks re-verify)
-        & $Exe "/L$(Join-Path $OutDir "$stem.reload.log")" $dump @itemArgs *> (Join-Path $OutDir "$stem.reload.out")
-        $verdict = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'RELOAD-FAIL' }
+        $r = Invoke-GuardedRun $Exe (@("/L$(Join-Path $OutDir "$stem.reload.log")", $dump) + $itemArgs) (Join-Path $OutDir "$stem.reload.out") $MaxCommitGB $TimeoutSec "$stem.reload"
+        if ($r.Limit) { "LIMIT: $stem, reload: $($r.Note)" }
+        $verdict = if ($r.Limit) { "LIMIT($($r.Limit))" } elseif ($r.ExitCode -eq 0) { 'ok' } else { 'RELOAD-FAIL' }
         $results += [pscustomobject]@{ config = $stem; item = $item; verdict = $verdict }
     }
 }
@@ -70,9 +83,10 @@ finally {
     $env:GEODMS_directories_LocalDataDir = $prevLocalDataDir # leave the caller's session as it was
 }
 $results | Format-Table -AutoSize | Out-String -Width 120
-$bad = $results | Where-Object { $_.verdict -ne 'ok' }
+$bad = @($results | Where-Object { $_.verdict -ne 'ok' }) # @(): one bad case has no .Count in PowerShell 5.1 otherwise
+Get-GuardSummary $MaxCommitGB $TimeoutSec
 "ROUNDTRIP TOTAL=$($results.Count) BAD=$($bad.Count)"
-if ($bad) {
+if ($bad.Count) {
     "FAILURES (inspect $OutDir\<name>.dms and .reload.out):"
     $bad | Format-Table -AutoSize | Out-String -Width 120
     exit 1

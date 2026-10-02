@@ -3,8 +3,10 @@ rem =====================================================================
 rem Run the XML round-trip battery over testcases\*.dms: dump each configuration in DMS
 rem syntax and in XML, read the XML back, dump that in DMS syntax too, and compare.
 rem
-rem Usage:  run_xml_roundtrip.bat [path\to\GeoDmsRun.exe]
-rem Default exe: ..\bin\Release\x64\GeoDmsRun.exe (relative to this script).
+rem Usage:  run_xml_roundtrip.bat [path\to\GeoDmsRun.exe] [-MaxCommitGB <GB>] [-TimeoutSec <s>]
+rem Default exe: ..\bin\Release\x64\GeoDmsRun.exe (relative to this script); pass ""
+rem to keep the default and still give options. Every run is held to a commit limit
+rem (default 8 GB) and a wall-clock limit (default 300 s); see run_xml_roundtrip.ps1.
 rem Exit code: 0 if every configuration matched or is listed in xml_roundtrip_known_diff.txt.
 rem =====================================================================
 setlocal
@@ -18,5 +20,5 @@ if not exist "%EXE%" (
   echo Build the Release configuration first, or pass the exe path as the first argument.
   exit /b 2
 )
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_xml_roundtrip.ps1" -Exe "%EXE%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_xml_roundtrip.ps1" -Exe "%EXE%" %2 %3 %4 %5 %6 %7 %8 %9
 exit /b %ERRORLEVEL%
