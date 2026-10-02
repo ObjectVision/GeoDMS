@@ -247,7 +247,7 @@ struct SpatialIndex
 
 	struct Node
 	{
-		Node(const RangeType& bb, SizeT offsetFromParent) : m_BoundingBox(bb), m_OffsetFromParent(offsetFromParent), 
+		Node(const RangeType& bb, UInt32 offsetFromParent) : m_BoundingBox(bb), m_OffsetFromParent(offsetFromParent), 
 			m_OffsetToFirstQuadrant(0), m_FirstLeaf(0), m_NrObjects(0) {}
 
 		bool IsSplit()    const { return m_OffsetToFirstQuadrant; }
@@ -269,15 +269,14 @@ struct SpatialIndex
 
 			// What MustSplit asks, kept up to date here: it rescanned the whole leaf list on every insert, k * k / 2
 			// comparisons for k coincident objects, which never split (GEO-A54). A leaf added to a node that has split
-			// (one that lies in no quadrant) stays with it and needs no record.
-			if (!IsSplit() && SpatialIndexImpl::InOneQuadrant(lf->GetExtents(), Center(m_BoundingBox)))
+			// (one that lies in no quadrant) stays with it and needs no record. The record points at the first such leaf
+			// instead of copying its extents: the copy took a node of a dpoint index from 64 to 104 bytes, and every query
+			// walks the nodes (GEO-A54 follow-up). Once two extents differed, nothing more needs recording.
+			if (!IsSplit() && !m_QuadrantLeafExtentsDiffer && SpatialIndexImpl::InOneQuadrant(lf->GetExtents(), Center(m_BoundingBox)))
 			{
-				if (!m_HasQuadrantLeaf)
-				{
-					m_QuadrantLeafExtents = lf->GetExtents();
-					m_HasQuadrantLeaf = true;
-				}
-				else if (m_QuadrantLeafExtents != lf->GetExtents())
+				if (!m_QuadrantLeaf)
+					m_QuadrantLeaf = lf;
+				else if (m_QuadrantLeaf->GetExtents() != lf->GetExtents())
 					m_QuadrantLeafExtentsDiffer = true;
 			}
 
@@ -311,15 +310,18 @@ struct SpatialIndex
 
 		RangeType m_BoundingBox; 
 //	private:
-		SizeT     m_OffsetFromParent;     // used to be: SpatialIndex<T>*
-		SizeT     m_OffsetToFirstQuadrant;  // index of first quadrant node (always allocated in groups of 4).
+		// UInt32, as DoSplit and _Add compute them; Rebuild checks the number of objects and DoSplit the number of nodes
+		UInt32    m_OffsetFromParent;     // offset back to the parent node, 0 for the root
+		UInt32    m_OffsetToFirstQuadrant;  // index of first quadrant node (always allocated in groups of 4).
 		LeafType* m_FirstLeaf;  // index of first leaf; leafs form a singly-linked list
-		SizeT     m_NrObjects;
 
-		// the extents of the first leaf added that lies in one quadrant, and whether a later one had others; see AddLeaf
-		std::decay_t<decltype(std::declval<const LeafType&>().GetExtents())> m_QuadrantLeafExtents = {};
-		bool      m_HasQuadrantLeaf = false, m_QuadrantLeafExtentsDiffer = false;
+		// the first leaf added that lies in one quadrant, and whether a later one had other extents; see AddLeaf.
+		// It points into m_Leafs, which does not reallocate after Rebuild, as m_FirstLeaf does.
+		const LeafType* m_QuadrantLeaf = nullptr;
+		UInt32    m_NrObjects;
+		bool      m_QuadrantLeafExtentsDiffer = false;
 	};
+	static_assert(sizeof(RangeType) != 32 || sizeof(Node) == 64, "a node of a dpoint index keeps the 64 bytes it had before GEO-A54: every query walks the nodes");
 	typedef my_vec_t<Node> NodeContainer;
 
 	template <typename SelType>
@@ -421,6 +423,7 @@ struct SpatialIndex
 	void Rebuild(ObjectPtr first, ObjectPtr last, SizeT maxNrFutureInserts = 0)
 	{
 		MG_CHECK(first != last || !maxNrFutureInserts); // future inserts must be within the current determinable boundingbox
+		MG_USERCHECK2(SizeT(last - first) + maxNrFutureInserts <= MAX_VALUE(UInt32), "SpatialIndex: cannot index more than 4294967295 objects"); // Node::m_NrObjects
 		m_Leafs.clear();
 		m_Nodes.clear();
 		m_Leafs.reserve((last-first) + maxNrFutureInserts); // the nodes point into m_Leafs: it must not grow after this
@@ -540,6 +543,9 @@ private:
 		RangeType box = nodePtr->m_BoundingBox;
 		PointType mid = Center(box);
 
+		// the node offsets, nodeIdx and offset are UInt32. The number of nodes depends on the depth that separates the
+		// objects, not only on their number, so it is checked here and not in Rebuild.
+		MG_USERCHECK2(m_Nodes.size() <= MAX_VALUE(UInt32) - 4, "SpatialIndex: more than 4294967295 quadtree nodes");
 		UInt32 offset = m_Nodes.size() - nodeIdx;
 		nodePtr->m_OffsetToFirstQuadrant = offset;
 		m_Nodes.push_back(Node(RangeType(box.first, mid), offset++));
