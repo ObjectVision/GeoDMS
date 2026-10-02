@@ -904,6 +904,25 @@ The four builds in one sitting, in the order 20.22.0, `a847e23a3`, `e5e7c8d0b`, 
 20.22.0 and the parent of GEO-A54 are equal, and so are GEO-A54 and 20.22.1; the step lies in that one
 commit, in the `connect_ne`, and the `impedance_matrix` part after it is equal in all eight runs.
 
+The GEO-A54 follow-up `20134d443` gives a node a pointer to that leaf instead of a copy of its extents and
+narrows its two offsets and its count to `UInt32`, which brings a `dpoint` node back to 64 bytes. It was
+built on `main` at `6b77b04cc` (11:36 to 11:38, the same 13 files) and kept as
+`C:\LocalData\GeoDMS_engine\node64_geoa54`, then run interleaved with 20.22.1 and with the parent of GEO-A54:
+same command and threshold, nothing else running (the machine watch saw the agent and the remote-desktop
+host only, at most 14 s of CPU a minute). The result file is the same in all six runs.
+
+| run, 11:40 to 12:10 | total | before | discovered |
+|---|---|---|---|
+| 20.22.1 (`fd30ef780`), 104-byte nodes | 307, 304 | 167, 167 | 258 699, 257 543 |
+| `20134d443`, 64-byte nodes | 287, 293 | 150, 150 | 276 443, 279 174 |
+| `a847e23a3`, 64-byte nodes, rescanning | 293, 297 | 152, 155 | 275 320, 270 666 |
+
+The follow-up is 17 s ahead of 20.22.1 in the `connect_ne` in both pairs and level with the parent of
+GEO-A54: the size of the node was the whole loss. The gain of GEO-A54 stays: a `join_near_values` of 10
+points against 50 000 `dpoint` values of which 49 000 coincide (a probe in the session's scratch folder,
+three interleaved runs per build) takes 1.19 s on `a847e23a3`, 0.001 to 0.002 s on 20.22.1 and 0.002 s on
+the follow-up, with the same pairs.
+
 ### Reading
 
 - Correct: all 27 `ok`, including t010, t641_2 and t2000, which were red on OVSRV10 before CLC-A07 and
@@ -928,7 +947,8 @@ commit, in the `connect_ne`, and the `impedance_matrix` part after it is equal i
   confirm it: GEO-A54 is the whole t410 loss, and nothing else between 20.22.0 and 20.22.1 changes t410.
   It costs the arcs-first connect of 337 497 points 11 to 14 s per adjacent pair, 7 to 9 %; the gain it
   was made for is on coincident objects (join_near_values over 49 000 coincident points, 2.1 s to
-  0.008 s).
+  0.008 s). The follow-up `20134d443` keeps that gain with a pointer instead of the copy; the node is
+  64 bytes again and the `connect_ne` takes as long as before GEO-A54 (the third table above).
 - t720 takes 10:12 against 9:12 for 20.21.1.m and 9:16 for 20.19.3.m. It has no A/B: 20.22.0 fails it,
   and a comparison needs a build of 20.21.1 (`92eaa7150`). t641.1 and t641.2 are 2 to 3 % slower in the
   round, within the spread between sittings; an A/B pair of them takes three and a half hours and was
