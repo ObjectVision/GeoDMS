@@ -3,7 +3,8 @@
 *Status (2026-09-29): P0 and P1 are done; P2, the ledger and the admission gate, is in behind the
 `/SQ` scheduling flag, default off (§8.1.2, §8.1.33), and the free-store drainage that came out of it
 ships since 20.11.0 (§8.1.32); §8 reports nothing of P3 to P5. §8.1 is the running log. The deferral
-of commits and IntegrityChecks that 20.20.0 added under #1259 is gone again (a7127224f, 92eaa7150).
+of commits and IntegrityChecks that 20.20.0 added under #1259 is gone again (a7127224f, 92eaa7150;
+§8.1.37 reads its full.py rounds from the ledger's side).
 Drafted 2026-07-28 on branch `hof_syntax`. Until the code audit of 2026-09-27 (PLN-A08) this line said "no code changes yet".*
 *Scope: `rtc/dll/src/tic` scheduling core, `Operator` interface, storage-read path, `PhaseContainer`.*
 
@@ -3146,6 +3147,71 @@ a historical result folder of the report, and leaves a log, console capture, mem
 JSON per arm beside a `README.md` carrying the full numbers. Note that `@commit`, GeoDmsRun's default
 verb, does NOT force a data pull for a plain parameter or attribute — an early arm here "ran" a whole
 kaartblad in 1 ms that way. Target a storage-backed item, or use `@statistics`.
+
+### 8.1.37 The 20.20.0 walk-level deferral on the full.py rounds: the gate was off, the room test had no lookahead, and the first minute scheduled the run
+
+§8.1.33 measured enforce on t641_2 with `/SQ` and `/SP`. The deferral of commits and IntegrityChecks
+that 20.20.0 shipped under #1259 (fc9713a58, gone again in a7127224f) was a second consumer of the
+ledger: not the admission of an operation but the walk's decision to wait for a stored item's producer
+or to defer the commit, schedule the producer and walk on, taken by `LedgerHasRoomForDeferral` against
+the same budget. Read on 2026-09-22 from the OVSRV05 full.py columns (`doc/performance-test.md`,
+"Reading the 20.20.0 t641 columns", which has the tables), the 20.20.0 sources at `06e1b2de2` and the
+harness's command lines:
+
+- **The gate never ran.** `ResourceAwareScheduling` is off by default (§8.1.33), full.py passes
+  `/S1 /S2 /S3 /CP` and never `/SQ`, and `AdmitOrRequeue` admits any context without an estimate,
+  which only `/SP` produces. On every full.py column the walk's room test was the one budget-aware
+  decision in the engine.
+- **The room test had no lookahead term.** It compared `s_DeferredInFlight.size() < 48` and
+  `commit + in-flight charge < budget`, the charge taken from `LedgerChargeOf(*oc->m_Estimate)` over
+  the producer's supplier closure. Without `/SP` there is no estimate: every `ledger: ... deferred`
+  line of every full.py log reads `charge 0 MB`, `in flight 0 MB`. What remained was
+  `PagefileUsage < budget`, sampled at most five times a second, a rear-view gauge that a scheduled
+  producer moves only once a worker picks it up.
+- **The budget was crossed in the first minute and never regained.** With the 60 % threshold of the
+  account that ran 20.20.0.m (budget 39 269 MB of 65 450) on models that live at 145 to 170 GB when
+  walked one item at a time: t641.1 `room 0` at 10:16:13, 71 s after the walk started, commit
+  39 640 MB with 42 commits in flight; t641.2 `room 0` at 10:40:44, 72 s in, commit 39 563 MB with
+  0 commits in flight; neither run logged `room 1` again. t641.2 deferred no commit at all; what it
+  deferred was integrity checks, which the 20.20.0 code registered in the `DeferScope` without
+  `LedgerNoteDeferral` (58def697f added that in 20.21.1), so the in-flight term could not see them by
+  construction, and the ledger learnt of them through the commit gauge, after their producers had
+  allocated.
+- **The decision came after the damage and could not undo it.** With room, a first pass does not wait
+  at a check whose item is calculating: `CalledCalcHandle` schedules the check and with it the item's
+  producer chain, `DeferScope_KeepAlive` holds the handle, `StartOperationContexts` starts the pool
+  and the walk goes on. A pass that never waits runs at meta-thread speed: in the first 75 s of the
+  t641.2 walk, 235 `storage read` lines on 24 threads against 36 on 21 (20.19.3) and 30 on 14 (20.21.1
+  without deferral); about 18 000 registrations per pass on OVSRV10. After `room 0` the test refuses
+  the next deferral only. It cancels nothing and releases nothing: a keep-alive goes at the item's
+  next validation or at the end of the outermost scope (the whole t641.2 run is one update of
+  3 505 s), and every consumer whose supplier was deferred stays below Committed with its supplier
+  interest until a retry gets the supplier through, which for the 2040 and 2050 iterations is near
+  the end. Highest allocated 338 475 MB and Highest freed 197 172 MB against 163 298 and 93 849
+  without deferral: the allocation states of §8.1.31, held instead of freed. t641.1, 82 targets that
+  do not wait for each other, took the same uncontrolled burst as its schedule and halved its wall
+  time at 346 GB live; t641.2, one chain of years, got no breadth and paid the paging, a quarter of
+  its wall time.
+- **The low-RAM activation brake (§2.2 item 1) was on, and is not a bound either.** Above the
+  machine-load threshold it limits what a pass activates to the waiting joins; it governs starts, not
+  what is held, and the inline waits of the retry pass are joins. (Its 20.20.0 form could activate
+  nothing with nobody joining; ccda904fa, 53c0931b4 and 9e37f1363 changed that after the deferral had
+  gone.)
+- **Counting the checks (20.21.1, 58def697f) bounded a count, not memory.** On t641.2: 49 deferrals at
+  `charge 0 MB` within 73 s, then 9 087 retries over nine minutes with 48 in flight and one
+  registration per pass, each pass stopping at the first re-registered actor before reaching the 48
+  whose data was ready, until the stall guard switched the deferral off and the run finished inline;
+  commit 236 GB against 182 without deferral, from what the first 73 s had started.
+
+**Reading.** The verdict of §8.1.33 and §8.1.36, reached from the walk instead of the pool: the unit
+the decision controls, here the moment the walk defers one more item, is not the unit the memory is
+spent in, which is retained state and held interest downstream of what was already started; and a
+budget test on the process commit decides a minute after the scheduling it was meant to bound. A
+walk-level lookahead that could do what this one was meant to do needs a charge before the start (the
+cardinality route without `/SP`), the decision at the moment a producer is scheduled rather than when a
+commit is skipped, a release path for what the budget turns out not to cover, and concurrency limited
+to targets that are independent of each other; none of that is planned. The deferral is gone
+(a7127224f, 92eaa7150) and the status line above stands.
 
 ---
 

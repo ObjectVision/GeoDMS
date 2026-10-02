@@ -574,6 +574,153 @@ against 8.65 / 9.15 and 14.89 / 15.79. No retry, `room 0` or stall line exists a
   runs on one binary, as the background says; the memory figures and the absence of the deferral
   lines do not.
 
+## Reading the 20.20.0 t641 columns (OVSRV05): the deferral's first minute, and why the ledger could not take it back
+
+Written on 2026-10-02 from the logs of the columns above, after the question of 2026-09-22 why
+20.20.0.m halves t641.1 and lengthens t641.2 when both ran under the same deferral and the same
+threshold, and why the ledger that was to bound the memory did not. OVSRV05 throughout: the
+20.19.3.m column ran under the Cicada account (threshold not readable, probably the default 80),
+the 20.20.0.m column under the account with threshold 60 (budget 39 269 MB of 65 450), and the
+20.21.1.m column is round 3 above, no deferral, threshold 60. The code read is that of 20.20.0
+(`06e1b2de2`): `LedgerHasRoomForDeferral`, `LedgerNoteDeferral` and `DeferScope` in
+`OperationContext.cpp`, `TriggerOperator.cpp`, `TreeItemMetaInfo.cpp` and `TreeItemDataUsage.cpp`
+of that commit, none of which exists in the tree any more.
+
+### What each model is
+
+t641.1 (`/WriteBaseData/Generate_Run1`) writes 82 stored tif targets that do not form a chain:
+under 20.20.0 all of them were in production at once and written in one burst. Three quarters are
+small, the last quarter are the large ones. t641.2 (`/t641_2_RSopen_Indicator_results/
+RunAllocation_y2050`) is one chain: year 2030, then 2040 on the state that 2030 leaves, then 2050,
+with 32 files written per year. Each run is a single `ItemUpdateImpl` (3 505 s for t641.2 under
+20.20.0.m), so under 20.20.0 a single `DeferScope` spanned each run.
+
+### When the walk wrote
+
+t641.1, the 82 `Writing to` lines, in minutes from the walk's start, at 0, 25, 50, 75 and 100 % of
+them, and the live peak:
+
+| column | first | 25 % | 50 % | 75 % | last | PeakLiveLarge |
+|---|---|---|---|---|---|---|
+| 20.19.3.m | 3.2 | 4.2 | 4.8 | 17.4 | 50.9 | 144 606 MB |
+| 20.21.1.m (round 3) | 4.8 | 5.8 | 6.5 | 19.1 | 51.8 | 144 651 MB |
+| 20.20.0.m | 17.3 | 22.6 | 23.1 | 23.9 | 24.1 | 346 136 MB |
+
+Without deferral the walk takes each target in turn: validate its check, which computes the item,
+wait, write, next. Three quarters of the targets are written by minute 5; the last quarter are
+produced one after another for 33 minutes, each chain with little parallelism of its own, and the
+pool has only that chain to run. Under 20.20.0 nothing is written before minute 17 and everything
+within the next seven: the run is the longest chain plus a write burst, with all 82 chains alive
+at once, Highest allocated 219 717 MB against 84 609 for 20.19.3.m and 85 025 for round 3.
+
+t641.2, the minutes in which each year's files were written, the end of the run, the live peak and
+the `Calling EmptyWorkingSet` count:
+
+| column | 2030 | 2040 | 2050 | end | PeakLiveLarge | trims |
+|---|---|---|---|---|---|---|
+| 20.19.3.m | 19 to 22 | 30 to 34 | 42 to 46 | 46 | 171 757 MB | 232 |
+| 20.21.1.m (round 3) | 24 to 26 | 33 to 35 | 42 to 44 | 44 | 169 560 MB | 496 |
+| 20.20.0.m | 41 to 42, 5 files | 49 to 50, 5 files | 56 to 59, 32 files | 59 | 348 896 MB | 964 |
+
+The thread count is 61 in all three logs: the pool was not the difference. Year 2040 cannot start
+before 2030 is done, so there is no breadth to find; what 20.20.0 found instead was memory.
+Highest allocated 338 475 MB and Highest freed 197 172 MB against 163 298 and 93 849 for 20.19.3.m
+and 156 739 and 69 568 for round 3; the allocator drained 285 244 MB in 1 882 021 calls against
+162 376 MB in 1 022 322 calls. The trims per ten minutes of the walk say when the machine was
+above its threshold: 20.19.3.m 129, 93, 5, 2, 3; round 3 (threshold 60) 260, 181, 32, 21, 2;
+20.20.0.m 284, 323, 211, 102, 19, 25. Without deferral the load drops under the threshold once the
+base data is in and the walk frees what it has consumed; under 20.20.0 it stayed above it for 40
+minutes, and the first year's results, ready at minute 19 in the plain walk, were written at
+minute 41.
+
+### What the ledger saw, and when
+
+The resource-aware admission gate (`AdmitOrRequeue`, `ResourceAwareScheduling`) was off in every
+full.py column: it is off by default since the measurement in section 8.1.33 of
+`doc/development/schedule-with-lookahead.md`, and the harness passes `/S1 /S2 /S3 /CP` (and `/SH`
+since e11c1ac), never `/SQ`. With `/SQ` it would have admitted everything as well: it admits any
+context without an estimate, and estimates exist only under `/SP`. So the one budget-aware
+decision in these runs was the walk's own `LedgerHasRoomForDeferral`: fewer than 48 items in
+flight, and the process commit plus the charge of the in-flight producers under the budget. The
+charge comes from the same estimates, so every `ledger: ... deferred` line in every full.py log
+reads `charge 0 MB` and `in flight 0 MB`, and the test was "PagefileUsage below 39 269 MB", sampled
+at most five times a second. A t641 run lives at 145 to 170 GB when walked one item at a time, so
+the gauge crossed the budget in the first minute and never came back:
+
+| run under 20.20.0.m | walk starts | `room 0` | commit then | room again |
+|---|---|---|---|---|
+| t641.1 | 10:15:02 | 10:16:13 | 39 640 MB, 42 commits in flight | never |
+| t641.2 | 10:39:32 | 10:40:44 | 39 563 MB, 0 commits in flight | never |
+
+In t641.2 not one commit was deferred in the whole run: the one `ledger:` line is the `room 0`
+line, there is no `deferred` note and no retry line. Everything it deferred was integrity checks,
+which the 20.20.0 code registered in the `DeferScope` without a ledger note (the Background above;
+58def697f added the note in 20.21.1), so the in-flight term was zero by construction and the
+ledger learnt of the checks only through the commit gauge, after their producers had allocated.
+
+### What the first minute did, and why refusing afterwards did not undo it
+
+While room is true the first pass does not wait at a check whose item is calculating: it schedules
+the check through `CalledCalcHandle`, which schedules the item's producer chain, keeps the handle
+alive (`DeferScope_KeepAlive`) so that the scheduled work is not cancelled, starts the pool and
+walks on to the next supplier. A pass that never waits runs at meta-thread speed. In the first 75
+seconds of the t641.2 walk the 20.20.0.m log holds 250 lines with 235 `storage read` lines on 24
+threads, against 71 lines with 36 reads on 21 threads for 20.19.3.m and 36 lines with 30 reads on
+14 threads for round 3; the OVSRV10 count in the Background, about 18 000 registrations per pass,
+is the same pass. The commit gauge lags that pass by construction: a scheduled producer allocates
+when a worker picks it up, so the walk was a minute ahead of the figure it was steering by.
+
+After `room 0` the ledger can only refuse the next deferral. It cannot cancel a scheduled producer
+and it cannot drop a keep-alive. A keep-alive went when the walk re-entered that item's validation
+(`DeferScope_Release` at the top of the check branch) or when the outermost scope ended, which in
+t641.2 is the end of the run; and a consumer whose supplier was deferred stays below Committed and
+keeps its supplier interest (`StopSupplInterest` runs at Committed) until a retry pass gets the
+supplier through. Once room is 0 a pass stops at the next deferral it meets and the retry walks
+again from the root, waiting inline at every deferred check in walk order, so the holders of the
+items deep in the chain, the 2040 and 2050 iterations, are released when the walk gets there, near
+the end. That is what turned 163 GB allocated and 94 GB freed into 338 and 197: the allocation
+states, 7 to 8 GB per `StateNaAllocatie` container and 94 % of the run's production by the census
+in section 8.1.31 of the lookahead document, were held instead of freed as the walk moved on. The
+one memory-aware mechanism that was on, the low-RAM activation brake (`IsLowOnFreeRAM` in
+`collectOperationContexts`), bounds how many contexts of a phase are activated above the
+machine-load threshold to the number of threads waiting in a Join; it governs what starts, not
+what is held, and every inline wait of the second pass is a Join. (Its 20.20.0 form could activate
+nothing with nobody joining; ccda904fa, 53c0931b4 and 9e37f1363 changed that on 2026-09-26 and 27,
+after the deferral was gone.)
+
+### Why t641.1 got away with the same burst
+
+Its 42 commits were deferred between 10:15:38 and 10:16:13, each `charge 0 MB`, over 8 to 55 418
+operations, and the commit branch kept deferring while anything was in flight, room or not
+(`LedgerHasRoomForDeferral() || LedgerDeferredCommits()`; 8 more deferrals at 10:37), so the 42
+chains ran side by side until the writes at minutes 22 to 24 (the `released` lines: 37 at 10:37, 9
+at 10:38, 4 at 10:39). Eighty-two targets of similar size that do not wait for each other are the
+one shape in which an uncontrolled burst is the right schedule, and the paging it cost was
+outweighed by 24 workers being busy. t641.2 paid the paging and got nothing, because its chain has
+no breadth to fill. Getting the first without the second would need concurrency limited to
+independent targets, a real memory bound, and the check validated before its item is produced,
+which neither the deferral nor the pre-start of round 2 had.
+
+### The bounded variant, read the same way
+
+The 20.21.1 build of the first section counted and charged checks. On t641.2 that bounded a count,
+not memory: 49 deferrals at `charge 0 MB` within 73 seconds of the walk (commit 35 355 MB against
+the 62 177 MB budget of threshold 95), then 9 087 retries over nine minutes with 48 in flight and 1
+registration per pass, because each pass stopped at the first re-registered actor before reaching
+the 48 whose data was already ready ("What the two t641 stall reports show" above). The stall
+guard switched deferral off at 18:11:14 and the remaining 36 minutes ran inline; the 236 GB commit
+is what the first 73 seconds had started.
+
+### Read with the lookahead document
+
+This is the verdict of section 8.1.33 of `doc/development/schedule-with-lookahead.md` from the
+other side. Enforce on t641_2 parked 124 184 of 173 178 operations and left the live peak at
+171.9 GiB; 15 433 of 15 503 refusals came when the commit already exceeded the budget, 16 022 of
+16 144 ended in a lift, and 91 % of the volume was tile work inside chains already admitted. The
+unit the gate controls, an operation's start, is not the unit the memory is spent in, which is
+retained state and held interest; the walk-level deferral inherited that blindness and added a
+lookahead term of zero. Section 8.1.37 there records the same reading from the ledger's side.
+
 ## Results (OVSRV10), 20.22.0
 
 Run on 2026-09-27 on OVSRV10, 127 GB, 32 logical processors, `MemoryFlushThreshold` 90 (the ledger
