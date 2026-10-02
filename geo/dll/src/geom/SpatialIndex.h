@@ -197,8 +197,9 @@ Bool AnyOffCross(PointType center, LeafType lf)
 	return false;
 }
 
-// Leaf must split if the extent of the set of objects that falls into specific quadrants is non-zero 
-// thus any of the dimensions is non-zero, thus furhter splitting will eventually separate
+// Leaf must split if it would separate objects into quadrants afther a fininte number of splits, which is usually true if
+// the extent of the set of objects that falls into specific quadrants is substantially non-zero.
+// Where it cannot, Node::SplitWouldRepeat stops the split (#1289).
 template <typename LeafType, typename PointType>
 Bool MustSplit(const LeafType* lf, PointType center)
 {
@@ -245,6 +246,19 @@ struct SpatialIndex
 	// operator working set, so it lives in the allocation stocks where the census sees it.
 	using LeafContainer = my_vec_t<LeafType>;
 
+	// The box DoSplit gives quadrant i, counted from 0 as GetQuadrantOffset counts: [first, mid] on an axis where the
+	// quadrant is low, [mid, second] where it is high.
+	static RangeType QuadrantBox(const RangeType& box, const PointType& mid, UInt32 i)
+	{
+		switch (i)
+		{
+		case 0:  return RangeType(box.first, mid);
+		case 1:  return RangeType(rowcol2dms_order( Top(box), mid.Col()), rowcol2dms_order(  mid.Row(), Right(box) ));
+		case 2:  return RangeType(rowcol2dms_order(mid.Row(), Left(box)), rowcol2dms_order(Bottom(box), mid.Col()  ));
+		default: return RangeType(mid, box.second);
+		}
+	}
+
 	struct Node
 	{
 		Node(const RangeType& bb, UInt32 offsetFromParent) : m_BoundingBox(bb), m_OffsetFromParent(offsetFromParent), 
@@ -261,6 +275,30 @@ struct SpatialIndex
 			// any gain from splitting? Only if the leaves that lie in one quadrant have more than one extent between them
 			assert(m_QuadrantLeafExtentsDiffer == SpatialIndexImpl::MustSplit(m_FirstLeaf, Center(m_BoundingBox)));
 			return m_QuadrantLeafExtentsDiffer;
+		}
+
+		// Would a split send obj and every leaf of this node into the one quadrant whose box is this node's own? That child
+		// would be this node again, it must split again, and so on until memory runs out (#1289). Center cannot halve an
+		// integer extent of one unit, (a + a + 1) / 2 == a for a >= 0, nor the extent between two floats one ULP apart whose
+		// sum rounds down, so that quadrant exists in the smallest boxes only. Every other split reaches a smaller box or fewer
+		// leaves, so refusing this one changes no index that was completed before; the node keeps its objects, as it keeps
+		// objects with equal extents.
+		bool SplitWouldRepeat(const typename LeafType::extents_type& objExtents)
+		{
+			dms_assert(!IsSplit());
+			PointType mid = Center(m_BoundingBox);
+			UInt32 q = SpatialIndexImpl::GetQuadrantOffset(1, objExtents, mid); // 1 to 4, or 0 for obj on mid, which stays here
+			if (m_RepeatQuadrant)
+				return q == m_RepeatQuadrant;
+			if (!q || QuadrantBox(m_BoundingBox, mid, q - 1) != m_BoundingBox)
+				return false;
+			for (const LeafType* lf = m_FirstLeaf; lf; lf = lf->GetNext())
+				if (SpatialIndexImpl::GetQuadrantOffset(1, lf->GetExtents(), mid) != q)
+					return false;
+			// Kept, so that the leaves are scanned once: obj is added here and the record stays true. The first object that
+			// falls in another quadrant splits this node.
+			m_RepeatQuadrant = UInt8(q);
+			return true;
 		}
 
 		void AddLeaf(LeafType* lf)
@@ -320,6 +358,7 @@ struct SpatialIndex
 		const LeafType* m_QuadrantLeaf = nullptr;
 		UInt32    m_NrObjects;
 		bool      m_QuadrantLeafExtentsDiffer = false;
+		UInt8     m_RepeatQuadrant = 0; // set by SplitWouldRepeat: every leaf lies in this quadrant (1 to 4), whose box is this node's own
 	};
 	static_assert(sizeof(RangeType) != 32 || sizeof(Node) == 64, "a node of a dpoint index keeps the 64 bytes it had before GEO-A54: every query walks the nodes");
 	typedef my_vec_t<Node> NodeContainer;
@@ -518,7 +557,7 @@ private:
 		while (true)
 		{
 			dms_assert( IsTouching(nodePtr->m_BoundingBox, objExtents ) );
-			if (nodePtr->MustSplit())
+			if (nodePtr->MustSplit() && !nodePtr->SplitWouldRepeat(objExtents))
 				nodePtr = DoSplit(nodeIdx);
 			dms_assert(nodePtr == &*m_Nodes.begin() + nodeIdx); // nodePtr survived possible growth of m_Nodes
 
@@ -548,10 +587,8 @@ private:
 		MG_USERCHECK2(m_Nodes.size() <= MAX_VALUE(UInt32) - 4, "SpatialIndex: more than 4294967295 quadtree nodes");
 		UInt32 offset = m_Nodes.size() - nodeIdx;
 		nodePtr->m_OffsetToFirstQuadrant = offset;
-		m_Nodes.push_back(Node(RangeType(box.first, mid), offset++));
-		m_Nodes.push_back(Node(RangeType(rowcol2dms_order( Top(box), mid.Col()), rowcol2dms_order(  mid.Row(), Right(box) )), offset++));
-		m_Nodes.push_back(Node(RangeType(rowcol2dms_order(mid.Row(), Left(box)), rowcol2dms_order(Bottom(box), mid.Col()  )), offset++));
-		m_Nodes.push_back(Node(RangeType(mid, box.second), offset++));
+		for (UInt32 i = 0; i != 4; ++i)
+			m_Nodes.push_back(Node(QuadrantBox(box, mid, i), offset++));
 
 		nodePtr = &*m_Nodes.begin() + nodeIdx; // m_Nodes could have been grown
 
