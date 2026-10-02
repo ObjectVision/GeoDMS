@@ -761,6 +761,153 @@ after the NetworkModel_PBL chain was stopped at 04:49) was not measured.
 - Before a round on OVSRV10 that is meant for times: no large GeoDMS processes in the hours before (or a
   reboot), the NetworkModel_PBL chain stopped, no scans or copies of `C:\LocalData` of one's own.
 
+## Results (OVSRV05), 20.22.1
+
+Run from 2026-10-01 21:13 to 2026-10-02 00:39 on OVSRV05, 64 GB, AMD Ryzen 9 5900X, 24 logical
+processors, `MemoryFlushThreshold` 60 (set by the launching script for the round and put back to 95
+after it, as for the 20.22.0.m and 20.21.1.m columns below). Tree `C:\dev\GeoDMS` on `main` at
+`fd30ef780` (version 20.22.1, with CLC-A07 and GEO-A19 reverted; `b8ef1e32a` plus a documentation
+commit). GeoDMS-Test at `1b8aa71`, which contains the t010 reference of `7423f6a`.
+
+Built with the VS18 msbuild, Release x64 of `all22.sln` with `-m -nr:false`, 21:00:29 to 21:12:02,
+exit 0, no error and no C warning; `Rtc.dll` 21:01:17, `Geo.dll` 21:04:04, `Clc.dll` 21:10:53,
+`GeoDmsRun.exe` 21:11:02, `GeoDmsGuiQt.exe` 21:11:58. On that build `testcases\run_testcases.bat` gave
+442 cases, 0 bad. The binaries are kept as `C:\LocalData\GeoDMS_engine\head_fd30ef780`.
+`full.py -version local-msbuild-release` (`/S1 /S2 /S3`, no `/SP`) was started from an interactive
+scheduled task with `py -3.13` (`C:\Python313`, 3.13.15, the harness modules in the mtahi user site):
+32 experiments, no "reused and not recalculated" line, all 27 report rows `ok` (report header
+3:23:26). Neither `20_22_1_m` folder existed beforehand, under `C:\LocalData\GeoDMS_Test_Results` or
+under `C:\LocalData\runs`, so nothing was moved aside. Report `reports\20_22_1_m___16_0_5.html`.
+
+The 20.22.0.m column is a round that this file did not record until now: 2026-09-27, 03:53 to 06:59,
+`1ec17232f` built on this machine with the VS18 msbuild from 03:41 to 03:52 (testcases 377/0, XML round
+trip 212 with the 2 known diffs), threshold 60, all `ok` except t720_2BURP, which failed after 26 s
+(#1285). Its binaries were still in `bin\Release\x64` and are kept as
+`C:\LocalData\GeoDMS_engine\ovsrv05_1ec17232f`. The 20.21.1.m column is round 3 of the section
+"20.21.1 without deferral" above; 20.19.3.m ran under another account, whose threshold is presumably the
+default 80.
+
+Running on the machine. Before the round: a reboot at 14:32; from 16:23 to 19:20 another session ran
+full.py over the small tests (t020 to t910, no t405, t641 or t2000) on the installed 17.4.6, 18.1.2,
+19.0.0 and 20.12.0; then the build and the battery above. During the round, sampled every 5 minutes
+(`scratch\perf_ovsrv05\machine_watch.ps1`, which lists a process when it used 3 s or more since the
+previous sample): two VS18 `devenv` windows opened at 20:55, idle (listed once, with 6 s); the Claude
+desktop app, on average 21 % of one core; the Chrome Remote Desktop host, 20 % of one core; explorer
+2 %; together 1.8 % of the 24 logical processors. The session
+that ran the round only read logs and the git history meanwhile. Free physical memory fell to 1.9 GB
+at 23:53, during t641.2. During the A/B runs below the other processes took 0.4 %.
+
+### Wall time, the span between the first and the last timestamp of the GeoDMS log
+
+| test | 20.22.1.m (01-10) | 20.22.0.m (27-09) | 20.21.1.m (21-09) | 20.19.3.m | 20.22.1 / 20.22.0 |
+|---|---|---|---|---|---|
+| t020 | 0:05:03 | 0:04:02 | 0:03:56 | 0:03:44 | 1.25 |
+| t060 | 0:01:47 | 0:02:22 | 0:02:11 | 0:01:59 | 0.75 |
+| t101 | 0:03:50 | 0:03:31 | 0:03:16 | 0:03:08 | 1.09 |
+| t200 | 0:00:40 | 0:00:38 | 0:00:37 | 0:00:32 | 1.05 |
+| t300 | 0:01:09 | 0:01:55 | 0:01:56 | 0:01:19 | 0.60 |
+| t301 | 0:02:48 | 0:02:38 | 0:02:31 | 0:02:31 | 1.06 |
+| t405.1 | 0:04:44 | 0:04:31 | 0:04:29 | 0:11:37 | 1.05 |
+| t405.2 | 0:20:47 | 0:19:07 | 0:18:22 | 0:18:24 | 1.09 |
+| t405.3 | 0:20:36 | 0:18:39 | 0:18:26 | 0:18:09 | 1.10 |
+| t410 | 0:05:34 | 0:04:56 | 0:04:49 | 0:04:43 | 1.13 |
+| t611 | 0:00:34 | 0:00:31 | 0:00:31 | 0:00:30 | 1.10 |
+| t641.1 | 0:53:08 | 0:51:32 | 0:51:50 | 0:50:55 | 1.03 |
+| t641.2 | 0:44:25 | 0:43:25 | 0:44:06 | 0:46:27 | 1.02 |
+| t710 | 0:01:08 | 0:01:02 | 0:01:01 | 0:01:01 | 1.10 |
+| t720 | 0:10:12 | failed, #1285 | 0:09:12 | 0:09:16 | - |
+| t810 | 0:05:14 | 0:05:02 | 0:05:12 | 0:04:57 | 1.04 |
+| t910 | 0:00:53 | 0:00:50 | 0:00:48 | 0:00:46 | 1.06 |
+| t2000 | 0:19:36 | 0:16:52 | 0:17:01 | 0:16:25 | 1.16 |
+
+Summed over all 32 logs (`durations.py`): 203.7 min against 183.6 for 20.22.0.m, 191.8 for 20.21.1.m
+and 198.0 for 20.19.3.m. 9.8 of the 20 minutes against 20.22.0.m are t720, which 20.22.0 failed early;
+the remaining 10 minutes, 5.6 %, are spread over nearly every test.
+
+### Memory: Highest CommitCharge / PeakLiveLarge in MB, and the `Calling EmptyWorkingSet` count
+
+| test | 20.22.1.m | 20.22.0.m | 20.21.1.m |
+|---|---|---|---|
+| t020 | 2532 / 2628, 0 | 2085 / 2614, 0 | 1662 / 2593, 0 |
+| t200 | 2530 / 6701, 0 | 4018 / 7256, 0 | 3716 / 6960, 0 |
+| t300 | 5594 / 11083, 0 | 6698 / 11099, 0 | 6872 / 11306, 0 |
+| t301 | 19721 / 3431, 0 | 16935 / 4406, 0 | 17106 / 4131, 0 |
+| t405.2 | 30830 / 31383, 5 | 43120 / 32130, 3 | 31664 / 32129, 1 |
+| t405.3 | 30854 / 31383, 5 | 32248 / 32130, 3 | 31759 / 32129, 1 |
+| t641.1 | 140627 / 136920, 220 | 140864 / 136993, 220 | 146710 / 144651, 216 |
+| t641.2 | 175327 / 168907, 382 | 180723 / 169619, 471 | 171774 / 169560, 496 |
+| t720 | 17902 / 18758, 0 | (failed after 26 s) | 22497 / 20638, 0 |
+| t810 | 26840 / 20827, 0 | 28362 / 23232, 0 | 28137 / 22552, 0 |
+| t2000 | 63591 / 64231, 41 | 66137 / 69628, 38 | 63193 / 62641, 43 |
+
+Every other test within 400 MB of 20.22.0.m on both figures. Report cells, peak physical / peak committed in
+GB: t641.1 56.47 / 157.39 against 58.43 / 158.40, t641.2 56.60 / 191.68 against 58.37 / 194.32, t2000
+51.08 / 80.68 against 48.18 / 85.21, t405.2 30.25 / 52.08 against 30.09 / 53.32. No retry, `room 0` or
+stall line in any log.
+
+### Interleaved A/B: 20.22.0 (`ovsrv05_1ec17232f`) against 20.22.1 (`head_fd30ef780`)
+
+On 2026-10-02 from 00:42, right after the round, each experiment rerun with full.py's own command and
+environment, in the order A, B, A, B, threshold 60 (`run_exp.py` of `.claude/skills/geodms-perf`
+through a copy with this machine's paths, `scratch\perf_ovsrv05\run_exp_ovsrv05.py`; the skill's
+scripts name the OVSRV10 folders). Seconds per run; the result files of A and B are identical byte for
+byte in every run.
+
+| experiment | A1 | B1 | A2 | B2 |
+|---|---|---|---|---|
+| t020_polygons (00:42 to 01:37) | 293 | 296 | 291 | 288 |
+| t101_network_od_pc4_dense | 215 | 226 | 213 | 219 |
+| t410_NetworkModel_EU | 305 | 323 | 307 | 321 |
+| t2000 (01:37 to 02:48) | 1156 | 1013 | 1075 | 1021 |
+| t405_1 prepare (02:48 to 04:16) | 266 | 218 | 214 | 215 |
+| t405_2 zonder fence | 1071 | 1075 | 1072 | 1103 |
+| t101 again (04:18 to 04:30) | 193 | 187 | 183 | 182 |
+| t410 again (04:31 to 04:50) | 271 | 289 | 273 | 289 |
+
+t410 split at its first `impedance_matrix` progress line: the part before it, which is almost all
+`connect_ne` (CreateInitialWorkingNetwork/LinkSet, 337 497 points on the roads, its "Connect discovery"
+lines), and the part after it.
+
+| t410 run | before / after the first `impedance_matrix` line, s | points discovered 79 s in |
+|---|---|---|
+| A/B 00:42, A1 / B1 / A2 / B2 | 166 / 139, 184 / 139, 169 / 138, 184 / 137 | 259 437 (A2), 244 693 (B2) |
+| again 04:31, A1 / B1 / A2 / B2 | 138 / 132, 154 / 135, 137 / 136, 153 / 136 | 298 803, 267 604, 298 834, 269 489 |
+| round, 20.22.0.m / 20.22.1.m | 153 / 143, 193 / 140 | |
+
+t101 split the same way spends 6 to 7 s before `impedance_matrix` (a `connect` of 4066 points, 1 s on
+its own) and the rest in one dense `impedance_matrix` of 16.5 million od pairs.
+
+### Reading
+
+- Correct: all 27 `ok`, including t010, t641_2 and t2000, which were red on OVSRV10 before CLC-A07 and
+  GEO-A19 were reverted, and t720_2BURP again, which 20.22.0 failed (#1285).
+- The round's extra time is mostly the machine. In the A/B 20.22.1 is equal on t020 and t405 and faster
+  on t2000 (1013 and 1021 s against 1156 and 1075), while the same 20.22.0 binary moved by more than the
+  round's differences between sittings: t020 4:02 in its round against 4:53 and 4:51 in the A/B, t2000 16:52
+  against 19:16 and 17:55, t101 213 to 215 s at 01:00 and 183 to 193 s at 04:20. A round on OVSRV05 is
+  quieter than one on OVSRV10, but its wall times also move by about 10 % between sittings, so a
+  difference below that is only an engine change when an A/B in one sitting shows it.
+- t101 is not slower: B was slower in the first two pairs (+5 and +3 %) and not in the next two (−3
+  and −0.5 %).
+- t410 is slower in all four pairs, by 14 to 18 s (+5 to +7 %), and all of it lies in the `connect_ne`
+  before the first `impedance_matrix` line: 153 to 154 s against 137 to 138 s in the second sitting,
+  +11 to +12 %, with the discovery 10 % behind 79 s in; the `impedance_matrix` part is equal. That loop
+  in `Connect.cpp` is unchanged since 20.22.0; what it calls per point is the spatial index query
+  (`GetSqrProximityUpperBound` and the node iterator) and `ArcProjectionHandle`. Of the changes to those,
+  GEO-A34 (`fccd29343`) leaves the arithmetic for float coordinates as it was, and t410 runs on `dpoint`;
+  GEO-A41 (`a847e23a3`) does not apply to the arcs-first connect. GEO-A54 (`e5e7c8d0b`) adds the extents of
+  a leaf and two flags to every node of the quadtree, which for `dpoint` grows a node from 64 bytes, one
+  cache line, to 104, so every query walks larger nodes. That makes GEO-A54 the candidate; it is not
+  confirmed. The check is
+  an A/B of t410 on builds of `a847e23a3` and `e5e7c8d0b`, which had not been run when this section was
+  written.
+- t720 takes 10:12 against 9:12 for 20.21.1.m and 9:16 for 20.19.3.m. It has no A/B: 20.22.0 fails it,
+  and a comparison needs a build of 20.21.1 (`92eaa7150`). t641.1 and t641.2 are 2 to 3 % slower in the
+  round, within the spread between sittings; an A/B pair of them takes three and a half hours and was
+  not run.
+- Memory is equal or lower than 20.22.0.m: t2000 5.4 GB less live, t810 2.4 GB less, t641.2 382 trims
+  against 471.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
