@@ -1200,9 +1200,18 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					throwErrorF("ExprParser", "Scope operator: container '{}' not found", leftExpr.GetSymbID());
 
 				tmp_swapper<SharedTreeItem> swap(m_SearchContext, scopeItem);
-				SubstitutionBuffer localBuffer;
-				localBuffer.optionalVisitor = substBuff.optionalVisitor;
+				// #1288: the visit flags go along, as for the arrow below. Without them a visit-only walk
+				// looked the names in the scope up and visited none of them: FindOrVisitItem calls the
+				// visitor only under ImplSuppliers or NamedSuppliers, so the Src/v of the copied columns
+				// of select_with_attr_by_cond, 'collect_by_cond(., scope(.., Src/sel), scope(.., Src/v))',
+				// was invisible to the walk that decides whether an MMD store may keep them as a rule.
+				SubstitutionBuffer localBuffer; localBuffer.svf = substBuff.svf; localBuffer.optionalVisitor = substBuff.optionalVisitor;
 				bufferValue = SubstituteExpr_impl(localBuffer, localExpr.Right().Right().Left(), mpf);
+				if (localBuffer.avs == AVS_SuspendedOrFailed)
+				{
+					substBuff.avs = AVS_SuspendedOrFailed;
+					return {};
+				}
 				goto exit;
 			}
 			if (head->GetSymbID() == token::arrow)
