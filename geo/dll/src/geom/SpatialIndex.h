@@ -197,9 +197,10 @@ Bool AnyOffCross(PointType center, LeafType lf)
 	return false;
 }
 
-// Leaf must split if it would separate objects into quadrants afther a fininte number of splits, which is usually true if
-// the extent of the set of objects that falls into specific quadrants is substantially non-zero.
-// Where it cannot, Node::SplitWouldRepeat stops the split (#1289).
+// Leaf must split if that would separate its objects into quadrants after a finite number of splits, which is usually true
+// if the extent of the set of objects that fall into specific quadrants is substantially non-zero. This tests only that
+// extent: whether two leaves that lie in one quadrant differ. Where splitting cannot separate them, Node::SplitWouldRepeat
+// stops the split (#1289).
 template <typename LeafType, typename PointType>
 Bool MustSplit(const LeafType* lf, PointType center)
 {
@@ -246,6 +247,11 @@ struct SpatialIndex
 	// operator working set, so it lives in the allocation stocks where the census sees it.
 	using LeafContainer = my_vec_t<LeafType>;
 
+	// A node splits once it holds this many objects and a split can separate them (Node::MustSplit). It was 4; with 16 the
+	// tree is about one level shallower and a query tests more leaves per node, which is faster for the point searches and
+	// for the filtered nearest-arc search of connect_ne, slower for the unfiltered one of connect_info (#1289).
+	static constexpr UInt32 MinObjectsToSplit = 16;
+
 	// The box DoSplit gives quadrant i, counted from 0 as GetQuadrantOffset counts: [first, mid] on an axis where the
 	// quadrant is low, [mid, second] where it is high.
 	static RangeType QuadrantBox(const RangeType& box, const PointType& mid, UInt32 i)
@@ -269,7 +275,7 @@ struct SpatialIndex
 		UInt32 NrObjects()const { return m_NrObjects; }
 		bool MustSplit() const
 		{
-			if (IsSplit() || NrObjects() <= 3)
+			if (IsSplit() || NrObjects() < MinObjectsToSplit)
 				return false;
 
 			// any gain from splitting? Only if the leaves that lie in one quadrant have more than one extent between them
