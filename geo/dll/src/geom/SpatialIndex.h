@@ -372,9 +372,18 @@ struct SpatialIndex
 	static_assert(sizeof(RangeType) != 32 || sizeof(Node) == 64, "a node of a dpoint index keeps the 64 bytes it had before GEO-A54: every query walks the nodes");
 	typedef my_vec_t<Node> NodeContainer;
 
-	template <typename SelType>
+	// The leaves whose extents meet the search object. A box query yields a box leaf when the two have an interior in common,
+	// strict on both sides, and a point leaf, or a point query a box leaf, half-open: [first, second) per axis. That is what the
+	// overlay operators want, as boxes that only touch cannot have an intersection with an area, and what point_in_polygon
+	// wants, as IsInside counts a point on the upper x or y edge of a polygon's bounding box as outside. With Touching, a box
+	// query yields every leaf that touches the box, an edge or a corner included, as box_connectivity needs. The nodes are
+	// pruned with IsTouching either way, and a leaf of a lower quadrant ends strictly below the centre, so only the leaf
+	// test differs.
+	template <typename SelType, bool Touching = false>
 	struct iterator
 	{
+		static_assert(!Touching || std::is_same_v<SelType, RangeType>, "a touching query is a box query");
+
 		iterator() : m_NodePtr(nullptr), m_LeafPtr(nullptr) {}
 		explicit operator bool () const { return m_NodePtr; }
 		void operator ++()
@@ -404,7 +413,13 @@ struct SpatialIndex
 
 	private:
 		bool AtEnd() const { return !m_NodePtr; }
-		bool DoesFit() { return IsIntersecting(m_SearchObj, (**this)->GetExtents()); }
+		bool DoesFit()
+		{
+			if constexpr (Touching)
+				return IsTouching(m_SearchObj, (**this)->GetExtents());
+			else
+				return IsIntersecting(m_SearchObj, (**this)->GetExtents());
+		}
 		void ReFit()
 		{
 			while (!AtEnd() && (!m_LeafPtr || !DoesFit()))
@@ -456,6 +471,7 @@ struct SpatialIndex
 	friend struct neighbour_iter<SpatialIndex>;
 	friend struct iterator<PointType>;
 	friend struct iterator<RangeType>;
+	friend struct iterator<RangeType, true>;
 
 	SpatialIndex(ObjectPtr first, ObjectPtr last, SizeT maxNrFutureInserts = 0)
 	{
@@ -553,6 +569,7 @@ struct SpatialIndex
 			
 	iterator<RangeType> begin(const RangeType& searchBox) const { return iterator<RangeType>(searchBox, &*m_Nodes.begin()); }
 	iterator<PointType> begin(const PointType& searchPnt) const { return iterator<PointType>(searchPnt, &*m_Nodes.begin()); }
+	iterator<RangeType, true> begin_touching(const RangeType& searchBox) const { return iterator<RangeType, true>(searchBox, &*m_Nodes.begin()); }
 
 	ObjectPtr first_leaf() const { dms_assert(m_Leafs.size()); return m_Leafs.begin()->get_ptr(); }
 private:
