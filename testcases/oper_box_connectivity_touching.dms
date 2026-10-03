@@ -5,7 +5,8 @@
 //   pairs of Box: (0,1) share an x edge, (2,3) a corner, (4,5) overlap by an area, (6,7) share a y edge, (8,9) have a gap,
 //   (10,11) a point box on the right edge of box 10.
 //   G: a 10 x 10 grid of unit squares, more than the 16 objects at which the index splits a node, so the centre lines of the
-//   nodes fall on box edges: 90 + 90 edge pairs and 2 * 81 corner pairs = 342, in each coordinate type.
+//   nodes fall on box edges: 90 + 90 edge pairs and 2 * 81 corner pairs = 342, in each coordinate type. A float box is
+//   closed, so these boxes share an edge or a corner; an integer box is half-open, so in ipoint and spoint they are adjacent.
 // Expected: exit 0 on /checks.
 container oper_box_connectivity_touching
 {

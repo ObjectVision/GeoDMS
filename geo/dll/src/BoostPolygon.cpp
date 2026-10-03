@@ -2376,9 +2376,9 @@ public:
 		auto rects_beyond = end_ptr(rects);
 		auto spatialIndex = SpatialIndexType(rects_begin, rects_beyond);
 		
-		// counting. A touching query: boxes that share only an edge or a corner are connected too. The default query of the
-		// index yields a box only when it has an interior in common with the query box, so such pairs were never reported,
-		// and a grid of unit squares had no pairs at all.
+		// counting. A touching query: float boxes that share only an edge or a corner are connected too, and so are integer
+		// boxes, which are half-open, that are adjacent. The default query of the index yields a box only when it has an
+		// interior in common with the query box, so such pairs were never reported, and a grid of unit squares had no pairs.
 		SizeT nrEdges = 0;
 		for (const auto& rect : rects)
 		{

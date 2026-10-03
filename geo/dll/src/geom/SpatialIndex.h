@@ -373,12 +373,15 @@ struct SpatialIndex
 	typedef my_vec_t<Node> NodeContainer;
 
 	// The leaves whose extents meet the search object. A box query yields a box leaf when the two have an interior in common,
-	// strict on both sides, and a point leaf, or a point query a box leaf, half-open: [first, second) per axis. That is what the
-	// overlay operators want, as boxes that only touch cannot have an intersection with an area, and what point_in_polygon
-	// wants, as IsInside counts a point on the upper x or y edge of a polygon's bounding box as outside. With Touching, a box
-	// query yields every leaf that touches the box, an edge or a corner included, as box_connectivity needs. The nodes are
-	// pruned with IsTouching either way, and a leaf of a lower quadrant ends strictly below the centre, so only the leaf
-	// test differs.
+	// strict on both sides, and a point leaf, or a point query a box leaf, half-open: [first, second) per axis. An integer box
+	// is half-open, so for integer coordinates the strict test is the overlap of two boxes; a float box is closed, and the
+	// strict test leaves out float boxes that share only an edge or a corner. That is what the overlay operators want, as such
+	// boxes cannot have an intersection with an area, and what point_in_polygon wants, as IsInside is half-open like the
+	// polygons it tests, so that adjacent polygons have neither a gap nor a point in common: a point on the upper x or y edge
+	// of a polygon's bounding box lies outside it. With Touching, a box query yields every leaf that touches the box: float
+	// boxes that share a point with it, and integer boxes that overlap it or are adjacent to it, the second of one equal to
+	// the first of the other, as box_connectivity needs. The nodes are pruned with IsTouching either way, and a leaf of a lower
+	// quadrant ends strictly below the centre, so only the leaf test differs.
 	template <typename SelType, bool Touching = false>
 	struct iterator
 	{
