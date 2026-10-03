@@ -2639,6 +2639,16 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 	return resultStatus != task_status::exception;
 }
 
+// What a Join asserts of a result item: ready, unless nobody wants it any more. The exemption is tested
+// before the question, because CheckDataReady itself asserts that its item has interest ("or else result
+// would be volatile"), and it is tested on the item that is asked, the ultimate one, which need not be the
+// result whose interest the callers exempt as well.
+[[maybe_unused]] static bool IsDataReadyOrWithoutInterest(const TreeItem* item)
+{
+	assert(item);
+	return !item->GetInterestCount() || CheckDataReady(item);
+}
+
 // Enforce supplier completion or return early on suspension; used by inline path.
 task_status OperationContext::JoinSupplOrSuspendTrigger()
 {
@@ -2671,7 +2681,7 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 
 		task_status ocStatus = oc->Join();
 		assert(ocStatus > task_status::running);
-		assert(CheckDataReady(supplResult->GetCurrUltimateItem().get()) || m_Status == task_status::exception || supplResult->WasFailed(FailType::Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
+		assert(m_Status == task_status::exception || supplResult->WasFailed(FailType::Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend() || IsDataReadyOrWithoutInterest(supplResult->GetCurrUltimateItem().get()));
 		switch (ocStatus)
 		{
 		case task_status::done:
@@ -3005,7 +3015,7 @@ task_status OperationContext::Join()
 exit:
 	auto status = GetStatus();
 	assert(status > task_status::running);
-	dbg_assert((m_Result->m_ItemLockCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem().get()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount() || !m_FuncDC);
+	dbg_assert((m_Result->m_ItemLockCount < 0) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount() || !m_FuncDC || IsDataReadyOrWithoutInterest(m_Result->GetCurrUltimateItem().get()));
 	return status;
 }
 
