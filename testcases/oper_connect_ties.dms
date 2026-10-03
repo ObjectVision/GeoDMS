@@ -1,0 +1,58 @@
+// connect, connect_neighbour and connect_info connect to the nearest candidate; which of several equally near ones is
+// not specified (#1289), so the checks of a tie accept any of them, at the right distance. The choice used to follow the
+// order in which the spatial index yields the candidates, and changed with how that index was built. One case has a
+// single right answer: the nearest-arc search of connect_info narrowed its box to the distance found so far, truncated
+// for integer coordinates, so that after a farther arc it could leave out a nearer one, and reported the farther one.
+//   pt:  destinations (1, 0), (-1, 0), (0, 1) and (0, -1) are all 1 from (0, 0)       -> any of them
+//   nb:  (0, 0) and those four: the first has four neighbours at 1, the others one    -> any of 1..4, then 0, 0, 0, 0
+//   arc: arcs y = 1 and y = -1, from x = -5 to 5, are both 1 from (0, 0)              -> either, at 1
+//   int: ipoint arc 0 (3,-1)-(3,1) is 3 from (0, 0), arc 1 (1,4)-(4,1) about 3.54      -> arc 0 at 3 (arc 1 before)
+//   rev: points (5, 1) and (5, -1) are both 1 from the arc (0, 0)-(10, 0)             -> either, at 1
+// Expected: exit 0 on /checks.
+container oper_connect_ties
+{
+	unit<uint32> Dest: nrofrows = 4 { attribute<fpoint> pt: [xy(1, 0), xy(-1, 0), xy(0, 1), xy(0, -1)]; }
+	unit<uint32> Org:  nrofrows = 1 { attribute<fpoint> pt: [xy(0, 0)]; }
+	attribute<Dest> pt_rel (Org) := connect(Dest/pt, Org/pt);
+
+	unit<uint32> Nb: nrofrows = 5 { attribute<fpoint> pt: [xy(0, 0), xy(1, 0), xy(-1, 0), xy(0, 1), xy(0, -1)]; }
+	attribute<Nb> nb_rel (Nb) := connect_neighbour(Nb/pt);
+
+	unit<uint32> ArcPt: nrofrows = 4
+	{
+		attribute<fpoint> pt: [xy(-5, 1), xy(5, 1), xy(-5, -1), xy(5, -1)];
+		attribute<Arc>    seq_rel := value(id(.) / 2, Arc);
+		attribute<uint32> ord     := id(.) % 2;
+	}
+	unit<uint32> Arc: nrofrows = 2 { attribute<fpoint> geometry (arc) := points2sequence(ArcPt/pt, ArcPt/seq_rel, ArcPt/ord); }
+	container arc_info := connect_info(Arc/geometry, Org/pt);
+
+	unit<uint32> IArcPt: nrofrows = 4
+	{
+		attribute<ipoint> pt: [xy(3, -1), xy(3, 1), xy(1, 4), xy(4, 1)];
+		attribute<IArc>   seq_rel := value(id(.) / 2, IArc);
+		attribute<uint32> ord     := id(.) % 2;
+	}
+	unit<uint32> IArc: nrofrows = 2 { attribute<ipoint> geometry (arc) := points2sequence(IArcPt/pt, IArcPt/seq_rel, IArcPt/ord); }
+	unit<uint32> IOrg: nrofrows = 1 { attribute<ipoint> pt: [xy(0, 0)]; }
+	container int_info := connect_info(IArc/geometry, IOrg/pt);
+
+	unit<uint32> RevPt: nrofrows = 2 { attribute<fpoint> pt: [xy(5, 1), xy(5, -1)]; }
+	unit<uint32> RevArcPt: nrofrows = 2
+	{
+		attribute<fpoint> pt: [xy(0, 0), xy(10, 0)];
+		attribute<RevArc> seq_rel := const(0, ., RevArc);
+		attribute<uint32> ord     := id(.);
+	}
+	unit<uint32> RevArc: nrofrows = 1 { attribute<fpoint> geometry (arc) := points2sequence(RevArcPt/pt, RevArcPt/seq_rel, RevArcPt/ord); }
+	container rev_info := connect_info(RevPt/pt, RevArc/geometry);
+
+	container checks
+	{
+		parameter<bool> pt_tie     := IsDefined(pt_rel[0]), IntegrityCheck = "pt_tie == true";
+		parameter<bool> nb_tie     := IsDefined(nb_rel[0]) && nb_rel[0] != 0[Nb] && all(nb_rel == 0[Nb] || id(Nb) == 0[Nb]), IntegrityCheck = "nb_tie == true";
+		parameter<bool> arc_tie    := IsDefined(arc_info/arc_rel[0]) && abs(float64(arc_info/dist[0]) - 1.0) < 0.001, IntegrityCheck = "arc_tie == true";
+		parameter<bool> int_nearer := int_info/arc_rel[0] == 0[IArc] && abs(float64(int_info/dist[0]) - 3.0) < 0.001, IntegrityCheck = "int_nearer == true";
+		parameter<bool> rev_tie    := IsDefined(rev_info/point_rel[0]) && abs(float64(rev_info/dist[0]) - 1.0) < 0.001, IntegrityCheck = "rev_tie == true";
+	}
+}

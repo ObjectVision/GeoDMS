@@ -261,6 +261,12 @@ public:
 					Float64     sqrtNorm = sqrt(Float64(norm));
 					dms_assert(sqrtNorm >= 0);
 
+					// Per side the wall of the highest rc, and of equal rc the nearest one, whose location is then unique. The
+					// buildings come in the order the spatial index visits them, which follows from how the index was built
+					// (#1289), so an equal rc must not be left to the first one found.
+					bool    hasR = false, hasL = false;
+					Float64 distR = 0, distL = 0; // scaledDist of the wall that gave *ri2 and *ri4
+
 					for (auto iter = spIndex.begin(Inflate(*pointPtr, PointType(maxDist, maxDist))); iter; ++iter)
 					{
 						typename Arg6Type::const_iterator buildingPtr = (*iter)->get_ptr();
@@ -310,20 +316,22 @@ public:
 									goto nextBuildingPoint;
 								CoordType rc = hoogteDiff / scaledDist;
 								dms_assert(rc >= 0);
-								if (dist >  0) 
+								if (dist >  0)
 								{
-									if (rc >  *ri2)
+									if (rc >  *ri2 || (hasR && rc == *ri2 && scaledDist < distR))
 									{
 										*ri2 = rc;
 										*ri1 = *pointPtr - complexmul(diagVec, shp2dms_order<scalar_type>(dist / norm, 0));
+										hasR = true; distR = scaledDist;
 									}
 								}
 								else
 								{
-									if (rc >  *ri4)
+									if (rc >  *ri4 || (hasL && rc == *ri4 && scaledDist < distL))
 									{
 										*ri4 = rc;
 										*ri3= *pointPtr - complexmul(diagVec, shp2dms_order<scalar_type>(dist / norm, 0.0));
+										hasL = true; distL = scaledDist;
 									}
 								}
 							}

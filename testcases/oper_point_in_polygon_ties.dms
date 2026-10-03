@@ -1,0 +1,54 @@
+// point_in_ranked_polygon chooses among the polygons that contain a point by a rule over that set, not by the order in
+// which the spatial index visits them (#1289): the highest rank, of equal ranks the lowest index, and it skips a polygon
+// whose rank is null. That order follows from how the index is built; the split threshold of #1289 changed it, and with
+// it the t010 result for a point in 14 identical polygons of one rank. point_in_polygon keeps the first polygon it finds:
+// of overlapping polygons one of them, unspecified which, and where a point lies in one polygon only, that one, as the
+// ranked operator with a constant rank gives. 40 polygons, so that the index splits; 3 and 5 are large, so the index
+// keeps them in a node near the root, which a query visits after the nodes below it.
+//   0..9   unit squares far away, rank 1, except 3: [-50, 15] x [-50, 15], rank null, and 5: [-30, 12] x [-30, 12], rank 3
+//   10..29 twenty identical squares [0, 10] x [0, 10], rank 2, except 12, 17, 23 and 28: rank 3
+//   30..39 unit squares from (20, 20) on, rank 1
+// Points: (5, 5) lies in 3, 5 and 10..29; (-40, -40) only in 3; (500, 500) in none; (20.5, 20.5) only in 30.
+// Expected: exit 0 on /checks.
+container oper_point_in_polygon_ties
+{
+	unit<dpoint> crd;
+
+	unit<uint32> P: nrofrows = 40
+	{
+		attribute<float64> x0: [200, 300, 400, -50, 600, -30, 800, 900, 1000, 1100, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38];
+		attribute<float64> y0: [200, 200, 200, -50, 200, -30, 200, 200, 200, 200, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20];
+		attribute<float64> sz: [1, 1, 1, 65, 1, 42, 1, 1, 1, 1, 10,10,10,10,10,10,10,10,10,10, 10,10,10,10,10,10,10,10,10,10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+		attribute<float32> rank: [1, 1, 1, null, 1, 3, 1, 1, 1, 1, 2,2,3,2,2,2,2,3,2,2, 2,2,2,3,2,2,2,2,3,2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+		attribute<uint32>  rank_u := uint32(rank);
+		attribute<crd>     geometry (polygon) := points2polygon(Corner/pt, Corner/s, Corner/o);
+	}
+	unit<uint32> Corner := range(uint32, 0, 5 * #P)
+	{
+		attribute<P>       s  := value(id(.) / 5, P);
+		attribute<uint32>  o  := id(.) % 5;
+		attribute<float64> dx := o == 1 || o == 2 ? P/sz[s] : 0.0;
+		attribute<float64> dy := o == 2 || o == 3 ? P/sz[s] : 0.0;
+		attribute<crd>     pt := point_xy(P/x0[s] + dx, P/y0[s] + dy, crd);
+	}
+	unit<uint32> Q: nrofrows = 4
+	{
+		attribute<crd> pt:        [xy(5, 5), xy(-40, -40), xy(500, 500), xy(20.5, 20.5)];
+		attribute<P>   lowest_ok: [3, 3, null, 30];
+		attribute<P>   ranked_ok: [5, null, null, 30];
+	}
+
+	attribute<P> pip       (Q) := point_in_polygon(Q/pt, P/geometry);
+	attribute<P> ranked    (Q) := point_in_ranked_polygon(Q/pt, P/geometry, P/rank);
+	attribute<P> ranked_u  (Q) := point_in_ranked_polygon(Q/pt, P/geometry, P/rank_u);
+	attribute<P> ranked_c  (Q) := point_in_ranked_polygon(Q/pt, P/geometry, const(0f, P));
+
+	container checks
+	{
+		parameter<uint32> pip0 := uint32(pip[0]);
+		parameter<bool> pip_contains       := (pip0 == 3 || pip0 == 5 || (pip0 >= 10 && pip0 < 30)) && pip[1] == 3[P] && IsNull(pip[2]) && pip[3] == 30[P], IntegrityCheck = "pip_contains == true";
+		parameter<bool> ranked_tie_lowest  := all(eq_or_both_null(ranked,   Q/ranked_ok)), IntegrityCheck = "ranked_tie_lowest == true";
+		parameter<bool> ranked_uint32      := all(eq_or_both_null(ranked_u, Q/ranked_ok)), IntegrityCheck = "ranked_uint32 == true";
+		parameter<bool> constant_rank      := all(eq_or_both_null(ranked_c, Q/lowest_ok)), IntegrityCheck = "constant_rank == true";
+	}
+}

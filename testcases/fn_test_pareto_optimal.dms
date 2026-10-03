@@ -94,6 +94,54 @@ container fn_test_pareto_optimal
 		attribute<bool> covered := any(pairs/covers, pairs/second_rel);
 	}
 
+	// ---- #1287: bool criteria, minimised (false before true), without an epsilon in pareto_optimal_eps,
+	// whose arguments are read by type. Four options in one group: (price, needsCar, needsBike)
+	unit<uint32> T7 : nrofrows = 4
+	{
+		attribute<G>       g_rel     : [0, 0, 0, 0];
+		attribute<float64> price     : [1, 2, 3, 4];
+		attribute<bool>    needsCar  : [true, false, false, true];
+		attribute<bool>    needsBike : [false, true, false, false];
+
+		// row 0 is the cheapest and needs a car, row 1 the cheapest without one; 2 and 3 are dominated by 1
+		attribute<bool> po      := pareto_optimal(g_rel, price, needsCar);
+		attribute<bool> poe     := pareto_optimal_eps(g_rel, price, 0.0, needsCar);
+		attribute<bool> poe_bf  := pareto_optimal_eps(g_rel, needsCar, price, 0.0);
+		attribute<bool> exp     : [true, true, false, false];
+		// price in buckets of 5: all four count as equal on price, the cheapest without a car survives
+		attribute<bool> poe5    := pareto_optimal_eps(g_rel, price, 5.0, needsCar);
+		attribute<bool> exp5    : [false, true, false, false];
+		// true is better: not(needsCar); row 0 is then the best on both
+		attribute<bool> po_not  := pareto_optimal(g_rel, price, not(needsCar));
+		attribute<bool> exp_not : [true, false, false, false];
+		// three criteria, the sweep against the front: row 2 needs neither, row 3 is dominated by row 0
+		attribute<bool> po3     := pareto_optimal(g_rel, price, needsCar, needsBike);
+		attribute<bool> poe3    := pareto_optimal_eps(g_rel, price, 0.0, needsCar, needsBike);
+		attribute<bool> exp3    : [true, true, true, false];
+		// bool criteria only: three arguments are two bool criteria, two arguments one
+		attribute<bool> po_bb   := pareto_optimal(g_rel, needsCar, needsBike);
+		attribute<bool> poe_bb  := pareto_optimal_eps(g_rel, needsCar, needsBike);
+		attribute<bool> exp_bb  : [false, false, true, false];
+		attribute<bool> po_b    := pareto_optimal(g_rel, needsCar);
+		attribute<bool> poe_b   := pareto_optimal_eps(g_rel, needsCar);
+		attribute<bool> exp_b   : [false, true, false, false];
+	}
+
+	// on the generated table: bool criteria between numeric ones give what their uint8 values with
+	// epsilon 0 give, the workaround before #1287; and a uint4 criterion, which passed the check of a
+	// numeric criterion but had no reader before #1287, gives what its uint32 values give
+	unit<uint32> T3bool := T3
+	{
+		attribute<bool> b1      := mod(T3/i * 31, 3) == 0;
+		attribute<bool> b2      := mod(T3/i * 17, 5) < 2;
+		attribute<bool> po      := pareto_optimal(T3/p_rel, T3/c1, b1, T3/c2, b2);
+		attribute<bool> po_ref  := pareto_optimal(T3/p_rel, T3/c1, uint8(b1), T3/c2, uint8(b2));
+		attribute<bool> poe     := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, b1, T3/c2, 2.0, b2);
+		attribute<bool> poe_ref := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, uint8(b1), 0.0, T3/c2, 2.0, uint8(b2), 0.0);
+		attribute<bool> po_u4   := pareto_optimal(T3/p_rel, T3/c1, T3/c2, uint4(T3/c3));
+		attribute<bool> poe_u4  := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, T3/c2, 2.0, uint4(T3/c3), 2.0);
+	}
+
 	// ---- #1286: several chunks of rows, radix passes and blocks of groups. 200,000 rows in 20,000
 	// groups of ten, a uint64 partition in no particular order whose spread takes five radix passes,
 	// some rows without a partition or with a null criterion, against the self-join formulation
@@ -112,6 +160,9 @@ container fn_test_pareto_optimal
 		attribute<bool> po2     := pareto_optimal(p64, c1, c2);
 		attribute<bool> po_zero := pareto_optimal_eps(p64, c1, 0.0, c2, 0.0, c3, 0.0);
 		attribute<bool> po_eps  := pareto_optimal_eps(p64, c1, 0.0, c2, 2.0, c3, 2.0);
+		// #1287: a bool criterion read in chunks of rows, against its uint8 values
+		attribute<bool> po_b    := pareto_optimal(p64, c1, c2, c3 > 3);
+		attribute<bool> po_bref := pareto_optimal(p64, c1, c2, uint8(c3 > 3));
 
 		unit<uint32> pairs := join_equal_values_uint32(p_rel, p_rel)
 		{
@@ -178,10 +229,29 @@ container fn_test_pareto_optimal
 		attribute<bool>    poea  := pareto_optimal_eps(pa, c1a, 0.0, c2a, 2.0, c3a, 0.0);
 		attribute<bool>    expa  := ja < 200;
 		attribute<bool>    expea := ja < 200 && c1a % 2 == 0;
+		// #1287: c3a != 0 as a bool criterion, read per tile; the rows off the front have it true
+		attribute<bool>    pob   := pareto_optimal(pa, c1a, c2a, c3a != 0);
+		attribute<bool>    poeb  := pareto_optimal_eps(pa, c1a, 0.0, c2a, 2.0, c3a != 0);
 	}
 
 	container checks
 	{
+		parameter<uint32> c_t7      := sum(uint32(T7/po != T7/exp) + uint32(T7/poe != T7/exp) + uint32(T7/poe_bf != T7/exp)), IntegrityCheck = "c_t7 == 0";
+		parameter<uint32> c_t7_eps  := sum(uint32(T7/poe5 != T7/exp5)),                                                     IntegrityCheck = "c_t7_eps == 0";
+		parameter<uint32> c_t7_not  := sum(uint32(T7/po_not != T7/exp_not)),                                                IntegrityCheck = "c_t7_not == 0";
+		parameter<uint32> c_t7_3    := sum(uint32(T7/po3 != T7/exp3) + uint32(T7/poe3 != T7/exp3)),                          IntegrityCheck = "c_t7_3 == 0";
+		parameter<uint32> c_t7_bb   := sum(uint32(T7/po_bb != T7/exp_bb) + uint32(T7/poe_bb != T7/exp_bb)),                  IntegrityCheck = "c_t7_bb == 0";
+		parameter<uint32> c_t7_b    := sum(uint32(T7/po_b != T7/exp_b) + uint32(T7/poe_b != T7/exp_b)),                      IntegrityCheck = "c_t7_b == 0";
+
+		parameter<uint32> c_t3b_bool := sum(uint32(T3bool/po != T3bool/po_ref)),   IntegrityCheck = "c_t3b_bool == 0";
+		parameter<uint32> c_t3b_beps := sum(uint32(T3bool/poe != T3bool/poe_ref)), IntegrityCheck = "c_t3b_beps == 0";
+		parameter<uint32> c_t3b_bsom := sum(uint32(T3bool/po)),                    IntegrityCheck = "c_t3b_bsom > 40 && c_t3b_bsom < 3000";
+		parameter<uint32> c_t3_u4    := sum(uint32(T3bool/po_u4 != T3/po)),        IntegrityCheck = "c_t3_u4 == 0";
+		parameter<uint32> c_t3_u4e   := sum(uint32(T3bool/poe_u4 != T3e/po_eps)),  IntegrityCheck = "c_t3_u4e == 0";
+		parameter<uint32> c_t4_bool  := sum(uint32(T4/po_b != T4/po_bref)),        IntegrityCheck = "c_t4_bool == 0";
+		parameter<uint32> c_t6_ba    := sum(uint32(T6/pob != T6/expa)),            IntegrityCheck = "c_t6_ba == 0";
+		parameter<uint32> c_t6_bea   := sum(uint32(T6/poeb != T6/expea)),          IntegrityCheck = "c_t6_bea == 0";
+
 		parameter<uint32> c_t4_diff3  := sum(uint32(T4/po3 != T4/ref3)),                           IntegrityCheck = "c_t4_diff3 == 0";
 		parameter<uint32> c_t4_diff2  := sum(uint32(T4/po2 != T4/ref2)),                           IntegrityCheck = "c_t4_diff2 == 0";
 		parameter<uint32> c_t4_zero   := sum(uint32(T4/po_zero != T4/po3)),                        IntegrityCheck = "c_t4_zero == 0";

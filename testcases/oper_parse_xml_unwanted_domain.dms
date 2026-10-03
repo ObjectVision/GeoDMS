@@ -1,0 +1,44 @@
+// Regression for the Debug assertion item->HasInterest() in IsDataReady (rtc/dll/src/tic/ItemLocks.cpp)
+// that parse_xml hit since the CLC-A16 fix of doc/code-audit-2026-09-27.md. StoreAttrValues padded each
+// attribute with null up to the count of its domain unit, read with GetCount(). The members of the
+// parse result carry no interest of their own, only its cache root does, so an attribute whose domain
+// unit no consumer asks for made GetCount wait for, and IsDataReady assert on, a unit nobody held. It
+// stopped the Debug run of the tst operator suite at File/parse_xml every time. The count now comes
+// from the array that the write lock allocated for the attribute.
+//
+// The checks read r/b only; nothing asks for r/b/c, the domain of z. A Release build passes this case
+// before and after the fix; a Debug build before the fix exits 3.
+// Expected: exit 0 on /checks.
+container oper_parse_xml_unwanted_domain
+{
+	unit<uint32> Doc : nrofrows = 1
+	{
+		attribute<string> xml : ['<r><b x="1"><c z="p"/><c/></b><b x="2"/><b/></r>'];
+	}
+
+	template scheme
+	{
+		unit<uint32> r
+		{
+			unit<uint32> b
+			{
+				attribute<uint32> x;
+				unit<uint32> c
+				{
+					attribute<string> z;
+				}
+			}
+		}
+	}
+
+	container parsed := parse_xml(Doc/xml, scheme);
+
+	container checks
+	{
+		unit<uint32> b := parsed/r/b;
+		attribute<uint32> x (b) := parsed/r/b/x;
+
+		parameter<bool> count_ok := #b == 3, IntegrityCheck = "count_ok == true";
+		parameter<bool> x_ok     := x[0] == 1 && x[1] == 2 && IsNull(x[2]), IntegrityCheck = "x_ok == true";
+	}
+}

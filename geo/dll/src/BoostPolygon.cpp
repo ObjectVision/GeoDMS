@@ -2376,20 +2376,18 @@ public:
 		auto rects_beyond = end_ptr(rects);
 		auto spatialIndex = SpatialIndexType(rects_begin, rects_beyond);
 		
-		// counting
+		// counting. A touching query: float boxes that share only an edge or a corner are connected too, and so are integer
+		// boxes, which are half-open, that are adjacent. The default query of the index yields a box only when it has an
+		// interior in common with the query box, so such pairs were never reported, and a grid of unit squares had no pairs.
 		SizeT nrEdges = 0;
 		for (const auto& rect : rects)
 		{
 			SizeT index = &rect - begin_ptr(rects);
-			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
+			for (auto iter = spatialIndex.begin_touching(rect); iter; ++iter)
 			{
-				auto currRectPtr = (*iter)->get_ptr();
-				if (IsTouching(*currRectPtr, rect))
-				{
-					SizeT index2 = currRectPtr - rects_begin;
-					if (index < index2)
-						++nrEdges;
-				}
+				SizeT index2 = (*iter)->get_ptr() - rects_begin;
+				if (index < index2)
+					++nrEdges;
 			}
 		}
 		res->SetCount(ThrowingConvert<ResultingDomainType>(nrEdges));
@@ -2399,24 +2397,27 @@ public:
 		IndexAssigner32 indexAssigner1(resF1, resF1Lock.get(), no_tile, 0, nrEdges);
 		IndexAssigner32 indexAssigner2(resF2, resF2Lock.get(), no_tile, 0, nrEdges);
 		
+		// The edges of one box in the order of index2: the spatial index yields the boxes that touch it in an order that
+		// follows from how the index was built (#1289), which must not become the order of the result.
 		SizeT e = 0;
+		std::vector<SizeT> neighbours;
 		for (const auto& rect : rects)
 		{
 			SizeT index = &rect - begin_ptr(rects);
-			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
+			neighbours.clear();
+			for (auto iter = spatialIndex.begin_touching(rect); iter; ++iter)
 			{
-				auto currRectPtr = (*iter)->get_ptr();
-				if (IsTouching(*currRectPtr, rect))
-				{
-					SizeT index2 = currRectPtr - rects_begin;
-					if (index < index2)
-					{
-						assert(e < nrEdges);
-						indexAssigner1.m_Indices[e] = index;
-						indexAssigner2.m_Indices[e] = index2;
-						++e;
-					}
-				}
+				SizeT index2 = (*iter)->get_ptr() - rects_begin;
+				if (index < index2)
+					neighbours.emplace_back(index2);
+			}
+			std::sort(neighbours.begin(), neighbours.end());
+			for (SizeT index2 : neighbours)
+			{
+				assert(e < nrEdges);
+				indexAssigner1.m_Indices[e] = index;
+				indexAssigner2.m_Indices[e] = index2;
+				++e;
 			}
 		}
 		indexAssigner1.Store();

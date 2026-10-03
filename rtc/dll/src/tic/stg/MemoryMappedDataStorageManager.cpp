@@ -14,7 +14,7 @@
 #include <map>
 
 #include "act/ActorVisitor.h"      // #1264: MakeDerivedBoolVisitor over the rule's named suppliers
-#include "act/SupplierVisitFlag.h" // #1264: SupplierVisitFlag::NamedSuppliers
+#include "act/SupplierVisitFlag.h" // #1264, #1288: SupplierVisitFlag::NamedSuppliers, ImplSuppliers
 #include "act/TriggerOperator.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
@@ -194,6 +194,14 @@ auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedS
 //
 // This saves DISK, not compute: an item in interest is still calculated, its array simply is not
 // mapped into the store (DataWriteLock's MMD arm skips the write-through on TSF_MmdRuleOnly).
+//
+// #1288: "inside" means HELD by the store, and every identifier counts, wherever the rule names it.
+// 20.20.0 asked only whether a supplier was below the holder, and only of the suppliers that
+// substitution registers. That kept `v := org_rel -> v` below a select_with_org_rel holder as a
+// rule twice over: its org_rel is below the holder but not in the store, and the v it reads is
+// Src/v, which substitution never registered. The write succeeded, and the reader failed on
+// org_rel. The copied columns of select_with_attr_by_org_rel and select_with_attr_by_cond were kept
+// as rules in the same way.
 //////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -216,6 +224,22 @@ namespace {
 				return true;
 		}
 		return false;
+	}
+
+	// #1288: an item below the holder is in the store only when the dictionary declares it, as data
+	// or as a rule. The dump leaves out an item with DisableStorage, with its subtree, and DoWriteTree
+	// refuses one that a configuration declared (#1245), so what remains are the engine's own shadows
+	// of the sub-items of the holder's result (TSF_MergedFromRefItem, which also disables storage):
+	// the org_rel of a select_with_org_rel holder is one. A reader cannot resolve a name of such a
+	// shadow, because its holder has no rule that could produce it.
+	bool Mmd_StoreHolds(const TreeItem* storageHolder, const TreeItem* ti)
+	{
+		if (!storageHolder->DoesContain(ti))
+			return false;
+		for (; ti != storageHolder; ti = ti->GetTreeParent().get())
+			if (ti->IsDisabledStorage() || ti->IsMergedFromRefItem())
+				return false;
+		return true;
 	}
 
 } // anonymous namespace
@@ -246,25 +270,37 @@ bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item
 	auto calc = item->GetCalculator();
 	if (!calc || calc->IsDataBlock() || calc->IsStorageRead())
 		return false; // literal data, or an engine-installed read (#587): neither is a rule to re-apply
+	if (calc->IsDcPtr())
+		return false; // #1288: an assigned key, not a configured rule; its supplier walk visits nothing
 
-	if (Mmd_RuleHasAbsolutePath(calcRulePropDefPtr->GetRawValue(item)))
+	auto ruleText = calcRulePropDefPtr->GetRawValue(item);
+	if (ruleText.empty() || Mmd_RuleHasAbsolutePath(ruleText))
 		return false;
 
-	// every identifier the rule names must be inside this store, so the reader can resolve it
+	// every identifier the rule names must be held by this store, so the reader can resolve it
 	bool allInside = true;
 	auto visitor = MakeDerivedBoolVisitor(
 		[storageHolder, &allInside](const Actor* a) -> ActorVisitState
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (!ti || !storageHolder->DoesContain(ti))
+			if (!ti || !Mmd_StoreHolds(storageHolder, ti))
 			{
 				allInside = false;
 				return AVS_SuspendedOrFailed; // stop the walk; one outsider settles it
 			}
 			return AVS_Ready;
 		});
-	calc->VisitSuppliers(SupplierVisitFlag::NamedSuppliers, visitor);
-	return allInside;
+	if (calc->VisitSuppliers(SupplierVisitFlag::NamedSuppliers, visitor) != AVS_Ready || !allInside)
+		return false;
+
+	// #1288: the named suppliers are only what substitution registered, and it registers nothing
+	// that is named to the right of an arrow or inside scope(..): both are substituted in a buffer of
+	// their own, in another search context. So the rule is walked again, the way the IntegrityChecked
+	// visit of Actor::UpdateMetaInfo walks it, which goes into both and visits every item a name
+	// resolves to, and the parts of its path. A walk that does not finish has not seen everything,
+	// and disqualifies as well: materialising is always correct, merely larger.
+	auto substitutionWalk = SupplierVisitFlag(unsigned(SupplierVisitFlag::NamedSuppliers) | unsigned(SupplierVisitFlag::ImplSuppliers));
+	return calc->VisitSuppliers(substitutionWalk, visitor) == AVS_Ready && allInside;
 }
 
 //////////////////////////////////////////////////////////////////////

@@ -167,12 +167,19 @@ Rules per tier:
   from disk. Every launcher goes through `batch\run_unit_suite.bat`, which puts the `tst`
   batch folder on `PATH` (so `NoDefaultCurrentDirectoryInExePath` no longer skips the nested
   `unit.bat` call), exits 1 when no new aggregate appeared and 2 when the new aggregate lists
-  `FAILED`; the launcher prints which of the two it was and exits 1 for either. The verdict is
-  the aggregate `C:\LocalData\GeoDMSTestResults\unit\v<selector>.<flavour>_<stamp>.txt`
-  (`vR64.off_`, `vGR64.g_`, `v20.19.1.g_`): it lists only failures plus two `python ... OK`
-  lines and one `shipped examples\testcases battery OK` line (the battery run from the
-  build under test), so a file of about 240 bytes is all green; grep the per-test files
-  under `unit\` for `FAILED|Error`. `TestReleaseUnit.bat` and `TestGlobioReleaseUnit.bat`
+  a failing test, a line with `FAILED` or `not OK` in it; the launcher prints which of the
+  two it was and exits 1 for either. The verdict is the aggregate
+  `C:\LocalData\GeoDMSTestResults\unit\v<selector>.<flavour>_<stamp>.txt` (`vR64.off_`,
+  `vGR64.g_`, `v20.19.1.g_`): it lists only failures, plus two `python ... OK` lines and one
+  `shipped examples\testcases battery OK` line (the battery run from the build under test).
+  A configuration's own test log words a failure as `... result: not OK`, and until
+  2026-10-03 tst's `Instance.bat` copied that line into the aggregate without a `FAILED`
+  line, which the gate then keyed on alone: the D64 round of 2026-10-03 07:30, four
+  operator groups failing, exited 0, as did nine earlier aggregates since June. Both sides
+  are fixed (the runner adds `FAILED`, the gate takes `not OK` too), but read the lines,
+  not the exit code or the file size, before calling a round green. A per-test `.txt` under
+  `unit\` is that test's log: empty is a pass, any text is a failure.
+  `TestReleaseUnit.bat` and `TestGlobioReleaseUnit.bat`
   also run `batch\TestShippedContent.bat`: first `TestShippedDms.bat`, the offline gate
   over every shipped `.dms` (the same one the setup scripts run before NSIS), then
   `grid_to_polygon.dms` over real data, which downloads and rasterises; `[W] GEOS fix

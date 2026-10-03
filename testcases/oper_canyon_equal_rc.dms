@@ -1,0 +1,46 @@
+// canyon: of the walls with the highest height-over-distance (rc) on one side, RLoc and LLoc are the location of the
+// nearest one (#1289). They were the location of the first such wall in the order the spatial index yields the
+// buildings, which follows from how the index was built. A point looks along a street from (0,-10) to (0,10) at two
+// buildings on one side: wall x = 5 of building 0 is 10 higher, wall x = 10 of building 1 is 20 higher, so both have
+// rc 2. The index visits building 1 first. Expected: exit 0 on /checks.
+container oper_canyon_equal_rc
+{
+	unit<fpoint> Crd;
+
+	unit<uint32> Segment: nrofrows = 1
+	{
+		attribute<Crd> sb := const(point_xy(0f, -10f, Crd), Segment);
+		attribute<Crd> se := const(point_xy(0f,  10f, Crd), Segment);
+	}
+	unit<uint32> CalcPoint: nrofrows = 1
+	{
+		attribute<Crd>     loc := const(point_xy(0f, 0f, Crd), CalcPoint);
+		attribute<int16>   h: [0];
+		attribute<Segment> seg: [0];
+	}
+	unit<uint32> BuildingPoint: nrofrows = 10
+	{
+		attribute<float32>  x: [5, 7, 7, 5, 5, 10, 12, 12, 10, 10];
+		attribute<float32>  y: [-1, -1, 1, 1, -1, -1, -1, 1, 1, -1];
+		attribute<Crd>      point := point_xy(x, y, Crd);
+		attribute<Building> seq: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
+		attribute<uint32>   ord: [0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
+	}
+	unit<uint32> Building: nrofrows = 2
+	{
+		attribute<Crd>   geometry (arc) := points2sequence(BuildingPoint/point, BuildingPoint/seq, BuildingPoint/ord);
+		attribute<int16> h: [10, 20];
+	}
+	parameter<int16>   minHeight := value(0, int16);
+	parameter<float32> maxDist   := 100f;
+
+	container result := canyon(CalcPoint/loc, CalcPoint/h, CalcPoint/seg, Segment/sb, Segment/se, Building/geometry, Building/h, minHeight, maxDist);
+
+	container checks
+	{
+		parameter<float32> rc  := max_elem(result/RRC[0], result/LRC[0]);
+		parameter<Crd>     loc := result/RRC[0] > 0f ? result/RLoc[0] : result/LLoc[0];
+		parameter<bool>    rc2     := abs(rc - 2f) < 0.001f, IntegrityCheck = "rc2 == true";
+		parameter<bool>    nearest := abs(PointCol(loc) - 5f) < 0.001f && abs(PointRow(loc)) < 0.001f, IntegrityCheck = "nearest == true";
+	}
+}

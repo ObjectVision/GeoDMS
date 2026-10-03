@@ -1,0 +1,27 @@
+// box_connectivity orders its pairs on (F1, F2) (#1289). For each box it took the boxes that touch it in the order the
+// spatial index yields them, which follows from how the index was built, so F2 within one F1 came in that order (with
+// a split threshold of 16 and fewer than 16 boxes in the order opposite to their index). Box 0 is [0, 100] x [0, 1] and
+// box k is [k, k + 1.5] x [0, 1], so every box overlaps box 0 and box k overlaps box k + 1, by an area, not an edge:
+// 19 + 18 = 37 pairs. Their number does not depend on the index; their order did. Expected: exit 0 on /checks.
+container oper_box_connectivity_order
+{
+	unit<uint32> Box: nrofrows = 20
+	{
+		attribute<float64> x0 := float64(id(.));
+		attribute<dpoint>  lb := point_xy(x0, const(0.0, .), dpoint);
+		attribute<dpoint>  ub := point_xy(id(.) == 0 ? const(100.0, .) : x0 + 1.5, const(1.0, .), dpoint);
+	}
+	unit<uint32> Pair := box_connectivity(Box/lb, Box/ub);
+
+	unit<uint32> Expected: nrofrows = 37
+	{
+		attribute<Box> F1: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
+		attribute<Box> F2: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19, 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+	}
+
+	container checks
+	{
+		parameter<bool> count   := #Pair == #Expected, IntegrityCheck = "count == true";
+		parameter<bool> ordered := all(Pair/F1 == union_data(Pair, Expected/F1) && Pair/F2 == union_data(Pair, Expected/F2)), IntegrityCheck = "ordered == true";
+	}
+}

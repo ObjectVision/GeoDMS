@@ -1,0 +1,67 @@
+// Stored attributes whose rule names something that the MMD store does not hold (issue #1288).
+// Since #1264 a store keeps an attribute whose rule names only items inside the store as that rule,
+// with no data file, and the reader re-applies it. GeoDMS 20.20.0 asked of each name only whether
+// it lay below the storage holder, and only of the names that substitution registers. Two kinds of
+// name slipped through, and the store was written without complaint but could not be read:
+//
+//  - the org_rel of a select_with_org_rel holder. It is below the holder, but it is the engine's
+//    shadow of a sub-item of the holder's result, which the dictionary does not declare; the reader
+//    failed with "Unknown identifier 'org_rel'".
+//  - a name to the right of an arrow, which resolves in the values unit of the left operand, and a
+//    name inside scope(..). Neither was registered: in `org_rel -> v` the v is Src/v, and the copied
+//    columns of select_with_attr_by_cond read `collect_by_cond(., scope(.., Src/sel), scope(.., Src/v))`.
+//
+// Since GeoDMS 20.22.1 all of these are materialised. The rules that name only what the store holds
+// stay rules: tab/x, dom/rel_in, dom/w_in (an arrow into a values unit inside the store) and dom/twice.
+// stor_mmd_rule_orgrel_2_read.dms reads the stores back with a Src that has no v and no sel, so a
+// rule that still named Src/v fails there, and checks which attributes have a data file.
+//
+// This config only WRITES the stores. THE TWO BELONG TOGETHER AND RUN IN THIS ORDER:
+// run_testcases.ps1 walks the configs sorted by file name.
+container stor_mmd_rule_orgrel_1_write
+{
+	unit<uint32> Src : nrofrows = 6
+	{
+		attribute<uint64> v   := uint64(id(.)) * 10[uint64] + 7[uint64]; // 7 17 27 37 47 57
+		attribute<bool>   sel := id(.) % 2 == 0;                          // rows 0, 2 and 4
+	}
+
+	container store
+	{
+		// names the org_rel of its holder, and through the arrow Src/v: materialised
+		unit<uint32> arrow := select_with_org_rel(Src/sel), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_rule_orgrel_arrow.mmd"
+		{
+			attribute<uint64> v := org_rel -> v;
+		}
+
+		// names org_rel and nothing else: materialised
+		unit<uint32> orgrel := select_with_org_rel(Src/sel), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_rule_orgrel_only.mmd"
+		{
+			attribute<uint32> i := uint32(org_rel);
+		}
+
+		// no rule written by hand: the copied columns are collect_by_org_rel(org_rel, scope(.., Src/v)): materialised
+		unit<uint32> by_org_rel := select_with_attr_by_org_rel(Src, Src/sel), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_rule_orgrel_copied.mmd";
+
+		// the copied columns name the holder itself, and Src only inside scope(..): materialised
+		unit<uint32> by_cond := select_with_attr_by_cond(Src, Src/sel), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_rule_orgrel_cond.mmd";
+
+		container lookups : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_rule_orgrel_lookups.mmd"
+		{
+			unit<uint32> tab : nrofrows = 3
+			{
+				attribute<uint64> x := uint64(id(.)) + 100[uint64]; // names tab only: rule
+			}
+			unit<uint32> dom : nrofrows = 4
+			{
+				attribute<Src>    rel_out := id(.)[Src];       // names Src: materialised
+				attribute<tab>    rel_in  := (id(.) % 3)[tab]; // names tab only: rule
+				attribute<uint64> w_out   := rel_out -> v;     // v is Src/v: materialised
+				attribute<uint64> w_in    := rel_in -> x;      // x is tab/x, inside: rule
+				attribute<uint64> twice   := w_in * 2[uint64]; // names w_in only: rule
+			}
+		}
+	}
+
+	parameter<string> write := 'Ready', ExplicitSuppliers = "store/arrow;store/orgrel;store/by_org_rel;store/by_cond;store/lookups";
+}

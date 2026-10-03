@@ -1,0 +1,70 @@
+// A point on a boundary lies in one polygon of a tiling, the one it lies in under the rule [min, max) per axis, and a point on
+// the upper x or y edge of a polygon is outside it. The spatial index of the point operators tests a point against a polygon's
+// bounding box half-open in the same way, so it never yields a polygon for a point on the upper edge of its box; this case
+// keeps the two rules in agreement, as the audit of the index after #1290 found them (#1291).
+//   T: a 3 x 3 tiling of unit squares, queried at every multiple of 0.5 in [0, 3]^2: 36 points in [0, 3)^2 lie in exactly
+//      one square, the 13 on x == 3 or y == 3 in none.
+//   I: polygons with an island far away, so that the bounding box reaches beyond the ring and the index yields the polygon
+//      for a point on the right or top edge of the ring: then the point-in-polygon test decides alone, and says outside.
+// Expected: exit 0 on /checks.
+container oper_point_in_polygon_tiling
+{
+	unit<dpoint> crd;
+
+	unit<uint32> T: nrofrows = 9
+	{
+		attribute<float64> x0 := float64(id(.) % 3);
+		attribute<float64> y0 := float64(id(.) / 3);
+		attribute<crd>     geometry (polygon) := points2polygon(Corner/pt, Corner/s, Corner/o);
+	}
+	unit<uint32> Corner := range(uint32, 0, 5 * #T)
+	{
+		attribute<T>       s  := value(id(.) / 5, T);
+		attribute<uint32>  o  := id(.) % 5;
+		attribute<float64> dx := o == 1 || o == 2 ? 1.0 : 0.0;
+		attribute<float64> dy := o == 2 || o == 3 ? 1.0 : 0.0;
+		attribute<crd>     pt := point_xy(T/x0[s] + dx, T/y0[s] + dy, crd);
+	}
+	unit<uint32> Q: nrofrows = 49
+	{
+		attribute<float64> x  := float64(id(.) % 7) * 0.5;
+		attribute<float64> y  := float64(id(.) / 7) * 0.5;
+		attribute<crd>     pt := point_xy(x, y, crd);
+		attribute<bool>    onUpperOuterEdge := x == 3.0 || y == 3.0;
+		attribute<T>       expected := onUpperOuterEdge ? null_u[T] : value(uint32(y) * 3 + uint32(x), T);
+		attribute<T>       pip      := point_in_polygon(pt, T/geometry);
+		attribute<T>       ranked   := point_in_ranked_polygon(pt, T/geometry, const(1f, T));
+		attribute<uint32>  nrAll    := pcount(QT/first_rel);
+	}
+	unit<uint32> QT := point_in_all_polygons(Q/pt, T/geometry);
+
+	// polygon 0: ring [100,101] x [0,1] plus an island [105,106] x [5,6], joined through (100,0) and (105,5)
+	// polygon 1: diamond (200,1) (201,2) (202,1) (201,0) plus an island [210,211] x [10,11]
+	unit<uint32> I: nrofrows = 2;
+	unit<uint32> IPt: nrofrows = 22
+	{
+		attribute<float64> x: [100,100,101,101,100, 105,105,106,106,105, 100,   200,201,202,201,200, 210,210,211,211,210, 200];
+		attribute<float64> y: [  0,  1,  1,  0,  0,   5,  6,  6,  5,  5,   0,     1,  2,  1,  0,  1,  10, 11, 11, 10, 10,   1];
+		attribute<crd>     pt := point_xy(x, y, crd);
+		attribute<I>       s  := value(id(.) / 11, I);
+		attribute<uint32>  o  := id(.) % 11;
+	}
+	attribute<crd> IGeometry (I, polygon) := points2polygon(IPt/pt, IPt/s, IPt/o);
+	// the ring's right edge, top edge, top-right corner, left edge, bottom edge and interior; the diamond's right, top and left vertex
+	unit<uint32> IQ: nrofrows = 9
+	{
+		attribute<float64> x: [101, 100.5, 101, 100, 100.5, 100.5, 202, 201, 200];
+		attribute<float64> y: [0.5, 1,     1,   0.5,  0,    0.5,     1,   2,   1];
+		attribute<crd>     pt       := point_xy(x, y, crd);
+		attribute<I>       expected: [null, null, null, 0, 0, 0, null, null, 1];
+		attribute<I>       pip      := point_in_polygon(pt, IGeometry);
+	}
+
+	container checks
+	{
+		parameter<bool> tiling_pip    := all(eq_or_both_null(Q/pip, Q/expected)), IntegrityCheck = "tiling_pip == true";
+		parameter<bool> tiling_ranked := all(eq_or_both_null(Q/ranked, Q/expected)), IntegrityCheck = "tiling_ranked == true";
+		parameter<bool> tiling_all    := all(Q/nrAll == (Q/onUpperOuterEdge ? 0 : 1)) && #QT == 36, IntegrityCheck = "tiling_all == true";
+		parameter<bool> island        := all(eq_or_both_null(IQ/pip, IQ/expected)), IntegrityCheck = "island == true";
+	}
+}

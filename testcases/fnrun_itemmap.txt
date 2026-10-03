@@ -67,6 +67,7 @@ stor_shp_multipoint_1_write.dms /export
 stor_bmp_1_write.dms /export
 stor_mmd_alias_1_write.dms /store
 stor_mmd_rule_1_write.dms /store
+stor_mmd_rule_orgrel_1_write.dms /write
 stor_mmd_props_1_write.dms /store
 stor_mmd_icheck_neg.dms /store
 stor_mmd_group_1_write.dms /store
