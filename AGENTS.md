@@ -81,6 +81,17 @@ hand. That happened on 2026-09-20: the bounded check deferral of #1259 and the 2
 written in a cloud session that could neither build, run `full.py`, nor push, and were delivered
 as `git am` patches. Every recipe in this file and in `.claude/skills/` assumes the local tree.
 
+## No worktrees: never start one, never propose to offload work to one
+
+Edits, builds and tests happen in the main checkout. Do not create a git worktree of this
+repository, and do not propose to move work into one either: no suggestion to spin a finding off
+into a separate session or background task, which starts that work in a fresh worktree, an
+unprovisioned copy without `vcpkg_installed` and away from the `bin\` that the tests and the
+user's own workflow run from (the `geodms-build` skill says what a build there costs). When
+something outside the current task turns up, a defect, a slowdown, a stale page, offer to file it
+as a GitHub issue instead (the `geodms-issues` skill), and file it once the user agrees. When a
+session is nevertheless started in a worktree, it carries on in the main checkout.
+
 ## Skills: the operational recipes live in `.claude/skills/`
 
 This file holds the policy; the recipes that apply it on this machine are skills, one folder
