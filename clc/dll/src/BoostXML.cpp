@@ -278,7 +278,10 @@ void StoreAttrValues(AbstrDataItem* adi, Container& c)
 	// An entity in which the attribute does not occur gets null wherever it lies. Attribute::AddValue pads
 	// the ones before an occurrence with undefined; the ones after the last occurrence, and all of them
 	// when the attribute never occurs, are padded here, where the write_only_mustzero lock left them 0.
-	for (SizeT n = adi->GetAbstrDomainUnit()->GetCount(); i < n; ++i)
+	// The count is that of the array the lock allocated for the domain, not the domain's GetCount(): the
+	// domain is a member of this result, which carries no interest of its own when no consumer asks for
+	// it, and GetCount() waits for its range on this worker, where IsDataReady asserts that interest.
+	for (SizeT n = lock->GetNrFeaturesNow(); i < n; ++i)
 		lock->SetNull(i);
 	lock.Commit();
 }
