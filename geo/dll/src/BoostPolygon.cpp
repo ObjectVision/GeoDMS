@@ -2399,10 +2399,14 @@ public:
 		IndexAssigner32 indexAssigner1(resF1, resF1Lock.get(), no_tile, 0, nrEdges);
 		IndexAssigner32 indexAssigner2(resF2, resF2Lock.get(), no_tile, 0, nrEdges);
 		
+		// The edges of one box in the order of index2: the spatial index yields the boxes that touch it in an order that
+		// follows from how the index was built (#1289), which must not become the order of the result.
 		SizeT e = 0;
+		std::vector<SizeT> neighbours;
 		for (const auto& rect : rects)
 		{
 			SizeT index = &rect - begin_ptr(rects);
+			neighbours.clear();
 			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
 			{
 				auto currRectPtr = (*iter)->get_ptr();
@@ -2410,13 +2414,16 @@ public:
 				{
 					SizeT index2 = currRectPtr - rects_begin;
 					if (index < index2)
-					{
-						assert(e < nrEdges);
-						indexAssigner1.m_Indices[e] = index;
-						indexAssigner2.m_Indices[e] = index2;
-						++e;
-					}
+						neighbours.emplace_back(index2);
 				}
+			}
+			std::sort(neighbours.begin(), neighbours.end());
+			for (SizeT index2 : neighbours)
+			{
+				assert(e < nrEdges);
+				indexAssigner1.m_Indices[e] = index;
+				indexAssigner2.m_Indices[e] = index2;
+				++e;
 			}
 		}
 		indexAssigner1.Store();
