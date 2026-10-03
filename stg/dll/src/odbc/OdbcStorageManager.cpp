@@ -243,7 +243,37 @@ struct OdbcTableContextHandle : public ContextHandle
 /*****************************************************************************/
 //							DATABASE CONDFIGURATION CREATE/UPDATE FUNCTIONS
 /*****************************************************************************/
+// s_OdbcSection serializes the use of the driver and of the manager's database and recordsets. It is a global
+// section, so nothing that creates, resolves or fails a tree item may run under it: those take per-item locks,
+// which are outer to every global one. The tree is therefore built in two steps: what the driver says is read
+// under the section (ReadColumnDescrs, ReadTableDescrs), and the items are created and checked after leaving it.
 leveled_critical_section s_OdbcSection(item_level_type(0), ord_level_type::Storage, "Odbc");
+
+// A column of a recordset as the driver describes it.
+struct OdbcColumnDescr
+{
+	SharedStr         m_Name;
+	const ValueClass* m_ValuesClass; // nullptr for a column type that has no equivalent
+};
+
+std::vector<OdbcColumnDescr> ReadColumnDescrs(const ODBCStorageManager* self, const TreeItem* storageHolder, TreeItem* tiRecordSet, SharedStr sqlString)
+{
+	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
+	leveled_critical_section::scoped_lock lock(s_OdbcSection);
+
+	TRecordSet* recordSet = self->GetRecordSet(storageHolder, tiRecordSet, sqlString);
+	dms_assert(recordSet);
+
+	recordSet->UnbindAllInternal();
+	recordSet->SetMaxRows(1); // limit work
+
+	TRecordSetOpenLock rsLock(recordSet);
+
+	std::vector<OdbcColumnDescr> result;
+	for (const auto& column: recordSet->Columns())
+		result.push_back({ SharedStr(column.Name()), CType2ValueClass(column.CType()) });
+	return result;
+}
 
 void CreateAllColumnInfo(
 	const ODBCStorageManager* self, 
@@ -257,21 +287,13 @@ void CreateAllColumnInfo(
 
 		OdbcTableContextHandle och(tiRecordSet);
 
-		TRecordSet* recordSet = self->GetRecordSet(storageHolder, tiRecordSet, GetOrCreateSqlString(tiRecordSet));
-		dms_assert(recordSet);
+		// the SqlString may be indirect, and evaluating it is not driver work: it is taken before the section
+		auto columns = ReadColumnDescrs(self, storageHolder, tiRecordSet, GetOrCreateSqlString(tiRecordSet));
 
-		recordSet->UnbindAllInternal();
-		recordSet->SetMaxRows(1); // limit work
-
-		TRecordSetOpenLock rsLock(recordSet);
-
-		for (auto columnIter= recordSet->Columns().begin(), columnEnd = recordSet->Columns().end(); columnIter != columnEnd; ++columnIter)
-			CreateTreeItemColumnInfo(
-				tiRecordSet, 
-				columnIter->Name(),
-				domainUnit,
-				CType2ValueClass(columnIter->CType())
-			);
+		// after the section: checking a configured column resolves its values unit, which can create a default
+		// unit, and a column that is not configured yet is created
+		for (const auto& column: columns)
+			CreateTreeItemColumnInfo(tiRecordSet, column.m_Name.c_str(), domainUnit, column.m_ValuesClass);
 	}
 	catch (...)
 	{
@@ -314,14 +336,21 @@ void CreateDatabaseTableColumnInfo(const ODBCStorageManager* self, const TreeIte
 }
 
 
-void CreateDatabaseTableInfo(const ODBCStorageManager* self, const TreeItem* storageHolder, SyncMode syncMode)
+// A table of the database as the driver lists it, with its type ("TABLE", "VIEW", ...).
+struct OdbcTableDescr
 {
-	assert(syncMode != SyncMode::None);
-	MG_CHECK(storageHolder);
+	SharedStr m_Name, m_TypeName;
+};
 
+std::vector<OdbcTableDescr> ReadTableDescrs(const ODBCStorageManager* self, const TreeItem* storageHolder)
+{
+	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
+	leveled_critical_section::scoped_lock lock(s_OdbcSection);
+
+	std::vector<OdbcTableDescr> result;
 	TDatabase* database = self->OpenDatabaseInstance(storageHolder);
 	if (! database)
-		return;
+		return result;
 
 	TRecordSet tableInfo(database);
 
@@ -333,13 +362,21 @@ void CreateDatabaseTableInfo(const ODBCStorageManager* self, const TreeItem* sto
 	while (! tableInfo.EndOfFile())
 	{
 		if (strcmp(tableInfo.Columns()[3].AsString(), "SYSTEM TABLE") != 0)
-		{
-			CharPtr tableName = tableInfo.Columns()[2].AsString();
-			if (syncMode == SyncMode::AllTables || const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GetTokenID_mt(tableName)))
-				CreateDatabaseTableColumnInfo(self, storageHolder, tableName, tableInfo.Columns()[3].AsString());
-		}
+			result.push_back({ SharedStr(tableInfo.Columns()[2].AsString()), SharedStr(tableInfo.Columns()[3].AsString()) });
 		tableInfo.Next();
 	}
+	return result;
+}
+
+void CreateDatabaseTableInfo(const ODBCStorageManager* self, const TreeItem* storageHolder, SyncMode syncMode)
+{
+	assert(syncMode != SyncMode::None);
+	MG_CHECK(storageHolder);
+
+	// the table list is read, and its recordset closed, before a table item is looked up or created
+	for (const auto& table: ReadTableDescrs(self, storageHolder))
+		if (syncMode == SyncMode::AllTables || const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GetTokenID_mt(table.m_Name.c_str())))
+			CreateDatabaseTableColumnInfo(self, storageHolder, table.m_Name.c_str(), table.m_TypeName.c_str());
 }
 
 // *****************************************************************************
@@ -762,23 +799,27 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 
 bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
-	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
-	leveled_critical_section::scoped_lock lock(s_OdbcSection);
-	UInt32 count = const_cast<ODBCStorageManager*>(this)->GetRecordSet(smi.StorageHolder(), const_cast<TreeItem*>(smi.CurrRI().get()), debug_cast<const OdbcMetaInfo*>(&smi)->m_SqlString)->RecordCount(); // keyed by the configured table (#587)
-	smi.CurrWU()->SetCount(count);
+	UInt32 count;
+	{
+		DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
+		leveled_critical_section::scoped_lock lock(s_OdbcSection);
+		count = const_cast<ODBCStorageManager*>(this)->GetRecordSet(smi.StorageHolder(), const_cast<TreeItem*>(smi.CurrRI().get()), debug_cast<const OdbcMetaInfo*>(&smi)->m_SqlString)->RecordCount(); // keyed by the configured table (#587)
+	}
+	smi.CurrWU()->SetCount(count); // after the section: setting a range is tree work, not driver work
 	return true;
 }
 
 void ODBCStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
+	// No section and no ceiling here: this function creates, checks and fails table and column items, so per-item
+	// locks are its outermost acquires, and a function that fails an item stays undeclared (doc/deadlocks.md,
+	// section 3.7 rule 7; P19). s_OdbcSection is taken around the driver calls only (ReadColumnDescrs, ReadTableDescrs).
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(sm != SyncMode::None);
 
 	dms_assert(storageHolder);
 
-	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	CreateQueryColumnInfo(this, storageHolder, curr);
 
 	if (storageHolder == curr)

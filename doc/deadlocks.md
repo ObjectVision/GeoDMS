@@ -375,7 +375,8 @@ narrows that, and is checked on entry against what the caller holds. The rules t
    made under an inner lock while the real acquire never happens there — P12's shape, one level
    up. Also left: the operator bodies in clc/geo (`CreateResult` and friends), which are the
    unconstrained context the checker is *for*, and the storage managers' `DoUpdateTree` /
-   `ReadDataItem` overrides outside odbc, which the battery does not reach.
+   `ReadDataItem` overrides outside odbc, which the battery does not reach. Odbc's `DoUpdateTree`
+   joined them in P19: it creates and fails items.
 8. **Run the static pass** (`tools/check-lock-ceilings.ps1`, §3.9) before the Debug build: it
    checks every call from a declared function to a declared function against the same rules
    in one second, and `analyze.bat` runs it beside the lock-across-sink check.
@@ -843,6 +844,36 @@ default → virtual `GetValue` → the override selected by the dynamic type, an
 of unrelated definitions (ambiguous, skipped by design, §3.9). Resolving that is the runtime's job,
 which is why the XML round-trip battery is back in the two Debug launchers: it is the check for
 this class, and it found five instances on its first run.
+
+### P19 — `ODBCStorageManager::DoUpdateTree` held `s_OdbcSection` over the creation of column items — **FIXED (2026-10-03)**
+
+Found by the first Debug run that read through ODBC: `stor_odbc_dbf` (added in `aec1214ab`) exited 3
+in both Debug batteries of the 2026-10-02 round, the in-repo one and the shipped copy that
+`TestDebugUnit` runs, with `held Odbc [ord 65, item 0, exclusive] → requested ITEM(ItemRegister,
+exclusive) at TreeItem.cpp:1520`. `DoUpdateTree` took `s_OdbcSection` (`Storage`, 65, a global
+section) around all of `CreateQueryColumnInfo` and `CreateDatabaseTableInfo`, and those do more than
+ask the driver: `CreateTreeItemColumnInfo` resolves the values unit of each configured column, and
+`attribute<int32>` resolves to the default int32 unit, which is created on first asking
+(`UnitClass::CreateDefault → CreateTmpUnit → SetKeepDataState`); a column or table that is not
+configured is created as an item, a type mismatch fails the column and a driver error fails the
+table (`DoFailCaller`). A global held while per-item locks are taken: P11's shape, and rule 2 of §3.7
+says why the order refuses it. The section dates from the original import; the ceiling
+`DMS_ENTERS(Storage, exclusive)` on `DoUpdateTree` came with the first wave (`2052ee75`), which
+declared the direct acquirer by what it takes itself. No Debug run had read through ODBC before the
+case existed, and Release, with the checker compiled out, passed. Whether a second thread can close
+a cycle on this edge was not analysed.
+
+*Fixed:* the tree is built in two steps. `ReadColumnDescrs` and `ReadTableDescrs` take the section
+around the driver calls only and return copies of what the driver said (column names and value
+classes; table names and types); the items are looked up, checked, created and failed after the
+section is released, and the SqlString, which may be indirect and is then evaluated, is taken before
+it. The table list's recordset is closed before the first table's columns are asked for.
+`ReadUnitRange` sets the unit's count after leaving the section. `DoUpdateTree` lost its ceiling and
+carries none, like the other storage managers' overrides: it fails items, which keeps a function
+undeclared (§3.7 rule 7). The two readers carry `DMS_ENTERS(Storage, exclusive)`, truthfully.
+`ReadDataItem` keeps the section over its read, which fills the cache member's data object; the case
+reads every one of its columns through it in Debug without a refusal. Debug battery 448/448 with no
+refusal in any output, Release 448/448.
 
 ## 5. Verified non-findings
 
