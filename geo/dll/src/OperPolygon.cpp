@@ -1412,6 +1412,11 @@ void point_in_polygon(
 	using spatial_iterator_type = typename SpatialIndexType::template iterator<PointType>;
 	spatial_iterator_type iter;
 
+	// The first polygon found that contains the point. For a point in one polygon that is the polygon; of several that
+	// overlap, which one is unspecified: the spatial index yields them in an order that follows from how it was built,
+	// which changed with its split threshold (#1289). point_in_ranked_polygon chooses among them by a rule. Taking the
+	// lowest index instead would end no query at its first hit, and a query that runs to its end also scans the objects
+	// that straddle the centre lines of every node above the point: 7 times the time for non-overlapping polygons.
 	for (SizeT i = 0; i != count; ++i)
 	{
 		auto pi = pb + i;
@@ -1734,32 +1739,40 @@ void point_in_ranked_polygon(
 
 	using RankType = typename RankArray::value_type;
 
+	const SizeT notFound = polyData.size();
 	for (SizeT i = 0; i != count; ++i)
 	{
 		auto pi = pb + i;
 		auto ri = rb + i;
-		auto foundRank = UNDEFINED_VALUE(RankType);
 
+		// Of the polygons that contain the point, the one with the highest rank, and of equal ranks the one with the lowest
+		// index; a polygon whose rank is null does not count. Ties went to the first polygon the spatial index visits, an
+		// order that follows from how the index was built and changed with its split threshold (#1289). A candidate that
+		// cannot beat the one found needs no IsInside test.
+		SizeT found = notFound;
+		RankType foundRank = UNDEFINED_VALUE(RankType);
 		if (IsDefined(*pi) && IsIntersecting(spIndexPtr->GetBoundingBox(), *pi))
 		{
 			for (iter = spIndexPtr->begin(*pi); iter; ++iter)
+			{
+				SizeT c = (*iter)->get_ptr() - polyb;
+				assert(c < Cardinality(polyDomain));
+				RankType thisRank = rankData[c];
+				if (!IsDefined(thisRank))
+					continue;
+				if (found != notFound && !(thisRank > foundRank || (thisRank == foundRank && c < found)))
+					continue;
 				if (IsInside(*((*iter)->get_ptr()), *pi))
 				{
-					SizeT c = (*iter)->get_ptr() - polyb;
-					assert(c < Cardinality(polyDomain));
-					RankType thisRank = rankData[c];
-					if (!IsDefined(foundRank) || thisRank > foundRank)
-					{
-						*ri = Range_GetValue_naked(polyDomain, c);
-						foundRank = thisRank;
-					}
-//					goto nextI;
+					found = c;
+					foundRank = thisRank;
 				}
+			}
 		}
-		if (isFirstPolyTile && !IsDefined(foundRank)) // don't overwrite earlier found polygon-ids
+		if (found != notFound)
+			*ri = Range_GetValue_naked(polyDomain, found);
+		else if (isFirstPolyTile) // don't overwrite earlier found polygon-ids
 			*ri = UNDEFINED_OR_ZERO(ResValueType);
-//	nextI:
-		;
 	}
 }
 
