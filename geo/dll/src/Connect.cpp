@@ -504,45 +504,40 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 //									IndexedArcProjectionHandle
 // *****************************************************************************
 
+// For ONE point, the nearest of the indexed arcs that pass the filter, and of equally near ones the one with the lowest
+// index: the spatial index yields its candidates in an order that follows from how it was built (#1289), so neither a
+// tie nor the search box may depend on which arc came first. Each arc is measured by a handle of its own, bounded by the
+// best distance so far, which accepts an arc at exactly that distance, as IndexedPointProjectionHandle does for points;
+// a handle shared by the arcs accepted only a strictly nearer one once it had found any. The search box is grown by
+// InflatedSearchBox from SqrtBet of the bound, so that it still holds an arc at exactly that distance; Inflate by the
+// plain distance, truncated for integer coordinates, could leave out a nearer arc than the one found first.
 template <typename R, typename T, typename ResObjectPtr>
 struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 {
-	template <typename SpatialIndexType>
-	IndexedArcProjectionHandle(const Point<T>* p, const SpatialIndexType& spIndex, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
-		: ArcProjectionHandleWithDist<R, T>(p, spIndex.template GetSqrProximityUpperBound<R>(*p, 0xFFFFFFFF, optionalMaxSqrDistPtr), isPossiblyMultiPolygon)
-	{
-		assert(spIndex.size());		
-		for (auto iter = spIndex.begin(Inflate(*p, Point<T>(this->m_Dist, this->m_Dist))); iter; ++iter)
-		{
-			ResObjectPtr streetPtr = (*iter)->get_ptr();
-			if (Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
-			{
-				this->m_ArcPtr = streetPtr;
-				iter.RefineSearch( Inflate(*p, Point<T>(this->m_Dist, this->m_Dist)) );
-			}
-		}
-
-		assert(!this->m_ArcPtr.is_null() || !this->m_FoundAny);
-	}
-
 	template <typename SpatialIndexType, typename Filter>
 	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
 	{
+		const Range<Point<T>> pointBox(p, p);
 		UInt32 maxDepth = 0xFFFFFFFF;
 		while (true) {
-	
-			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.template GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr), isPossiblyMultiPolygon);
+
+			R sqrBound = spIndex.template GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr);
+			ArcProjectionHandleWithDist<R, T> aph(p, sqrBound, isPossiblyMultiPolygon);
 			assert(!aph.m_FoundAny);
-			for (auto iter = spIndex.begin(Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
+			for (auto iter = spIndex.begin(InflatedSearchBox<T>(pointBox, SqrtBet(sqrBound))); iter; ++iter)
 			{
 				ResObjectPtr streetPtr = (*iter)->get_ptr();
 				if (!filter(streetPtr))
 					continue;
-				if (aph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
-				{
-					this->m_ArcPtr = streetPtr;
-					iter.RefineSearch( Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist)) );
-				}
+				ArcProjectionHandle<R, T> arcAph(p, aph.m_FoundAny ? aph.m_MinSqrDist : sqrBound, isPossiblyMultiPolygon);
+				if (!arcAph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
+					continue;
+				if (aph.m_FoundAny && !(arcAph.m_MinSqrDist < aph.m_MinSqrDist || (arcAph.m_MinSqrDist == aph.m_MinSqrDist && streetPtr < this->m_ArcPtr)))
+					continue;
+				static_cast<ArcProjectionHandle<R, T>&>(aph) = arcAph;
+				aph.m_Dist = sqrt(aph.m_MinSqrDist); // as ArcProjectionHandleWithDist::Project2Arc sets it
+				this->m_ArcPtr = streetPtr;
+				iter.RefineSearch(InflatedSearchBox<T>(pointBox, SqrtBet(aph.m_MinSqrDist)));
 			}
 			if (aph.m_FoundAny || !maxDepth)
 			{
@@ -622,8 +617,12 @@ struct IndexedPointProjectionHandle
 					ArcProjectionHandleWithDist<R, T> aph(*pointPtr, m_FoundAny ? m_MinSqrDist : sqrBound, isPossiblyMultiPolygon);
 					if (!aph.Project2Arc(arcBegin, arcEnd))
 						continue;
-					if (m_FoundAny && !(aph.m_MinSqrDist < m_MinSqrDist))
-						continue; // a tie keeps the point with the lowest index, as connect does
+					// a tie goes to the point with the lowest index, as in IndexedArcProjectionHandle and the matrix operators;
+					// it went to the first point the spatial index yielded (#1289). aph was bounded by m_MinSqrDist, so a
+					// point at exactly that distance gets here.
+					SizeT pointIndex = pointPtr - pointBegin;
+					if (m_FoundAny && !(aph.m_MinSqrDist < m_MinSqrDist || (aph.m_MinSqrDist == m_MinSqrDist && pointIndex < m_PointIndex)))
+						continue;
 					m_FoundAny   = true;
 					m_InArc      = aph.m_InArc;
 					m_InSegm     = aph.m_InSegm;
@@ -631,7 +630,7 @@ struct IndexedPointProjectionHandle
 					m_CutPoint   = aph.m_CutPoint;
 					m_MinSqrDist = aph.m_MinSqrDist;
 					m_Dist       = aph.m_Dist;
-					m_PointIndex = pointPtr - pointBegin;
+					m_PointIndex = pointIndex;
 					// monotone in the distance, which only drops, so the refinement is
 					// always included in what the iterator still holds
 					iter.RefineSearch(InflatedSearchBox<T>(arcBox, SqrtBet(m_MinSqrDist)));

@@ -125,10 +125,20 @@ struct neighbour_iter
 	}
 
 private:
+	// The leaves come out by distance, and of equal distances by object, which is the order of the objects' index in their
+	// array: the spatial index holds them in an order that follows from how it was built (#1289), and heapElemType compares
+	// the distance only, so equally near leaves came out in the order in which they were pushed.
+	static bool LeafLess(const LeafRec& a, const LeafRec& b) // a comes out after b
+	{
+		if (a.Imp() != b.Imp())
+			return a.Imp() > b.Imp();
+		return b.Value() < a.Value();
+	}
+
 	void PopLeaf()
 	{
 		dms_assert(IsNormal());
-		std::pop_heap(m_LeafHeap.begin(), m_LeafHeap.end());
+		std::pop_heap(m_LeafHeap.begin(), m_LeafHeap.end(), LeafLess);
 		m_LeafHeap.pop_back();
 		ReFit();
 	}
@@ -144,7 +154,9 @@ private:
 			return false;
 		if (m_NodeHeap.empty())
 			return true;
-		return m_LeafHeap[0].Imp() <= m_NodeHeap[0].Imp();
+		// strictly nearer than every node not yet opened: a node at the same distance can hold a leaf at that distance
+		// with a lower index, which LeafLess must see before the leaf on top comes out
+		return m_LeafHeap[0].Imp() < m_NodeHeap[0].Imp();
 	}
 	void ReFit()
 	{
@@ -164,7 +176,7 @@ private:
 	{
 		SqrDistType sqrDist = MinDist(m_Center, leafPtr->GetExtents());
 		m_LeafHeap.push_back(LeafRec(leafPtr->get_ptr(), sqrDist));
-		std::push_heap(m_LeafHeap.begin(), m_LeafHeap.end());
+		std::push_heap(m_LeafHeap.begin(), m_LeafHeap.end(), LeafLess);
 	}
 	void PopNode()
 	{
