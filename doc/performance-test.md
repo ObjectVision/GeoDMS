@@ -1212,6 +1212,137 @@ t405.1 1.1 GB more and 1.8 GB less commit at the same PeakLiveLarge; every other
   above measured (t641.2 +6 %, t710 +9 s); t405.2 and t405.3 are back to 18:46 and 18:42, the round above
   having been the slow sitting.
 
+## Results (OVSRV05), 20.22.1 at `15651313f`: ties by the lowest index (#1290)
+
+Run from 2026-10-03 23:42 to 2026-10-04 03:02 on OVSRV05, threshold 60 as above, 3:16:53, full.py exit 0. Tree
+`C:\dev\GeoDMS` on `main` at `15651313f`: the round above (`1315b0357`) with 17 commits of `origin/main`
+merged in, among them the #1290 tie rules, `f6d34a69a` (`point_in_ranked_polygon` takes the highest rank and,
+of equal ranks, the lowest index), `9d23831a8` (`connect`, `connect_neighbour` and `connect_info` take, of
+equally near arcs, the lowest index, and search a box that still holds an arc at exactly the best distance),
+`1a340596e` (`canyon`), `b854591e6` and `11ff62902` (`box_connectivity`); further `35f7fd470` (the readiness
+assertions of `OperationContext::Join`, Debug only), `2d3f05496` (`parse_xml`), `182bc1b80` (#1288, MMD),
+`e04ad20f0` (#1287, `pareto_optimal`) and `1155a678e` (ODBC). GeoDMS-Test at `1b8aa71`. Built with the VS18
+msbuild, 23:36:13 to 23:41:47, exit 0, which relinked Rtc, Stg, Stx, Clc, Geo, Shv and both executables;
+`testcases\run_testcases.bat` 455 cases, 0 bad (the 443 above and the 12 cases of the merge). Kept as
+`C:\LocalData\GeoDMS_engine\head_15651313f`. The column of the round above went to
+`_Archive\20_22_1_m_1315b0357_20261002`, its intermediates to `C:\LocalData\runs\_aside_20_22_1_m_1315b0357_20261002`;
+full.py ran 32 experiments with no reuse.
+
+Running on the machine, from five-minute samples: the Chrome Remote Desktop host 1 707 s of CPU over the
+round (about 15 % of a core), Explorer 145 s, the Claude desktop app 137 s, two idle VS18 windows.
+
+### Wall time, the span between the first and the last timestamp of the GeoDMS log
+
+| test | `15651313f` (03-10) | `1315b0357` (02-10) | `fd30ef780` (01-10) | 20.22.0.m | against `1315b0357` |
+|---|---|---|---|---|---|
+| t020 | 0:04:03 | 0:04:12 | 0:05:03 | 0:04:02 | 0.96 |
+| t060 | 0:02:03 | 0:02:07 | 0:01:47 | 0:02:22 | 0.97 |
+| t101 | 0:03:29 | 0:03:34 | 0:03:50 | 0:03:31 | 0.98 |
+| t200 | 0:00:38 | 0:00:38 | 0:00:40 | 0:00:38 | 1.00 |
+| t300 | 0:01:56 | 0:01:58 | 0:01:09 | 0:01:55 | 0.98 |
+| t301 | 0:02:36 | 0:02:43 | 0:02:48 | 0:02:38 | 0.96 |
+| t405.1 | 0:04:20 | 0:04:27 | 0:04:44 | 0:04:31 | 0.97 |
+| t405.2 | 0:18:25 | 0:18:46 | 0:20:47 | 0:19:07 | 0.98 |
+| t405.3 | 0:18:37 | 0:18:42 | 0:20:36 | 0:18:39 | 1.00 |
+| t410 | 0:03:59 | 0:04:03 | 0:05:34 | 0:04:56 | 0.98 |
+| t611 | 0:00:31 | 0:00:31 | 0:00:34 | 0:00:31 | 1.00 |
+| t641.1 | 0:52:16 | 0:52:49 | 0:53:08 | 0:51:32 | 0.99 |
+| t641.2 | 0:46:26 | 0:46:06 | 0:44:25 | 0:43:25 | 1.01 |
+| t710 | 0:01:06 | 0:01:11 | 0:01:08 | 0:01:02 | 0.93 |
+| t720 | 0:09:37 | 0:09:30 | 0:10:12 | failed, #1285 | 1.01 |
+| t810 | 0:05:09 | 0:05:02 | 0:05:14 | 0:05:02 | 1.02 |
+| t910 | 0:00:51 | 0:00:50 | 0:00:53 | 0:00:50 | 1.02 |
+| t2000 | 0:19:36 | 0:17:58 | 0:19:36 | 0:16:52 | 1.09 |
+
+Summed over the 32 logs: 197.2 min, against 196.8 for `1315b0357`, 203.7 for `fd30ef780` and 183.6 for
+20.22.0.m (of which t720, failing early, 0.4). t100 and t102, the connect-only tests, take 4 and 6 s as before.
+
+Memory against `1315b0357`, Highest CommitCharge / PeakLiveLarge in MB: t2000 66 765 / 77 313 against
+80 796 / 77 250; t405.2 and t405.3 29 728 and 28 606 / 31 383 against 48 922 and 47 771 / 31 383, the commit
+peak that moved between 29.5 and 48.9 GB on one build before; t641.1 145 029 / 136 920 against 140 145 /
+136 920; t641.2 176 362 / 168 907 against 170 038 / 168 907; t720 25 210 / 20 361 against 21 261 / 19 754;
+t910 4 461 / 4 786 against 3 202 / 4 785; every other test within 1 GB on both figures.
+
+### Five red rows follow the new rule, four still follow the tree
+
+The report of the round gave 18 of 27 `ok`, the same nine red rows as the round above. To tell a result
+of the new rule from one of the tree, `15651313f` was built a second time with `MinObjectsToSplit = 4` in
+`geo/dll/src/geom/SpatialIndex.h` (16:24 to 16:30 on 04-10, kept as
+`C:\LocalData\GeoDMS_engine\knob4_15651313f`; the source restored and rebuilt after), and the nine
+experiments rerun on it with `run_exp.py` from 16:33 to 18:54, the t641 chain included. Its timings are not
+comparable: probes of this section ran beside it.
+
+| test | `fd30ef780` (4) | `1315b0357` (16) | `15651313f` at 16, the round | `15651313f` at 4 |
+|---|---|---|---|---|
+| t010 `point_in_ranked_polygon` of vbo 1 | 3 | 14 | 1 | 1 |
+| t100 connect points | 6 639 850 | 6 639 852 | 6 639 869 | 6 639 869 |
+| t102 OD cells | 7 812 324 | 7 812 314 | 7 812 248 | 7 812 248 |
+| t101 cells that differ from the 2018 reference | 0 | 8 180 | 8 180 | 8 180 |
+| t910 Transport Accessibility difference | −1 051 036 480 | −1 050 769 728 | −1 051 017 024 | −1 051 017 024 |
+| t301 panden that differ from the reference | 0 | 16 048 | 16 048 | 0 |
+| t060 gpkg against the reference | same | differs | differs | same |
+| t2000 hWP_asl StartJaar, R5_2025 | 50 003, 93 069 | 49 997, 92 671 | 49 997, 92 671 | 50 003, 93 069 |
+| t641.2 2050 Woningen, Banen | 9 590 219, 9 893 365 | 9 590 281, 9 893 214 | 9 590 281, 9 893 214 | 9 590 219, 9 893 365 |
+
+The first five rows give one value at 4 and at 16: `connect` and `point_in_ranked_polygon` no longer depend
+on the tree. Where `connect` changed, a dump of `connect_info` per point (a probe that includes `stam.dms` of
+the regression and writes `arc_rel`, `dist`, `InArc`, `InSegm` and `SegmID` per location) on `fd30ef780`,
+`1315b0357` and `15651313f` shows what changed:
+
+- PC6, 458 108 points, `fd30ef780` to `15651313f`: 707 points on another arc at the same distance, every one
+  of them on the arc with the lower index; 16 on an arc 0.1 to 28 mm nearer, which the old search box,
+  `Inflate` by the distance in float32 at RD coordinates where a float32 step is 1.5 to 3 cm, had left out;
+  none on a farther arc. `connect` writes 2 points for a cut inside a segment and 1 for a cut at a vertex, none
+  at an arc's end: ten of the 16 went from an arc's end to inside a segment and one from a vertex, +21 points,
+  and the ties net −2, which is the +19 of t100. `fd30ef780` to `1315b0357`, by contrast: 237 ties moved, 117
+  to a lower index and 120 to a higher one, 3 points to a nearer arc and 1 to a farther one.
+- PC4, 4 066 points: 14 ties, all to the lower index. Only one of them splits an arc: point 3496 lies 3.98 m
+  from arcs 296241 and 264333, inside a segment of each, and now splits 264333, as the visiting order at 16
+  already did. That one other network is the 8 180 cells of t101; the other 13 cut at the same point on
+  either arc, an end both arcs share, and `1315b0357` gives the matrix of `15651313f` cell for cell.
+- t010: vbo 1 lies in pands 1 to 14, identical polygons with one rank, 0.00178042368. 4 gave 3, 16 gave 14,
+  the rule gives 1, in all four tilings.
+
+The last four rows give the reference at 4 and the values of the round at 16. All four go through
+`point_in_polygon`, which returns the first polygon found that contains the point and stays so by design (the
+comment at the kernel in `OperPolygon.cpp`; the 20.22.1 release notes: which of several polygons it gives is
+unspecified). In t060 the difference is `vbo/pand_id_geom` of 3 331 of the 731 571 verblijfsobjecten, which
+lie in more than one pand, and the per-pand counts and `woningtype` that follow from it; the gpkg of 4 is
+equivalent to the reference by the harness's own comparison. t301, t2000 and t641.2 were classified by the
+threshold only, not traced to an item.
+
+GeoDMS-Test `f7891d5` (not pushed) moves the five: a 20.22.1 epoch in `references.json` for t100, t102 and
+t910; for t101 a store `TestReferenceFiles\t101\PC4_impedance_v20221.fss` recorded from `15651313f`, chosen by
+`GeoDMSVersion()` (it exists on OVSRV05 only; every machine that runs the round needs a copy); for t010 the
+expectation `[0,1,18,15]` from 20.22.1 on, and a `rank_constant` that tests something: its `test_attr` read
+`all(test)`, which resolved to the parent's `test`. Both branches were run, the new on `15651313f` at 4 and 16,
+the old on 20.21.0.m, 20.8.0.m, 18.1.2 and 17.4.6. t010 and t101 were then rerun inside the round
+(`full.py -resume -tests`, 18:55 to 19:00 on 04-10, 0:00:08 and 0:03:29 as in the round), which regenerated
+the report: 23 of 27 `ok`, red t060, t301, t2000 and t641.2.
+
+GeoDMS-Test `f6fe770` (not pushed) gives those four a 20.22.1 reference as well, by decision, and says at
+each that it records the order of the tree: an epoch in `references.json` for t2000 and t641.2;
+`TestReferenceFiles\t301\type_woonpand_rel_ok_v20221.fss` for t301 (0 panden differ on `15651313f` against it,
+and 0 on 20.21.0.m against the old store); `TestReferenceFiles\t060\snapshot_Utrecht_20210701_v20221.gpkg`,
+the gpkg of the round, chosen by `full.py` for 20.22.1 and later. The two stores exist on OVSRV05 only, like
+the t101 store. t060 and t301 were rerun inside the round (00:11 to 00:18 on 05-10), which regenerated the
+report: 27 of 27 `ok`; the older columns keep their verdicts.
+
+### Reading
+
+- No performance effect: 197.2 min against 196.8, every test within the drift between sittings. t2000's
+  +1:38 is inside the 16:52 to 19:36 that this machine has measured for it (`fd30ef780` 19:36 as well, the
+  A/B above 17:55 to 19:16 for one binary); an interleaved A/B of `head_1315b0357` and `head_15651313f` would
+  settle it. t410 keeps the #1289 gain, 3:59, and the per-arc handle and the wider search box of `connect`
+  do not show in t100, t101, t102 or t410.
+- `connect` was not only order-dependent but also missed the nearest arc: 16 of the 458 108 PC6 points, by up
+  to 28 mm, at any threshold. Its results now follow from the arcs alone.
+- The four rows that stayed red are `point_in_polygon`'s free choice among overlapping polygons, which the
+  references recorded as the visiting order of a tree that split at 4. Their 20.22.1 references record that
+  of a tree that splits at 16: the release changes these model outputs, by up to 0.66 % (t2000's hWP_asl
+  R2_2022), and the next change to the index may move them again without any change to a model. Such a
+  difference in t060, t301, t2000 or t641.2 is first a question of the visiting order.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
