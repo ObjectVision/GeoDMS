@@ -134,7 +134,7 @@ are not there: the reason there is one source now.
 | `geodms-wiki` | documenting a behaviour change on the wiki |
 | `geodms-release` | building the setups and publishing a GitHub release |
 | `geodms-perf` | a slower regression round or an operator timing: A/B against a kept build, rerunning one full.py experiment, per machine |
-| `geodms-dms-style` | writing or reviewing `.dms` code: needed and needless conversions, `union_data` per element, counting per class, fenced summaries, proving a rewrite on a probe |
+| `geodms-dms-style` | writing or reviewing `.dms` code: needed and needless conversions, `union_data` per element, counting per class, keys with `combine_data`, fenced summaries, proving a rewrite on a probe |
 
 When a recipe changes (a script moves, a guard is added, a convention is settled), update the
 skill in the same commit; a skill that contradicts the scripts is worse than none.
