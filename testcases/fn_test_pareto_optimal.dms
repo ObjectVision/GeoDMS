@@ -65,31 +65,46 @@ container fn_test_pareto_optimal
 		attribute<bool> ref := not(any(pairs/is_less, pairs/second_rel));
 	}
 
-	// ---- epsilon-dominance (#1282): pareto_optimal_eps buckets each criterion to floor(c / eps)
-	// and sweeps on the buckets; the row with the smallest raw values of a box survives
+	// ---- relative epsilon-dominance (#1282): pareto_optimal_eps sorts on the raw values, as
+	// pareto_optimal does, and a row survives only when, against every row accepted before it, it is
+	// more than the fraction eps better on some criterion after the first: c2 < (1 - eps) * c2 accepted
 	unit<uint32> T2e := T2
 	{
-		// c2 in buckets of 5: group A (1,5) bucket 1 then (2,3) bucket 0; (4,1) is bucket 0 too and
-		// falls; group B (0,2) comes first on c1 and (1,1) shares its bucket
-		attribute<bool> po_c2   := pareto_optimal_eps(T2/g_rel, T2/c1, 0.0, T2/c2, 5.0);
-		attribute<bool> exp_c2  : [true, true, false, false, false, false, false, false, true, false];
-		// c1 in buckets of 10 as well: all times of a group count as equal, so the lowest c2
-		// bucket wins and within it the smallest c1: A keeps (2,3) only, B keeps (0,2) only
-		attribute<bool> po_both := pareto_optimal_eps(T2/g_rel, T2/c1, 10.0, T2/c2, 5.0);
-		attribute<bool> exp_both : [false, true, false, false, false, false, false, false, true, false];
+		// c2 relative 0.5: group A accepts (1,5); (2,3), (2,3) and (3,4) are not below 2.5, (4,1) is
+		// and then (4,1) again is not below 0.5; group B accepts (0,2), and (1,1) is not below 1
+		attribute<bool> po_c2   := pareto_optimal_eps(T2/g_rel, T2/c1, 0.0, T2/c2, 0.5);
+		attribute<bool> exp_c2  : [true, false, false, false, true, false, false, false, true, false];
+		// the first criterion orders and the first row of a group always survives, so eps1 has no effect
+		attribute<bool> po_both := pareto_optimal_eps(T2/g_rel, T2/c1, 0.9, T2/c2, 0.5);
+		// c2 relative 0.4: group B now also keeps (1,1), as 1 < 0.6 * 2
+		attribute<bool> po_c2b  := pareto_optimal_eps(T2/g_rel, T2/c1, 0.0, T2/c2, 0.4);
+		attribute<bool> exp_c2b : [true, false, false, false, true, false, true, false, true, false];
 		// eps 0 on both: the exact result
 		attribute<bool> po_zero := pareto_optimal_eps(T2/g_rel, T2/c1, 0.0, T2/c2, 0.0);
 	}
 
-	// on the generated table: a subset of the exact result, and every exact-optimal row that
-	// drops out is covered by a surviving row of its partition that is no worse on c1 (eps 0)
-	// and less than 2 worse on c2 and c3
+	// no buckets: whether a row survives depends on how much better it is than the accepted rows,
+	// not on where a bucket edge falls. With 1%: 9.95 is not below 0.99 * 10, 9 is, and 8.95 is not
+	// below 0.99 * 9. Buckets of 0.1 kept 9.95 (bucket 99 against 100) and 8.95 (89 against 90).
+	unit<uint32> T2r : nrofrows = 4
+	{
+		attribute<G>       g_rel : [0, 0, 0, 0];
+		attribute<uint32>  c1    : [1, 2, 3, 4];
+		attribute<float64> c2    : [10.0, 9.95, 9.0, 8.95];
+		attribute<bool>    po    := pareto_optimal_eps(g_rel, c1, 0.0, c2, 0.01);
+		attribute<bool>    exp   : [true, false, true, false];
+		attribute<bool>    po0   := pareto_optimal_eps(g_rel, c1, 0.0, c2, 0.0);
+	}
+
+	// on the generated table: a subset of the exact result, and every row that drops out is covered
+	// by a surviving row of its partition that is no worse on c1 and at most 50% better than it on c2
+	// and c3: c - 0.5 * |c| <= the value of the row that dropped out (c2 takes negative values too)
 	unit<uint32> T3e := T3
 	{
-		attribute<bool> po_eps := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, T3/c2, 2.0, T3/c3, 2.0);
+		attribute<bool> po_eps := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, T3/c2, 0.5, T3/c3, 0.5);
 		unit<uint32> pairs := join_equal_values_uint32(T3/p_rel, T3/p_rel)
 		{
-			attribute<bool> covers := po_eps[first_rel] && T3/c1[first_rel] <= T3/c1[second_rel] && T3/c2[first_rel] < T3/c2[second_rel] + 2.0 && float64(T3/c3[first_rel]) < float64(T3/c3[second_rel]) + 2.0;
+			attribute<bool> covers := po_eps[first_rel] && T3/c1[first_rel] <= T3/c1[second_rel] && T3/c2[first_rel] - 0.5 * abs(T3/c2[first_rel]) <= T3/c2[second_rel] && 0.5 * float64(T3/c3[first_rel]) <= float64(T3/c3[second_rel]);
 		}
 		attribute<bool> covered := any(pairs/covers, pairs/second_rel);
 	}
@@ -108,8 +123,9 @@ container fn_test_pareto_optimal
 		attribute<bool> poe     := pareto_optimal_eps(g_rel, price, 0.0, needsCar);
 		attribute<bool> poe_bf  := pareto_optimal_eps(g_rel, needsCar, price, 0.0);
 		attribute<bool> exp     : [true, true, false, false];
-		// price in buckets of 5: all four count as equal on price, the cheapest without a car survives
-		attribute<bool> poe5    := pareto_optimal_eps(g_rel, price, 5.0, needsCar);
+		// needsCar first and price relative 0.5: row 1 is accepted first, at price 2, and row 0 needs a car
+		// for a price of 1, which is not below (1 - 0.5) * 2: only the cheapest without a car survives
+		attribute<bool> poe5    := pareto_optimal_eps(g_rel, needsCar, price, 0.5);
 		attribute<bool> exp5    : [false, true, false, false];
 		// true is better: not(needsCar); row 0 is then the best on both
 		attribute<bool> po_not  := pareto_optimal(g_rel, price, not(needsCar));
@@ -136,10 +152,10 @@ container fn_test_pareto_optimal
 		attribute<bool> b2      := mod(T3/i * 17, 5) < 2;
 		attribute<bool> po      := pareto_optimal(T3/p_rel, T3/c1, b1, T3/c2, b2);
 		attribute<bool> po_ref  := pareto_optimal(T3/p_rel, T3/c1, uint8(b1), T3/c2, uint8(b2));
-		attribute<bool> poe     := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, b1, T3/c2, 2.0, b2);
-		attribute<bool> poe_ref := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, uint8(b1), 0.0, T3/c2, 2.0, uint8(b2), 0.0);
+		attribute<bool> poe     := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, b1, T3/c2, 0.5, b2);
+		attribute<bool> poe_ref := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, uint8(b1), 0.0, T3/c2, 0.5, uint8(b2), 0.0);
 		attribute<bool> po_u4   := pareto_optimal(T3/p_rel, T3/c1, T3/c2, uint4(T3/c3));
-		attribute<bool> poe_u4  := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, T3/c2, 2.0, uint4(T3/c3), 2.0);
+		attribute<bool> poe_u4  := pareto_optimal_eps(T3/p_rel, T3/c1, 0.0, T3/c2, 0.5, uint4(T3/c3), 0.5);
 	}
 
 	// ---- #1286: several chunks of rows, radix passes and blocks of groups. 200,000 rows in 20,000
@@ -159,7 +175,7 @@ container fn_test_pareto_optimal
 		attribute<bool> po3     := pareto_optimal(p64, c1, c2, c3);
 		attribute<bool> po2     := pareto_optimal(p64, c1, c2);
 		attribute<bool> po_zero := pareto_optimal_eps(p64, c1, 0.0, c2, 0.0, c3, 0.0);
-		attribute<bool> po_eps  := pareto_optimal_eps(p64, c1, 0.0, c2, 2.0, c3, 2.0);
+		attribute<bool> po_eps  := pareto_optimal_eps(p64, c1, 0.0, c2, 0.5, c3, 0.5);
 		// #1287: a bool criterion read in chunks of rows, against its uint8 values
 		attribute<bool> po_b    := pareto_optimal(p64, c1, c2, c3 > 3);
 		attribute<bool> po_bref := pareto_optimal(p64, c1, c2, uint8(c3 > 3));
@@ -173,7 +189,7 @@ container fn_test_pareto_optimal
 			attribute<bool> is_le2 := both && c1[first_rel] <= c1[second_rel] && c2[first_rel] <= c2[second_rel];
 			attribute<bool> is_eq2 := c1[first_rel] == c1[second_rel] && c2[first_rel] == c2[second_rel];
 			attribute<bool> less2  := is_le2 && (not(is_eq2) || first_rel < second_rel);
-			attribute<bool> covers := both && po_eps[first_rel] && c1[first_rel] <= c1[second_rel] && c2[first_rel] < c2[second_rel] + 2.0 && float64(c3[first_rel]) < float64(c3[second_rel]) + 2.0;
+			attribute<bool> covers := both && po_eps[first_rel] && c1[first_rel] <= c1[second_rel] && c2[first_rel] - 0.5 * abs(c2[first_rel]) <= c2[second_rel] && 0.5 * float64(c3[first_rel]) <= float64(c3[second_rel]);
 		}
 		attribute<bool> ref3    := valid && not(any(pairs/less3, pairs/second_rel));
 		attribute<bool> ref2    := valid && not(any(pairs/less2, pairs/second_rel));
@@ -183,8 +199,10 @@ container fn_test_pareto_optimal
 	// ---- #1286: groups larger than a block of the sweep and than the size from which a group sorts
 	// in parallel: two groups of 300,000 rows. Row j of a group has c1 a permutation of j % 200 and lies
 	// on the front c1 + c2 = 199 when (j / 200) % 3 == 0, one above it otherwise, so only the first
-	// occurrence of each front point survives: the rows j < 200. With c2 in buckets of 2, the front
-	// points with an odd c1 share the bucket of their predecessor and fall. The groups interleave
+	// occurrence of each front point survives: the rows j < 200. For the relative epsilon c2e is
+	// exp(0.05 * (199 - c1)), 1% higher off the front: each step in c1 lowers it by 4.9%, two steps by
+	// 9.5%, so with eps 0.07 the front points with an odd c1 are not enough below their accepted
+	// predecessor and fall, and every even one is accepted. The groups interleave
 	// (suffix a: a partition with a spread of 2^40, six radix passes of which five have one digit) or
 	// follow each other (suffix b: an ascending partition, no sort).
 	unit<uint32> T5 : nrofrows = 600000
@@ -195,10 +213,11 @@ container fn_test_pareto_optimal
 		attribute<uint32>  ja    := i / 2;
 		attribute<uint32>  c1a   := ((ja % 200) * 7) % 200;
 		attribute<float64> c2a   := float64(199 - c1a) + float64(uint32((ja / 200) % 3 != 0));
+		attribute<float64> c2ea  := exp(0.05 * float64(199 - c1a)) * (1.0 + 0.01 * float64(uint32((ja / 200) % 3 != 0)));
 		attribute<uint32>  c3a   := (ja / 200) % 3;
 		attribute<bool>    po2a  := pareto_optimal(pa, c1a, c2a);
 		attribute<bool>    po3a  := pareto_optimal(pa, c1a, c2a, c3a);
-		attribute<bool>    poea  := pareto_optimal_eps(pa, c1a, 0.0, c2a, 2.0, c3a, 0.0);
+		attribute<bool>    poea  := pareto_optimal_eps(pa, c1a, 0.0, c2ea, 0.07, c3a, 0.0);
 		attribute<bool>    expa  := ja < 200;
 		attribute<bool>    expea := ja < 200 && c1a % 2 == 0;
 
@@ -206,10 +225,11 @@ container fn_test_pareto_optimal
 		attribute<uint32>  jb    := i % 300000;
 		attribute<uint32>  c1b   := ((jb % 200) * 7) % 200;
 		attribute<float64> c2b   := float64(199 - c1b) + float64(uint32((jb / 200) % 3 != 0));
+		attribute<float64> c2eb  := exp(0.05 * float64(199 - c1b)) * (1.0 + 0.01 * float64(uint32((jb / 200) % 3 != 0)));
 		attribute<uint32>  c3b   := (jb / 200) % 3;
 		attribute<bool>    po2b  := pareto_optimal(pb, c1b, c2b);
 		attribute<bool>    po3b  := pareto_optimal(pb, c1b, c2b, c3b);
-		attribute<bool>    poeb  := pareto_optimal_eps(pb, c1b, 0.0, c2b, 2.0, c3b, 0.0);
+		attribute<bool>    poeb  := pareto_optimal_eps(pb, c1b, 0.0, c2eb, 0.07, c3b, 0.0);
 		attribute<bool>    expb  := jb < 200;
 		attribute<bool>    expeb := jb < 200 && c1b % 2 == 0;
 	}
@@ -223,15 +243,16 @@ container fn_test_pareto_optimal
 		attribute<uint32>  ja    := i / 2;
 		attribute<uint32>  c1a   := ((ja % 200) * 7) % 200;
 		attribute<float64> c2a   := float64(199 - c1a) + float64(uint32((ja / 200) % 3 != 0));
+		attribute<float64> c2ea  := exp(0.05 * float64(199 - c1a)) * (1.0 + 0.01 * float64(uint32((ja / 200) % 3 != 0)));
 		attribute<uint32>  c3a   := (ja / 200) % 3;
 		attribute<bool>    po2a  := pareto_optimal(pa, c1a, c2a);
 		attribute<bool>    po3a  := pareto_optimal(pa, c1a, c2a, c3a);
-		attribute<bool>    poea  := pareto_optimal_eps(pa, c1a, 0.0, c2a, 2.0, c3a, 0.0);
+		attribute<bool>    poea  := pareto_optimal_eps(pa, c1a, 0.0, c2ea, 0.07, c3a, 0.0);
 		attribute<bool>    expa  := ja < 200;
 		attribute<bool>    expea := ja < 200 && c1a % 2 == 0;
 		// #1287: c3a != 0 as a bool criterion, read per tile; the rows off the front have it true
 		attribute<bool>    pob   := pareto_optimal(pa, c1a, c2a, c3a != 0);
-		attribute<bool>    poeb  := pareto_optimal_eps(pa, c1a, 0.0, c2a, 2.0, c3a != 0);
+		attribute<bool>    poeb  := pareto_optimal_eps(pa, c1a, 0.0, c2ea, 0.07, c3a != 0);
 	}
 
 	container checks
@@ -273,8 +294,11 @@ container fn_test_pareto_optimal
 		parameter<uint32> c_t6_ea  := sum(uint32(T6/poea != T6/expea)), IntegrityCheck = "c_t6_ea == 0";
 
 		parameter<uint32> c_t2e_c2    := sum(uint32(T2e/po_c2 != T2e/exp_c2)),     IntegrityCheck = "c_t2e_c2 == 0";
-		parameter<uint32> c_t2e_both  := sum(uint32(T2e/po_both != T2e/exp_both)), IntegrityCheck = "c_t2e_both == 0";
+		parameter<uint32> c_t2e_both  := sum(uint32(T2e/po_both != T2e/exp_c2)),   IntegrityCheck = "c_t2e_both == 0";
+		parameter<uint32> c_t2e_c2b   := sum(uint32(T2e/po_c2b != T2e/exp_c2b)),   IntegrityCheck = "c_t2e_c2b == 0";
 		parameter<uint32> c_t2e_zero  := sum(uint32(T2e/po_zero != T2/expected)),  IntegrityCheck = "c_t2e_zero == 0";
+		parameter<uint32> c_t2r       := sum(uint32(T2r/po != T2r/exp)),           IntegrityCheck = "c_t2r == 0";
+		parameter<uint32> c_t2r_zero  := sum(uint32(T2r/po0)),                     IntegrityCheck = "c_t2r_zero == 4";
 		parameter<uint32> c_t3e_sub   := sum(uint32(T3e/po_eps && not(T3/po))),    IntegrityCheck = "c_t3e_sub == 0";
 		parameter<uint32> c_t3e_less  := sum(uint32(T3e/po_eps)),                  IntegrityCheck = "c_t3e_less > 40 && c_t3e_less < c_t3_some";
 		parameter<uint32> c_t3e_cover := sum(uint32(T3/po && not(T3e/po_eps) && not(T3e/covered))), IntegrityCheck = "c_t3e_cover == 0";

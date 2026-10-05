@@ -117,12 +117,12 @@ container fn_test_od_pareto
 		, Link/c
 		);
 
-	// epsilon-dominance (#1282), pareto(imp2_epsilon) with a single value: a label is accepted only
-	// when its c lies in a strictly lower bucket of width epsilon than the cheapest accepted at
-	// its node. With 20.0 every c falls in bucket 0: org 0's (6,1) into dst 0 and org 2's (3,1)
-	// into dst 1 are dropped in favour of the faster (2,10) and (1,5), so 5 rows remain and the
-	// first row per pair is still the fastest
-	unit<uint32> od_eps20 := impedance_matrix(
+	// relative epsilon-dominance (#1282), pareto(imp2_epsilon) with a single value: a label is
+	// accepted only when its c lies more than the fraction epsilon below the cheapest accepted at
+	// its node, c < (1 - epsilon) * min c. With 1.0 nothing is: org 0's (6,1) into dst 0 and org 2's
+	// (3,1) into dst 1 are dropped in favour of the faster (2,10) and (1,5), so 5 rows remain and
+	// the first row per pair is still the fastest
+	unit<uint32> od_eps100 := impedance_matrix(
 		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
 		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
 		  ';pareto(imp2_epsilon)'
@@ -132,12 +132,13 @@ container fn_test_od_pareto
 		, EndSet/node_rel,   EndSet/zone_rel
 		, const(100.0, OrgZone)
 		, Link/c
-		, 20.0
+		, 1.0
 		);
 
-	// per origin zone, width 9.5: 10 and 1 are buckets 1 and 0, so org 0 keeps both dst-0 routes,
-	// while 5 and 1 are both bucket 0, so org 2 loses (3,1): 6 rows
-	unit<uint32> od_eps95 := impedance_matrix(
+	// per origin zone, 0.85: org 0 keeps both dst-0 routes, as 1 < 0.15 * 10, while org 2 loses
+	// (3,1), as 1 is not below 0.15 * 5: 6 rows. Buckets of width 9.5 gave the same, but only
+	// because 10 and 5 fell on either side of an edge
+	unit<uint32> od_eps85 := impedance_matrix(
 		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
 		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
 		  ';pareto(imp2_epsilon)'
@@ -147,10 +148,10 @@ container fn_test_od_pareto
 		, EndSet/node_rel,   EndSet/zone_rel
 		, const(100.0, OrgZone)
 		, Link/c
-		, const(9.5, OrgZone)
+		, const(0.85, OrgZone)
 		);
 
-	// both: the cut prunes the expensive legs at the push and the width has nothing left to merge:
+	// both: the cut prunes the expensive legs at the push and the epsilon has nothing left to drop:
 	// the same 5 rows as od_imp2cut
 	unit<uint32> od_imp2cut_eps := impedance_matrix(
 		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
@@ -163,7 +164,7 @@ container fn_test_od_pareto
 		, const(100.0, OrgZone)
 		, Link/c
 		, const(5.0, OrgZone)
-		, 20.0
+		, 1.0
 		);
 
 	// the signature walker with the epsilon argument position (both optional pareto arguments)
@@ -184,7 +185,7 @@ container fn_test_od_pareto
 		  Link/t, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel, EndSet/zone_rel
-		, const(100.0, OrgZone), Link/c, const(5.0, OrgZone), 20.0);
+		, const(100.0, OrgZone), Link/c, const(5.0, OrgZone), 1.0);
 
 	// §12.7 signature probe: a definition-time-known pareto spec inside a function body walks
 	// DescribeSpecSignature -- including the new OrgZone_max_imp2 position and the honest arity
@@ -288,22 +289,22 @@ container fn_test_od_pareto
 		// signature probe result: the imp2cut fronts summed through the function body
 		parameter<float64> sig_sum := paretoSumApplied                , IntegrityCheck = "sig_sum == 21.0";
 
-		// epsilon-dominance: width 20 merges every bucket, 5 rows, the fastest of each pair kept
-		parameter<uint32>  eps20_rows := uint32(#od_eps20)            , IntegrityCheck = "eps20_rows == 5";
-		parameter<float64> eps20_0    := od_eps20/impedance[0]        , IntegrityCheck = "eps20_0 == 2.0";
-		parameter<float64> eps20_0a   := od_eps20/alt_imp[0]          , IntegrityCheck = "eps20_0a == 10.0";
-		parameter<float64> eps20_1    := od_eps20/impedance[1]        , IntegrityCheck = "eps20_1 == 7.0";
-		parameter<uint32>  eps20_1d   := uint32(od_eps20/DstZone_rel[1]), IntegrityCheck = "eps20_1d == 1";
-		parameter<float64> eps20_4    := od_eps20/impedance[4]        , IntegrityCheck = "eps20_4 == 1.0";
-		parameter<float64> eps20_4a   := od_eps20/alt_imp[4]          , IntegrityCheck = "eps20_4a == 5.0";
-		parameter<uint32>  eps20_4o   := uint32(od_eps20/OrgZone_rel[4]), IntegrityCheck = "eps20_4o == 2";
-		// width 9.5 per origin zone: org 0 keeps its two-point front, org 2 loses (3,1)
-		parameter<uint32>  eps95_rows := uint32(#od_eps95)            , IntegrityCheck = "eps95_rows == 6";
-		parameter<float64> eps95_1    := od_eps95/impedance[1]        , IntegrityCheck = "eps95_1 == 6.0";
-		parameter<float64> eps95_1a   := od_eps95/alt_imp[1]          , IntegrityCheck = "eps95_1a == 1.0";
-		parameter<float64> eps95_5    := od_eps95/impedance[5]        , IntegrityCheck = "eps95_5 == 1.0";
-		parameter<uint32>  eps95_5o   := uint32(od_eps95/OrgZone_rel[5]), IntegrityCheck = "eps95_5o == 2";
-		// cut and width together: the imp2cut result
+		// relative epsilon-dominance: with 1.0 only the fastest label of a node or zone survives, 5 rows
+		parameter<uint32>  eps100_rows := uint32(#od_eps100)            , IntegrityCheck = "eps100_rows == 5";
+		parameter<float64> eps100_0    := od_eps100/impedance[0]        , IntegrityCheck = "eps100_0 == 2.0";
+		parameter<float64> eps100_0a   := od_eps100/alt_imp[0]          , IntegrityCheck = "eps100_0a == 10.0";
+		parameter<float64> eps100_1    := od_eps100/impedance[1]        , IntegrityCheck = "eps100_1 == 7.0";
+		parameter<uint32>  eps100_1d   := uint32(od_eps100/DstZone_rel[1]), IntegrityCheck = "eps100_1d == 1";
+		parameter<float64> eps100_4    := od_eps100/impedance[4]        , IntegrityCheck = "eps100_4 == 1.0";
+		parameter<float64> eps100_4a   := od_eps100/alt_imp[4]          , IntegrityCheck = "eps100_4a == 5.0";
+		parameter<uint32>  eps100_4o   := uint32(od_eps100/OrgZone_rel[4]), IntegrityCheck = "eps100_4o == 2";
+		// 0.85 per origin zone: org 0 keeps its two-point front, org 2 loses (3,1)
+		parameter<uint32>  eps85_rows := uint32(#od_eps85)            , IntegrityCheck = "eps85_rows == 6";
+		parameter<float64> eps85_1    := od_eps85/impedance[1]        , IntegrityCheck = "eps85_1 == 6.0";
+		parameter<float64> eps85_1a   := od_eps85/alt_imp[1]          , IntegrityCheck = "eps85_1a == 1.0";
+		parameter<float64> eps85_5    := od_eps85/impedance[5]        , IntegrityCheck = "eps85_5 == 1.0";
+		parameter<uint32>  eps85_5o   := uint32(od_eps85/OrgZone_rel[5]), IntegrityCheck = "eps85_5o == 2";
+		// cut and epsilon together: the imp2cut result
 		parameter<uint32>  i2e_rows   := uint32(#od_imp2cut_eps)      , IntegrityCheck = "i2e_rows == 5";
 		parameter<float64> i2e_sum    := sum(od_imp2cut_eps/impedance), IntegrityCheck = "i2e_sum == 21.0";
 		parameter<float64> sig_sum_eps := paretoSumEpsApplied         , IntegrityCheck = "sig_sum_eps == 21.0";

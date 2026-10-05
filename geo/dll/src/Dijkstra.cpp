@@ -127,6 +127,7 @@
 #include "SessionData.h" // CancelIfOutOfInterest
 #include "UnitClass.h"
 
+#include "Metric.h" // IsEmpty(const UnitMetric*), for the dimensionless imp2_epsilon
 #include "makeCumulative.h"
 
 #include "TreeBuilder.h"
@@ -673,8 +674,8 @@ struct BiNodeZoneConnector
 
 		if (m_LastCommittedSrcZone[dstZone] == m_CurrSrcZoneTick)
 		{
-			// epsilon-dominance (#1282): the same bucket comparison as BiCriteriaDijkstraHeap::IsUndominated
-			if (Imp2Bucket(imp2, m_Imp2Epsilon) >= Imp2Bucket(m_MinImp2PerDstZone[dstZone], m_Imp2Epsilon))
+			// relative epsilon-dominance (#1282): the same test as BiCriteriaDijkstraHeap::IsUndominated
+			if (!Imp2Improves(imp2, m_MinImp2PerDstZone[dstZone], m_Imp2Epsilon))
 				return false;
 		}
 		else
@@ -687,7 +688,7 @@ struct BiNodeZoneConnector
 
 	SizeT CommitCount() const { return m_Commits.size(); }
 
-	ImpType m_Imp2Epsilon = ImpType(0); // bucket width of the second criterion for the per-zone test, set per origin together with the heap's (#1282)
+	Float64 m_Imp2Epsilon = 0.0; // relative epsilon of the second criterion for the per-zone test, set per origin together with the heap's (#1282)
 	const CommitType& Commit(SizeT r) const { return m_Commits[r]; }
 
 	const network_info* m_NetworkInfoPtr = nullptr;
@@ -1655,7 +1656,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 ,	const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 ,	const ImpType* orgMaxImpedances, bool orgMaxImpedancesHasVoidDomain
 ,	const ImpType* orgMaxImp2, bool orgMaxImp2HasVoidDomain
-,	const ImpType* imp2Epsilon, bool imp2EpsilonHasVoidDomain
+,	const div_type_t<ImpType>* imp2Epsilon, bool imp2EpsilonHasVoidDomain
 ,	sqr_dist_t euclidicSqrDist
 ,	const GraphInfo<NodeType, LinkType, ImpType>& graph
 ,	const ImpType* linkImp2Data, bool linkImp2HasVoidDomain
@@ -1709,9 +1710,9 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 			// Per-origin cutoffs; fixed for the whole origin (no limit() in this mode)
 			dh.m_MaxImp = orgMaxImpedances[orgMaxImpedancesHasVoidDomain ? 0 : orgZone];
 			dh.m_MaxImp2 = orgMaxImp2 ? orgMaxImp2[orgMaxImp2HasVoidDomain ? 0 : orgZone] : MAX_VALUE(ImpType);
-			// epsilon-dominance (#1282): the bucket width of the second criterion, 0 = exact; the
-			// per-zone connector applies the same rule to its commits
-			dh.m_Imp2Epsilon = imp2Epsilon ? imp2Epsilon[imp2EpsilonHasVoidDomain ? 0 : orgZone] : ImpType(0);
+			// relative epsilon-dominance (#1282): the fraction of the second criterion, 0 = exact;
+			// the per-zone connector applies the same rule to its commits
+			dh.m_Imp2Epsilon = imp2Epsilon ? Float64(imp2Epsilon[imp2EpsilonHasVoidDomain ? 0 : orgZone]) : 0.0;
 			nzc.m_Imp2Epsilon = dh.m_Imp2Epsilon;
 
 			dh.ResetImpedances();
@@ -2109,9 +2110,9 @@ public:
 			sig_var MI2 = sb.UnitVar("OrgZone_max_imp2"); sb.MemberValueClass(MI2, ValueWrap<ImpType>::GetStaticClass());
 			sb.ArgName(i, "OrgZone_max_imp2"); sb.ArgAttr(i, MI2, ozDom(), ValueComposition::Single); ++i;
 		}
-		if (flags(df & DijkstraFlag::Imp2Epsilon)) // pareto(imp2_epsilon): same shape as the cut, per origin zone or void
+		if (flags(df & DijkstraFlag::Imp2Epsilon)) // pareto(imp2_epsilon): same shape as the cut, per origin zone or void; a dimensionless fraction (#1282)
 		{
-			sig_var E2 = sb.UnitVar("Imp2Epsilon"); sb.MemberValueClass(E2, ValueWrap<ImpType>::GetStaticClass());
+			sig_var E2 = sb.UnitVar("Imp2Epsilon"); sb.MemberValueClass(E2, ValueWrap<ParamType>::GetStaticClass());
 			sb.ArgName(i, "imp2_epsilon"); sb.ArgAttr(i, E2, ozDom(), ValueComposition::Single); ++i;
 		}
 		if (flags(df & DijkstraFlag::OrgMinImp))
@@ -2388,7 +2389,11 @@ public:
 		{
 			assert(adiLinkAltImp); // CheckFlags: Imp2Epsilon implies pareto implies alternative(link_imp)
 			orgZonesOrVoid->UnifyDomain(adiImp2Epsilon->GetAbstrDomainUnit(), "OrgZones", "Domain of imp2_epsilon", UnifyMode(UM_Throw | UM_AllowVoidRight));
-			imp2Unit->UnifyValues(adiImp2Epsilon->GetAbstrValuesUnit(), impUnitRef, "Values of imp2_epsilon", UnifyMode(UM_Throw | UM_AllowDefault));
+			// relative: a fraction, so without a metric; an epsilon in the unit of the second criterion, as
+			// the builds until 2026-10-05 took it, is refused here instead of being read as a fraction
+			MG_USERCHECK2(IsEmpty(adiImp2Epsilon->GetAbstrValuesUnit()->GetCurrMetric())
+			,	"pareto: imp2_epsilon is relative, a dimensionless fraction from 0 to 1 (0.01 = 1%), and may not have a metric; earlier builds took a bucket width in the unit of the second criterion"
+			);
 		}
 		if (adiOrgMinImp)
 		{
@@ -2607,7 +2612,7 @@ public:
 			const ArgImpType* argDstMinImp = const_opt_array_checkedcast<ImpType  >(adiDstMinImp);
 			const ArgImpType* argOrgMaxImp = const_opt_array_checkedcast<ImpType  >(adiOrgMaxImp);
 			const ArgImpType* argOrgMaxImp2 = const_opt_array_checkedcast<ImpType  >(adiOrgMaxImp2);
-			const ArgImpType* argImp2Epsilon = const_opt_array_checkedcast<ImpType  >(adiImp2Epsilon);
+			const ArgParamType* argImp2Epsilon = const_opt_array_checkedcast<ParamType>(adiImp2Epsilon);
 			const ArgMassType* argOrgMassLimit = const_opt_array_checkedcast<MassType >(adiOrgMassLimit);
 			const ArgMassType* argDstMassLimit = const_opt_array_checkedcast<MassType >(adiDstMassLimit);
 			const ArgImpType* argLinkAltImp = const_opt_array_checkedcast<MassType >(adiLinkAltImp);
@@ -2635,8 +2640,8 @@ public:
 					throwDmsErrD("pareto: illegal negative value in startPoint impedance data");
 				if (argEndPointImpedance && IsDefined(vector_find_if(argEndPointImpedance->GetLockedDataRead(), [](ImpType v) { return v < 0; })))
 					throwDmsErrD("pareto: illegal negative value in endPoint impedance data");
-				if (argImp2Epsilon && IsDefined(vector_find_if(argImp2Epsilon->GetLockedDataRead(), [](ImpType v) { return v < 0; })))
-					throwDmsErrD("pareto: illegal negative value in imp2_epsilon");
+				if (argImp2Epsilon && IsDefined(vector_find_if(argImp2Epsilon->GetLockedDataRead(), [](ParamType v) { return !(v >= 0 && v <= 1); })))
+					throwDmsErrD("pareto: imp2_epsilon must be a fraction from 0 to 1 (0.01 = 1%); earlier builds took a bucket width in the unit of the second criterion");
 			}
 
 			bool isBidirectional = flags(df & (DijkstraFlag::Bidirectional|DijkstraFlag::BidirFlag));
@@ -2685,7 +2690,7 @@ public:
 			auto dstMinImpData         = argDstMinImp           ? argDstMinImp          ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
 			auto orgMaxImpedances      = argOrgMaxImp           ? argOrgMaxImp          ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
 			auto orgMaxImp2Data        = argOrgMaxImp2          ? argOrgMaxImp2         ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
-			auto imp2EpsilonData       = argImp2Epsilon         ? argImp2Epsilon        ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
+			auto imp2EpsilonData       = argImp2Epsilon         ? argImp2Epsilon        ->GetLockedDataRead() : typename ArgParamType::locked_cseq_t();
 			auto orgMassLimit          = argOrgMassLimit        ? argOrgMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
 			auto dstMassLimit          = argDstMassLimit        ? argDstMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
 			auto altWeight             = argLinkAltImp          ? argLinkAltImp         ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();

@@ -139,8 +139,8 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 	// search and drop a partial route only when it is Pareto-dominated (issue #856). The second
 	// per-link criterion itself rides the alternative(link_imp) argument; the optional
 	// OrgZone_max_imp2 argument bounds the second criterion per origin zone, and the optional
-	// imp2_epsilon argument (#1282) makes the dominance test epsilon-dominance: a label is only
-	// accepted when its second criterion lies in a strictly lower bucket of width epsilon than
+	// imp2_epsilon argument (#1282) makes the dominance test relative epsilon-dominance: a label is
+	// only accepted when its second criterion lies more than the fraction epsilon below that of
 	// the cheapest label accepted so far at that node. Forms: pareto, pareto(OrgZone_max_imp2),
 	// pareto(imp2_epsilon), pareto(OrgZone_max_imp2,imp2_epsilon); the arguments follow in that order.
 	boost::spirit::rule<>  paretoRule =

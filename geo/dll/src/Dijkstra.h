@@ -295,28 +295,29 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 };
 
 // *****************************************************************************
-// Imp2Bucket
-//   The bucket of a second-criterion value under epsilon-dominance (#1282): floor(x / eps)
-//   for eps > 0, x itself for eps == 0 (exact dominance). With a bucket width the dominance
-//   tests of BiCriteriaDijkstraHeap and BiNodeZoneConnector compare buckets instead of
-//   values: a label is accepted only when its imp2 lies in a strictly lower bucket than the
-//   cheapest label accepted so far, so a node keeps at most one label per bucket and its
-//   front is bounded by maxImp2 / eps. Which label of a bucket survives is decided by the
-//   pop order, the first and therefore fastest one, deterministically; every exact front
-//   point then has an accepted label at its node that is no slower and less than eps more
-//   expensive, though along a route such deviations can add up. A floating-point quotient
-//   within a millionth of a bucket width below an edge counts as the higher bucket, so that
-//   0.30 / 0.10 is bucket 3 and not 2.
+// Imp2Improves
+//   Relative epsilon-dominance of the second criterion (#1282):
+//   labels are accepted in lexicographic (imp, imp2) order, so every label accepted earlier
+//   at the same node, or committed earlier to the same zone, is no slower than the one under
+//   test. That one is kept only when its imp2 lies more than the fraction eps below the
+//   smallest imp2 accepted so far: x < (1 - eps) * minAccepted. With eps 0 that is exact
+//   dominance, x < minAccepted, compared in ImpType itself. A slower label that is not
+//   more than eps cheaper counts as dominated; one that is, is a real alternative, however
+//   small the absolute difference. There are no buckets, so whether a label survives no
+//   longer depends on where a bucket edge happens to fall. Every exact front point then has
+//   an accepted label at its node that is no slower and at most a factor 1 / (1 - eps) more
+//   expensive; along a route such factors can compound. The fronts are bounded by
+//   log(max / min) / -log(1 - eps) + 1 labels per node, instead of max / eps with buckets.
+//   The builds from 20.21.0 to 2026-10-05 took eps as a bucket width in the unit of the second
+//   criterion instead, and kept a label only when floor(imp2 / eps) was below the bucket of the
+//   cheapest accepted: whether two nearly equal labels both survived depended on a bucket edge.
 // *****************************************************************************
 template <typename ImpType>
-inline ImpType Imp2Bucket(ImpType x, ImpType eps)
+inline bool Imp2Improves(ImpType x, ImpType minAccepted, Float64 eps)
 {
-	if (eps <= ImpType(0))
-		return x;
-	if constexpr (std::is_floating_point_v<ImpType>)
-		return std::floor(x / eps + ImpType(1e-6));
-	else
-		return x / eps;
+	if (eps <= 0.0)
+		return x < minAccepted;
+	return Float64(x) < (1.0 - eps) * Float64(minAccepted);
 }
 
 // *****************************************************************************
@@ -426,8 +427,8 @@ struct BiCriteriaDijkstraHeap
 	bool IsUndominated(NodeType v, ImpType d2) const
 	{
 		assert(v < m_NrV);
-		// epsilon-dominance (#1282): with m_Imp2Epsilon > 0 the buckets are compared, see Imp2Bucket
-		return IsStale(v) || Imp2Bucket(d2, m_Imp2Epsilon) < Imp2Bucket(m_MinImp2[v], m_Imp2Epsilon);
+		// relative epsilon-dominance (#1282): with m_Imp2Epsilon > 0, see Imp2Improves
+		return IsStale(v) || Imp2Improves(d2, m_MinImp2[v], m_Imp2Epsilon);
 	}
 
 	// Attempt to push label (d, d2) for node v; prunes on both cutoffs and on dominance.
@@ -469,7 +470,7 @@ struct BiCriteriaDijkstraHeap
 
 	ImpType m_MaxImp  = MaxValue<ImpType>(); // cutoff on the first criterion: cut(OrgZone_max_imp), required in pareto mode
 	ImpType m_MaxImp2 = MaxValue<ImpType>(); // optional cutoff on the second criterion: pareto(OrgZone_max_imp2)
-	ImpType m_Imp2Epsilon = ImpType(0);      // optional bucket width of the second criterion: pareto(imp2_epsilon), 0 = exact dominance (#1282)
+	Float64 m_Imp2Epsilon = 0.0;             // optional relative epsilon of the second criterion: pareto(imp2_epsilon), a fraction from 0 to 1, 0 = exact dominance (#1282)
 
 	OwningPtrSizedArray<ImpType>  m_MinImp2;      // min imp2 over ACCEPTED labels, per node
 
