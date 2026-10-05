@@ -311,7 +311,12 @@ engine is ready for them).
   when imp2 < (1 - eps) * the smallest imp2 accepted there, in both the per-node and the per-zone test. The
   result is an approximation: each exact front point has an accepted label at its node that is no slower
   and at most a factor 1 / (1 - eps) more expensive, and along a route those factors can compound. The
-  table operator `pareto_optimal_eps` applies the same rule offline, in the order of its criteria. Until
+  table operator `pareto_optimal_eps` applies the same rule offline, in the order of its criteria. With a
+  bound on the second criterion (OrgZone_max_imp2) ProcessBiDijkstra applies the epsilon per zone only and
+  searches exactly: at a node a label that is at most eps better on the bounded criterion can be the only
+  one whose route stays within the bound (measured on NetworkModel_PBL's car front: with the epsilon per
+  node the cheapest route within 90 minutes was longer than the exact one for 13.6% of the pairs). The
+  epsilon is read as Float64 from a float32 or float64 argument, whatever the impedance type. Until
   then `Imp2Bucket` compared floor(imp2 / eps), an absolute bucket width, so whether two nearly equal
   labels both survived depended on where a bucket edge fell. Landmark/A*-style goal direction is a further future speedup, out of scope
   here (cf. doc note in wiki Impedance-future.md).

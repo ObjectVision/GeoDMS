@@ -308,6 +308,9 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 //   an accepted label at its node that is no slower and at most a factor 1 / (1 - eps) more
 //   expensive; along a route such factors can compound. The fronts are bounded by
 //   log(max / min) / -log(1 - eps) + 1 labels per node, instead of max / eps with buckets.
+//   With a bound on the second criterion (OrgZone_max_imp2) ProcessBiDijkstra applies the
+//   test per destination zone only and searches exactly: at a node a label that is at most eps
+//   better on the bounded criterion can be the only one whose route stays within the bound.
 //   The builds from 20.21.0 to 2026-10-05 took eps as a bucket width in the unit of the second
 //   criterion instead, and kept a label only when floor(imp2 / eps) was below the bucket of the
 //   cheapest accepted: whether two nearly equal labels both survived depended on a bucket edge.
