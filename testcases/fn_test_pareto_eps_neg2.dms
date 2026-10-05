@@ -1,6 +1,6 @@
 // #1282: the epsilon of pareto_optimal_eps is relative, so dimensionless. An epsilon with a metric, such as
 // 0.4 km for a distance, which the builds until 2026-10-05 read as a bucket width of 400 m and which would
-// otherwise pass as 40%, is refused with "pareto_optimal_eps: the epsilon of criterion 2 (argument 5) is
+// otherwise pass as 40%, is refused with "pareto_optimal_eps: the epsilon of criterion 2 (argument 4) is
 // relative, a dimensionless fraction ... and may not have a metric; ...". Expected: exit nonzero on /checks.
 container fn_test_pareto_eps_neg2
 {
@@ -13,7 +13,7 @@ container fn_test_pareto_eps_neg2
 		attribute<P>       part : [0, 0, 0, 0];
 		attribute<float64> time : [1, 2, 3, 4];
 		attribute<km>      dist : [4, 3, 2, 1];
-		attribute<bool>    po   := pareto_optimal_eps(part, time, 0.0, dist, DistanceEpsilon);
+		attribute<bool>    po   := pareto_optimal_eps(part, time, dist, DistanceEpsilon);
 	}
 
 	container checks

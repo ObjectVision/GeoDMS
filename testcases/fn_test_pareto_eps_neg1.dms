@@ -9,7 +9,7 @@ container fn_test_pareto_eps_neg1
 		attribute<P>       part  : [0, 0, 0, 0];
 		attribute<float64> time  : [1, 2, 3, 4];
 		attribute<float64> price : [4, 3, 2, 1];
-		attribute<bool>    po    := pareto_optimal_eps(part, time, 0.0, price, 2.0);
+		attribute<bool>    po    := pareto_optimal_eps(part, time, price, 2.0);
 	}
 
 	container checks
