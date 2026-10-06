@@ -35,8 +35,11 @@ const UInt32  MIN_GRIDLINE_SIZE = 25;
 // class  : GridCoord
 //----------------------------------------------------------------------
 
+// owner may be null: a GridCoord that maps for one drawing only (the per-tile source of a rotated grid, the
+// selection bitmap) is not registered in a ViewPort and needs none. The bitmap's construction passed null
+// and dereferenced it here.
 GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key) //, GPoint clientSize, const CrdTransformation& w2vTr)
-	:	m_Owner(owner->shared_from_base<ViewPort>())
+	:	m_Owner(owner ? std::weak_ptr<ViewPort>(owner->shared_from_base<ViewPort>()) : std::weak_ptr<ViewPort>())
 	,	m_Key(key)
 {
 #if defined(MG_DEBUG_COORD)
@@ -50,9 +53,19 @@ GridCoord::~GridCoord()
 #if defined(MG_DEBUG_COORD)
 	reportF(SeverityTypeID::ST_MinorTrace, "GridCoord::~GridCoord({})", AsString(m_Key).c_str());
 #endif
+	// SHV-A13: erase the registry entry only when it is this object's. Within the destructor of the
+	// registered GridCoord its weak_ptr in the map has expired already, so an expired entry under this key
+	// is this one; a live entry belongs to another GridCoord with the same key, such as the layer's own
+	// when this is a temporary of the rotated grid draw, which used to unregister the layer's GridCoord, so
+	// that it was no longer re-initialised on zoom, pan or rotation. (Comparing lock().get() with this
+	// cannot work here: lock() is null for the registered object as well.)
 	auto owner = m_Owner.lock();
 	if (owner)
-		owner->m_GridCoordMap.erase(m_Key);
+	{
+		auto pos = owner->m_GridCoordMap.find(m_Key);
+		if (pos != owner->m_GridCoordMap.end() && pos->second.expired())
+			owner->m_GridCoordMap.erase(pos);
+	}
 }
 
 void GridCoord::Init(GPoint deviceSize, const CrdTransformation& w2dTr)

@@ -1251,7 +1251,9 @@ bool GridLayer::DrawAllRectsTransformed(GraphDrawer& d, const GridColorPalette& 
 
 				// Render the tile at native 1:1 resolution via an identity grid->device GridCoord, so the
 				// standard separable resampler + theme/classify/palette machinery fills a source buffer.
-				GridCoord srcGC(vp, grid_coord_key(CrdTransformation(), gridRect));
+				// Not registered and without an owner (SHV-A13): with the layer's own key and an owner, its
+				// destructor removed the layer's GridCoord from the ViewPort for an unprojected grid.
+				GridCoord srcGC(nullptr, grid_coord_key(CrdTransformation(), gridRect));
 				srcGC.Init(GPoint(tileW, tileH), CrdTransformation(-Convert<CrdPoint>(tileGridRect.first), CrdPoint(1.0, 1.0)));
 				srcGC.UpdateUnscaled();
 

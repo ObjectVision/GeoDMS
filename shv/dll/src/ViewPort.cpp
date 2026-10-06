@@ -1686,7 +1686,11 @@ GridCoordPtr ViewPort::GetOrCreateGridCoord(const grid_coord_key& key)
 {
 	grid_coord_map::iterator pos = m_GridCoordMap.find(key);
 	if (pos != m_GridCoordMap.end() && pos->first == key)
-		return pos->second.lock();
+	{
+		if (auto existing = pos->second.lock())
+			return existing;
+		pos = m_GridCoordMap.erase(pos); // an expired entry is replaced, never handed out as null (SHV-A13)
+	}
 
 	auto result = std::make_shared<GridCoord>(this, key);
 	m_GridCoordMap.insert(pos, grid_coord_map::value_type(key, result) );
