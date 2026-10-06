@@ -419,6 +419,11 @@ void TreeItem::ResetSubTreeConfigData()
 	ResetIntegrityCheckerMember();
 	if (m_ConfigProperties) // #1218: may hold cross-branch supplier refs; break them before the refcount teardown
 		m_ConfigProperties->mc_CheckGuardians.reset();
+	if (m_ConfigProperties) // TIC-A33: the calculators of the declared size rules hold supplier refs as the checker does
+	{
+		m_ConfigProperties->mc_SizeExpectation.reset();
+		m_ConfigProperties->mc_SizeUpperbound.reset();
+	}
 	if (!IsCacheItem())
 		DisableStorage();
 	for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -2399,6 +2404,14 @@ void TreeItem::DoInvalidate() const
 	ResetIntegrityCheckerMember();
 	if (m_ConfigProperties) // #1218: derived from the same config state as the checker and the SupplCache reset above
 		m_ConfigProperties->mc_CheckGuardians.reset();
+	// TIC-A33: the calculators of the declared size rules (SizeExpectation, SizeUpperbound, 3ac27228f) are built
+	// from the item's config state as the checker is, and were never reset: after a SetExpr on one of their
+	// suppliers, the estimates kept evaluating the stale calculator for the rest of the item's life.
+	if (m_ConfigProperties)
+	{
+		m_ConfigProperties->mc_SizeExpectation.reset();
+		m_ConfigProperties->mc_SizeUpperbound.reset();
+	}
 
 	TreeItem_RemoveDC(this);
 	if (!GetExprMember().empty() || IsReadFromStorage())
