@@ -63,15 +63,6 @@ private:
 };
 
 //----------------------------------------------------------------------
-// CaretDcHandle
-//----------------------------------------------------------------------
-
-struct CaretDcHandle : DcHandle
-{
-	explicit CaretDcHandle(HWND hWnd, HFONT defaultFont);
-};
-
-//----------------------------------------------------------------------
 // PaintDcHandle
 //----------------------------------------------------------------------
 
@@ -101,30 +92,6 @@ private:
 	DataView*   m_View;
 	HDC         m_hDC; 
 	bool        m_WasVisible;
-};
-
-//----------------------------------------------------------------------
-//	ClippedDC
-//----------------------------------------------------------------------
-
-struct ClippedDC : DcHandle
-{
-	explicit ClippedDC(DataView* dv, const Region& rgn);
-	bool IsEmpty() const { return m_Empty; }
-private:
-	bool m_Empty;
-};
-
-//----------------------------------------------------------------------
-//	DirectDC
-//----------------------------------------------------------------------
-
-struct DirectDC : ClippedDC
-{
-	explicit DirectDC(DataView* dv, const Region& rgn);
-
-private:
-	CaretHider m_CaretHider;
 };
 
 //----------------------------------------------------------------------
@@ -217,121 +184,6 @@ private:
 //   AddTransformation, AddClientLogicalOffset,
 //   ClipDeviceRectSelector, VisitorDeviceRectSelector
 //----------------------------------------------------------------------
-
-
-//----------------------------------------------------------------------
-// DcMixModeSelector
-//----------------------------------------------------------------------
-
-struct DcMixModeSelector : private geodms::rtc::noncopyable
-{
-	explicit DcMixModeSelector(HDC hdc, int fnDrawMode = R2_NOTXORPEN);
-	~DcMixModeSelector();
-
-private:
-	HDC m_hDC;
-	int m_oldDrawMode;
-#if defined(MG_DEBUG_DATA)
-	int m_selDrawMode;
-#endif
-};
-
-//----------------------------------------------------------------------
-// DcTextAlignSelector
-//----------------------------------------------------------------------
-
-struct DcTextAlignSelector : private geodms::rtc::noncopyable
-{
-	explicit DcTextAlignSelector(HDC hdc, UINT fTextAlignMode = TA_LEFT|TA_TOP|TA_NOUPDATECP);
-	~DcTextAlignSelector();
-
-private:
-	HDC m_hDC;
-	UINT m_oldTextAlignMode;
-#if defined(MG_DEBUG)
-	UINT m_selTextAlignMode;
-#endif
-};
-
-//----------------------------------------------------------------------
-// DcTextColorSelector
-//----------------------------------------------------------------------
-
-struct DcTextColorSelector : private geodms::rtc::noncopyable
-{
-	explicit DcTextColorSelector(HDC hdc, DmsColor crColor);
-	~DcTextColorSelector();
-
-private:
-	HDC      m_hDC;
-	COLORREF m_oldTextColor;
-};
-
-//----------------------------------------------------------------------
-// DcBackColorSelector
-//----------------------------------------------------------------------
-
-struct DcBackColorSelector : private geodms::rtc::noncopyable
-{
-	explicit DcBackColorSelector(HDC hdc, DmsColor crColor);
-	~DcBackColorSelector();
-
-private:
-	HDC      m_hDC;
-	COLORREF m_oldBkColor;
-};
-
-//----------------------------------------------------------------------
-// DcBkModeSelector
-//----------------------------------------------------------------------
-
-struct DcBkModeSelector : private geodms::rtc::noncopyable
-{
-	explicit DcBkModeSelector(HDC hdc, int iBkMode = OPAQUE);
-	~DcBkModeSelector();
-
-private:
-	HDC m_hDC;
-	int m_oldBkMode;
-#if defined(MG_DEBUG)
-	int m_selBkMode;
-#endif
-};
-
-//----------------------------------------------------------------------
-// DcPolyFillModeSelector
-//----------------------------------------------------------------------
-
-struct DcPolyFillModeSelector : private geodms::rtc::noncopyable
-{
-	explicit DcPolyFillModeSelector(HDC hdc, int polyFillMode = ALTERNATE);
-	~DcPolyFillModeSelector();
-
-private:
-	HDC m_hDC;
-	int m_oldPolyFillMode;
-#if defined(MG_DEBUG)
-	int m_selPolyFillMode;
-#endif
-};
-
-//----------------------------------------------------------------------
-// DcPolyFillModeSelector
-//----------------------------------------------------------------------
-
-struct DcBrushOrgSelector : private geodms::rtc::noncopyable
-{
-	explicit DcBrushOrgSelector(HDC hdc, GPoint brushOrg);
-	~DcBrushOrgSelector();
-
-private:
-	HDC m_hDC;
-	GPoint m_oldBrushOrg;
-#if defined(MG_DEBUG)
-	GPoint m_selBrushOrg;
-#endif
-};
-
 
 #endif // _WIN32
 

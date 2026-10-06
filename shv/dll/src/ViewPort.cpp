@@ -71,18 +71,14 @@ ViewPoint::ViewPoint(CharPtrRange viewPointStr)
 bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
 {
 	auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
-	//FormattedOutStream out(&streamWrap, flags);
 
 	static SharedStr format = SharedStr("X= {: 10.2f}; Y= {: 10.2f}; ZL= {: 10.2f}");
 
 	auto nrBytesWritten = myFixedBufferWrite(buffer, len, format.c_str(), center.Col(), center.Row(), zoomLevel);
 	buffer[nrBytesWritten] = char(0); // truncate
 
-	//out << "X=" << center.Col() << "; Y=" << center.Row() << "; ZL=" << zoomLevel;
-
 	if (streamWrap.CurrPos() >= len)
 		return false;
-	//out << char(0);
 	return true;
 }
 
@@ -385,8 +381,6 @@ CrdRect WorldRect_AddBorderPixels(CrdRect result, CrdRect viewPort, const Scalab
 	}
 	return result;
 }
-
-static ViewPort* g_CurrVpZoom = nullptr;
 
 CrdRect calcWorldFullRect(CrdRect viewPort, const ScalableObject* go, OrientationType orientation)
 {
@@ -1593,7 +1587,6 @@ void ViewPort::SetROI(const CrdRect& r)
 
 	DBG_TRACE(("TlChanged: {}", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
 	DBG_TRACE(("BrChanged: {}", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
-//	DoUpdateView();
 	InvalidateView();
 	UpdateScaleBar();
 }

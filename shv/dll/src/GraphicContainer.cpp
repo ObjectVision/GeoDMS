@@ -11,7 +11,6 @@
 #include "GraphicContainer.h"
 
 #include "dbg/DebugContext.h"
-#include "mci/SingleLinkedTree.inc"
 
 //----------------------------------------------------------------------
 // class  : GraphicContainer --- template member implementation
@@ -184,7 +183,6 @@ template <typename ElemType>
 void GraphicContainer<ElemType>::SetDisconnected()
 {
 	base_type::SetDisconnected();
-//	RemoveAllEntries();
 }
 
 template <typename ElemType>

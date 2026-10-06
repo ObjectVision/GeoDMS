@@ -62,8 +62,6 @@ protected:
 
 	void AssignValues(sequence_traits<Bool>::cseq_t selData);
 	void AssignSelValues();
-	void CopySelValuesToBitmap();
-
 
 	void CopySelValues ();
 #ifdef _WIN32
@@ -94,7 +92,6 @@ private:
 
 	void Zoom1To1(ViewPort* vp) override;
 
-//	GridCoordPtr GetGridCoordInfo(ViewPort* vp) const; friend class ViewPort;
 	void CreateSelCaretInfo () const;
 	IRect CalcSelectedGeoRect()  const;
 

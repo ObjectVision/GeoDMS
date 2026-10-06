@@ -91,7 +91,7 @@ struct PenIndexCache : ResourceIndexCache
 	}
 #endif
 
-private: friend struct PenArray;
+private:
 	const AbstrUnit* GetCommonClassIdUnit() const;
 	void AddKeys(const AbstrThemeValueGetter* pixelwidth, const AbstrThemeValueGetter*  worldWidth, const AbstrThemeValueGetter* penColor, const AbstrThemeValueGetter* penStyle, entity_id n) const;
 	void AddKey(Float64 penSize, Float64 worldSize, DmsColor penColor, PenStyle penStyle) const;
@@ -105,40 +105,6 @@ private: friend struct PenArray;
 
 	mutable std::vector<PenKeyType> m_Keys;
 };
-
-
-//----------------------------------------------------------------------
-// struct  : PenArray (Win32-only: GDI pen management)
-//----------------------------------------------------------------------
-
-#ifdef _WIN32
-
-#include "DcHandle.h"
-
-struct PenArray
-{
-	using SafePenHandle = GdiHandle<HPEN>;
-
-	PenArray(HDC hDC, const PenIndexCache*& indexer);
-	~PenArray();
-
-	void ResetPen();
-	bool SelectPen(UInt32 index);
-	void SetSpecificPen(HPEN pen);
-
-	SizeT size() const { return m_Collection.size(); }
-
-private:
-	void SetPen(HPEN pen);
-
-	std::vector<SafePenHandle> m_Collection;
-	HDC                        m_hDC;
-	HPEN                       m_OrgHPen = nullptr; // so that it can be restored in the destructor; only saved at the first selection
-	bool                       m_CurrPenIsExceptional = false;
-
-};
-
-#endif // _WIN32
 
 
 #endif // __SHV_PENINDEXCACHE_H

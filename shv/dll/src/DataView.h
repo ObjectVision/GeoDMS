@@ -276,7 +276,6 @@ public:
 	// Caret management
 	void InsertCaret(AbstrCaret*);
 	void RemoveCaret(AbstrCaret*);
-	void RemoveAllCarets();
 	void MoveCaret  (AbstrCaret*, const AbstrCaretOperator&);
 	void SetSelCaret (      Region& newSelCaret);
 	void XOrSelCaret (const Region& newSelCaret);

@@ -937,84 +937,6 @@ void GridLayer::ClearPaste()
 }
 #endif // _WIN32
 
-void GridLayer::CopySelValuesToBitmap()
-{
-	ClipBoard clipBoard(false);
-	if (!clipBoard.IsOpen())
-		throwItemError("Cannot open Clipboard");
-
-	ThemeReadLocks readLocks;
-
-	dms_assert(m_Themes[AN_Selections]); // PRECONDITION 
-	readLocks.push_back(m_Themes[AN_Selections].get(), DrlType::Certain);
-
-	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttr();
-	dms_assert(selAttr);                // PRECONDITION
-
-	Theme* colorTheme   = m_Themes[AN_BrushColor].get();
-	Theme* featureTheme = m_Themes[AN_Feature   ].get();
-	dms_assert(colorTheme);
-	readLocks.push_back(colorTheme, DrlType::Certain);
-	if (featureTheme)
-		readLocks.push_back(featureTheme, DrlType::Certain);
-
-
-	GridCoord mapping(nullptr, GetGridCoordKey(GetGeoCrdUnit()));
-
-	auto selectIRect = CalcSelectedGeoRect();
-	GRect selectGRect = GRect(Left(selectIRect), Top(selectIRect), Right(selectIRect), Bottom(selectIRect));
-
-	mapping.Init(selectGRect.Size(), CrdTransformation(-Convert<CrdPoint>(selectIRect.first), CrdPoint(1.0, 1.0)));
-	mapping.UpdateUnscaled();
-
-	GridColorPalette colorPalette(colorTheme);
-	dms_assert(colorPalette.IsReady());
-
-	auto dv = GetDataView().lock();
-	GridDrawer drawer(
-		&mapping
-	,	GetIndexCollector()
-	,	&colorPalette
-	,	nullptr	// selValues
-	,	nullptr	// DrawContext: not needed for clipboard copy
-	,	GRect(GPoint(0,0), selectGRect.Size()) // viewExtents
-	);
-
-	drawer.Apply(); // fills pixel buffer
-
-#if defined(_WIN32)
-	// Create compatible bitmap for clipboard from the pixel buffer
-	BITMAPINFO* bmi = colorPalette.GetBitmapInfo(selectGRect.Width(), selectGRect.Height());
-	VOID* pvBits = nullptr;
-	GdiHandle<HBITMAP> hPaletteBitmap(
-		CreateDIBSection(NULL, bmi, DIB_RGB_COLORS, &pvBits, NULL, 0)
-	);
-	if (pvBits && drawer.m_pvBits)
-	{
-		// SizeT, not int: a 32 bpp selection of ~25k x 25k pixels overflowed int and handed memcpy a
-		// negative size; CreateDIBSection accepts such sizes on 64-bit
-		MG_CHECK(selectGRect.Width() >= 0 && selectGRect.Height() >= 0);
-		SizeT bytesPerRow = ((SizeT(selectGRect.Width()) * bmi->bmiHeader.biBitCount + 31) / 32) * 4;
-		memcpy(pvBits, drawer.m_pvBits, bytesPerRow * SizeT(selectGRect.Height()));
-	}
-
-	GdiHandle<HBITMAP>
-		hCompatibleBitmap = GdiHandle(CreateCompatibleBitmap(DcHandleBase(dv->GetHWnd()), selectGRect.Width(), selectGRect.Height()));
-
-	CompatibleDcHandle 
-		memPaletteDC(NULL, 0),
-		memCompatibleDC(NULL, 0);
-
-	GdiObjectSelector<HBITMAP> 
-		selectBitmap1(memPaletteDC,    hPaletteBitmap),
-		selectBitmap2(memCompatibleDC, hCompatibleBitmap);
-
-	BitBlt(memCompatibleDC, 0, 0, selectGRect.Width(), selectGRect.Height(), memPaletteDC, 0, 0, SRCCOPY);
-
-	clipBoard.SetBitmap( hCompatibleBitmap );
-#endif // _WIN32
-}
-
 bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const
 {
 	DBG_START("GridLayer", "DrawAllRects", MG_DEBUG_REGION);
@@ -1321,12 +1243,6 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 		return;
 	dms_assert(IsDefined( m_PasteHandler->GetSelValues()->m_Rect.first.Row() ) ); // follows from IsHidden
 	dms_assert(IsDefined( m_PasteHandler->GetSelValues()->m_Rect.first.Col() ) ); // follows from IsHidden
-
-	// =========== Get DataReadLocks
-	ThemeReadLocks readLocks;
-
-	if (m_Themes[AN_Feature])
-		readLocks.push_back(m_Themes[AN_Feature].get(), DrlType::Certain);
 
 	// =========== Get Data
 

@@ -19,7 +19,6 @@
 
 #include "DataView.h"
 #include "DrawContext.h"
-#include "GdiRegionUtil.h"
 #include "GraphVisitor.h"
 #include "GraphicObject.h"
 
@@ -76,17 +75,6 @@ CompatibleDcHandle::~CompatibleDcHandle()
 
 
 //----------------------------------------------------------------------
-// CaretDcHandle
-//----------------------------------------------------------------------
-
-CaretDcHandle::CaretDcHandle(HWND hWnd, HFONT defaultFont)
-	:	DcHandle(hWnd, defaultFont)
-{
-	SetROP2(GetHDC(), R2_NOTXORPEN);
-}
-
-
-//----------------------------------------------------------------------
 // PaintDcHandle
 //----------------------------------------------------------------------
 
@@ -128,27 +116,6 @@ CaretHider::~CaretHider()
 	}
 	catch (...) {}
 }
-
-//----------------------------------------------------------------------
-//	ClippedDC
-//----------------------------------------------------------------------
-
-ClippedDC::ClippedDC(DataView* dv, const Region& rgn)
-	:	DcHandle(dv->GetHWnd(), dv->GetDefaultFont(FontSizeCategory::MEDIUM) )
-{
-	auto hrgn = RegionToHRGN(rgn);
-	m_Empty = ( SelectClipRgn(GetHDC(), hrgn) == NULLREGION );
-}
-
-//----------------------------------------------------------------------
-//	DirectDC
-//----------------------------------------------------------------------
-
-DirectDC::DirectDC(DataView* dv, const Region& rgn)
-	:	ClippedDC(dv, rgn)
-	,	m_CaretHider(dv, GetHDC())
-{}
-
 
 //----------------------------------------------------------------------
 // AddTransformation
@@ -206,178 +173,4 @@ DcClipRegionSelector::~DcClipRegionSelector()
 	m_OrgRegionPtr->swap(m_OrgRegionCopy);
 
 	assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all
-}
-
-
-//----------------------------------------------------------------------
-// DcMixModeSelector
-//----------------------------------------------------------------------
-
-// s = source bit, t = target bit, x = s^t; r = ~x = R2_NOTXOR(s,t)
-//	s t x r
-//	0 0 0 1
-//	0 1 1 0
-//	1 0 1 0
-//	1 1 0 1
-
-DcMixModeSelector::DcMixModeSelector(HDC hdc, int fnDrawMode)
-	:	m_hDC(hdc)
-	,	m_oldDrawMode(SetROP2(hdc, fnDrawMode) )
-#if defined(MG_DEBUG_DATA)
-	,	m_selDrawMode(fnDrawMode)
-#endif
-{
-	dms_assert(hdc);
-	dms_assert(fnDrawMode != 0);
-	if (m_oldDrawMode == 0)
-		throwLastSystemError("DcMixModeSelector::ctor");
-}
-
-DcMixModeSelector::~DcMixModeSelector()
-{
-	int result = SetROP2(m_hDC, m_oldDrawMode);
-	MGD_CHECKDATA(result == m_selDrawMode);
-}
-
-
-//----------------------------------------------------------------------
-// DcTextAlignSelector
-//----------------------------------------------------------------------
-
-DcTextAlignSelector::DcTextAlignSelector(HDC hdc, UINT fTextAlignMode)
-	:	m_hDC(hdc)
-	,	m_oldTextAlignMode(SetTextAlign(hdc, fTextAlignMode) )
-#if defined(MG_DEBUG)
-	,	m_selTextAlignMode(fTextAlignMode)
-#endif
-{
-	dms_assert(hdc);
-	dms_assert(fTextAlignMode != GDI_ERROR);
-	if (m_oldTextAlignMode == GDI_ERROR)
-		throwLastSystemError("DcTextAlignSelector::ctor");
-}
-
-DcTextAlignSelector::~DcTextAlignSelector()
-{
-	UINT result = SetTextAlign(m_hDC, m_oldTextAlignMode);
-	dbg_assert(result == m_selTextAlignMode);
-}
-
-
-//----------------------------------------------------------------------
-// DcTextColorSelector
-//----------------------------------------------------------------------
-
-DcTextColorSelector::DcTextColorSelector(HDC hdc, DmsColor selColor)
-	:	m_hDC(hdc)
-	,	m_oldTextColor(hdc ? SetTextColor(hdc, DmsColor2COLORREF(selColor)) : CLR_INVALID)
-{
-	dms_assert(selColor != CLR_INVALID || !hdc);
-	if (hdc && m_oldTextColor == CLR_INVALID)
-		throwLastSystemError("DcTextColorSelector::ctor");
-}
-
-DcTextColorSelector::~DcTextColorSelector()
-{
-	if (m_hDC)
-		SetTextColor(m_hDC, m_oldTextColor);
-}
-
-
-//----------------------------------------------------------------------
-// DcBackColorSelector
-//----------------------------------------------------------------------
-
-DcBackColorSelector::DcBackColorSelector(HDC hdc, DmsColor crColor)
-	:	m_hDC(crColor == CLR_INVALID ? nullptr : hdc)
-	,	m_oldBkColor(m_hDC ? SetBkColor(m_hDC, DmsColor2COLORREF(crColor)) : CLR_INVALID )
-{
-	dms_assert(crColor != CLR_INVALID || !m_hDC);
-	if (m_hDC && m_oldBkColor == CLR_INVALID)
-		throwLastSystemError("DcBackColorSelector::ctor");
-}
-
-DcBackColorSelector::~DcBackColorSelector()
-{
-	if (m_hDC)
-		SetBkColor(m_hDC, m_oldBkColor);
-}
-
-
-//----------------------------------------------------------------------
-// DcBkModeSelector
-//----------------------------------------------------------------------
-
-DcBkModeSelector::DcBkModeSelector(HDC hdc, int iBkMode)
-	:	m_hDC(hdc)
-	,	m_oldBkMode(hdc ? SetBkMode(hdc, iBkMode) : 0 )
-#if defined(MG_DEBUG)
-	,	m_selBkMode(iBkMode)
-#endif
-{
-	dms_assert(iBkMode != 0 || !hdc);
-	if (hdc && m_oldBkMode == 0)
-		throwLastSystemError("DcBkModeSelector::ctor");
-}
-
-DcBkModeSelector::~DcBkModeSelector()
-{
-	if (m_hDC)
-	{
-		auto result = SetBkMode(m_hDC, m_oldBkMode);
-		dbg_assert(result == m_selBkMode);
-	}
-}
-
-
-//----------------------------------------------------------------------
-// DcPolyFillModeSelector
-//----------------------------------------------------------------------
-
-DcPolyFillModeSelector::DcPolyFillModeSelector(HDC hdc, int polyFillMode)
-	:	m_hDC(hdc)
-	,	m_oldPolyFillMode(SetPolyFillMode(hdc, polyFillMode) )
-#if defined(MG_DEBUG)
-	,	m_selPolyFillMode(polyFillMode)
-#endif
-{
-	dms_assert(hdc);
-	dms_assert(polyFillMode != 0);
-	if (m_oldPolyFillMode == 0)
-		throwLastSystemError("DcPolyFillSelector::ctor");
-}
-
-DcPolyFillModeSelector::~DcPolyFillModeSelector()
-{
-	int result = SetPolyFillMode(m_hDC, m_oldPolyFillMode);
-	dbg_assert(result == m_selPolyFillMode);
-}
-
-//----------------------------------------------------------------------
-// DcBrushOrgSelector
-//----------------------------------------------------------------------
-
-DcBrushOrgSelector::DcBrushOrgSelector(HDC hdc, GPoint brushOrg)
-	:	m_hDC(hdc)
-	,	m_oldBrushOrg(0, 0)
-#if defined(MG_DEBUG)
-	,	m_selBrushOrg(brushOrg)
-#endif
-{
-	dms_assert(hdc);
-	
-	CheckedGdiCall(GetBrushOrgEx(hdc, &AsPOINT(m_oldBrushOrg)), "DcBrushOrgSelector");
-	brushOrg += m_oldBrushOrg;
-
-	SetBrushOrgEx(hdc, brushOrg.x, brushOrg.y, &AsPOINT(m_oldBrushOrg));
-}
-
-DcBrushOrgSelector::~DcBrushOrgSelector()
-{
-#if defined(MG_DEBUG)
-	GPoint currBrushOrg;
-	GetBrushOrgEx(m_hDC, &AsPOINT(currBrushOrg));
-	dms_assert(currBrushOrg == m_selBrushOrg + m_oldBrushOrg);
-#endif
-	int result = SetBrushOrgEx(m_hDC, m_oldBrushOrg.x, m_oldBrushOrg.y, NULL);
 }

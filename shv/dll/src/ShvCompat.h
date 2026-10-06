@@ -127,8 +127,8 @@ using HCURSOR = void*;
 
 // App-specific cursor IDs (IDC_ZOOMIN/ZOOMOUT/PAN/SELECTDIAMOND) live solely in
 // shv/res/resource.h as Win32 .rc resource IDs. The cursor code that uses them
-// (ViewPort.cpp, and Win32-only Win32ViewHost.cpp) includes that header and passes
-// them to LoadCursor via MAKEINTRESOURCE -- i.e. they are integer resource IDs, not
+// (ViewPort.cpp) includes that header and passes them to LoadCursor via
+// MAKEINTRESOURCE -- i.e. they are integer resource IDs, not
 // HCURSORs. They are intentionally NOT duplicated here: a second (wrongly typed,
 // differently valued) definition is what caused the redefinition inconsistency.
 
@@ -188,11 +188,7 @@ inline UInt32 GetSysColor(int index) {
 
 #ifndef MB_ICONEXCLAMATION
 #define MB_ICONEXCLAMATION 0x00000030
-#define MB_YESNO           0x00000004
-#define IDYES              6
 #endif
-
-inline int MessageBoxA(void*, const char*, const char*, unsigned int) { return IDYES; } // TODO: Qt dialog
 
 #endif // !_WIN32
 

@@ -285,18 +285,6 @@ SizeT TableControl::GetRecNo(SizeT rowNr) const
 	return getRecNo(rowNr, NrRows());
 }
 
-SizeT TableControl::GetRecNo(SizeT rowNr, SizeT nrRows) const
-{
-	if (!m_SelIndexAttr)
-		return getRecNo(rowNr, nrRows);
-
-	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
-		return UNDEFINED_VALUE(SizeT);
-
-	PreparedDataReadLock lck(m_SelIndexAttr, "TableControl::GetRecNo");
-	return getRecNo(rowNr, nrRows);
-}
-
 SizeT TableControl::nrRows() const
 {
 	dms_assert(!SuspendTrigger::DidSuspend());
@@ -731,7 +719,6 @@ void TableControl::GoEnd(bool shift)
 
 	SelChangeInvalidator sci(this);
 	m_Rows.GoEnd(shift, NrRows()-1);
-//	m_Cols.GoEnd(shift, NrEntries()-1);
 	sci.ProcessChange(true);
 	NotifyRowColChange();
 }
@@ -1269,8 +1256,6 @@ SharedMutableDataItem TableControl::CreateIdAttr(const AbstrUnit* domain, const 
 	if (!domain || domain->GetValueType() == ValueWrap<Void>::GetStaticClass())
 		return {};
 
-//	domain = GetUltimateSourceItem(domain);
-
 	auto dv = GetDataView().lock(); if (!dv) return {};
 
 	SharedMutableDataItem idAttr = CreateDataItem(
@@ -1395,7 +1380,6 @@ void TableControl::CreateTableGroupBy(bool activate)
 		auto dic = GetColumn(i);
 		try {
 			dic->UpdateTheme();
-//			dic->InvalidateView();
 		}
 		catch (...) {}
 	}

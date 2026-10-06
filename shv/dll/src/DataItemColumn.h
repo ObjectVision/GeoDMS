@@ -10,15 +10,9 @@
 #define __SHV_DIC_H
 
 #include "DisplayValue.h"
-#include "FontRole.h"
 #include "MovableObject.h"
 #include "TextControl.h"
 #include "ThemeSet.h"
-
-struct FontIndexCache;
-#ifdef _WIN32
-struct FontArray;
-#endif
 
 // AggrMethods are related to the srcAttr of DataItemColumns
 // see DefaultAggrMethod(...) for getting a default aggregation method for a srcAttr
@@ -72,7 +66,7 @@ public:
 
 	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; };
 
-	~DataItemColumn(); // hide call to dtor of SharedPtr<FontIndexCache>
+	~DataItemColumn();
 
 	void SetAggrMethod(AggrMethod am)
 	{
@@ -213,18 +207,10 @@ private:
 	DmsColor  GetOrgColor(SizeT recNo, AspectNr a) const;
 	TextInfo  GetText    (SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const;
 	WCHAR     GetSymbol  (SizeT recNo) const;
-#ifdef _WIN32
-	HFONT     GetFont    (SizeT recNo, FontRole fr, Float64 subPixelFactor) const;
-#endif
 
 	void SetOrgColor(SizeT recNo, AspectNr a, DmsColor color);
 	void RampColors(AbstrDataObject* ado, const std::vector<SizeT>& recNos);
 	void RampValues(AbstrDataObject* ado, const std::vector<SizeT>& recNos);
-
-	mutable std::unique_ptr<FontIndexCache> m_FontIndexCache;
-#ifdef _WIN32
-	mutable std::unique_ptr<FontArray>      m_FontArray;
-#endif
 
 	SharedDataItemInterestPtr m_FutureSrcAttr, m_FutureAggrAttr;
 

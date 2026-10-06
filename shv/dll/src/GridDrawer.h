@@ -58,7 +58,6 @@ struct GridColorPalette
 	UInt32         GetLargeNodataColor() const { return m_LargeNodataColor; }
 #ifdef _WIN32
 	bool           IsReady        () const { return m_BitmapInfo; }
-	BITMAPINFO*    GetBitmapInfo(LONG width, LONG height) const;
 #else
 	bool           IsReady        () const { return m_BitCount > 0; }
 #endif
@@ -122,9 +121,6 @@ struct GridDrawer: UnitProcessor
 	mutable GRect           m_sViewRect;
 	DrawContext*            m_DC;
 
-	#ifdef _WIN32
-	mutable void*           m_pvBits; // DWORD Alignment per row
-#endif
 	mutable std::vector<Byte> m_PixelBuffer; // portable pixel storage
 	mutable tile_id         m_TileID;
 	mutable IRect           m_TileRect;

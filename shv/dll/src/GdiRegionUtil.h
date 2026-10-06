@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------
 // GDI ↔ QRegion conversion utilities.
 // Used by Win32-specific code that still needs HRGN handles
-// (e.g. Win32ViewHost, GdiDrawContext, DcHandle).
+// (e.g. GdiDrawContext, DataView, QDmsViewArea).
 //----------------------------------------------------------------------
 
 #include "DcHandle.h"  // GdiHandle<HRGN>

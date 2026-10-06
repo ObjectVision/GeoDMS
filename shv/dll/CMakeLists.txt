@@ -4,7 +4,7 @@ file(GLOB SHV_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 # Win32-only sources: exclude on other platforms
 if(NOT WIN32)
-    list(FILTER SHV_SOURCES EXCLUDE REGEX "(Win32ViewHost|GdiDrawContext|DcHandle)\\.cpp$")
+    list(FILTER SHV_SOURCES EXCLUDE REGEX "(GdiDrawContext|DcHandle)\\.cpp$")
 endif()
 
 add_library(DmShv SHARED ${SHV_SOURCES} ${SHV_HEADERS})

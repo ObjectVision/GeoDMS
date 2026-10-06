@@ -285,20 +285,6 @@ protected:
 #include "BoundingBoxCache.h"
 
 template <typename ScalarType>
-const SequenceBoundingBoxCache<ScalarType>*
-GetSequenceFeatureBoundingBoxCache(const FeatureLayer* layer)
-{
-	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
-const PointBoundingBoxCache<ScalarType>*
-GetPointFeautureBoundingBoxCache(const FeatureLayer* layer)
-{
-	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
 std::shared_ptr<const SequenceBoundingBoxCache<ScalarType>>
 GetSequenceBoundingBoxCache(const FeatureLayer* layer)
 {

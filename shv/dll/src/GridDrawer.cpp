@@ -232,16 +232,6 @@ GridColorPalette::~GridColorPalette()
 #endif
 }
 
-#ifdef _WIN32
-BITMAPINFO* GridColorPalette::GetBitmapInfo(LONG width, LONG height) const
-{
-	dms_assert(m_BitmapInfo);
-	m_BitmapInfo->bmiHeader.biWidth = width;
-	m_BitmapInfo->bmiHeader.biHeight= height;
-	return m_BitmapInfo;
-}
-#endif
-
 //----------------------------------------------------------------------
 // class  : GridDrawer
 //----------------------------------------------------------------------
@@ -263,9 +253,6 @@ GridDrawer::GridDrawer(
 	,	m_DC           (drawContext)
 	,	m_TileID       (t)
 	,	m_TileRect     (tileRect)
-#ifdef _WIN32
-	,	m_pvBits       (nullptr)
-#endif
 {
 	dms_assert(m_GridCoords);
 	dms_assert(colorPalette && colorPalette->IsReady());
@@ -506,9 +493,6 @@ void GridDrawer::AllocatePixelBuffer() const
 	int bufferSize = bytesPerRow * height;
 
 	m_PixelBuffer.resize(bufferSize, 0);
-#ifdef _WIN32
-	m_pvBits = m_PixelBuffer.data();
-#endif
 }
 
 void GridDrawer::CopyToDrawContext(GPoint viewportOffset, DmsRasterOp op) const

@@ -54,7 +54,7 @@ struct FontIndexCache : ResourceIndexCache
 	}
 #endif
 
-private: friend struct FontArray;
+private:
 	const AbstrUnit* GetCommonClassIdUnit() const;
 	void AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const AbstrThemeValueGetter* worldSizeValueGetter, const AbstrThemeValueGetter* nameValueGetter, const AbstrThemeValueGetter* angleValueGetter, UInt32 n) const;
 	void AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNameID, UInt16 fontAngle) const;
@@ -72,50 +72,6 @@ private: friend struct FontArray;
 
 	mutable std::vector<FontKeyType> m_Keys;
 };
-
-
-//----------------------------------------------------------------------
-// struct  : FontArray / SelectingFontArray (Win32-only: GDI font management)
-//----------------------------------------------------------------------
-
-#ifdef _WIN32
-
-#include "DcHandle.h"
-
-using SafeFontHandle = GdiHandle<HFONT>;
-using FontHandleCollection = std::vector<SafeFontHandle>;
-
-struct FontArray
-{
-	FontArray(const FontIndexCache* indexer, bool sizesAreCellHeights);
-
-	bool IsSingleton() const { return size() == 1; }
-
-	HFONT  GetFontHandle   (UInt32 index) const;
-	SizeT size() const { return m_FontArray.size(); }
-
-private:
-	FontHandleCollection m_FontArray;
-};
-
-//----------------------------------------------------------------------
-// struct  : SelectingFontArray
-//----------------------------------------------------------------------
-
-struct SelectingFontArray : FontArray
-{
-	SelectingFontArray(HDC hDC, const FontIndexCache* indexer, bool sizesAreCellHeights);
-	~SelectingFontArray();
-
-	bool SelectSingleton(); // selects the only font; use this in an if after construction to forget about indexer
-	bool SelectFontHandle(UInt32 index);
-
-private:
-	HDC                    m_hDC;
-	HFONT                  m_OrgHFont;
-};
-
-#endif // _WIN32
 
 #endif // __SHV_FONDINDEXCACHE_H
 

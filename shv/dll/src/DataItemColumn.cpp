@@ -48,7 +48,6 @@
 #include "Clipboard.h"
 #include "DataView.h"
 #include "DcHandle.h"
-#include "FontIndexCache.h"
 #include "IdleTimer.h"
 #include "Carets.h"
 #include "Controllers.h"
@@ -422,11 +421,6 @@ void DataItemColumn::SetElemSize(WPoint size)
 		return;
 
 	m_ElemSize = size;
-
-#ifdef _WIN32
-	m_FontArray.reset();
-#endif
-	m_FontIndexCache.reset();
 
 	InvalidateView();
 	InvalidateDraw();
@@ -875,10 +869,6 @@ void DataItemColumn::DoInvalidate() const
 	base_type::DoInvalidate();
 	const_cast<DataItemColumn*>(this)->InvalidateDraw();
 
-#ifdef _WIN32
-	m_FontArray.reset();
-#endif
-	m_FontIndexCache.reset();
 	m_State.Clear(DIC_TotalReady);
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
@@ -933,7 +923,6 @@ void DataItemColumn::DoUpdateView()
 	size.FlippableY(isColOriented) += rowSepHeight;
 
 	SetClientSize(size);
-//	tc->ProcessCollectionChange();
 	assert(!SuspendTrigger::DidSuspend());
 }
 
@@ -986,7 +975,6 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 		borderColor = penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1));
 	}
-//	TType currRowLogicalY = clientLogicalAbsPosRow + recNo * logicalRowHeight;
 	auto currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
 	auto clipEndRow = isColOriented ? d.GetAbsClipDeviceRect().Bottom() : d.GetAbsClipDeviceRect().Right();
 
@@ -1061,9 +1049,6 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 	assert(d.DoDrawData()); // PRECONDITION
 
 // TODO: Set scaled Font size, Set TextAlignMode
-//	CrdPoint base = d.GetTransformation().GetOffset();
-
-//	GRect elemExtents = absElemRect; //TRect( d.GetClientLogicalAbsPos(), d.GetClientLogicalAbsPos() + TPoint(elemSize) );
 
 	if (HasElemBorder())
 		d.GetDrawContext()->DrawButtonBorder(elemDeviceExtents);
@@ -1435,54 +1420,6 @@ void DataItemColumn::SetRevBorder(bool revBorder)
 {
 	base_type::SetRevBorder(revBorder);
 }
-
-#ifdef _WIN32
-HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) const
-{
-	auto fontTheme = GetTheme(fontNameAspect[fr]);
-
-	if (!fontTheme && !*(defFontNames[fr]))
-		return 0;
-
-	assert(m_FontIndexCache || !m_FontArray); // FontArray is only avaiable when FontIndexCache is available
-
-	if (! m_FontArray || m_FontIndexCache->GetLastSubPixelFactor() != subPixelFactor)
-	{
-		UInt32 cellHeight = m_ElemSize.Y();
-		if (HasBorder())
-			cellHeight -= 2*BORDERSIZE;
-
-		if (!m_FontIndexCache) // no custom font(s) set in FeatureLayer::GetFontIndexCache(FontRole fr), set default
-		{
-			auto font_height = GetDefaultFontHeightDIP(FontSizeCategory::MEDIUM); // alternative value: cellHeight + 2
-			m_FontIndexCache = // default font
-				std::make_unique<FontIndexCache>(
-					nullptr,         // fontSizeTheme
-					nullptr,         // worldSizeTheme
-					fontTheme.get(), // fontNameTheme
-					nullptr,		 // fontAngleTheme
-					fontTheme ? fontTheme->GetThemeEntityUnit() : Unit<Void>::GetStaticClass()->CreateDefault(), // theme domain entity
-					nullptr,		 // projectionBaseUnit
-					font_height,	 // defFontSize
-					0.0,		     // defWorldSize
-					GetTokenID_mt(defFontNames[fr]), // defFontNameID
-					0				 // defFontAngle
-				);
-		}
-		m_FontIndexCache->UpdateForZoomLevel(subPixelFactor, subPixelFactor);
-		m_FontArray = std::make_unique<FontArray>(m_FontIndexCache.get(), true);
-	}
-	assert(m_FontArray);
-
-	if (m_FontArray->IsSingleton())
-		recNo = 0;
-	else
-		recNo = m_FontIndexCache->GetKeyIndex(recNo);
-
-	return m_FontArray->GetFontHandle(recNo);
-}
-#endif // _WIN32
-
 
 GraphVisitState DataItemColumn::InviteGraphVistor(class AbstrVisitor& gv)
 {

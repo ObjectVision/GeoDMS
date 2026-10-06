@@ -128,7 +128,6 @@ public:
 
 	SizeT NrRows() const;
 	SizeT GetRecNo(SizeT i) const;
-	SizeT GetRecNo(SizeT rowNr, SizeT nrRows) const;
 	SizeT GetRowNr(SizeT i) const;
 	ExportInfo GetExportInfo() const;
 
