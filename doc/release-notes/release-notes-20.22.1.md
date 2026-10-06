@@ -155,6 +155,7 @@
 - **A WMS background layer gives up on a server that stops answering.** A tile request whose connection, handshake, request or response stalled (a dropped network, a VPN reconnect, sleep) lived for ever: after eight of them no tile loaded for the rest of the session, and closing the map view, exiting, copying the view or exporting it waited for them on the GUI thread without end. A step of a tile request now gives up after 20 seconds, a closing view ends its own requests at once, and a WMS legend is fetched within 10 seconds or not at all.
 - **Table actions on rows that are still being computed** (Copy, Export, Find, Select Rows, Select Column, Ramp, Go to first selected) wait for the sort index or stop with a warning. On a sorted table they could use a row number that was not ready yet as an index, which corrupted memory or crashed, and Select Column on a table without a known row count hung (SHV-A08, SHV-A09).
 - **A rotated map with an unprojected grid layer** kept the grid at its first rotated pose; it follows zoom and pan again (SHV-A13).
+- **Maps draw with fewer GDI calls on Windows (SHV-A07).** Since 20.0.0 every polygon, outline, arc and point symbol created and deleted its own pen, brush or font; a draw now makes each distinct one once. A dashed or dotted `PenStyle` with a `PenWidth` above 1 drew as a solid line in the Windows GUI since 20.0.0, and is dashed or dotted again.
 
 ## Configuration language and diagnostics
 

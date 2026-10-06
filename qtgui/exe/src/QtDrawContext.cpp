@@ -189,6 +189,15 @@ void QtDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTe
 {
 	if (!m_Painter)
 		return;
+	// A point layer sets the font for every symbol, and consecutive symbols mostly share it; building the
+	// QFont, setting it and undoing and redoing the rotation is then work without effect (SHV-A07).
+	if (m_FontIsCurrent && m_FontPixelHeight == pixelHeight && m_FontAngle == angleDegTenths && m_FontName == fontName)
+		return;
+	m_FontIsCurrent = true;
+	m_FontName = fontName;
+	m_FontPixelHeight = pixelHeight;
+	m_FontAngle = angleDegTenths;
+
 	QFont font(QString::fromUtf8(fontName));
 	font.setPixelSize(abs(pixelHeight));
 	m_Painter->setFont(font);
@@ -215,6 +224,7 @@ void QtDrawContext::SetBold(bool isBold)
 		return;
 	f.setBold(isBold);
 	m_Painter->setFont(f);
+	m_FontIsCurrent = false; // the painter's font is no longer the one SetFont was last given
 }
 
 void QtDrawContext::SetTextAlign(bool centerH, bool baseline)

@@ -11,6 +11,8 @@
 #include "vt/color.h"
 #include "GeoTypes.h"
 
+#include <memory>
+
 struct GRect;
 struct GPoint;
 struct Region;
@@ -135,13 +137,16 @@ public:
 //----------------------------------------------------------------------
 // Non-owning wrapper around an HDC. Lifetime of the HDC is managed
 // by the caller (DcHandle, PaintDcHandle, etc.)
-// Transitional: will be removed when all rendering uses Qt.
+// The pens, brushes and fonts it creates are kept for its own lifetime, one draw callback, and reused
+// by every call that asks for the same one (SHV-A07); see GdiObjectCache in GdiDrawContext.cpp.
+
+struct GdiObjectCache;
 
 class GdiDrawContext : public DrawContext
 {
 public:
-	GdiDrawContext() : m_hDC(NULL), m_OwnedFont(NULL), m_OrgFont(NULL) {}
-	explicit GdiDrawContext(HDC hdc) : m_hDC(hdc), m_OwnedFont(NULL), m_OrgFont(NULL) {}
+	GdiDrawContext();
+	explicit GdiDrawContext(HDC hdc);
 	~GdiDrawContext() override;
 
 	HDC GetHDC() const { return m_hDC; }
@@ -182,9 +187,14 @@ public:
 	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op) override;
 
 private:
+	HPEN   GetPen  (DmsColor color, int width, DmsPenStyle style);
+	HBRUSH GetBrush(DmsColor color, DmsHatchStyle hatch);
+	void   SelectFont(const LOGFONTW& logFont);
+	GdiObjectCache& Cache();
+
 	HDC   m_hDC;
-	HFONT m_OwnedFont; // the font this context created and selected into m_hDC
-	HFONT m_OrgFont;   // the font that m_OwnedFont replaced in m_hDC; selected back before m_OwnedFont is deleted
+	HFONT m_OrgFont = NULL; // the font that the first font of this context replaced in m_hDC; selected back before the cache deletes its fonts
+	std::unique_ptr<GdiObjectCache> m_Cache; // made on first use
 };
 #endif // _WIN32
 

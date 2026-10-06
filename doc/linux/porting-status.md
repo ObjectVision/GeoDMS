@@ -36,6 +36,13 @@ Two abstraction layers decouple platform-specific code from the shared model:
 
 ## Open
 
+*Pen and font caching, an open item until 2026-10-07, is done (continuations B11): since Step 4a
+and 4c (ca9bb9da0, 922fb95bc) `GdiDrawContext` created and deleted a GDI pen, brush or font per draw
+call, about 3M calls per redraw of a 1M-polygon layer (audit SHV-A07); it now keeps them for the length
+of one draw callback. The Win32-only `PenArray` and `FontArray`, unused since Step 4, were deleted on
+2026-10-06 (c0737bfe8). The Qt drawing needs no such cache: QPen and QBrush are values, and Qt caches
+its fonts itself.*
+
 - **Pen and font caching, on both platforms.** `PenIndexCache` and `FontIndexCache` still compute
   the distinct pens and fonts of a layer, but the handles are GDI (`HPEN`, `HFONT`/`LOGFONT`;
   the Win32-only `PenArray` and `FontArray`, dead since Step 4, were deleted on 2026-10-06, c0737bfe8),

@@ -9,6 +9,8 @@
 
 #include "DrawContext.h"
 
+#include <string>
+
 class QPainter;
 
 //----------------------------------------------------------------------
@@ -63,6 +65,12 @@ private:
 	bool m_CenterH = false;
 	bool m_Baseline = false;
 	double m_FontRotation = 0.0; // current rotation in degrees (to undo on next SetFont)
+
+	// the arguments of the last SetFont, while the painter still has that font (SHV-A07)
+	bool        m_FontIsCurrent = false;
+	std::string m_FontName;
+	int         m_FontPixelHeight = 0;
+	UInt16      m_FontAngle = 0;
 };
 
 #endif // __QT_DRAWCONTEXT_H
