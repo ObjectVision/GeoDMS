@@ -1,5 +1,18 @@
 # Recursion-elimination refactor plan & state
 
+*Status (2026-10-06): of the 17 commits listed below, 7 were reverted at 02:35 on 2026-05-22, the
+night after this snapshot: R1 (a52f987b9), the `prioritize_impl` worklist (5d8bc89af; the function
+itself was deleted with the rest of the prioritize family in 2d1e8ec51), A1 (21cb802f2), A2
+(de529f23e) and R2 phases 1, 2 and 5 (e77506323, dce70dc29, 19ab9a351). What stands: C1a, D1, F2,
+H1, H3, and the 64 MB stack reserve with the 320 KB `std::async` batons as restored in d635a50f7,
+plus the Linux stack-size flag (5c61e71f2). C1b, the fused iterative driver for
+`SubstituteExpr_impl`, `SubstituteArgs` and `slSupplierExprImpl`, never started, and its target
+grew: `SubstituteExpr_impl` had 1 definition and 4 calls when this was written and has 1 definition
+and 13 calls in `rtc/dll/src/tic/AbstrCalculator.cpp` now. D2/D3 (open problem 5) were not done
+either. `doc/continuations-2026-10-06.md` row C1 orders the remaining work, measuring first. Until
+2026-10-06 this document listed all 17 commits as landed (PLN-A01 of the code audit of 2026-09-27);
+it moved from the repository root to `doc/development/` on that date.*
+
 Status snapshot — 2026-05-21 — branch `refactor_linux_gui`.
 
 This document captures the state of an in-progress refactor wave aimed at
@@ -22,25 +35,25 @@ The 17 commits below are all clean local builds; many were validated by
 batch file through the PowerShell→cmd boundary, see
 `memory/feedback_test_validation.md` for details).
 
-| # | Commit | Subject |
-|---|---|---|
-| 1 | `e0675e05` | OperationContext_scheduleThis: recursion → worklist (R1) |
-| 2 | `b0c497ca` | prioritize_impl: recursion → worklist |
-| 3 | `2b6524aa` | AbstrCalculator::SubstituteArgs: tail-recursion → loop (C1a) |
-| 4 | `b55d2bb5` | XmlParser::ReadEncl: recursion → explicit stack (D1) |
-| 5 | `57d30e5e` | Actor::SuspendibleUpdate: post-order driver (A1) |
-| 6 | `4a7e4f72` | Actor::UpdateMetaInfo: post-order driver (A2) |
-| 7 | `1350254c` | TreeItem_VisitConstVisibleSubTree: explicit stack (F2) |
-| 8 | `dfd595bf` | FuncDC::MakeResult: arg-DAG drain (R2 Phase 1) |
-| 9 | `806f7dec` | FuncDC::CallCalcResultImpl: arg-DAG drain (R2 Phase 2) |
-| 10 | `aa305410` | OperationContext::EstimateRamUsage hook (R2 Phase 5) |
-| 11 | `69e3b139` | TreeItem: remove 320 KB stack batons (reverted in 13) |
-| 12 | `7d7a0b3b` | Remove 64 MB stack-reserve override (reverted in 13) |
-| 13 | `d635a50f` | Restore 64 MB stack reserve + TreeItem batons; iterated-calc depths matter |
-| 14 | `5c61e71f` | Linux: -Wl,-z,stack-size=67108864 for GeoDmsRun and GeoDmsGuiQt |
-| 15 | `127d0415` | Assoc::ApplyOnce / ApplyMany: recursion → result-stitching worklist (H3) |
-| 16 | `b07b954a` | AssocList_RepApplyTopEnvList: tail-recursion → loop (partial H1) |
-| 17 | `43c4bbd4` | ApplyTopEnv: iterative outer rewrite-chain loop (full H1) |
+| # | Commit | Subject | At HEAD (2026-10-06) |
+|---|---|---|---|
+| 1 | `e0675e056` | OperationContext_scheduleThis: recursion → worklist (R1) | **reverted** in a52f987b9 |
+| 2 | `b0c497cac` | prioritize_impl: recursion → worklist | **reverted** in 5d8bc89af; `prioritize_impl` deleted in 2d1e8ec51 |
+| 3 | `2b6524aa2` | AbstrCalculator::SubstituteArgs: tail-recursion → loop (C1a) | stands |
+| 4 | `b55d2bb50` | XmlParser::ReadEncl: recursion → explicit stack (D1) | stands |
+| 5 | `57d30e5ee` | Actor::SuspendibleUpdate: post-order driver (A1) | **reverted** in 21cb802f2 |
+| 6 | `4a7e4f720` | Actor::UpdateMetaInfo: post-order driver (A2) | **reverted** in de529f23e |
+| 7 | `1350254c1` | TreeItem_VisitConstVisibleSubTree: explicit stack (F2) | stands |
+| 8 | `dfd595bf4` | FuncDC::MakeResult: arg-DAG drain (R2 Phase 1) | **reverted** in e77506323 |
+| 9 | `806f7decd` | FuncDC::CallCalcResultImpl: arg-DAG drain (R2 Phase 2) | **reverted** in dce70dc29 |
+| 10 | `aa3054109` | OperationContext::EstimateRamUsage hook (R2 Phase 5) | **reverted** in 19ab9a351 |
+| 11 | `69e3b139f` | TreeItem: remove 320 KB stack batons (reverted in 13) | undone by 13 |
+| 12 | `7d7a0b3b6` | Remove 64 MB stack-reserve override (reverted in 13) | undone by 13 |
+| 13 | `d635a50f7` | Restore 64 MB stack reserve + TreeItem batons; iterated-calc depths matter | stands |
+| 14 | `5c61e71f2` | Linux: -Wl,-z,stack-size=67108864 for GeoDmsRun and GeoDmsGuiQt | stands |
+| 15 | `127d0415d` | Assoc::ApplyOnce / ApplyMany: recursion → result-stitching worklist (H3) | stands |
+| 16 | `b07b954a2` | AssocList_RepApplyTopEnvList: tail-recursion → loop (partial H1) | stands |
+| 17 | `43c4bbd40` | ApplyTopEnv: iterative outer rewrite-chain loop (full H1) | stands |
 
 ### Validation status
 
@@ -67,10 +80,17 @@ unchanged. Future rebases / merges may shift these hashes again.
 - `run/exe/CMakeLists.txt` and `qtgui/exe/CMakeLists.txt` restored the
   Windows `target_link_options(..., /STACK:67108864,8192)` and added a
   Linux parity `-Wl,-z,stack-size=67108864` for `UNIX AND NOT APPLE`.
+- Since 6ff0d75b8 (#1269, 2026-09-10) every thread starts with 1 MB of committed stack:
+  `/STACK:67108864,1048576` in both CMakeLists and `<StackCommitSize>1048576</StackCommitSize>`
+  in `DmsDef.props`. The reserve is unchanged. PLN-A03 of the code audit of 2026-09-27 doubts
+  that the Linux flag has any effect, since glibc sizes the main thread from `RLIMIT_STACK`.
 
 ---
 
 ## The post-order driver pattern (A1/A2 template)
+
+*This section describes reverted code: commits 5, 6, 8 and 9 were all reverted on 2026-05-22, and no
+post-order drain is in the tree.*
 
 Used in commits 5, 6, 8, 9. Shape:
 
@@ -86,8 +106,8 @@ Used in commits 5, 6, 8, 9. Shape:
    `m_Data` populated, OC.status != none, etc.) thanks to post-order.
 
 Already-iterative templates in the codebase to reuse:
-- `ListObj::~ListObj` at `sym/dll/src/LispRef.cpp:767-792` (zombie_destroyer_stack)
-- `RewriteExprList` at `tic/dll/src/ExprRewrite.cpp:80-118`
+- `ListObj::~ListObj` in `rtc/dll/src/sym/LispRef.cpp` (zombie_destroyer_stack)
+- `RewriteExprList` in `rtc/dll/src/tic/TicCalcSupport.cpp` (formerly `ExprRewrite.cpp`)
 
 ## The iterative-outer-loop pattern (H1 template)
 
@@ -121,18 +141,21 @@ rewrite path, which H1 (commit 17) addresses. **It does not.**
 The actual depth chain, discovered late in the session:
 
 ```
-SubstituteExpr_impl(expr)                       [AbstrCalculator.cpp:1265]
-  → slSupplierExpr(symbol)                       [AbstrCalculator.cpp:856]
-    → slSupplierExprImpl(supplier)               [AbstrCalculator.cpp:895]
-      → supplier->GetCheckedKeyExpr()            [TreeItem.cpp:2456]
-        → TreeItem_GetCheckedDC_impl
-          → self->UpdateDC()                     [TreeItem.cpp:2402]
-            → GetOrgDC()
-              → GetCurrMetaInfo(...)             [TreeItem.cpp:2260]
-                → calc->GetMetaInfo()            [AbstrCalculator.cpp:1481]
-                  → SubstituteExpr(...)          [AbstrCalculator.cpp:1437]
+SubstituteExpr_impl(expr)                       [AbstrCalculator.cpp]
+  → slSupplierExpr(symbol)                       [AbstrCalculator.cpp]
+    → slSupplierExprImpl(supplier)               [AbstrCalculator.cpp]
+      → supplier->GetCheckedKeyExpr()            [TreeItemMetaInfo.cpp]
+        → TreeItem_GetCheckedDC_impl             [TreeItemMetaInfo.cpp]
+          → self->UpdateDC()                     [TreeItemMetaInfo.cpp]
+            → GetOrgDC()                         [TreeItemMetaInfo.cpp]
+              → GetCurrMetaInfo(...)             [TreeItemMetaInfo.cpp]
+                → calc->GetMetaInfo()            [AbstrCalculator.cpp]
+                  → SubstituteExpr(...)          [AbstrCalculator.cpp]
                     → SubstituteExpr_impl(...)   ← RECURSES HERE
 ```
+
+(Anchors re-pinned on 2026-10-06 to the files under `rtc/dll/src/tic/`; `TreeItem.cpp` was split in
+821d19459, and the line numbers of 2026-05-21 no longer apply. The chain itself is unchanged at HEAD.)
 
 `AbstrCalculator::GetMetaInfo()` has a one-shot guard
 (`m_HasSubstituted`), so each calculator substitutes exactly once. But on
@@ -191,7 +214,7 @@ outermost OnEnd drains.
 
 ### Open problem 4: Phase 4 — inline runDirect Join recursion
 
-`Schedule(runDirect=true)` (`OperationContext.cpp:1288-1318`) forces
+`Schedule(runDirect=true)` (`OperationContext_ScheduleThis` in `rtc/dll/src/tic/OperationContext.cpp`) forces
 non-parallel operators onto the meta-thread's C stack via
 `JoinSupplOrSuspendTrigger → supplier.Join → recurse`. Phases 1-3 don't
 fix this chain.
@@ -201,14 +224,13 @@ on the meta-thread. `JoinSupplOrSuspendTrigger` becomes "set fence, pump
 runnable tasks until target task is `done` or `suspended`".
 
 High risk; touches the most load-bearing scheduling logic. Existing
-`OperationContext::Join` at `:2254` already implements cooperative
+`OperationContext::Join` already implements cooperative
 work-stealing — Phase 4 generalizes that to all runDirect paths.
 
 ### Open problem 5: Spirit V1 grammars (D2/D3)
 
 `stx/dll/src/ConfigParse.cpp` (`item` rule recursion via container body)
-and `stx/dll/src/ExprParse.h` (`expression` rule recursion via parens at
-line 220) are Boost Spirit V1 recursive-descent grammars. Each recursion
+and `stx/dll/src/ExprParse.h` (`expression` rule recursion via parens) are Boost Spirit V1 recursive-descent grammars. Each recursion
 level burns ~10 frames (one per grammar production in the chain).
 
 The user noted nested item definitions in configs can compound to
@@ -229,8 +251,8 @@ recursive descent with a heap-allocated parse stack. Multi-week.
 
 ### Open problem 6: H2 — Match → loop
 
-`sym/dll/src/Lispeval.cpp:199-216` (`Match`) is mutual-recursive on Lisp
-pattern depth. Used from `ApplyTopEnvFunc::operator()` at line 524 (still
+`Match` in `rtc/dll/src/sym/LispEval.cpp` is mutual-recursive on Lisp
+pattern depth. Used from `ApplyTopEnvFunc::operator()` (still
 present although `operator()` is no longer called from cache.apply after
 commit 17 — the inlined rule-matching in `ApplyTopEnv` calls `Match`
 directly).
@@ -244,6 +266,12 @@ Parser GetExpr/GetExprList) are the remaining sym/ items. #13 and #15
 are config-load only.
 
 ### Open problem 8: real Operator::EstimateRamUsage estimators
+
+*Superseded (2026-10-06): commit 10 was reverted (19ab9a351), so there is no `EstimateRamUsage` hook
+and the activation loop consumes no estimate through it. Per-operation estimates came later, from
+`doc/development/schedule-with-lookahead.md` P0 and P1: `Operator::EstimatePerformance` with
+`PredictMaterialization` in `rtc/dll/src/tic/Operator.cpp`. Item 6 of the ordering below falls
+with it, and so does the condition of item 5.*
 
 Commit 10 added the `EstimateRamUsage()` hook returning 0 (= unknown,
 preserves pre-Phase-5 behavior). To deliver actual adaptive scheduling,
@@ -263,6 +291,11 @@ cardinality domain (passors). The activation loop at
 ---
 
 ## Recommended ordering for resumption on OVSRV10
+
+*Superseded (2026-10-06) by row C1 of `doc/continuations-2026-10-06.md`, which measures first: a deep
+iterated-calc testcase with a counter of the `std::async` hand-offs, then the D2/D3 depth caps, then
+merging the triplicated function-application dispatch in `SubstituteExpr(_impl)`, then C1b. Note
+that the A1/A2 drivers which approach 1 of C1b would mirror were reverted.*
 
 1. **Run the full Release test suite** to validate commits 1-10, 13-17
    on representative iterated-calc configs at the current (64 MB)
@@ -292,10 +325,11 @@ cardinality domain (passors). The activation loop at
   invocations fail because `cd ..\tst\batch` + `Call unit.bat` doesn't
   carry through the shell boundary. Validation on OVSRV10 happens via
   `TestReleaseUnit`.
-- Build verifies via `msbuild` on the relevant `*.vcxproj` (e.g.,
-  `tic/dll/DmTic.vcxproj`, `rtc/dll/DmRtc.vcxproj`, `sym/dll/DmSym.vcxproj`).
+- Building and testing: see `.claude/skills/geodms-build/SKILL.md`. (Until 2026-10-06 this bullet
+  told the reader to build single `*.vcxproj` projects, which AGENTS.md forbids.)
 - The OperationContext cache (`g_applyTopEnvCache`) is now
   `UnorderedMapCache<ApplyTopEnvFunc>` but `apply()` has no callers
   post-commit-17 — the iterative driver uses `lookup()` and `store()`
   directly. `ApplyTopEnvFunc::operator()` is dead code; can be cleaned
-  up in a follow-up.
+  up in a follow-up. (Still so on 2026-10-06: the struct is in `rtc/dll/src/sym/LispEval.cpp`, and
+  nothing calls `g_applyTopEnvCache.apply`.)

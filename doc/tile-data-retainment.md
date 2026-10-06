@@ -1,5 +1,14 @@
 # Tile data retainment: the AbstrDataObject hierarchy
 
+*Status (2026-10-06): current reference; §2, §3.3, §4.3, §4.7 and the observations re-checked
+against `main` at 0563aa5a0. Since it was written: U4 collapsed the abstract mid-layer into
+`DataArrayBase<V>` (111372429, 2026-08-16; §2 redrawn); a `FutureTileFunctor` keeps no apply
+function of its own and a binary attribute operator holds its result weakly (0fc692c63, TIC-A10;
+§3.3); `mapping_count` became a fifth direct
+`LazyTileFunctor` site (1ba7854d6, §4.3); `materialization` gained `spilled` for `FileTileArray`
+(fa3d7e50c) and `PredictMaterialization` no longer mislabels `KeepData` results (§4.7); the
+storage read moved to `StorageReadOperators.cpp` under #587 (bcf7317ec, observation 2).*
+
 Inventory of all (template) classes deriving from `AbstrDataObject` and analysis of whether each
 one **retains** lazily calculated (future) tiles, or **recalculates** them after all consumers
 released a tile and a later consumer — one that held supplier interest on the owning
@@ -8,15 +17,16 @@ released a tile and a later consumer — one that held supplier interest on the 
 Based on code review of the GeoDMS26 tree (rtc/tic, clc, geo) on branch `lookahead-scheduling`,
 2026-07-30.
 
-> 2026-08-16: the mid-layer scaffolding of this hierarchy (`DataArrayBase`/`NumericArray`/
-> adapters) is being collapsed into `TileFunctor<V>` — see
-> `doc/development/unit-hierarchy-collapse.md`. The retention analysis and the
-> Generated/Delayed/Future/Lazy forks in §3-§4 are unaffected; the class tree in §2 will be
-> refreshed when the DataArray merge (stage U4) lands. Some line refs are a few lines stale.
+> 2026-08-16: the mid-layer scaffolding of this hierarchy (`NumericArray`/`AdditiveArray`/
+> adapters) was collapsed into `DataArrayBase<V>` by stage U4 of
+> `doc/development/unit-hierarchy-collapse.md` (111372429). The retention analysis and the
+> Generated/Delayed/Future/Lazy forks in §3-§4 are unaffected; the class tree in §2 was redrawn on
+> 2026-10-06. Line references outside §2, §4.3 and §4.7 date from 2026-07-30 and may be stale;
+> the class and function names they accompany are the reliable part.
 
-This is the per-class inventory behind the three **materialization regimes**
-(`rtc/dll/src/tic/TicBase.h:56`) that the scheduler's cost model reasons about; §4.7 maps the
-classes onto them. `doc/development/schedule-with-lookahead.md` §4.4 is the authority on what each
+This is the per-class inventory behind the **materialization regimes** (three when this was
+written, four since `spilled`; `enum class materialization` in `rtc/dll/src/tic/TicBase.h`) that
+the scheduler's cost model reasons about; §4.7 maps the classes onto them. `doc/development/schedule-with-lookahead.md` §4.4 is the authority on what each
 regime *costs* (it has the measurements); this document is the authority on which class you get and
 whether it keeps its tiles.
 
@@ -52,52 +62,51 @@ above), so the question becomes strictly a *per-tile* property of the concrete
 
 ## 2. Inheritance tree
 
-`DataArray<V>` is an alias for `TileFunctor<V>` (`TicBase.h:82`). `TileFunctor<V>` derives from
-`data_array_traits<V>::type` (`DataArray.h:262-291`), which selects the abstract mid-layer per
-value type: `AdditiveArray<V>` for numerics/bit values, `PointArrayAdapter<...>` for points,
-`SeqArrayAdapter<DataArrayBase<...>>` for polygons/sequences, plain `DataArrayBase<V>`
-otherwise (e.g. `SharedStr`).
+Redrawn on 2026-10-06 for U4 (111372429, 2026-08-16). `TileFunctor<V>` derives directly from
+`DataArrayBase<V>` for every value type (`rtc/dll/src/tic/DataArray.h`), and `DataArray<V>` is
+still an alias for `TileFunctor<V>` (`TicBase.h`). The abstract mid-layer that
+`data_array_traits<V>` used to splice in per value type (`NumericArray<V>`, `AdditiveArray<V>` and
+the three adapters `GeoArrayAdapter`, `PointArrayAdapter`, `SeqArrayAdapter`) is gone: its typed
+accessors are members of `DataArrayBase<V>`, each group guarded by an `if constexpr` on the
+element-group predicates at the top of `DataArray.h`. Paths below are relative to
+`rtc/dll/src/tic/` unless given in full.
 
 ```text
 SharedObj
-└─ AbstrDataObject                                   rtc/dll/src/tic/AbstrDataObject.h:60
-   ├─ TileFunctor<Void>   (degenerate specialization) DataArray.h:321
-   └─ DataArrayBase<V>    [abstract: GetTile, GetFutureTile pure]  DataArray.h:40
-      ├─ NumericArray<V>                              DataArray.h:173
-      │  └─ AdditiveArray<V>                          DataArray.h:219
-      ├─ GeoArrayAdapter<Base>                        DataArray.h:230
-      │  ├─ PointArrayAdapter<Base>                   DataArray.h:241
-      │  └─ SeqArrayAdapter<Base>                     DataArray.h:253
-      └─ TileFunctor<V> : data_array_traits<V>::type  DataArray.h:294   (= DataArray<V>)
-         ├─ GeneratedTileFunctor<V>  [future = call-through]  DataArray.h:327
-         │  ├─ HeapTileArray<V>                       TileArrayImpl.h:23    RETAINS
-         │  ├─ HeapSingleArray<V>                     TileArrayImpl.h:40    RETAINS
-         │  ├─ HeapSingleValue<V>                     TileArrayImpl.h:64    RETAINS
-         │  ├─ FileTileArray<V>                       TileArrayImpl.h:82    RETAINS (on disk)
-         │  ├─ LazyTileFunctor<V, ApplyFunc>          TileFunctorImpl.h:163 RECALCULATES
-         │  └─ ConstTileFunctor<V>                    clc/dll/include/ConstOper.h:20  RECALCULATES
-         └─ DelayedTileFunctor<V>  [owns future_tile records]  TileFunctorImpl.h:24
+└─ AbstrDataObject                                   AbstrDataObject.h
+   ├─ TileFunctor<Void>   (degenerate specialization) DataArray.h
+   └─ DataArrayBase<V>    [abstract: GetTile, GetFutureTile pure]  DataArray.h
+      └─ TileFunctor<V>   (= DataArray<V>)            DataArray.h
+         ├─ GeneratedTileFunctor<V>  [future = call-through]  DataArray.h
+         │  ├─ HeapTileArray<V>                       TileArrayImpl.h       RETAINS
+         │  ├─ HeapSingleArray<V>                     TileArrayImpl.h       RETAINS
+         │  ├─ HeapSingleValue<V>                     TileArrayImpl.h       RETAINS
+         │  ├─ FileTileArray<V>                       TileArrayImpl.h       RETAINS (on disk)
+         │  ├─ LazyTileFunctor<V, MustZero, ApplyFunc> TileFunctorImpl.h    RECALCULATES
+         │  └─ ConstTileFunctor<V>                    clc/dll/src/ConstOper.h  RECALCULATES
+         └─ DelayedTileFunctor<V>  [owns future_tile records]  TileFunctorImpl.h
             └─ FutureTileFunctor<V,PrepareState,MustZero,PrepareFunc,ApplyFunc>
-                                                      TileFunctorImpl.h:75  RETAINS once computed
+                                                      TileFunctorImpl.h     RETAINS once computed
 ```
 
 Side hierarchy of the future-tile objects themselves:
 
 ```text
-abstr_future_tile                                     AbstrDataObject.h:55
-└─ DataArrayBase<V>::future_tile                      DataArray.h:119
-   ├─ GeneratedTileFunctor<V>::future_caller          DataArray.h:332
+abstr_future_tile                                     AbstrDataObject.h
+└─ DataArrayBase<V>::future_tile                      DataArray.h
+   ├─ GeneratedTileFunctor<V>::future_caller          DataArray.h
    │     holds SharedPtr<const TileFunctor<V>> — pins the data OBJECT, not any tile data;
    │     GetTile() just forwards to self->GetTile(t) at demand time.
-   └─ FutureTileFunctor<...>::tile_record             TileFunctorImpl.h:89
+   └─ FutureTileFunctor<...>::tile_record             TileFunctorImpl.h
          std::variant<tile_spec, tile_data> under a mutex — flips from spec to data on first
          GetTile() and then RETAINS the data for the record's lifetime.
 ```
 
 No other derivations exist in the tree: `geo`, `stg`, `shv`, `stx`, `sym`, `tools`, `qtgui`
 contain no classes deriving from `AbstrDataObject` or any of the classes above (checked
-2026-07-30); `geo/dll/src/Point.cpp` and the `clc` operators only *instantiate* the rtc/clc
-classes. `tile_write_channel` (`TileChannel.h:200`) is a writer helper over
+2026-07-30, and again on 2026-10-06 with a `git grep` for every base above);
+`geo/dll/src/Point.cpp` and the `clc` operators only *instantiate* the rtc/clc classes.
+`tile_write_channel` (`TileChannel.h`) is a writer helper over
 `TileFunctor<T>::GetWritableTile`, not a data object.
 
 ---
@@ -150,6 +159,15 @@ classes. `tile_write_channel` (`TileChannel.h:200`) is a writer helper over
   `shared_ptr<future_tile>` handles on the argument tiles (e.g. `OperAttrUni.h:148-156`).
   Flipping the variant destroys the spec, so argument futures are released exactly when the
   result tile materializes.
+- The apply function lives in the records only (since 0fc692c63, TIC-A10, 2026-09-29): each
+  `tile_spec` holds its own copy next to the prepare state, and the functor keeps none, so what the
+  function captures (argument handles, lookup value arrays, units) is released with the last
+  uncomputed tile. Before, the functor kept one more copy for the data object's whole life, and
+  `BinaryAttrOper`'s apply function captured the result item strongly, which closed the cycle item
+  → data object → functor → apply function → item that the weak `m_ResultAdi` of the first bullet
+  exists to avoid; it was cut only by `ClearDataObject`, so a `KeepData` result and a result alive at
+  teardown leaked. `BinaryAttrOper` (`clc/dll/include/OperAttrBin.h`) now captures the result as a
+  `std::weak_ptr` and locks it at use.
 - A consumer holding a `tile_record` future keeps that record (and its data, once computed)
   alive even if the data object dies — the lock returned by `GetTile()` holds
   `shared_from_this()` (`TileFunctorImpl.h:109`).
@@ -256,16 +274,17 @@ The two remaining extras are each defensible: the lookup families refuse to pipe
 result is not more finely tiled than the key domain (the index/values array is built once and
 shared, so pipelining buys nothing), and the casted-unary family declines when the item is
 `KeepData` (a retained result would be recomputed-then-kept anyway). Only the casted-unary family
-consults `GetKeepDataState()` — which matters for §4.7, because the cost model's predicate assumes
-they all do.
+consults `GetKeepDataState()` — which mattered for §4.7, because the cost model's predicate assumed
+they all did (fixed in 50949a765).
 
 Historical note: every one of these gates used to carry a fourth conjunct,
 `LTF_ElementWeight(args) <= LTF_ElementWeight(res)`. That function returned 0 unconditionally, so
 the test was always `0 <= 0`; it and the conjuncts were deleted on this branch. Its successor,
-`EstimateDataBytes` (`AbstrDataItem.h:210`, `AbstrDataItem.cpp:1305`), is a real per-row volume
-estimate, but it feeds the *estimator* (`Operator.cpp:176-213`), not these gates — so no gate
+`EstimateDataBytes` (`AbstrDataItem.h`, `AbstrDataItem.cpp`), is a real per-row volume
+estimate, but it feeds the *estimator* (`Operator::EstimatePerformance`), not these gates — so no gate
 weighs streaming the arguments against storing the result today. `ElementWeight`
-(`AbstrDataItem.cpp:1288`) survives as the now-unreferenced original heuristic.
+(declared in `AbstrDataItem.h`, defined in `AbstrDataItem.cpp`) survives as the original
+heuristic, with no caller anywhere in the tree (checked 2026-10-06).
 
 **What `prepare_data` carries.** By convention the `PrepareState` is the argument's future
 tile(s), so the result functor holds a per-tile handle on each supplier and pulls it inside the
@@ -284,17 +303,18 @@ reachable only until each consumer tile is computed.
 
 ### 4.3 Unconditionally lazy channels (bypass the fork and the `lazy` flag)
 
-Four sites call `make_unique_LazyTileFunctor` directly, so they **always** recalculate — the
-`LazyCalculated` property is never consulted:
+Five sites call `make_unique_LazyTileFunctor` directly (counted on 2026-10-06; four when this was
+written), so they **always** recalculate — the `LazyCalculated` property is never consulted:
 
 | Site | Gate | Notes |
 |---|---|---|
-| `AbstrMappingOperator` (`CastedUnaryAttrOper.h:161-182`) | `IsMultiThreaded3() && tn>1 && !IsInMMD(res)` — no `lazy` | Retains interest in both argument units via `SharedUnitInterestPtr` captured in the closure, then re-runs `Calculate` per request. The only MT3-gated site that is lazy regardless of `LazyCalculated`. The `tn > 1` conjunct was added 2026-07-30 to conform to §4.2; before that a single-tile mapping result was lazy too, recomputing its only tile on every access after a release. |
-| `AbstrIDOperator` (`ID.cpp:60-81`) | none at all | `id()` is a pure generator; the result also sets `SetFreeDataState(true)` ("never cache", `ID.cpp:57`), so recomputation is the intended design rather than a fallback. |
-| `combine()` back-refs (`OperUnit.cpp:132-176`) | none at all | One lazy functor per `first_rel`/`second_rel`/… sub-item; each tile is regenerated arithmetically from `(groupSize, cycleSize, unitCount)`. |
-| Storage read (`ReadDataItemInto`, `tic/stg/StorageReadOperators.cpp`; before #587 `AbstrDataItem::DoReadItem`) | `IsMultiThreaded3() && tn>1 && sm->AllowRandomTileAccess()`, values in `typelists::numerics` | *Every* random-access storage manager gets the lazy re-reading functor (the `EasyRereadTiles()` distinction was short-circuited before the move and is not consulted). The closure holds a `reader_clone_farm` so concurrent tile reads use per-thread reader clones. |
+| `AbstrMappingOperator::CreateResult` (`clc/dll/include/CastedUnaryAttrOper.h`) | `IsMultiThreaded3() && tn>1 && !IsInMMD(res)` — no `lazy` | Retains interest in both argument units via `SharedUnitInterestPtr` captured in the closure, then re-runs `Calculate` per request. The `tn > 1` conjunct was added 2026-07-30 to conform to §4.2; before that a single-tile mapping result was lazy too, recomputing its only tile on every access after a release. |
+| `AbstrMappingCountOperator::CreateResult` (`CastedUnaryAttrOper.h`) | `HasIndependentResultTiles(*mappingState)` (a coordinate-separable transformation), then `IsMultiThreaded3() && tn>1 && !IsInMMD(res)`; no `lazy` | Added by 1ba7854d6 (#298, 2026-08-10): `mapping_count` produces result tiles on demand like `mapping`, with the same closure shape. Without a separable cross it stays a serial loop over the source tiles. |
+| `AbstrIDOperator::CreateResult` (`clc/dll/src/OperMappings.cpp`, formerly `ID.cpp`) | none at all | `id()` is a pure generator; the result also sets `SetFreeDataState(true)` ("never cache"), so recomputation is the intended design rather than a fallback. |
+| `combine()` back-refs (`clc/dll/src/OperUnit.cpp`) | none at all | One lazy functor per `first_rel`/`second_rel`/… sub-item; each tile is regenerated arithmetically from `(groupSize, cycleSize, unitCount)`. |
+| Storage read (`ReadDataItemInto`, `tic/stg/StorageReadOperators.cpp`; before #587 `AbstrDataItem::DoReadItem`) | `IsMultiThreaded3() && tn>1 && sm->AllowRandomTileAccess()`, values in `typelists::numerics` | *Every* random-access storage manager gets the lazy re-reading functor (the `EasyRereadTiles()` distinction was short-circuited before the move and is not consulted: the virtual is still declared in `AbstrStorageManager.h` and overridden by the memory-mapped manager, but nothing calls it). The closure holds a `reader_clone_farm` so concurrent tile reads use per-thread reader clones. |
 
-For the first three the recompute cost is a small arithmetic kernel, so weak retention is a
+For the first four the recompute cost is a small arithmetic kernel, so weak retention is a
 deliberate memory/CPU trade. The storage case is the expensive one: a released tile means going
 back to GDAL (or whatever the driver is) on the next request.
 
@@ -336,10 +356,11 @@ lazy or future functor:
 - `tn > 1` — `FutureTileFunctor`'s own precondition (§4.1).
 - `!IsInMMD(res)` — results living in a memory-mapped store must be materialized
   (`stg` `MemoryMappedDataStorageManager.cpp:115`, decl `AbstrStorageManager.h:441`).
-- `LTF_ElementWeight(args) <= LTF_ElementWeight(res)` — **currently a no-op**: the function
-  returns 0 unconditionally (`AbstrDataItem.cpp:1277-1280`), so the comparison is always
-  `0 <= 0`. The intended heuristic `ElementWeight` (bit size, ×32 for non-Single composition, 256
-  for strings; `AbstrDataItem.cpp:1265-1275`) sits right above it, unused. Effect: the
+- `LTF_ElementWeight(args) <= LTF_ElementWeight(res)`: **deleted** with P0 of
+  `schedule-with-lookahead.md` (see the historical note in §4.2). It was a no-op: the function
+  returned 0 unconditionally, so the comparison was always `0 <= 0`. The intended heuristic
+  `ElementWeight` (bit size, ×32 for non-Single composition, 256 for strings; `AbstrDataItem.cpp`)
+  is still there, with no caller. Effect, then and now: the
   pipelined path is chosen purely on threading/tiling/MMD grounds, never on whether streaming the
   arguments is actually cheaper than storing the result.
 - `res->GetLazyCalculatedState()` → the `lazy` argument: status flag `TSF_LazyCalculated` from the
@@ -354,38 +375,46 @@ lazy or future functor:
 ### 4.7 The same fork, as the cost model sees it
 
 The scheduler names the outcome of §4.2 rather than the classes. `materialization`
-(`TicBase.h:56-62`) has four values, and the mapping to this document is exact:
+(`enum class materialization` in `TicBase.h`) has five values, and the mapping to this document is
+exact:
 
 | `materialization` | Class installed | This document |
 |---|---|---|
 | `meta` | none (unit or container result) | n/a |
-| `eager` | `HeapTileArray` / `HeapSingle*` / `FileTileArray` via `DataWriteLock::Commit` | §3.1, §3.2 — retains |
+| `eager` | `HeapTileArray` / `HeapSingle*` via `DataWriteLock::Commit` | §3.1 — retains |
 | `deferred` | `FutureTileFunctor` | §3.3 — retains once computed |
 | `streaming` | `LazyTileFunctor` | §3.4 — recalculates |
+| `spilled` | `FileTileArray` via `DataWriteLock::Commit` under an `MmdStorageManager` | §3.2, retains on disk |
 
-`PredictMaterialization` (`Operator.cpp:140-145`) reproduces the gate so an estimate describes what
+`spilled` was added on 2026-07-30 (fa3d7e50c): until then a `FileTileArray` counted as `eager` and
+was charged its whole array, although its RAM cost is its live mappings.
+
+`PredictMaterialization` (`Operator.cpp`) reproduces the gate so an estimate describes what
 will actually happen:
 
 ```cpp
-if (!IsMultiThreaded3() || nrTiles <= 1 || IsInMMD(res) || res->GetKeepDataState())
+if (IsInMMD(res))
+    return materialization::spilled;
+if (!IsMultiThreaded3() || nrTiles <= 1)
     return materialization::eager;
 return res->GetLazyCalculatedState() ? materialization::streaming : materialization::deferred;
 ```
 
-One mismatch against §4.2/§4.3 remains, and it is currently harmless: the predictor applies
-`GetKeepDataState()` to *every* family, but only the casted-unary gate actually tests it. A
-`KeepData` result of a unary/binary/ternary/point/lookup operator with MT3 and `tn > 1` really gets
-a `FutureTileFunctor`, i.e. `deferred`, while the predictor says `eager`. The *residency* number is
-unaffected — `Operator.cpp:199-202` charges the full array for both — so only the reported regime
-label is wrong.
+The `KeepData` mismatch this section used to report is fixed (50949a765, 2026-07-30): the
+predictor applied `GetKeepDataState()` to *every* family although only the casted-unary gate tests it, so a
+`KeepData` result of a unary/binary/ternary/point/lookup operator with MT3 and `tn > 1`, which
+really gets a `FutureTileFunctor`, was labelled `eager`. The base predictor no longer tests it, and
+`AbstrCastedUnaryAttrOperator::EstimatePerformance` (`clc/dll/include/CastedUnaryAttrOper.h`) adds
+the term for its own family; both comments cite this section. The residency number was never
+affected, since `eager` and `deferred` are both charged the full array.
 
 The predictor's `nrTiles <= 1` short-circuit used to disagree with `AbstrMappingOperator`, which
 installed a `LazyTileFunctor` for single-tile results that the predictor called `eager`. Adding
 `tn > 1` to that gate (§4.3) closed the gap, so the two now agree for every tile count.
 
-The regimes also carry the residency model: `streaming` is charged `inflight × choreBytes`
-(`Operator.cpp:192-198`, `inflight = min(nrChores, MaxConcurrentTreads())`), everything else the
-full result volume. **That charge is measured to be optimistic by ~13×**, and
+The regimes also carry the residency model: `streaming` and `spilled` are charged
+`inflight × choreBytes` (`Operator::EstimatePerformance`, `inflight = min(nrChores,
+MaxConcurrentTreads())`), everything else the full result volume. **That charge is measured to be optimistic by ~13×**, and
 `schedule-with-lookahead.md` §4.4–§4.5 is where that is being chased; the mechanism side of it is
 §5's cross-cutting notes below — a released tile really is freed, but several out-of-step consumers
 of one result keep every tile between the slowest and fastest reader alive, which no per-class
@@ -444,7 +473,7 @@ supplier interest on the `AbstrDataItem` the whole time and now requests read ac
 
 | Class | Kind | Verdict on the scenario |
 |---|---|---|
-| `AbstrDataObject`, `DataArrayBase<V>`, `NumericArray<V>`, `AdditiveArray<V>`, adapters | abstract | n/a (no tile storage) |
+| `AbstrDataObject`, `DataArrayBase<V>` (the former `NumericArray<V>`, `AdditiveArray<V>` and adapters are folded into it since U4) | abstract | n/a (no tile storage) |
 | `TileFunctor<V>` / `TileFunctor<Void>` | RTTI anchor / stub | n/a |
 | `GeneratedTileFunctor<V>` | mid-layer | delegates; its futures never retain |
 | `HeapTileArray<V>` | leaf, heap | **retains** |
@@ -453,15 +482,17 @@ supplier interest on the `AbstrDataItem` the whole time and now requests read ac
 | `FileTileArray<V>` | leaf, file-mapped | **retains** (on disk; remap on demand) |
 | `DelayedTileFunctor<V>` | mid-layer | retains whatever its records hold |
 | `FutureTileFunctor<V,...>` | leaf, `deferred` | **retains** once first computed; never evicts |
-| `LazyTileFunctor<V,ApplyFunc>` | leaf, `streaming` | **recalculates** after last release |
+| `LazyTileFunctor<V,MustZero,ApplyFunc>` | leaf, `streaming` | **recalculates** after last release |
 | `ConstTileFunctor<V>` (clc) | leaf, lazy | **recalculates** (refill) after last release |
 
 Which class an item ends up with is decided entirely at creation time (§4): the seven MT3-gated
-operator families fork on `LazyCalculated` (default false → retaining `FutureTileFunctor`), four
-channels bypass that flag and are always lazy when they fire, `const()` has its own size-based
-gate, and everything else is eager heap/file storage. In the scheduler's vocabulary (§4.7) that is
-`deferred` by default, `streaming` only where the config or one of those four channels asks for it,
-and `eager` whenever MT3 is off or the result is single-tiled, `KeepData`, or memory-mapped.
+operator families fork on `LazyCalculated` (default false → retaining `FutureTileFunctor`), five
+channels bypass that flag and are always lazy when they fire (four when this was written; §4.3),
+`const()` has its own size-based gate, and everything else is eager heap/file storage. In the
+scheduler's vocabulary (§4.7) that is `deferred` by default, `streaming` only where the config or
+one of those five channels asks for it, `spilled` for a result in a memory-mapped store, and
+`eager` whenever MT3 is off or the result is single-tiled, or is a `KeepData` result of the
+casted-unary family.
 
 Observations that may warrant follow-up:
 
@@ -469,7 +500,9 @@ Observations that may warrant follow-up:
    between accesses silently pay recomputation on every `LazyTileFunctor` /
    `ConstTileFunctor` / shadow-tile path.
 2. The storage random-tile-access read path is unconditionally lazy
-   (`if (true || sm->EasyRereadTiles())`, `AbstrDataItem.cpp:339`), so repeated tile access
+   (`ReadDataItemInto` in `rtc/dll/src/tic/stg/StorageReadOperators.cpp` since #587; the
+   `if (true || sm->EasyRereadTiles())` it had in `AbstrDataItem.cpp` was deleted in bcf7317ec, and
+   `EasyRereadTiles()` is now consulted nowhere), so repeated tile access
    re-reads from the (GDAL/…) source unless the consumer keeps its locks.
 3. `FutureTileFunctor` sits at the opposite extreme: computed tiles are never evicted while
    interest lasts, setting the memory high-water mark for wide pipelined results. This is the
@@ -481,9 +514,11 @@ Observations that may warrant follow-up:
    `EstimateDataBytes` informs the estimator only. Restoring a real weight comparison is listed as
    future work in `schedule-with-lookahead.md` §5.4 — with the caveat from observation 8 that
    "lighter" is not simply "streaming".
-5. `AbstrMappingOperator` (`CastedUnaryAttrOper.h:161`) still goes straight to `LazyTileFunctor`,
-   so it is the one MT3-gated site that ignores `LazyCalculated` — a `mapping()` result is
-   `streaming` whenever MT3 is on, whatever the config says. Its missing `tn > 1` conjunct was
+5. `AbstrMappingOperator` (`CastedUnaryAttrOper.h`) still goes straight to `LazyTileFunctor`,
+   so it is an MT3-gated site that ignores `LazyCalculated` — a `mapping()` result is
+   `streaming` whenever MT3 is on, whatever the config says. Since 1ba7854d6 (2026-08-10)
+   `AbstrMappingCountOperator` does the same for a separable `mapping_count`, so there are two
+   such sites now. Its missing `tn > 1` conjunct was
    fixed 2026-07-30, which also brought it into line with `PredictMaterialization` (§4.7); whether
    it should additionally route through `make_unique_FutureTileFunctor` so `LazyCalculated` is
    honoured is the larger open question.

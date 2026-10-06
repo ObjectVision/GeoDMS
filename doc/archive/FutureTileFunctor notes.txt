@@ -1,3 +1,4 @@
+Archived 2026-10-06: superseded by doc/tile-data-retainment.md, which inventories the data-object classes and which of them retain or recalculate their tiles. The action item at the end is done: the aggregations consume arrays of future tiles through GetFutureTileArray (rtc/dll/src/tic/FutureTileArray.h), in OperAccUni.h, OperAccUniNum.h, Modus.cpp, Unique.cpp and ValuesTable.h. The class tree below predates the unit-hierarchy collapse (U4, 111372429).
 
 DataArray
 	virtual auto GetTile(tile_id t) const ->locked_cseq_t = 0;
