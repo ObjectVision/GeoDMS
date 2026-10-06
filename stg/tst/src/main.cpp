@@ -104,7 +104,7 @@ void SrcToDst(const char * src, const char * dst)
 		if (pos == 0) return;
 		strcpy(src_type, src+pos+1);
 		_strlwr(src_type);
-		DBG_TRACE(("src_type: %s", src_type));
+		DBG_TRACE(("src_type: {}", src_type));
 
 		// Destination
 		pos = strlen(dst) - 1;
@@ -112,7 +112,7 @@ void SrcToDst(const char * src, const char * dst)
 		if (pos == 0) return;
 		strcpy(dst_type, dst+pos+1);
 		_strlwr(dst_type);
-		DBG_TRACE(("dst_type: %s", dst_type));
+		DBG_TRACE(("dst_type: {}", dst_type));
 
 		// Xml?
 		if (strcmp(dst_type, "xml") == 0) xml = true;

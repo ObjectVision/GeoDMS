@@ -372,7 +372,7 @@ public:
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8))
 		{
 			if (GetGeosNonDPointDeprecationFlag() == oper_policy::obsolete)
-				throwDmsErrF("PolygonOverlayOperator", "GEOS-based polygon operation {} are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+				throwErrorF("PolygonOverlayOperator", "GEOS-based polygon operation {} are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation {} are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
 		auto poly1Data = const_array_cast<PolygonType>(poly1DataA);

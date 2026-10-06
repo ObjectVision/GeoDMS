@@ -642,9 +642,7 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 	{
 		if (readOnlySetting == StorageReadOnlySetting::ReadWrite)
 			throwDmsErrF("The odbc storage type does not allow for writing, yet StorageReadOnly is specified as false.\n"
-				"Consider removing the StorageReadOnly property"
-				, typeID == s_gdalGridToken ? "grid" : "vect"
-			);
+				"Consider removing the StorageReadOnly property");
 		readOnly = true;
 	}
 	else if (typeID == s_gdalGridToken || typeID == s_gdalVectToken)

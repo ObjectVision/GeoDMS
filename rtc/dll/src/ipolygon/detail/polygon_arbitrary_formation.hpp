@@ -1745,7 +1745,7 @@ namespace boost { namespace polygon{
           //std::cout << "checking whether ot handle hole\n";
           if (iter == scanData_.end())
           {
-              reportF(SeverityTypeID::ST_Warning, "BoostPolygon: Unexpected tailless hole detected at (%d, %d)", x_, currentY);
+              reportF(SeverityTypeID::ST_Warning, "BoostPolygon: Unexpected tailless hole detected at ({}, {})", x_, currentY);
           }
           else if(currentIter == inputEnd ||
              currentIter->pt.get(HORIZONTAL) != x_ ||

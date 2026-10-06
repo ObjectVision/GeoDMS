@@ -47,12 +47,12 @@ template<typename R> void SafeIncrement(R& assignee) // see the similarity with 
 		if constexpr (!has_undefines_v<R>)
 		{
 			if (assignee == R())
-				throwErrorF("SafeIncrement", "non-representable numerical overflow of sub-byte value", AsString(assignee));
+				throwErrorF("SafeIncrement", "non-representable numerical overflow of sub-byte value");
 		}
 		else
 		{
 			if (!IsDefined(assignee))
-				throwErrorF("SafeIncrement", "non-representable numerical overflow", AsString(assignee));
+				throwErrorF("SafeIncrement", "non-representable numerical overflow");
 		}
 	}
 }

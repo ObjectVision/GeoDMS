@@ -1,5 +1,14 @@
 # Getting Boost.Format out of the universal prelude: migration analysis to std::format
 
+*Status (2026-10-06): stages 0, 1 and 3 are done: no `boost/format` include is left, `ser/format.h`
+became `utl/MgFormat.h`, and the sinks format through `std::vformat`. Stage 2, a
+`std::format_string` parameter that makes a mismatch a compile error, is open, and so is stage 4
+(`std::ostrstream` in `FixedBufferFormat.h`). Until stage 2, `tools/check-format-args.ps1`
+(run by `batch/run_source_checks.bat`) checks every call with a literal format; its first run
+found eight calls that lost text, among them two `throwDmsErrF` calls written in the
+`(context, format, args...)` convention of `throwErrorF`, whose message was just the context.
+Until the code audit of 2026-09-27 (PLN-A04) and this line, the document read as unstarted.*
+
 *2026-07-07, branch `refactor_ownership`. Follow-up to
 `compile-time-refactor-analysis-2026-07.md` finding 4. This analyses **how the format strings
 and the `ser/format.h` machinery must change**; it does not perform the migration.*

@@ -397,7 +397,7 @@ public:
 		if (!IsDefined(extentRange.first) || !IsDefined(extentRange.second)
 			|| !(extentRange.first.X() < extentRange.second.X())
 			|| !(extentRange.first.Y() < extentRange.second.Y()))
-			throwDmsErrF("voronoi", "the second argument must be a unit with a proper range; the cells of the"
+			throwErrorF("voronoi", "the second argument must be a unit with a proper range; the cells of the"
 				" points on the convex hull are unbounded and that range is what bounds them. Got {}"
 				, extentUnitA->GetRangeAsStr(FormattingFlags::None));
 
