@@ -9,7 +9,7 @@ alias (`f: nuf<V, D>`), so the examples below that use them (sections 5.5 and 5.
 What is still open is listed in `typed-hof-remaining-work.md`. The file:line references predate the
 split of `AbstrCalculator.cpp` and `TreeItem.cpp` by functional role (821d19459) and of the typed-HOF
 part of `ConfigProd.cpp` (77ca72653) and are not re-anchored. Until 2026-10-06 the next paragraph was
-the whole status.*
+the whole status. On 2026-10-06 the dead-code deletion (continuations B7) removed `sym/Prolog.cpp`, the evaluator behind `MG_USE_LISPFUNCS` and `MakeVarsOfUnderscores` (92e3a541e): where this document points at them as reference for WP3.2, read them in the parent of that commit.*
 
 *Status: design + implementation log. Started 2026-07-11 as a design proposal; the bulk
 of it is now implemented on branch `hof_syntax` (v20.9.0). All file:line

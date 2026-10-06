@@ -8,7 +8,7 @@ is still whole (PLN-A13 of the code audit of 2026-09-27). The decorated lines ha
 212c55074: lines that carry `RTC_CALL` went from 891 to 925 and lines that carry `TIC_CALL` from
 1147 to 1209 (`git grep -w` over the tracked sources, definitions and comments included), so the
 "Final Release numbers" at the end describe 2026-08-16, not today; no dumpbin sweep has been made
-since. Section 1 wrongly said that clc's exec operator uses `RunDllProc`; see the note there.*
+since. Section 1 wrongly said that clc's exec operator uses `RunDllProc`; see the note there. `dllimp/RunDllProc`, `Big::UInt` and `shv/dll/src/Win32ViewHost` were deleted on 2026-10-06 (92e3a541e, c0737bfe8); the `DMS_*` exports of §1c were kept.*
 
 *2026-08-16, branch `lookahead-scheduling`, HEAD `ecbccab7`. Follow-up to
 `header-hygiene-2026-08.md` (headers) and to the export-surface follow-up recorded in

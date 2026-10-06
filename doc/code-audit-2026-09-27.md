@@ -10,10 +10,12 @@ specifically for twins of the defects fixed since 2026-09-01. About forty of the
 re-read once more before this report was written. Line numbers are leads at this HEAD, not gospel;
 every item names its function so it can be re-found.*
 
-*Status (2026-10-06): of the 288 findings, 136 are fixed, 3 partly (CLC-A17, CLC-A30, STG-A30), 2
+*Status (2026-10-06): of the 288 findings, 145 are fixed, 13 partly (CLC-A17, CLC-A30, STG-A30, and ten whose dead code is
+deleted while a part that is not a deletion is open: INF-A15, PLN-A16, TIC-A21, TIC-A40, CLC-A28,
+GEO-A48, GEO-A56, STG-A31, QT-A28, REPO-A30), 2
 reverted (CLC-A07 by 793bf1080, because Hestia relies on the null; GEO-A19 by d46a6e199, because RSopen
 is calibrated on segments per quarter circle), 3 dropped (INF-A06, measured without gain, 048ef8efc;
-GEO-A42, measured slower, 612a3cb96; STX-A15, refuted, see its entry) and 144 open, one of them High
+GEO-A42, measured slower, 612a3cb96; STX-A15, refuted, see its entry) and 125 open, one of them High
 (PLN-A02). GEO-A51 was resolved by #1290 (9d23831a8, f6d34a69a), which do not cite the ID; INF-A03 in part
 by 7cd3d09ac (the eight format calls, and `tools/check-format-args.ps1`), its stage 2 is open. The input-hardening batch of continuations A5 (0d99c9f0f..3100f7e99) fixed STG-A17 to
 A21, STG-A23, INF-A05, RTC-A05, RUN-A12 and SHV-A13, GEO-A29 part (c) (parts (a) and (b) were
@@ -22,8 +24,8 @@ delivery order of section 6, steps 1 to 3 are done; step 4 is done except BAT-A1
 section 5 that was still open was done by the documentation sweep of 2026-10-06; of step 5, GEO-A44, GEO-A45,
 SHV-A07, SHV-A14 and QT-A14 are open, GEO-A44 deferred because a row sweep must reproduce the
 per-vertex `CalcWidth` exactly, including rows with several vertices and null points, and GEO-A45 because
-making the bp translate-to-zero effective changes results for coordinates over 25 bits; step 6
-(simplification) is not started. The ranking of what is left: `doc/continuations-2026-10-06.md`.*
+making the bp translate-to-zero effective changes results for coordinates over 25 bits; of step 6
+(simplification) the dead code is deleted (4639608b1..92e3a541e; continuations B7), the structural items are open. The ranking of what is left: `doc/continuations-2026-10-06.md`.*
 
 ## How to read this
 

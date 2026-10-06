@@ -27,8 +27,8 @@ Two abstraction layers decouple platform-specific code from the shared model:
 - **ViewHost** (`shv/dll/src/ViewHost.h`): abstract interface for windowing operations (timers,
   capture, focus, cursors, invalidation, tooltips, context menus, drawing, scroll, text caret).
   `QDmsViewArea` (`qtgui/exe/src/DmsViewArea.cpp`, QWidget-based) implements it on both platforms.
-  `Win32ViewHost` (HWND-based) is still compiled into the Windows build (`shv/dll/ShvDLL.vcxproj`)
-  but constructed nowhere.
+  `Win32ViewHost` (HWND-based), compiled into the Windows build but constructed nowhere, was
+  deleted on 2026-10-06 (c0737bfe8).
 - **DrawContext** (`shv/dll/src/DrawContext.h`): abstract interface for all rendering (rectangles,
   lines, polygons, text, images, clipping, fonts). Implementations: `GdiDrawContext` (HDC-based,
   Windows, used for the DataView's own paint and for `GetAsDDBitmap`) and `QtDrawContext`
@@ -38,7 +38,8 @@ Two abstraction layers decouple platform-specific code from the shared model:
 
 - **Pen and font caching, on both platforms.** `PenIndexCache` and `FontIndexCache` still compute
   the distinct pens and fonts of a layer, but the handles are GDI (`HPEN`, `HFONT`/`LOGFONT`;
-  `PenArray` is Win32-only), and there is no portable `PenArray` or `FontArray` behind the
+  the Win32-only `PenArray` and `FontArray`, dead since Step 4, were deleted on 2026-10-06, c0737bfe8),
+  and there is no portable pen or font array behind the
   `DrawContext`. Windows lost its caches as well: since Step 4a and 4c (ca9bb9da0, 922fb95bc)
   `GdiDrawContext` creates and deletes a GDI pen, brush or font per draw call, about 3M calls per
   redraw of a 1M-polygon layer (audit SHV-A07 of the code audit of 2026-09-27).

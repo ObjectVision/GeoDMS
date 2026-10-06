@@ -7,7 +7,7 @@ function of its own and a binary attribute operator holds its result weakly (0fc
 §3.3); `mapping_count` became a fifth direct
 `LazyTileFunctor` site (1ba7854d6, §4.3); `materialization` gained `spilled` for `FileTileArray`
 (fa3d7e50c) and `PredictMaterialization` no longer mislabels `KeepData` results (§4.7); the
-storage read moved to `StorageReadOperators.cpp` under #587 (bcf7317ec, observation 2).*
+storage read moved to `StorageReadOperators.cpp` under #587 (bcf7317ec, observation 2). `ElementWeight` and `EasyRereadTiles`, which no code called, were deleted on 2026-10-06 (2ba5557d3, fc31ce5c5).*
 
 Inventory of all (template) classes deriving from `AbstrDataObject` and analysis of whether each
 one **retains** lazily calculated (future) tiles, or **recalculates** them after all consumers

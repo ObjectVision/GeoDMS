@@ -13,7 +13,7 @@ still commented out), D15 (`UM_AllowDefaultLeft` in `AbstrUnit::UnifyValues`), D
 existing activation hook, `ReportChangedFiles`, which watches configuration files only; §1.1
 described `Renumber()` as working, and it has no caller (code audit INF-A14). The items not named
 here were not re-checked. The `tic/dll/src` paths now name their files in the flattened tree
-(`904525c4d`) and, for `TreeItem.cpp`, after its split (`821d19459`).*
+(`904525c4d`) and, for `TreeItem.cpp`, after its split (`821d19459`). `UpdateMarker::Renumber`, which §1.1 and §3 discuss, was deleted on 2026-10-06 (92e3a541e, code audit INF-A14); a renumbering, if §3 is taken up, is to be written anew.*
 
 Evaluation of the GeoDMS invalidation/update mechanism, its failure modes, and the design
 work needed to safely re-activate external (file) change detection (`DetermineExternalChange`).

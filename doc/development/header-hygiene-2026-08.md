@@ -8,7 +8,7 @@ inline converters) and the lower-priority renames of Finding 6 (among them `shv/
 `ClipRegion.h`, `cpc/transform.h`, `mci/register.h` and `act/any.h`; `color.h`, `StringBounds.h`
 and `mpf.h` moved to `vt/` with the geo split but kept their names). `mci/SingleLinkedTree.h` and
 `.inc` are dead after all (Finding 2). Until 2026-10-06 the paragraph below said that
-implementation was deferred.*
+implementation was deferred. `mci/SingleLinkedTree.h/.inc` and `shv/dll/src/Win32ViewHost` were deleted on 2026-10-06 (92e3a541e, c0737bfe8).*
 
 *2026-08-16, branch `lookahead-scheduling`, HEAD `39c0b5f`. Follow-up to
 [compile-time-refactor-analysis-2026-07.md](../archive/compile-time-refactor-analysis-2026-07.md),

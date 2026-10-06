@@ -11,7 +11,7 @@ grew: `SubstituteExpr_impl` had 1 definition and 4 calls when this was written a
 and 13 calls in `rtc/dll/src/tic/AbstrCalculator.cpp` now. D2/D3 (open problem 5) were not done
 either. `doc/continuations-2026-10-06.md` row C1 orders the remaining work, measuring first. Until
 2026-10-06 this document listed all 17 commits as landed (PLN-A01 of the code audit of 2026-09-27);
-it moved from the repository root to `doc/development/` on that date.*
+it moved from the repository root to `doc/development/` on that date. `ApplyTopEnvFunc::operator()` and `UnorderedMapCache::apply`, which the C1 notes below call dead, were deleted on 2026-10-06 (92e3a541e).*
 
 Status snapshot — 2026-05-21 — branch `refactor_linux_gui`.
 

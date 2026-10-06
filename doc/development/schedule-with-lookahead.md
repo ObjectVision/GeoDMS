@@ -13,7 +13,7 @@ commits and IntegrityChecks that 20.20.0 added under #1259 (fc9713a58) is gone a
 92eaa7150; §8.1.37 reads its full.py rounds from the ledger's side). §8.1, the dated running log, moved
 to [`doc/archive/schedule-with-lookahead-log.md`](../archive/schedule-with-lookahead-log.md) on
 2026-10-06, and every §8.1.x reference in this document is to that file; §8 opens with a phase table.
-Drafted 2026-07-28 on branch `hof_syntax`. Until the code audit of 2026-09-27 (PLN-A08) this line said "no code changes yet".*
+Drafted 2026-07-28 on branch `hof_syntax`. Until the code audit of 2026-09-27 (PLN-A08) this line said "no code changes yet". On 2026-10-06 the dead-code deletion removed `ElementWeight` (2ba5557d3), `EasyRereadTiles` (fc31ce5c5) and `s_IsInLowRamMode` (2ba5557d3); the text below names them as they were.*
 *Scope: `rtc/dll/src/tic` scheduling core, `Operator` interface, storage-read path, `PhaseContainer`.*
 
 ---

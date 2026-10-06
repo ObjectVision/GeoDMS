@@ -7,7 +7,7 @@ became `utl/MgFormat.h`, and the sinks format through `std::vformat`. Stage 2, a
 (run by `batch/run_source_checks.bat`) checks every call with a literal format; its first run
 found eight calls that lost text, among them two `throwDmsErrF` calls written in the
 `(context, format, args...)` convention of `throwErrorF`, whose message was just the context.
-Until the code audit of 2026-09-27 (PLN-A04) and this line, the document read as unstarted.*
+Until the code audit of 2026-09-27 (PLN-A04) and this line, the document read as unstarted. `mem/HeapSequenceProvider.cpp`, named in the stage-1 notes, was deleted on 2026-10-06 (92e3a541e).*
 
 *2026-07-07, branch `refactor_ownership`. Follow-up to
 `doc/archive/compile-time-refactor-analysis-2026-07.md` finding 4. This analyses **how the format strings

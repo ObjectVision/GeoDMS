@@ -130,6 +130,9 @@ note below.
    the cheap half (dead code: continuations B7; the boundary: code audit
    SHV-A20).
 
+   *Done (2026-10-06)*: `Win32ViewHost` is deleted (c0737bfe8). The boundary of
+   SHV-A20 is open.
+
 7. **Reduce `MainWindow::TheOne()` coupling incrementally.**
 
    The GUI currently has about 161 calls to the singleton (recounted on
@@ -190,6 +193,9 @@ note below.
     `RunDllProc`, in `clc/dll/src/OperExec.cpp`, sits behind the commented-out
     `//#define OPER_EXECDLL` (:26), so the whole unit is unreachable (code audit
     INF-A13; continuations B7 deletes it).
+
+    *Deleted (2026-10-06)*: `dllimp/RunDllProc`, `DllHandle` included, and the
+    `exec_dll` block of `OperExec.cpp` (92e3a541e).
 
 ## Focused cleanup tasks
 

@@ -7,7 +7,7 @@ remain in `OperationContext.h`, and `TryPrepareDataUsage` still has no callers. 
 into `PrepareDataUsage` was rejected by this note itself (§4, §7). The anchors into `TreeItem.cpp`
 and `AbstrCalculator.cpp`, which `821d19459` split by functional role, and into the three headers
 named here were re-pinned on 2026-10-06; the other line numbers are those of 2026-07-11 and may
-have drifted.*
+have drifted. `TryPrepareDataUsage`, which had no caller, was deleted on 2026-10-06 (2ba5557d3).*
 
 Design analysis of the relation between *being interesting*, `PrepareDataUsage`, and
 `FutureData`, answering the question whether interest should be foldable into a future
