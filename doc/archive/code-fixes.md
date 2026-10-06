@@ -1,5 +1,26 @@
 # Code fixes: latent bugs, clarifications and renames — a phased pick-list
 
+*Archived 2026-10-06: every item is fixed, refuted or moved; the six that were still open went to
+`doc/cleanup-list.md` (section "Carried over on 2026-10-06"), which succeeds this document as the one
+live backlog. The ranking of what is left is in `doc/continuations-2026-10-06.md`.*
+
+*Status (2026-10-06): closed since this document was last edited: SHV-53 (50fb2b124, #1255: view work
+that awaits an item is polled by its DataView instead of a detached thread); RTC-70's audit of the
+remaining `SharedActor` casts (#1249, 4d422d9d9); and the four dumper defects of the T3 round trip below,
+#1251 (55ecf72d3), #1252 (09410a732, 07eaa3b61), #1253 (df0af919c) and #1256 (9a6f8deb9). The code audit
+of 2026-09-27 found statuses here that the code contradicted, since settled: GEO-32 fixed the dense
+OD zone lookup but not the arrival impedance consumer, which GEO-A09 fixed in 1260f80bf; GEO-36 was
+finished in fced78643 (GEO-A02, GEO-A03); STG-14 was refuted on a false premise (no `TifErrorFrame` was
+active during `ReadTile`), and STG-A10 (353a4664e) makes a failing tile read an error; the Appendix-A entry
+"`XmlParser.cpp:256` range end" was a live defect, INF-A01, fixed in a8487d1e9, which also rewrote the
+`XmlConst.h` comment that the C4 row of RTC-C13 got wrong (the keys of `XmlConstMap` are plain names such
+as `"lt"` and `"amp"`); and since eddf106f2 `diversity` counts a value at its offset from the first value
+of its values unit's range, which the Phase 0 status paragraph predates. Moved to cleanup-list as still open:
+RTC-70 §9 (the `DecInterestCount` mitigation, now a warning), RTC-12 / RTC-C14 / TIC-10 (the ledger calls
+in `separateResources` outside any `try`, on the path of the `noexcept` `onEnd`), the STG-14 residue
+(`Int32 read_result`), the `dyna_point` `carry` (C2), INF-A05 (an unknown or numeric XML entity decodes to
+NUL) and the last commented-out "activated 21-08-2012" assert in `Actor.cpp`.*
+
 *2026-09-05, branch `main`, HEAD `27817fcb`. Produced by a two-wave agent review: pattern sweeps over
 all nine module trees, then per-module verification that re-read every candidate in context. Line
 numbers are leads at this HEAD, not gospel; every item names the function so it can be re-found.*
@@ -34,8 +55,8 @@ external bytes is guarded only by `dms_assert`".
 
 ### Not in this document (already tracked elsewhere)
 
-Recursion depth and the 64 MB stack (`RECURSION_REFACTOR_PLAN.md`), Win32 leakage / Linux port
-(`PORTING_STATUS.md`), build-system drift, Boost Spirit V1, CI (`TECH_DEBT_REVIEW.md`), the header
+Recursion depth and the 64 MB stack (`doc/development/recursion-refactor-plan.md`), Win32 leakage / Linux port
+(`doc/linux/porting-status.md`), build-system drift, Boost Spirit V1, CI (`doc/archive/TECH_DEBT_REVIEW.md`), the header
 renames of `doc/development/header-hygiene-2026-08.md`, the G8 backlog incl. `DataArray→TileFunctor`,
 `AbstrCalculator→AbstrExprKey`, `DataReadLock→…Handle`, `CopyData` ignoring `DomainChangeInfo`
 (`g8-todos.md`), TU reorg / export surface, pointer-safety items (all fixed 2026-07), std-ptr
@@ -93,6 +114,10 @@ Overview (details follow; all S effort, low fix-risk):
 - **Test:** an 8-bit single-strip TIFF without RowsPerStrip; a 1-bit TIFF without BitsPerSample.
 
 ### STG-14 · REFUTED on implementation (2026-09-05) — TIFF read error `-1` as a byte count
+
+*2026-10-06: the refutation rested on a false premise, no `TifErrorFrame` was active during `ReadTile`
+(code audit STG-A10); since 353a4664e a failing tile read is an error. The residue below is open, in
+`doc/cleanup-list.md`.*
 - **Where:** `stg/dll/src/tif/TifImp.cpp:666-672` `ReadTile`; consumer `stg/dll/src/GridStorageManager.h:183-220` `ReadTiles`.
 - **Why refuted:** `ReadTiles` stores the result in `Int32 read_result`, and the `else read_result = 0;` at `GridStorageManager.h:214-215` belongs to `if (read_result > 0)`: a negative result is reset to 0 and the whole tile is filled with `defaultColor`, while libtiff's error message is captured by the `TifErrorFrame` and thrown afterwards. No pixels of a previous strip are copied.
 - **Residue:** the implicit `SizeT → Int32` conversion of the return value (make it explicit; SMELL).
@@ -266,6 +291,9 @@ input); on these per-file/per-record paths the cost is nil.
 ### 1c. Operators and parser: validate user-supplied numbers
 
 #### GEO-32 · LIKELY / High · M / med — Dense OD with `endPoint(…, DstZone_rel)` uses the wrong zone
+
+*2026-10-06: the Phase 1 fix left one consumer, the arrival impedance of an end point indexed by
+destination zone; the code audit found it as GEO-A09, fixed in 1260f80bf.*
 - **Where:** `geo/dll/src/Dijkstra.cpp:513-530` (`Res2EndPoint`, `Res2DstZone`); consumers :940-951, :983-984, :1028; regime :351, :381-384, :394-397.
 - **Defect:** the comment "wrong for dense + endPoint(..,DstZone_rel)" is still accurate. `IsDense()` is `!m_LastCommittedSrcZone`, which is allocated only for `OD && SparseResult`, and `SparseResult` only comes from `cut()`/`limit()`; a dense OD with `DstZone_rel` is an ordinary spec. In that case `Res2DstZone(j)` returns `Zone_rel[j]` for a *dst zone* index `j` (an end-point-indexed array), so `endPoints.Impedances[dstZone]`, `dstMinImp[dstZone]`, `tgDstMass[dstZone]` use the wrong zone: silently wrong `orgZone_MaxImp`, `orgZone_Factor`, `pot_ij`, D_i/A_j whenever a dst zone groups several end points.
 - **Fix:** implement the comment's dense-correct forms: `Res2DstZone(r) = IsDense() ? r : LookupOrSame(Zone_rel, LookupOrSame(m_FoundYPerRes, r))`, `Res2EndPoint(r) = IsDense() ? DstZone2EndPoint(r) : …`.
@@ -423,6 +451,10 @@ All S effort / low fix-risk unless stated. Suggested commits: (i) token registry
 - **Fix:** `find`/`try_emplace` after the `WasFailed` check, or erase on the failed branch.
 
 ### RTC-12 + RTC-C14 + TIC-10 · LIKELY / Low · S / low — `noexcept` functions that can throw
+
+*2026-10-06: only partly done (code audit, section 4.3): the `MemoryLedger_Retain` and
+`MemoryLedger_Release` calls in `OperationContext::separateResources` run outside any `try` and are
+reached from the `noexcept` `onEnd`. Open in `doc/cleanup-list.md`.*
 - **Where:** `rtc/dll/src/act/Actor.cpp:1249-1290` `DecInterestCount() noexcept` (constructs `actor_section_lock_map::ScopedLock` → `GetorCreateMutex` → `std::map::insert`), `:1317-1331` `StopInterest() noexcept` (calls `ReportSuspension`); `rtc/dll/src/tic/OperationContext.cpp:1584, 1600, 1695` `RetainedBytesOf` / `SpilledResidentBytes` `noexcept` (call `TotalAllowedPhysicalMemory()` outside their `try`; `memory_info`'s ctor throws on `GlobalMemoryStatusEx` failure, `RTC_GetRegDWord` MG_CHECKs).
 - **Defect:** a throw becomes `std::terminate`. Low plausibility (a failed ~100-byte allocation means the process is dying), but the memory-info path is a real OS-failure branch.
 - **Fix:** catch and `DBG_ReportBoundaryException` / return an empty can; give `TotalAllowedPhysicalMemory` a noexcept cached variant, or move the call inside the `try` with a `SizeT(-1)` fallback.
@@ -536,6 +568,7 @@ left as they are (a behaviour choice, not hygiene). Also in this commit: `act/Ac
   2. *Make the wait interruptible.* Replace the blocking `lock_shared` in the task by a loop over the non-blocking `cs_lock::TryReadLock` (`ItemLocks.cpp:303-316`, exposed as `ItemReadLock(…, try_token_t)` at `:430`) with a ~100 ms sleep and a `std::stop_token` (a `std::jthread` owned by the `GraphicObject`, or by the `DataView`, which outlives its objects); the destructor calls `request_stop()` and joins, which then takes at most one poll. The exception paths already go through `catchAndReportException`. One polling thread per pending (object, item) pair, as today. Effort S.
   3. *No thread: a stepwise driver on the GUI thread.* (a) `PrepareDataUsageImpl(Suspendible)` as now; (b) register the (object, item) pair (`RegisterNew`, `s_UpdateActionSet`, `:275`) and return; (c) on each GUI idle tick (`ProcessSuspendibleTasks`, `MainThread.cpp:479`, which the meta thread already pumps from `DoWorkWhileWaiting`, or the `DataView` timer) walk the set and try `ItemReadLock(…, try_token_t)` per pair: on failure leave the pair for the next tick, on success take the `DataReadLock` and post `InvalidateView/UpdateView` exactly as the lambda does; (d) a destroyed object removes its pairs (`PairRemover`), so teardown is a no-op cancel, and the producer loses interest through the dropped holder. Between ticks the GUI is responsive by construction, there is no thread to suspend or join, and the `IsMultiThreaded2()` split disappears. Latency: one tick. Risks: the tick must come from a timer, not from paint, or a hidden view never completes; `ItemReadLock` of a failed item throws (`ItemLocks.cpp:414-419`), so the tick loop needs the same catch. Effort M, shv only.
   Recommendation: 3, with 2 as the fallback where a tick source is missing. Not implemented in this pass; the task is still detached.
+  *2026-10-06: done under #1255 in 50fb2b124: view work that awaits an item is polled by its DataView.*
 
 ### SHV-54 · SMELL · S / low — `SuspendTrigger::Resume(); // REMOVE` is load-bearing in Release
 - **Where:** `shv/dll/src/ShvDllInterface.cpp:173-174`.
@@ -789,7 +822,7 @@ note `AbstrOperGroup::GetName()` (`OperGroups.h:104-107`, refcount bump) vs `Obj
 | `tic/TreeItemDualref.h:159` | `GetUlt()` is the one accessor that resolves (`GetCurrUltimateItem`); the arm-kind vs liveness note at :139-173 already exists. |
 | `tic/AbstrUnit.h:164,182,184` | `GetNrTiles()` = number of tiles; `GetCount()` = rows; `GetTileCount(t)` = rows **in** tile t (moot after R2). |
 | `tic/AbstrDataItem.h:124-126` + `tic/ItemLocks.h:93` | Obj = own `m_DataLockCount` (−1 write, > 0 readers); Ref = the ultimate item's; `GetItemLockCount` = `TreeItem::m_ItemLockCount`. |
-| `rtc/dll/src/xml/XmlConst.h:14` | `CompCharPtr` orders keys that are `;`-terminated (NUL also terminates); keys in `XmlConstMap` are `"name;"`; `SymbolGetChar` may receive a NUL-terminated token or a `;`-terminated slice — anything else compares wrongly. |
+| `rtc/dll/src/xml/XmlConst.h:14` | `CompCharPtr` orders keys that are `;`-terminated (NUL also terminates); keys in `XmlConstMap` are `"name;"`; `SymbolGetChar` may receive a NUL-terminated token or a `;`-terminated slice — anything else compares wrongly. *(2026-10-06: wrong, the keys are plain names such as `"lt"` and `"amp"`; the comparator and its comment were rewritten in a8487d1e9, INF-A01.)* |
 | `rtc/dll/src/act/garbage_can.h:26, 64-75` | Objects are placement-new'd into `std::vector<Block>` storage and relocated **bytewise** on growth/merge; `T` must be trivially relocatable (no interior pointers, no self-registration by address). |
 | `rtc/dll/src/Parallel.h:204` | After R2: a `try_lock` probe — tells whether *some* thread holds the section; cannot verify the current thread does. |
 | `rtc/dll/src/dbg/Diagnostics.h:82-95` | The Release-semantics table (Phase 1d). |
@@ -890,9 +923,9 @@ records their runs.
 
 Each with the reason it is safe, so the same lead is not chased twice.
 
-- **rtc:** `XmlParser.cpp:256` range end (`CompCharPtr` treats `;` as terminator); `IndexedStrings.cpp:37-41` `GetCS()` (the component constructs the section first); `InterestHolders.h:227-236` discarded `garbage_can` (dies after the lock is released); `InterestHolders.h:64-68` noexcept copy ctor (a non-null copy takes the fast path); `Actor.cpp:1292` `s_IsDetectingIncInterest` (never true — delete instead); `portable_task_group.cpp:82-86` missed notify (the destructor's locked notify follows); `Cache.h:84-103` zombie spin (progress guaranteed; add yield); `LispRef.cpp:668-676` (`ZeroSymbObjCache` grown before any `SymbObj` exists, never shrinks); `IndexedStrings.cpp:21-30` `&ref.back()` (the single writer always appends the NUL); `VectorMap.h:108` (`std::vector::back` contract); `FixedAlloc.cpp:901-953` ABA/pair/consume (dead code: `MG_CACHE_ALLOC_SMALL` off at :100; correct anyway — push with the current tag is what `boost::lockfree::stack` does); `SharedBase.h:39` `DuplRef` export (all instantiations inside Rtc.dll; add `RTC_CALL` anyway); `XmlParser.cpp:171-226` `m_Parent` (used only while the parent is on `openStack`).
+- **rtc:** `XmlParser.cpp:256` range end (`CompCharPtr` treats `;` as terminator; *2026-10-06: not refuted, a live defect, code audit INF-A01, fixed in a8487d1e9*); `IndexedStrings.cpp:37-41` `GetCS()` (the component constructs the section first); `InterestHolders.h:227-236` discarded `garbage_can` (dies after the lock is released); `InterestHolders.h:64-68` noexcept copy ctor (a non-null copy takes the fast path); `Actor.cpp:1292` `s_IsDetectingIncInterest` (never true — delete instead); `portable_task_group.cpp:82-86` missed notify (the destructor's locked notify follows); `Cache.h:84-103` zombie spin (progress guaranteed; add yield); `LispRef.cpp:668-676` (`ZeroSymbObjCache` grown before any `SymbObj` exists, never shrinks); `IndexedStrings.cpp:21-30` `&ref.back()` (the single writer always appends the NUL); `VectorMap.h:108` (`std::vector::back` contract); `FixedAlloc.cpp:901-953` ABA/pair/consume (dead code: `MG_CACHE_ALLOC_SMALL` off at :100; correct anyway — push with the current tag is what `boost::lockfree::stack` does); `SharedBase.h:39` `DuplRef` export (all instantiations inside Rtc.dll; add `RTC_CALL` anyway); `XmlParser.cpp:171-226` `m_Parent` (used only while the parent is on `openStack`).
 - **tic/stx/clc:** `TicCalcSupport.cpp:93` `GetEnv` (all callers meta-thread — add the assert); `HofTypeChecker.cpp:1861` (meta-thread; `Eraser` only after a successful insert); `AbstrDataItem.cpp:1459-1462` avg (unsigned; the wrap is rejected by `avg <= 1 MiB`; fix TIC-N04 instead); `OperationContext.cpp:1483-1487` double count (deliberate, comment :1443-1448); `ItemLocks.cpp:752` `s_ActiveProducerSet` (every access under its mutex); `Metric.cpp:115` `== 0.01` (display special case for "%"); `AbstrStorageManager.h:198-212` `minParts*2` (callers pass 0x400/0xFFFF; use `X_GRANULARITY` instead of the literal 256); `TileChannel.h:146, 371` (`tn == 0` handled just above); `ConfigProd_functions.cpp:249` (grammar guarantees ≥ 8 + `()->x:=e`); `ConfigProd.cpp:566` (`nrofrows` rule only admits `uint64_p`/`hex64_p`); `AbstrDataBlockProd.cpp:124-195` (`DoSecondIntervalValue` does handle `VT_Unknown` at :164-168); `SpiritTools.cpp:66-117` untab (both passes apply the identical rule with the position carried over); `ExprProd.cpp:250-259` (`FindByScriptName` looks up by the registered name ID, so they are equal by construction — use `vc->GetNameID()` anyway); `ExprParse.cpp:29-41` (each call has its own grammar instance; recursion is intended for nested declarations); `SpiritTools.cpp:138` (last label); `SeparableMapping.h:392-403` (`k = 8` constexpr, `n >= 2` asserted); `SeparableMapping.h:681-700` per-thread map (locked, bounded by pool size); `Subset.cpp:895` (`int i` ranges over a small constant); `TreeItem.h:417/427` `SetTSF` (all nine 2-arg sites pass an explicit bool).
-- **geo/stg/shv/qt:** `TifImp.cpp:666-672` / `GridStorageManager.h:214-215` (STG-14: the consumer resets a negative read result to 0 and default-fills the tile); `XdbImp.cpp:382-387` (`RecSize()` ≥ 1; the live xyz caller sets `headersize = 0`); `XdbImp.cpp:307/185` (:307 sits in the unreachable `ReadHeader`; the live xyz `ReadColumn` clips `cnt` to `NrOfRows()`); `TifImp.cpp:481-487` (needs a ≥ 4 GiB scanline); `gdal_vect.cpp:2585` (OGR CPLErrors on -1, the error frame converts); `gdal_vect.cpp:1662` (feature-owned scratch buffer, consumed immediately); `gdal_base.h:57` throwing dtor (guarded by `uncaught_exceptions`, standard scope-guard idiom); `dbfImp.cpp:889-899` (fresh impl, empty descriptions, copy loop skipped); `OperPolygon.cpp:1277-1282` (`nrPointsHere == 0` for zero-length segments when `dist > 0`); `Dijkstra.cpp:953-971` (`impedance <= 0` continues / is guarded); `DiscrAlloc.cpp:862-882` (`s ≥ 1`, unsigned wrap defined, `GetNrSteps` 0); `DiscrAlloc.cpp:471, 678` (single-threaded design; no parallel loops in the file); `Perimeter.cpp:63-69` (`write_only_mustzero` zeroes first; the comment is history); `Potential.h:89`, `Dijkstra.h:56` (per-call contexts); `GridCoord.cpp:326-354` (`AdjustGridNrs` keeps the sizes equal); `ShvUtils.h:332`, `ViewPort.cpp:892` (callers bound `n`; doubles); `DataItemColumn.cpp:564`, `TableControl.cpp:1357` (`SelRange` uses `UNDEFINED_VALUE`, checked before); `ShvUtils.cpp:220-231` (`"Copy"→"CopyCopy"` intentional); `LayerSet.cpp:388-411` (`pos` defined ⇒ non-empty); `FocusElemProvider.cpp:92` (temporary lock materialises the attribute); `DmsTreeView.cpp:139-152` (`split` returns ≥ 1); `DmsMainWindow.cpp:2274-2285` (lists are disjoint by construction at :1491-1492); `DmsViewArea.cpp:95-108` (no `WM_DESTROY` handling in shv, so :105 is the sole release); `DmsValueInfo.cpp:85-93` (`deleteAfterCurrentIndex` keeps the invariant; accessors use `.at()`).
+- **geo/stg/shv/qt:** `TifImp.cpp:666-672` / `GridStorageManager.h:214-215` (STG-14: the consumer resets a negative read result to 0 and default-fills the tile; *2026-10-06: not refuted, see STG-14 above, STG-A10*); `XdbImp.cpp:382-387` (`RecSize()` ≥ 1; the live xyz caller sets `headersize = 0`); `XdbImp.cpp:307/185` (:307 sits in the unreachable `ReadHeader`; the live xyz `ReadColumn` clips `cnt` to `NrOfRows()`); `TifImp.cpp:481-487` (needs a ≥ 4 GiB scanline); `gdal_vect.cpp:2585` (OGR CPLErrors on -1, the error frame converts); `gdal_vect.cpp:1662` (feature-owned scratch buffer, consumed immediately); `gdal_base.h:57` throwing dtor (guarded by `uncaught_exceptions`, standard scope-guard idiom); `dbfImp.cpp:889-899` (fresh impl, empty descriptions, copy loop skipped); `OperPolygon.cpp:1277-1282` (`nrPointsHere == 0` for zero-length segments when `dist > 0`); `Dijkstra.cpp:953-971` (`impedance <= 0` continues / is guarded); `DiscrAlloc.cpp:862-882` (`s ≥ 1`, unsigned wrap defined, `GetNrSteps` 0); `DiscrAlloc.cpp:471, 678` (single-threaded design; no parallel loops in the file); `Perimeter.cpp:63-69` (`write_only_mustzero` zeroes first; the comment is history); `Potential.h:89`, `Dijkstra.h:56` (per-call contexts); `GridCoord.cpp:326-354` (`AdjustGridNrs` keeps the sizes equal); `ShvUtils.h:332`, `ViewPort.cpp:892` (callers bound `n`; doubles); `DataItemColumn.cpp:564`, `TableControl.cpp:1357` (`SelRange` uses `UNDEFINED_VALUE`, checked before); `ShvUtils.cpp:220-231` (`"Copy"→"CopyCopy"` intentional); `LayerSet.cpp:388-411` (`pos` defined ⇒ non-empty); `FocusElemProvider.cpp:92` (temporary lock materialises the attribute); `DmsTreeView.cpp:139-152` (`split` returns ≥ 1); `DmsMainWindow.cpp:2274-2285` (lists are disjoint by construction at :1491-1492); `DmsViewArea.cpp:95-108` (no `WM_DESTROY` handling in shv, so :105 is the sole release); `DmsValueInfo.cpp:85-93` (`deleteAfterCurrentIndex` keeps the invariant; accessors use `.at()`).
 
 ## Appendix B — Conventions cheat-sheet used for the renames
 

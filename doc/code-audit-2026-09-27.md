@@ -10,6 +10,19 @@ specifically for twins of the defects fixed since 2026-09-01. About forty of the
 re-read once more before this report was written. Line numbers are leads at this HEAD, not gospel;
 every item names its function so it can be re-found.*
 
+*Status (2026-10-06): of the 288 findings, 123 are fixed, 3 partly (CLC-A17, CLC-A30, STG-A30), 2
+reverted (CLC-A07 by 793bf1080, because Hestia relies on the null; GEO-A19 by d46a6e199, because RSopen
+is calibrated on segments per quarter circle), 3 dropped (INF-A06, measured without gain, 048ef8efc;
+GEO-A42, measured slower, 612a3cb96; STX-A15, refuted, see its entry) and 157 open, one of them High
+(PLN-A02). GEO-A51 was resolved by #1290 (9d23831a8, f6d34a69a), which do not cite the ID; INF-A03 in part
+by 7cd3d09ac (the eight format calls, and `tools/check-format-args.ps1`), its stage 2 is open. Of the
+delivery order of section 6, steps 1 to 3 are done; step 4 is done except BAT-A10, and the part of
+section 5 that was still open was done by the documentation sweep of 2026-10-06; of step 5, GEO-A44, GEO-A45,
+SHV-A07, SHV-A08, SHV-A14 and QT-A14 are open, GEO-A44 deferred because a row sweep must reproduce the
+per-vertex `CalcWidth` exactly, including rows with several vertices and null points, and GEO-A45 because
+making the bp translate-to-zero effective changes results for coordinates over 25 bits; step 6
+(simplification) is not started. The ranking of what is left: `doc/continuations-2026-10-06.md`.*
+
 ## How to read this
 
 - **ID**: module prefix plus `A` and a number, so the IDs do not collide with those of
@@ -844,7 +857,11 @@ null, overflow or domain check that one member of an operator family has and its
 - `0.3` becomes 0.30000000000000004 and `0.7` becomes 0.7000000000000001, while every other text-to-number path uses `std::from_chars`: `float64('0.7') == 0.7` is false, and `[0.7, '0.7']` in one data block stores two different values.
 - **Fix**: use Spirit only for the extent and convert the matched text with `std::from_chars`.
 
-#### STX-A15 · BUG · CONFIRMED · Medium · S — `nrofrows` silently narrows to the unit's value type
+#### STX-A15 · BUG · REFUTED (was CONFIRMED) · Medium · S — `nrofrows` silently narrows to the unit's value type
+- **Refuted** after this audit, by a probe: an out-of-range `nrofrows` already ends in an error, and so
+  does `nrofrows = 255` on a uint8 unit. `Convert<V>` (`rtc/dll/src/vt/ConversionBase.h`) maps a count the
+  value type cannot hold to null (`undefined_or_zero_func`) instead of wrapping it, and for uint8, 255 is
+  that null. Nothing to fix; the text below is the original finding.
 - **Where**: `stx/dll/src/ConfigProd.cpp:564-579` → `rtc/dll/src/tic/Unit.cpp:947-958` (`SetRangeAsUInt64` with the non-throwing `Convert<V>`).
 - `unit<uint8> u: nrofrows = 300;` gives 255 rows; `unit<uint32>` with 5e9 gives a 4-billion-row domain; `unit<int8>` with 200 gives [-128,0); no error. The Appendix-A refutation of `ConfigProd.cpp:566` covers only the value-type assert.
 - **Fix**: `ThrowingConvert` in `SetRangeAsUInt64`, or a semantic error when the count exceeds the type.

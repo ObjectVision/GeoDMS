@@ -1,5 +1,16 @@
 # Technical-Debt Review — GeoDMS
 
+*Archived 2026-10-06: a review of 2026-06-06 on branch `refactor_linux_gui`. Its open items went to
+`doc/cleanup-list.md`, which succeeds it as the one live backlog: #1 recursion is part of item 15, #6 CI
+is item 18, #7 security is item 19 (the open items of the May 2026 audit, listed one by one), and the
+ViewHost seam of #2 is item 6. Not carried over: #3 (both build systems are required by AGENTS.md), #4
+(Boost Spirit V1, whose depth caps are part of item 15) and #8 (repository hygiene, code audit
+REPO-A30). The ranking of what is left is in `doc/continuations-2026-10-06.md`. Two premises below are
+wrong and were left as written: #2 assumes a Win32 host beside Qt, but Qt is the only host and
+`Win32ViewHost` is compiled but never constructed; and #5 calls `dms_assert` a no-op in Release, but it
+is `CC_ASSUME` (`__assume`), so a false condition is undefined behaviour and the optimiser may delete the
+code that would have handled it.*
+
 Branch reviewed: `refactor_linux_gui`. Date: 2026-06-06.
 Sources: the code tree, `RECURSION_REFACTOR_PLAN.md`, `PORTING_STATUS.md`, the
 May-2026 security audit, and a full-tree survey.
