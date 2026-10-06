@@ -699,19 +699,20 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 	return true;
 }
 
-// TIC-A04: while the operation of a members-on-demand result runs (storage_read_table), the check above
-// reports the whole result as calculating, so a member that gained interest after the operation collected
-// its members would connect to an operation that does not read it, and fail with "neither calculating nor
-// ready nor failed" once it ends. This tells the caller to wait for that operation to end first; the #1167
-// re-entry then reads the member on its own.
-bool HasWantedMemberOnDemandWhileCalculating(const TreeItem* cacheRoot)
+// TIC-A04, #1284: whether a member that its operator reads on demand (TSF_MemberOnDemand, set by
+// storage_read_table only, so PhaseContainer is unaffected) is wanted and not ready. While the result's
+// operation runs, the check above reports the whole result as calculating, so such a member, if it gained
+// interest after the operation collected its members, would connect to an operation that does not read it.
+// JoinOperationThatMissesWantedMember in MoreDataControllers.cpp asks this before it waits for that
+// operation to end.
+bool HasWantedMemberOnDemand(const TreeItem* cacheRoot)
 {
 	assert(IsMetaThread());
 	assert(cacheRoot);
 	if (!cacheRoot->IsCacheItem())
 		return false;
 	auto ultimateRoot = cacheRoot->GetCurrUltimateItem();
-	if (!ultimateRoot || !IsCalculating(ultimateRoot.get()))
+	if (!ultimateRoot)
 		return false;
 	for (auto member = ultimateRoot->WalkConstSubTree(ultimateRoot.get()); member; member = ultimateRoot->WalkConstSubTree(member))
 		if (member->GetTSF(TSF_MemberOnDemand) && member->GetInterestCount() && !IsDataReady(member))

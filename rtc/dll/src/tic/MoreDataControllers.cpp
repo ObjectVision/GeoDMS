@@ -339,6 +339,35 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	return curr;
 }
 
+// TIC-A04, #1284: storage_read_table collects the members that carry interest when its operation is
+// scheduled (PreCalcUpdate) and reads exactly those. A member that gains interest later -- a for_each whose
+// expression list needs another column of the table whose first column gave the names -- is not read by
+// that operation, and a consumer connected to it fails SubItem's check on the empty column once it ends.
+// Such a member needs an operation of its own, which CallCalcResultImpl creates only when this FuncDC holds
+// none: an attached one is reused, and scheduled only while its status is none. So join the attached
+// operation to its end, and pass cs_ThreadMessing once, as OnEnd sets the final status and detaches the
+// operation in one section of it and Join may see that status before the section ends. dbe256a84 waited on
+// the result item instead, which ends when Run_with_catch releases the write lock, before OnEnd; a request
+// in between reused the ending operation and left the member unread.
+// Returns false when the meta thread suspended or the operation did not end well.
+static bool JoinOperationThatMissesWantedMember(const FuncDC& funcDC, const TreeItem* resultRoot)
+{
+	assert(IsMetaThread());
+	auto operContext = funcDC.GetOperContext();
+	if (!operContext || operContext->GetStatus() == task_status::none)
+		return true; // nothing collected yet, or a schedule that CallCalcResultImpl completes now
+	if (!HasWantedMemberOnDemand(resultRoot))
+		return true;
+	if (operContext->Join() != task_status::done)
+		return false;
+	{
+		DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
+		leveled_std_section::scoped_lock passOnEnd(cs_ThreadMessing);
+	}
+	assert(funcDC.GetOperContext() != operContext);
+	return true;
+}
+
 auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
 #if defined(MG_DEBUG_DCDATA)
@@ -428,12 +457,16 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		// carries storage_read_table and the PhaseContainer members, which have the same shape.
 		if (IsNew() && GetOperator()->CanRunParallel())
 		{
-			// TIC-A04: a member of a members-on-demand result that is wanted while the result's operation
-			// runs may not have been collected by it; wait for that operation to end, so that the check
-			// below sees the result ready and the member not, and the member is read on its own.
-			if (m_OperatorGroup->HasMembersOnDemand() && HasWantedMemberOnDemandWhileCalculating(curr.get()))
-				if (!WaitForReadyOrSuspendTrigger(curr->GetCurrUltimateItem().get()))
-					return {}; // suspended, or the result failed
+			// TIC-A04, #1284: a member of a members-on-demand result that gained interest after the result's
+			// operation collected its members is not read by that operation; wait until it has ended and is
+			// detached, so that the check below sees the result ready and the member not, and
+			// CallCalcResultImpl starts a new operation that reads the member.
+			if (m_OperatorGroup->HasMembersOnDemand() && !JoinOperationThatMissesWantedMember(*this, curr.get()))
+			{
+				if (curr->WasFailed(FailType::Data))
+					Fail(curr.get());
+				return {}; // suspended, or the result failed
+			}
 			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(curr.get());
 		}
 		else

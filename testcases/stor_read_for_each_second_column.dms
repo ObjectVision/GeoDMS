@@ -1,0 +1,46 @@
+// #1284: a for_each whose name list reads a gdal.vect table and whose expression list needs another
+// column of the same table. The name list starts the read of the table with the one member that is
+// wanted at that moment, Variable; Length gains interest while that read runs on a worker. In 20.20.0
+// Length was then connected to the running read, which does not read it, and SubItemOperator::CreateResult
+// failed its check on the empty column: all names of the for_each became unknown. Since dbe256a84
+// (TIC-A04) the request for Length waits for the running read and then reads Length on its own; since
+// #1284 it joins that read until it is detached (JoinOperationThatMissesWantedMember). A build without
+// the wait fails /Fails/alpha on every run.
+// fnrun_itemmap.txt requests /Fails/alpha first, as the issue did, so that the for_each is expanded
+// before anything else reads the table; Control and Workaround pass on 20.20.0 as well.
+container stor_read_for_each_second_column
+{
+	unit<uint32> Meta
+	:	StorageName     = "%currDir%/data/stor_read_for_each_meta.csv"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True";
+
+	container Fails := for_each_nedv(Meta/Variable, 'const(' + Meta/Length + ', void)', void, uint32);
+
+	// the name list does not depend on the table
+	unit<uint32> K : nrofrows = 3
+	{
+		attribute<string> N : ['k0', 'k1', 'k2'];
+		attribute<string> E := 'const(' + Meta/Length[convert(id(.), Meta)] + ', void)';
+	}
+	container Control := for_each_nedv(K/N, K/E, void, uint32);
+
+	// the first read of the table already names both columns
+	container Workaround
+	{
+		unit<uint32> Sel := select_with_org_rel(strlen(Meta/Variable) > 0 || Meta/Length[uint32] > 0)
+		{
+			attribute<string> name   := Meta/Variable[org_rel];
+			attribute<uint32> Length := Meta/Length[org_rel][uint32];
+		}
+		container X := for_each_nedv(Sel/name, 'const(' + string(Sel/Length) + ', void)', void, uint32);
+	}
+
+	container checks
+	{
+		parameter<bool> c_fails      := Fails/key == 4 && Fails/alpha == 3 && Fails/beta == 3,                      IntegrityCheck = "c_fails == true";
+		parameter<bool> c_control    := Control/k0 == 4 && Control/k1 == 3 && Control/k2 == 3,                   IntegrityCheck = "c_control == true";
+		parameter<bool> c_workaround := Workaround/X/key == 4 && Workaround/X/alpha == 3 && Workaround/X/beta == 3, IntegrityCheck = "c_workaround == true";
+		parameter<bool> c_count      := #Meta == 3,                                                              IntegrityCheck = "c_count == true";
+	}
+}

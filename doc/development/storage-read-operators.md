@@ -1,6 +1,6 @@
 # Storage reads as key-expression operators (#587)
 
-*Status: S0 to S4 implemented and committed (2026-09-05, see the status notes under section 4); S5 (the unit suite, the Release build) ran, and the four failures it found are fixed, see the S5 note; the follow-ups on main end with b00f2f4b8 (2026-09-16). Until the code audit of 2026-09-27 (PLN-A08) this line said S5 was in progress. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers.*
+*Status: S0 to S4 implemented and committed (2026-09-05, see the status notes under section 4); S5 (the unit suite, the Release build) ran, and the four failures it found are fixed, see the S5 note; the follow-ups on main end with b00f2f4b8 (2026-09-16), plus dbe256a84 (2026-09-29, TIC-A04) and the #1284 commit of 2026-10-06 for a member demanded while its table is read (3.4, step 4). Until the code audit of 2026-09-27 (PLN-A08) this line said S5 was in progress. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers.*
 *Scope: `rtc/dll/src/tic` (key expressions, DataControllers, `PrepareDataUsage`, `OperationContext`), `rtc/dll/src/tic/stg` and `stg/dll/src` (storage managers), `clc` only for the PhaseContainer analogue and the `do` operator.*
 
 ---
@@ -598,6 +598,12 @@ The operators follow `PhaseContainerOperator` step for step:
    is the #1167 mechanism; the read operators must be `CanRunParallel()` (no
    `has_external_effects`, no `calc_requires_metainfo`), because the inline branch of
    `CallCalcResult` tests `IsAllDataCurrStandby`, which would force every member.
+   A member demanded while the read still runs is not among the collected ones, and the
+   check reports it as calculating. `CallCalcResult` therefore first joins the OC that is
+   attached to the DC and waits until `OnEnd` has detached it, so that the re-entry gets an
+   OC of its own (`JoinOperationThatMissesWantedMember`, TIC-A04 and #1284): a `for_each`
+   whose names come from one column and whose expressions need another hit this on every
+   run in 20.20.0.
 5. **Failure**: a failed read fails the collected members and the DC with
    `FailType::Data`, carrying the `while reading data from <file>` context that
    `ReadItem` adds today, named through the #795 origin machinery. Storage existence is
