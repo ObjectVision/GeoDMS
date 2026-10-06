@@ -330,15 +330,6 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 
 template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
-IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExisting_st(CharPtr keyFirst, CharPtr keyLast) const
-{
-	dbg_assert(scc_GetOrCreateID == 0);
-
-	return GetExisting_impl(keyFirst, keyLast);
-}
-
-template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
-IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExisting_mt(CharPtr keyFirst, CharPtr keyLast) const
 {
 	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);

@@ -348,93 +348,6 @@ SharedStr substr(WeakStr str, SizeT pos, SizeT len)
 // Section      : equality and hashers 
 //----------------------------------------------------------------------
 
-//#include <string_view>
-//#include <cstddef>
-//#include <cctype>
-
-static char32_t ascii_case_fold(char32_t cp) noexcept {
-	// Only ASCII a-zA-Z for now; you can extend with Unicode tables
-	if (cp >= U'A' && cp <= U'Z') return cp + 32;
-	return cp;
-}
-
-static size_t decode_utf8(const char* ptr, const char* end, char32_t& out) noexcept {
-	unsigned char c = static_cast<unsigned char>(*ptr);
-	if (c < 0x80) {
-		out = c;
-		return 1;
-	}
-	else if ((c >> 5) == 0x6 && ptr + 1 < end) { // 2-byte
-		out = ((c & 0x1F) << 6) | (static_cast<unsigned char>(ptr[1]) & 0x3F);
-		return 2;
-	}
-	else if ((c >> 4) == 0xE && ptr + 2 < end) { // 3-byte
-		out = ((c & 0x0F) << 12) |
-			((static_cast<unsigned char>(ptr[1]) & 0x3F) << 6) |
-			(static_cast<unsigned char>(ptr[2]) & 0x3F);
-		return 3;
-	}
-	else if ((c >> 3) == 0x1E && ptr + 3 < end) { // 4-byte
-		out = ((c & 0x07) << 18) |
-			((static_cast<unsigned char>(ptr[1]) & 0x3F) << 12) |
-			((static_cast<unsigned char>(ptr[2]) & 0x3F) << 6) |
-			(static_cast<unsigned char>(ptr[3]) & 0x3F);
-		return 4;
-	}
-	else {
-		out = 0xFFFD; // replacement char
-		return 1;
-	}
-}
-
-bool Utf8CaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept {
-	if (a.size() != b.size())
-		return false;
-
-	const char* p1 = a.first;
-	const char* p2 = b.first;
-	const char* end1 = a.second;
-	const char* end2 = b.second;
-
-	while (p1 < end1 && p2 < end2) {
-		char32_t cp1, cp2;
-		size_t n1 = decode_utf8(p1, end1, cp1);
-		size_t n2 = decode_utf8(p2, end2, cp2);
-		p1 += n1;
-		p2 += n2;
-
-		if (ascii_case_fold(cp1) != ascii_case_fold(cp2)) {
-			return false;
-		}
-	}
-
-	return (p1 == end1 && p2 == end2); // both must end at same time
-}
- 
-std::size_t Utf8CaseInsensitiveHasher::operator()(CharPtrRange input) const noexcept {
-	std::size_t hash = 0xcbf29ce484222325;
-	constexpr std::size_t prime = 0x100000001b3;
-
-	const char* ptr = input.first;
-	const char* end = input.second;
-
-	// Decode UTF-8 one codepoint at a time
-	while (ptr < end) {
-		char32_t cp;
-		size_t bytes = decode_utf8(ptr, end, cp);
-		ptr += bytes;
-
-		// Apply simple case fold (ASCII only for now)
-		cp = ascii_case_fold(cp);
-
-		// Update hash
-		hash ^= static_cast<std::size_t>(cp);
-		hash *= prime;
-	}
-
-	return hash;
-}
-
 #include <immintrin.h>
 #include <cstdint>
 
@@ -601,12 +514,6 @@ size_t SharedStr::cs_hasher::operator()(const SharedStr& str) const noexcept
 {
 	CharPtrRange::hasher csHasherFunc;
 	return csHasherFunc(CharPtrRange{ str.begin(), str.send() } );
-}
-
-size_t SharedStr::ci_hasher::operator()(const SharedStr& str) const noexcept
-{
-	AsciiFoldedChunkedCaseInsensitiveHasher ciHasherFunc;
-	return ciHasherFunc(CharPtrRange{ str.begin(), str.send() });
 }
 
 //----------------------------------------------------------------------

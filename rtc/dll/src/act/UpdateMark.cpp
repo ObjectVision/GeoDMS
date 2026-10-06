@@ -17,8 +17,6 @@
 #include "utl/StrFormat.h"
 #include "Parallel.h"
 
-#include <algorithm>
-
 #if defined(MG_DEBUG_TS_SOURCE)
 #include <map>
 #endif
@@ -93,7 +91,6 @@ namespace UpdateMarker {
 
 		for (auto& changeSource: s_ChangeSources)
 			reportF(SeverityTypeID::ST_MinorTrace, "ts {} was caused by {}", changeSource.first, changeSource.second);
-//		dms_check(0);
 	}
 
 	ChangeSourceLock::ChangeSourceLock(TimeStamp ts, CharPtr contextDescr)
@@ -187,20 +184,6 @@ ChangeSourceLock::~ChangeSourceLock()
 		impl::tsActive = m_PrevActiveChangeSource;
 	} 
 
-	namespace impl {
-
-		struct comparePtr {
-			bool operator () (TimeStampPtr lhs, TimeStampPtr rhs) const
-			{
-				return (*lhs < *rhs)
-					// provide additional ordering for equivalent pointers in order to detect 
-					// illegal shared TimeStamps
-					MG_DEBUGCODE( || ((!(*rhs < *lhs)) && (lhs < rhs))) 
-				;
-			}
-		};
-	}
-
 	void TriggerFreshTS(MG_DEBUG_TS_SOURCE_CODE(CharPtr cause))
 	{
 		MG_DEBUG_TS_SOURCE_CODE(
@@ -229,39 +212,6 @@ ChangeSourceLock::~ChangeSourceLock()
 		assert(! IsInDetermineState() );
 		TriggerFreshTS(MG_DEBUG_TS_SOURCE_CODE(cause));
 		return impl::tsLast;
-	}
-
-	void Renumber(TimeStampPtr* first, TimeStampPtr* last)
-	{
-		dms_assert(IsMetaThread());
-
-		DBG_START("UpdateMarker", "Renumber", false);
-
-		std::sort(first, last); // sort pointers, just to remove duplicates.
-		last = std::unique(first, last); // erasure is not required as caller destroys container anyway.
-		std::sort(first, last, impl::comparePtr());
-
-		TimeStamp curr = 0;
-
-		while (first != last && !**first) 
-			++first; // skip uninitialized Timestamps
-
-		dms_assert(first == last || **first > 0); 
-		for (; first != last; ++first)
-		{
-			dms_assert(**first > 0); 
-			dms_assert(curr <= **first); // stuff was ordered ( and hasn't been tampered with since? )
-			if (curr < **first)
-			{
-				++impl::tsLast;
-				curr = **first;
-				DBG_TRACE(("{} -> {}", curr, impl::tsLast.load()));
-			}
-			**first = impl::tsLast;
-		}
-		impl::bCommitted = true;
-
-		MG_DEBUG_TS_SOURCE_CODE( s_ChangeSources.clear(); )
 	}
 
 //  -----------------------------------------------------------------------

@@ -549,8 +549,8 @@ int main(int argc, char** argv)
 		_CrtSetBreakAlloc(std::atol(breakAllocStr));
 #endif
 #ifdef _WIN32
-	// Lock the DLL search path before any LoadLibrary call (GDAL drivers,
-	// RunDllProc) so a planted DLL in CWD or PATH cannot hijack the process.
+	// Lock the DLL search path before any LoadLibrary call (GDAL drivers) so
+	// a planted DLL in CWD or PATH cannot hijack the process.
 	::SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 	::SetDllDirectoryW(L"");
 #endif

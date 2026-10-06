@@ -95,15 +95,11 @@ public:
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
 		throwIllegalAbstract(MG_POS, "mappable_sequence.CloneForSeqs");
-		/*
-		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile(), this->m_TileId, 0);
-		*/
 	}
 
 	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { m_FileView.MapView(rwMode != dms_rw_mode::read_only); assert(  m_FileView.IsUsable() ); GetSeq(seq);}
 	void UnLock(alloc_t& seq)                     override 
 	{ 
-//		m_FileView.resize(seq.size()); 
 		m_FileView.UnmapView();
 		seq = alloc_t();
 	}
@@ -111,11 +107,6 @@ public:
 	SharedStr GetFileName() const override { return m_FileView.GetMappedFile()->GetFileName(); }
 
 private:
-	void Grow(alloc_t& seq, SizeT newSize)
-	{
-		if (newSize > seq.m_Capacity)
-			reserve(seq, Max<UInt32>(seq.m_Capacity*2, newSize));
-	}
 	void GetSeq(alloc_t& seq)
 	{
 		seq = alloc_t(m_FileView.begin(), m_FileView.end(), m_FileView.filed_capacity() );

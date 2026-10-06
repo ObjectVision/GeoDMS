@@ -16,8 +16,6 @@
 // heap_sequence_provider
 //----------------------------------------------------------------------
 
-void throwInsertError(SizeT seqSize, SizeT n);
-
 template <typename V>
 class heap_sequence_provider : public abstr_sequence_provider<V>
 {
@@ -54,14 +52,11 @@ public:
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override;
 	static abstr_sequence_provider<V>* CreateProvider();
-	static SizeT max_size();
 
 private:
 	heap_sequence_provider()  {}
 	~heap_sequence_provider() {}
 	heap_sequence_provider(const heap_sequence_provider&); // Dont call
-
-	void Shrink(alloc_t& seq);
 
 	void SetSize(alloc_t& seq, SizeT newSize) override
 	{
@@ -72,11 +67,6 @@ private:
 	{
 		dms_assert(seq.size() <= seq.m_Capacity);
 	}
-
-	template <typename Iter    > static iterator iter(Iter               i) { return &*i; }
-	template <typename T       > static iterator iter(T*                 p) { return   p; }
-	template <typename T       > static iterator iter(SA_Iterator<T>     i) { return i; }
-	template <int N, typename B> static iterator iter(bit_iterator<N, B> i) { return i; }
 };
 
 

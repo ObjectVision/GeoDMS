@@ -110,9 +110,6 @@ namespace UpdateMarker
 		TimeStamp m_PrevActiveChangeSource;
 	};
 
-	typedef TimeStamp* TimeStampPtr;
-	void Renumber(TimeStampPtr* first, TimeStampPtr* last);
-
 //  -----------------------------------------------------------------------
 //  struct DetermineChangeLock interface
 //  -----------------------------------------------------------------------

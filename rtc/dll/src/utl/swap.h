@@ -27,20 +27,6 @@ namespace omni {
 			static const bool value = sizeof(test_for_swap<T>(0) ) == sizeof(char);
 		};
 
-#if defined(MG_DEBUG_SWAP)
-		struct CompilerCheckClass1 
-		{ 
-			void swap(CompilerCheckClass1& oth);
-		};
-		struct CompilerCheckClass2 {};
-		struct CompilerCheckClass3 : CompilerCheckClass1 {};
-
-		static_assert(has_member_swap<CompilerCheckClass1>::value);
-		static_assert(has_member_swap<CompilerCheckClass2>::value == 0);
-		static_assert(has_member_swap<CompilerCheckClass3>::value == 0);
-		static_assert(has_member_swap<int>::value == 0);
-#endif
-
 	}	//	namespace impl
 
 	template <class T>

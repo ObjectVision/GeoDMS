@@ -17,53 +17,6 @@
 
 #include <string>
 
-namespace url
-{
-
-	/*	URL Encoding replaces spaces with "+" signs, and unsafe ASCII characters with "%" followed by their hex equivalent.
-		Safe characters are defined in RFC2396. They are the 7-bit ASCII alphanumerics and the mark characters "-_.!~*'()".
-		(Note that the standard JavaScript escape and unescape functions operate slightly differently: they encode space as "%20", and treat "+" as a safe character.)
-		see: http://www.albionresearch.com/misc/urlencode.php
-		and: http://www.ietf.org/rfc/rfc2396.txt
-	*/
-	namespace impl
-	{
-		static bool isInitialized = false;
-		static bool isSafe[128 - 32];
-
-		void SetRange(char first, char count)
-		{
-			dms_assert(first >= 32);
-			first -= 32;
-			dms_assert(count < 128 - 32 && first + count <= 128 - 32);
-			bool* firstPtr = isSafe + first;
-			fast_fill(firstPtr, firstPtr + count, true);
-		}
-		void SetChars(CharPtr chPtr)
-		{
-			while (*chPtr)
-				isSafe[*chPtr++ - char(32)] = true;
-		}
-		void InitSafeChars()
-		{
-			if (isInitialized)
-				return;
-			SetRange('0', 10);
-			SetRange('A', 26);
-			SetRange('a', 26);
-			SetChars("-_.!~*\'()");
-			SetChars("+"); // count as one character; transforms to space 
-			isInitialized = true;
-		}
-	}
-	bool IsSafeChar(char ch)
-	{
-		impl::InitSafeChars();
-		unsigned char uch = ch;
-		return uch >= 32 && uch < 128 && impl::isSafe[uch - 32];
-	}
-}
-
 bool isHex(char ch)
 {
 	return (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
@@ -131,9 +84,8 @@ SharedStr UrlDecode(WeakStr urlStr)
 	space becomes '+', and every other byte becomes %XX with UPPERCASE hex digits. Hence
 	UrlDecode(UrlEncode(s)) == s for EVERY byte string s, non-ASCII (e.g. UTF-8) included.
 
-	NB url::IsSafeChar is deliberately NOT used here: its table also marks '+' as safe -- it
-	exists to SIZE the decode result, where "+" is one character -- and letting a literal '+'
-	through unescaped would silently decode back as a space. It is escaped as %2B instead.
+	NB a literal '+' is not in that set: let through unescaped, it would silently decode back
+	as a space. It is escaped as %2B instead.
 */
 static bool IsUrlUnreservedChar(unsigned char uch)
 {

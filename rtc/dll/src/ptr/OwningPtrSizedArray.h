@@ -169,9 +169,6 @@ private:
 
 
 template <typename T>
-inline bool IsDefined(const OwningPtrSizedArray<T>& v) { return v.IsDefined(); }
-
-template <typename T>
 auto GetSeq(OwningPtrSizedArray<T>& so) -> IterRange<typename OwningPtrSizedArray<T>::pointer>
 {
 	return { so.begin(), so.end() };

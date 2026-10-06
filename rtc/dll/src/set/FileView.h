@@ -80,8 +80,6 @@ struct file_view_base : FVH
 // Section      : const_file_view
 //----------------------------------------------------------------------
 
-const SizeT useExistingSize = UNDEFINED_VALUE(SizeT);
-
 template <typename T>
 struct const_file_view : file_view_base<T, ConstFileViewHandle>
 {
@@ -89,26 +87,6 @@ struct const_file_view : file_view_base<T, ConstFileViewHandle>
 	using typename base_type::const_iterator;
 	using typename base_type::const_reference;
 	using file_view_base<T, ConstFileViewHandle>::file_view_base; // inherit ctors
-
-	void Open(WeakStr fileName, tile_id nrElems, bool throwOnError = true )
-	{
-		this->OpenForRead(fileName, throwOnError, true);
-		if (!this->IsOpen())
-			return;
-
-		if (!IsDefined(nrElems))
-		{
-			dms::filesize_t fileSize = this->GetFileSize();
-			nrElems = IsDefined(fileSize) ? size_calculator<T>().max_elems(fileSize) : 0;
-		}
-		if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems))
-			throwErrorF("const_file_view", "FileSize of {} expected but file {} has a size of {} bytes"
-			,	size_calculator<T>().nr_bytes(nrElems)
-			,	fileName.c_str()
-			, this->GetFileSize()
-			);
-		this->m_NrElems = nrElems;
-	}
 };
 
 //----------------------------------------------------------------------
@@ -134,38 +112,6 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 
 	using file_view_base<T, FileViewHandle>::file_view_base; // inherit ctors
 	using file_view_base<T, FileViewHandle>::operator =;
-
-	void Open(WeakStr fileName, SizeT nrElems, dms_rw_mode rwMode, bool isTmp)
-	{
-		assert(rwMode != dms_rw_mode::unspecified);
-		assert(rwMode != dms_rw_mode::check_only);
-
-		if (rwMode != dms_rw_mode::read_only)
-			this->OpenRw(fileName
-			, IsDefined(nrElems) ? size_calculator<T>().nr_bytes(nrElems) : UNDEFINED_FILE_SIZE
-			, rwMode, isTmp
-			);
-		else
-			this->OpenForRead(fileName, true, true);
-
-		if (!IsDefined(nrElems))
-			nrElems = size_calculator<T>().max_elems(this->GetFileSize());
-		m_NrElems = nrElems;
-
-		dms_assert(this->GetFileSize() % sizeof(sequence_traits<T>::block_type) == 0);
-
-		if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems)
-			|| size_calculator<T>().nr_blocks(nrElems) != this->GetFileSize() / sizeof(sequence_traits<T>::block_type)) // catches overflow error on nrBytes calculation
-		{
-			base_type::CloseFVB();
-			throwErrorF("rw_file_view", "FileSize of {} expected but file {} has a size of {} for {} elements"
-			,	size_calculator<T>().nr_bytes(nrElems)
-			,	fileName.c_str()
-			, this->GetFileSize()
-			,	nrElems
-			);
-		}
-	}
 
 	void ReserveAndMapElems(SizeT nrReservedElem)
 	{

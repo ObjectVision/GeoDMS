@@ -95,10 +95,6 @@ private:
 	AbstrPropDef*     m_PrevPD = nullptr;
 	AbstrPropDef*     m_PrevCopyablePD = nullptr;
 
-#if defined(MG_DEBUGDATA)
-	SharedStr         md_Name;
-#endif
-
 	DECL_RTTI(, Class)
 };
 

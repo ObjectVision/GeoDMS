@@ -15,11 +15,7 @@
 
 #include "LockLevels.h"
 
-#if defined(MG_DEBUG)
-	const bool MG_DEBUG_LOCKS = false;
-#else
-	const bool MG_DEBUG_LOCKS = false;
-#endif
+const bool MG_DEBUG_LOCKS = false;
 
 //=============================== ConcurrentMap (client is responsible for scoping and stack unwinding issues)
 

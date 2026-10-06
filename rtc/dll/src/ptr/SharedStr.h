@@ -90,16 +90,6 @@ struct GenericHasher {
 	std::size_t operator()(CharPtrRange str) const noexcept;
 };
 
-struct Utf8CaseInsensitiveEqual {
-	bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
-};
-
-struct Utf8CaseInsensitiveHasher
-{
-	std::size_t operator()(CharPtrRange input) const noexcept;
-};
-
-
 struct AsciiFoldedCaseInsensitiveEqual {
 	bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
 };
@@ -107,33 +97,6 @@ struct AsciiFoldedCaseInsensitiveEqual {
 struct AsciiFoldedChunkedCaseInsensitiveHasher {
 	std::size_t operator()(CharPtrRange str) const noexcept;
 };
-
-inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
-{
-	auto sz1 = l1-f1, sz2 = l2-f2;
-	auto szMin = Min(sz1, sz2);
-	if (szMin)
-	{
-		auto cmpRes = strncmp(f1, f2,  szMin );
-		if (cmpRes < 0) return true;
-		if (cmpRes > 0) return false;
-	}
-	return sz1 < sz2;
-}
-
-inline bool lex_compare_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
-{
-	auto sz1 = l1-f1, sz2 = l2-f2;
-	auto szMin = Min(sz1, sz2);
-	if (szMin)
-	{
-		auto cmpRes = strnicmp(f1, f2,  szMin );
-		if (cmpRes < 0) return true;
-		if (cmpRes > 0) return false;
-	}
-	return sz1 < sz2;
-}
-
 
 template <typename T> struct is_char : std::false_type {};
 template <> struct is_char<Char> : std::true_type {};
@@ -160,26 +123,6 @@ inline bool lex_compare<CharPtr, CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, Ch
 	,	reinterpret_cast<const unsigned char*>(f2)
 	,	reinterpret_cast<const unsigned char*>(l2)
 	);
-}
-
-inline bool equal_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
-{
-	auto size = l1-f1;
-
-	if (size != l2-f2) return false;
-	if (!size)         return true;
-
-	return strncmp(f1, f2, size) == 0;
-}
-
-inline bool equal_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
-{
-	auto size = l1-f1;
-
-	if (size != l2-f2) return false;
-	if (!size)         return true;
-
-	return strnicmp(f1, f2, size) == 0;
 }
 
 template <typename CI1, typename CI2>
@@ -371,13 +314,10 @@ public:
 	explicit SharedStr(const SharedStr& rhs) = default;
 	explicit SharedStr(CharPtr zStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")) : base_type(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{}) {}
 	explicit SharedStr(const std::string& strStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin_ptr(strStr), end_ptr(strStr) MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{}) {}
-//	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1 MG_DEBUG_ALLOCATOR_SRC("SharedStr::ctor")) ){ dms_assert(!str[N-1]); }
-//	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1 MG_DEBUG_ALLOCATOR_SRC("SharedStr::ctor"))) { assert(!str[N - 1]); }
 	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr, newly_obj{}) {}
 	constexpr explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined(), newly_obj{}) {}
 	RTC_CALL explicit SharedStr(MutableCharPtrRange range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(MutableCharPtrRange range)"));
 	RTC_CALL explicit SharedStr(CharPtrRange range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(CharPtrRange range)"));
-//	RTC_CALL explicit SharedStr(IterRange<CharPtr> range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(CharPtrRange range)"));
 	RTC_CALL explicit SharedStr(TokenID id MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(TokenID id)"));
 	RTC_CALL explicit SharedStr(const struct TokenStr& str MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const struct TokenStr&)"));
 	RTC_CALL SharedStr(const SA_ConstReference<char>& range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const SA_ConstReference<char>&)"));
@@ -436,11 +376,6 @@ public:
 		size_t operator()(const SharedStr& str) const noexcept;
 	};
 
-	struct ci_hasher
-	{
-		size_t operator()(const SharedStr& str) const noexcept;
-	};
-
 private:
 	RTC_CALL void MakeUnique();
 
@@ -460,9 +395,6 @@ RTC_CALL SharedStr operator + (Char lhs, CharPtrRange rhs);
 inline SharedStr operator + (CharPtr lhs, CharPtrRange rhs) { return CharPtrRange(lhs, StrLen(lhs)) + rhs; }
 inline SharedStr operator + (CharPtrRange lhs, const SharedStr& rhs) { return IsDefined(lhs) && rhs.IsDefined() ? lhs + rhs.AsRange() : SharedStr(Undefined{}); }
 inline SharedStr operator + (CharPtr lhs, const SharedStr& rhs)      { return lhs            && rhs.IsDefined() ? CharPtrRange(lhs, StrLen(lhs)) + rhs.AsRange() : SharedStr(Undefined{}); }
-
-//RTC_CALL SharedStr operator + (CharPtrRange lhs, Char    ch );
-//RTC_CALL SharedStr operator + (Char    ch , CharPtrRange rhs);
 
 //----------------------------------------------------------------------
 // Section      : forwarded declarations of template member functions
@@ -575,17 +507,6 @@ Float64 AsFloat64(WeakStr x );
 inline void Assign(SharedStr& lhs, WeakStr rhs) { lhs = rhs; }
 
 // mgFormat2SharedStr moved to utl/StrFormat.h
-
-//----------------------------------------------------------------------
-// Section      : MG_DEBUG_ALLOCATOR
-//----------------------------------------------------------------------
-
-#if defined(MG_DEBUG_ALLOCATOR)
-
-//RTC_CALL SharedStr SequenceArrayString();
-//RTC_CALL SharedStr IndexedString();
-
-#endif //defined(MG_DEBUG_ALLOCATOR)
 
 //----------------------------------------------------------------------
 // StreamableDataTime

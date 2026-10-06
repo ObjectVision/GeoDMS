@@ -16,10 +16,6 @@
     <Filter Include="Geometry">
       <UniqueIdentifier>{5119733a-1c2c-4a25-b2fa-dc7b138445e6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Import Dll Management">
-      <UniqueIdentifier>{cbfcdd25-7589-45e6-b946-c00b0fc32ce2}</UniqueIdentifier>
-      <Extensions>*.cpp; *.h</Extensions>
-    </Filter>
     <Filter Include="Interface Files">
       <UniqueIdentifier>{eb48dfce-bc0b-4716-b5e1-ac6f8620e74c}</UniqueIdentifier>
     </Filter>
@@ -121,9 +117,6 @@
     </ClInclude>
     <ClInclude Include="src\dbg\TraceToConsole.h">
       <Filter>Debug Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\dllimp\RunDllProc.h">
-      <Filter>Import Dll Management</Filter>
     </ClInclude>
     <ClInclude Include="src\geom\Area.h">
       <Filter>Geometry</Filter>
@@ -577,9 +570,6 @@
     <ClInclude Include="src\dbg\Timer.h">
       <Filter>Debug Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\mci\SingleLinkedTree.h">
-      <Filter>Meta Class Information</Filter>
-    </ClInclude>
     <ClInclude Include="src\ipolygon\polygon_with_holes_data.hpp">
       <Filter>ipolygon</Filter>
     </ClInclude>
@@ -999,9 +989,6 @@
     <ClInclude Include="src\tic\Param.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
-    <ClInclude Include="src\sym\Prolog.h">
-      <Filter>SymbolicCalculation</Filter>
-    </ClInclude>
     <ClInclude Include="src\vt\CharPtrRange.h">
       <Filter>Geometry</Filter>
     </ClInclude>
@@ -1184,9 +1171,6 @@
     <ClCompile Include="src\dbg\MsgDispatch.cpp">
       <Filter>Debug Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\dllimp\RunDllProc.cpp">
-      <Filter>Import Dll Management</Filter>
-    </ClCompile>
     <ClCompile Include="src\gen\General.cpp">
       <Filter>General</Filter>
     </ClCompile>
@@ -1257,9 +1241,6 @@
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\ptr\SharedBase.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\mem\HeapSequenceProvider.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\utl\Encodes.cpp">
@@ -1406,9 +1387,6 @@
     <ClCompile Include="src\tic\UsingCache.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\sym\Prolog.cpp">
-      <Filter>SymbolicCalculation</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\Metric.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
@@ -1471,9 +1449,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\mci\SingleLinkedTree.inc">
-      <Filter>Meta Class Information</Filter>
-    </None>
     <None Include="src\act\ActorEnums.txt">
       <Filter>Actor Update Mechanism</Filter>
     </None>

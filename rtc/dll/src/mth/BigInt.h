@@ -12,50 +12,6 @@
 
 #include "RtcBase.h"
 
-#include "vt/BaseBounds.h"
-
-#include <vector>
-
-
-/******************************************************************************/
-//                          struct UInt
-/******************************************************************************/
-namespace Big {
-	typedef UInt32                 radix_type;
-	typedef std::vector<radix_type> container_type;
-
-	struct UInt : container_type
-	{		
-		UInt() {}
-		explicit UInt(radix_type v);
-
-		void operator +=(const UInt& rhs);
-		void operator *=(const UInt& rhs);
-		void operator /=(const UInt& rhs);
-		void operator >>=(size_type shift);
-
-		void operator *=(UInt32 factor);
-		void operator ++();
-		void StripLSB(UInt32 p);
-		size_type ShiftToOdd();
-
-		inline bool IsOne() const { return size() == 1 && (*this)[0] == 1; }
-
-	private:
-		void add(const UInt& rhs, size_type shift);
-	};
-
-/******************************************************************************/
-//                          UInt operations
-/******************************************************************************/
-
-	UInt operator + (const UInt& a, const UInt& b);
-	UInt operator * (const UInt& a, const UInt& b);
-	UInt operator / (const UInt& a, const UInt& b);
-	UInt operator >>(const UInt& a, UInt32 shift);
-
-} // namespace Big
-
 /******************************************************************************/
 //                         (U)Int64 functions
 /******************************************************************************/

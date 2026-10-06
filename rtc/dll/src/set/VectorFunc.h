@@ -295,9 +295,7 @@ void vector_zero_n(Vector& vec, typename Vector::size_type n)
 
 
 /*
-	vector_copy:
-		copies from any arbitrary random iterator.
-	_vector_copy can be used with sequential iterators by supplying n
+	_vector_copy copies from a sequential iterator range of n elements;
 		for example, the contents of a set can be copied into a vector by providing the set.size()
 		in order not to evaluate set.end() - set.begin()
 
@@ -327,12 +325,6 @@ void _vector_copy(Vector& vec, Iterator first, Iterator last, typename Vector::s
 		vec.push_back(*first++);
 
 	dms_assert(vec.size() == n);
-}
-
-template <typename Vector, typename Iterator>
-inline void vector_copy(Vector& vec, Iterator first, Iterator last)
-{
-	_vector_copy(vec, first, last, last - first);
 }
 
 template<typename Set, typename Vector>
@@ -413,20 +405,6 @@ inline bool vector_erase_first_if(Vector& vec, Cond&& cond)
 	typename Vector::iterator i = std::find_if(vec.begin(), e, cond);
 
 	if (i == e)
-		return false;
-
-	vec.erase(i);
-	return true;
-}
-
-template <class Vector>
-inline bool vector_erase_last(Vector& vec, const typename Vector::value_type& object)
-{
-	unsigned int count = 0;
-	typename Vector::reverse_iterator e = vec.rend();
-	typename Vector::reverse_iterator i = std::find(vec.rbegin(),e,object);
-
-	if (i==e)
 		return false;
 
 	vec.erase(i);

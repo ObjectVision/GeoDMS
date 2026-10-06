@@ -463,34 +463,6 @@ static inline int hexDigitVal(unsigned char c)
 	return c - 'a' + 10; // 'a'..'f'
 }
 
-SizeT _SingleUnQuoteMiddleSize(CharPtr str)
-{
-	SizeT c = 0;
-	while (true)
-	{
-		switch (*str++)
-		{
-			case '\\': {
-				char esc = *str;
-				if (!esc) goto exit;
-				++str;
-				if (esc == 'x' && isxdigit((unsigned char)str[0]) && isxdigit((unsigned char)str[1]))
-					str += 2; // consume both hex digits -- \xHH counts as one char
-				break;
-			}
-			case '\'':   // stop at single quote '\'' unless followed by another one
-				if (*str++ == '\'')  // count first '\'' and skip second '\'' and continue
-					break;
-				[[fallthrough]];
-			case 0:
-				goto exit;  // stop at '\0' or swallow ch.
-		}
-		++c;
-	}
-exit:
-	return c;
-}
-
 SizeT _SingleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
@@ -518,44 +490,6 @@ SizeT _SingleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
 	}
 exit:
 	return c;
-}
-
-char* _SingleUnQuoteMiddle(char* buf, CharPtr str)
-{
-	char ch;
-	while (true)
-	{
-		ch = *str++; // stop at '\0' or eat ch.
-		switch (ch)
-		{
-			case '\\':
-				ch = *str++;
-				switch (ch) // transform ch
-				{
-					case '\0': goto exit;
-					case '0': ch = '\0'; break;
-					case 't': ch = '\t'; break;
-					case 'r': ch = '\r'; break;
-					case 'n': ch = '\n'; break;
-					case 'x':
-						if (isxdigit((unsigned char)str[0]) && isxdigit((unsigned char)str[1])) {
-							ch = (char)((hexDigitVal((unsigned char)str[0]) << 4) | hexDigitVal((unsigned char)str[1]));
-							str += 2;
-						}
-						break;
-				}
-				break;
-			case '\'':   // stop at single quote '\'' unless followed by another one
-				if (*str++ == '\'') // eat first if second '\'' available to be skipped else exit
-					break;
-				[[fallthrough]];
-			case 0:
-				goto exit;
-		}
-		*buf++ = ch; // swallow it
-	}
-exit:
-	return buf;
 }
 
 char* _SingleUnQuoteMiddle(char* buf, CharPtr begin, CharPtr end)
@@ -599,20 +533,6 @@ exit:
 	return buf;
 }
 
-SharedStr SingleUnQuoteMiddle(CharPtr str)
-{
-	auto sz = _SingleUnQuoteMiddleSize(str);
-	if (!sz)
-		return SharedStr();
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1 MG_DEBUG_ALLOCATOR_SRC("SingleUnQuoteMiddle"));
-	SharedStr resultStr(result);
-
-	char* resEnd = _SingleUnQuoteMiddle(result->begin(), str);
-	*resEnd = 0;
-	dms_assert(result->size() == SizeT(resEnd - result->begin()));
-	return resultStr;
-}
-
 void SingleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 {
 	dms_assert(!begin || (end && (*end == '\'' || !*end)));
@@ -628,13 +548,6 @@ void SingleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 		*resEnd = 0;
 		dms_assert(resStr.ssize() == SizeT(resEnd - resStr.begin()));
 	}
-}
-
-SharedStr SingleUnQuoteMiddle(CharPtr begin, CharPtr end)
-{
-	SharedStr result;
-	SingleUnQuoteMiddle(result, begin, end);
-	return result;
 }
 
 SizeT _DoubleUnQuoteMiddleSize(CharPtr str)
@@ -790,44 +703,6 @@ void DoubleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 
 //================= unquote
 
-SharedStr SingleUnQuote(CharPtr str)
-{
-	CDebugContextHandle dct("SingleUnQuote", str, true);
-
-	MG_PRECONDITION(str && *str == '\'');
-	return SingleUnQuoteMiddle(str+1);
-}
-
-SharedStr SingleUnQuote(CharPtr begin, CharPtr end)
-{
-	CDebugContextHandle dct("SingleUnQuote", begin, true);
-
-	MG_PRECONDITION(begin && begin[0] == '\'');
-	MG_PRECONDITION(end   && end [-1] == '\'');
-	return SingleUnQuoteMiddle(begin+1, end-1);
-}
-
-SharedStr DoubleUnQuote(CharPtr str)
-{
-	CDebugContextHandle dct("DoubleUnQuote", str, true);
-
-	MG_PRECONDITION(str && *str == '"');
-	return DoubleUnQuoteMiddle(str+1);
-}
-
-RTC_CALL void DoubleQuote(SharedStr& ref, CharPtr b, CharPtr e)
-{
-
-	ref.resize(sizeDoubleQuouteMiddle(b, e)+2 MG_DEBUG_ALLOCATOR_SRC("DoubleQuote"));
-
-	auto ref_iter = ref.begin();
-	*ref_iter++ = '\"';
-	ref_iter = _DoubleQuoteMiddle(ref_iter, b, e);
-	*ref_iter++ = '\"';
-	assert(ref.ssize() == SizeT(ref_iter - ref.begin()));
-	*ref_iter++ = '\0';
-}
-
 void SingleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 {
 	// A single quote character begins and ends with a quote but is not a quoted string: ++begin and
@@ -853,27 +728,4 @@ void DoubleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 		end = _DoubleUnQuoteMiddle(&(result[0]), begin, end);
 		dms_assert(result.size() == SizeT(end - &(result[0])));
 	}
-}
-
-void DoubleUnQuote(SharedStr& result, CharPtr begin, CharPtr end)
-{
-	MG_PRECONDITION(begin && end && end - begin >= 2 && *begin == '\"' && *(end - 1) == '\"'); // as in SingleUnQuote
-
-	auto sz = _DoubleUnQuoteMiddleSize(++begin, --end);
-	result.resize(sz MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
-
-	auto res_end = _DoubleUnQuoteMiddle(result.begin(), begin, end);
-	assert(result[sz] == '\0');
-	assert(result.ssize() == SizeT(res_end - result.begin()));
-}
-
-SharedStr DoubleUnQuote(CharPtr begin, CharPtr end)
-{
-	MG_PRECONDITION(begin && end && end - begin >= 2 && *begin == '\"' && *(end - 1) == '\"'); // as in SingleUnQuote
-
-	SharedCharArray* resPtr = SharedCharArray::CreateUninitialized(_DoubleUnQuoteMiddleSize(++begin, --end) + 1 MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
-
-	auto res_end = _DoubleUnQuoteMiddle(resPtr->begin(), begin, end);
-	*res_end = '\0';
-	return SharedStr(resPtr);
 }

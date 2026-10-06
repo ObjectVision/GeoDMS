@@ -271,7 +271,6 @@ Point<typename aggr_type<T>::type> X(const Point<T>& arg) \
 }
 
 DEFINE_UNARY_FUNC(sin)
-DEFINE_UNARY_FUNC(con)
 DEFINE_UNARY_FUNC(tan)
 DEFINE_UNARY_FUNC(sqrt)
 

@@ -19,177 +19,21 @@
 
 #if defined(MG_DEBUG)
 	#include "utl/IncrementalLock.h"
-	std::atomic<UInt32> gd_LispEvalLevel = 0;
 	#define MaxAllowedLevel 20000
 	#define MG_TRACE_LISP false
-#endif
-
-#if defined(MG_DEBUG_LISPEVAL)
-#	include <iostream.h>
 #endif
 
 #include <functional>
 #include <vector>
 #include "set/Cache.h"
 
-using cache_key_t = std::pair<LispRef, AssocList>;
-
-/*************** Elementary functions  ******/
-
-bool HasAnyVar(LispPtr expr)
-{
-	if (expr.IsRealList())
-		return HasAnyVar(expr.Left()) || HasAnyVar(expr.Right());
-	else
-		return expr.IsVar();
-}
-
-
-/*************** Elementary functions for Eval ******/
-
-// This TU's LispComponent precedes every LispRef static below, including those inside the
-// MG_USE_LISPFUNCS block: within one TU dynamic initialisation runs in declaration order, so the
-// caches exist for them and, at exit, outlive them (g_applyTopEnvCache holds LispRefs until then).
-// It must stay OUTSIDE that #if: placed inside it (2026-09-05, for a few hours) this TU had no
-// component at all, the count hit zero before g_applyTopEnvCache was destroyed, and every
-// GeoDmsRun crashed at exit.
+// This TU's LispComponent precedes every LispRef static below: within one TU dynamic
+// initialisation runs in declaration order, so the caches exist for them and, at exit, outlive
+// them (g_applyTopEnvCache holds LispRefs until then). It must stay unconditional: placed inside
+// a never-defined #if (2026-09-05, for a few hours) this TU had no component at all, the count
+// hit zero before g_applyTopEnvCache was destroyed, and every GeoDmsRun crashed at exit.
 LispComponent s_LispServiceSubscription;
 
-#if defined(MG_USE_LISPFUNCS)
-const TokenID T_Cond  = GetTokenID_st("CASE");
-const TokenID T_Let   = GetTokenID_st("LET");
-const TokenID T_Fail  = GetTokenID_st("FAIL");
-
-const TokenID T_IsList= GetTokenID_st("IsList");
-const TokenID T_Cons  = GetTokenID_st("Cons");
-const TokenID T_Head  = GetTokenID_st("Head");
-const TokenID T_Tail  = GetTokenID_st("Tail");
-
-const TokenID T_IsInt = GetTokenID_st("IsNumb");
-const TokenID T_Times = GetTokenID_st("*");
-const TokenID T_Plus  = GetTokenID_st("+");
-const TokenID T_LT    = GetTokenID_st("<");
-const TokenID T_EQ    = GetTokenID_st("=");
-
-const TokenID T_IsSymb= GetTokenID_st("IsSymb");
-const TokenID T_Bound = GetTokenID_st("Bound");
-const TokenID T_Free  = GetTokenID_st("Free");
-
-const TokenID T_Prolog= GetTokenID_st("Pro");
-const TokenID T_ProMod= GetTokenID_st("ProMod");
-const TokenID T_Renum = GetTokenID_st("Renum");
-const TokenID T_GetEnv= GetTokenID_st("GetEnv");
-
-const LispRef ZeroElem(Number(0));
-const LispRef  OneElem(Number(1));
-
-const LispRef CondSymbol(T_Cond);
-const LispRef LetSymbol (T_Let);
-const LispRef FailSymbol(T_Fail);
-
-/*************** Elementary functions using special symbols ******/
-
-inline LispPtr MakeBool(bool B)
-{
-	return (B)
-  	?	LispRef::s_null
-    :	FailSymbol;
-}
-
-
-/****************** Numerical expressions         ******************/
-
-LispRef Plus (LispPtr one, LispPtr two)
-{
-	return LispRef(one.GetNumbVal() + two.GetNumbVal());
-}
-
-LispRef Minus(LispPtr one, LispPtr two)
-{
-	return LispRef(one.GetNumbVal() - two.GetNumbVal());
-}
-
-LispRef Times(LispPtr one, LispPtr two)
-{
-	return LispRef(one.GetNumbVal() * two.GetNumbVal());
-}
-
-/****************** Conditional expressions      ******************/
-
-struct LispClause : public Assoc
-{
-	LispClause(LispPtr cond, LispPtr expr)
-		:	Assoc(cond, expr) {}
-};
-
-typedef LispList<LispClause> LispClauseList;
-
-struct LispCondExpr : public Assoc
-{
-	LispCondExpr(const LispClauseList& l) :	Assoc(CondSymbol,l) {}
-	const LispClauseList& ClauseList() const
-	{
-		return reinterpret_cast<const LispClauseList&>(Val());
-	}
-	static LispRef Failed;
-};
-
-LispRef LispCondExpr::Failed = FailSymbol;
-
-bool IsCondExpr(LispPtr expr)
-{
-	if (!expr.IsRealList())
-		return false;
-	return expr.Left() == CondSymbol;
-}
-
-
-LispRef EvalClauseList(const LispClauseList& clauseList, AssocListPtr env)
-{
-	if (clauseList.IsEmpty())
-		return LispCondExpr::Failed;
-	LispClause FirstClause=clauseList.First();
-
-#ifdef MG_DEBUG_LISPEVAL
-  if (debugStream)
-		(*debugStream) << "\nEvalClauseList: FirstClause" << FirstClause;
-#endif
-
-	LispRef cond = Eval(FirstClause.Key(), env);
-	LispRef expr = FirstClause.Val();
-
-	if (cond.EndP())    // true;
-		return Eval(expr, env);
-	LispRef RestCond = EvalClauseList(clauseList.Tail(), env);
-	if (cond==FailSymbol) // false
-		return RestCond;
-	LispClause ResultClause=LispClause(cond,Eval(expr, env));
-	if (RestCond == LispCondExpr::Failed)
-		return LispCondExpr(List1(ResultClause));
-	if (IsCondExpr(RestCond))
-	{
-		LispCondExpr RestCondExpr = reinterpret_cast<const LispCondExpr&>(RestCond);
-		return LispCondExpr(LispClauseList(ResultClause, RestCondExpr.ClauseList()));
-	}
-	return
-		LispCondExpr(List2(ResultClause, LispClause(LispRef::s_null,RestCond) ));
-}
-
-/****************** Let         expresstions      ******************/
-
-Assoc MakeLetExpr(AssocListPtr assocList, LispPtr expr)
-{
-	return Assoc(LetSymbol,Assoc(assocList,expr));
-}
-
-LispRef EvalLet(LispPtr LetList, AssocListPtr env)
-{
-	AssocListPtr letTable =
-  		reinterpret_cast<AssocListPtr>(LetList.Left());
-	return Eval(letTable.ApplyOnce(LetList.Right()), env);
-}
-
-#endif //defined(MG_USE_LISPFUNCS)
 
 /******************  Match                        ******************/
 
@@ -213,142 +57,6 @@ AssocList Match(AssocListPtr aList, LispPtr header, LispPtr expr)
 		return newAssocList;
 	return Match(newAssocList, header.Right(), expr.Right());
 }
-
-/****************** Global eval functions         *******************/
-
-/*
-	The following function does the searching and substitution for
-	a constant expression expr.
-	using	Match -> assocList	(for constant expressions)
-		and	ShortEvalCondList	(for constant expressions)
-	 if no matching pattern is found, FailSymbol is returned.
-*/
-
-LispRef ApplySubstList(LispPtr expr, AssocListPtr substList)
-{
-	DBG_START("LispEval", "ApplySubstList", false);
-	DBG_TRACE(("expr  = {}", AsString(expr).c_str()));
-
-	while (!substList.IsEmpty())
-	{
-		AssocPtr subst  = substList.Head();   // a substitution rule
-		LispPtr  header = subst.Key();   // header part
-		DBG_TRACE(("header = {}", AsString(header).c_str()));
-		AssocList assocList = Match(AssocList(), header, expr);
-		if (!assocList.IsFailed())
-		{
-			dms_assert(expr == assocList.ApplyOnce(subst.Key()));
-			LispRef result = assocList.ApplyOnce(subst.Val());
-
-			DBG_TRACE(("result = {}", AsString(result.AsLispPtr()).c_str()));
-
-			return result;
-		}
-		substList = substList.Tail();
-	}
-	return expr;
-}
-
-
-
-#if defined(MG_USE_LISPFUNCS)
-
-LispRef EvalList(LispPtr expr, AssocListPtr env)
-{
-	if (expr.IsRealList())
-		return LispRef(Eval(expr.Left(), env), EvalList(expr.Right(), env));
-	return expr;
-}
-
-LispRef EvalStep(LispPtr expr, AssocListPtr env)
-{
-	if (expr.IsRealList())
-	{
-  		const LispRefList& exprList = reinterpret_cast<const LispRefList&>(expr);
-  		LispPtr functor = exprList.Head();
-		if (functor.IsSymb())
-		{
-			const LispRefList& tail=exprList.Tail();
-			TokenID t = functor.GetSymbID();
-			if (t == T_Cond ) return EvalClauseList(expr.Right(), env);
-			if (t == T_Let  ) return EvalLet       (expr.Right(), env);
-
-			if (t == T_IsInt) return MakeBool( Eval(tail.First(), env).IsNumb());
-
-			if (t == T_IsSymb)return MakeBool( Eval(tail.First(), env).IsSymb());
-			if (t == T_Bound) return MakeBool(!Eval(tail.First(), env).IsVar ());
-			if (t == T_Free)  return MakeBool( Eval(tail.First(), env).IsVar ());
-
-			if (t == T_IsList)return MakeBool( Eval(tail.First(), env).IsList());
-			if (t == T_Head)  return Eval(tail.First(), env).Left();
-			if (t == T_Tail)  return Eval(tail.First(), env).Right();
-			if (t == T_Cons)  return LispRef(Eval(tail.First(), env), Eval(tail.Second(), env));
-			if (t == T_Times) return Times(  Eval(tail.First(), env), Eval(tail.Second(), env));
-			if (t == T_Plus ) return Plus(   Eval(tail.First(), env), Eval(tail.Second(), env));
-		}
-	}
-	else if (expr.IsSymb())
-	{
-		TokenID t = expr.GetSymbID();
-		if (t == T_GetEnv) return env;
-	}
-	return ApplySubstList(EvalList(expr, env), env);
-}
-
-struct EvalStepFunc
-{
-	using argument_type = cache_key_t;
-	using result_type = LispRef;
-
-	using hasher = std::hash<argument_type>;
-	using equality_compare = std::equal_to<SharedStr>;
-
-	LispRef operator ()(const cache_key_t& exprEnvPair) const
-	{
-		return EvalStep(exprEnvPair.first, exprEnvPair.second);
-	}
-};
-
-UnorderdMapCache<EvalStepFunc> g_evalCache;
-
-LispRef Eval(LispPtr expr, AssocListPtr env)
-{
-#if defined(MG_DEBUG)
-	IncrementalLock levelLock(gd_Level);
-	dms_assert(gd_Level <= MaxAllowedLevel);
-#endif
-//	reportF(ST_MinorTrace, "Eval: {}", AsString(expr).c_str()); // DEBUG
-
-	return g_evalCache(Assoc(expr, env))
-	return result;
-}
-
-LispRef RepeatedEval(LispPtr expr, AssocListPtr env)
-{
-	DBG_START("LispEval", "RepeatedEval", false);
-	DBG_TRACE(("expr  = {}", AsString(expr).c_str()));
-
-	LispRef result=expr;
-	LispRef prevResult;
-	while (!(result == prevResult))
-	{
-		prevResult = result;
-		result = Eval(prevResult, env);
-	}
-	return result;
-}
-
-LispRef MakeVarsOfUnderscores(LispPtr expr)
-{
-	return expr.IsSymb() && expr.GetSymbStr()[0]=='_'
-		? LispRef(expr.GetSymbID(), 1)
-		: expr.IsRealList()
-			? LispRef(MakeVarsOfUnderscores(expr.Left()), MakeVarsOfUnderscores(expr.Right()))
-			: expr;
-}
-
-#endif //defined(MG_USE_LISPFUNCS)
-
 
 //==============================
 
@@ -428,46 +136,14 @@ LispRef AssocList_RepApplyTopEnv(AssocListPtr unifier, LispPtr templExpr)
 	);
 }
 
+// The key and value types of g_applyTopEnvCache; ApplyTopEnv computes the values itself and
+// stores them with UnorderedMapCache::store.
 struct ApplyTopEnvFunc
 {
 	using argument_type = LispRef;
 	using result_type = LispRef;
 	using hasher = std::hash<const LispObj*>;
 	using equality_compare = std::equal_to<LispPtr>;
-
-	LispRef operator ()(LispPtr expr) const
-	{
-		DBG_START("LispEval", "ApplyEnv", MG_TRACE_LISP);
-		DBG_TRACE(("expr   = {}", AsString(expr).c_str()));
-
-		LispPtr head = expr.Left(); // caller (= ApplyTopEnv) guarantees exp.IsRealList()
-
-		RewriteRuleSet::const_iterator
-			rewriteRulePtr = g_RewriteRuleSetPtr->FindLowerBoundByFuncName(head),
-			rewriteRuleEnd = g_RewriteRuleSetPtr->End();
-
-		while (rewriteRulePtr != rewriteRuleEnd)
-		{
-			LispPtr pattern = rewriteRulePtr->Key();   // pattern part
-			if (pattern.Left() != head)
-				break;
-
-			AssocList unifier = Match(AssocList(), pattern, expr);
-			if (!unifier.IsFailed())
-			{
-//				dms_assert(expr == unifier.ApplyOnce(pattern)); POST_CONDITION, but MUTATING through LispRef coy-ctor
-
-				LispRef result = AssocList_RepApplyTopEnv(unifier, rewriteRulePtr->Val());
-
-				DBG_TRACE(("result = {}", AsString(result.AsLispPtr()).c_str()));
-
-				return result;
-			}
-
-			++rewriteRulePtr;
-		}
-		return expr;
-	}
 };
 
 UnorderedMapCache<ApplyTopEnvFunc> g_applyTopEnvCache;
@@ -512,7 +188,7 @@ LispRef ApplyTopEnv(LispPtr root_expr)
 			break;
 		}
 
-		// Inline of ApplyTopEnvFunc::operator(): find the first matching rule.
+		// Find the first matching rule.
 		LispPtr head = current.Left();
 		auto rulePtr = g_RewriteRuleSetPtr->FindLowerBoundByFuncName(head);
 		auto ruleEnd = g_RewriteRuleSetPtr->End();
@@ -546,23 +222,6 @@ LispRef ApplyTopEnv(LispPtr root_expr)
 
 	return current;
 }
-
-//==============================
-
-LispRef MakeVarsOfUnderscores(LispPtr expr)
-{
-	if (expr.IsSymb() && expr.GetSymbStr().c_str()[0] == '_')
-		return LispRef(expr.GetSymbID(), 1);
-
-	if (expr.IsRealList())
-		return LispRef(MakeVarsOfUnderscores(expr.Left()), MakeVarsOfUnderscores(expr.Right()));
-
-	return expr;
-}
-
-
-
-
 
 // ==== Assoc ====
 

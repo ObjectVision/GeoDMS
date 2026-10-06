@@ -151,25 +151,10 @@ struct UnorderedMapCache
 		: m_EqComp()
 	{}
 
-	LispRef apply(argument_reftype arg)
-	{
-		auto cacheLock = std::lock_guard(mx_MapLock);
-
-		MG_DEBUGCODE(md_NrCalls++; )
-			dms_check_not_debugonly;
-		auto i = m_UMap.find(arg);
-		if (i != m_UMap.end() && m_EqComp(arg, i->first))
-			return i->second;
-		result_type res = m_Func(arg);
-		m_UMap.insert({ std::move(arg), res });
-		MG_DEBUGCODE(md_NrMisses++; )
-		return res;
-	}
-
 	// lookup: cache-only query, no compute. Returns the cached result for arg
-	// if present, std::nullopt otherwise. Used by iterative drivers that need
-	// to separate cache lookup from compute to avoid stack-recursion through
-	// apply() (e.g., the H1 ApplyTopEnv driver in sym/dll/src/Lispeval.cpp).
+	// if present, std::nullopt otherwise. The caller computes a missing result
+	// itself, so that it can do so without recursing through the cache
+	// (the H1 ApplyTopEnv driver in sym/LispEval.cpp).
 	std::optional<result_type> lookup(argument_reftype arg)
 	{
 		auto cacheLock = std::lock_guard(mx_MapLock);
@@ -191,18 +176,6 @@ struct UnorderedMapCache
 		MG_DEBUGCODE(md_NrMisses++; )
 	}
 
-	bool  empty() const { return m_UMap.empty(); }
-
-	void remove(argument_reftype arg)
-	{
-		auto cacheLock = std::lock_guard(mx_MapLock);
-
-		auto i = m_UMap.find(arg);
-		assert(i != m_UMap.end());
-		assert(m_EqComp(arg, i->first));
-		m_UMap.erase(i);
-	}
-
 private:
 
 #if defined(MG_DEBUG)
@@ -211,7 +184,6 @@ private:
 #endif
 
 	arg_compare m_EqComp;
-	Func        m_Func;
 	umap_type   m_UMap;
 	std::recursive_mutex mx_MapLock;
 };

@@ -172,11 +172,6 @@ struct TokenStrRange
 	{}
 
 	TokenStrRange(const TokenStrRange& src) = delete;
-/*
-		: m_Guard(src.m_Guard)
-		, m_CharPtrRange(src.m_CharPtrRange)
-	{}
-*/
 	void operator =(TokenStrRange&& src) noexcept
 	{
 		m_Guard = std::move(src.m_Guard);
@@ -211,18 +206,15 @@ struct TokenID
 	RTC_CALL explicit TokenID(CharPtr tokenStr, mt_tag*);
 	RTC_CALL explicit TokenID(CharPtr tokenStr, st_tag*);
 	RTC_CALL explicit TokenID(CharPtr tokenStr, mt_tag*, existing_tag*);
-//	RTC_CALL explicit TokenID(CharPtr tokenStr, st_tag*, existing_tag*);
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, mt_tag*);
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*);
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, mt_tag*, existing_tag*);
-//	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*, existing_tag*);
 	RTC_CALL explicit TokenID(const SharedStr& str);
 	RTC_CALL explicit TokenID(WeakStr str);
 	constexpr explicit TokenID(Undefined) : m_ID(UNDEFINED_VALUE(TokenT)) {}
 //	get id or -1 if not found
 	static TokenID GetExisting(CharPtr tokenStr);
 	static TokenID GetExisting(CharPtr first, CharPtr last, mt_tag*);
-	static TokenID GetExisting(CharPtr first, CharPtr last, st_tag*);
 
 //	retieve string from token
 	RTC_CALL TokenStr GetStrLock() const;
@@ -335,7 +327,6 @@ inline TokenID GetTokenID(CharPtrRange tokenStr, TAG* dummy = nullptr) { return 
 
 // get id or -1 if not found
 inline TokenID GetExistingTokenID(CharPtr tokenStr) { return TokenID::GetExisting(tokenStr); }
-inline TokenID GetExistingTokenID_st(CharPtr first, CharPtr last) { return TokenID::GetExisting(first, last, single_threading_tag_v); }
 inline TokenID GetExistingTokenID_mt(CharPtr first, CharPtr last) { return TokenID::GetExisting(first, last, multi_threading_tag_v); }
 template<typename TAG = mt_tag>
 inline TokenID GetExistingTokenID(CharPtrRange tokenStr, TAG* dummy=nullptr) { return TokenID::GetExisting(tokenStr.first, tokenStr.second, dummy); }

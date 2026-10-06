@@ -13,14 +13,11 @@ RTC_CALL SharedStr DoubleQuote(CharPtr str);
 
 RTC_CALL SharedStr DoubleUnQuoteMiddle(CharPtr str);
 RTC_CALL void      DoubleUnQuoteMiddle(SharedStr& result, CharPtr first, CharPtr last);
-RTC_CALL SharedStr DoubleUnQuote(CharPtr str);
 
 RTC_CALL SharedStr SingleQuote(CharPtr str);
 RTC_CALL SharedStr SingleQuote(CharPtr begin, CharPtr end);
 
-RTC_CALL SharedStr SingleUnQuoteMiddle(CharPtr str);
 RTC_CALL void      SingleUnQuoteMiddle(SharedStr& result, CharPtr first, CharPtr last);
-RTC_CALL SharedStr SingleUnQuote(CharPtr str);
 
 RTC_CALL void DoubleQuote(struct FormattedOutStream& os,CharPtr str);
 RTC_CALL void DoubleQuote(struct FormattedOutStream& os,CharPtr first, CharPtr last);
@@ -38,22 +35,7 @@ RTC_CALL void DoubleUnQuote(StringRef& ref, CharPtr b, CharPtr e);
 RTC_CALL void SingleQuote  (StringRef& ref, CharPtr b, CharPtr e);
 RTC_CALL void SingleUnQuote(StringRef& ref, CharPtr b, CharPtr e);
 
-RTC_CALL void DoubleQuote  (SharedStr& ref, CharPtr b, CharPtr e);
-RTC_CALL void DoubleUnQuote(SharedStr& ref, CharPtr b, CharPtr e);
-
-inline auto DoubleQuote(CharPtr b, CharPtr e)
-{
-	SharedStr result;
-	DoubleQuote(result, b, e);
-	return result;
-};
-
-RTC_CALL auto DoubleUnQuote(CharPtr b, CharPtr e) -> SharedStr;
-
 RTC_CALL void SingleQuote  (SharedStr& ref, CharPtr b, CharPtr e);
-RTC_CALL void SingleUnQuote(SharedStr& ref, CharPtr b, CharPtr e);
-
-RTC_CALL SharedStr SingleUnQuote(CharPtr begin, CharPtr end);
 
 // Points at the character following a backslash that is not a known escape code, or nullptr when
 // the given quoted-string middle has none. Known are \0, \t, \r, \n, \xHH and the self-escaping

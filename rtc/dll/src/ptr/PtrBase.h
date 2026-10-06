@@ -43,9 +43,7 @@ template <typename T, typename CTorBase>
 struct ptr_wrap : CTorBase
 {
 	using pointer = typename sequence_traits<T>::pointer;
-//	typedef typename sequence_traits<T>::reference reference;
 	using const_pointer = typename sequence_traits<T>::const_pointer;
-//	typedef typename sequence_traits<T>::const_reference const_reference;
 	using value_type = T;
 
 	ptr_wrap(pointer ptr = pointer() ): m_Ptr(ptr) {}
@@ -92,11 +90,8 @@ struct ptr_base : ptr_wrap<T, CTorBase>
 };
 
 // ============================
-// ref_base grants debug-checked access to the pointee by
-// -   
-// -	dereference operator 
-// -	access operator
-// constness: value semantics, so a const ptr cannot be reassigned and can only grant const access to the pointee
+// ref_base adds to ptr_wrap the reference types of value semantics, an explicit test for a pointee
+// and swap; OwningPtrSizedArray and OwningPtrReservedArray derive from it.
 // ============================
 
 template <class T, typename CTorBase>
@@ -111,11 +106,6 @@ struct ref_base : ptr_wrap<T, CTorBase>
 	ref_base(pointer ptr = pointer() ): ptr_wrap<T, CTorBase>(ptr) {}
 
 	explicit operator bool () const { return this->has_ptr(); }
-
-	pointer         operator ->()       { return &this->get_ref(); }
-	const_pointer   operator ->() const { return &this->get_ref(); }
-	reference       operator * ()       { return  this->get_ref(); }
-	const_reference operator * () const { return  this->get_ref(); }
 
 	void swap(ref_base& oth) { std::swap(this->m_Ptr, oth.m_Ptr); }
 };

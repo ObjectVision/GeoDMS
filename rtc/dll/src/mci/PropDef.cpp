@@ -25,9 +25,6 @@ AbstrPropDef::AbstrPropDef(CharPtr propName,
 	,	m_SetMode(setMode), m_XmlMode(xmlMode), m_CpyMode(cpyMode), m_ChgMode(chgMode)
 	,	m_CanBeIndirect(canBeIndirect)
 	,	m_AddImplicitSuppl(addImplicitSuppl)
-#if defined(MG_DEBUGDATA)
-	,	md_Name(propName)
-#endif
 {
 	dms_assert(setMode > set_mode::construction || cpyMode == cpy_mode::none);
 	dms_assert(setMode > set_mode::construction || chgMode == chg_mode::none);
@@ -262,7 +259,6 @@ namespace
 
 #include "PropDefInterface.h"
 #include "dbg/DmsCatch.h"
-//#include "string.h"
 
 RTC_CALL CharPtr  DMS_CONV DMS_Class_GetName(const Class* self)
 {

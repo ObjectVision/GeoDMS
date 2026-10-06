@@ -16,19 +16,13 @@
 // =================================================== class heap_sequence_provider : public abstr_sequence_provider<V>
 
 template <typename V>
-SizeT heap_sequence_provider<V>::max_size()
-{
-	return managed_alloc_data<V>().max_size();
-}
-
-template <typename V>
 void heap_sequence_provider<V>::reserve(alloc_t& seq, SizeT newSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	assert(seq.m_Capacity >= seq.size());
 	if (newSize > seq.m_Capacity)
 	{
-		// Allocate and copy first, then swap, as Shrink does: the swap hands the old buffer, with its
-		// capacity, to newSeq, whose destructor frees it. The previous form moved seq out before
+		// Allocate and copy first, then swap: the swap hands the old buffer, with its capacity, to
+		// newSeq, whose destructor frees it. The previous form moved seq out before
 		// allocating; alloc_data's move leaves the source with its pointers and capacity 0, so an
 		// allocation that threw (memory exhausted, ObjectVision/BAG-Tools#2) left seq with size above
 		// capacity: an assert in Debug, and in Release a buffer that the next successful reserve
@@ -94,23 +88,6 @@ template <typename V>
 abstr_sequence_provider<IndexRange<SizeT>>* heap_sequence_provider<V>::CloneForSeqs() const
 {
 	return heap_sequence_provider<IndexRange<SizeT> >::CreateProvider();
-}
-
-// =================================================== heap_sequence_provider private implementation
-
-template <typename V>
-void heap_sequence_provider<V>::Shrink(alloc_t& seq) 
-{
-	if (seq.size()< seq.m_Capacity / 4)
-	{
-		if (!seq.size())
-			clear(seq);
-		else
-		{
-			managed_alloc_data<V> newSeq(seq.begin(), seq.end(), seq.size() MG_DEBUG_ALLOCATOR_SRC("heap_sequence_provider<V>::Shrink"));
-			seq.swap(newSeq);
-		}
-	}
 }
 
 #endif //!defined(__RTC_MEM_HEAPSEQUENCEPROVIDER_IPP)

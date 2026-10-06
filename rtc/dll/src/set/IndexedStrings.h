@@ -131,11 +131,9 @@ struct IndexedStrings : IndexedStringsBase
 	// use this for the token registry or for any table a second thread can reach.
 	RTC_CALL index_type GetOrCreateID_private(CharPtr keyFirst, CharPtr keyLast); // range of chars excluding null terminator
 
-	index_type GetExisting_st (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
 	index_type GetExisting_mt (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
 	index_type GetOrCreateID_st(CharPtr key) { return GetOrCreateID_st(key, key+StrLen(key)); }
 	index_type GetOrCreateID_mt(CharPtr key) { return GetOrCreateID_mt(key, key + StrLen(key)); }
-	index_type GetExisting_st  (CharPtr key) const { return GetExisting_st(key, key + StrLen(key)); }
 	index_type GetExisting_mt  (CharPtr key) const { return GetExisting_mt(key, key + StrLen(key)); }
 
 	index_iterator IdxBegin() { return m_Idx.begin(); }
@@ -176,9 +174,6 @@ private:
 	// are what both impl's have in hand, and neither owns the report.
 	void CheckCaseMixup(index_type foundIndex, CharPtrRange keyValue) const;
 };
-
-//	Utf8CaseInsensitiveEqual equaler;
-//	Utf8CaseInsensitiveHasher hasher;
 
 using TokenStrings = IndexedStrings<true, AsciiFoldedCaseInsensitiveEqual, AsciiFoldedChunkedCaseInsensitiveHasher>;
 

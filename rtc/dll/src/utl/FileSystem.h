@@ -9,7 +9,7 @@
 /*
  *  File-system services: the GeoDMS directory accessors (CurrentDir,
  *  ExeDir, LocalDataDir, SourceDataDir), dms<->dos path conversion,
- *  file/directory operations (make, copy, move, kill, accessibility and
+ *  file/directory operations (make, copy, kill, accessibility and
  *  date-time queries), directory iteration (FindFileBlock), and .ini-style
  *  config-file access. Split out of utl/Environment.h
  *  (header-hygiene-2026-08.md §5A).
@@ -71,7 +71,6 @@ private:
 
 RTC_CALL void   MakeDir(WeakStr dirName);
 RTC_CALL void   CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing);
-bool   MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing);
 RTC_CALL bool   KillFileOrDir(WeakStr fileOrDirName, bool canBeDir = true);
 RTC_CALL bool   IsFileOrDirAccessible(WeakStr fileOrDirName);
 bool   IsFileOrDirWritable(WeakStr fileOrDirName);

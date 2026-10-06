@@ -35,8 +35,6 @@ struct DmsException : std::exception, private ErrMsgPtr
 	RTC_CALL virtual ~DmsException();
 
 	RTC_CALL DmsException(ErrMsgPtr msg);
-
-	ErrMsgPtr m_PrevUnrollingErrMsgPtr;
 };
 
 //----------------------------------------------------------------------
@@ -58,7 +56,6 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg);
 RTC_CALL SharedStr GetErrorContext(WeakStr msg);
 RTC_CALL SharedStr GetFirstLine(WeakStr msg);
 RTC_CALL SharedStr GetLastErrorMsgStr();
-ErrMsgPtr GetUnrollingErrorMsgPtr();
 unsigned int GetLastExceptionCode();
 
 #endif // __RTC_XCT_DMSEXCEPTION_H

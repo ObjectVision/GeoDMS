@@ -145,7 +145,6 @@
     <ClInclude Include="src\ipolygon\voronoi_geometry_type.hpp" />
     <ClInclude Include="src\LockLevels.h" />
     <ClInclude Include="src\mci\Object.h" />
-    <ClInclude Include="src\mci\SingleLinkedTree.h" />
     <ClInclude Include="src\tic\TreeItemFunctionSpec.h" />
     <ClInclude Include="src\mem\FixedAlloc.h" />
     <ClInclude Include="src\mem\Grid.h" />
@@ -324,7 +323,6 @@
     <ClInclude Include="src\RtcTypeLists.h" />
     <ClInclude Include="src\rtctypemodel.h" />
     <ClInclude Include="src\StreamBuffInterface.h" />
-    <ClInclude Include="src\dllimp\RunDllProc.h" />
     <ClInclude Include="src\utl\Case.h" />
     <ClInclude Include="src\mci\DoubleLinkedTree.inc" />
     <ClInclude Include="src\mem\HeapSequenceProvider.ipp" />
@@ -342,7 +340,6 @@
     <ClCompile Include="src\dbg\MsgDispatch.cpp" />
     <ClCompile Include="src\geom\Transform.cpp" />
     <ClCompile Include="src\mem\FixedAlloc.cpp" />
-    <ClCompile Include="src\mem\HeapSequenceProvider.cpp" />
     <ClCompile Include="src\parallel\portable_task_group.cpp" />
     <ClCompile Include="src\ptr\SharedBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
@@ -377,12 +374,10 @@
     <ClCompile Include="src\act\TriggerOperator.cpp" />
     <ClCompile Include="src\act\UpdateMark.cpp" />
     <ClCompile Include="src\gen\General.cpp" />
-    <ClCompile Include="src\dllimp\RunDllProc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\act\ActorEnums.txt" />
     <None Include="src\vt\SequenceArray.txt" />
-    <None Include="src\mci\SingleLinkedTree.inc" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
@@ -407,10 +402,6 @@
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="src\sym\Parser.cpp">
-      <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\sym\Prolog.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -641,7 +632,6 @@
     <ClInclude Include="src\sym\LispList.h" />
     <ClInclude Include="src\sym\LispRef.h" />
     <ClInclude Include="src\sym\Parser.h" />
-    <ClInclude Include="src\sym\Prolog.h" />
     <ClInclude Include="src\sym\RewriteRules.h" />
     <ClInclude Include="src\sym\SymBase.h" />
     <ClInclude Include="src\sym\SymInterface.h" />

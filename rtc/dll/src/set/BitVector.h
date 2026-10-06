@@ -66,7 +66,6 @@ struct bit_info
 	static size_type        block_index (size_type       pos) { return pos / nr_elem_per_block; } // roundoff towards -INF is towards 0
 	static difference_type  block_diff  (difference_type pos) { return pos >> mpf::log2<nr_elem_per_block>::value; } // roundoff towards -INF
 	static bit_index_type   elem_index  (size_type       pos) { return pos % nr_elem_per_block; }
-	static Block            elem_mask   (size_type       pos) { return Block(bit_value<N>::mask) << elem_index(pos); }
 };
 
 template <bit_size_t N, typename Block>

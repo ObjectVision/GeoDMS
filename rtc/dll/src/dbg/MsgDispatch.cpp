@@ -682,6 +682,15 @@ extern "C" RTC_CALL void DMS_CONV DMS_Rtc_Terminate()
 	CloseMainThreadQueues();
 }
 
+// Set by DMS_Terminate() and by the GUI when its main window closes; read by code that acts
+// differently once the process is going down.
+bool g_IsTerminating = false;
+
+extern "C" RTC_CALL void DMS_CONV DMS_Terminate()
+{
+	g_IsTerminating = true;
+}
+
 RtcReportLock::RtcReportLock()
 {
 	if (!s_nrRtcReportLocks++)

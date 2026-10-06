@@ -34,14 +34,7 @@
 
 THREAD_LOCAL UInt32    g_DumpContextCount = 0;
 
-THREAD_LOCAL ErrMsgPtr g_TopmostUnrollingErrMsgPtr;
 ErrMsgPtr g_LastHandledErrMsgPtr;
-
-ErrMsgPtr SetUnrollingErrMsgPtr(ErrMsgPtr msg)
-{
-	std::swap( g_TopmostUnrollingErrMsgPtr, msg );
-	return msg;
-}
 
 void SetLastHandledErrMsg(ErrMsgPtr msg)
 {
@@ -186,7 +179,6 @@ OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
 
 DmsException::DmsException(ErrMsgPtr msg)
 	:	ErrMsgPtr(msg)
-	,	m_PrevUnrollingErrMsgPtr(SetUnrollingErrMsgPtr(msg))
 {
 	dms_check_not_debugonly; 
 }
@@ -194,7 +186,6 @@ DmsException::DmsException(ErrMsgPtr msg)
 DmsException::~DmsException()
 {
 	SetLastHandledErrMsg(*this);
-	SetUnrollingErrMsgPtr(m_PrevUnrollingErrMsgPtr);
 }
 
 RTC_CALL const char* DmsException::what() const noexcept
@@ -537,15 +528,6 @@ SharedStr GetLastErrorMsgStr()
 extern "C" RTC_CALL CharPtr DMS_CONV DMS_GetLastErrorMsg()
 {
 	return GetLastErrorMsgStr().c_str();
-}
-
-ErrMsgPtr GetUnrollingErrorMsgPtr()
-{
-	if (std::uncaught_exceptions() > 0)
-	{
-		return g_TopmostUnrollingErrMsgPtr;
-	}
-	return {};
 }
 
 //----------------------------------------------------------------------

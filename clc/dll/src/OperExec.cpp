@@ -23,8 +23,6 @@
 #include "TreeItemClass.h"
 #include "DataArrayValue.h"
 
-//#define OPER_EXECDLL
-
 namespace {
 	using ERRORLEVEL = UInt32;
 
@@ -187,69 +185,7 @@ struct OperCmdInDir : TernaryOperator
 
 
 // *****************************************************************************
-//											OperExecDll (4 params)
-// *****************************************************************************
-
-#if defined(OPER_EXECDLL)
-#include "dllimp/RunDllProc.h"
-
-UInt32 execDll_func(CharPtr dllName, CharPtr procName, SizeT nrArgs, std::vector<SharedStr>::const_iterator args)
-{
-	DMS_ReduceResources(); 
-	Wait(100);
-	switch (nrArgs) {
-		case 0: return RunDllProc0(dllName, procName);
-		case 1: return RunDllProc1(dllName, procName, args[0].c_str());
-		case 2: return RunDllProc2(dllName, procName, args[0].c_str(), args[1].c_str());
-		case 3: return RunDllProc3(dllName, procName, args[0].c_str(), args[1].c_str(), args[2].c_str());
-	}
-	throwErrorF("Exec", "Proc {} in dll {} called with {} arguments: Not supported", procName, dllName, nrArgs);
-	return 0;
-}
-
-
-struct OperExecDllN : public VariadicOperator
-{
-	typedef DataArray<SharedStr> ArgType;
-
-	OperExecDllN(AbstrOperGroup* gr, UInt32 nrArgs)
-		:	VariadicOperator(gr, TreeItem::GetStaticClass(), nrArgs)
-	{
-		fast_fill(
-			m_ArgClasses.begin(), 
-			m_ArgClasses.begin() + nrArgs, 
-			ArgType::GetStaticClass()
-		);
-	}
-		
-	// Override class Operator
-	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
-	{
-		if (!resultHolder)
-			resultHolder = TreeItem::CreateCacheRoot();
-
-		if (mustCalc)
-		{
-			// Construct commandline from args
-			// Execute 
-			std::vector<SharedStr> argDataStr(args.size());
-			for (UInt32 n = args.size(), i=0; i!=n; ++i)
-			{
-				checked_domain<Void>(args[i], "one of the args");
-				argDataStr[i] = GetValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[i]), 0);
-			}
-			dms_assert(args.size() >= 2);
-			execDll_func(argDataStr[0].c_str(), argDataStr[1].c_str(), argDataStr.size()-2, argDataStr.begin()+2);
-			resultHolder.GetNew()->SetIsInstantiated();
-		}
-		return true;
-	}
-};
-
-#endif //defined(OPER_EXECDLL)
-
-// *****************************************************************************
-//											OperExecDll (4 params)
+//											OperGetCurrentStorage, OperExpand
 // *****************************************************************************
 
 #include "odbc/OdbcStorageManager.h"
@@ -380,23 +316,6 @@ namespace
 	OperExec<true>      exec1V(&cog_EXEC_V);
 	OperExecInDir<true> exec2V(&cog_EXEC_V);
 	OperCmdInDir<true>  exec3V(&cog_EXEC_V);
-
-
-#if defined(OPER_EXECDLL)
-	ExecOperGroup cog_EXECDLL("EXECDLL");
-	ExecOperGroup cog_EXECDLL_V("EXECDLL_RV");
-	OperExecDllN<false>
-		execDll0(&cog_EXECDLL, 2),
-		execDll1(&cog_EXECDLL, 3),
-		execDll2(&cog_EXECDLL, 4),
-		execDll3(&cog_EXECDLL, 5);
-
-	OperExecDllN<true>
-		execDll0V(&cog_EXECDLL_V, 2),
-		execDll1V(&cog_EXECDLL_V, 3),
-		execDll2V(&cog_EXECDLL_V, 4),
-		execDll3V(&cog_EXECDLL_V, 5);
-#endif //defined(OPER_EXECDLL)
 
 	SpecialOperGroup sop_SN("storage_name", 1, &oap_sn[0]);
 	OperGetCurrentStorage getCurrentStorage(&sop_SN);

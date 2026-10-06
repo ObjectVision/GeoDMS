@@ -18,7 +18,6 @@
 //----------------------------------------------------------------------
 // interfaces to abstr_sequence_provider
 //----------------------------------------------------------------------
-using SaSizeT = UInt32;
 
 template <typename V>
 class abstr_sequence_provider : private geodms::rtc::noncopyable
@@ -48,7 +47,6 @@ public:
 	virtual void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp MG_DEBUG_ALLOCATOR_SRC_ARG) { throwIllegalAbstract(MG_POS, "Open"); }
 	virtual void Lock(alloc_t& seq, dms_rw_mode rwMode) { }
 	virtual void UnLock(alloc_t& seq) { }
-//	virtual void Drop(alloc_t& seq) { throwIllegalAbstract(MG_POS, "Drop"); }
 	virtual SharedStr GetFileName() const { throwIllegalAbstract(MG_POS, "GetFileName"); }
 
 	// the following lower case named functions require IsOpen() and Lock()

@@ -734,7 +734,6 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}; for the available status flags see https://github.com/ObjectVision/GeoDMS/wiki/Command-line-options",  (newValue ? "Set" : "Clear"), param);
 			return true;
 	}
-//	reportF(SeverityTypeID::ST_MinorTrace, "Recognised command line option {} {}", (newValue ? "Set" : "Clear"), param[2]);
 	return true;
 }
 
@@ -927,8 +926,6 @@ void MakeDirsForFile(WeakStr fullFileName)
 	dms_assert(!HasDosDelimiters(fullFileName.c_str()));
 	dms_assert(IsAbsolutePath(fullFileName.c_str()));
 
-
-//	MakeDirsForFileImpl(pathStr.c_str());
 	MakeDirsForFileImpl(fullFileName);
 }
 
@@ -1148,11 +1145,6 @@ bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName
 void CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing)
 {
 	CopyOrMoveFileOrDirImpl(srcFileOrDirName, destFileOrDirName, true, mayBeMissing);
-}
-
-bool MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing)
-{
-	return CopyOrMoveFileOrDirImpl(srcFileOrDirName, destFileOrDirName, false, mayBeMissing);
 }
 
 bool KillAllInDir(CharPtr dirName)
@@ -1427,7 +1419,6 @@ static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cm
 	ZeroMemory(&siStartInfo, sizeof(STARTUPINFOW));
 	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
 	siStartInfo.cb = sizeof(STARTUPINFO);
-	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
 
 	// #659: send the child's stdout and stderr into the caller's pipe. stdin is left
 	// as it was: whatever this process has, which is nothing in a GUI session.
@@ -1438,8 +1429,6 @@ static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cm
 		siStartInfo.hStdOutput = childStdOutErr;
 		siStartInfo.hStdError  = childStdOutErr;
 	}
-
-//	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
 
 	auto moduleNameW = Utf8_2_wchar(moduleName);
 	auto cmdLineW = Utf8_2_wchar(cmdLine);
@@ -1718,7 +1707,6 @@ struct WindowsComponent : AbstrVersionComponent {
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
-#include <dirent.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <poll.h>        // poll - draining the child-output pipe while waiting
@@ -2055,117 +2043,6 @@ void GetWritePermission(WeakStr fileName)
 }
 
 // =====================================================================
-// FindFileBlock (uses opendir/readdir on Linux)
-// =====================================================================
-
-#include <fnmatch.h>
-
-struct FindFileBlockData
-{
-	DIR* dir = nullptr;
-	struct dirent* entry = nullptr;
-	SharedStr dirPath;
-	SharedStr pattern;
-	SharedStr currentFullPath;
-};
-
-FindFileBlock::FindFileBlock(WeakStr fileSearchSpec)
-	: m_Data(new Byte[sizeof(FindFileBlockData)])
-	, m_Handle(nullptr)
-{
-	auto* data = new (m_Data.get()) FindFileBlockData();
-	SharedStr spec(fileSearchSpec);
-	// Split into directory and pattern
-	auto lastSlash = spec.send();
-	for (auto p = spec.begin(); p != spec.send(); ++p)
-		if (*p == '/' || *p == '\\')
-			lastSlash = p;
-
-	if (lastSlash != spec.send())
-	{
-		data->dirPath = SharedStr(CharPtrRange(spec.begin(), lastSlash));
-		data->pattern = SharedStr(CharPtrRange(lastSlash + 1, spec.send()));
-	}
-	else
-	{
-		data->dirPath = SharedStr(".");
-		data->pattern = spec;
-	}
-
-	data->dir = opendir(data->dirPath.c_str());
-	if (!data->dir)
-	{
-		m_Handle = reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1));
-		return;
-	}
-	m_Handle = data->dir;
-	// Advance to first matching entry
-	if (!Next())
-		m_Handle = reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1));
-}
-
-FindFileBlock::FindFileBlock(FindFileBlock&& src) noexcept
-	: m_Data(std::move(src.m_Data))
-	, m_Handle(src.m_Handle)
-{
-	src.m_Handle = reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1));
-}
-
-FindFileBlock::~FindFileBlock() noexcept
-{
-	if (IsValid())
-	{
-		auto* data = reinterpret_cast<FindFileBlockData*>(m_Data.get());
-		if (data->dir)
-			closedir(data->dir);
-		data->~FindFileBlockData();
-	}
-}
-
-bool FindFileBlock::IsValid() const
-{
-	return m_Handle != reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1)) && m_Handle != nullptr;
-}
-
-DWORD FindFileBlock::GetFileAttr() const
-{
-	assert(IsValid());
-	auto* data = reinterpret_cast<const FindFileBlockData*>(m_Data.get());
-	struct stat st;
-	if (stat(data->currentFullPath.c_str(), &st) != 0)
-		return 0;
-	// Emulate FILE_ATTRIBUTE_DIRECTORY
-	return S_ISDIR(st.st_mode) ? 0x10 : 0; // FILE_ATTRIBUTE_DIRECTORY = 0x10
-}
-
-bool FindFileBlock::IsDirectory() const
-{
-	return GetFileAttr() & 0x10;
-}
-
-CharPtr FindFileBlock::GetCurrFileName() const
-{
-	auto* data = reinterpret_cast<const FindFileBlockData*>(m_Data.get());
-	return data->entry ? data->entry->d_name : "";
-}
-
-bool FindFileBlock::Next()
-{
-	auto* data = reinterpret_cast<FindFileBlockData*>(m_Data.get());
-	if (!data->dir)
-		return false;
-	while ((data->entry = readdir(data->dir)) != nullptr)
-	{
-		if (fnmatch(data->pattern.c_str(), data->entry->d_name, 0) == 0)
-		{
-			data->currentFullPath = DelimitedConcat(data->dirPath.c_str(), data->entry->d_name);
-			return true;
-		}
-	}
-	return false;
-}
-
-// =====================================================================
 // FileDateTime
 // =====================================================================
 
@@ -2199,7 +2076,7 @@ SharedStr AsDateTimeString(FileDateTime t64)
 }
 
 // =====================================================================
-// Copy / Move / Kill File Operations
+// Copy / Kill File Operations
 // =====================================================================
 
 void CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing)
@@ -2211,19 +2088,6 @@ void CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool may
 		if (!mayBeMissing)
 			throwErrorF("FileSystem", "CopyFileOrDir({}, {}) failed: {}", srcFileOrDirName, destFileOrDirName, e.what());
 	}
-}
-
-bool MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing)
-{
-	std::error_code ec;
-	std::filesystem::rename(srcFileOrDirName, destFileOrDirName, ec);
-	if (ec)
-	{
-		if (!mayBeMissing)
-			throwErrorF("FileSystem", "MoveFileOrDir({}, {}) failed: {}", srcFileOrDirName, destFileOrDirName, ec.message().c_str());
-		return false;
-	}
-	return true;
 }
 
 bool KillFileOrDir(WeakStr fileOrDirName, bool canBeDir)

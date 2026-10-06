@@ -165,11 +165,6 @@ TokenID TokenID::GetExisting(CharPtr first, CharPtr last, mt_tag*)
 	return TokenID( s_TokenListPtr->GetExisting_mt(first, last) );
 }
 
-TokenID TokenID::GetExisting(CharPtr first, CharPtr last, st_tag*)
-{
-	return TokenID(s_TokenListPtr->GetExisting_st(first, last));
-}
-
 TokenStr TokenID::GetStrLock() const
 {
 	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
