@@ -107,47 +107,6 @@ void ConfigProd::SetVC (ValueComposition    vc)
 	m_eParamVC = vc;
 }
 
-
-// *****************************************************************************
-// Function/Procedure:DoUnitRange
-// Description:       Set range of the current unit
-// *****************************************************************************
-
-// TODO: integrate with DoNrOfRowsProp()
-void ConfigProd::DoUnitRangeProp(bool isCategorical)
-{
-	assert(m_pCurrent);
-	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get());
-	dms_assert(unit);
-	const ValueClass* vc = unit->GetValueType();
-	dms_assert(vc);
-	UInt32 nrDims = vc->GetNrDims();
-	if (nrDims != 2 && !vc->IsNumeric())
-		throwSemanticError(mgFormat2string("DoUnitRangeProp: this unit does not allow range assignment because its ValueType is {}", vc->GetName()).c_str());
-
-	const ValueClass* ic = ValueClass::FindByValueClassID(m_eAssignmentDomainType);
-	if (ic->GetNrDims() != nrDims || (nrDims == 1 && !ic->IsNumeric()))
-		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType {} of this unit", vc->GetName()).c_str());
-
-	switch (nrDims) {
-		case 1:
-			dms_assert(vc->IsNumeric() && ic->IsNumeric());
-			unit->SetRangeAsFloat64(m_FloatInterval.first, m_FloatInterval.second);
-			break;
-
-		case 2:
-			unit->SetRangeAsDPoint(
-				Top   (m_DPointInterval), Left (m_DPointInterval),
-				Bottom(m_DPointInterval), Right(m_DPointInterval)
-			);
-			break;
-
-		default:
-			throwDmsErrF("DoUnitRangeProp: cannot set range of units with ValueType {} ", vc->GetNameID());
-	}
-	unit->SetTSF(USF_HasConfigRange);
-}
-
 // *****************************************************************************
 // Procedure:DoStorageProp
 // Description:       storage property setting for treeitem
@@ -742,12 +701,6 @@ void ConfigProd::OnFunctionResultIsFunction()
 	// #1252: 'function' names no type in either position. A function-valued result states the
 	// signature it returns, which is what a signature alias declares.
 	throwSemanticError("'function' is not a result type: declare the signature, 'name = (params) -> result;' or 'name = function<vars>(params) -> result;', and write '-> name' here");
-
-	// §5.10 '-> function': the result is a nested function, designated by name
-	// (default 'result') from the body block; no data signature applies
-	dms_assert(!m_FuncStates.empty());
-	m_FuncStates.back().resultIsFunction = true;
-	SetSignature(SignatureType::TreeItem); // benign placeholder for OnFunctionResultSig
 }
 
 static StaticLateTokenID t_Result("result");

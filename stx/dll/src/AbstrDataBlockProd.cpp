@@ -13,15 +13,7 @@
 #include "vt/color.h"
 #include "vt/Conversions.h"
 #include "geom/PointOrder.h"
-#include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-
-// *****************************************************************************
-// Function/Procedure:Default impl of virtuals
-// *****************************************************************************
-
-void AbstrDataBlockProd::DoArrayAssignment()
-{}
 
 // *****************************************************************************
 // Function/Procedure:DoRgbValue
@@ -104,94 +96,6 @@ void AbstrDataBlockProd::DoFloatValue(const Float64& v)
 {
 	m_FloatVal = m_bSignIsPlus ? v : -v;
 	m_eValueType = ValueClassID::VT_Float64;
-}
-
-// *****************************************************************************
-// Function/Procedure:DoFirstIntervalValue
-// Description:       checks context type with template type and sets first 
-//					  interval value
-// *****************************************************************************
-
-CharPtr GetValueTypeName(ValueClassID id)
-{
-	const ValueClass* vc = ValueClass::FindByValueClassID(id);
-	return (vc)
-		?	vc->GetName().c_str()
-		:	"UNKNOWN";
-}
-
-
-void AbstrDataBlockProd::DoFirstIntervalValue()
-{
-	switch (m_eValueType)
-	{
-		case ValueClassID::VT_Unknown:
-			m_eValueType = ValueClassID::VT_Float64;
-			m_FloatVal   = UNDEFINED_VALUE(Float64);
-			[[fallthrough]];
-
-		case ValueClassID::VT_Float64:
-		case ValueClassID::VT_Int32:
-		case ValueClassID::VT_UInt32:
-		case ValueClassID::VT_Int64:
-		case ValueClassID::VT_UInt64:
-			m_FloatInterval.first = m_FloatVal;
-			break;
-
-		case ValueClassID::VT_DPoint:
-			m_DPointInterval.first = m_DPointVal;
-			break;
-
-		case ValueClassID::VT_SharedStr:
-		default:
-		{
-			throwDmsErrF("DoFirstIntervalValue: value type {} not supported as Interval Type", 
-				GetValueTypeName(m_eValueType));
-		}
-	}
-	m_eAssignmentDomainType = m_eValueType;
-}
-
-// *****************************************************************************
-// Function/Procedure:DoSecondIntervalValue
-// Description:       checks context type with template type and sets second 
-//					  interval value
-// Parameters:        
-// *****************************************************************************
-
-void AbstrDataBlockProd::DoSecondIntervalValue()
-{
-	if (m_eValueType == ValueClassID::VT_Unknown)
-	{
-		m_eValueType = ValueClassID::VT_Float64;
-		m_FloatVal   = UNDEFINED_VALUE(Float64);
-	}
-
-	if ( (m_eAssignmentDomainType <= ValueClassID::VT_Float64) != (m_eValueType <= ValueClassID::VT_Float64))
-		throwDmsErrF("Incompatible value types '{}' and '{}' in Interval",
-			GetValueTypeName(m_eAssignmentDomainType), 
-			GetValueTypeName(m_eValueType));
-	MakeMax(m_eAssignmentDomainType, m_eValueType);
-
-	switch (m_eValueType)
-	{
-		case ValueClassID::VT_Float64:
-		case ValueClassID::VT_Int32:
-		case ValueClassID::VT_UInt32:
-		case ValueClassID::VT_Int64:
-		case ValueClassID::VT_UInt64:
-			m_FloatInterval.second = m_FloatVal;
-			break;
-
-		case ValueClassID::VT_DPoint:
-			m_DPointInterval.second = m_DPointVal;
-			break;
-		default:
-		{
-			throwDmsErrF("DoSecondIntervalValue: value type {} not supported as Interval Type", 
-				GetValueTypeName(m_eValueType));
-		}
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////

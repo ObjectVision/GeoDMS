@@ -835,8 +835,8 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 	SizeT k = Cardinality(srcTileRange);
 	if (functor.m_OgrComponentHolder)
 	{
-		// Batched, unlike the ApplyProjection / ApplyScaledProjection loop this replaces, which
-		// issued one Transform(1, ...) call per point.
+		// Batched, unlike the per-point loop this replaces, which issued one Transform(1, ...) call
+		// per point.
 		TransformPointRun<TR, TA>(functor
 			, [&srcTileRange](SizeT i) { return Range_GetValue_naked(srcTileRange, i); }
 			, k

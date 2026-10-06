@@ -155,29 +155,6 @@ syntaxError(ErrorArgT errMsg)
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  AuthErrorDisplayLock
-//
-///////////////////////////////////////////////////////////////////////////////
-
-extern std::atomic<UInt32> s_AuthErrorDisplayLockRecursionCount;
-extern std::atomic<UInt32> s_AuthErrorDisplayLockCatchCount;
-
-struct AuthErrorDisplayLock : StaticMtIncrementalLock<s_AuthErrorDisplayLockRecursionCount>
-{
-	AuthErrorDisplayLock()
-	{
-		if(s_AuthErrorDisplayLockRecursionCount == 1) // already incremented
-			s_AuthErrorDisplayLockCatchCount = 0;
-	}
-	~AuthErrorDisplayLock()
-	{
-		if(s_AuthErrorDisplayLockRecursionCount == 1) // not yet decremented
-			s_AuthErrorDisplayLockCatchCount = 0;
-	}
-};
-
-///////////////////////////////////////////////////////////////////////////////
-//
 //  textblock helper functions
 //
 ///////////////////////////////////////////////////////////////////////////////

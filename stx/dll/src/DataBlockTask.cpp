@@ -17,10 +17,8 @@
 
 // ============================= CLASS: DataBlockTask
 
-DataBlockTask::DataBlockTask(AbstrDataItem* adiContext, 
-	CharPtr begin, CharPtr end, row_id nrElems
-)	:	AbstrCalculator(adiContext, CalcRole::Calculator)
-	,	m_NrElems(nrElems)
+DataBlockTask::DataBlockTask(AbstrDataItem* adiContext, CharPtr begin, CharPtr end)
+	:	AbstrCalculator(adiContext, CalcRole::Calculator)
 	,	m_DataBlock(LispRef(begin, end))
 {
 	assert(adiContext);
@@ -28,7 +26,6 @@ DataBlockTask::DataBlockTask(AbstrDataItem* adiContext,
 
 DataBlockTask::DataBlockTask(AbstrDataItem* adiContext, const DataBlockTask& src)
 	:	AbstrCalculator(adiContext, CalcRole::Calculator)
-	,	m_NrElems(src.GetNrElems())
 	,	m_DataBlock(src.m_DataBlock)
 {
 	dms_assert(adiContext);
@@ -95,8 +92,6 @@ struct DataArrayOperator : TernaryOperator
 		}
 		catch (const parser_error_t& problem)
 		{
-			// no ++s_AuthErrorDisplayLockCatchCount here: this runs on worker threads and nothing reads the count for a data block
-
 			SharedStr strAtProblemLoc = problemlocAsString(dataBlock.begin(), dataBlock.end(), problem.where.base()); // base(), not &*: a syntax error at the end of the block dereferenced past it
 
 			ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);

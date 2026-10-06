@@ -19,15 +19,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  AuthErrorDisplayLock
-//
-///////////////////////////////////////////////////////////////////////////////
-
-std::atomic<UInt32>  s_AuthErrorDisplayLockRecursionCount = 0;
-std::atomic<UInt32>  s_AuthErrorDisplayLockCatchCount = 0; // atomic like its sibling: parse errors are also caught on worker threads
-
-///////////////////////////////////////////////////////////////////////////////
-//
 //  textblock helper functions
 //
 ///////////////////////////////////////////////////////////////////////////////
@@ -118,31 +109,6 @@ SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd, CharPtr pro
 	auto utb = begin_ptr(untabbedLine);
 	return SharedStr(CharPtrRange(utb, utb + untabEnd)) + "\n" 
 		+ SharedStr(CharPtrRange(utb, utb + untabPos)) + "^";
-}
-
-UInt32 nrLineBreaks(CharPtr first, CharPtr last)
-{
-	UInt32 lineBreakCount = 0;
-	while (first != last)
-	{
-		switch (*first++)
-		{
-			case '\n': 
-				{
-					++lineBreakCount;
-					if (first != last && *first == '\r')
-						++first;
-					break;
-				}
-			case '\r':
-				{
-					++lineBreakCount;
-					if (first != last && *first == '\n')
-						++first;
-				}
-		}
-	}
-	return lineBreakCount;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

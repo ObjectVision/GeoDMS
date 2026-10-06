@@ -115,20 +115,5 @@ struct string_definition
 };
 
 
-template <typename Prod>
-struct string_grammar : public boost::spirit::grammar<string_grammar<Prod>>
-{
-	string_grammar(Prod&) {}
-
-	template <typename ScannerT>
-		struct definition : string_definition<ScannerT, Prod>
-	{
-		definition(string_grammar const&) {}
-
-		boost::spirit::rule<ScannerT> const& start() const { return this->string_value; }
-	};
-};
-
-
 #endif //!defined(__STX_PARSESTRING_H)
 

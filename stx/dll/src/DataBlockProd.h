@@ -25,9 +25,6 @@ struct AbstrDataBlockProd : private geodms::rtc::noncopyable
 {
 	virtual ~AbstrDataBlockProd() {}
 
-	void DoFirstIntervalValue();
-	void DoSecondIntervalValue();
-
 	// the following virtuals are overridden by both ConfigProduct and DataBlockAssignment
 	virtual void DoArrayAssignment()  =0;
 
@@ -46,16 +43,8 @@ struct AbstrDataBlockProd : private geodms::rtc::noncopyable
 	void SetValueType(ValueClassID vid) { m_eValueType = vid; }
 	void SetSign(bool sign) { m_bSignIsPlus = sign; }
 
-	void ResetDataBlock() { m_nIndexValue = 0; }
-
 	// data collection support
 	row_id              m_nIndexValue = 0;
-
-	ValueClassID        m_eAssignmentDomainType = ValueClassID::VT_Unknown;     // type of interval or selector value
-
-	Range<Float64>      m_FloatInterval;
-	Range<DPoint>       m_DPointInterval;
-
 
 	// basicValue elements
 	ValueClassID        m_eValueType = ValueClassID::VT_Unknown;   // type of basicValue
@@ -82,7 +71,6 @@ struct DataBlockProd : AbstrDataBlockProd
 
 private:
 	DataWriteLock               m_Lock;
-	TileRef                     m_TileLock;
 	SizeT                       m_ElemCount;
 	std::unique_ptr<AbstrValue> m_AbstrValue;
 

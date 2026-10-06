@@ -25,17 +25,6 @@ struct itennameFirstChar_parser : public boost::spirit::char_parser<itennameFirs
 	}
 };
 
-struct itennameNextChar_parser : public boost::spirit::char_parser<itennameFirstChar_parser>
-{
-	typedef itennameNextChar_parser self_t;
-
-	template <typename CharT>
-	bool test(CharT ch) const
-	{
-		return itemNameNextChar_test(ch);
-	}
-};
-
 auto const itemNameFirstChar_p = itennameFirstChar_parser();
 auto const itemNameNextChar_p = itemNameFirstChar_p | boost::spirit::digit_p;
 auto const itemName_p = itemNameFirstChar_p >> *itemNameNextChar_p;
@@ -64,25 +53,19 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 		{
 			Prod& cp = cg.m_Prod;
 
-//			using boost::spirit;
 			using boost::spirit::chlit;
 			using boost::spirit::strlit;
 			using boost::spirit::lexeme_d;
 			using boost::spirit::epsilon_p;
 			using boost::spirit::space_p;
-			using boost::spirit::alpha_p;
-			using boost::spirit::alnum_p;
 			using boost::spirit::anychar_p;
 			using boost::spirit::as_lower_d;
-			using boost::spirit::uint_p;
-			using boost::spirit::hex_p;
 			using boost::spirit::strict_ureal_p;
 
 			//-----------------------------------------------------------------
 			// OPERATORS
 			//-----------------------------------------------------------------
 			chlit<>     COMMA(',');
-			chlit<>     UNDERSCORE('_');
 
 			chlit<>     LPAREN('(');
 			chlit<>     RPAREN(')');
@@ -117,7 +100,6 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			chlit<>     C_GT('>');
 
 			chlit<>     C_NOT('!');
-//			strlit<>    P_NOT("not");
 
 			strlit<>    C_AND("&&");
 			strlit<>    P_AND("and");
@@ -162,9 +144,6 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 					>> exprList
 					>> assert_d("')' or ',' expected after argument-list of function-call")[RPAREN]
 					)[([&](...) { cp.ProdFunctionCall();})];
-
-			exprLW = exprL1
-				>> !(C_ELSE >> expression)[([&](...) { cp.ProdBinaryOper(token::scope); })];
 
 			exprL0
 				= exprL1
@@ -240,7 +219,6 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 				| stringValueElement
 				| scopeCall // requires specific production at html, not for keyExpr generation
 				| functionCallOrIdentifier // expr5
-				//				|	dots
 				| (LBRACK >> exprList >> RBRACK)[syntaxError("value-array syntax in expression NYI")]
 				// §5.11 tier B: '(function ...)' as a parenthesized group -- the splice
 				// swallows the parentheses, so the lifted name can take call suffixes
@@ -376,13 +354,12 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 
 		boost::spirit::rule<ScannerT> const& start() const { return expression; }
 
-		boost::spirit::symbols<> keywords;
 		boost::spirit::rule<ScannerT>
-			expression, exprLW, exprL0, exprL1, exprL2, exprL3, exprL4, exprN0, term, factor, pow_element, compound_element,
+			expression, exprL0, exprL1, exprL2, exprL3, exprL4, exprN0, term, factor, pow_element, compound_element,
 			element, numericValueElement, suffix, stringValueElement,
 			exprList,
 			nonEmptyExprList,
-			scopeCall, functionCallOrIdentifier, functionCallReq, identifier, // dots,
+			scopeCall, functionCallOrIdentifier, functionCallReq, identifier,
 			argument, memberList, containerMember,
 			functionLiteral, balancedParens, balancedBraces,
 			unsignedInteger, unsignedReal;

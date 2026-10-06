@@ -39,14 +39,6 @@ DataBlockProd::~DataBlockProd()
 // Description:       add record to attribute
 // *****************************************************************************
 
-template <typename T, typename A>
-inline void SafeSetValue(std::vector<T, A>& vec, typename std::vector<T, A>::size_type i, const T& value)
-{
-	if (vec.size() <= i)
-		throwErrorF("DataBlockAssignment", "Index {} out of range", i);
-	vec[i] = value;
-}
-
 void DataBlockProd::DoArrayAssignment()
 {
 	AbstrDataItem* adi = CurrDI(); // stack-local borrow; kept alive by m_Lock
@@ -74,7 +66,6 @@ void DataBlockProd::DoArrayAssignment()
 	{
 		case ValueClassID::VT_SharedStr:
 		{
-//			DMS_AnyDataItem_SetValueAsCharArray(adi, i, m_StringVal.c_str());
 			m_AbstrValue->AssignFromCharPtrs(m_StringVal.begin(), m_StringVal.send());
 			m_Lock->SetAbstrValue(i, *m_AbstrValue); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
 			break;
@@ -129,8 +120,6 @@ void DataBlockProd::Commit()
 
 		CurrDI()->throwItemError(errMsg);
 	}
-	while (m_nIndexValue < m_ElemCount)
-		m_Lock->SetNull(m_nIndexValue++); // padding with zero values
 
 	m_Lock.Commit();
 }
@@ -147,7 +136,6 @@ void DataBlockProd::throwSemanticError(CharPtr msg)
 
 void ConfigProd::DoArrayAssignment()
 {
-	m_nIndexValue++;
 }
 
 void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
@@ -159,8 +147,7 @@ void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
 	m_pCurrent->GetOrCreateConfigProperties().mc_Calculator =
 		new DataBlockTask(
 			AsDataItem(m_pCurrent.get()), 
-			&*first, &*last, 
-			m_nIndexValue
+			&*first, &*last
 		);
 }
 

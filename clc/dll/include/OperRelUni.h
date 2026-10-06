@@ -79,7 +79,6 @@ vIt upperbound(vIt beginData, vIt endData, const V& value)
 	while (n)
 	{
 		SizeT n2 = n / 2;
-//		InIt m = first + n2;
 		if (!comp(value, beginData[n2]))
 		{
 			n -= ++n2;
@@ -94,32 +93,6 @@ vIt upperbound(vIt beginData, vIt endData, const V& value)
 // *****************************************************************************
 //                      INDEX operations
 // *****************************************************************************
-
-template <typename CI2>
-struct IndexPCompareOper 
-{
-	IndexPCompareOper(const IndexGetter* unsortedPartitionData, CI2 data2Begin)
-		:	m_IndexData(unsortedPartitionData) 
-		,	m_Data2Begin(data2Begin) 
-	{
-		assert(unsortedPartitionData);
-	}
-	bool operator ()(SizeT left, SizeT right)
-	{ 
-		SizeT 
-			pl = m_IndexData->Get(left),
-			pr = m_IndexData->Get(right);
-		return (pl < pr)
-			||	(	!	(pr < pl) 
-					&&	m_DataComp(m_Data2Begin[left ], m_Data2Begin[right])
-				);
-
-	}
-	typedef typename std::iterator_traits<CI2>::value_type value_type;
-	const IndexGetter* m_IndexData;
-	CI2                m_Data2Begin;
-	DataLessThanCompare<value_type> m_DataComp;
-};
 
 template <typename InIt, typename vIt, typename V>
 InIt indexed_lowerbound(InIt first, InIt last, vIt beginData, const V& value)
@@ -187,7 +160,6 @@ template<typename IndexContainer, typename ConstDataIter>
 void make_index_skip_null(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
 {
 	using IndexValue = typename IndexContainer::value_type;
-//	insert_sequential_index_numbers(resData, n);
 	SizeT valueCount = 0;
 	for (SizeT i = 0; i != n; ++i)
 		if (IsDefined(unsortedDataBegin[i]))
@@ -209,7 +181,6 @@ template<typename IndexContainer, typename ConstDataIter>
 void make_index_non_null_values(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
 {
 	using IndexValue = typename IndexContainer::value_type;
-	//	insert_sequential_index_numbers(resData, n);
 	resData.reserve(n);
 	for (SizeT i = 0; i != n; ++i)
 	{
@@ -229,7 +200,6 @@ template<typename IndexContainer, typename ConstDataIter>
 void make_index_all_values(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
 {
 	using IndexValue = typename IndexContainer::value_type;
-	//	insert_sequential_index_numbers(resData, n);
 	resData.reserve(n);
 	for (SizeT i = 0; i != n; ++i)
 		resData.emplace_back(i);
@@ -336,15 +306,6 @@ void make_subindex(
 		);
 		prevOrderRangeBegin = prevOrderRangeEnd;
 	}
-}
-
-template<typename IndexContainer, typename ConstIter2>
-void make_indexP(IndexContainer& resData, SizeT n, IndexGetter* unsortedPartitionData, ConstIter2   unsortedData2Begin)
-{
-	insert_sequential_index_numbers(resData, n);
-	std::stable_sort(resData.begin(), resData.end()
-	,	IndexPCompareOper<ConstIter2>(unsortedPartitionData, unsortedData2Begin) 
-	);
 }
 
 template <typename F>

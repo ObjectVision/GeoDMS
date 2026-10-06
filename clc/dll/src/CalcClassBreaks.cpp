@@ -55,7 +55,6 @@ CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCou
 	assert((valueRange.first > 0) || (m <= 1));
 
 	UInt32 nReq = k-1; // nr requested breaks
-//	assert(nReq>=1); // follows from PRECONDITION on k.
 	
 	Float64 fValue = 1;
 	if(valueRange.first > 0)
@@ -620,13 +619,11 @@ struct JenksFisher
 		
 		CalcRange(bi, mi, bp, Min<SizeT>(mi, mp+1));
 
-#if !defined(MG_ASSUME_CB_INC)
 		// CB(i, j-1) <= CB(i, j): adding a class does not move the last break to the left. In exact arithmetic that holds
 		// when every row breaks ties alike, but rounding breaks exact ties, common in integral data with repeated gaps,
 		// either way; so a violation passes when the candidate that satisfies it scores as well as mp, up to rounding.
 		assert(m_NrCompletedRows==1 || (mi+1) == m_BufSize|| (mp+1) >= (m_CBPtr-m_BufSize)[mi+1]
 			|| IsTie(mi, (m_CBPtr-m_BufSize)[mi+1]-1, minSSM));
-#endif
 		m_CBPtr[ mi ] = mp;
 		CalcRange(mi+1, ei, mp, ep);
 	}
@@ -670,7 +667,6 @@ struct JenksFisher
 			while (--k)
 			{
 				assert(k);
-				//			DBG_TRACE(("Break[{}]=vcpc[{}]={:f}", k, lastClassBreakIndex+k, Float32(vcpc[lastClassBreakIndex+k].first)));
 				result[k] = vcpc[lastClassBreakIndex + k].first;
 				assert(lastClassBreakIndex < m_BufSize);
 				if (k > 1)

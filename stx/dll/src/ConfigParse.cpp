@@ -145,7 +145,6 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 			itemDecl = ((itemHeading | colonHeading)
 				>> !(COLON >> itemProp >> *(',' >> itemProp)))
-				//[ ([&cp](auto,auto) { cp.OnItemDecl(); }) ];
 				[([&cp](...) { cp.OnItemDecl();})];
 
 			// name:type declaration style: 'name1, name2 : <type>' where <type> is a
@@ -458,8 +457,6 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 TreeItem* ConfigProd::ParseString(CharPtr configString)
 {
-	AuthErrorDisplayLock recursionLock;
-
 	CharPtr configStringEnd = configString + StrLen(configString);
 	try {
 
@@ -473,12 +470,9 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 				,	comment_skipper()
 				);
 		CheckInfo(info);
-		MG_CHECK(!s_AuthErrorDisplayLockCatchCount); // a caught parse error rethrows below, so the count is 0 here (as an assert it was __assume, which let the compiler drop a later test)
 	}
 	catch (const parser_error_t& problem)
 	{
-		++s_AuthErrorDisplayLockCatchCount;
-
 		SharedStr strAtProblemLoc = problemlocAsString(configString, configStringEnd, problem.where.base()); // base(), not &*: at end of input the iterator dereferences one past the buffer
 
 		position_t  problemLoc = problem.where.get_position();
@@ -527,8 +521,6 @@ void ConfigProd::ParseNestedDeclaration(CharPtr declString)
 
 TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 {
-	AuthErrorDisplayLock recursionLock;
-
 	m_CurrFileName = SharedStr(fileName);
 
 	auto fv = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_CurrFileName, true, false), 0, -1, -1); // SFWA
@@ -545,15 +537,10 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 				,	comment_skipper()
 				);
 		CheckInfo(info);
-		MG_CHECK(!s_AuthErrorDisplayLockCatchCount); // a caught parse error rethrows below, so the count is 0 here (as an assert it was __assume, which let the compiler drop a later test)
 	}
 	catch (const parser_error_t& problem)
 	{
-		++s_AuthErrorDisplayLockCatchCount;
-
 		SharedStr strAtProblemLoc = problemlocAsString(fv.DataBegin(), fv.DataEnd(), problem.where.base()); // base(), not &*: a syntax error at the end of a mapped file dereferenced past the mapping
-
-//		fv.CloseMCFMH(); // enable user to change and save the file from error display and the press Reload
 
 		position_t  problemLoc = problem.where.get_position();
 		auto fullDescr = mySSPrintF("{}\n{}({},{}) at\n{}"

@@ -126,7 +126,6 @@ void ConfigProd::DoInclude()
 	if (!m_pCurrent)
 		throwSemanticError(mgFormat2string("Parse error in included config file {}", GetTokenStrLock(m_strIdentifierID)).c_str());
 	dms_assert(m_pCurrent);
-//	dbg_assert(!CurrentIsTop());
 }
 
 // *****************************************************************************
@@ -338,7 +337,6 @@ setLocation:
 void ConfigProd::ClearPropData()
 {
 	m_sPropFileTypeID = TokenID::GetEmptyID();
-	ResetDataBlock();
 }
 
 static StaticLateTokenID t_Dot(".");

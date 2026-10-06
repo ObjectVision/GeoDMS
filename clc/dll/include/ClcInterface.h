@@ -12,7 +12,6 @@
 #include "ClcBase.h"
 class  Operator;
 struct AbstrOperGroup;
-struct ClientDefinedOperator;
 
 // *****************************************************************************
 
@@ -20,10 +19,6 @@ extern "C" {
 
 CLC_CALL void         DMS_CONV DMS_Clc_Load();
 CLC_CALL CharPtr      DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr);
-
-// function pointers are used to register a client defined operator
-typedef TreeItem* (DMS_CONV *OperatorCreateFunc)(ClientHandle clientHandle, const TreeItem* configRoot, arg_index nrArgs, const TreeItem*const* args);
-typedef void      (DMS_CONV *OperatorApplyFunc )(ClientHandle clientHandle, TreeItem* result, arg_index nrArgs, const TreeItem*const* args);
 
 CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_type& statisticsBuffer);
 

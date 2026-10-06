@@ -87,7 +87,6 @@ struct partition_types
 	typedef               naked_checker<type>   naked_checker_t;
 	typedef               range_checker<type>   range_checker_t;
 	typedef null_checker< naked_checker<type> > null_checker_t;
-	typedef null_checker< range_checker<type> > both_checker_t;
 };
 
 #endif // !defined(__CLC_PARTITIONTYPES_H)

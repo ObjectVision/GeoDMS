@@ -181,15 +181,6 @@ void DispatchMapping(Type0DConversionFunctor<std::false_type>::template Type0DCo
 		Assign(*ri, functor(Range_GetValue_naked(tileRange, i)));
 }
 
-template<typename TR, typename TA>
-void DispatchMapping(Type0DConversionFunctor<std::true_type>::template Type0DConversion<TR, TA>& functor
-	, typename Type0DConversionFunctor<std::true_type>::template Type0DConversion<TR, TA>::iterator ri
-	, typename Unit<TA>::range_t tileRange, SizeT n)
-{
-	for (SizeT i = 0; i != n; ++ri, ++i)
-		Assign(*ri, functor(Range_GetValue_naked(tileRange, i)));
-}
-
 // *****************************************************************************
 //			Type 1D Conversion Functor
 // *****************************************************************************
@@ -280,19 +271,6 @@ void DispatchMapping(Type1DConversionFunctor<std::false_type>::template Type1DCo
 			Assign(*ri, functor.ApplyDirect(Range_GetValue_naked(tileRange, i)));
 }
 
-template<typename TR, typename TA>
-void DispatchMapping(Type1DConversionFunctor<std::true_type>::template Type1DConversion<TR, TA>& functor
-	, typename Type1DConversionFunctor<std::true_type>::template Type1DConversion<TR, TA>::iterator ri
-	, typename Unit<TA>::range_t tileRange, SizeT n)
-{
-	if (functor.m_Factor != 1.0)
-		for (SizeT i = 0; i != n; ++ri, ++i)
-			Assign(*ri, functor.ApplyScaled(Range_GetValue_naked(tileRange, i)));
-	else
-		for (SizeT i = 0; i != n; ++ri, ++i)
-			Assign(*ri, functor.ApplyDirect(Range_GetValue_naked(tileRange, i)));
-}
-
 // *****************************************************************************
 //			Type 2D Conversion Functor
 // *****************************************************************************
@@ -355,22 +333,6 @@ struct Type2DConversion : unary_func<TR, TA>
 		return SignedIntGridConvert<TR>(p);
 	}
 
-	TR ApplyProjection(const TA& p) const
-	{
-		assert(m_OgrComponentHolder && m_OgrComponentHolder->m_Transformer);
-		assert(m_PreRescaler.IsIdentity());
-		assert(m_PostRescaler.IsIdentity());
-
-		if (!IsDefined(p))
-			return UNDEFINED_VALUE(TR);
-
-		DPoint res = prj2dms_order(p.first, p.second, m_Source_is_expected_to_be_col_first);
-		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
-			return UNDEFINED_VALUE(TR);
-		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
-		return SignedIntGridConvert<TR>(res);
-	}
-
 	TR ApplyScaled(const TA& p) const
 	{
 		assert(!m_OgrComponentHolder);
@@ -380,22 +342,6 @@ struct Type2DConversion : unary_func<TR, TA>
 		if (!IsDefined(p))
 			return UNDEFINED_VALUE(TR);
 		return SignedIntGridConvert<TR>(m_PreRescaler.Apply(DPoint(p)));
-	}
-
-	TR ApplyScaledProjection(const TA& p) const
-	{
-		assert(m_OgrComponentHolder && m_OgrComponentHolder->m_Transformer);
-		assert(!m_PreRescaler.IsIdentity() || !m_PostRescaler.IsIdentity());
-
-		if (!IsDefined(p))
-			return UNDEFINED_VALUE(TR);
-
-		DPoint res = m_PreRescaler.Apply(DPoint(p));
-		res = prj2dms_order(res.first, res.second, m_Source_is_expected_to_be_col_first);
-		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
-			return UNDEFINED_VALUE(TR);
-		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
-		return SignedIntGridConvert<TR>(m_PostRescaler.Apply(res));
 	}
 
 	using iterator = typename DataArrayBase<TR>::iterator;

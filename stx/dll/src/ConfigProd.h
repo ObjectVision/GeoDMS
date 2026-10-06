@@ -90,7 +90,6 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle, FunctionLiteralSink
 	void DoStorageProp();
 	void DoFileType();
 	void DoUsingProp();
-	void DoUnitRangeProp(bool isCategorical);
 	void DoNrOfRowsProp();
 
 //	name:type declaration style (single or comma-separated multi-name)
