@@ -110,6 +110,13 @@ if errorlevel 1 if not errorlevel 2 (
     if errorlevel 2 goto :build_failed
 )
 
+REM The syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr
+REM discipline, format arguments): about forty seconds, before anything is wiped or built, so that
+REM a failure leaves the previous build in place. batch\run_source_checks.bat says what each checks.
+call "%~dp0run_source_checks.bat"
+if errorlevel 1 goto :source_checks_failed
+echo on
+
 REM Wipe the build OUTPUT folder (the final DLLs/EXEs/import-libs that NSIS
 REM packages) before building, so obsolete binaries from before a component
 REM rename/removal cannot linger in bin\Release\x64 and ship in the installer.
@@ -244,6 +251,10 @@ exit /B 1
 
 :shipped_failed
 echo *** Shipped .dms content FAILED before packaging - NSIS, signing, install and unit tests skipped; see the table above and scratch\shipped_dms\ ***
+exit /B 1
+
+:source_checks_failed
+echo *** Source checks FAILED - nothing was wiped or built; the report above names each site ***
 exit /B 1
 
 :build_failed

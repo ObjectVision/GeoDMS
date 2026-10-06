@@ -80,6 +80,13 @@ if errorlevel 1 if not errorlevel 2 (
     if errorlevel 2 goto :build_failed
 )
 
+REM The syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr
+REM discipline, format arguments): about forty seconds, before anything is wiped or built, so that
+REM a failure leaves the previous build in place. batch\run_source_checks.bat says what each checks.
+call "%~dp0run_source_checks.bat"
+if errorlevel 1 goto :source_checks_failed
+@echo on
+
 echo --- configuring linux-x64-release (skipped if already configured) ---
 wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && export VCPKG_DOWNLOADS='%geodms_wsldir%/vc_downloads' && cd %geodms_wsldir% && if [ ! -f build/linux-x64-release/CMakeCache.txt ]; then cmake --preset linux-x64-release; fi"
 if errorlevel 1 goto :build_failed
@@ -155,6 +162,11 @@ if exist "%TARBALL%" echo   tarball:  %TARBALL%
 echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%
 endlocal
 exit /B 0
+
+:source_checks_failed
+echo *** Source checks FAILED - nothing was wiped or built; the report above names each site ***
+endlocal
+exit /B 1
 
 :build_failed
 echo *** Linux cmake build failed ***

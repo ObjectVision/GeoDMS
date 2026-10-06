@@ -59,6 +59,12 @@ if errorlevel 1 if not errorlevel 2 (
     if errorlevel 2 goto :build_failed
 )
 
+REM The syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr
+REM discipline, format arguments): about forty seconds, before anything is wiped or built, so that
+REM a failure leaves the previous build in place. batch\run_source_checks.bat says what each checks.
+call "%~dp0run_source_checks.bat"
+if errorlevel 1 goto :source_checks_failed
+
 REM After the drift check, so that answering N there leaves the previous build in place (BAT-A34).
 if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
 
@@ -148,6 +154,11 @@ goto :build_failed
 
 :setup_missing
 echo *** ABORT: NSIS produced no %INSTALLER%. ***
+
+:source_checks_failed
+echo *** Source checks FAILED - nothing was wiped or built; the report above names each site ***
+endlocal
+exit /b 1
 
 :build_failed
 echo *** G build failed; packaging/install tests did not complete. ***

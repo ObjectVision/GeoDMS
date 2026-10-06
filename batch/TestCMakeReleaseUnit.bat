@@ -5,6 +5,12 @@ REM Re-root to the repo root (this script now lives in <root>\batch) so ..\tst\b
 cd /d "%~dp0.."
 set geodms_rootdir=%cd%
 
+REM Syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr discipline,
+REM format arguments): about forty seconds, no build needed. See batch\run_source_checks.bat.
+set SC_FAILED=0
+call "%~dp0run_source_checks.bat"
+if errorlevel 1 set SC_FAILED=1
+
 REM run_unit_suite.bat verifies the build exists, that unit.bat really started (both
 REM otherwise fail silently) and that the new aggregate lists no FAILED line. See its header.
 call "%~dp0run_unit_suite.bat" CR64 off build\windows-x64-release\bin
@@ -24,6 +30,10 @@ REM Grid2Poly_ipoint.dms + grid_to_vector.dms pair that the msbuild bin did not.
 call "%~dp0TestShippedContent.bat" "%geodms_rootdir%\build\windows-x64-release\bin"
 if errorlevel 1 (
   echo *** SHIPPED CONTENT RELEASE TEST FAILED - see scratch\grid_to_polygon_release.log ***
+  exit /b 1
+)
+if "%SC_FAILED%"=="1" (
+  echo *** SOURCE CHECKS FAILED - see the report of batch\run_source_checks.bat further up ***
   exit /b 1
 )
 exit /b 0

@@ -7,6 +7,12 @@ set geodms_rootdir=%cd%
 
 REM msbuild all22.sln -t:build -p:Configuration=Release -p:Platform=x64
 
+REM Syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr discipline,
+REM format arguments): about forty seconds, no build needed. See batch\run_source_checks.bat.
+set SC_FAILED=0
+call "%~dp0run_source_checks.bat"
+if errorlevel 1 set SC_FAILED=1
+
 REM run_unit_suite.bat verifies the build exists, that unit.bat really started (both
 REM otherwise fail silently) and that the new aggregate lists no FAILED line. See its header.
 set UNIT_FAILED=0
@@ -38,6 +44,11 @@ call "%~dp0TestShippedContent.bat" "%geodms_rootdir%\bin\Release\x64"
 if errorlevel 1 set SHIPPED_FAILED=1
 
 echo.
+if "%SC_FAILED%"=="1" (
+  echo *** SOURCE CHECKS FAILED - see the report of batch\run_source_checks.bat further up ***
+) else (
+  echo SOURCE CHECKS PASSED
+)
 if "%TC_FAILED%"=="1" (
   echo *** TESTCASES BATTERY FAILED - see table above and testcases\_out\ logs ***
 ) else (
@@ -56,6 +67,7 @@ if "%SHIPPED_FAILED%"=="1" (
   echo SHIPPED CONTENT RELEASE TEST PASSED
 )
 
+if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1

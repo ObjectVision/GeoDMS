@@ -9,6 +9,12 @@ REM Re-root to the repo root (this script lives in <root>\batch) so ..\tst\batch
 cd /d "%~dp0.."
 set geodms_rootdir=%cd%
 
+REM Syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr discipline,
+REM format arguments): about forty seconds, no build needed. See batch\run_source_checks.bat.
+set SC_FAILED=0
+call "%~dp0run_source_checks.bat"
+if errorlevel 1 set SC_FAILED=1
+
 set UNIT_FAILED=0
 call "%~dp0run_unit_suite.bat" GD64 g bin_GLOBIO\Debug\x64
 if errorlevel 2 (set UNIT_FAILED=2) else if errorlevel 1 set UNIT_FAILED=1
@@ -26,6 +32,11 @@ Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%geodms_rootdir%\bin_GL
 if errorlevel 1 set RT_FAILED=1
 
 echo.
+if "%SC_FAILED%"=="1" (
+  echo *** SOURCE CHECKS FAILED - see the report of batch\run_source_checks.bat further up ***
+) else (
+  echo SOURCE CHECKS PASSED
+)
 if "%TC_FAILED%"=="1" (
   echo *** TESTCASES BATTERY FAILED - see table above and testcases\_out\ logs ***
 ) else (
@@ -39,6 +50,7 @@ if "%RT_FAILED%"=="1" (
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 
+if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1

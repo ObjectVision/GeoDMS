@@ -156,7 +156,7 @@ Recorded in issue #1227 §2; restated here because every finding below lives in 
   allocation for a short name — also the cheapest form, ~8 ns against ~25 ns for an
   `AsSharedStr().c_str()` and ~130 ns for the `std::ostringstream` detour a `TokenID` took before
   the opt-in); a `TokenStr` form is the caller's temporary. Covered statically, before any
-  build, by `tools/check-lock-across-sink.ps1` (run by `analyze.bat`), which flags a `...Lock(`
+  build, by `tools/check-lock-across-sink.ps1` (run by `batch/run_source_checks.bat`), which flags a `...Lock(`
   accessor in the argument text of any format sink. At a throw-family sink the span is harmless
   (after the format nothing runs in that frame but the throw, and unwinding destroys the
   temporary first) but it is flagged all the same: the `TokenID` form is shorter and cheaper.
@@ -379,7 +379,10 @@ narrows that, and is checked on entry against what the caller holds. The rules t
    joined them in P19: it creates and fails items.
 8. **Run the static pass** (`tools/check-lock-ceilings.ps1`, §3.9) before the Debug build: it
    checks every call from a declared function to a declared function against the same rules
-   in one second, and `analyze.bat` runs it beside the lock-across-sink check.
+   in one second, and `batch/run_source_checks.bat` runs it beside the lock-across-sink check.
+   Every `Test*Unit.bat` launcher and every setup script calls that script since 2026-10-06; before,
+   only `analyze.bat` did, which nothing called, and its first run in a launcher found a ceiling
+   declared over a whole function where it was meant for the last section only (#1284).
 
 ### 3.8 The production-wait ceiling — what makes P2 checkable
 
@@ -935,7 +938,7 @@ Recorded so the next reader does not re-suspect them:
 - **R1** — never hold a `...Lock()` value (TokenStr/TokenStrRange) across a call that can
   tokenize or block; materialize first (`Object.h`, `sym/Token.h`). At a report-family sink pass
   the `TokenID` itself, never `...Lock().c_str()` (B6); `tools/check-lock-across-sink.ps1`
-  checks that syntactically and `analyze.bat` runs it.
+  checks that syntactically and `batch/run_source_checks.bat` runs it.
 - **R2** — the error-reporting path reads names and streams, nothing else:
   `DMS_ENTERS(IndexedString, shared)` on `Describe`/`GetDescription`, contracts on everything they
   dispatch to (`DebugContext.h`). The raw property accessors are on that path
@@ -976,7 +979,8 @@ Recorded so the next reader does not re-suspect them:
 4. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §6 leaves open.
 5. ~~The syntactic pass over `DMS_ENTERS` declarations~~ — done in `fc9a5791`:
-   `tools/check-lock-ceilings.ps1` (§3.9), run by `analyze.bat`; transitive through undeclared
+   `tools/check-lock-ceilings.ps1` (§3.9), run by `batch/run_source_checks.bat` (the `Test*Unit.bat`
+   launchers, the setup scripts and `analyze.bat`, since 2026-10-06); transitive through undeclared
    bodies and consuming the contracts on function-pointer *typedefs* since `eab00bb01` (P16 is the
    case it now catches). Left: the contracts on virtuals and on function-pointer parameters, and
    modelling a section held earlier in the caller's body. Not every miss is one of those: P18 is

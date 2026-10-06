@@ -33,6 +33,16 @@ if "%G_VER%"=="" (
 )
 echo === GLOBIO release tests against %G_BIN% ===
 
+REM Syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr discipline,
+REM format arguments), about forty seconds; only in the dev-tree form: with a version this script
+REM tests an installed build, which need not come from these sources, and the setup script that
+REM calls it ran them before it built. See batch\run_source_checks.bat.
+set SC_FAILED=0
+if "%G_VER%"=="" (
+  call "%~dp0run_source_checks.bat"
+  if errorlevel 1 set SC_FAILED=1
+)
+
 REM The flavour argument must be g: unit_flagged.bat exports it as GeoDmsFlavor, which
 REM Unit\CRS\cfg\reproject.dms and Unit\PythonTest.bat read to pick the GLOBIO GDAL/PROJ
 REM expectations and the conda CPython. GR64 is the dev-tree selector that
@@ -64,6 +74,13 @@ if errorlevel 1 set SHIPPED_FAILED=1
 
 echo.
 echo === GLOBIO release tests: results for %G_BIN% ===
+if "%G_VER%"=="" (
+  if "%SC_FAILED%"=="1" (
+    echo *** SOURCE CHECKS FAILED - see the report of batch\run_source_checks.bat further up ***
+  ) else (
+    echo SOURCE CHECKS PASSED
+  )
+)
 if "%UNIT_FAILED%"=="0" echo UNIT SUITE PASSED
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
@@ -83,6 +100,7 @@ if "%SHIPPED_FAILED%"=="1" (
   echo SHIPPED CONTENT RELEASE TEST PASSED
 )
 
+if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1

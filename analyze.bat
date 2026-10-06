@@ -35,15 +35,11 @@ if not exist "%MSBUILD%" (
 
 set "WLOG=analyze_%CFG%.warnings.log"
 
-echo === Syntactic checks ^(tools\check-lock-across-sink.ps1, tools\check-lock-ceilings.ps1, tools\check-ptr-discipline.ps1^) ===
-powershell -NoProfile -ExecutionPolicy Bypass -File "tools\check-lock-across-sink.ps1"
+REM The syntactic checks (lock ceilings, token-registry lifetimes, ptr discipline, format arguments)
+REM live in batch\run_source_checks.bat, which the Test*Unit.bat launchers and the setup scripts
+REM call as well; they need no build.
+call "%~dp0batch\run_source_checks.bat"
 set "LINT_RC=%ERRORLEVEL%"
-powershell -NoProfile -ExecutionPolicy Bypass -File "tools\check-lock-ceilings.ps1"
-if not "%ERRORLEVEL%"=="0" set "LINT_RC=%ERRORLEVEL%"
-REM The guard against a second control block for a tree-owned object, since the =delete wrappers went;
-REM it was written for that and nothing ran it (PLN-A06).
-powershell -NoProfile -ExecutionPolicy Bypass -File "tools\check-ptr-discipline.ps1"
-if not "%ERRORLEVEL%"=="0" set "LINT_RC=%ERRORLEVEL%"
 echo.
 
 echo === MSVC Code Analysis ^(/analyze, PREfast^) on all22.sln [%CFG% ^| x64] ===

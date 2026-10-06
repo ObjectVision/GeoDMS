@@ -149,6 +149,7 @@ If the build cannot be run exactly this way, stop and ask.
 
 | Tier | What | Cost | Proves |
 |---|---|---|---|
+| S | `batch\run_source_checks.bat` | ~40 s, no build | the syntactic checks over the source: lock ceilings (`DMS_ENTERS`), token-registry lifetimes across sinks, ptr discipline, and one argument per placeholder in every format call with a literal format |
 | 0 | a headless `GeoDmsRun` probe with `@statistics` or an IntegrityCheck (geodms-debug) | seconds | the one thing you changed, on the data |
 | 1 | `testcases\run_testcases.bat` | minutes, offline | the typed-function battery, ~440 configs, positives exit 0, `_neg` exit nonzero, exit 3 and a guard limit always fail |
 | 2 | `batch\TestReleaseUnit.bat` / `TestDebugUnit.bat` (`.m`), `TestCMakeReleaseUnit.bat` / `TestCMakeDebugUnit.bat` (`.c`), `TestGlobioReleaseUnit.bat` / `TestGlobioDebugUnit.bat` (`.g`) | 5 to 15 min | the `tst` unit suite, plus tier 1 (`.m`, `.g`), plus (Release) the shipped-content test |
@@ -156,6 +157,15 @@ If the build cannot be run exactly this way, stop and ask.
 
 Rules per tier:
 
+- Tier S reads the sources only, so it needs no ask and no quiet tree: run it from a normal
+  tool call after any edit to a lock, a `DMS_ENTERS`, a format call or an ownership edge, and
+  before you commit. Every `Test*Unit.bat` launcher runs it first, and the four setup scripts
+  run it before they wipe or build anything, so a red check stops a release. Until 2026-10-06
+  only `analyze.bat` ran these checks and nothing ran `analyze.bat`: the first run found a
+  ceiling that the #1284 commit of that day had declared over a whole function. A finding
+  of `check-lock-ceilings.ps1` that the code does not have (it ties a declaration to the whole
+  body that contains it) is answered by making the code say what it means, such as a small
+  function for the section the declaration covers, not by switching the check off.
 - Tier 1 runs from a normal tool call, after the ask above. Its logs land in `testcases\_out\`; per-case item
   overrides live in `testcases\fnrun_itemmap.txt`, default item `/checks`. Every case is held to 8 GB
   of commit and 300 s (`testcases\case_guard.ps1`; `-MaxCommitGB`, `-TimeoutSec`) and fails as

@@ -65,7 +65,9 @@ The agent prepares, watches and verifies.
 2. Tree quiet: no `msbuild`, `cl`, `link`, `devenv` at work; idle `MSBuild.exe` nodes killed
    (`taskkill /F /IM MSBuild.exe`, they hold no locks); no `GeoDmsRun` or `GeoDmsGuiQt`
    running from `bin\Release\x64` (the script aborts on that; tell the user to close it).
-3. `testcases\run_testcases.bat` green on the current build, so the setup's unit gate does
+3. `batch\run_source_checks.bat` green (about forty seconds, no build; every setup script
+   runs it before it wipes or builds anything, and stops on a red check), and
+   `testcases\run_testcases.bat` green on the current build, so the setup's unit gate does
    not fail on something cheap. The script itself runs `batch\TestShippedDms.bat` on the
    output folder right before NSIS (the shipped copy of the battery current, every shipped
    `examples\` and `library\` file reached from a `shipped_*.dms` case, the battery run
@@ -86,8 +88,8 @@ as errors; `Tee-Object` shows and records. One flavour at a time.
 ## While it runs
 
 Tail the log (`Select-String 'error|warning|ABORT|FAILED'`). Things the scripts check for
-themselves and report: a no-op build (`GeoDmsRun.exe` older than the script start), vcpkg
-drift, the Qt deploy targets patch, the Python ABI modules, a concurrent MSBuild. Do not
+themselves and report: the source checks, a no-op build (`GeoDmsRun.exe` older than the
+script start), vcpkg drift, the Qt deploy targets patch, the Python ABI modules, a concurrent MSBuild. Do not
 "help" a CHOICE prompt along; the user answers it.
 
 ## After a flavour

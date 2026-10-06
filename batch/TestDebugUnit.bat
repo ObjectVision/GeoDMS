@@ -7,6 +7,12 @@ set geodms_rootdir=%cd%
 
 REM msbuild all22.sln -t:build -p:Configuration=Debug -p:Platform=x64
 
+REM Syntactic checks over the source tree (lock ceilings, token-registry lifetimes, ptr discipline,
+REM format arguments): about forty seconds, no build needed. See batch\run_source_checks.bat.
+set SC_FAILED=0
+call "%~dp0run_source_checks.bat"
+if errorlevel 1 set SC_FAILED=1
+
 REM run_unit_suite.bat verifies the build exists, that unit.bat really started (both
 REM otherwise fail silently) and that the new aggregate lists no FAILED line. See its header.
 set UNIT_FAILED=0
@@ -32,6 +38,11 @@ Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%geodms_rootdir%\bin\De
 if errorlevel 1 set RT_FAILED=1
 
 echo.
+if "%SC_FAILED%"=="1" (
+  echo *** SOURCE CHECKS FAILED - see the report of batch\run_source_checks.bat further up ***
+) else (
+  echo SOURCE CHECKS PASSED
+)
 if "%TC_FAILED%"=="1" (
   echo *** TESTCASES BATTERY FAILED - see table above and testcases\_out\ logs ***
 ) else (
@@ -45,6 +56,7 @@ if "%RT_FAILED%"=="1" (
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 
+if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1
