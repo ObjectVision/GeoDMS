@@ -346,8 +346,22 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 	if (!Open(name, true, !wktPrjStr.empty()))
 		return false;
 
+	// STG-A21: a write that failed, on a full disk or a lost share, left a truncated .prj, .shx or .shp that
+	// was reported as written. The byte counts that the writes return are compared with what the headers
+	// declare, and the buffers are flushed and checked, at the end. Before anything is written, the format's
+	// own limit is checked: the headers count a file's length in 16-bit words in 32 bits, so a shapefile
+	// holds at most 4 GB, and a larger one wrapped its length and every offset after it.
+	auto writeFailed = [&name](CharPtr what, SizeT written, SizeT expected)
+	{
+		throwErrorF("shp", "writing the {} of {} failed after {} of {} bytes; the disk may be full or the share unavailable", what, name.c_str(), written, expected);
+	};
 	if (!wktPrjStr.empty())
-		fwrite(wktPrjStr.c_str(), sizeof(char), strlen(wktPrjStr.c_str()), m_PRJ);
+	{
+		SizeT prjLen = StrLen(wktPrjStr.c_str());
+		SizeT prjWritten = fwrite(wktPrjStr.c_str(), sizeof(char), prjLen, m_PRJ);
+		if (prjWritten != prjLen || fflush(m_PRJ) != 0)
+			writeFailed(".prj", prjWritten, prjLen);
+	}
 
 	// Write headers
 	CheckShapeType();
@@ -358,10 +372,14 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 
 	head.m_Box = m_BoundingBox;
 
-	head.m_FileLength = CalcNrWordsInShx();
-	head.Write(m_FHX);
+	SizeT nrWordsInShx = CalcNrWordsInShx(), nrWordsInFile = CalcNrWordsInFile();
+	if (nrWordsInFile > SizeT(MAX_VALUE(Int32)) || nrWordsInShx > SizeT(MAX_VALUE(Int32)))
+		throwErrorF("shp", "{} would need {} bytes; a shapefile holds at most 4 GB, as its header counts the length in 16-bit words in 32 bits. Write the data in parts", name.c_str(), nrWordsInFile * 2);
 
-	head.m_FileLength = CalcNrWordsInFile();
+	head.m_FileLength = Int32(nrWordsInShx);
+	SizeT posX = head.Write(m_FHX);
+
+	head.m_FileLength = Int32(nrWordsInFile);
 
 	std::size_t pos = head.Write(m_FH);
 	UInt32 recNr = 0;
@@ -376,7 +394,7 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 		{
 			// Write record to index file
 			rhead.RecordNumber = ThrowingConvert<Int32>( pos / 2 );
-			rhead.Write(m_FHX);
+			posX += rhead.Write(m_FHX);
 
 			// Write record to shpfile
 			rhead.RecordNumber = ++recNr;
@@ -399,7 +417,7 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 
 			// Write record to index file
 			rhead.RecordNumber = ThrowingConvert<Int32>(pos / 2);
-			rhead.Write(m_FHX);
+			posX += rhead.Write(m_FHX);
 
 			// Write record to shpfile (base 1)
 			rhead.RecordNumber = ++recNr;
@@ -410,15 +428,19 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 
 	// Done
 	DBG_TRACE(("pos = {} (expected {})", pos, head.m_FileLength * 2));
+	if (posX != nrWordsInShx * 2 || fflush(m_FHX) != 0)
+		writeFailed(".shx", posX, nrWordsInShx * 2);
+	if (pos != nrWordsInFile * 2 || fflush(m_FH) != 0)
+		writeFailed(".shp", pos, nrWordsInFile * 2);
 	return true;
 }
 
 // Shx file size in 16bit words (as in ESRI fileheader)
-UInt32 ShpImp::CalcNrWordsInShx() const
+SizeT ShpImp::CalcNrWordsInShx() const
 {
     DBG_START("ShpHeader", "CalcNrWordsInShx", false);
 
-	UInt32 nrRecs = IsPoint(m_ShapeType)
+	SizeT nrRecs = IsPoint(m_ShapeType)
 		?	m_Points.size()
 		:	m_Polygons.size(); 
 
@@ -430,7 +452,7 @@ UInt32 ShpImp::CalcNrWordsInShx() const
 
 
 // Shp file size in 16bit words (as in ESRI fileheader)
-UInt32 ShpImp::CalcNrWordsInFile()
+SizeT ShpImp::CalcNrWordsInFile()
 {
     DBG_START("ShpHeader", "CalcNrWordsInFile", false);
 
@@ -444,7 +466,7 @@ UInt32 ShpImp::CalcNrWordsInFile()
 					)
 			) / 2;
 
-	UInt32 result = sizeof(ShpHeader) / 2;	 // fileheader
+	SizeT result = sizeof(ShpHeader) / 2;	 // fileheader
 	auto
 		i = m_Polygons.begin(),
 		e = m_Polygons.end();
@@ -906,14 +928,18 @@ void ShpPolygon::CheckInvariants() const
 	MG_USERCHECK2((*m_Parts).back() < ShpPointIndex(nrPoints), "shapefile record: a part starts beyond the last point");
 }
 // Record size in 16bit words (as in ESRI recordheader)
+// A record's length is an Int32 count of 16-bit words, and so are its numbers of points and parts: a record
+// holds at most 4 GB, about 268 million points. The UInt32 sum wrapped silently above that (STG-A21).
 Int32 ShpPolygon::CalcNrWordsInRecord() const
 {
-	UInt32 sz = sizeof(ShpPoint) * (*m_Points).size();
+	SizeT sz = sizeof(ShpPoint) * (*m_Points).size();
 	if (m_Header.HasParts())
 		sz +=( sizeof(ShpPolygonHeader) + sizeof(Int32) * (*m_Parts ).size());
 	else
 		sz +=( sizeof(ShpPolygonHeader) - sizeof(Int32));
-	return sz / 2;
+	MG_USERCHECK2(sz / 2 <= SizeT(MAX_VALUE(Int32))
+		, "shp: a shape of more than 4 GB (about 268 million points) does not fit in a shapefile record");
+	return Int32(sz / 2);
 }
 
 // Bounding box for one record		

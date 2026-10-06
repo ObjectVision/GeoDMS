@@ -378,9 +378,23 @@ PALETTE_SIZE TifImp::GetClrImportant() const
 	return 1 << GetNrBitsPerPixel();
 }
 
+// TIFFOpen goes through CreateFileA on Windows, which takes the ANSI code page, while a GeoDMS file name is
+// UTF-8: tif reads and writes failed under a Greek or other non-CP1252 path (code audit STG-A19, a sibling of
+// #1101, where FilePtrHandle and the bmp storage moved to the wide API). TIFFOpenW takes the wide name, as
+// GDAL turns its UTF-8 names into wide ones on Windows.
+static TIFF* OpenTiff(WeakStr name, CharPtr mode)
+{
+	SharedStr fileName = ConvertDmsFileName(name);
+#if defined(_WIN32)
+	return TIFFOpenW(Utf8_2_wchar(fileName).get(), mode);
+#else
+	return TIFFOpen(fileName.c_str(), mode);
+#endif
+}
+
 bool TifImp::OpenForReadDirect(WeakStr name)
 {
-	m_TiffHandle = TIFFOpen(ConvertDmsFileName(name).c_str(), "r");
+	m_TiffHandle = OpenTiff(name, "r");
 	return m_TiffHandle != nullptr;
 }
 
@@ -404,7 +418,7 @@ bool TifImp::OpenForWriteDirect(WeakStr name)
 {
 	GetWritePermission(name);
 
-	m_TiffHandle = TIFFOpen(ConvertDmsFileName(name).c_str(), "w");
+	m_TiffHandle = OpenTiff(name, "w");
 	if (m_TiffHandle)
 		TIFFSetField(m_TiffHandle, TIFFTAG_SOFTWARE, "GeoDMS " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) );
 	return m_TiffHandle;

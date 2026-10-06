@@ -280,8 +280,8 @@ private:
 	FileResult Open(WeakStr name, bool alsoWrite, bool writePrj);
 	void Clear();                                   // reset
 
-	UInt32 CalcNrWordsInShx() const;                // nr of (16 bit) words in index file
-	UInt32 CalcNrWordsInFile();						// nr of (16 bit) words in shape file
+	SizeT CalcNrWordsInShx() const;                // nr of (16 bit) words in index file
+	SizeT CalcNrWordsInFile();						// nr of (16 bit) words in shape file
 
 	bool CalcBox();                                 // update shapefile bounding box; returs false if nodata
 	void CheckShapeType() const;                    // did someone set a correct shapeType?

@@ -15,6 +15,8 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbfImp.h"
+
+#include <filesystem>
 #include <memory> // std::addressof
 #include <algorithm> // std::all_of
 #include <charconv> // std::from_chars
@@ -197,14 +199,45 @@ char* RightTrim(char *s)
 } // RightTrim
 
 
+// Replaces srcName by tmpFile, the copy just written. The names are UTF-8, and remove() and rename() take
+// the ANSI code page, so a name outside CP1252 failed both (code audit STG-A19, a sibling of #1101); and the
+// original was removed before the rename, so a rename that failed lost it, with a message that printed
+// strerror(-1). std::filesystem::rename replaces an existing target in one step (MoveFileExW with
+// MOVEFILE_REPLACE_EXISTING on Windows), from the wide names on Windows.
 void CommitFile(WeakStr srcName, WeakStr tmpFile)
 {
 	SharedStr dosFileName = ConvertDmsFileName( srcName );
+	SharedStr tmpFileName = ConvertDmsFileName( tmpFile );
+#if defined(_WIN32)
+	std::filesystem::path src(Utf8_2_wchar(tmpFileName).get()), dst(Utf8_2_wchar(dosFileName).get());
+#else
+	std::filesystem::path src(tmpFileName.c_str()), dst(dosFileName.c_str());
+#endif
+	std::error_code ec;
+	std::filesystem::rename(src, dst, ec);
+	if (ec)
+		throwErrorF("dbf", "replacing {} by the copy just written, {}, failed: {}", dosFileName, tmpFileName, ec.message());
+}
 
-	auto r = remove(dosFileName.c_str());
-	r = rename(ConvertDmsFileName(tmpFile).c_str(), dosFileName.c_str());
-	if (r)
-		throwErrorF("std", "{} ({}) in CommitFile.rename working filename to intended filename", r, strerror(r));
+// 64-bit file positions. fseek and ftell take a long, which has 32 bits on Windows, so a seek to a record
+// beyond 2 GB failed, unchecked, and the read went on from where the file was (code audit STG-A23); the
+// positions themselves were UInt32 and wrapped beyond 4 GB. A .dbf beside a large shapefile exceeds both.
+static bool SeekTo(FILE* fp, SizeT pos)
+{
+#if defined(_MSC_VER)
+	return _fseeki64(fp, Int64(pos), SEEK_SET) == 0;
+#else
+	return fseeko(fp, off_t(pos), SEEK_SET) == 0;
+#endif
+}
+
+static SizeT TellPos(FILE* fp)
+{
+#if defined(_MSC_VER)
+	return SizeT(_ftelli64(fp));
+#else
+	return SizeT(ftello(fp));
+#endif
 }
 
 /*****************************************************************************/
@@ -271,24 +304,24 @@ bool DbfImpl::CreateFromSource(WeakStr filename, const DbfImpl& srcDbf)
 bool DbfImpl::GoBegin()
 {
 	dms_assert(GetFP());
-	return fseek(GetFP(), ActualPosition(0), SEEK_SET) == 0;
+	return SeekTo(GetFP(), ActualPosition(0));
 }
 
 bool DbfImpl::GoEnd()
 {
 	assert(GetFP());
-	return fseek(GetFP(), ActualPosition(m_RecordCount), SEEK_SET) == 0;
+	return SeekTo(GetFP(), ActualPosition(m_RecordCount));
 }
 
 bool DbfImpl::GoTo(UInt32 recNo)
 {
 	dms_assert(GetFP());
-	return fseek(GetFP(), ActualPosition(recNo), SEEK_SET) == 0;
+	return SeekTo(GetFP(), ActualPosition(recNo));
 }
 
 bool DbfImpl::IsAt(UInt32 recNo) const
 {
-	return UInt32(ftell(GetFP())) == ActualPosition(recNo);
+	return TellPos(GetFP()) == ActualPosition(recNo);
 }
 
 bool DbfImpl::ReadRecord  (void* buffer)
@@ -302,7 +335,7 @@ bool DbfImpl::AppendRecord(const void* buffer)
 {
 	dms_assert(GetFP());
 
-	dms_assert(UInt32(ftell(GetFP())) == ActualPosition(m_RecordCount));
+	dms_assert(TellPos(GetFP()) == ActualPosition(m_RecordCount));
 	if (fwrite(buffer, m_RecordSize, 1, GetFP()) != 1)
 		return false;
 	++m_RecordCount;
@@ -344,13 +377,13 @@ UInt32 DbfImpl::ColumnOffset(UInt32 columnindex) const
 	return m_ColumnDescriptions[columnindex].m_Offset;
 }
 
-UInt32 DbfImpl::ActualPosition(UInt32 recordindex) const
+SizeT DbfImpl::ActualPosition(UInt32 recordindex) const
 {
 	MGD_PRECONDITION(!recordindex || RecordIndexDefined(recordindex-1));
-	return m_HeaderSize + recordindex * m_RecordSize;
+	return SizeT(m_HeaderSize) + SizeT(recordindex) * m_RecordSize;
 } // ActualPosition
 
-UInt32 DbfImpl::ActualPosition(UInt32 recordindex, UInt32 columnindex) const
+SizeT DbfImpl::ActualPosition(UInt32 recordindex, UInt32 columnindex) const
 {
 	MGD_PRECONDITION(ColumnIndexDefined(columnindex));
 	return ActualPosition(recordindex) + ColumnOffset(columnindex);
@@ -461,10 +494,10 @@ FileResult DbfImpl::ReadHeader()
 	DBG_TRACE(("m_RecordSize  : {}", m_RecordSize));
 	DBG_TRACE(("m_RecordCount : {}", m_RecordCount));
 
-	// 2. read column info
-	MG_CHECK(m_HeaderSize > DBF_HEADER_BLOCK_SIZE);
-	MG_CHECK(m_RecordSize > 0);
-	MG_CHECK(((m_HeaderSize - 1) % DBF_HEADER_BLOCK_SIZE) == 0);
+	// 2. read column info; a header that breaks the format is reported as the file's, not as a failed internal check
+	MG_USERCHECK2(m_HeaderSize > DBF_HEADER_BLOCK_SIZE, "dbf: the header declares no columns; the file is corrupt");
+	MG_USERCHECK2(m_RecordSize > 0, "dbf: the header declares records of 0 bytes; the file is corrupt");
+	MG_USERCHECK2(((m_HeaderSize - 1) % DBF_HEADER_BLOCK_SIZE) == 0, "dbf: the header size is not 1 plus a multiple of 32 bytes; the file is corrupt");
 
 	if (m_HeaderSize <= DBF_HEADER_BLOCK_SIZE)
 		return std::unexpected(SharedStr("Error Reading Header"));
@@ -503,7 +536,7 @@ FileResult DbfImpl::ReadHeader()
 		// read decimal count
 		MG_CHECK(fread(&m_ColumnDescriptions[i].m_DecimalCount, sizeof(m_ColumnDescriptions[i].m_DecimalCount), 1, fp) == 1);
 	}
-	MG_CHECK(m_RecordSize == RecordLength());
+	MG_USERCHECK2(m_RecordSize == RecordLength(), "dbf: the record size in the header differs from the sum of the column widths; the file is corrupt");
 
 	GoBegin();
 	return {};
@@ -559,6 +592,13 @@ bool DbfImpl::WriteHeader()
 	DBG_START("DbfImpl", "WriteHeader", MG_DEBUG_DBF);
 
 	// 1. write general header info
+	// STG-A21: the header stores its own size and the record size in 16 bits; more than 2046 columns, or
+	// columns whose widths add up to more than 65535 bytes, wrapped them and wrote a file no reader can
+	// take. Every write of the header is checked, as the record writes are.
+	if (ColumnCount() > (MAX_VALUE(UInt16) - 1) / DBF_HEADER_BLOCK_SIZE - 1)
+		throwErrorF("dbf", "a dbf file holds at most {} columns; {} were to be written", (MAX_VALUE(UInt16) - 1) / DBF_HEADER_BLOCK_SIZE - 1, ColumnCount());
+	if (RecordLength() > MAX_VALUE(UInt16))
+		throwErrorF("dbf", "a dbf record holds at most 65535 bytes; the widths of the {} columns add up to {}", ColumnCount(), RecordLength());
 	m_DbfVersion = 3;
 	m_HeaderSize = DBF_HEADER_BLOCK_SIZE * (ColumnCount() + 1) + 1;
 	m_RecordSize = RecordLength();
@@ -577,38 +617,40 @@ bool DbfImpl::WriteHeader()
 
 	FILE* fp = GetFP();
 	rewind(fp);
-	fwrite(&m_DbfVersion, sizeof(m_DbfVersion), 1, fp);
-	fwrite(&today->tm_year, 1, 1, fp);
-	fwrite(&today->tm_mon , 1, 1, fp);
-	fwrite(&today->tm_mday, 1, 1, fp);
-	fwrite(&m_RecordCount, sizeof(m_RecordCount), 1, fp);
-	fwrite(&m_HeaderSize , sizeof(m_HeaderSize ), 1, fp);
-	fwrite(&m_RecordSize , sizeof(m_RecordSize ), 1, fp);
-	WriteBytes(fp, 0, 20);
+	bool ok = true;
+	ok &= fwrite(&m_DbfVersion, sizeof(m_DbfVersion), 1, fp) == 1;
+	ok &= fwrite(&today->tm_year, 1, 1, fp) == 1;
+	ok &= fwrite(&today->tm_mon , 1, 1, fp) == 1;
+	ok &= fwrite(&today->tm_mday, 1, 1, fp) == 1;
+	ok &= fwrite(&m_RecordCount, sizeof(m_RecordCount), 1, fp) == 1;
+	ok &= fwrite(&m_HeaderSize , sizeof(m_HeaderSize ), 1, fp) == 1;
+	ok &= fwrite(&m_RecordSize , sizeof(m_RecordSize ), 1, fp) == 1;
+	ok &= WriteBytes(fp, 0, 20);
 
 	// 2. write column info
 	for (UInt32 i = 0, n = ColumnCount(); i != n; i++)
 	{
 		// write name
-		fwrite(m_ColumnDescriptions[i].m_Name.c_str(), m_ColumnDescriptions[i].m_Name.ssize(), 1, fp);
-		WriteBytes(fp, 0, DBF_COLNAME_SIZE + 1 - m_ColumnDescriptions[i].m_Name.ssize());
+		ok &= m_ColumnDescriptions[i].m_Name.empty() || fwrite(m_ColumnDescriptions[i].m_Name.c_str(), m_ColumnDescriptions[i].m_Name.ssize(), 1, fp) == 1;
+		ok &= WriteBytes(fp, 0, DBF_COLNAME_SIZE + 1 - m_ColumnDescriptions[i].m_Name.ssize());
 
 		// write type
 		UInt8		dbftype	=	DbfTypeToDbfTypeChar(m_ColumnDescriptions[i].m_DbfType);
-		fwrite(&dbftype, sizeof(dbftype), 1, fp);
+		ok &= fwrite(&dbftype, sizeof(dbftype), 1, fp) == 1;
 
-		WriteBytes(fp, 0, 4);
+		ok &= WriteBytes(fp, 0, 4);
 
 		// write length
-		fwrite(&m_ColumnDescriptions[i].m_Length, sizeof(m_ColumnDescriptions[i].m_Length), 1, fp);
+		ok &= fwrite(&m_ColumnDescriptions[i].m_Length, sizeof(m_ColumnDescriptions[i].m_Length), 1, fp) == 1;
 
 		// write decimal count
-		fwrite(&m_ColumnDescriptions[i].m_DecimalCount, sizeof(m_ColumnDescriptions[i].m_DecimalCount), 1, fp);
+		ok &= fwrite(&m_ColumnDescriptions[i].m_DecimalCount, sizeof(m_ColumnDescriptions[i].m_DecimalCount), 1, fp) == 1;
 
-		WriteBytes(fp, 0, 14);
+		ok &= WriteBytes(fp, 0, 14);
 	}
 
-	WriteByte(fp, 0x0D);
+	ok &= WriteByte(fp, 0x0D);
+	MG_USERCHECK2(ok, "dbf: writing the header failed; the disk may be full or the share unavailable");
 
 	return true;
 } // WriteHeader
@@ -693,7 +735,7 @@ bool DbfImpl::ReadRecords(char* buffer, UInt32 firstRecord, UInt32 nrRecords)
 	MGD_PRECONDITION(GetFP() != NULL);
 	MGD_PRECONDITION(firstRecord <= m_RecordCount && nrRecords <= m_RecordCount - firstRecord);
 
-	return fseek(GetFP(), ActualPosition(firstRecord), SEEK_SET) == 0
+	return SeekTo(GetFP(), ActualPosition(firstRecord))
 		&& fread(buffer, m_RecordSize, nrRecords, GetFP()) == nrRecords;
 }
 
@@ -787,9 +829,9 @@ bool DbfImpl::WriteDataElement(const void *data, UInt32 recordindex, UInt32 colu
 			strRange.begin(),
 			len
 		);
-	fwrite(strRange.begin(), sz, 1, GetFP());
-	WriteBytes(GetFP(), 32, len - sz);
-	return	true;
+	// STG-A21: both writes are checked; a failed one made the column's write report success
+	return (!sz || fwrite(strRange.begin(), sz, 1, GetFP()) == 1)
+		&& WriteBytes(GetFP(), 32, len - sz);
 }
 
 #define INSTANTIATE(T) template class DbfImplStub<T>;
@@ -857,7 +899,8 @@ template<class T> FileResult DbfImplStub<T>::WriteDataOverwrite(WeakStr filename
 
 	for (UInt32 recordindex = 0; recordindex != nrRecs; ++recordindex)
 	{
-		fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(recordindex, columnindex), 0);
+		if (auto r = FileResult::require(SeekTo(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(recordindex, columnindex)), "seeking to a field failed"); !r)
+			return r;
 		typename CVecType::const_reference ref = vec[recordindex];
 		auto r = FileResult::require(m_DbfImpl->WriteDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, width), "WriteDataElemet failed");
 		if (!r)
@@ -904,7 +947,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataReplace(WeakStr filename, 
 	FormatSpecification(vc, len, deccount, false, formatspec);
 	CharPtr formatspecCharPtr = formatspec.c_str();
 
-	MG_CHECK(fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0), 0) == 0);
+	MG_CHECK(SeekTo(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0)));
 
 	MakeMin(nrRecs, vec.size());
 	UInt32 recordindex = 0;
@@ -969,7 +1012,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataAppend(WeakStr filename, C
 	{
 		// ActualPosition(0): the start of record 0, which is its deletion flag; the same seek was
 		// spelled ActualPosition(0, 0) - 1 here, the position of column 0 minus that flag byte
-		MG_CHECK(fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0), 0) == 0);
+		MG_CHECK(SeekTo(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(0)));
 		nrRecs = m_DbfImpl->RecordCount();
 	}
 

@@ -114,8 +114,8 @@ private:
 	FileResult Create(WeakStr filename);
 	void    Clear();                                  // reset all
 	UInt32	ColumnOffset(UInt32 columnindex) const;
-	UInt32  ActualPosition(UInt32 recordindex) const;
-	UInt32  ActualPosition(UInt32 recordindex, UInt32 columnindex) const;
+	SizeT   ActualPosition(UInt32 recordindex) const;
+	SizeT   ActualPosition(UInt32 recordindex, UInt32 columnindex) const;
 
 	bool    ReadRecords(char* buffer, UInt32 firstRecord, UInt32 nrRecords);
 	static void ParseDataElement(void* data, char* fieldBuffer, UInt8 fieldSize, ValueClassID vc);
