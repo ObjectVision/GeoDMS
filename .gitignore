@@ -58,3 +58,4 @@ todo*.txt
 
 analyze_*.warnings.log
 analyze.log
+/.claude/skills/geodms-perf/scripts/__pycache__/machine_paths.cpython-313.pyc
