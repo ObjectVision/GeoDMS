@@ -43,13 +43,6 @@ of one draw callback. The Win32-only `PenArray` and `FontArray`, unused since St
 2026-10-06 (c0737bfe8). The Qt drawing needs no such cache: QPen and QBrush are values, and Qt caches
 its fonts itself.*
 
-- **Pen and font caching, on both platforms.** `PenIndexCache` and `FontIndexCache` still compute
-  the distinct pens and fonts of a layer, but the handles are GDI (`HPEN`, `HFONT`/`LOGFONT`;
-  the Win32-only `PenArray` and `FontArray`, dead since Step 4, were deleted on 2026-10-06, c0737bfe8),
-  and there is no portable pen or font array behind the
-  `DrawContext`. Windows lost its caches as well: since Step 4a and 4c (ca9bb9da0, 922fb95bc)
-  `GdiDrawContext` creates and deletes a GDI pen, brush or font per draw call, about 3M calls per
-  redraw of a 1M-polygon layer (audit SHV-A07 of the code audit of 2026-09-27).
 - **Bitmap export.** `MovableObject::GetAsDDBitmap`, `SaveBitmap` and `ViewPort::Export` are
   Win32-only; on Linux `ViewPort::Export` is an empty stub. Qt equivalent: `QImage::save()`.
 - **`Win32ViewHost`** (`shv/dll/src/Win32ViewHost.{cpp,h}`): compiled but never constructed;
