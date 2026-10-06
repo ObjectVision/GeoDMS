@@ -90,7 +90,14 @@ as errors; `Tee-Object` shows and records. One flavour at a time.
 Tail the log (`Select-String 'error|warning|ABORT|FAILED'`). Things the scripts check for
 themselves and report: the source checks, a no-op build (`GeoDmsRun.exe` older than the
 script start), vcpkg drift, the Qt deploy targets patch, the Python ABI modules, a concurrent MSBuild. Do not
-"help" a CHOICE prompt along; the user answers it.
+"help" a CHOICE prompt along; the user answers it. The `.m` script asks only where the `.c`
+script does (another build running; vcpkg drift, 30 s, default yes) and stops on a failed check
+instead of asking whether a step went well: a nonzero msbuild exit, an installer of less than
+60000000 bytes (its setups measure 61 to 63 million), a failed `signtool sign` or
+`signtool verify /pa` (it then deletes the unsigned installer), a failed install, a red shipped
+battery or unit suite. Rerun the whole script after fixing the cause; there is no retry inside
+it (until 2026-10-06 it asked after the build, the NSIS step and the signing, and paused at the
+end).
 
 ## After a flavour
 

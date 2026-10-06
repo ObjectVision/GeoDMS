@@ -5,6 +5,14 @@ REM This script now lives in <repo-root>\batch; re-root to the repo root so all 
 REM relative paths below (all22.sln, nsi, distr, ..\tst\batch, %cd% capture) resolve.
 cd /d "%~dp0.."
 
+REM It asks a question only where BuildSignAndCreateSetupCmake.bat does: when another build is
+REM running, and after vcpkg drift (30 s, default yes). Every other step is checked and stops the
+REM script when the check fails: the source checks, msbuild's exit code and a no-op build, the
+REM Python modules, the shipped battery, makensis and an installer of less than 60000000 bytes,
+REM signing and the verification of the signature, the install, and the unit suite on the
+REM installed build. Until 2026-10-06 it also asked whether the build, the NSIS step and the
+REM signing were OK and paused at the end, which kept an unattended Build.bat waiting.
+
 REM Version comes from GeoDmsVersion.cmd in the repo root (shared with the cmake +
 REM linux sister scripts). Bump the patch number there, not here.
 REM Called by an explicit path, not by bare name: cmd resolves a bare name through the
@@ -135,13 +143,13 @@ REM Idempotent and cheap; exit 2 (no QtMsBuild on this machine) is fine and must
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\patch-qtdeploy-targets.ps1"
 
 REM Always do an incremental build. If intermediates become funky, clean
-REM from the MSVC IDE or `rmdir /s /q bin build` from the shell — no need
-REM for a CHOICE inside this script.
-:retryBuild
+REM from the MSVC IDE or `rmdir /s /q bin build` from the shell, then run this script again.
+REM A nonzero exit of msbuild stops the script; it used to ask whether the build was OK.
 msbuild all22.sln -t:build -p:Configuration=Release -p:Platform=x64
-
-CHOICE /M  "Built OK? Ready to create installation?"
-if ErrorLevel 2 goto retryBuild
+if errorlevel 1 (
+    echo *** ABORT: msbuild exited with %ERRORLEVEL% ***
+    goto :build_failed
+)
 
 REM msbuild can exit 0 even when the IsUpToDate cache decided nothing needed
 REM rebuilding -- which silently ships stale binaries. Binaries carry no
@@ -174,11 +182,6 @@ REM install runs the same battery again, from the installed copy.
 call "%~dp0TestShippedDms.bat" "%geodms_rootdir%\bin\Release\x64"
 if errorlevel 1 goto :shipped_failed
 
-:setupCreation
-
-REM CHOICE /M  "Run setup creation %GeoDmsVersion%?"
-REM if ErrorLevel 2 goto :afterNSIS
-
 REM makensis, signtool and the installer are checked, and the previous installation of this
 REM version is uninstalled first, as the .c and .g scripts do (BAT-A35). Installing over it left
 REM a file that the .nsh no longer lists in place, where the post-install suite still found it,
@@ -198,19 +201,26 @@ if not exist "%INSTALLER%" (
     goto :nsis_failed
 )
 
-CHOICE /M  "NSIS OK (more than  55Mb) and ready to sign Setup?"
-if ErrorLevel 2 exit /B
+REM An installer of less than 60000000 bytes lacks part of the build: the .m setups of 20.16.0 to
+REM 20.20.0 measure 61.0 to 63.0 million bytes (58 to 60 MiB, which is why the limit is in bytes).
+REM It used to ask whether NSIS was OK and the installer more than 55 MB.
+for %%I in ("%INSTALLER%") do set "INSTALLER_SIZE=%%~zI"
+echo --- %INSTALLER%: %INSTALLER_SIZE% bytes ---
+if %INSTALLER_SIZE% LSS 60000000 (
+    echo *** ABORT: %INSTALLER% has %INSTALLER_SIZE% bytes, less than 60000000; the build output is incomplete ***
+    goto :nsis_failed
+)
 
-:afterNSIS
+REM Sign, then verify the signature; a failure of either stops the script and removes the
+REM unsigned installer, so it cannot be published by mistake. Run the script again to retry.
 set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe
 "%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "%INSTALLER%"
+if errorlevel 1 goto :sign_failed
+"%SIGNTOOL%" verify /pa /q "%INSTALLER%"
 if errorlevel 1 (
-    CHOICE /M "Signing failed. Retry"
-    if not errorlevel 2 goto afterNSIS
+    echo *** ABORT: the signature of %INSTALLER% does not verify ***
     goto :sign_failed
 )
-CHOICE /M  "Signing OK? Ready to run installation?"
-if ErrorLevel 2 goto afterNSIS
 
 set "INSTALL_DIR=C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%"
 if exist "%INSTALL_DIR%" (
@@ -237,7 +247,8 @@ cd /d %geodms_rootdir%
 echo on
 if not "%UNIT_RC%"=="0" goto :unit_failed
 
-pause "Klaar ?"
+echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built, signed, installed and tested ===
+echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%
 exit /B 0
 
 :unit_failed
@@ -266,7 +277,8 @@ echo *** NSIS step failed - signing, install and unit tests skipped ***
 exit /B 1
 
 :sign_failed
-echo *** Signing failed - install and unit tests skipped ***
+del /q "%INSTALLER%" 2>nul
+echo *** Signing failed - removed the unsigned %INSTALLER%; install and unit tests skipped ***
 exit /B 1
 
 :install_failed
