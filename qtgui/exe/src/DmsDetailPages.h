@@ -50,17 +50,11 @@ public slots:
 	void sourceDescriptionButtonToggled(QAbstractButton* button, bool checked);
 	void newCurrentItem();
 
-	//void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
-	void leaveThisConfig();
 	void scheduleDrawPage();
 	void onTreeItemStateChange();
 	void scheduleDrawPageImpl(int milliseconds);
 
-protected:
-	void resizeEvent(QResizeEvent* event) override;
-
-public slots:
 	void toggle(ActiveDetailPage new_active_detail_page);
 
 private:
@@ -69,7 +63,6 @@ private:
 	void drawPageImpl();
 
 	std::atomic<bool> m_DrawPageRequestPending = false;
-	UInt32 m_current_width = 500;
 
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;
 	bool            m_AllProperties = true;

@@ -43,10 +43,6 @@ void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page
     m_active_detail_page = new_active_detail_page;
 }
 
-void DmsDetailPages::leaveThisConfig() // reset ValueInfo cached results
-{
-}
-
 void DmsDetailPages::newCurrentItem()
 {
     if (m_active_detail_page != ActiveDetailPage::NONE)
@@ -279,7 +275,6 @@ void DmsDetailPages::drawPage() noexcept
     catch (...)
     {
         auto errMsg = catchException(false);
-        //MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
     }
 }
 
@@ -381,15 +376,6 @@ void DmsDetailPages::drawPageImpl()
         scheduleDrawPageImpl(500);
 }
 
-enum class ViewActionType {
-    Execute,
-    PopupTable,
-    EditPropValue,
-//    MenuItem,
-    DetailPage,
-    Url
-};
-
 auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetailPage
 {
     if (sName.size() >=3 && !strncmp(sName.begin(), "vi.attr", 3)) return ActiveDetailPage::VALUE_INFO;
@@ -435,10 +421,4 @@ void DmsDetailPages::keyPressEvent(QKeyEvent* event)
         return;
     }
     return QWidget::keyPressEvent(event);
-}
-
-void DmsDetailPages::resizeEvent(QResizeEvent* event)
-{
-    m_current_width = width();
-    QTextBrowser::resizeEvent(event);
 }

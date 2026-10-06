@@ -614,7 +614,6 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 				static auto failedIcon = QString("✖"); // ✖
 				static auto thisSucceededIcon  = QString("\u2713"); // ✓
 				static auto upstreamSucceededIcon = QString("◦"); // ◦
-//				static auto nonfalsifiable = QString("∅"); // ◦
 				bool thisValidated = integrityCheckPropDefPtr->HasNonDefaultValue(ti);
 				if (!wasValidated)
 				{
@@ -815,7 +814,6 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	
 	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
 	header()->setStretchLastSection(false);
-	connect(header(), &QHeaderView::sectionClicked, this, &DmsTreeView::onHeaderSectionClicked);
 
 	header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
@@ -875,10 +873,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 		m_context_menu->addAction(line_view_action);
 		m_context_menu->addAction(bar_view_action);
 		m_context_menu->addAction(pie_view_action);
-
-		// process scheme
-		//	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..
-		//	m_context_menu->addAction(process_scheme);
 	}
 	auto ti = GetTreeItem(index);
 	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
@@ -944,43 +938,12 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 	
 }
 
-bool DmsTreeView::removeItem(const TreeItem* destructing_item)
-{
-	auto root_node_index = rootIndex();
-	auto root_ti = GetTreeItem(root_node_index);
-	if (root_ti == destructing_item)
-		return false;
-
-	auto parent_index = root_node_index;
-
-search_at_parent_index:
-	auto child_count = model()->rowCount(parent_index);
-	for (int i = 0; i < child_count; i++) {
-		auto child_index = model()->index(i, 0, parent_index);
-		auto childItem = GetTreeItem(child_index);
-		if (childItem == destructing_item) {
-			model()->removeRow(i, parent_index);
-//			collapse(parent_index);
-			return true;
-		}
-
-		if (isAncestor(childItem, destructing_item)) {
-			parent_index = child_index;
-			goto search_at_parent_index; // break with current child_count and continue this quest with the new parent_index  
-		}
-	}
-	// maybe destructing_item was hidden
-	return false;
-}
-
 void DmsTreeView::onDoubleClick(const QModelIndex& index) {
 	if (!index.isValid())
 		return;
 
 	MainWindow::TheOne()->defaultViewOrAddItemToCurrentView();
 }
-
-void  DmsTreeView::onHeaderSectionClicked(int index) {}
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView> {
 	auto main_window = MainWindow::TheOne();

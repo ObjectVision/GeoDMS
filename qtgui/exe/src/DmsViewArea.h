@@ -41,7 +41,6 @@ public:
     void updateTabTooltips();
 
 public slots:
-    void testCloseSubWindow();
     void onCascadeSubWindows();
     void onTileSubWindows();
     void closeActiveDmsSubWindow();
@@ -214,9 +213,6 @@ private:
     QRegion m_CaretOverlayRegion;
     bool m_CaretOverlayVisible = false;
 
-#ifdef _WIN32
-    DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
-#endif
     DPoint m_LastScaleFactors = {1.0, 1.0};
 
 #ifndef _WIN32

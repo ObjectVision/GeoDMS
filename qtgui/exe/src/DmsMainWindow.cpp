@@ -228,7 +228,6 @@ MainWindow::MainWindow() {
 
     m_mdi_area = new QDmsMdiArea(this);
     m_mdi_area->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
-    connect(qApp, &QApplication::focusChanged, this, &MainWindow::onFocusChanged);
 
     // dmstext font and link palette colour are set in init_geodms (before MainWindow).
     // Load remixicon here for tree-view icons.
@@ -559,19 +558,9 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
     }
 }
 
-void MainWindow::removeTreeItem(const TreeItem* destructing_item)
-{
-    assert(destructing_item);
-
-    m_treeview->removeItem(destructing_item);
-    if (m_current_item.get() == destructing_item)
-		setCurrentTreeItem(const_cast<TreeItem*>(destructing_item->GetTreeParent().get()));
-}
-
 #include <QFileDialog>
 
 void MainWindow::fileOpen() {
-    //m_recent_files_actions
     auto cfg_dir = SharedStr("");
     if (m_root)
         cfg_dir = AbstrStorageManager::Expand(m_root.get(), SharedStr("%configDir%"));
@@ -734,11 +723,6 @@ bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event) {
             showRecentFileContextMenu(mouse_event->globalPos());
             return true;
         }
-    } else if (event->type() == QEvent::KeyPress) {
-        auto key_event = dynamic_cast<QKeyEvent*>(event);
-        if (key_event->key() == Qt::Key_Tab) {// handle tab event in case treeview is currently active
-
-        }
     }
 
     return QAction::eventFilter(obj, event);
@@ -770,10 +754,7 @@ void DmsRecentFileEntry::onFileEntryPressed() const {
     main_window->saveRecentFileActionToRegistry();
 }
 
-void MainWindow::onFocusChanged(QWidget* old, QWidget* now) { }
-
 void MainWindow::scheduleUpdateToolbar() {
-    //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
     assert(IsMainThread());
 
     if (m_UpdateToolbarRequestPending || g_IsTerminating)
@@ -805,7 +786,6 @@ void MainWindow::updateDetailPagesToolbar() {
     QWidget* spacer = new QWidget(this);
     spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    //m_toolbar->addWidget(spacer);
     m_dms_toolbar_spacer_action.reset( m_toolbar->insertWidget(m_general_page_action.get(), spacer) );
 }
 
@@ -1391,7 +1371,6 @@ bool MainWindow::CloseConfig() {
 
     // reset all dms tree data
     if (m_root) {
-        m_detail_pages->leaveThisConfig(); // reset ValueInfo cached results
         m_dms_model->reset();
         m_treeview->reset();
 
@@ -1690,7 +1669,6 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
     }
     m_dms_model->setRoot(m_root.get());
     clearActionsForEmptyCurrentItem();
-    //setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
     
     updateCaption();
     m_dms_model->reset();
@@ -1952,7 +1930,6 @@ Int32 MainWindow::addRecentFilesEntry(WeakStr recent_file)
 
     // connections
     connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
-    connect(new_recent_file_entry, &DmsRecentFileEntry::toggled, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
     return cfg_index;
 }
 
@@ -2073,10 +2050,7 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
     auto sPath = CharPtrRange(sPathWithSub.begin(), queryPos);
     auto sSub = CharPtrRange(queryPos == sPathWithSub.end() ? queryPos : queryPos + 1, sPathWithSub.end());
 
-    //    DMS_TreeItem_RegisterStateChangeNotification(OnTreeItemChanged, m_tiFocus, TClientHandle(self)); // Resource aquisition which must be matched by a call to LooseFocus
-
-    auto separatorPos = std::find(sMenu.begin(), sMenu.end(), '!');
-    //    MakeMin(separatorPos, std::find(sMenu.begin(), sMenu.end(), '#')); // TODO: unify syntax to '#' or '!'
+    auto separatorPos = std::find(sMenu.begin(), sMenu.end(), '!'); // TODO: unify the record-number separator syntax to '#' or '!'
     auto sRecNr = CharPtrRange(separatorPos < sMenu.end() ? separatorPos + 1 : separatorPos, sMenu.end());
     sMenu.second = separatorPos;
 
@@ -2147,7 +2121,6 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
     case NC_Deleting: 
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
         // seee https://github.com/ObjectVision/GeoDMS/issues/883 for now.
-        //        mainWindow->removeTreeItem(self);
         break; 
     case NC_Creating: break;
     case CC_CreateMdiChild: {
@@ -2538,7 +2511,6 @@ void MainWindow::update_calculation_times_report() {
 
 void MainWindow::view_calculation_times() {
     update_calculation_times_report();
-    //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
 
     m_calculation_times_browser->show();
     m_calculation_times_window->setWindowTitle("Calculation time overview");
@@ -2550,7 +2522,6 @@ void MainWindow::view_current_config_filelist() const {
     VectorOutStreamBuff vosb; 
     {
         auto xmlOut = OutStream_HTM(&vosb, "html", nullptr);
-        //    outStreamBuff << "List of currently loaded configuration (*.dms) files\n";
         ReportCurrentConfigFileList(xmlOut);
     }
     vosb.WriteByte(char(0)); // ends

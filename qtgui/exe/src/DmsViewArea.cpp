@@ -27,10 +27,6 @@
 #include <QClipboard>
 #include <QApplication>
 
-#ifdef _WIN32
-#include <ShellScalingApi.h>
-#endif
-
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 #include "Region.h"
@@ -266,10 +262,6 @@ QSize QDmsMdiArea::sizeHint() const
     return QSize(500, 0);
 }
 
-void QDmsMdiArea::testCloseSubWindow()
-{
-}
-
 void QDmsMdiArea::onCascadeSubWindows()
 {
     setViewMode(QMdiArea::ViewMode::SubWindowView);
@@ -337,7 +329,6 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
 	:   QMdiSubWindow(parent)  // pass parent so Qt auto-registers via childEvent; we do NOT call addSubWindow() separately
 	,   m_DataView(createStruct->dataView->shared_from_this())
 {
-	//setUpdatesEnabled(false);
 	setWindowTitle(createStruct->caption);
 	CreateDmsView(parent, createStruct->ct);
 #ifdef _WIN32
@@ -352,10 +343,6 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
 #ifndef _WIN32
     setMouseTracking(true); // receive mouseMoveEvent even without button pressed (for SETCURSOR/hover)
 #endif
-    //    setAttribute(Qt::WA_Mapped);
-    //    setAttribute(Qt::WA_PaintOnScreen);
-    //    setAttribute(Qt::WA_NoSystemBackground);
-    //    setAttribute(Qt::WA_OpaquePaintEvent);
 
     auto dv = m_DataView.lock(); MG_CHECK(dv);
 
@@ -407,11 +394,6 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     setMinimumSize(200, 150);
     show();
 
-#ifdef _WIN32
-    auto parent_hwnd_for_scale = (HWND)this->winId();
-    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd_for_scale, UM_SCALECHANGE, &m_cookie);
-#endif
-
     setProperty("viewstyle", viewStyle);
 
 #ifdef _WIN32
@@ -453,7 +435,6 @@ QDmsViewArea::~QDmsViewArea()
         SHV_DataView_SetViewHost(dv.get(), nullptr);
 
 #ifdef _WIN32
-    RevokeScaleChangeNotifications(DEVICE_PRIMARY, m_cookie);
     CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
 #else
     if (dv)
@@ -1080,7 +1061,7 @@ void QDmsViewArea::VH_NotifyParentActivation()
 
     // Clicking inside a view must make it the active MDI subwindow, so the toolbar and the notifiers
     // follow the view the user is working in. This is what the pre-ViewHost WM_QT_ACTIVATENOTIFIERS
-    // path did (issue #688, see QDmsViewArea::nativeEvent and Win32ViewHost::VH_NotifyParentActivation).
+    // path did (issue #688, see QDmsViewArea::nativeEvent).
     if (auto mdi_area = mainWindow->m_mdi_area.get())
         if (mdi_area->activeSubWindow() != this)
             mdi_area->setActiveSubWindow(this);

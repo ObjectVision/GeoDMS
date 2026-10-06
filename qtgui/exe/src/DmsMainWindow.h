@@ -176,7 +176,6 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item.get(); }
     auto getCurrentTreeItemOrRoot() -> TreeItem* { return m_current_item ? m_current_item.get() : m_root.get(); }
     void setCurrentTreeItem(TreeItem* target_item, bool update_history=true);
-    void removeTreeItem(const TreeItem* destructing_item);
     void LoadConfig(CharPtr configFilePath, CharPtr currentItemPath = "");
     bool LoadConfigImpl(CharPtr configFilePath);
     void updateToolbar();
@@ -269,7 +268,6 @@ public slots:
     void back();
     void forward();
 
-    void onFocusChanged(QWidget* old, QWidget* now);
     void scheduleUpdateToolbar();
     void showStatisticsDirectly(const TreeItem* tiContext);
     void showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo);
@@ -374,7 +372,6 @@ public:
     QPointer<class SearchTreeItemWindow> m_search_treeitem_window;
 
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
-    //QList<QWidgetAction*> m_recent_files_actions;
     QList<DmsRecentFileEntry*> m_recent_file_entries;
     // Entries taken out of the menu while it was open. They cannot be deleted from their own slot
     // -- the context menu's exec() is still on the stack there -- so updateFileMenu() drops them

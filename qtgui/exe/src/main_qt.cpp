@@ -164,7 +164,6 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) { /
 #include <QMdiArea>
 
 class CustomEventFilter : public QAbstractNativeEventFilter {
-    //    Q_OBJECT
 public:
     CustomEventFilter();
     ~CustomEventFilter();
@@ -241,7 +240,6 @@ bool WmCopyData(MSG* copyMsgPtr) {
         return true;
 
     case CommandCode::miExportViewPorts:
-//        miExportViewPorts.Click;
         return true;
 
     case CommandCode::Expand:
@@ -337,17 +335,6 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
 #ifdef Q_OS_WIN
     MSG* msg = static_cast<MSG*>(message);
     switch (msg->message) {
-    case UM_SCALECHANGE:  // RegisterScaleChangeNotifications called in DmsViewArea.cpp, but this message is never received here
-        if (auto mw = MainWindow::TheOne()) {
-            for (auto* sw : mw->m_mdi_area->subWindowList()) {
-                auto dms_sw = dynamic_cast<QDmsViewArea*>(sw);
-                if (dms_sw) {
-                    dms_sw->on_rescale();
-                }
-            }
-        }
-        return true; // Stop further processing of the message
-
     case WM_KEYDOWN:
         if (msg->wParam == 'W' || msg->wParam == VK_F4)
             if (GetKeyState(VK_CONTROL) & 0x8000)
@@ -589,7 +576,7 @@ int main1(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
     // Lock the DLL search path before any LoadLibrary call (Qt plugin
-    // discovery, GDAL drivers, RunDllProc) so a planted DLL in CWD or PATH
+    // discovery, GDAL drivers) so a planted DLL in CWD or PATH
     // cannot hijack the process. LOAD_LIBRARY_SEARCH_DEFAULT_DIRS narrows
     // unflagged loads to <appdir> + AddDllDirectory-registered dirs + System32;
     // SetDllDirectoryW(L"") removes CWD from the legacy search order used by
