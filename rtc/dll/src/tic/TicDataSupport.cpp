@@ -381,8 +381,6 @@ const ValueClass* AbstrDataObject::GetValuesType() const
 // CopyData
 //----------------------------------------------------------------------
 
-// TODO G8: use info->changePos.
-
 void CopyData(const AbstrDataObject* oldDataO, AbstrDataObject* newDataO, const DomainChangeInfo* info)
 {
 	auto oldDataSize = oldDataO->GetTiledRangeData()->GetElemCount();

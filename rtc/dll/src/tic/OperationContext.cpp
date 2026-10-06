@@ -195,7 +195,6 @@ static std::map<phase_number, contexts_within_one_phase> s_ScheduledContextsMap;
 static contexts_within_one_phase s_RadioActives; // contexts that were collected for running, some of them may be already running, made for work stealing and prioritizing in case the GUI thread calls Join on a specific context.
 static std::map<phase_number, RunningOperationsCounter> s_NrActivatedOrRunningOperations; 
 static phase_number s_CurrActivePhaseNumber = 0;
-static bool s_IsInLowRamMode = false;
 static UInt32 s_CurrFinishedCount = 0;
 
 static std::atomic<UInt32> s_NrWaitingJoins = 0;
@@ -672,8 +671,6 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 
 		auto currContext = scheduledContexts.begin();
 
-		// Reset low-RAM throttle for this activation pass.
-		s_IsInLowRamMode = false; // reset for next activation round
 		bool isLowOnFreeRamTested = false;
 		bool isCancelling = false;
 
@@ -687,10 +684,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 			if (!isLowOnFreeRamTested && s_NrActivatedOrRunningOperations[nextPhaseNumber] >= Max<UInt32>(s_NrWaitingJoins, 1))
 			{
 				if (IsLowOnFreeRAMRateLimited())
-				{
-					s_IsInLowRamMode = true;
 					break;
-				}
 				isLowOnFreeRamTested = true;
 			}
 			auto operContext = currContext->lock();
@@ -2411,15 +2405,6 @@ struct OC_CalcResultFunc {
 		assert(self);
 		auto funcDC = self->GetFuncDC();
 
-#if defined(MG_DEBUG_OPERATIONS)
-		if (self->m_Result)
-			if (auto backRef = self->m_Result->m_BackRef.lock(); backRef && !backRef->IsCacheItem() && IsDataItem(self->m_Result.get()) && AsDataItem(self->m_Result.get())->GetDomainUnitOrThrow()->GetNrTiles() > 1)
-				reportF(ST_MinorTrace, "Starting calculation of {} with KeyExpr {}"
-					, backRef->GetFullName().c_str()
-					, funcDC ? AsFLispSharedStr(funcDC->GetLispRef(), FormattingFlags::ThousandSeparator).c_str() : "(null)"
-				);
-#endif //defined(MG_DEBUG_OPERATIONS)
-
 		if (!funcDC)
 			return;
 
@@ -2940,7 +2925,6 @@ task_status OperationContext::Join()
 		{
 			SuspendTrigger::MarkProgress();
 			ProcessMainThreadOpers();
-//			ProcessSuspendibleTasks();
 			if (SuspendTrigger::DidSuspend())
 				return task_status::suspended;
 		}
@@ -2969,7 +2953,7 @@ task_status OperationContext::Join()
 			continue;
 		if (m_Status == task_status::scheduled)
 		{
-			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of s_IsInLowRamMode
+			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of the low-RAM brake
 
 			// Still scheduled after the StartOperationContexts above: the low-RAM brake parked it. That
 			// brake counts the context this worker is running, which waits here for this one, so it

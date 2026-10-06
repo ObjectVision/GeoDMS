@@ -64,8 +64,6 @@
 static std::vector<tile_task_group*> s_TileTaskGroups;
 // Guards s_TileTaskGroups.
 std::mutex s_TileTaskGroupsMutex;
-// Global cancellation flag for tile tasks (currently unused here).
-static bool s_IsCancelled = false;
 
 // Number of worker threads currently running DoThisOrThatAndDecommission loop.
 static UInt32 s_NrRunningTileTaskThreads = 0;
@@ -338,16 +336,6 @@ bool tile_task_group::registerCompletion(IndexType i)
 	WakeUpMainThreadWaiter();
 	return true;
 }
-
-/*
-// Register a single completion.
-void tile_task_group::RegisterCompletion(IndexType i)
-{
-	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
-
-	registerCompletion(i); // perform debug checks and bookkeeping for this completion
-}
-*/
 
 // Register completion and immediately try to commission a next slot (if any).
 auto tile_task_group::RegisterCompletionAndGetNextCommissioned(IndexType i)->IndexType

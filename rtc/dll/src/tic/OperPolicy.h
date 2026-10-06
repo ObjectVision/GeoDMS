@@ -39,7 +39,6 @@ enum class oper_policy
 	can_explain_value      = 0x1000, // Calc can be called to epxlain value
 	deprecated            = 0x2000, // warn when used; mention preferred alternative
 	obsolete               = 0x4000, // error when used; instruct preferred alternative
-	can_be_rewritten       = 0x8000, // operator-name appears as pattern-head in rewrite list, therefore: try rewriting, NYI, WIP.
 	has_annotation        = 0x10000, // operator has an annotation
 	better_not_in_meta_scripting = 0x20000, // operator is not suitable for processing meta-scripting
 	members_on_demand      = 0x40000, // the data members of the result are calculated when demanded, each on its own

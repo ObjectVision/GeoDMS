@@ -100,11 +100,8 @@ TIC_CALL bool IsDataReady(const TreeItem* item);
 bool IsAllDataCurrStandby(const TreeItem* item);
 bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item);
 bool HasWantedMemberOnDemand(const TreeItem* cacheRoot);
-bool CheckAllSubDataReady(const TreeItem* item);
 TIC_CALL bool IsCalculatingOrReady(const TreeItem* item);
 TIC_CALL bool CheckCalculatingOrReady(const TreeItem* item); // exported: shv GraphDataView needs it in Debug links (/OPT:REF strips the reference in Release)
-TIC_CALL bool IsCalculatingOrReady(const DataController* dc, const TreeItem* cacheRoot, const TreeItem* cacheItem);
-bool IsInWriteLock(const TreeItem* item);
 bool WaitForReadyOrSuspendTrigger(const TreeItem* ti);
 TIC_CALL bool WaitReady(const TreeItem* item);
 bool RunTask(const TreeItem* item);

@@ -28,27 +28,15 @@ class OutStreamBuff;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-// Domain Change Context
+// Domain Change Info
 //----------------------------------------------------------------------
-
-struct domain_change_context {
-
-	domain_change_context(row_id changePos_);
-	~domain_change_context();
-
-	row_id changePos;
-
-	domain_change_context* prevContext;
-	static auto GetCurrContext()->domain_change_context*;
-};
 
 struct DomainChangeInfo
 {
 	const AbstrTileRangeData* oldRangeData;
 	const AbstrTileRangeData* newRangeData;
 
-	row_id oldSize, newSize, changePos;
-	domain_change_context* domainChangeContext = nullptr;
+	row_id oldSize, newSize;
 };
 
 // exported: shv copies the values a calculated palette computes into an editable view-local
@@ -140,7 +128,6 @@ public:
 	virtual const UnitProjection* GetCurrProjection() const; // impl for GeoUnits
 	virtual const UnitMetric*     GetMetric() const;     // impl for NumericUnits  
 	virtual const UnitMetric*     GetCurrMetric() const;     // impl for NumericUnits  
-//	TIC_CALL UnitProjection                GetCompositeProjection() const; // combines a chain of projection into a stack object
 
 	SharedStr GetNameOrCurrMetric(FormattingFlags ff) const;
 

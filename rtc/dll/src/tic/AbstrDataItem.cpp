@@ -377,19 +377,6 @@ void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rig
 		refAsDi = AsDataItem(refItem);
 	}
 	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), leftRole, rightRole, UnifyMode(UM_AllowDefaultLeft|UM_Throw));
-
-/*
-	if (refAsDi->GetTSF(TSF_Categorical))
-	{
-		SharedStr resultMsg;
-		if (!GetAbstrValuesUnit()->UnifyDomain(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
-			reportF(SeverityTypeID::ST_Warning, "{}: DomainUnification of categorical calculation result: {}"
-			,	GetFullName()
-			,	resultMsg
-			);
-	}
-*/
-
 }
 
 void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
@@ -859,7 +846,6 @@ bool AbstrDataItem::HasVoidDomainAsWritten() const
 
 void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 {
-//	MG_CHECK2(false, "NYI: Copy Data into newly formed DataArray");
 	if (GetCalculatorMember() ? GetCalculatorMember()->IsDataBlock() : bool(m_DataObject))
 	{
 		// is info->oldRangeData nog "actief" ? "actief" <-> Actor <-> TimeStamp of land change <-!-> Value Bases Calculation <-> declarative modelling
@@ -1359,20 +1345,8 @@ const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
 // Building blocks for LazyTileFunctor heristics
 //----------------------------------------------------------------------
 
-UInt32 ElementWeight(const AbstrDataItem* adi)
-{
-	if (adi->HasVoidDomainGuarantee())
-		return 0;
-	auto bitSize = adi->GetAbstrValuesUnit()->GetValueType()->GetBitSize(); // bool => 1; UInt32 => 32; DPoint == 128
-	if (!bitSize)
-		return 256; // string weight
-	if (adi->GetValueComposition() != ValueComposition::Single)
-		return bitSize * 32; // Sequence<UInt8> -> 256 too
-	return  bitSize;
-}
-
-// Assumed per-row volume of variable-width elements, matching the guesses ElementWeight has
-// always made. A declared SizeUpperbound (schedule-with-lookahead.md §4.5) supersedes them.
+// Assumed per-row volume of variable-width elements. A declared SizeUpperbound
+// (schedule-with-lookahead.md §4.5) supersedes them.
 const SizeT ASSUMED_STRING_BYTES = 32;
 const SizeT ASSUMED_SEQ_LENGTH   = 32;
 
@@ -1633,7 +1607,6 @@ struct InterestReporter : DebugReporter
 		ReduceInterest(interestRoots, ti->GetTreeParent().get());
 		ReduceInterest(interestRoots, ti->mc_RefItem.lock().get());
 		ReduceInterest(interestRoots, ti->mc_DC.get());
-//		ReduceInterest(interestRoots, ti->mc_IntegrityChecker);
 
 		if (IsDataItem(ti))
 		{
@@ -1656,13 +1629,6 @@ struct InterestReporter : DebugReporter
 		assert(asPtr->first == a);
 		assert(asPtr->second > 0);
 		asPtr->second--;
-/* REMOVE
-		if (!--asPtr->second)
-		{
-			as.erase(a);
-			TrimSuppliers(as, a);
-		}
-*/
 	}
 
 	void Report() const override

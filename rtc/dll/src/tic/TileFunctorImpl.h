@@ -39,7 +39,6 @@ struct DelayedTileFunctor : TileFunctor<V>
 		, m_ActiveTiles(std::make_unique<std::shared_ptr<future_tile>[]>(tiledDomainRangeData->GetNrTiles()))
 	{
 		MG_CHECK(tiledDomainRangeData);
-		MG_CHECK(tiledDomainRangeData->GetNrTiles() == tiledDomainRangeData->GetNrTiles());
 		if constexpr (has_var_range_field_v<V>)
 		{
 			MG_CHECK(valueRangePtr);

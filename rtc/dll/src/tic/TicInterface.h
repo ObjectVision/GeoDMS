@@ -52,9 +52,6 @@ TIC_CALL TreeItem*   DMS_CONV DMS_CreateTreeItem  (TreeItem* context, CharPtr na
 TIC_CALL AbstrUnit*  DMS_CONV DMS_CreateUnit(TreeItem* parent, CharPtr name, const UnitClass* vt);
 TIC_CALL const AbstrUnit*  DMS_CONV DMS_GetDefaultUnit(const UnitClass* uc);
 
-TIC_CALL const UnitClass* DMS_CONV DMS_UnitClass_GetFirstInstance();
-TIC_CALL const UnitClass* DMS_CONV DMS_UnitClass_GetNextInstance(const UnitClass* self);
-
 TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(TreeItem* context, CharPtr name, 
 		const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit, ValueComposition vc);
 
@@ -100,9 +97,6 @@ TIC_CALL const Class*  DMS_CONV DMS_TreeItem_GetDynamicClass(const TreeItem* sel
 TIC_CALL const AbstrDataItem* DMS_CONV DMS_TreeItem_AsAbstrDataItem  (const TreeItem* );
 TIC_CALL const AbstrUnit*     DMS_CONV DMS_TreeItem_AsAbstrUnit      (const TreeItem* );
 
-// Helper function: gives the name of a runtime class
-TIC_CALL CharPtr              DMS_CONV DMS_CRuntimeClass_GetName(const Class*);
-
 // garbage collection
 TIC_CALL void                 DMS_CONV DMS_TreeItem_AddRef(TreeItem* self);
 TIC_CALL void                 DMS_CONV DMS_TreeItem_Release(TreeItem* self);
@@ -120,14 +114,12 @@ TIC_CALL void   DMS_CONV DMS_TreeItem_SetIsHidden(TreeItem* self, bool isHidden)
 TIC_CALL bool   DMS_CONV DMS_TreeItem_InHidden(TreeItem* self);
 TIC_CALL bool   DMS_CONV DMS_TreeItem_IsTemplate(TreeItem* self);
 TIC_CALL bool   DMS_CONV DMS_TreeItem_InTemplate(TreeItem* self);
-TIC_CALL UInt32 DMS_CONV DMS_TreeItem_TotalNrOfItems();
 
 //----------------------------------------------------------------------
 // C style Interface functions for storage 
 //----------------------------------------------------------------------
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_HasStorage(TreeItem* self);
-TIC_CALL void DMS_CONV DMS_TreeItem_Commit(TreeItem* self); // stores unsaved primary data of self and descendants
 TIC_CALL void DMS_CONV DMS_TreeItem_DisableStorage(TreeItem* self); // disable storage for 'self' and subitems
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll);
@@ -254,7 +246,6 @@ TIC_CALL void    DMS_CONV DMS_NumericAttr_GetValuesAsInt32Array  (const AbstrDat
 TIC_CALL void    DMS_CONV DMS_NumericAttr_SetValuesAsInt32Array  (AbstrDataItem* self, SizeT index, SizeT len, const  Int32* data);
 
 
-TIC_CALL void   DMS_CONV DMS_DataItem_SetMemoDirty(AbstrDataItem* self, bool alsoRead);
 TIC_CALL UInt32 DMS_CONV DMS_DataItem_GetNrFeatures(AbstrDataItem* self);
 TIC_CALL bool   DMS_CONV DMS_DataItem_IsInMem(AbstrDataItem* self);
 TIC_CALL Int32  DMS_CONV DMS_DataItem_GetLockCount(AbstrDataItem* self);
@@ -262,52 +253,11 @@ TIC_CALL DataReadLock*  DMS_CONV DMS_DataReadLock_Create(const AbstrDataItem* se
 TIC_CALL void           DMS_CONV DMS_DataReadLock_Release(DataReadLock* self);
 
 // Dense Data Item (attr) Access
-TIC_CALL UInt32  DMS_CONV DMS_UInt32Attr_GetValue (const AbstrDataItem* self, SizeT index);										
-TIC_CALL Int32   DMS_CONV DMS_Int32Attr_GetValue  (const AbstrDataItem* self, SizeT index);											
-TIC_CALL UInt16  DMS_CONV DMS_UInt16Attr_GetValue (const AbstrDataItem* self, SizeT index);										
-TIC_CALL Int16   DMS_CONV DMS_Int16Attr_GetValue  (const AbstrDataItem* self, SizeT index);										
-TIC_CALL UInt8   DMS_CONV DMS_UInt8Attr_GetValue  (const AbstrDataItem* self, SizeT index);										
-TIC_CALL Int8    DMS_CONV DMS_Int8Attr_GetValue   (const AbstrDataItem* self, SizeT index);										
-TIC_CALL Float32 DMS_CONV DMS_Float32Attr_GetValue(const AbstrDataItem* self, SizeT index);									
-TIC_CALL Float64 DMS_CONV DMS_Float64Attr_GetValue(const AbstrDataItem* self, SizeT index);									
-TIC_CALL bool    DMS_CONV DMS_BoolAttr_GetValue   (const AbstrDataItem* self, SizeT index);
 TIC_CALL bool    DMS_CONV DMS_AnyDataItem_GetValueAsCharArray    (const AbstrDataItem* self, SizeT index, char* clientBuffer, UInt32 clientBufferLen);
 TIC_CALL UInt32  DMS_CONV DMS_AnyDataItem_GetValueAsCharArraySize(const AbstrDataItem* self, SizeT index);
 
-// Dense Data Item (attr) bulk Access
-TIC_CALL void		DMS_CONV DMS_UInt32Attr_GetValueArray (const AbstrDataItem* self, SizeT firstRow, SizeT len, UInt32* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_Int32Attr_GetValueArray  (const AbstrDataItem* self, SizeT firstRow, SizeT len, Int32* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_UInt16Attr_GetValueArray (const AbstrDataItem* self, SizeT firstRow, SizeT len, UInt16* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_Int16Attr_GetValueArray  (const AbstrDataItem* self, SizeT firstRow, SizeT len, Int16* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_UInt8Attr_GetValueArray  (const AbstrDataItem* self, SizeT firstRow, SizeT len, UInt8* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_Int8Attr_GetValueArray   (const AbstrDataItem* self, SizeT firstRow, SizeT len, Int8* clientBuffer);	
-TIC_CALL void		DMS_CONV DMS_Float32Attr_GetValueArray(const AbstrDataItem* self, SizeT firstRow, SizeT len, Float32* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_Float64Attr_GetValueArray(const AbstrDataItem* self, SizeT firstRow, SizeT len, Float64* clientBuffer);
-
-TIC_CALL void		DMS_CONV DMS_BoolAttr_GetValueArray   (const AbstrDataItem* self, SizeT firstRow, SizeT len, bool* clientBuffer);		
-
 // Dense Data Item (attr) Modification
-TIC_CALL void		DMS_CONV DMS_UInt32Attr_SetValue (AbstrDataItem* self, UInt32 index, UInt32  value);					
-TIC_CALL void		DMS_CONV DMS_Int32Attr_SetValue  (AbstrDataItem* self, UInt32 index, Int32   value);						
-TIC_CALL void		DMS_CONV DMS_UInt16Attr_SetValue (AbstrDataItem* self, UInt32 index, UInt16  value);					
-TIC_CALL void		DMS_CONV DMS_Int16Attr_SetValue  (AbstrDataItem* self, UInt32 index, Int16   value);						
-TIC_CALL void		DMS_CONV DMS_UInt8Attr_SetValue  (AbstrDataItem* self, UInt32 index, UInt8   value);						
-TIC_CALL void		DMS_CONV DMS_Int8Attr_SetValue   (AbstrDataItem* self, UInt32 index, Int8    value);						
-TIC_CALL void		DMS_CONV DMS_Float32Attr_SetValue(AbstrDataItem* self, UInt32 index, Float32 value);					
-TIC_CALL void		DMS_CONV DMS_Float64Attr_SetValue(AbstrDataItem* self, UInt32 index, Float64 value);					
-TIC_CALL void		DMS_CONV DMS_BoolAttr_SetValue   (AbstrDataItem* self, UInt32 index, bool    value);
 TIC_CALL void       DMS_CONV DMS_AnyDataItem_SetValueAsCharArray(AbstrDataItem* self, UInt32 index, CharPtr clientBuffer);
-
-// Dense Data Item (attr) bulk Modification
-TIC_CALL void		DMS_CONV DMS_UInt32Attr_SetValueArray (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const UInt32* clientBuffer);	
-TIC_CALL void		DMS_CONV DMS_Int32Attr_SetValueArray  (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const Int32* clientBuffer);	
-TIC_CALL void		DMS_CONV DMS_UInt16Attr_SetValueArray (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const UInt16* clientBuffer);	
-TIC_CALL void		DMS_CONV DMS_Int16Attr_SetValueArray  (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const Int16* clientBuffer);	
-TIC_CALL void		DMS_CONV DMS_UInt8Attr_SetValueArray  (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const UInt8* clientBuffer);	
-TIC_CALL void		DMS_CONV DMS_Int8Attr_SetValueArray   (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const Int8* clientBuffer);		
-TIC_CALL void		DMS_CONV DMS_Float32Attr_SetValueArray(AbstrDataItem* self, UInt32 firstRow, UInt32 len, const Float32* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_Float64Attr_SetValueArray(AbstrDataItem* self, UInt32 firstRow, UInt32 len, const Float64* clientBuffer);
-TIC_CALL void		DMS_CONV DMS_BoolAttr_SetValueArray   (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const bool* clientBuffer);
 
 using ConstAbstrDataItemPtr = const AbstrDataItem*;
 struct TableColumnSpec;

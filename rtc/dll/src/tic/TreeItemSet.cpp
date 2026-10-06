@@ -55,13 +55,6 @@ static void storeAllSuppliers(const TreeItem* self, SupplierVisitFlag svf, TreeI
 	);
 }
 
-static void storeAllSubItemSuppliers(const TreeItem* self, SupplierVisitFlag svf, TreeItemSetType& itemSet)
-{
-	storeAllSuppliers(self, svf, itemSet);
-	for (const TreeItem* subItem = self->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		storeAllSubItemSuppliers(subItem, svf, itemSet);
-}
-
 #include "AbstrDataItem.h"
 
 enum CSS_FLAGS

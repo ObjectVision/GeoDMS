@@ -179,7 +179,6 @@ namespace token {
 
 	// #587: the read of a stored item as an operator application, see doc/development/storage-read-operators.md
 	extern TIC_CALL StaticTokenID storage_read_table; // a table unit and its stored attributes
-	extern TIC_CALL StaticTokenID storage_read_attrs; // stored attributes over an existing domain
 	extern TIC_CALL StaticTokenID storage_read_attr;  // one stored attribute (grids, streams)
 	extern TIC_CALL StaticTokenID storage_read_value; // a stored parameter
 	extern TIC_CALL StaticTokenID do_;                // do(supplier, expr): the ordering primitive of clc/OperExec.cpp
@@ -189,12 +188,10 @@ namespace token {
 // #587: a read head is a source leaf for Explain, as sourceDescr is: its arguments describe a storage, not a calculation
 inline bool IsStorageReadHead(TokenID id)
 {
-	return id == token::storage_read_table || id == token::storage_read_attrs || id == token::storage_read_attr || id == token::storage_read_value;
+	return id == token::storage_read_table || id == token::storage_read_attr || id == token::storage_read_value;
 }
 
-//LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);
 TIC_CALL LispRef CreateLispTree(const TreeItem* self, bool inclSubTree);
-//LispRef CreateLispSign(const TreeItem* self, LispRef tail);
 
 template <typename T, typename Enabled = std::enable_if_t<is_numeric_v<T>>>
 LispRef AsLispRef(T v)

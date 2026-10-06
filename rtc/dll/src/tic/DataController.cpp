@@ -576,17 +576,6 @@ auto DataController::CalcResultWithValuesUnits() const -> FutureData // TODO G8:
 		dms_assert(WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 		return nullptr;
 	}
-/*
-	dms_assert(CheckCalculatingOrReady(result->GetCurrRangeItem()) || result->WasFailed(FailType::Data));
-	if (!UpdateValuesUnits(this, m_Data.get_ptr(), useTree))
-		return nullptr;
-
-	if (result->WasFailed(FailType::Data))
-	{
-		Fail(result.get_ptr());
-		return nullptr;
-	}
-	*/
 	assert(!WasFailed(FailType::MetaInfo));
 	return result;
 }

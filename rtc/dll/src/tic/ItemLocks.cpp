@@ -201,16 +201,6 @@ namespace treeitem_production_task
 		}
 		DBG_TRACE(("count={}", self->m_ItemLockCount));
 	}
-/*  REMOVE
-	void unlock(const TreeItem* self) noexcept
-	{
-		assert(self->m_ItemLockCount != 0); // assume this thread did lock one way or the other
-		if (self->m_ItemLockCount > 0)
-			unlock_shared(self);
-		else
-			unlock_unique(self);
-	}
-*/
 
 }; // namespace treeitem_production_task;
 
@@ -734,18 +724,6 @@ bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item)
 	return IsAllInterestedCalculatingOrDataReady_impl(item);
 }
 
-bool CheckAllSubDataReady(const TreeItem* item)
-{
-	if (!CheckDataReady(item))
-		return false;
-	if (!item->IsCacheItem())
-		return true;
-	for (auto walker = item->WalkConstSubTree(nullptr); (walker = item->WalkConstSubTree(walker)); )
-		if (!CheckDataReady(walker))
-			return false;
-	return true;
-}
-
 bool IsCalculatingOrReady(const TreeItem* item)
 {
 	if (IsCalculating(item))
@@ -839,8 +817,6 @@ bool RunTask(const TreeItem* item)
 					s_RunTaskActive = false; // dropped: the group is shutting down; leave the gate open rather than closed forever
 			}
 		}
-//		else
-//			ready = item->PrepareData();
 	}
 	return ready;
 }
@@ -858,34 +834,11 @@ bool CheckCalculatingOrReady(const TreeItem* item)
 	return false;
 }
 
-bool IsCalculatingOrReady(const DataController* dc, const TreeItem* cacheRoot, const TreeItem* cacheItem)
-{
-	if (IsDataReady(cacheItem))
-		return true;
-	return CheckCalculatingOrReady(cacheItem);
-}
-
 
 bool IsReadLocked(const TreeItem* item)
 {
 	assert(item);
 	return GetItemLockCount(item) > 0;
-}
-
-bool IsInWriteLock(const TreeItem* item)
-{
-	do {
-		assert(item);
-		Int32 itemLockCount = GetItemLockCount(item);
-		if (itemLockCount > 0)
-			return false; // read locks active
-		if (itemLockCount < 0)
-			return true;
-		if (!item->IsCacheItem())
-			return false;
-		item = item->GetTreeParent().get(); // cache items can inherit write rights from parent
-	}	while (item);
-	return false;
 }
 
 

@@ -213,7 +213,6 @@ namespace token {
 
 	// #587: lower case on purpose, like the sign markers below (#1161)
 	TIC_CALL StaticTokenID storage_read_table("storage_read_table");
-	TIC_CALL StaticTokenID storage_read_attrs("storage_read_attrs");
 	TIC_CALL StaticTokenID storage_read_attr("storage_read_attr");
 	TIC_CALL StaticTokenID storage_read_value("storage_read_value");
 	TIC_CALL StaticTokenID do_("do");
@@ -270,7 +269,6 @@ LispRef CreateLispSign(const TreeItem* self)
 }
 
 
-// REMOVELispComponent s_UseLispAdm;
 static auto lspTrue = ExprList(token::true_);
 static auto lspFalse = ExprList(token::false_);
 

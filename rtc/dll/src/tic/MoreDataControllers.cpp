@@ -145,7 +145,6 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 FuncDC::~FuncDC()
 {
 	CancelOperContext();
-//	m_Data.Clear();
 	dms_assert(!GetInterestCount());
 	dms_assert(!m_State.Get(actor_flag_set::AF_SupplInterest));
 }
@@ -986,8 +985,6 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 	assert(GetInterestCount());
 	assert(!IsTmp());
 
-//	SharedTreeItemInterestPtr promise = m_Data;
-
 	OriginNameLock originName(*this); // #795, see above: covers GetArgs and ScheduleCalcResult
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
@@ -1247,20 +1244,6 @@ SharedTreeItem SymbDC::MakeResult() const
 		auto curr = SessionData::Curr();
 		MG_CHECK(curr);
 		auto sourceItem = curr->GetConfigRoot()->ResolveItemPath(fullName);
-/* NYI
-		MG_CHECK(sourceItem);
-		TreeItem* res = nullptr;
-		if (IsDataItem(sourceItem))
-		{
-			StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
-			res = CreateCacheDataItem(AsDataItem(sourceItem)->GetAbstrDomainUnit(), AsDataItem(sourceItem)->GetAbstrValuesUnit(), AsDataItem(sourceItem)->GetValueComposition());
-		}
-		else {
-			CopyTreeContext ctc(nullptr, sourceItem, "", DataCopyMode::CopyExpr | DataCopyMode::DontCopySubItems | DataCopyMode::MakeEndogenous | DataCopyMode::MakePassor | DataCopyMode::DontUpdateMetaInfo);
-			res = ctc.Apply();
-		}
-		const_cast<SymbDC*>(this)->SetNew(res); // copy will be done by UpdateMetaInfo
-*/
 		if (sourceItem)
 			const_cast<SymbDC*>(this)->SetOld(sourceItem.get()); // copy will be done by UpdateMetaInfo
 	}

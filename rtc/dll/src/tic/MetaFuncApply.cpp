@@ -441,7 +441,6 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 	assert(holder);
 	if (holder->WasFailed(FailType::MetaInfo))
 		return false;
-	bool result;
 	try {
 		auto args = ApplyMetaFunc_GetArgs(holder, ac, og, metaCallArgs);
 		dms_assert(!SuspendTrigger::DidSuspend());
@@ -484,14 +483,6 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 		holder->CatchFail(FailType::MetaInfo);
 		return false;
 	}
-	if (!result)
-	{
-		dms_assert(SuspendTrigger::DidSuspend() || holder->WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-		return false;
-	}
-
-	dms_assert(!SuspendTrigger::DidSuspend() && !holder->WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-	return true;
 }
 
 

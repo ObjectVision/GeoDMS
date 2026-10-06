@@ -96,7 +96,6 @@ public:
 	void ClearDataObject(garbage_can&) const override;
 
 	void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const override;
-//REMOVE	LispRef GetKeyExprImpl() const override;
 
 //	override Actor
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
@@ -228,7 +227,6 @@ extern PropDef<AbstrDataItem, SharedStr>* s_ValuesUnitPropDefPtr;
 extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 
 const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
-UInt32 ElementWeight(const AbstrDataItem* adi);
 
 // Bytes a data block of nrElems elements of adi's value type occupies, sub-byte packing
 // included. For variable-width elements (strings, non-Single value compositions) the per-row

@@ -141,14 +141,6 @@ HeapTileArray<V>::HeapTileArray(const AbstrTileRangeData* trd, bool mustClear)
 	tile_id tn = trd->GetNrTiles();
 
 	tiles_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
-/*
-	for (tile_id t = 0; t != tn; ++t)
-	{
-		seqs[t] = new tile<V>;
-		auto tileSize = trd->GetTileSize(t);
-		reallocSO(*seqs[t], tileSize, mustClear MG_DEBUG_ALLOCATOR_SRC("HeapTileArray<V>::ctor"));
-	}
-*/
 	m_Seqs = std::move(seqs);
 	m_TileInitFlags = std::make_unique<std::once_flag[]>(tn);
 }
@@ -508,7 +500,6 @@ auto FileTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 
 	auto& file = m_Files[t];
 	auto fileMapHandle = file.get(this, rwMode);
-	//		fileRef->resizeSO(tileSize, rwMode == dms_rw_mode::write_only_mustzero);
 	assert(file.size() == this->GetTiledRangeData()->GetTileSize(t));
 	return locked_seq_t(std::static_pointer_cast<void>(fileMapHandle), GetSeq(file));
 }

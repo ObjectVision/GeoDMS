@@ -290,7 +290,6 @@ public:
 
 	// Path-based resolution; BestItem attempts fuzzy or best-effort matching.
 	TIC_CALL       TreeItem* GetItem     (CharPtrRange subItemNames);
-	      TreeItem* GetBestItem (CharPtrRange subItemNames);
 	TIC_CALL SharedTreeItem GetCurrItem (CharPtrRange subItemNames) const; // doesn't call UpdateMetaInfo
 
 	TIC_CALL SharedTreeItem ResolveItemPath(CharPtrRange subItemNames) const; // calls UpdateMetaInfo
@@ -351,7 +350,6 @@ public:
 //	Getting Data into or out of memory
 
 	// Data lifecycle: prepare, commit, cleanup. Some may suspend via Actor mechanisms.
-	bool TryPrepareDataUsage() const; // called in idle time for items that will soon be visible, returns false when Suspended
 	bool CommitDataChanges() const;
 	// nodiscard: the can is what frees the data, so a caller keeps it until its own locks are released (TIC-A12)
 	[[nodiscard]] garbage_can TryCleanupMem() const; // overridden by AbstrDataItem
@@ -408,10 +406,8 @@ public:
 	TIC_CALL auto GetReferredItem() const  noexcept -> std::shared_ptr<const TreeItem>;
 	virtual void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const;
 
-//	TIC_CALL MetaInfo GetMetaInfo(metainfo_policy_flags mpf) const;
 	MetaInfo GetCurrMetaInfo(metainfo_policy_flags mpf) const;
 	LispRef GetBaseKeyExpr() const;
-//	TIC_CALL LispRef GetOrgKeyExpr() const;
 	virtual LispRef GetKeyExprImpl() const;
 	auto GetOrgDC() const->std::pair<DataControllerRef, SharedTreeItem>;
 	// "Checked" = integrity-check-guarded (#1180/#1209): folds the IntegrityChecks of the item and its

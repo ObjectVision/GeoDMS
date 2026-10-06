@@ -43,28 +43,6 @@
 //----------------------------------------------------------------------
 std::mutex sc_RangeDataPtrAccess;
 
-//----------------------------------------------------------------------
-// Domain Change Context
-//----------------------------------------------------------------------
-
-thread_local domain_change_context* s_CurrDomainChangeContext = nullptr;
-domain_change_context::domain_change_context(row_id changePos_)
-	: prevContext(s_CurrDomainChangeContext)
-	, changePos(changePos_)
-{
-	s_CurrDomainChangeContext = this;
-}
-
-domain_change_context::~domain_change_context()
-{
-	s_CurrDomainChangeContext = prevContext;
-}
-
-auto domain_change_context::GetCurrContext()->domain_change_context*
-{
-	return s_CurrDomainChangeContext;
-}
-
 template <typename RD>
 auto GetRangeDataAsLispRef(const RD& rd, bool asCategorical, LispPtr base) -> LispRef
 {
@@ -502,8 +480,6 @@ void Unit<V>::LoadBlobStream(const InpStreamBuff* is)
 	{
 		BinaryInpStream bis(is);
 		LoadRangeImpl(bis);
-
-	//	this->SetDataInMem();
 	}
 	else
 		AbstrUnit::LoadBlobStream(is);
@@ -759,12 +735,8 @@ NotifyRangeDataChange(Unit<V>* self, const typename Unit<V>::range_data_t* oldRa
 
 	DomainChangeInfo info{
 		oldRangeData, newRangeData
-	,	oldSize, newSize, std::min(newSize, oldSize)
-	,	domain_change_context::GetCurrContext()
+	,	oldSize, newSize
 	};
-
-	if (info.domainChangeContext)
-		info.changePos = info.domainChangeContext->changePos;
 
 	if (self->GetNrDataItemsOut()) // avoid constructing ChangeSourceLock when no DataItems are to be changed
 		self->OnDomainChange(&info);
@@ -798,8 +770,6 @@ void Unit<V>::SetRange(const range_t& range) requires ranged_unit_v<V>
 		}
 		if (this->IsCacheItem())
 			return;
-
-	//	this->SetReferredItem(nullptr);
 
 		if (oldRangeDataPtr)
 		{
@@ -835,8 +805,6 @@ void Unit<V>::SetRange(const range_t& range, extent_t blockSize) requires ranged
 		}
 		if (this->IsCacheItem())
 			return;
-
-		//	this->SetReferredItem(nullptr);
 
 		if (oldRangeDataPtr)
 		{
@@ -1522,7 +1490,6 @@ const UnitClass* Unit<T>::GetStaticClass()
 	static UnitClass s_Cls(
 		CreateFunc<Unit<T> >
 	, 	GetUnitClassID<T>()
-//	, 	GetTokenID("Unit<" #T ">")
 	,	ValueWrap<T>::GetStaticClass()
 	,	SharedCreateFunc<Unit<T> >);
 	return &s_Cls;\

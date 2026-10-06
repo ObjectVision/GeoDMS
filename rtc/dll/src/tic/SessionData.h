@@ -114,7 +114,7 @@ private:
 //     destructor cascade would self-deadlock;
 //   - by then Curr() is already null (deactivateThis clears s_CurrSD before the cascade runs), so
 //     IsCurrCancelling() answers false during exactly the window this is meant to detect.
-// It starts out false, so a process that never opens a session (the stg/tst drivers, unit tests)
+// It starts out false, so a process that never opens a session (unit tests)
 // behaves as it always did.
 bool IsSessionTearingDown();
 

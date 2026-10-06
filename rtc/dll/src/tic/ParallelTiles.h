@@ -54,7 +54,6 @@ private:
 	IndexType getNextCommissioned();
 	IndexType GetNextCommissioned();
 	void registerCompletions(IndexType nr);
-//	void RegisterCompletion(IndexType i);
 	auto RegisterCompletionAndGetNextCommissioned(IndexType i)->IndexType;
 
 	bool registerCompletion(IndexType i);

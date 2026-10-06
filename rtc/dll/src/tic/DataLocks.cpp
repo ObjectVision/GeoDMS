@@ -273,7 +273,6 @@ auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeDat
 	return CreateFileTileArray(adi, abstrValuesRangeData, dms_rw_mode::read_only, filenameBase, false);
 }
 
-//const AbstrTileRangeData* domain, 
 //----------------------------------------------------------------------
 // DataWriteLock
 //----------------------------------------------------------------------
@@ -336,20 +335,6 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 	}
 
 	reset(CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
-/*
-	if (abstrValuesRangeData)
-	{
-		MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
-
-		visit<typelists::ranged_unit_objects>(adi->GetAbstrValuesUnit(), [this, abstrValuesRangeData]<typename T>(const Unit<T>*)
-		{
-			auto tileFunctor = dynamic_cast<DataArray<T>*>(this->get_ptr()); // ValueComposition ?
-			assert(tileFunctor);
-			if (tileFunctor)
-				tileFunctor->InitValueRangeData(dynamic_cast<const range_or_void_data<T>*>(abstrValuesRangeData));
-		});
-	}
-*/	
 
 afterReset:
 

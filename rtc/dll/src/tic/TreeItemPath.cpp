@@ -146,26 +146,6 @@ TreeItem* TreeItem::GetItem(CharPtrRange subItemNames)
 	return (parent) ? parent->GetSubTreeItemByID(GetTokenID(ids.second)) : nullptr;
 }
 
-TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
-{
-	if (subItemNames.empty())
-		return this;
-
-	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
-	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
-	{
-		if (ids.second.first != subItemNames.first || (ids.second.size() && ids.second.first[0] == '.'))
-			return nullptr;
-		auto result = GetSubTreeItemByID(GetTokenID(ids.second));
-		return result ? result : this;
-	}
-	TreeItem* parent = GetItem(ids.first);
-	if (!parent)
-		return nullptr;
-	auto result = parent->GetSubTreeItemByID(GetTokenID(ids.second));
-	return result ? result : parent;
-}
-
 SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 {
 	if (subItemNames.empty())
@@ -325,7 +305,7 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 	{
 		// We start at root, first characted was '/'
 		assert(subItemNames[0] == DELIMITER_CHAR);
-		assert(ids.second.first = subItemNames.first + 1);
+		assert(ids.second.first == subItemNames.first + 1);
 
 		auto configRoot = SessionData::Curr()->GetConfigRoot();
 		if (configRoot)

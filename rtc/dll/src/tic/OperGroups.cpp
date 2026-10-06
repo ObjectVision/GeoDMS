@@ -109,9 +109,6 @@ namespace AbstrOperGroupRegImpl {
 
 	const_iterator  FindLB(TokenID operID)
 	{
-		Operator* checkedVersion  =0;
-		Operator* uncheckedVersion=0;
-
 		AbstrOperGroupRegImpl::const_iterator
 			b = GetSortedReg().begin(),
 			e = GetSortedReg().end();
@@ -182,31 +179,6 @@ AbstrOperGroup::~AbstrOperGroup()
 void AbstrOperGroup::Init()
 {
 	AbstrOperGroupRegImpl::GetReg().push_back(this);
-/*
-#if defined(MG_DEBUG_SPECIAL_OPERATORS)
-	auto op = m_Policy;
-	if (op != oper_policy::none)
-	{
-		// TODO WIKI
-		reportF(SeverityTypeID::ST_MinorTrace, "OperGroup {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} "
-			, m_OperName.c_str()
-			, op & oper_policy::dont_cache_result ? "dont_cache_result" : ""
-			, op & oper_policy::existing ? "existing" : ""
-			, op & oper_policy::has_external_effects ? "has_external_effects" : ""
-			, op & oper_policy::allow_extra_args ? "allow_extra_args" : ""
-			, op & oper_policy::is_template_call ? "is_template_call" : ""
-			, op & oper_policy::has_template_arg ? "has_template_arg" : ""
-			, op & oper_policy::has_tree_args ? "has_tree_args" : ""
-			, op & oper_policy::is_transient ? "is_transient" : ""
-			, op & oper_policy::dynamic_argument_policies ? "dynamic argument policies" : ""
-			, op & oper_policy::dynamic_result_class ? "dynamic_result_class" : ""
-			, op & oper_policy::calc_requires_metainfo ? "calc_requires_metainfo" : ""
-			, op & oper_policy::can_explain_value ? "can_explain_value" : ""
-			, op & oper_policy::obsolete ? "obsolete" : ""
-		);
-	}
-#endif
-*/
 }
 
 void AbstrOperGroup::UpdateNameID()

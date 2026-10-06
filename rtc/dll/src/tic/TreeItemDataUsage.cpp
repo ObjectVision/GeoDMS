@@ -159,8 +159,6 @@ static how_to_proceed PrepareDataCalc(std::shared_ptr<const TreeItem> self, cons
 	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	dms_assert(!SuspendTrigger::DidSuspend() && !self->WasFailed(FailType::Determine)); // Postcondition when CreateResultingTreeItem returns a result
 
-//				FutureData dc = GetDC(GetCalculator());
-//	self->UpdateDC();
 	FutureData dc = self->GetCheckedDC();
 	dms_check(self->HasInterest());
 
@@ -344,7 +342,6 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		{
 			if (CheckCalculatingOrReady(refItem))
 				goto data_ready_or_in_cache;
-			//		_ProcessConfigData(true, false);
 			//		Now try to actually get valid data
 			if (refItem != this && refItem->IsFailed())
 				Fail(refItem);
@@ -470,21 +467,6 @@ bool TreeItem::PrepareData() const
 	return true;
 }
 
-
-// called in idle time for items that will soon be visible, returns false when Suspended, true when Failed
-bool TreeItem::TryPrepareDataUsage() const
-{
-	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
-	if (!GetInterestCount())
-		return true;
-	try { 
-		return PrepareDataUsage(DrlType::Suspendible) || WasFailed();
-	}
-	catch (const DmsException&)
-	{
-		return true;
-	}
-}
 
 TIC_CALL void TreeItem::DisableStorage(bool disabledStorage) // does not call UpdateMetaInfo
 {
