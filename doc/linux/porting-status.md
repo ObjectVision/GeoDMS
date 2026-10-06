@@ -45,7 +45,5 @@ its fonts itself.*
 
 - **Bitmap export.** `MovableObject::GetAsDDBitmap`, `SaveBitmap` and `ViewPort::Export` are
   Win32-only; on Linux `ViewPort::Export` is an empty stub. Qt equivalent: `QImage::save()`.
-- **`Win32ViewHost`** (`shv/dll/src/Win32ViewHost.{cpp,h}`): compiled but never constructed;
-  removing it is one of the leftovers of finished migrations (audit PLN-A16).
 - **`_WIN32` guards in shv**: 163 `#if`, `#ifdef`, `#ifndef` or `#elif` lines that test `_WIN32`
   across 43 files of `shv/dll/src` at 0563aa5a0.
