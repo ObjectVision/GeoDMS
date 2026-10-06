@@ -21,6 +21,9 @@
 #include "gdal_grid.h"
 
 #include "set/VectorFunc.h"  // vector_resize
+#include "vt/CheckedCalc.h" // CheckedMul
+
+#include <charconv>
 #include "utl/Environment.h"
 #include "utl/FileSystem.h" // ConvertDmsFileName, see issue #367
 
@@ -223,25 +226,38 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 		}
 }
 
+// A run of decimal digits from a band specification or from file metadata, as T. std::stoi threw
+// std::invalid_argument on an empty string and std::out_of_range on a long one, neither naming what was read.
+template <typename T>
+static T ParseDigits(const std::string& digits, CharPtr what)
+{
+	T result = 0;
+	auto [ptr, ec] = std::from_chars(digits.data(), digits.data() + digits.size(), result);
+	if (ec != std::errc() || ptr != digits.data() + digits.size())
+		throwErrorF("gdal.grid", "{} '{}' is not a number from 0 to {}", what, digits, MAX_VALUE(T));
+	return result;
+}
+
 std::vector<int> GDalGridImp::UnpackBandIndicesFromValue(std::string value)
 {
 	std::string bandIndiceString;
 	std::vector<int> bandIndices;
-	for (std::string::size_type i = 0; i < value.size(); i++) 
+	for (std::string::size_type i = 0; i < value.size(); i++)
 	{
-		if (std::isdigit(value[i]))
+		if (std::isdigit(static_cast<unsigned char>(value[i])))
 			bandIndiceString+=value[i];
 		else
 		{
 			if (!bandIndiceString.empty())
 			{
-				bandIndices.push_back(std::stoi(bandIndiceString.c_str()));
+				bandIndices.push_back(ParseDigits<int>(bandIndiceString, "band index"));
 				bandIndiceString.clear();
 			}
 		}
 	}
-	int test = std::stoi(bandIndiceString);
-	bandIndices.push_back(test);
+	// a value that ends in a digit; one that ends otherwise, such as "(1,2)", gave std::stoi("") and threw
+	if (!bandIndiceString.empty())
+		bandIndices.push_back(ParseDigits<int>(bandIndiceString, "band index"));
 	return bandIndices;
 }
 
@@ -264,7 +280,11 @@ GDALRasterBand* GDalGridImp::GetRasterBand(SharedStr sqlBandSpecification)
 	auto bandIndices = InterpretSqlBandSpecification(sqlBandSpecification);
 	if (bandIndices.empty())
 		return m_hDS->GetRasterBand(1); // default to first band
-	
+
+	// a band the dataset does not have gave a null band and then a failed internal check
+	auto nrBands = m_hDS->GetRasterCount();
+	if (bandIndices[0] < 1 || bandIndices[0] > nrBands)
+		throwErrorF("gdal.grid", "band {} is asked for, but {} has {} band(s), numbered from 1", bandIndices[0], m_hDS->GetDescription(), nrBands);
 	return m_hDS->GetRasterBand(bandIndices[0]);
 }
 
@@ -637,7 +657,7 @@ SizeT stripDimFromStr(std::string subDatasetItem, int dim)
 		else
 		{
 			if (cur_dim == dim && not word.empty())
-				return std::stoi(word);
+				return ParseDigits<SizeT>(word, "dimension size");
 
 			if (not word.empty())
 			cur_dim++;
@@ -803,13 +823,19 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 // *****************************************************************************
 
+// A tile or legend image that the WMTS / WMS layers downloaded; its header is not trusted. Tiles are 256 or
+// 512 pixels on a side; a header that declares more than this, or nothing, is corrupt or made up, and its
+// buffer of width x height bytes per band is not allocated.
+static constexpr int MAX_SIMPLE_GRID_SIDE = 4096;
+
 void ReadBand(GDALRasterBand* m_RasterBand, GDAL_SimpleReader::band_data& buffer)
 {
 	auto width = m_RasterBand->GetXSize();
 	auto height = m_RasterBand->GetYSize();
+	MG_USERCHECK2(width > 0 && height > 0 && width <= MAX_SIMPLE_GRID_SIDE && height <= MAX_SIMPLE_GRID_SIDE
+		, "a downloaded map tile declares a size of zero or above 4096 x 4096 pixels; it is corrupt: delete it so that it is downloaded again");
 
-	typedef UInt32 color_type;
-	vector_resize(buffer, Cardinality(IPoint(width, height) ));
+	vector_resize(buffer, CheckedMul<SizeT>(width, height, false));
 
 	GDAL_ErrorFrame x;
 	auto resultCode = m_RasterBand->RasterIO(GF_Read,

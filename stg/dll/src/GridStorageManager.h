@@ -12,6 +12,7 @@
 #include "StgBase.h"
 #include <optional>
 
+#include "vt/CheckedCalc.h" // CheckedMul
 #include "vt/Conversions.h"
 #include "vt/Round.h"
 #include "vt/undef_xx.h"
@@ -143,14 +144,24 @@ namespace Grid {
 		auto h = imp.GetHeight();
 
 		UPoint tileSize = imp.GetTileSize(); // size of one tile or strip
-		UInt32 tw_aligned = array_traits<T>::ByteAlign(tileSize.X());
+
+		// The tile or strip size comes from the file's header, which a corrupt or made-up file can set to
+		// anything: zero, which divides by zero below, or a size that wrapped the UInt32 product of
+		// tile_wh and allocated a strip too small for what the reader then writes into it (security
+		// review #6). A tile may be larger than a small image (a 256 x 256 tile of a 100 x 100 image), so
+		// it is refused only when it exceeds both the image and 65536 on a side.
+		MG_USERCHECK2(tileSize.X() > 0 && tileSize.Y() > 0
+			, "grid storage: the file declares a tile or strip of zero width or height; it is corrupt");
+		MG_USERCHECK2((tileSize.X() <= w || tileSize.X() <= 65536) && (tileSize.Y() <= h || tileSize.Y() <= 65536)
+			, "grid storage: the file declares a tile or strip larger than its image and than 65536 pixels on a side; it is corrupt");
+		UInt32 tw_aligned = ThrowingConvert<UInt32>(array_traits<T>::ByteAlign(tileSize.X()));
 
 		// nr of tiles needed
 		TileCount
 			txr(bufStart.X(), bufSize.X(), tileSize.X()),
 			tyr(bufStart.Y(), bufSize.Y(), tileSize.Y());
 
-		UInt32 tile_wh = tw_aligned*tileSize.Y();
+		SizeT tile_wh = CheckedMul<SizeT>(tw_aligned, tileSize.Y(), false);
 		UInt32 scanlineSize = ThrowingConvert<UInt32>(imp.GetTileByteWidth()); // UnpackStrip takes a UInt32 row width; a wider scanline is an error, not a truncation
 
 		// one strip of tiles of storage defined values
@@ -190,13 +201,18 @@ namespace Grid {
 					if (tile_x < w)
 					{
 						// retrieve tilestrips
-						read_result = imp.ReadTile(stripBuff, tile_x, tile_y, strip_y, tileByteSizeNative);
+						// ReadTile returns a SizeT, which the Int32 that UnpackStrip takes wrapped above 2 GB; such a
+						// tile or strip is refused rather than taken as nothing read (code-fixes STG-14 residue)
+						SizeT readBytes = imp.ReadTile(stripBuff, tile_x, tile_y, strip_y, tileByteSizeNative);
+						MG_USERCHECK2(readBytes <= SizeT(MAX_VALUE(Int32))
+							, "grid storage: a tile or strip of more than 2 GB is not supported; write the grid with smaller tiles or strips");
+						read_result = Int32(readBytes);
 
 						if (read_result > 0)
 						{
 							imp.UnpackStrip(stripBuff, read_result, imp.GetNrBitsPerPixel());
 							imp.UnpackStrip(strip.begin(), stripBuff, imp.GetNrBitsPerPixel(), read_result, scanlineSize, tileSize.X(), tileSize.Y(), tw_aligned, defaultColor);
-							assert(UInt32(read_result) <= Max<UInt32>(tileByteSizeLocal, tileByteSizeNative));
+							assert(SizeT(read_result) <= Max<SizeT>(tileByteSizeLocal, tileByteSizeNative));
 							// defaultColor for area's outside the read (w,h) rectangle as imp.ReadTile may have painted the city read.
 							UInt32 nrReadableCols = w - tile_x;
 							UInt32 nrReadRows = Min<UInt32>(tileSize.Y(), h - tile_y);
@@ -208,7 +224,7 @@ namespace Grid {
 							}
 							assert(nrReadRows <= tileSize.Y());
 							assert(tw_aligned * nrReadRows <= tile_wh);
-							UInt32 rowStartIndex = tw_aligned * nrReadRows;
+							SizeT rowStartIndex = SizeT(tw_aligned) * nrReadRows;
 							assert(rowStartIndex <= tile_wh);
 							fast_fill(strip.begin() + rowStartIndex, strip.begin() + tile_wh, defaultColor);
 						}
@@ -216,7 +232,7 @@ namespace Grid {
 							read_result = 0;
 					}
 				}
-				UInt32 read_elems = array_traits<T>::NrElemsIn(read_result);
+				SizeT read_elems = array_traits<T>::NrElemsIn(read_result);
 				if (read_elems < tile_wh)
 					fast_fill(strip.begin() + read_elems, strip.begin() + tile_wh, defaultColor); // dummy result for reading invalid or incomplete tile 
 
@@ -532,10 +548,10 @@ namespace Grid {
 		TileCount
 			txr(x, entireSize.X(), tileSize.X()),
 			tyr(y, entireSize.Y(), tileSize.Y());
-		UInt32 tile_wh = tw_aligned*tileSize.Y();
+		SizeT tile_wh = CheckedMul<SizeT>(tw_aligned, tileSize.Y(), false);
 		// one strip of tiles
 		OwningPtrSizedArray<T> strip(tile_wh, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.WriteTiles: strip"));
-		UInt32 tileByteSize = array_traits<T>::ByteSize(tile_wh);
+		SizeT tileByteSize = array_traits<T>::ByteSize(tile_wh);
 		TileCRef dmsTileLock;
 
 		UInt32 tile_y = tyr.t_min * tileSize.Y();
@@ -568,9 +584,9 @@ namespace Grid {
 					}
 
 				// write tile
-				Int32 write_result = array_traits<T>::ByteSize(tile_wh);
+				MG_CHECK(tileByteSize <= SizeT(MAX_VALUE(Int32))); // PackStrip takes an Int32; the tiles written are ours and far smaller
+				Int32 write_result = Int32(tileByteSize);
 				imp.PackStrip(array_traits<T>::DataBegin(strip.begin()), write_result, imp.GetNrBitsPerPixel());
-				dms_assert(UInt32(write_result) <= tileByteSize);
 				write_result = imp.WriteTile(array_traits<T>::DataBegin(strip.begin()), tile_x, tile_y);
 			}
 		}

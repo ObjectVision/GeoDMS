@@ -1,0 +1,12 @@
+// Negative case: a gdal.grid band specification that names a band the file does not have. GDAL gave a null
+// band, which then failed an internal check (Check Failed: m_RasterBand); it is now a user error that names
+// the band and the number of bands the dataset has (security review #9).
+container stor_gdalgrid_band_missing_neg
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<uint8> img (dom): StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "gdal.grid", SqlString = "BANDS=2";
+	container checks
+	{
+		parameter<uint32> s := sum(uint32(img)), IntegrityCheck = "s == 496";
+	}
+}

@@ -1,0 +1,12 @@
+// A gdal.grid band specification whose value ends in another character than a digit, such as BANDS=(1):
+// GDalGridImp::UnpackBandIndicesFromValue took the last run of digits with std::stoi, which got an empty
+// string here and threw std::invalid_argument (security review #9). Same file and sum as stor_gdalgrid_u8_sf.
+container stor_gdalgrid_band_paren
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<uint8> img (dom): StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "gdal.grid", SqlString = "BANDS=(1)";
+	container checks
+	{
+		parameter<uint32> s := sum(uint32(img)), IntegrityCheck = "s == 496";
+	}
+}
