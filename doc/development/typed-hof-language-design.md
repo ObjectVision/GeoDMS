@@ -1,5 +1,16 @@
 # GeoDMS as a typed higher-order function language — design
 
+*Status (2026-10-06): implemented as described below, and in `main` since branch `hof_syntax` was
+merged (852f46282, 2026-07-30, is an ancestor of HEAD). The declarative operator-signature interface,
+which the block below lists as not yet implemented, shipped in all its batches on 2026-07-19 and
+2026-07-20 (c836a0310 to 4fb998d25; see `operator-signature-interface.md`). Since 07eaa3b61 (#1252)
+`f: function` and `-> function` are rejected: a function-valued parameter or result names a signature
+alias (`f: nuf<V, D>`), so the examples below that use them (sections 5.5 and 5.10) no longer parse.
+What is still open is listed in `typed-hof-remaining-work.md`. The file:line references predate the
+split of `AbstrCalculator.cpp` and `TreeItem.cpp` by functional role (821d19459) and of the typed-HOF
+part of `ConfigProd.cpp` (77ca72653) and are not re-anchored. Until 2026-10-06 the next paragraph was
+the whole status.*
+
 *Status: design + implementation log. Started 2026-07-11 as a design proposal; the bulk
 of it is now implemented on branch `hof_syntax` (v20.9.0). All file:line
 references were verified against that tree.*
@@ -581,6 +592,8 @@ as with `unique` now.
 
 ### 5.5 Higher-order functions (P3) — core IMPLEMENTED in 20.9.0
 
+*(2026-10-06: since 07eaa3b61 (#1252) a parameter can no longer be declared `f: function`; it
+names a signature alias, `f: nuf<V, D>`. The rest of this paragraph is as written then.)*
 **Implementation status: function-valued parameters work** through the inline
 reduction path. A parameter declared `f: function` binds a function reference passed
 as an argument (`ApplyTwice(Road, lib/Halve, Road/flow)`); the body applies it
@@ -972,7 +985,9 @@ errors. Retired along the way: the dead `(result _T)` unwrap rule in RewriteExpr
 *parameters*; referencing an enclosing function's *locals* from a nested body errors
 ("reference to (part of) a template or function") — lift on demand.
 
-Target (user sketch, typing layer elided to Stage 2):
+Target (user sketch, typing layer elided to Stage 2). *No longer accepted since 07eaa3b61 (#1252):
+`f: function`, `g: function` and `-> function` must each name a signature alias; `examples/function.dms`
+`hof2` shows the typed form.*
 
 ```
 container hof2
@@ -1303,7 +1318,9 @@ caught the weight variant).
 
 Still open in WP4.1: batches D–F (fresh-unit family + LispPtr memoization,
 composite printers), and lifting the function-application-into-bare-item
-restriction.
+restriction. *(2026-10-06: batches D to F shipped on 2026-07-19 and 2026-07-20, 78140849f, f25808423
+and 4fb998d25; the function-application-into-bare-item restriction is still open,
+`typed-hof-remaining-work.md` section 1.)*
 
 ### 5.11 Anonymous functions and the brace-disambiguation rule *(tier A implemented 2026-07-14)*
 

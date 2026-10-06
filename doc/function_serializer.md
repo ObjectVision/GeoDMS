@@ -1,12 +1,22 @@
 # Faithful `function` representation in the DMS config dump
 
-*Status: design + implementation (branch `hof_syntax`). File:line references verified against
-that tree.*
+*Status (2026-10-06): implemented, and in `main` since branch `hof_syntax` was merged (852f46282,
+2026-07-30). The serializer now lives in `rtc/dll/src/tic/TreeItemXmlDump.cpp` (`TreeItem::XML_Dump`,
+`TreeItem::XML_DumpFunctionDecl`, `DMS_WriteFunctionParam`) and `FunctionSpecData` in
+`rtc/dll/src/tic/TreeItemFunctionSpec.cpp`, since `TreeItem.cpp` was split in 821d19459. Two of the
+accepted limitations below are overtaken: `f: function` is rejected since 07eaa3b61 (#1252); and the
+container member block and the by-example parameter are checked contracts since K11a-4 and K11a-3.2,
+which the DMS dump drops, so more than the documentary shape is lost (open, A10 of
+`doc/continuations-2026-10-06.md`). The `fn_test_prelude` skip is still in
+`testcases/run_roundtrip.ps1`, although df0af919c (#1253) reports that this case now dumps and
+reloads (audit PLN-A19). The counts under Verification are those of the time; the battery had 455
+cases in the round of 6bdbc0911. Until 2026-10-06 this line said "design + implementation (branch
+`hof_syntax`)".*
 
 ## Motivation
 
 The GUI **Configuration** detail page and the `DMS_TreeItem_Dump` file-save path share one
-DMS-syntax serializer, `TreeItem::XML_Dump` (`rtc/dll/src/tic/TreeItem.cpp`). Function items are
+DMS-syntax serializer, `TreeItem::XML_Dump` (`rtc/dll/src/tic/TreeItemXmlDump.cpp`; in `TreeItem.cpp` until 821d19459). Function items are
 template-like containers (`SetIsFunction` = `SetIsTemplate` + `TSF_IsFunctionItem`), so they used
 to serialize as the generic container form:
 
@@ -96,7 +106,7 @@ each is fixed so the dumped declaration re-parses to the same runtime item:
 
 ## What is stored, and the storage additions
 
-`FunctionSpecData` (`s_FunctionSpecAssoc`, `rtc/dll/src/tic/TreeItem.cpp`) already holds `nrParams`,
+`FunctionSpecData` (`s_FunctionSpecAssoc`, `rtc/dll/src/tic/TreeItemFunctionSpec.cpp`; in `TreeItem.cpp` until 821d19459) already holds `nrParams`,
 `resultName`, `paramSigs` (index, weak exemplar, typeArgs), `genericParams`, `typeVars`,
 `metaRefParams`, `hasRestParam`, `isVariantSet`. Accessors in `TreeItem.h`.
 
@@ -164,10 +174,18 @@ future thrower, not just the generic-domain one.
 
 - A bare `f: function` parameter (no signature alias) and a `-> unit<V>` result are stored as plain
   `TreeItem`s and render as `container` — binding-compatible, but not fully faithful.
+  *(2026-10-06: `f: function` and `-> function` are rejected since 07eaa3b61 (#1252); the `-> unit<V>`
+  half was not rechecked.)*
 - A `container` parameter carrying a member block (`function f(container P { parameter<float64> a; })`)
   renders as bare `container P` — the member declarations are dropped. Binding-compatible (a container
   parameter accepts the argument regardless), so it recomputes on reload; only the documentary shape
   is lost. (Unit parameters *do* render their member block; only the container-param case is skipped.)
+  *(2026-10-06: no longer true. Since K11a-4 (49ad7db03) a container member block, and since K11a-3.2
+  (91df00d45) a by-example parameter such as `nw: network_links`, is a contract checked at the
+  definition and at each application. `DMS_WriteFunctionParam` writes neither: it drops the
+  container's block, and it never reads `paramTypeExemplars`, so the exemplar is lost too. A dump
+  and reload therefore removes checks, while positives still compute, so neither round-trip battery
+  notices. Open as A10 of `doc/continuations-2026-10-06.md`.)*
 - A renamed designated result label (`-> x: T := y`) loses the label `x` (semantically equivalent).
 - Domain/values *case* may normalize when a reference resolves (DMS identifiers are
   case-insensitive, so this is round-trip-safe); the serializer reads source tokens to minimize it.
@@ -178,6 +196,10 @@ future thrower, not just the generic-domain one.
   with the auto-imported prelude on reload (`SubItem 'sqr' is already defined`). The function
   *rendering* is correct; the collision is inherent to include-erasure vs. auto-import. The
   round-trip harness skips this one config with an inline reason (the way it skips negatives).
+  *(2026-10-06: the cause is gone. Since df0af919c (#1253) a dump is self-contained, with no
+  `#include` directives, and that commit reports that `fn_test_prelude` dumps and reloads without an
+  error. `testcases/run_roundtrip.ps1` still skips it; removing the skip and rerunning
+  `testcases\run_roundtrip.bat` is PLN-A19 of the code audit of 2026-09-27.)*
 
 ## Verification
 

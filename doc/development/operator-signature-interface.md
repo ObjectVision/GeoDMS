@@ -976,7 +976,10 @@ one domain — K1, mirrored from `e2->UnifyDomain(e1)` — and the result ranges
 PARTITIONING argument's VALUES unit — K5: one variable `P` in arg2's values role and the
 result's domain role), `AbstrOperAccTotBin` (**deliberately separate domain variables**:
 its `CreateResult` does not unify the argument domains, so no shared-domain claim would
-be honest), `AbstrOperAccPartBin` (shared `D` + `P` as PartUni), and the
+be honest; *2026-10-06: that missing unification was not a signature matter but an
+out-of-bounds read, the second argument read at the first one's tiles and indices (audit
+CLC-A01); since 52d870b9d the total forms of `cov`, `corr` and `modus_weighted` require the
+two arguments to share their domain*), `AbstrOperAccPartBin` (shared `D` + `P` as PartUni), and the
 `PartCountOperator` template (pcount: `P[D] → R[P]`, count class fixed for the typed
 `pcount_uintN` groups and unconstrained for the dynamic form). Covers
 sum/mean/min/max/sd/var/count/first/last/modus/… and the typed `sum_*`/`pcount_*`
@@ -1179,7 +1182,12 @@ definition (result ⊤). Its two deliverables:
    metric, so def-time is strictly more permissive), the capacitated weight domain/value shares
    (`:303`/`:304`/`:306`). The mis-registered `eq`/`ne` `ConnectPointOperator` members (whose
    `CreateResult` asserts `size==2||4` and never implements the compare-key contract) are **guarded
-   out** (`describable = (n==2 && !isCapacitated) || (n==4 && isCapacitated)`). `FastConnect`
+   out** (`describable = (n==2 && !isCapacitated) || (n==4 && isCapacitated)`). *(2026-10-06,
+   open: this is a wrong registration, not a description matter (code audit of 2026-09-27,
+   section 4.6). `cp_eq` and `cp_ne` register a 4-argument `connect(pts, key, pts, key)` on
+   `cogCON`, which `CreateResult` takes for the capacitated form because it tests
+   `args.size() == 4`, so the keys silently become capacity weights; the 6-argument `ccp_eq`
+   and `ccp_ne` hit `dms_assert(args.size() == 2 || isCapacitated)`.)* `FastConnect`
    (arc→network) states its **fresh `Unit<UInt32>` result** as `ResultUnit(GeneratedUnit)` — the
    proven-safe batch-D K6 pattern — with the geometry, K16 coordinate share, join keys and
    void-broadcasting distances all recorded as `ArgDeferred`/`DeferredRelation` prose. `spatialIndex`
@@ -1641,6 +1649,11 @@ honest reduction rejection — proving no false definition-time error is introdu
   `FencedBlocker`). The staged-abstract-interpretation framing (§20) is used instead.
 
 ## 15. Open questions for review
+
+*(2026-10-06: questions 1 and 4 are answered. K11 was built, K11a-1 to K11a-4 and K11b between
+2026-07-26 and 2026-07-28 (08ac5c8f5 to 04df0de56); its leftovers are listed in
+`typed-hof-remaining-work.md` section 2. Metric constraints stay an instantiation-time concern by the
+ruling of 2026-07-29 (`typed-hof-remaining-work.md` section 4). Questions 2 and 3 are still open.)*
 
 1. **K11 containers**: v1 defers (prose only). Worth the container-kind work in `DefType`
    later, or do real configs not pay for it?

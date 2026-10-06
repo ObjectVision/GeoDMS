@@ -1,5 +1,18 @@
 # Typed-HOF GeoDMS — Definitive Remaining Work
 
+*Status (2026-10-06): checked against HEAD 0563aa5a0. Done since the list was drawn up: K11 (K11a-1
+to K11a-4 and K11b, 2026-07-26 to 2026-07-28, 08ac5c8f5 to 04df0de56; its scope document is archived
+as `doc/archive/k11-container-types-scope.md`, and its low-value leftovers are listed under K11 in
+section 2); the §4.9 CRS refinement (the CRS decoupling, 23c30435f to 1744fbd42, and #711, 8d530a401);
+capture of enclosing-function locals by nested helpers (#1166, 32def18be); type-variable clauses on
+signature aliases. Since 07eaa3b61 (#1252) `f: function` and `-> function` are rejected. Metric typing
+and Tier-2 SelectMeta typing are closed by the rulings of 2026-07-29. Added: `table_spec` as part of a
+data expression (section 1). The HOF code left `AbstrCalculator.cpp` in 821d19459 (2026-08-28) for
+`HofApplication.cpp`, `HofTypeChecker.cpp`, `HofClosure.cpp`, `HofOperSignatureInfer.cpp` and
+`MetaFuncApply.cpp` in `rtc/dll/src/tic`, and the typed-HOF part of `ConfigProd.cpp` went to
+`ConfigProd_functions.cpp` in 77ca72653; the code citations below name those files. The line numbers
+cited in the design documents were not re-checked.*
+
 De-duplicated across the three source dimensions (design docs, code markers, documented limits). "Done" work (the operator-signature interface / all shipped batches, typed `map`, partial application, anonymous functions, def-time typed walker, composite-result sweep, function-decl serializer) is excluded; the P4 "WP4.1 remainder not implemented" note in the design-doc intro is **stale** and dropped.
 
 Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted heaviest-first within each group. "Sources" cite `typed-hof-language-design.md` (= design doc), `operator-signature-interface.md` (= op-sig doc), `function_serializer.md`, and code paths.
@@ -18,24 +31,34 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 - **Sub-expression container literals in non-argument position (§5.9)** **[moderate]** · *deferred*
   E.g. `2.0 * X{…}` — reducer throws "the '{}' construct is not yet supported inside inlined function bodies". Literals are argument-position-only today; §5.11 brace-disambiguation charts the path via explicit parens `2.0 * (X { m: e; })`.
-  *Sources: design §5.9 (835), §5.11 (1323-1324); `AbstrCalculator.cpp:2239,4691`.*
+  *Sources: design §5.9 (835), §5.11 (1323-1324); `HofApplication.cpp`, `HofTypeChecker.cpp` (the "not yet supported inside inlined function bodies" errors).*
+
+- **A generating meta function inside a data expression** **[moderate]** · *documented limitation*
+  `table_spec`, a generating meta function, may escape beta reduction only as the whole result of an
+  inlined function; embedded in an ordinary data expression (`#table_spec(...)`) it is rejected with
+  "a generating meta function such as 'table_spec' can only be the whole result of an inlined function".
+  *Sources: `HofClosure.cpp`; `testcases/fn_test_table_spec_nested_neg.dms`.*
 
 - **Function-application into a bare item (WP4.1 tail)** **[moderate]** · *deferred*
   A direct function-application calc rule on a bare `name := expr` item hits the §5.9 container-holder guard and still requires a typed holder (operator + data rules on bare items already work). The remaining "fn-app-into-bare-item marker."
   *Sources: design §5.12 (1221-1224), WP4.1 "Still open" (1304-1306).*
 
-- **Closure capture of enclosing-function LOCALS (§5.10)** **[moderate]** · *partial*
-  A nested body may reference the enclosing application's **parameters** only; referencing an enclosing function's **local** item errors "reference to (part of) a template or function." Marked "lift on demand."
-  *Sources: design §5.10 v1 limitation (971-973).*
+- **Closure capture of enclosing-function LOCALS (§5.10)** **[niche]** · *partial*
+  *Done for nested helpers since #1166 (32def18be, 2026-07-28): a function nested in another's body
+  reads the enclosing application's parameters and locals (`testcases/fn_test_scopenest.dms`).* Still
+  rejected: a closure that is returned (`-> <signature>`) and applied elsewhere has no enclosing
+  application on its parent chain, so a reference to an enclosing local errors "reference to (part of)
+  a template or function".
+  *Sources: design §5.10 v1 limitation (971-973); `HofApplication.cpp`.*
 
 - **WP3.3 — remaining `map`/combinator surface** **[moderate]** · *partial*
-  Remaining siblings of the shipped typed `map(F,src)`: `filter` + `fold` container combinators (no `filter`/`fold` in `AbstrCalculator.cpp` yet — note `filter` has a meta-vs-data phase problem: deciding which children to keep needs computed data at instantiation time); and `for_each` deprecation / a template→function lint path. **DONE: `map` over a partial-application F** (`map(Scale(k, _), src)`, commit `7551dad2`).
+  Remaining siblings of the shipped typed `map(F,src)`: `filter` + `fold` container combinators (no `filter`/`fold` in the HOF sources yet — note `filter` has a meta-vs-data phase problem: deciding which children to keep needs computed data at instantiation time); and `for_each` deprecation / a template→function lint path. **DONE: `map` over a partial-application F** (`map(Scale(k, _), src)`, commit `7551dad2`).
   **`fold` motivation (Maarten):** the current idiom for sub-item aggregation is `AsItemList(...)` in an *indirect expression* over a member set that is only known per instantiation; a typed `fold` would be **checkable at the function definition** — the reduction type unifies without the concrete sub-item set — which the indirect-expression form cannot be. Future work; not built on spec (no confirmed reduce-over-variable-children need yet).
   *Sources: design §10 P3 WP3.3 (2166-2168), §9 (1934), §5.5.*
 
 - **Member access through a function-valued parameter (§5.10)** **[moderate]** · *documented limitation*
   `p/member` where `p` is bound to a function is rejected with a dedicated error.
-  *Sources: `AbstrCalculator.cpp:2470`; design §5.10 (1123-1127).*
+  *Sources: `HofApplication.cpp` ("member access through a function-valued parameter is not supported"); design §5.10 (1123-1127).*
 
 - **§5.13 meta-reference (`item`) parameter follow-ups** **[niche]** · *partial*
   `item` in result position is rejected (parameter-only); member access **through** a meta-ref parameter beyond what container parameters support is deferred.
@@ -57,9 +80,18 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 ## 2. Operator signatures
 
-- **K11 — container-shaped types in `DefType`** **[substantial]** · *K11a-1 landed (`08ac5c8f`); K11a-1b identity plumbing landed (member attr carries sibling member-unit `vuNode`; verified flowing through `pcount`; combining-operator observability still GATED on described `add`/`+`); K11a-3.1 generic member types landed 2026-07-27 (member values/domain tokens resolve through the positional ladder — generic vars incl. K2, telescope unit params, scope units; explicit domain tokens no longer ignored, fixing a K11a-1 FALSE definition-time rejection of `mid (E2) := nw/cost`; member-path result domains `-> attribute<…> (nw/nodeset)` confirmed working and pinned by `fn_test_network` — the earlier "only `-> parameter<…>` results" claim was wrong; adversarial review round fixed the `'.'`-implicit-domain default regression, parameter-QUALIFIED member-unit node keys `p/member` incl. better diagnostics, values-ladder precedence vs ValueClass names, and memoized `ParamType`); K11a-3.2 by-example member persistence landed 2026-07-28 (`nw: network_links` retains the UNIT exemplar via `FunctionSpecData::paramTypeExemplars`; `BuildParamMembers` types the parameter from the EXEMPLAR's declared members — exemplar tokens resolve in the EXEMPLAR's lexical scope only, never the function's vars/params/scope, per a reproduced capture-shadowing review finding; `fn_test_byexample{,2,_neg1}`); K11a-3 instantiation-point contract check landed 2026-07-28 (def-time undeclared-DIRECT-member error "parameter 'nw' declares no member 'F3'" + boundary validation of item-reference arguments in `ReduceValue` — presence/kind/class/composition/generic-constraint+consistency/sibling-unit relation/default-domain membership, reported AT THE APPLICATION: "member 'F2' is missing", "the values of 'F1' must be 'nodeset'"; expression args + telescope/generic-domain members + `instantiate` path defer; review round fixed 7 reproduced false-rejections — overloaded ResolveName code-2 now dispatched on ExtRefKind, void-member broadcast, function-items-only gate (plain-template `apply` unaffected), container members kept in the map as deferred entries, boundary-ladder parity; `fn_test_network_neg{2,3}`, `fn_test_memnf_neg`, `fn_test_structcontract`); K11a-4 container-kind parameters landed 2026-07-28 (`container cfg { … }` + by-example container exemplars type as Kind::Container with a FLAT recursive member map — deep paths `cfg/nested/offset` type at definition; contract check recurses into declared container members; reduction needed no changes; review round fixed 5 findings — templates/alias exemplars are not members, `membersComplete` gated on a CLOSED exemplar (no storage manager / calc rule), by-example never requires incidental sub-containers, deep misses under a complete nested block now report, path-qualified messages; `fn_test_containerparam{,2,_neg1,_neg2,_neg3}`); **K11b operator `ArgContainer` linking landed 2026-07-28** (`ArgContainer(i, pattern, sharedMemberDomain, sharedMemberValues)`; `ApplyOperRecord` routes Container positions to `LinkContainerArg`, which enumerates the actual argument: a container PARAMETER's variable-carrying members link fully to the shared vars (cross-argument, under ∀), while a DEFINITION-SCOPE container claims only the INTRA-container fact — externals defer by design, so binding their concrete member units would PIN a rigid unit parameter and falsely reject bodies that type-check today (probe-verified; the first cut did bind and broke `fn_test_da_neg{1,2}`); first consumer = `discrete_alloc` suitabilities; `fn_test_argcontainer{,_neg1,_neg2}`); **leftovers closed 2026-07-29:** `instantiate`-path contract coverage (a `CheckStructuredParamContracts` boundary check in `MetaFuncCurry` before `InstantiateTemplate` — "member 'F2' is missing" at the application instead of a transitive Unknown-identifier in the copy; `fn_test_structcontract2{,_neg1}`); container positions on the §6.2 skeleton path (canon canonicalizes Container claims — shared-domain slot + hasVal + namesPos must agree exactly — and Deferred/MetaValue positions are kind-only no-claims instead of vetoing the skeleton; refScope/argsList threaded so `LinkContainerArg` runs there; dormant until a multi-record group carries a container position); generic-class member units (`unit<V>` in a member block) probed: parse, compute, class stays deferred — ACCEPTED per the don't-fuss-at-definition-time spirit. Still open (documented, low value): nested-unit-member sub-structure, expression/generated container args* · **scoped: `k11-container-types-scope.md`**
+- **K11 — container-shaped types in `DefType`** **[substantial]** · **DONE 2026-07-28, leftovers below** · *K11a-1 landed (`08ac5c8f`); K11a-1b identity plumbing landed (member attr carries sibling member-unit `vuNode`; verified flowing through `pcount`; combining-operator observability still GATED on described `add`/`+`); K11a-3.1 generic member types landed 2026-07-27 (member values/domain tokens resolve through the positional ladder — generic vars incl. K2, telescope unit params, scope units; explicit domain tokens no longer ignored, fixing a K11a-1 FALSE definition-time rejection of `mid (E2) := nw/cost`; member-path result domains `-> attribute<…> (nw/nodeset)` confirmed working and pinned by `fn_test_network` — the earlier "only `-> parameter<…>` results" claim was wrong; adversarial review round fixed the `'.'`-implicit-domain default regression, parameter-QUALIFIED member-unit node keys `p/member` incl. better diagnostics, values-ladder precedence vs ValueClass names, and memoized `ParamType`); K11a-3.2 by-example member persistence landed 2026-07-28 (`nw: network_links` retains the UNIT exemplar via `FunctionSpecData::paramTypeExemplars`; `BuildParamMembers` types the parameter from the EXEMPLAR's declared members — exemplar tokens resolve in the EXEMPLAR's lexical scope only, never the function's vars/params/scope, per a reproduced capture-shadowing review finding; `fn_test_byexample{,2,_neg1}`); K11a-3 instantiation-point contract check landed 2026-07-28 (def-time undeclared-DIRECT-member error "parameter 'nw' declares no member 'F3'" + boundary validation of item-reference arguments in `ReduceValue` — presence/kind/class/composition/generic-constraint+consistency/sibling-unit relation/default-domain membership, reported AT THE APPLICATION: "member 'F2' is missing", "the values of 'F1' must be 'nodeset'"; expression args + telescope/generic-domain members + `instantiate` path defer; review round fixed 7 reproduced false-rejections — overloaded ResolveName code-2 now dispatched on ExtRefKind, void-member broadcast, function-items-only gate (plain-template `apply` unaffected), container members kept in the map as deferred entries, boundary-ladder parity; `fn_test_network_neg{2,3}`, `fn_test_memnf_neg`, `fn_test_structcontract`); K11a-4 container-kind parameters landed 2026-07-28 (`container cfg { … }` + by-example container exemplars type as Kind::Container with a FLAT recursive member map — deep paths `cfg/nested/offset` type at definition; contract check recurses into declared container members; reduction needed no changes; review round fixed 5 findings — templates/alias exemplars are not members, `membersComplete` gated on a CLOSED exemplar (no storage manager / calc rule), by-example never requires incidental sub-containers, deep misses under a complete nested block now report, path-qualified messages; `fn_test_containerparam{,2,_neg1,_neg2,_neg3}`); **K11b operator `ArgContainer` linking landed 2026-07-28** (`ArgContainer(i, pattern, sharedMemberDomain, sharedMemberValues)`; `ApplyOperRecord` routes Container positions to `LinkContainerArg`, which enumerates the actual argument: a container PARAMETER's variable-carrying members link fully to the shared vars (cross-argument, under ∀), while a DEFINITION-SCOPE container claims only the INTRA-container fact — externals defer by design, so binding their concrete member units would PIN a rigid unit parameter and falsely reject bodies that type-check today (probe-verified; the first cut did bind and broke `fn_test_da_neg{1,2}`); first consumer = `discrete_alloc` suitabilities; `fn_test_argcontainer{,_neg1,_neg2}`); **leftovers closed 2026-07-29:** `instantiate`-path contract coverage (a `CheckStructuredParamContracts` boundary check in `MetaFuncCurry` before `InstantiateTemplate` — "member 'F2' is missing" at the application instead of a transitive Unknown-identifier in the copy; `fn_test_structcontract2{,_neg1}`); container positions on the §6.2 skeleton path (canon canonicalizes Container claims — shared-domain slot + hasVal + namesPos must agree exactly — and Deferred/MetaValue positions are kind-only no-claims instead of vetoing the skeleton; refScope/argsList threaded so `LinkContainerArg` runs there; dormant until a multi-record group carries a container position); generic-class member units (`unit<V>` in a member block) probed: parse, compute, class stays deferred — ACCEPTED per the don't-fuss-at-definition-time spirit. Still open (documented, low value): nested-unit-member sub-structure, expression/generated container args* · **scoped: `doc/archive/k11-container-types-scope.md`**
+  *(The rest of this paragraph is the problem as scoped on 2026-07-25; K11b links `ArgContainer` since 04df0de56.)*
   `ArgContainer` records a domain var but does not **link** it (v1 diagnostics-only); there is no container/record kind in the def-time type language. The gate for the two items below plus discrete_alloc name-array obligations. (A narrow `DefType::Kind::Container` landed for for_each/composite typing, but general operator `ArgContainer` linking + container-argument member enumeration is deferred.) **Scope splits it into K11a — user composite *parameters* with statically-declared members (moderate, recommended first; the `network_links` case) — and K11b — operator `ArgContainer` runtime-member linking (substantial, gated).**
-  *Sources: op-sig §7 K11 (571-587), §15 Q1 (1623), §12.7-12.8 (1351-1490); `k11-container-types-scope.md`.*
+  *Sources: op-sig §7 K11 (571-587), §15 Q1 (1623), §12.7-12.8 (1351-1490); `doc/archive/k11-container-types-scope.md`.*
+  **Leftovers, all low value and none planned** (from sections 4 and 5 of the archived scope document):
+  (a) the sub-structure of a nested UNIT member of a structured parameter stays deferred;
+  (b) an argument that is an expression defers in K11a-3's boundary check, and a container argument
+  that is an expression, a generated container or a closure capture defers in K11b's linking; (c) the boundary check does not check members
+  declared over telescope parameters or generic domain variables (the body checks them transitively);
+  (d) a body declaration that names a member path as its domain (`attribute<uint32> x (nw/nodeset)`)
+  defers, since the member item is in-template for `ResolveUnitInScope`. A generic-class member unit
+  (`unit<V>` in a member block) keeps its class deferred by decision (2026-07-29).
 
 - **Application-time `FindOper` adoption + §18 ∀-selector** **[substantial]** · *not started*
   Replace first-match-wins `IsDerivedFrom` selection with the richer signature records at application time; the §18 exact ∀-selector via `FindOper` enumeration + a `noexcept` `TryFindOper` twin (absent in source). Declared an alternative-not-taken vs. the shipped batch-A member-class-tuple elimination.
@@ -104,7 +136,7 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 - **§6.2 cross-record DOMAIN SKELETON fallback** **[moderate]** · *LANDED 2026-07-28*
   When several congruence records survive, the walker no longer defers wholesale: if every surviving record agrees on the DOMAIN skeleton (per position: kind, domain-slot in first-seen order, slot flags), `BuildDomainSkeletonRecord` synthesizes a record claiming ONLY that structure (fresh per-position values vars, no tuples/rels, composition only where all agree) and applies it — sound because the claim holds whichever member reduction selects. This LIFTED the documented "combining operator" gate: `add`/`+` has three records (two polygon families + scalar/string) and classless arguments (plain `pcount`'s class is dynamic), so `pcount(nw/F1) + pcount(nw/F2)` over different node units is now a DEFINITION-time conflict. Gotcha fixed en route: `TypeUnifier` keys variables by (owner, instance, NAME), so the fresh per-position vars need DISTINCT names or they collapse into one node (that made `cond ? 0 : 1` a bool-vs-uint32 conflict). Records with dynamicShape/resultDeferred/variadic tails/resultMembers/container positions still defer. `fn_test_skeleton{,_neg1}`, `fn_test_structmember_neg2`.
-  *Sources: op-sig §6.2; the K11a-1b gate note in `k11-container-types-scope.md`.*
+  *Sources: op-sig §6.2; the K11a-1b gate note in `doc/archive/k11-container-types-scope.md`.*
 
 - **Speculation / trial harness in `TypeUnifier`** **[moderate]** · *not started*
   Copy-trial-adopt for multi-candidate overload selection; today ambiguity defers instead of committing the unique surviving candidate's implications (the §6.2 skeleton fallback above now covers the DOMAIN half of that loss). Boundary already shaped as Begin/Commit/AbortTrial.
@@ -122,7 +154,7 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 - **§12.7 v1 narrowing — function-CALL head inside a closed K13 spec** **[moderate]** · *documented limitation*
   Such a head defers (building its key would re-enter `ReduceValue`). "Lift with the sentinel + errorHolder later."
-  *Sources: op-sig §12.7 (1223-1224); `AbstrCalculator.cpp:3225`.*
+  *Sources: op-sig §12.7 (1223-1224); `FunctionChecker::TryBuildClosedKeyExprImpl` in `HofTypeChecker.cpp`.*
 
 - **K6 `generative`/`genOrigin` tightening on `UnitNode`** **[niche]** · *deferred*
   Refuse bind-to-concrete / link-to-rigid for fresh existential result units with a dedicated message. Batch D shipped K6 with plain flexible nodes; optional later hardening ("after batch D soaks, or never?").
@@ -152,8 +184,8 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 ## 4. Type system
 
-- **§4.9 — CRS as a first-class `crs(σ)` refinement** **[substantial]** · *not started*
-  A `CrsOperation` beside `MetricOperation`, a structured `(BaseUnit (SRef "EPSG:…"))` key head replacing the 0xFF-multiplexed metric string, background-layer `DialogData` leaving type identity, a coordinate base carrying both crs+metric. Would make CRS mismatches type errors while un-erroring background-only mismatches. No IMPLEMENTED marker; R15 treats it as a future transition.
+- **§4.9 — CRS as a first-class `crs(σ)` refinement** **[substantial]** · **DONE** by the CRS decoupling (Stages 0 to 7, 23c30435f to 1744fbd42, 2026-07-29; `doc/development/crs-metric-decoupling.md`) and #711 (8d530a401, a declared SpatialReference in the unit's key expression)
+  *As listed before that:* A `CrsOperation` beside `MetricOperation`, a structured `(BaseUnit (SRef "EPSG:…"))` key head replacing the 0xFF-multiplexed metric string, background-layer `DialogData` leaving type identity, a coordinate base carrying both crs+metric. Would make CRS mismatches type errors while un-erroring background-only mismatches. No IMPLEMENTED marker; R15 treats it as a future transition.
   *Sources: design §4.9 (404-439); risk R15 (2323).*
 
 - **Declared metric constraints on function parameters (un-defer K10)** **[substantial]** · *CLOSED by ruling (Maarten, 2026-07-29)*
@@ -162,19 +194,19 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 - **Storage-bearing items inside function/template bodies** **[substantial]** · *deferred*
   `HasStorageManager` asserts `!InTemplate`; file-state-vs-DC-keys + write-lock design "needs its own design later — templates remain the vehicle for parameterized imports meanwhile."
-  *Sources: design §11 (2302-2304); risk R1; `TreeItem.cpp:1848`.*
+  *Sources: design §11 (2302-2304); risk R1; `TreeItem::HasStorageManager` (`TreeItem.cpp`), which gives an item in a template no storage manager.*
 
 - **Definition-time type inference stays Unknown for several categories** **[substantial]** · *partial*
   Still infers Unknown (per-application only) for: **unsignatured** built-in operators, externals, variant selections, partial applications, member/container accesses, and closure-captured names. Narrower than the doc's original framing — described operator families now type through `InferOperatorApplication` (result + members).
-  *Sources: design §5.10 (1123-1127); `AbstrCalculator.cpp:4094`.*
+  *Sources: design §5.10 (1123-1127); `HofTypeChecker.cpp`.*
 
 - **WP4.4 — surfacing/printing of metric constraints** **[moderate]** · *demoted to COSMETIC by the metric ruling (2026-07-29)*
   Printable signatures may include the metric as prose; WP4.1 `metric(μ)` TypeSpec terms are moot now that metric checking stays instantiation-time by ruling. The metric-via-alias idiom already works with no code change.
   *Sources: design WP4.4 (2250-2259).*
 
-- **Type-variable clauses on signature aliases + `...rest` in signature types** **[moderate]** · *partial*
-  Only function **declarations** accept `<V: constraint>`; a `nuf = function<V,D>(…)` alias with a type-var clause is unavailable, so shape checks against a signature alias stay kind-level. `...rest` inside a function-signature type is unsupported.
-  *Sources: design P2 (2104); `ConfigProd.cpp:1127,1191`.*
+- **`...rest` in signature types** **[moderate]** · *partial*
+  A `...rest` parameter inside a function-signature type is unsupported ("a '...' rest parameter is not supported in a function-signature type"). *Type-variable clauses on signature aliases work: `aliasFunctionSig` in `stx/dll/src/ConfigParse.cpp` accepts a `typeParamsClause`, and `testcases/fn_test_gsig.dms` declares `nuf = function<Vx: numerics, Dx: domains>(...)`; until 2026-10-06 this item said they were unavailable.*
+  *Sources: design P2 (2104); `ConfigProd::OnRestParamDecl` in `stx/dll/src/ConfigProd_functions.cpp`.*
 
 - **`map(F,src)` container result falls back to a plain TreeItem** **[moderate]** · *partial*
   Commit `ad9fdba0` made mapped **data-item and unit** children first-class (materializing the derived kind+type), but a **container** result still becomes a plain TreeItem follower. WP3.3 doc text (2151-2168) still describes the old all-plain behavior.
@@ -197,20 +229,21 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
   *Sources: design §5.9 (948-952).*
 
 - **Serializer faithfulness — bare `f: function` param + `-> unit<V>` result render as `container`** **[niche]** · *documented limitation*
+  *(2026-10-06: the `f: function` half is obsolete, since 07eaa3b61 (#1252) rejects `f: function` and `-> function`; the `-> unit<V>` half was not rechecked.)*
   Stored as plain TreeItems; binding-compatible but not fully faithful. Faithful rendering needs the signature/result-unit exemplar persisted the way signature-typed params already are. (Same family as the memory-index "fn-application-into-bare-item marker.")
   *Sources: `function_serializer.md:141-143`.*
 
-- **Serializer faithfulness — `container` param member block dropped** **[niche]** · *documented limitation*
-  Renders as bare `container P`; member declarations are dropped (unit params DO render their member block). Recomputes on reload; only the documentary shape is lost.
-  *Sources: `function_serializer.md:144-147`.*
+- **Serializer faithfulness: the K11 contracts are dropped by the DMS dump** **[moderate]** · *open*
+  A `container` parameter renders as bare `container P`, its member declarations dropped (unit params DO render their member block), and a by-example parameter (`nw: network_links`) loses its exemplar: `DMS_WriteFunctionParam` (`rtc/dll/src/tic/TreeItemXmlDump.cpp`) never reads `paramTypeExemplars`. Since K11a-3.2 and K11a-4 both are checked contracts, so a dump and reload loses a definition-time and boundary check, not only the documentary shape; positives still recompute, so neither round-trip battery notices. This is A10 of `doc/continuations-2026-10-06.md`. Until 2026-10-06 this item said only the documentary shape was lost.
+  *Sources: `function_serializer.md`, accepted v1 limitations.*
 
 - **Serializer faithfulness — renamed designated result label lost** **[niche]** · *documented limitation*
   `-> x: T := y` loses the label `x` (semantically equivalent).
-  *Sources: `function_serializer.md:148`.*
+  *Sources: `function_serializer.md`, accepted v1 limitations.*
 
 - **Code hygiene — belt-and-suspenders `SetIsInstantiated()`** **[niche]** · *cleanup marker*
   `holder->SetIsInstantiated()` after an assert that should already guarantee it — flagged "REMOVE if the above assert is PROVEN." Trivial, not a feature gap.
-  *Sources: `AbstrCalculator.cpp:5168` (ApplyAsMetaFunction).*
+  *Sources: `MetaFuncApply.cpp` (ApplyAsMetaFunction).*
 
 ---
 
@@ -218,7 +251,7 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 Listed so the "remaining" set above isn't mistaken for exhaustive; none of these are planned work.
 
-- **Recursion is rejected** by the cycle guard; only bounded combinators / iteration are available (variadic folds with strictly-decreasing arity ARE allowed). *Design §11; `AbstrCalculator.cpp:1961`.*
+- **Recursion is rejected** by the cycle guard; only bounded combinators / iteration are available (variadic folds with strictly-decreasing arity ARE allowed). *Design §11; `HofApplication.cpp` ("recursive function application is not supported").*
 - **`RewriteExpr.lsp` end-state is NOT an empty file (2026-07-18 ruling).** Residual normalizers legitimately stay: `Value→convert`, `min_elem`/`max_elem(_fast)` unary collapses, `pow _X 2..6` integer-literal fast paths, NlLater `BaseUnit`/`convert` fixups, `MakeDefined` idempotence, and the boolean/constant simplification algebra. *Design §8.4 (1617-1639), §5.15 (1810-1812).*
 - **Pattern-destructuring definitional rules stay permanently** — `order` / `isOverlapping` / `median`-on-`interval` destructure syntactic nodes a function application would hide. *Design §8.4 (1570-1575, 1613-1621); `RewriteExpr.lsp:129-154`.*
 - **`rjoin` self-join collapse stays permanently** — `lookup(rlookup a a) c → c` fires only post-substitution; a prelude `rjoin` would break key identity (documented negative finding). *Design §8.4 (1644-1655).*
@@ -234,10 +267,12 @@ Listed so the "remaining" set above isn't mistaken for exhaustive; none of these
   or a modeller's `imp`. The prefix was picked by measuring candidates against the corpus + battery -- `sig_*`
   occurs in neither, while `U_`/`E_`/`A_`/`D_` and `_P`/`_B`/`_A` all still collided. Synthetic skeleton roles
   are spelled out (`sig_arg0`, `sig_res`): a one-letter synthetic folds onto a describe-side label.
-- **Serializer: domain/values case may normalize** when a reference resolves — round-trip-safe (DMS identifiers are case-insensitive), documented rather than fixed. *`function_serializer.md:149-150`.*
-- **Serializer: a config that explicitly `#include`s the auto-imported prelude cannot round-trip** — include-erasure re-emits `function sqr…` at root, colliding with the auto-import ("SubItem sqr already defined"). One documented skip (`fn_test_prelude`); the rendering itself is correct. *`function_serializer.md:151-157`.*
+- **Serializer: domain/values case may normalize** when a reference resolves — round-trip-safe (DMS identifiers are case-insensitive), documented rather than fixed. *`function_serializer.md`, accepted v1 limitations.*
+- **Serializer: a config that explicitly `#include`s the auto-imported prelude cannot round-trip** — include-erasure re-emits `function sqr…` at root, colliding with the auto-import ("SubItem sqr already defined"). One documented skip (`fn_test_prelude`); the rendering itself is correct. *(2026-10-06: the cause went with df0af919c (#1253), which made a dump self-contained, without `#include` directives, and reports that `fn_test_prelude` dumps and reloads; `testcases/run_roundtrip.ps1` still skips it, audit PLN-A19.)* *`function_serializer.md`, accepted v1 limitations.*
 - **§5.11 anonymous function-literal v1 limits** — literals carry no `using` clause and no named result; `_lambda_<n>` items report line-1 source location (GUI go-to-source lands at file top); the spliced name shows in calculation rules. *Design §5.11 tier B (1405-1412).*
 
 ---
+
+*(2026-10-06: the sequencing paragraph below is obsolete. K11 landed, and with it the `for_each` expansion and the `discrete_alloc` name-array members; Tier-2 SelectMeta typing and declared parameter metrics, with `unit_creator_spec`, are closed by the rulings of 2026-07-29. Of its gates only the WP4.1 select-family signatures for the Category-E retirement (§3) remain.)*
 
 **Substantial items worth sequencing first (cross-cutting gates):** K11 container types (§2) unblocks for_each container expansion, discrete_alloc name-array members, and the Tier-2 SelectMeta typing; declared parameter-metric syntax (§4) unblocks K10 metric un-deferral and `unit_creator_spec`; the WP4.1 select-family signatures unblock Category-E `.lsp` retirement (§3).

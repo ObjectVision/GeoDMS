@@ -1,6 +1,14 @@
 # Bi-criteria (2D) impedance: assessment and proposal for issue #856
 
-Status: v1 IMPLEMENTED (2026-08-25) as designed below; sections 1-4 are the assessment that led there.
+*Status (2026-10-06): v1 IMPLEMENTED (2026-08-25, 7856fcef7, with StartPoint_rel in pareto mode in
+69c61c956) as designed below; sections 1-4 are the assessment that led there. #856 was closed on
+2026-08-25. Since then the pareto option gained `pareto(imp2_epsilon)` and the table operator
+`pareto_optimal_eps` (#1282, c2f64650d; relative since edadab56d and c1d0aacbb), and `pareto_optimal`
+came beside it (#1281, 9347cd552). The CMake/Linux and full.py gate of the summary below is overtaken: the
+release rounds in `doc/performance-test.md` ran full.py on these builds, the 20.22.0 round on OVSRV10 with
+`.m` and `.l`. Open: the last origin's count is never compared (5.4, invariant 2; audit GEO-A29 part (c));
+the shrink-if-huge policy of invariant 4 is not implemented; v2 items 1, 3 and 4 of 5.6 and landmark
+pruning. Section 7 is resolved (987730a64, #1210).*
 Issue: https://github.com/ObjectVision/GeoDMS/issues/856 (jipclaassens, 2025-01-21, assigned MaartenHilferink)
 Motivating use case: https://github.com/ObjectVision/NetworkModel_PBL/issues/19
 
@@ -29,6 +37,7 @@ Implementation summary (v1):
 - Wiki: documented in Impedance-options.md (new `pareto` section + row-identity note in the od-pair
   section) and impedance_matrix.md, wiki commit fb40badc.
 - Still open: OVSRV10 CMake/Linux + full.py gate; v2 items in 5.6 minus StartPoint_rel (done).
+  *(2026-10-06: the gate is overtaken by the release rounds, see the status line.)*
 
 Scope of the remainder of this document: analyse the request, assess "integrate into the existing operators
 in Dijkstra.cpp with a specialized 2D OwningDijkstraHeap" versus "separate implementation", and record the
@@ -279,12 +288,19 @@ engine is ready for them).
    path in normal mode; it doubles as a determinism tripwire. parallel_for over origins does not perturb this
    (each origin task is self-contained), but any "optimization" that lets worker-carried state influence
    pruning would break it nondeterministically.
+   *(2026-10-06, audit GEO-A29 part (c), open: both drivers compare an origin's count with the
+   cumulative counts only when it is not the last origin, `WriteZonalResults` in the scalar driver and
+   the fill pass of `ProcessBiDijkstra`. With `precalculated_NrDstZones`, which only the scalar driver
+   accepts, a larger count for the last origin writes past `SetCount(nrRes)` (for the other origins it
+   throws), and an origin with fewer rows than precalculated leaves the rest uninitialised; in the pareto
+   driver the tripwire is blind for the last origin. 4ba0b1d28 fixed
+   parts (a) and (b) of GEO-A29 only.)*
 3. The OD result is written through untiled raw pointers (`GetDataWrite(no_tile, ...)`; the numResultTiles
    parameter is vestigial) — the whole result is one contiguous allocation. With fronts multiplying row
    counts, this buffer, not the algorithm, is the first memory ceiling at national scale.
 4. Worker-memory: the queue is O(open labels); combinable buffers are grow-only across origins per worker
    (the existing my_vec_t reuse pattern). One pathological origin times 16-32 workers is the second memory
-   ceiling; add a cheap shrink-if-huge policy per origin.
+   ceiling; add a cheap shrink-if-huge policy per origin. *(Not implemented as of 2026-10-06.)*
 
 ### 5.5 Performance and scale posture (national PBL-scale is a v1 requirement)
 
@@ -347,6 +363,9 @@ engine is ready for them).
 
 
 ## 7. Side-finding, independent of #856
+
+*Resolved: od:StartPoint_rel is written since 987730a64 (2026-08-25, #1210, closed); `WriteZonalResults`
+fills `od_StartPointIds` in both regimes. The paragraph below is as written before that.*
 
 `od:...,StartPoint_rel` (DijkstraFlag::ProdOdStartPoint_rel) creates its result item (Dijkstra.cpp:1907),
 wires it into ResultInfo as od_StartPointIds with write_only_all (:2159) and commits the lock — but

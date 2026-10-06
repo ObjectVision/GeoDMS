@@ -1,5 +1,16 @@
 # Type-declaration & by-example forms — complete catalog
 
+*Status (2026-10-06): written on 2026-07-26 (cfa1a0884); corrected where it is now false. The gap it
+names, members of a unit exemplar not carried by a by-example parameter, is closed by K11a-3.2
+(91df00d45, 2026-07-28), which keeps the exemplar (`paramTypeExemplars`) instead of cloning its members,
+and K11a-4 (49ad7db03) adds container exemplars. Since 07eaa3b61 (#1252) `f: function` and
+`-> function` are rejected, and an unresolved type reference fails the declaration instead of binding
+by reference. The note at the end of section 3 was refuted on 2026-07-27 (5838939ea), and the `add`/`+`
+gate of section 4 was lifted on 2026-07-28 (71d87f5be). The `ConfigProd.cpp` handlers named here moved
+to `ConfigProd_functions.cpp` in 77ca72653, and the checker's `ParamType`, `PositionType` and
+`BuildParamMembers` to `rtc/dll/src/tic/HofTypeChecker.cpp` in 821d19459; the line numbers are those of
+2026-07-26 and are not re-pinned.*
+
 A reference for every way a **type** can be written in a GeoDMS `.dms` config: the
 direct keyword signatures, the **by-example** (item-reference) forms, and the function
 forms. Covers where each is legal (item declaration, function parameter, function
@@ -62,14 +73,21 @@ on its kind — **four kinds today**:
 
 | Exemplar kind | Becomes | What is copied | What is **NOT** copied |
 |---|---|---|---|
-| **Unit** (`:886`) | `unit<vc>` signature | value class + `IntegrityCheck` refinement (`CloneAliasRefinement`, `:1008`) | **member sub-items** ← the K11 gap |
+| **Unit** (`:886`) | `unit<vc>` signature | value class + `IntegrityCheck` refinement (`CloneAliasRefinement`, `:1008`) | **member sub-items** ← the K11 gap; *closed for function parameters by K11a-3.2 (91df00d45), which keeps the exemplar* |
 | **DataItem** (`:893`) | `attribute<vu>(dom)` | values-unit token, domain token, value-composition, `IntegrityCheck` | — |
 | **Function item** (`:905`) | function-signature type | the callee's signature (params + result) | only legal in param / result position |
 | **Container / other** (`:915`) | plain `TreeItem` | nothing (bind by reference) | — |
 
+*(2026-10-06: since K11a-4, 49ad7db03, a container exemplar of a function parameter, `cfg: Settings`,
+is kept as well and types the parameter as a container with its members.)*
+
 Plus the **unresolved-reference** case (`:919`): an identifier that does *not* resolve
 yet — legal **only inside a function declaration** (`f: function`, or a composite type
 declared further down). Binds by reference; typing deferred to reduction.
+*(2026-10-06: since 07eaa3b61 (#1252) `f: function` is an error, "'function' is not a type". A type
+declared further down is kept as written and resolved when the function item's meta info is
+updated; a reference that still does not resolve then fails the declaration instead of becoming a
+container.)*
 
 ### Type application on a by-example ref — `Sig<V, D>`
 
@@ -87,7 +105,7 @@ variables. Documentation-level bind in v1 (§5.10 Stage 2).
 | **Function parameter** | `functionParamItem` `:278` | ✓ | ✓ (via `itemDecl`) | ✓ (`:282`, `!itemBlock`) |
 | **Anonymous sig parameter** | `functionSigParamItem` `:327` | ✓ | ✓ (`:330`) | — (name synthesized) |
 | **Function result** | `functionResultType` `:284` | ✓ | ✓ (`:287`) | — |
-| **`-> function` result** | `:285` `OnFunctionResultIsFunction` | function-valued | — | — |
+| **`-> function` result** | `:285` `OnFunctionResultIsFunction` | rejected since 07eaa3b61; write `-> <signature alias>` | — | — |
 | **Plain type alias** `A = T;` | `aliasPlain` `:336` | ✓ | ✓ (`:339`) | — |
 | **Function-sig alias** `A = (…)->R;` | `aliasFunctionSig` `:310` | (params only) | ✓ in params | — |
 | **Variadic rest** `...x` | `functionParamItem` `:279` | — | — | — |
@@ -98,6 +116,9 @@ attached in **parameter** position (`functionParamItem :282`), and function **re
 only accept `-> parameter<…>` / `attribute<…>` / by-example — not a structured block.
 That is why a structured-param function will not parse an attribute-result declaration
 over the param's member domain.
+*(Refuted on 2026-07-27, 5838939ea: a result over a member path, `-> attribute<uint32> (nw/nodeset)`,
+parses and works, pinned by `testcases/fn_test_network.dms`. What holds is only that a result
+takes no member block.)*
 
 ---
 
@@ -124,11 +145,19 @@ With that one change, all four by-example kinds become structurally complete, an
 inline-structured and by-example composite forms coincide — a single "composite type"
 concept with two spellings.
 
+*Done 2026-07-28 by K11a-3.2 (91df00d45), in another way than proposed: the function keeps the
+exemplar in `FunctionSpecData::paramTypeExemplars`, and `BuildParamMembers` types the parameter from
+the exemplar's declared members, resolving their tokens in the exemplar's own scope
+(`fn_test_byexample{,2,_neg1}`).*
+
 ### Not a generalization, but adjacent
 
 Making the member-identity payoff *observable at def-time* is a **separate** gate
 (described combining operators; the `add`/`+` deferral) tracked in
-`k11-container-types-scope.md §5.2` — independent of how the type is spelled.
+`doc/archive/k11-container-types-scope.md` §5.2 — independent of how the type is spelled.
+*(Lifted on 2026-07-28 by the cross-record domain skeleton, 71d87f5be: `pcount(nw/F1) + pcount(nw/F2)`
+over different node units is a definition-time conflict. The scope document is archived as
+`doc/archive/k11-container-types-scope.md`.)*
 
 ---
 
@@ -143,7 +172,7 @@ DIRECT-SIG ::= container | template | item
              | parameter<VU>
              | function [<TVARS>] ( PARAMS ) -> RESULT
 BY-EXAMPLE ::= ItemRef [ <TYPE-ARGS> ]       // copies ItemRef's type:
-             //   Unit      -> unit<vc>  (+IntegrityCheck; members NOT cloned ← gap)
+             //   Unit      -> unit<vc>  (+IntegrityCheck; as a parameter its members type it, K11a-3.2)
              //   DataItem  -> attribute<vu>(dom) (+VC, +IntegrityCheck)
              //   Function  -> function-signature type   (param/result only)
              //   Container -> plain item (bind by reference)

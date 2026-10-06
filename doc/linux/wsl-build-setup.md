@@ -72,5 +72,5 @@ Both routes invoke the binary via `wsl --` from the Windows-side runner.
   `DmShv.dll`).
 - `GeoDmsGuiQt` links against `DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo
   DmShv Qt6::Core Qt6::Gui Qt6::Widgets`.
-- The portability layer (`ViewHost` / `DrawContext`) is documented in the
-  root [`PORTING_STATUS.md`](../../PORTING_STATUS.md).
+- The portability layer (`ViewHost` / `DrawContext`) is documented in
+  [`porting-status.md`](porting-status.md).

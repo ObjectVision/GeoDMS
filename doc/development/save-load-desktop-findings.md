@@ -1,5 +1,13 @@
 # Save/Load Desktop (collection of Views) — findings & effort estimate
 
+*Status (2026-10-06): still no decision between (a) phasing out and (b) save and load in `.dms`
+syntax (audit PLN-A15 of the code audit of 2026-09-27), and nothing has changed since 2026-06-13:
+`SHV_DataView_StoreDesktopData` has no callers, and `SM_Save` still occurs 27 times in
+`shv/dll/src`, the enum value and that function's own call included. The ownership plan's removal of
+`GraphicObject::Sync` and with it of `TreeItem::Reorder` (item 15.4 of the archived
+`std-ptr-migration-plan.md`, still open in `doc/development/ownership.md`) waits on this decision. Moved from the repository root on 2026-10-06; the code anchors of
+section 7 are re-pinned to HEAD of that date.*
+
 _Date: 2026-06-13 · Branch: refactor_linux_gui · Status: investigation only, no decision taken_
 
 Context: deciding whether to (a) phase out the Desktop save/load internals completely, or
@@ -62,23 +70,23 @@ DataItemColumn, EditPaletteControl, PaletteControl, ViewPort, …).
   writes the live view's full state (ROI, layers, themes, classification, and — new — ChartControl
   draw mode / X-axis / categorical axis) into its view-context TreeItem under
   `/Desktops/Default/ViewN`.
-  `shv/dll/src/ShvDllInterface.cpp:124`
+  `shv/dll/src/ShvDllInterface.cpp`
 - **Load direction is already the live path:** `QDmsViewArea` opens *every* view via
   `SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load)`.
-  `qtgui/exe/src/DmsViewArea.cpp:297`
+  `qtgui/exe/src/DmsViewArea.cpp`
   Today the context is freshly empty, so SM_Load just builds defaults; feed it a *populated*
   context and the same code restores state. The `ChartLayer`/`HistogramLayer` "reconstructed
   from a saved desktop, keep restored ROI" comments confirm SM_Load already honours stored state.
-  `shv/dll/src/ChartLayer.cpp:80`, `shv/dll/src/HistogramLayer.cpp:54`
+  `ChartLayer::Sync` (`shv/dll/src/ChartLayer.cpp`), `HistogramLayer::Sync` (`shv/dll/src/HistogramLayer.cpp`)
 - **TreeItem subtree → `.dms` writer already exists:** `IncludeFileSave()` / `DMS_TreeItem_Dump()`
   serialise any subtree to `.dms` config syntax — this is the ".dms syntax" path requested, and
   it is what `#include` / `configStore` already use.
-  `tic/dll/src/Xml/XmlTreeOut.cpp:1379`, caller `tic/dll/src/TreeItem.cpp:4226`
+  `rtc/dll/src/tic/Xml/XmlTreeOut.cpp`, caller `TreeItem::XML_Dump` in `rtc/dll/src/tic/TreeItemXmlDump.cpp`
 - **`.dms` → tree reader exists:** `DMS_CreateTreeFromConfiguration` plus the include reader.
-  `stx/dll/src/StxInterface.cpp:103`
+  `stx/dll/src/StxInterface.cpp`
 - **Qt view-open path already takes (context, style):** `MainWindow::createView` creates the
   view-context item under `GetDefaultDesktopContainer` and spawns a `QDmsViewArea`.
-  `qtgui/exe/src/DmsMainWindow.cpp:1011`
+  `qtgui/exe/src/DmsMainWindow.cpp`
 
 ---
 
@@ -123,12 +131,12 @@ geometry would be a small but separate addition.
 
 ## 7. Key code anchors (for whoever picks this up)
 
-- `shv/dll/src/ShvDllInterface.cpp:124` — `SHV_DataView_StoreDesktopData` (view → context, SM_Save)
-- `shv/dll/src/ShvDllInterface.cpp:67` — `SHV_DataView_Create(context, style, sm)`
-- `qtgui/exe/src/DmsViewArea.cpp:297` — `QDmsViewArea` ctor calls Create with `SM_Load`
-- `qtgui/exe/src/DmsMainWindow.cpp:1011` — `createView`, view-context under `GetDefaultDesktopContainer`
-- `tic/dll/src/Xml/XmlTreeOut.cpp:1379` — `IncludeFileSave` (subtree → `.dms`)
-- `tic/dll/src/TreeItem.cpp:4226` — `XML_Dump` / include-save call site, ST_DMS syntax
-- `stx/dll/src/StxInterface.cpp:103` — `DMS_CreateTreeFromConfiguration` (`.dms` → tree)
-- `shv/dll/src/ChartControl.cpp:160`, `ChartLayer.cpp:71` — new ChartView `Sync` (SM_Save/SM_Load)
+- `shv/dll/src/ShvDllInterface.cpp` — `SHV_DataView_StoreDesktopData` (view → context, SM_Save)
+- `shv/dll/src/ShvDllInterface.cpp` — `SHV_DataView_Create(context, style, sm)`
+- `qtgui/exe/src/DmsViewArea.cpp` — `QDmsViewArea` ctor calls Create with `SM_Load`
+- `qtgui/exe/src/DmsMainWindow.cpp` — `MainWindow::createView`, view-context under `GetDefaultDesktopContainer`
+- `rtc/dll/src/tic/Xml/XmlTreeOut.cpp` — `IncludeFileSave` (subtree → `.dms`)
+- `rtc/dll/src/tic/TreeItemXmlDump.cpp` — `TreeItem::XML_Dump` / include-save call site, ST_DMS syntax (in `TreeItem.cpp` until 821d19459)
+- `stx/dll/src/StxInterface.cpp` — `DMS_CreateTreeFromConfiguration` (`.dms` → tree)
+- `shv/dll/src/ChartControl.cpp`, `ChartLayer.cpp` — `ChartControl::Sync`, `ChartLayer::Sync` (SM_Save/SM_Load)
 - Removal commit of old Delphi feature: `3dd9e183` (2023-08-31)

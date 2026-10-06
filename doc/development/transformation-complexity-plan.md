@@ -1,11 +1,18 @@
 # Plan: extend `CrdTransformation` to rotation, 3D rotation and projective tilting
 
-Status (2026-09-29): phases 1 to 6 landed on 2026-06-18 (73a15ee38 for 1 to 3, 139217657 to
-5d699a737 for 4 and 5, 0aa886eb1 to 118c4f0e9 for 6), with the navigation gestures of phase 7 and the
-view tilt of phase 8, and their fixes up to 2026-06-21 (c058dcd00), from branch `MapView_Tilting`;
-phase 9, z-attribute vector layers, has no commit. Since 20.22.0 `tif` and world files refuse a rotated
-georeference (225d2ea3d), and `gdal.grid` reads one in the build's point order (106342e56).
-Until the code audit of 2026-09-27 (PLN-A08) this line said "No code changed yet".
+*Status (2026-10-06): phases 1 to 6 landed on 2026-06-18, with phase 7 in part and the view tilt of
+phase 8, and their fixes up to 2026-06-21 (c058dcd00), from branch `MapView_Tilting`; phase 9 has no
+commit. The table in section 4 gives the commits per phase. Since 20.22.1 (its release notes) `tif` and
+world files refuse a rotated georeference (225d2ea3d, STG-A11), and `gdal.grid` reads one in the build's
+point order and refuses to write one (106342e56, STG-A34). Open: SHV-A13 of the code audit of
+2026-09-27, `~GridCoord` (`shv/dll/src/GridCoord.cpp`) erases `m_GridCoordMap[m_Key]` unconditionally,
+so for a grid without georeference the temporary `GridCoord` of a rotated grid draw removes the
+layer's live one, which is then no longer re-initialised on zoom or pan; and nine comments
+still call the rotation and tilt a STUB although phase 6 made them work: five in
+`shv/dll/src/ViewPort.cpp`, two in `ViewPort.h`, one each in `Controllers.cpp` and `Controllers.h`.
+Moved from the repository root on 2026-10-06; the code comments that cite it still name it
+`Transformation_complexity_plan.md`. Until 2026-10-06 this line dated the two georeference fixes to
+20.22.0; until the code audit of 2026-09-27 (PLN-A08) it said "No code changed yet".*
 
 ## 0. Scope and vocabulary
 
@@ -251,6 +258,18 @@ Nearest-neighbour is fine for classified rasters (palette identity must be prese
 ---
 
 ## 4. Phasing
+
+*Where each phase stands (2026-10-06):*
+
+| Phase | State | Commits |
+|---|---|---|
+| 1 to 3, core type, rect and scalar sweeps | landed 2026-06-18 | 73a15ee38 |
+| 4 and 5, georeference level d, transformed raster blit | landed 2026-06-18 | 139217657 to 5d699a737 |
+| 6, view rotation end to end | landed 2026-06-18 | 0aa886eb1 to 118c4f0e9 |
+| 7, navigation gestures and GUI | in part: Shift+drag orbit (`OrbitController`), Alt+drag marquee, Shift+arrow keys, `N` and `T`, the `TB_RestoreNorth` and `TB_RestoreUntilted` buttons; not the compass and tilt carets, nor rotation and tilt in `ViewPoint` | with phase 6 and 8 |
+| 8, projective tilt | landed, fixes 2026-06-18 to 2026-06-21 | up to c058dcd00 |
+| 9, z-attribute vector layers | not started | none |
+| georeference follow-ups | `tif` and world files refuse a rotation (STG-A11); `gdal.grid` reads it in point order, refuses to write it (STG-A34) | 225d2ea3d, 106342e56 |
 
 1. **Core type, backward-compatible.** Add the tag (default `AnisoScale`), `Complexity()`/`IsAxisSeparable()`, make `Apply/Reverse/operator*/operator//Inverse` dispatch (matrix path for `> c`), add `ApplyBounds`/`ApplyQuad`/`JacobianAt`/`LocalScaleAt`, restrict-assert the SEP queries. Everything stays at level c → no behaviour change. Land + run regression (vector + raster) to prove parity.
 2. **Rect→bounds/quad sweep.** Convert all `Apply(rect)`/`Reverse(rect)` sites (§2) to `ApplyBounds` or `ApplyQuad`. Still level c, still parity, but now correct-by-construction for higher levels.

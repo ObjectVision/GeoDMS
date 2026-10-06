@@ -1,6 +1,16 @@
 # CRS / metric decoupling for coordinate units (#1119 follow-up)
 
-Status: **IMPLEMENTED, Stages 0–7 (2026-07-29), pending a full `prj_snapshots` regression.**
+*Status (2026-10-06): implemented, Stages 0 to 7, all on 2026-07-29 (23c30435f to 1744fbd42).
+The full `prj_snapshots` regression it waited for is the full.py round, which runs t060 (BAG20)
+and has run on every release round recorded since 20.20.0 (`doc/performance-test.md`, and for 20.20
+and 20.21 `doc/archive/performance-test-20.20-20.21.md`); the 20.22.1 rounds end with every report row ok (e78fc8af1, and 6bdbc0911 after GeoDMS-Test moved
+four references for the #1290 tie rule). Ruling 1 is done (Stage 5, 6a719a45f), without the
+`tst/Unit/CRS` case for a chained gridset that it asked for. Open: the comment above
+`CrsUnitOperator` in `clc/dll/src/OperUnit.cpp` still describes the Stage-2 wrapper around a
+0xFF-packed `BaseUnit`, and the `ST_Warning` recommended in the compatibility checklist for a
+hand-written `BaseUnit('EPSG:...')` was never implemented. Until 2026-10-06 this line said
+"IMPLEMENTED, Stages 0–7 (2026-07-29), pending a full `prj_snapshots` regression".*
+
 The 0xFF packing is gone; the interim #1119 mitigation at the bottom of this document has been
 superseded (see "What this fixes for free"). Commits: `23c30435` (0), `053b3d47` (1),
 `724142b9` (2), `c4020ee7` (3), `b8d7795a` (4), `6a719a45` (5), and Stages 6+7 together.
@@ -259,7 +269,7 @@ roundtrip gate. This repo has been bitten by exactly this seam before (commit `c
 | ~~CalcCache~~ | Moot — retired with the 8.0 series (#1189). Had it existed, Stage 2 would have invalidated it and needed a **minor version bump** |
 | Two same-σ units unify | **Preserved** (σ stays in the key expr) |
 | Two same-σ, different-DialogData units unify | **Changed: now succeeds** (was `" (incompatible Metrics)"`) — intended |
-| `BaseUnit('EPSG:28992', fpoint)` hand-written in a config | Becomes a plain metric with no CRS meaning. No in-repo config does this; recommend an `ST_Warning` when a `BaseUnit` symbol matches `^EPSG:` |
+| `BaseUnit('EPSG:28992', fpoint)` hand-written in a config | Becomes a plain metric with no CRS meaning. No in-repo config does this; recommend an `ST_Warning` when a `BaseUnit` symbol matches `^EPSG:` (not implemented as of 2026-10-06) |
 
 ## What this fixes for free
 
@@ -289,6 +299,8 @@ All four were put to the author and answered. None remain open; they are now wor
    its CRS with no diagnostic. Convert to `GetCompositeBase()` in **Stage 5** and add a
    `tst/Unit/CRS` case covering the chained shape. This is the site most likely to break quietly,
    so it gets a test, not just a fix.
+   *(2026-10-06: the conversion is in Stage 5, 6a719a45f; the `tst/Unit/CRS` case is not:
+   that folder still holds only `reproject.dms`.)*
 
 2. **Registry conflict: two units declaring the same σ with different backgrounds.**
    → **RULING: accepted as proposed.** First non-empty wins; `ST_Warning` on conflict. Before

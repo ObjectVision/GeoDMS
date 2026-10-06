@@ -1,6 +1,6 @@
 # Storage reads as key-expression operators (#587)
 
-*Status: S0 to S4 implemented and committed (2026-09-05, see the status notes under section 4); S5 (the unit suite, the Release build) ran, and the four failures it found are fixed, see the S5 note; the follow-ups on main end with b00f2f4b8 (2026-09-16), plus dbe256a84 (2026-09-29, TIC-A04) and the #1284 commit of 2026-10-06 for a member demanded while its table is read (3.4, step 4). Until the code audit of 2026-09-27 (PLN-A08) this line said S5 was in progress. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers.*
+*Status (2026-10-06): S0 to S4 implemented and committed (2026-09-05, see the status notes under section 4); S5 (the unit suite, the Release build) ran, and the four failures it found are fixed, see the S5 note; the follow-ups on main end with b00f2f4b8 (2026-09-16), plus dbe256a84 (2026-09-29, TIC-A04) and the #1284 commits of 2026-10-06 (9a1182a1e, 135f1fc20) for a member demanded while its table is read (3.4, step 4). Fixed after the code audit of 2026-09-27: a column of the wrong type in the `gdal.vect` one-pass read fails only its own attribute (e044091db, STG-A13); the meta info that a lazy grid read keeps no longer closes the shared storage when it dies (1f092c6b9, TIC-A03); the `odbc` reader, broken since S2, takes the values class from the data object it fills (aec1214ab). Open: the one-pass read for `dbf` and `odbc` (only `GdalVectSM` overrides `CanReadDataItemsAtOnce`); `storage_read_attrs`, whose token exists but whose operator does not; the spec-only meta infos; the S1 GUI smoke test; the two issue drafts on source versions (decision 12, appendix B), never posted. Since 233305f1d (#1248) `CreateItemWriter` is gone and every `OperationContext` is bound to a `FuncDC`; sections 1.3 and 2.4 describe the shape before. Until the code audit of 2026-09-27 (PLN-A08) this line said S5 was in progress. First draft 2026-09-05; revised the same day after two review rounds by the maintainer (section 5 records the rulings, all made; 10 and 11 are the maintainer's own proposals from the second round, adopted). Code anchors re-pinned on 2026-09-05 against the working tree at `main` `b81d6eea` (20.19.3) plus another session's uncommitted edits in `OperationContext.*`, `PhaseContainer.cpp`, `OperMisc.cpp`, `Union.cpp` and the grid managers.*
 *Scope: `rtc/dll/src/tic` (key expressions, DataControllers, `PrepareDataUsage`, `OperationContext`), `rtc/dll/src/tic/stg` and `stg/dll/src` (storage managers), `clc` only for the PhaseContainer analogue and the `do` operator.*
 
 ---
@@ -130,6 +130,11 @@ to the configuring holder item is a temporary aid that must be gone when the wor
   `FuncDC`), its estimate is computed only at run time inside `StorageReadHandle::Read`
   (`rtc/dll/src/tic/stg/AbstrStorageManager.cpp:1046-1075`), and `OperationContext.cpp`
   carries some thirty lines that branch on `m_FuncDC` or `m_TaskFunc` for the two kinds of task.
+  *(2026-10-06: this was the shape before S1. Since S3 a read is a `FuncDC` operator
+  application, and #1248 removed `CreateItemWriter` with its last user, the class-break
+  writer of `Theme.cpp`, and turned the early return of `RefreshEstimateForAdmission` for a
+  task without a `FuncDC` into an assert (233305f1d). `m_TaskFunc` stays: `ScheduleCalcResult`
+  assigns an `OC_CalcResultFunc` to it.)*
 - **Supplier bookkeeping is hand-rolled.** `PrepareDataRead`
   (`rtc/dll/src/tic/TreeItemDataUsage.cpp:283-476`) assembles the read's futures itself:
   Calc-visited suppliers plus `ExplicitSuppliers` (release 20.16.0, after a parquet read
@@ -230,6 +235,11 @@ reads all tiles into a `DataWriteLock` and commits (`:390-406`). `AbstrUnit::DoR
 
 ### 2.4 Scheduling
 
+*(2026-10-06: the sentences on `CreateItemWriter`, on `RefreshEstimateForAdmission` and on
+the lambda describe the item-writer path, which S3 deleted for reads; `CreateItemWriter`
+itself went with #1248 (233305f1d), and `RefreshEstimateForAdmission` no longer skips any
+task: every `OperationContext` has a `FuncDC`, which it asserts. The line numbers are those
+of `b81d6eea`.)*
 `OperationContext::CreateItemWriter` (`OperationContext.cpp:853-859`) sets
 `m_RequiredStorageManager` and `Schedule`s. `Schedule` (`:1001-1072`) connects the arg
 futures as OC suppliers (`connectArgs`, `:2259-2306`, using `GetOperationContext(item)` for
@@ -738,6 +748,9 @@ ready, as it does for calculated items (#1181), instead of being the only evalua
 - **`shv/dll/src/Theme.cpp:481`** also uses `CreateItemWriter` (class breaks); it keeps
   working. Its move to an operator, which would let the `task_func_type` constructor and
   the `m_FuncDC`/`m_TaskFunc` branches go, is filed separately (section 5, decision 6).
+  *(Done 2026-09-08 in 233305f1d, #1248: `CreateItemWriter` and the `task_func_type`
+  constructor went; `m_TaskFunc` and the `m_KeptArg*` members stay, because the calculation
+  path uses them too.)*
 
 ### 3.9 What `PrepareDataRead` becomes
 
@@ -1152,6 +1165,9 @@ operators only if they become typeable. Issue #587: the debrief per
 ---
 
 ## Appendix A. Code anchors (as of `b81d6eea`)
+
+*Not re-pinned since. Several of the functions named here were deleted in S3 (see its status
+note); `CreateItemWriter` and its other user in `Theme.cpp` went with #1248 (233305f1d).*
 
 | What | Where |
 |---|---|
