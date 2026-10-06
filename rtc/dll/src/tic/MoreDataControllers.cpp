@@ -349,6 +349,15 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 // operation in one section of it and Join may see that status before the section ends. dbe256a84 waited on
 // the result item instead, which ends when Run_with_catch releases the write lock, before OnEnd; a request
 // in between reused the ending operation and left the member unread.
+// Waits until a section of cs_ThreadMessing that is held now has ended. A function of its own, so that its
+// ceiling covers this section only and not the Join before it: tools/check-lock-ceilings.ps1 ties a
+// declaration to the whole body that contains it.
+static void PassThreadMessingOnce()
+{
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
+	leveled_std_section::scoped_lock passOnEnd(cs_ThreadMessing);
+}
+
 // Returns false when the meta thread suspended or the operation did not end well.
 static bool JoinOperationThatMissesWantedMember(const FuncDC& funcDC, const TreeItem* resultRoot)
 {
@@ -360,10 +369,7 @@ static bool JoinOperationThatMissesWantedMember(const FuncDC& funcDC, const Tree
 		return true;
 	if (operContext->Join() != task_status::done)
 		return false;
-	{
-		DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
-		leveled_std_section::scoped_lock passOnEnd(cs_ThreadMessing);
-	}
+	PassThreadMessingOnce();
 	assert(funcDC.GetOperContext() != operContext);
 	return true;
 }
