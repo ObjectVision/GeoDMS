@@ -111,6 +111,8 @@ def arc_rec(pts):
 pts = [point_rec(1.0, 2.0), point_rec(3.0, 4.0), point_rec(5.0, 6.0)]
 write_shp('shp_pts3', 1, pts, (1, 2, 5, 6))                       # control
 write_shp('shp_pts3_stale', 1, pts, (1, 2, 5, 6), shx_extra=2)    # STG-N01: .shx declares 5, .shp holds 3
+null_rec = struct.pack('<I', 0)                                  # a null shape record: the shape type 0 only, 4 bytes
+write_shp('shp_pts3_null', 1, [pts[0], null_rec, pts[2]], (1, 2, 5, 6))   # STG-A20: unreadable as a whole until 20.22.1
 arcs = [arc_rec([(0, 0), (10, 0)]), arc_rec([(0, 5), (10, 5), (10, 15)])]
 write_shp('shp_arc2', 3, arcs, (0, 0, 10, 15))                    # control
 write_shp('shp_arc2_stale', 3, arcs, (0, 0, 10, 15), shx_extra=2) # STG-N01: .shx declares 4, .shp holds 2

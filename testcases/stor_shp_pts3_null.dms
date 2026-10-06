@@ -1,0 +1,16 @@
+// Code audit STG-A20: a point shapefile with a null shape record, which the ESRI specification allows and
+// shapelib and GDAL write for a feature without geometry (data/shp_pts3_null.shp: points (1,2) and (5,6)
+// around a null record). The length of a point record was checked before the shape type was read, so the
+// whole file was unreadable; the null record now gives an undefined point.
+container stor_shp_pts3_null
+{
+	unit<uint32> shapes: StorageName = "%currDir%/data/shp_pts3_null.shp", StorageType = "shp", StorageReadOnly = "True";
+	container checks
+	{
+		parameter<uint32>  n      := #shapes,                                IntegrityCheck = "n == 3";
+		parameter<uint32>  n_null := uint32(sum_uint64(IsNull(shapes/PointData))), IntegrityCheck = "n_null == 1";
+		parameter<bool>    second := IsNull(shapes/PointData[1]),           IntegrityCheck = "second == true";
+		parameter<float64> sx     := sum(pointcol(shapes/PointData)),       IntegrityCheck = "sx > 5.99 && sx < 6.01";
+		parameter<float64> sy     := sum(pointrow(shapes/PointData)),       IntegrityCheck = "sy > 7.99 && sy < 8.01";
+	}
+}

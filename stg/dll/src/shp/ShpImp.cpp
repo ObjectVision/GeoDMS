@@ -232,33 +232,48 @@ bool ShpImp::Read(WeakStr name)
 		ShapeTypes shapeType;
 		m_Points.resize(0); 
 		if (m_NrRecs != UInt32(-1)) m_Points.reserve(m_NrRecs);
+		// A record is its header (8 bytes) and its content: the shape type (4 bytes) and, for a point, x and y
+		// (16 bytes). A null shape record (type 0) holds the shape type only: the ESRI specification allows it,
+		// and shapelib and GDAL write it for a feature without geometry. The length of a point record was
+		// checked before the shape type was read, so one null record made the whole file unreadable (code
+		// audit STG-A20); it now gives an undefined point, as the polygon reader already did. A file that
+		// does not hold what its records declare is reported as such, with the record number.
+		auto corrupt = [&name](CharPtr what, UInt32 recNr)
+		{
+			throwErrorF("Shp", "shapefile {} is corrupt: {} at record {}", name.c_str(), what, recNr);
+		};
 		while (pos < m_FileLength)
 		{
-			MG_CHECK(m_FileLength - pos >=  (8+4+2*8));
+			UInt32 recNr = UInt32(m_Points.size() + 1);
+			if (m_FileLength - pos < 8 + 4)
+				corrupt("the file ends inside a record", recNr);
 
 			pos += rhead.Read(m_FH);
-			MG_CHECK( rhead.ContentLength *2 == 4+2*8);
+			if (SizeT(rhead.RecordNumber) != recNr)
+				corrupt("the record numbers are not consecutive", recNr);
+			if (rhead.ContentLength < 2 || (m_FileLength - pos) / 2 < UInt32(rhead.ContentLength))
+				corrupt("a record that does not fit in the file", recNr);
 
 			m_Points.push_back(ShpPoint());
-
-			MG_CHECK( SizeT(rhead.RecordNumber) == m_Points.size() );
-			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
 			Int32 shapeTypeAsInt = 0;
 			pos += ReadLittleEndian(m_FH, shapeTypeAsInt);
 			shapeType = decltype(shapeType)(shapeTypeAsInt);
 
-			MG_CHECK( IsPoint(shapeType) );
-
-
 			if (IsNone(shapeType))
+			{
+				if (rhead.ContentLength * 2 != 4)
+					corrupt("a null shape record of more than 4 bytes", recNr);
 				MakeUndefined(m_Points.back());
+			}
 			else
 			{
 				if (!IsPoint(shapeType))
 					throwErrorF("Shape", "Unsupported type {} at record {} in shapefile {}\n"
-						"Expected shapetype: ST_Point", 
+						"Expected shapetype: ST_Point",
 						int(shapeType), rhead.RecordNumber, name.c_str());
+				if (rhead.ContentLength * 2 != 4 + 2 * 8)
+					corrupt("a point record of another length than 20 bytes", recNr);
 				pos += ::Read(m_Points.back(), m_FH);
 			}
 		}
