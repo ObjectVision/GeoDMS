@@ -50,7 +50,6 @@
 #include "Unit.h"
 #include "UnitClass.h"
 
-#include "dllimp/RunDllProc.h" 
 #include "time.h" 
 
 /*****************************************************************************/
@@ -62,18 +61,6 @@
 /*****************************************************************************/
 //								GENERAL
 /*****************************************************************************/
-
-FileDateTime TIMESTAMP_STRUCT2FileDateTime(const TIMESTAMP_STRUCT ts)
-{
-	struct tm	tm_val;
-	tm_val.tm_year		=	ts.year;
-	tm_val.tm_mon		=	ts.month;
-	tm_val.tm_mday		=	ts.day;
-	tm_val.tm_hour		=	ts.hour;
-	tm_val.tm_min		=	ts.minute;
-	tm_val.tm_sec		=	ts.second;
-	return AsFileDateTime(mktime(&tm_val), ts.fraction);
-}
 
 const ValueClass* CType2ValueClass(SQLSMALLINT ctype)
 {
@@ -668,7 +655,6 @@ StorageMetaInfoPtr ODBCStorageManager::GetMetaInfo(const TreeItem* storageHolder
 ODBCStorageManager::ODBCStorageManager()
 {
 	m_TiDatabase.reset();
-	m_HasAccessSysObjectsCopy = false;
 }
 
 void GetDatabaseLocationArguments(const ODBCStorageManager* osm, TDatabase& database)
@@ -838,95 +824,6 @@ SharedStr ODBCStorageManager::GetDatabaseFilename(const TreeItem* storageHolder)
 	db->Open(); // required to get DataBase().Name() 
 	return db->Name() + ".mdb";
 }
-
-/*
-TIMESTAMP_STRUCT ODBCStorageManager::AccessTableLastUpdate(const TreeItem* storageHolder, const TreeItem* tableHolder)
-{
-	DBG_START("ODBCStorageManager", "AccessTableLastUpdate", true);
-
-	TIMESTAMP_STRUCT				ts;
-	memset(&ts, 0, sizeof(TIMESTAMP_STRUCT));
-
-// ODBCTIME, TODO: ODBCStorageManager::AccessTableLastUpdate
-//	updateinfo.SQL	=	"SELECT DATEUPDATE FROM MSysObjects WHERE TYPE IN (1, 5, 6) AND NAME = '"; 
-//	updateinfo.SQL	+=	DMS_TreeItem_GetName(tiTable); 
-//	updateinfo.SQL	+=	"'"; 
-
-//	if (updateinfo.Open())
-//		ts	=	* ((TIMESTAMP_STRUCT*) updateinfo.Columns()[0].ElementBuffer());
-//	else
-//	{
-//		updateinfo.Close();
-		// 1. create copy of relevant MSYSOBJECTS data (necessary because MSYSOBJECTS data can't be retrieved via ODBC)
-//		if (!m_HasAccessSysObjectsCopy) // prevent making copy too often.
-//		{
-			// 3. drop MSYSOBJECTS_COPY
-//ODBCTIME	updateinfo.SQL	=	"DROP TABLE MSYSOBJECTS_COPY";
-//			updateinfo.ExecSQL(false); // dont worry if table does not exist
-//			updateinfo.Close();
-//
-			// QUESTION: what is the type of a VIEW? Is it within the selected range 1-6?
-			// ANSWER: peek at Access
-			RunAccessSql(GetDatabaseFilename(storageHolder).c_str(), 
-							"SELECT NAME, DATEUPDATE INTO MSYSOBJECTS_COPY FROM MSYSOBJECTS WHERE TYPE IN (1, 5, 6)",
-							"MYSYSOBJECTS_COPY");
-			m_HasAccessSysObjectsCopy = true; 
-		}
-
-		// 2. retrieve DATEUPDATE from MSYSOBJECTS_COPY via ODBC for the current tiTable
-		// PAS OP DUBBELE Namen!
-		TRecordSet updateinfo(OpenDatabaseInstance(storageHolder));
-		updateinfo.CreateRecordSet(mySSPrintF("SELECT DATEUPDATE FROM MSYSOBJECTS_COPY WHERE NAME = '{}'", tableHolder->GetNameID()).c_str());
-		
-//ODBCTIME	}
-	TRecordSetOpenLock uiLock(&updateinfo);
-	if (!updateinfo.EndOfFile())
-		ts = * ((TIMESTAMP_STRUCT*) updateinfo.Columns()[0].ElementBuffer());
-
-	return ts;
-}
-*/
-
-/* ODBCTIME
-FileDateTime ODBCStorageManager::GetLastChangeDateTime((const TreeItem* storageHolder, CharPtr columnName)
-{
-	return TimeStamp(0, 0);
-	// NYI
-	CDebugContextHandle debugContext("ODBCStorageManager::GetLastChangeDataTime", columnName, true);
-	ObjectContextHandle och(storageHolder, "StorageHolder");
-
-	const TreeItem *tiTable	= storageHolder->GetItem(GetTokenID_mt(columnName));
-	MG_CHECK(tiTable);
-
-	const AbstrUnit *domainUnit;
-	if	(	TreeItemIsColumn(const_cast<TreeItem*>(tiTable)) 
-		||	!TreeItemIsTable(const_cast<TreeItem*>(tiTable), domainUnit))
-		return TimeStamp(0, 0);
-	
-
-	TIMESTAMP_STRUCT ts;
-
-	CharPtr                            tablename = tiTable->GetName();
-	TTableTimestampCacheType::iterator i         = m_TableTimestampCache.find(tablename);
-	
-	if (i != m_TableTimestampCache.end())
-		ts = i->second;
-	else
-	{
-		if (TreeItemIsQuery(const_cast<TreeItem*>(tiTable), domainUnit))  
-			memset(&ts, 0, sizeof(TIMESTAMP_STRUCT));
-		else
-		{
-			DMS_CALL_BEGIN
-				ts = AccessTableLastUpdate(storageHolder, tiTable);
-			DMS_CALL_END
-		}
-		m_TableTimestampCache[tablename] = ts;
-	}
-	
-	return TIMESTAMP_STRUCT2FileDateTime(ts);
-} // ODBCStorageManager::GetLastChangeDateTime
-ODBCTIME */
 
 // Register
 

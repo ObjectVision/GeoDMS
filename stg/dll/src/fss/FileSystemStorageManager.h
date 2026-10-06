@@ -32,7 +32,6 @@ public:
 
 protected:
 //	implement AbstrStorageManager interface
-	void DropStream(const TreeItem* item, CharPtr path) override;
 	FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const override;
 
 	std::unique_ptr<OutStreamBuff> DoOpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t) override;

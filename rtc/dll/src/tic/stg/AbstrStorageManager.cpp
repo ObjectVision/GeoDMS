@@ -166,7 +166,6 @@ static StaticTokenID t_Overridable(OVERRIDABLE_NAME);
 
 SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr defaultValue)
 {
-//	static TokenID configSettingsID("ConfigSettings");
 	assert(configRoot);
 	assert(IsMetaThread());
 
@@ -1174,11 +1173,6 @@ ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const
 		}
 	}
 	return AVS_Ready;
-}
-
-void NonmappableStorageManager::DropStream(const TreeItem* item, CharPtr path)
-{
-	throwIllegalAbstract(MG_POS, this, "DropStream");
 }
 
 // Wrapper functions for consistent calls to specific StorageManager overrides

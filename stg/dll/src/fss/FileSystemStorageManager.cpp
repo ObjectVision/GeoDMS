@@ -40,15 +40,6 @@ FileSystemStorageManager::~FileSystemStorageManager()
 	assert(!m_FssLockFile.IsOpen());
 }
 
-void FileSystemStorageManager::DropStream(const TreeItem* item, CharPtr path)
-{
-	assert(item);
-
-	reportF(SeverityTypeID::ST_MajorTrace, "Drop  fss({},{})", GetNameStr().c_str(), path);
-
-	KillFileOrDir(GetFullFileName(path));
-}
-
 SharedStr FileSystemStorageManager::GetFullFileName(CharPtr name) const
 {
 	return DelimitedConcat(GetNameStr().c_str(), MakeDataFileName(name).c_str());
@@ -68,8 +59,6 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 	assert(!m_IsReadOnly);
 
-//	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write fss({},{})", GetNameStr().c_str(), path);
-
 	SharedStr fullName = GetFullFileName(path); 
 	if (adi)
 	{
@@ -84,8 +73,6 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 std::unique_ptr<InpStreamBuff> FileSystemStorageManager::DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const
 {
-//	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  fss({},{})", GetNameStr().c_str(), path);
-
 	assert(IsOpen());
 
 	auto result = std::make_unique<MappedFileInpStreamBuff>(GetFullFileName(path), false, false);

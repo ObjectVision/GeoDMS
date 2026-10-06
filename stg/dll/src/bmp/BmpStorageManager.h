@@ -26,8 +26,6 @@ struct BmpPalStorageManager : AbstrGridStorageManager
 
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
-	bool CanWriteTiles() const override { return true; }
-
 protected:
 	virtual bool HasGridData() = 0;
 };

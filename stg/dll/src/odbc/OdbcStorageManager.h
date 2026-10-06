@@ -49,22 +49,11 @@ public:
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
 
 private:
-	typedef std::map<SharedStr, TIMESTAMP_STRUCT> TTableTimestampCacheType;
 	typedef SharedPtr<TRecordSet>               TRecordSetRef;
-
-//	TIMESTAMP_STRUCT AccessTableLastUpdate(const TreeItem* storageHolder, const TreeItem* tableHolder);
-
-	void ResetAccessSysObjectsCopy() // Public soon? Triggered by Invalidate or something?
-	{
-		m_HasAccessSysObjectsCopy = false;
-		m_TableTimestampCache.clear();
-	}
 
 	mutable std::unique_ptr<TDatabase>  m_Database;
 	mutable std::weak_ptr<const TreeItem> m_TiDatabase; // weak cache-validity token for m_Database's configured storageHolder (compared, never dereferenced)
 	mutable std::map<TreeItem*, TRecordSetRef> m_RecordSets;
-	bool                                m_HasAccessSysObjectsCopy;
-	TTableTimestampCacheType            m_TableTimestampCache;
 
 	DECL_RTTI(STGDLL_CALL, StorageClass)
 };

@@ -67,12 +67,9 @@ public:
 
 protected:
 //	implement AbstrStorageManager interface
-//	void DropStream(const TreeItem* item, CharPtr path) override;
 	FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const override;
 
 	bool AllowRandomTileAccess() const override { return true; }
-	bool EasyRereadTiles() const override { return true; }
-	virtual bool CanWriteTiles() const { return true; }
 
 	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override; // Default implementation now checks existence of m_Name as a file
 

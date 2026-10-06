@@ -31,8 +31,6 @@ struct TiffSM : AbstrGridStorageManager
 	FileResult ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
-	bool CanWriteTiles() const override { return true; }
-
 	UInt32 GetNativeTileSizeX() const override;
 	UInt32 GetNativeTileSizeY() const override;
 

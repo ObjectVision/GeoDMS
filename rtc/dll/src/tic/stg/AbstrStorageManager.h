@@ -95,8 +95,6 @@ struct enable_shared_from_this_base : std::enable_shared_from_this<Base>
 		return std::static_pointer_cast<const Derived>(this->shared_from_this());
 	}
 
-//	using weak_from_this;
-
 	template <typename Derived>
 	std::weak_ptr<Derived> weak_from_base()
 	{
@@ -287,8 +285,6 @@ public:
 
 	//	Abstact interface
 	TIC_CALL virtual bool AllowRandomTileAccess() const { return false; }
-	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
-	TIC_CALL virtual bool CanWriteTiles() const { return false;  }
 	TIC_CALL virtual bool IsWriteOnlyStorage() const { return false; }
 
 	// #587: whether this manager describes the read of its items as an operator application, see
@@ -386,8 +382,6 @@ protected:
 	mutable bool   m_IsOpen : 1;
 	bool   m_Commit : 1;
 
-//	friend struct TreeItem;
-
 private:
 	AbstrStorageManager(const AbstrStorageManager&) = delete;
 
@@ -437,8 +431,6 @@ public:
 	TIC_CALL virtual bool CanReadDataItemsAtOnce() const { return false; }
 	TIC_CALL virtual void ReadDataItemsAtOnce(std::vector<ReadTarget>& targets);
 
-	TIC_CALL virtual void DropStream(const TreeItem* item, CharPtr path);
-
 	// public interface funcs wrap derived StorageManagers virtual funcs
 	TIC_CALL virtual AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder);
 
@@ -462,8 +454,6 @@ struct StorageCloseHandle
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, no_storage_lock_t);    // #587: CS held by the caller
 
 	TIC_CALL virtual ~StorageCloseHandle();
-
-//	explicit operator bool() const { return m_StorageManager; }
 
 	StorageMetaInfoPtr MetaInfo() const { return m_MetaInfo; }
 	const TreeItem* StorageHolder() const { return MetaInfo()->StorageHolder(); }
