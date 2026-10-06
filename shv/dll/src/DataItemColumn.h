@@ -218,8 +218,8 @@ private:
 #endif
 
 	void SetOrgColor(SizeT recNo, AspectNr a, DmsColor color);
-	void RampColors(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow);
-	void RampValues(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow);
+	void RampColors(AbstrDataObject* ado, const std::vector<SizeT>& recNos);
+	void RampValues(AbstrDataObject* ado, const std::vector<SizeT>& recNos);
 
 	mutable std::unique_ptr<FontIndexCache> m_FontIndexCache;
 #ifdef _WIN32

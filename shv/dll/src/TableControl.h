@@ -18,6 +18,7 @@
 
 struct ThemeReadLocks;
 struct FocusElemProvider;
+struct PreparedDataReadLock;
 enum class SortOrder { Ascending, Descending };
 enum class TableCopyMode
 {
@@ -134,6 +135,32 @@ public:
 	SizeT nrRows() const;
 	SizeT getRecNo(SizeT i, SizeT nrRows) const;
 	SizeT getRowNr(SizeT i) const;
+
+	// SHV-A08, SHV-A09: the rows of a user-started action over many rows (select rows, go to the first
+	// selected, find next, ramp, copy, export). RowIndexLock waits once for the sort index (a
+	// PreparedDataReadLock blocks until it is produced), reads the number of rows once and holds the index
+	// for the action: RecNo neither prepares nor locks per row, as GetRecNo did for every row, and never
+	// gives an undefined record number, which these loops used as an index into the selection or the data
+	// (a bit flipped in the word before the selection buffer, a read before a tile, a GUI that hung). When
+	// the number of rows is not known (the rows of Show-Selected-Only or of a group-by still being computed,
+	// with no index to wait for), IsReady() is false, after a beep and a message, and the action does nothing.
+	struct RowIndexLock
+	{
+		RowIndexLock(const TableControl* tc, CharPtr actionName);
+		~RowIndexLock();
+		bool  IsReady() const;
+		SizeT NrRows() const { return m_NrRows; }
+		SizeT RecNo(SizeT rowNr) const;
+	private:
+		const TableControl* m_TC;
+		std::unique_ptr<PreparedDataReadLock> m_IndexLock;
+		SizeT m_NrRows;
+	};
+	// The record numbers of the rows [firstRow, lastRow), clamped to the rows there are now (a range left
+	// over from before Show-Selected-Only was toggled or the selection changed), taken under a RowIndexLock
+	// that is released again: the caller writes the selection or the data that the index may depend on
+	// afterwards. False when the rows are not known yet (see RowIndexLock).
+	bool CollectRecNos(SizeT firstRow, SizeT lastRow, std::vector<SizeT>& recNos, CharPtr actionName) const;
 
 	bool  InSelRange(SizeT row, gr_elem_index col) const { return m_Cols.IsInRange(col) && m_Rows.IsInRange(row); }
 	void  Export() const;

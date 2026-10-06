@@ -1558,11 +1558,20 @@ void DataItemColumn::SelectCol()
 	dms_assert(IsDefined(m_ColumnNr));
 	dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
+	// SHV-A09: with the rows not known yet, or none, m_End became UNDEFINED - 1 or SIZE_MAX, and Select rows
+	// then ran over about 2^64 rows
+	SizeT nrRows = tc->NrRows();
+	if (!IsDefined(nrRows) || !nrRows)
+	{
+		MessageBeep(MB_ICONEXCLAMATION);
+		return;
+	}
+
 	SelChangeInvalidator sci(tc.get());
 
 	if (!tc->m_Rows.IsDefined()) tc->m_Rows.m_Curr = 0;
 	tc->m_Rows.m_Begin = 0;
-	tc->m_Rows.m_End   = tc->NrRows()-1;
+	tc->m_Rows.m_End   = nrRows-1;
 
 	tc->m_Cols.CloseAt(m_ColumnNr);
 
@@ -1626,9 +1635,16 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 		[searchText = std::move(searchText), aa, tc, this] <typename value_type> (const Unit<value_type>*) 
 		{
 			auto searchValue = ThrowingConvert<value_type>(searchText);
-			SizeT nrRows = tc->NrRows();
+			// SHV-A08, SHV-A09: one wait for the sort index, no undefined record number, and a start row
+			// inside the rows there are; with nrRows undefined or 0 the wrap-around never came and the GUI hung
+			TableControl::RowIndexLock rows(tc.get(), "Find next");
+			if (!rows.IsReady())
+				return;
+			SizeT nrRows = rows.NrRows();
+			if (!nrRows)
+				return;
 			SizeT row = tc->GetActiveRow();
-			if (!IsDefined(row))
+			if (!IsDefined(row) || row >= nrRows)
 				row = 0;
 			SizeT currRow = row;
 			auto searchData = const_array_cast<value_type>(aa)->GetDataRead();
@@ -1636,8 +1652,8 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 			// first, try to find exact match
 			do{
 				++row;  if (row == nrRows) row = 0; // go to next row modulo nrRows
-				auto recNo = tc->GetRecNo(row);
-				assert(recNo < searchData.size());
+				auto recNo = rows.RecNo(row);
+				MG_CHECK(recNo < searchData.size());
 				if (equal_to(searchData[recNo], searchValue))
 				{
 					this->GotoRow(row);
@@ -1650,8 +1666,8 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 				// then try to find partial match
 				do {
 					++row;  if (row == nrRows) row = 0; // go to next row modulo nrRows
-					auto recNo = tc->GetRecNo(row);
-					assert(recNo < searchData.size());
+					auto recNo = rows.RecNo(row);
+					MG_CHECK(recNo < searchData.size());
 
 					auto searchStringCRef = searchData[recNo];
 					if (std::search(searchStringCRef.begin(), searchStringCRef.end(), searchValue.begin(), searchValue.end()) != searchStringCRef.end())
@@ -2101,41 +2117,25 @@ void DataItemColumn::Remove()
 	tc->RemoveEntry(this);
 }
 
-void DataItemColumn::RampColors(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow)
+// recNos are the record numbers of the selected rows, in row order, at least two (see Ramp)
+void DataItemColumn::RampColors(AbstrDataObject* ado, const std::vector<SizeT>& recNos)
 {
-	auto tc = GetTableControl().lock(); if (!tc) return;
-	UInt32 firstClr = ado->GetValue<DmsColor>(tc->GetRecNo(firstRow) );
-	UInt32 lastClr  = ado->GetValue<DmsColor>(tc->GetRecNo( lastRow) );
+	SizeT n = recNos.size() - 1;
+	UInt32 firstClr = ado->GetValue<DmsColor>(recNos.front());
+	UInt32 lastClr  = ado->GetValue<DmsColor>(recNos.back ());
 
-	SizeT n = lastRow - firstRow;
-	dms_assert(n > 0);
-
-	for (SizeT i = firstRow+1; i < lastRow; ++i)
-	{
-		ado->SetValue<DmsColor>(
-			tc->GetRecNo(i),
-			InterpolateColor(firstClr, lastClr, n, i - firstRow)
-		);
-	}
+	for (SizeT i = 1; i < n; ++i)
+		ado->SetValue<DmsColor>(recNos[i], InterpolateColor(firstClr, lastClr, n, i));
 }
 
-void DataItemColumn::RampValues(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow)
+void DataItemColumn::RampValues(AbstrDataObject* ado, const std::vector<SizeT>& recNos)
 {
-	auto tc = GetTableControl().lock(); if (!tc) return;
-	Float64 firstValue = ado->GetValueAsFloat64(tc->GetRecNo(firstRow) );
-	Float64 lastValue  = ado->GetValueAsFloat64(tc->GetRecNo( lastRow) );
+	SizeT n = recNos.size() - 1;
+	Float64 firstValue = ado->GetValueAsFloat64(recNos.front());
+	Float64 lastValue  = ado->GetValueAsFloat64(recNos.back ());
 
-
-	SizeT n = lastRow - firstRow;
-	dms_assert(n > 0);
-
-	for (row_id i = firstRow+1; i < lastRow; ++i)
-	{
-		ado->SetValueAsFloat64(
-			tc->GetRecNo(i),
-			InterpolateValue<Float64>(firstValue, lastValue, n, i - firstRow)
-		);
-	}
+	for (SizeT i = 1; i < n; ++i)
+		ado->SetValueAsFloat64(recNos[i], InterpolateValue<Float64>(firstValue, lastValue, n, i));
 }
 
 void DataItemColumn::Ramp()
@@ -2152,18 +2152,26 @@ void DataItemColumn::Ramp()
 	if (adi->IsDerivable())
 		adi->throwItemError("Ramp: Cannot change derived data; try to copy the attribute and change the copied data");
 
+	// SHV-A08, SHV-A09: the record numbers first, under the sort index, which is released before the data is
+	// written: the index may sort on this very column. An undefined record number became data[0xFFFFFFFF].
+	std::vector<SizeT> recNos;
+	if (!tc->CollectRecNos(tc->m_Rows.m_Begin, tc->m_Rows.m_End + 1, recNos, "Ramp"))
+		return;
+	if (recNos.size() < 2)
+		return;
+
 	auto lock = DataWriteLock(adi, dms_rw_mode::read_write);
 
 	auto colorTheme = GetEnabledTheme(AN_LabelBackColor);
 	if (colorTheme)
 	{
 		dms_assert(colorTheme->GetThemeAttr() == adi);
-		RampColors(lock.get(), tc->m_Rows.m_Begin, tc->m_Rows.m_End);
+		RampColors(lock.get(), recNos);
 	}
 	else
 	{
 		dms_assert(GetTheme(AN_LabelText)->GetThemeAttr() == adi);
-		RampValues(lock.get(), tc->m_Rows.m_Begin, tc->m_Rows.m_End);
+		RampValues(lock.get(), recNos);
 	}
 	lock.Commit();
 }

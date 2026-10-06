@@ -321,6 +321,51 @@ SizeT TableControl::getRecNo(SizeT rowNr, SizeT nrRows) const
 	return selIndexAttr->GetCurrRefObj()->GetValueAsSizeT(rowNr);
 }
 
+TableControl::RowIndexLock::RowIndexLock(const TableControl* tc, CharPtr actionName)
+	:	m_TC(tc)
+	,	m_NrRows(UNDEFINED_VALUE(SizeT))
+{
+	if (tc->m_SelIndexAttr)
+		m_IndexLock = std::make_unique<PreparedDataReadLock>(tc->m_SelIndexAttr.get_ptr(), actionName); // waits until the index is produced
+	m_NrRows = tc->NrRows(); // the index sorts the rows, so they are known once it is
+	if (!IsDefined(m_NrRows))
+	{
+		reportF(SeverityTypeID::ST_Warning, "{}: the rows of the table are still being computed; try again in a moment", actionName);
+		MessageBeep(MB_ICONEXCLAMATION);
+	}
+}
+
+TableControl::RowIndexLock::~RowIndexLock() = default;
+
+bool TableControl::RowIndexLock::IsReady() const
+{
+	return IsDefined(m_NrRows);
+}
+
+SizeT TableControl::RowIndexLock::RecNo(SizeT rowNr) const
+{
+	assert(IsReady());
+	SizeT recNo = m_TC->getRecNo(rowNr, m_NrRows);
+	MG_CHECK(IsDefined(recNo)); // a throw, where an undefined number used to become an index
+	return recNo;
+}
+
+bool TableControl::CollectRecNos(SizeT firstRow, SizeT lastRow, std::vector<SizeT>& recNos, CharPtr actionName) const
+{
+	RowIndexLock rows(this, actionName);
+	if (!rows.IsReady())
+		return false;
+	MakeMin(lastRow, rows.NrRows());
+	recNos.clear();
+	if (firstRow < lastRow)
+	{
+		recNos.reserve(lastRow - firstRow);
+		for (SizeT row = firstRow; row != lastRow; ++row)
+			recNos.push_back(rows.RecNo(row));
+	}
+	return true;
+}
+
 SizeT TableControl::GetRowNr(SizeT recNo) const
 {
 	if (!IsDefined(recNo))
@@ -935,16 +980,23 @@ void TableControl::SelectRows()
 	bool ctrlPressed = (GetKeyState(VK_CONTROL) & 0x8000);
 	bool shftPressed = (GetKeyState(VK_SHIFT  ) & 0x8000);
 
-	DataWriteLock writeLock(selThemeAttr, DmsRwChangeType(!(shftPressed || ctrlPressed)));
+	// SHV-A08, SHV-A09: the record numbers first, under the sort index, which is released before the selection
+	// is written: under Show-Selected-Only that index is derived from the selection itself
+	std::vector<SizeT> recNos;
+	if (!CollectRecNos(m_Rows.m_Begin, m_Rows.m_End + 1, recNos, "Select rows"))
+		return;
 
-	PreparedDataReadLock  indexLock(m_IndexAttr, "TableControl::SelectRows()"); // lock is required in GetRecNo in inner-loop
+	DataWriteLock writeLock(selThemeAttr, DmsRwChangeType(!(shftPressed || ctrlPressed)));
 
 	auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite(no_tile, dms_rw_mode::read_write);
 
 	DataArray<SelectionID>::iterator b = selData.begin();
 	bool isSelected = !ctrlPressed;
-	for (SizeT rowNr = m_Rows.m_Begin, e = m_Rows.m_End+1; rowNr!=e; ++rowNr)
-		b[GetRecNo(rowNr)] = isSelected;
+	for (SizeT recNo : recNos)
+	{
+		MG_CHECK(recNo < selData.size());
+		b[recNo] = isSelected;
+	}
 	writeLock.Commit();
 
 	BroadcastUpdateRequest();
@@ -969,13 +1021,18 @@ void TableControl::GoToFirstSelected()
 	const AbstrDataItem* selThemeAttr = selTheme->GetThemeAttr();
 	assert(selThemeAttr);
 	PreparedDataReadLock selLock  (selThemeAttr  , "TableControl::GoToFirstSelected()");
-	PreparedDataReadLock indexLock(m_SelIndexAttr, "TableControl::GoToFirstSelected()");
+	RowIndexLock rows(this, "Go to the first selected row"); // SHV-A08, SHV-A09
+	if (!rows.IsReady())
+		return;
 
 	auto selData = const_array_cast<SelectionID>(selThemeAttr)->GetDataRead();
 	auto b = selData.begin();
 
-	for (SizeT i = 0, n = NrRows(); i!=n; ++i)
-		if (SelectionID(b[GetRecNo(i)]))
+	for (SizeT i = 0, n = rows.NrRows(); i!=n; ++i)
+	{
+		SizeT recNo = rows.RecNo(i);
+		MG_CHECK(recNo < selData.size());
+		if (SelectionID(b[recNo]))
 		{
 			SelChangeInvalidator sci(this);
 			m_Rows.CloseAt(i);
@@ -986,6 +1043,7 @@ void TableControl::GoToFirstSelected()
 			sci.ProcessChange(true);
 			break;
 		}
+	}
 }
 
 void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, SizeT n1, SizeT n2, SizeT k1, SizeT k2)
@@ -1005,9 +1063,10 @@ void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, SizeT
 		currSpec.m_ColumnName = dic->GetActiveTheme()->GetThemeAttr()->GetNameID();
 		currSpec.m_RelativeDisplay = dic->m_State.Get(DIC_RelativeDisplay);
 	}
-	std::vector<SizeT> recNos; recNos.reserve(n2 - n1);
-	for (SizeT i = n1; i != n2; ++i)
-		recNos.emplace_back(self->GetRecNo(i));
+	// SHV-A08, SHV-A09: one wait for the sort index, and no undefined record number, which read before a tile
+	std::vector<SizeT> recNos;
+	MG_USERCHECK2(self->CollectRecNos(n1, n2, recNos, "Copy or export the table")
+		, "Copy or export the table: the rows of the table are still being computed; try again in a moment");
 
 	Table_Dump(buffPtr, begin_ptr(itemArray), end_ptr(itemArray), begin_ptr(recNos), end_ptr(recNos));
 }
