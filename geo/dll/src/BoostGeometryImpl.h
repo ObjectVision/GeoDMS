@@ -1384,52 +1384,6 @@ protected:
 	virtual void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const = 0;
 };
 
-template <typename Polyline, typename K>
-auto cgal_douglas_peucker(Polyline&& polyline, double sqr_tolerance) -> Polyline
-{
-	if (polyline.size() <= 2)
-		return polyline; // Not enough points to simplify
-
-	// Start and end points
-	const auto& start = polyline.front();
-	const auto& end = polyline.back();
-
-	// Line from start to end
-	typename K::Segment_2 line(start, end);
-
-	// Find the point with the maximum distance from the line
-	double max_distance_sq = 0.0;
-	size_t index = 0;
-	for (size_t i = 1; i < polyline.size() - 1; ++i) {
-		double distance_sq = CGAL::squared_distance(polyline[i], line);
-		if (distance_sq > max_distance_sq) {
-			index = i;
-			max_distance_sq = distance_sq;
-		}
-	}
-
-
-	// Compare squared distance to squared tolerance to avoid unnecessary square roots
-	if (max_distance_sq <= sqr_tolerance) {
-		Polyline result = {};
-		// The points between start and end are not significant; represent with a straight line
-		result.reserve(2);
-		result.push_back(start);
-		result.push_back(end);
-		return result;
-	}
-	// Recursively simplify the segments before and after the point with maximum distance
-	Polyline first_segment(polyline.begin(), polyline.begin() + index + 1);
-	Polyline second_segment(polyline.begin() + index, polyline.end());
-
-	Polyline result = douglas_peucker(first_segment, sqr_tolerance);
-	Polyline result2 = douglas_peucker(second_segment, sqr_tolerance);
-
-	// Combine the results (avoid duplicating the middle point)
-	result.insert(result.end(), result2.begin()+1, result2.end());
-	return result;
-}
-
 template <typename P, geometry_library GL>
 struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 {
@@ -1495,18 +1449,6 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 					resData[i].emplace_back(MG_DEBUG_ALLOCATOR_FIRST(GetGroup()->GetNameStr()) ringClosurePoints.back());
 					ringClosurePoints.pop_back();
 				}
-			}
-		}
-		else if constexpr (GL == geometry_library::cgal)
-		{
-			maxError *= maxError; // use the squared tolerance for efficiency
-			for (SizeT i = 0, n = polyData.size(); i != n; ++i)
-			{
-				auto polyDataElem = polyData[i];
-				CGAL_Traits::Ring currRing;
-				assign_polyline(currRing, polyDataElem);
-				auto resRing = cgal_douglas_peucker<CGAL_Traits::Ring, CGAL_Traits::Kernel>(std::move(currRing), maxError);
-				cgal_assign_geometry(resData[i], resRing);
 			}
 		}
 		else if constexpr (GL == geometry_library::geos)

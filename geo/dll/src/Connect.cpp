@@ -690,7 +690,6 @@ class ConnectInfoOperator : ConnectInfoBaseType<CT, HasMaxDist, HasMinDist>
 	typedef DataArray<PointType>           Arg2Type;
 
 	typedef DataArray<SqrtDistType>        ResSubType1; // distance
-//	typedef DataArray<E>                   ResSubType2; // arc-id
 	typedef DataArray<PointType>           ResSubType3; // cut-point
 	typedef DataArray<Bool>                ResSubType4; // in-arc
 	typedef DataArray<Bool>                ResSubType5; // in-semg
@@ -1896,7 +1895,6 @@ public:
 		}
 		return true;
 	}
-	compare_type m_CompareType = compare_type::none;
 };
 
 // *****************************************************************************

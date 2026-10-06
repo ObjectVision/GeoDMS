@@ -143,11 +143,6 @@ PointBoundingBoxCache<F>::PointBoundingBoxCache(const AbstrDataObject* featureDa
 
 	parallel_tileloop(tn, [this, da](tile_id t)
 		{
-			auto data = da->GetTile(t);
-			auto
-				i = data.begin(),
-				e = data.end();
-
 			BoxData resultBoxes;
 			resultBoxes.m_TotalBound = MakeBlockBoundArray(resultBoxes.m_BlockBoundArray, da->GetTile(t));
 

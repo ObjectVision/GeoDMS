@@ -291,17 +291,6 @@ private:
 	R CalcDist() const {
 		return SafeBet(sqrt(this->m_MinSqrDist));
 	}
-
-	bool MakeSafeMin(typename ArcProjectionHandleWithDist::sqrdist_type newDist)
-	{
-		if (ArcProjectionHandle<R, T>::MakeSafeMin(newDist))
-		{
-			m_Dist = CalcDist();
-			return true;
-		}
-		return false;
-	}
-
 };
 
 #endif // __GEOM_GEODIST_H

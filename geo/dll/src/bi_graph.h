@@ -24,9 +24,6 @@ struct dir_backward_tag {};
 inline dir_forward_tag  dir_reverse(dir_backward_tag) { return dir_forward_tag();  }
 inline dir_backward_tag dir_reverse(dir_forward_tag)  { return dir_backward_tag(); }
 
-//#define GRAPH_FORWARD  (dir_forward_tag ())
-//#define GRAPH_BACKWARD (dir_backward_tag())
-
 // *****************************************************************************
 //									struct bi_graph
 // *****************************************************************************
@@ -551,24 +548,6 @@ struct directed_dijkstra
 	{
 		std::pop_heap(m_Heap.begin(), m_Heap.end() );
 		m_Heap.pop_back();
-	}
-
-	void run_tree()
-	{
-		while (!m_Heap.empty())
-		{
-			const heap_elem& currElem = m_Heap.front();
-
-			UInt32    currLink = currElem.Link();
-			cost_type minCost  = currElem.Cost();
-
-			pop_node();
-
-			fix_link(
-				currLink,
-				minCost
-			);
-		}
 	}
 
 	bool              empty() const { return m_Heap.empty(); }

@@ -132,9 +132,6 @@ class GridDistOperator : public Operator
 	typedef typename cardinality_type<Grid>::type NodeType;
 	typedef UInt4  LinkType; 
 	typedef UInt32 ZoneType; // TODO, REMOVE only required for non-used parts of DijkstraHeap
-	typedef heapElemType<ImpType>    HeapElemType;
-	typedef my_vec_t<HeapElemType> HeapType;
-	typedef Range<GridType>          GridRangeType;
 
 	typedef DataArray<ImpType> Arg1Type;  // Grid->Imp
 	typedef DataArray<GridType> Arg2Type; // S->Grid
@@ -409,7 +406,7 @@ public:
 				for (; first != last; ++firstDist, ++first)
 				{
 					SizeT index = Range_GetIndex_checked(range, *first);
-					if (IsDefined(index) && ((!firstDist) || *firstDist >= ImpType()))
+					if (IsDefined(index) && *firstDist >= ImpType())
 						startNodes.emplace_back(index, *firstDist);
 				}
 			}

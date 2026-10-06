@@ -65,7 +65,6 @@ namespace boost::geometry::traits
 template <typename P>
 struct bg_union_poly_traits
 {
-//	using coordinate_type = scalar_of_t<P>;
 	using coordinate_type = Float64;
 	using point_type = Point<coordinate_type>;
 	using ring_type = sequence_traits<point_type>::container_type;
@@ -357,7 +356,6 @@ void assign_polygon(bg_polygon_t& resPoly, SA_ConstReference<DmsPointType> polyR
 
 	SA_ConstRingIterator<DmsPointType> rb(polyRef, 0), re(polyRef, -1);
 	auto ri = rb;
-	//			dbg_assert(ri != re);
 	if (ri == re)
 		return;
 
@@ -488,7 +486,6 @@ void dms_assign(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rval
 {
 	bg_polygon_t helperPolygon;
 	bg_ring_t helperRing;
-//	bg_multi_polygon_t tmpMP, resMP;
 
 	assign_multi_polygon(lvalue, rvalue, true, helperPolygon, helperRing);
 }
@@ -623,8 +620,6 @@ inline void fixWindingOrders(bg_multi_polygon_t& mp)
 		mp.erase(std::remove_if(mp.begin(), mp.end(), [](const bg_polygon_t& polygon) { return polygon.outer().empty(); }), mp.end());
 }
 
-static SizeT d_DebugCount = 0;
-
 template <typename BG_OPER>
 struct bg_checked_operation {
 	BG_OPER m_op;
@@ -644,8 +639,6 @@ struct bg_checked_operation {
 			checkWindingOrders(a);
 		if (!bIsValid)
 			checkWindingOrders(b);
-
-		d_DebugCount++;
 
 		if (aIsValid || boost::geometry::is_valid(a))
 			if (bIsValid || boost::geometry::is_valid(b))

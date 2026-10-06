@@ -35,20 +35,15 @@
 #include <geos/geom/MultiPolygon.h>
 
 #include <numeric>
-//#include <geos_c.h>
 
 inline auto geos_factory() -> const geos::geom::GeometryFactory*
 {
-	// Create a GeometryFactory with the precision model
-//	static auto pm = std::make_unique<geos::geom::PrecisionModel>(1024.0);
-//	static auto geometryFactory = geos::geom::GeometryFactory::create(pm.get());
 	return geos::geom::GeometryFactory::getDefaultInstance();
 }
 
 template <typename P>
 struct geos_union_poly_traits
 {
-	//	using coordinate_type = scalar_of_t<P>;
 	using coordinate_type = Float64;
 	using point_type = Point<coordinate_type>;
 	using ring_type = sequence_traits<point_type>::container_type;
@@ -109,36 +104,6 @@ auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType*
 		return std::unique_ptr<geos::geom::Geometry>( resLineStrings[0].release() );
 	return std::unique_ptr<geos::geom::Geometry>(geos_factory()->createGeometryCollection(std::move(resLineStrings)).release() );
 }
-
-template <typename CoordType>
-auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::geom::LinearRing>
-{
-	if (pointsPerCircle < 3)
-		pointsPerCircle = 3;
-	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
-#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
-	auto seq = geos_factory()->getCoordinateSequenceFactory()->create(pointsPerCircle + 1, 2);
-	for (int i = 0; i < pointsPerCircle; ++i) {
-		double angle = i * anglePerPoint;
-		int x = static_cast<int>(radius * std::cos(angle));
-		int y = static_cast<int>(radius * std::sin(angle));
-		seq->setAt(geos::geom::Coordinate(x, y), i);
-	}
-	seq->setAt(seq->getAt(0), pointsPerCircle);
-	return geos_factory()->createLinearRing(std::move(seq));
-#else
-	auto seq = geos::geom::CoordinateSequence::XY(pointsPerCircle + 1);
-	for (int i = 0; i < pointsPerCircle; ++i) {
-		double angle = i * anglePerPoint;
-		int x = static_cast<int>(radius * std::cos(angle));
-		int y = static_cast<int>(radius * std::sin(angle));
-		seq[i] = geos::geom::CoordinateXY{static_cast<double>(x), static_cast<double>(y)};
-	}
-	seq[pointsPerCircle] = seq[0]; // close ring
-	return geos_factory()->createLinearRing(seq);
-#endif
-}
-
 
 template <typename DmsPointType>
 struct geos_create_linear_ring_helper_data
@@ -228,37 +193,6 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 			currRing = std::move( helperRing );
 			outerOrientationCW = currOrientationCW;
 			isFirstRing = false;
-/* NYI
-			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
-			if (!mustInsertInnerRings)
-			{
-				SizeT polygonIndex = 0;
-				while (polygonIndex < resMP.size())F
-				{
-					auto currPolygon = resMP.begin() + polygonIndex;
-					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
-					{
-						if (boost::geometry::within(currPolygon->outer(), helperPolygon.outer()))
-						{
-							resMP.erase(currPolygon);
-							continue;
-						}
-						if (boost::geometry::within(helperPolygon.outer(), currPolygon->outer()))
-						{
-							helperPolygon.clear();
-							assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
-							break;
-						}
-
-						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
-							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in {}", AsString(polyRef).c_str());
-
-						// a combination of touching outer rings such as in an 8 shape is 
-					}
-					polygonIndex++;
-				}
-			}
-*/
 		}
 		else if (mustInsertInnerRings)
 		{
@@ -672,19 +606,6 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("geos_assign_mp"));
 	geos_write_mp(std::move(ref), mp);
 }
-
-/*
-inline auto getPolygonsFromGeometryCollection(const geos::geom::GeometryCollection* gc) -> std::unique_ptr<geos::geom::MultiPolygon>
-{
-	// Use Polygonizer to form polygons from the GeometryCollection
-	geos::operation::polygonize::Polygonizer polygonizer;
-	polygonizer.add(gc);
-
-	auto pwh = polygonizer.getPolygons();
-	// Get the polygons formed by the Polygonizer
-	return geos_factory()->createMultiPolygon(std::move(pwh));
-}
-*/
 
 inline void cleanupPolygons(std::unique_ptr<geos::geom::Geometry>& r)
 {

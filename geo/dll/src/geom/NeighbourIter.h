@@ -33,17 +33,6 @@ SqrMinDistTo(T c, T a, T b)
 
 template <typename T>
 inline typename sqr_acc_type<T>::type
-SqrMaxDistTo(T c, T a, T b)
-{
-	dms_assert(a <= b);
-	return Max(
-		(a<c) ? Sqr(sqr_acc_type<T>::type(c-a)) : 0
-	,	(b>c) ? Sqr(sqr_acc_type<T>::type(b-c)) : 0 // b-c, not c-b, which wraps for unsigned coordinates (GEO-A34)
-	);
-}
-
-template <typename T>
-inline typename sqr_acc_type<T>::type
 SqrDistTo(T c, T a)
 {
 	return SqrMinDistTo(c, a, a);
@@ -65,15 +54,6 @@ MinDist(const Point<T>& center, const Range<Point<T> >& range)
 	return 
 		SqrMinDistTo(center.first , range.first.first , range.second.first) 
 	+	SqrMinDistTo(center.second, range.first.second, range.second.second);
-}
-
-template <typename T>
-inline typename sqr_acc_type<T>::type
-MaxDist(const Point<T>& center, const Range<Point<T>>& range)
-{
-	return 
-		SqrMaxDistTo(center.first , range.first.first , range.second.first) 
-	+	SqrMaxDistTo(center.second, range.first.second, range.second.second);
 }
 
 /******************************************************************************/

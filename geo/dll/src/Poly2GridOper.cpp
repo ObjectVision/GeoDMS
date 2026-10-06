@@ -733,9 +733,6 @@ struct Poly2GridOperator : public BinaryOperator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		assert(args.size() >= 2);
-		if (args.size() > 2 && !resultHolder)
-			// throwErrorD("poly2grid", "Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
-			reportD(SeverityTypeID::ST_Warning, "poly2grid: Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
 		const AbstrDataItem* polyAttr = AsDataItem(args[0]); // can be segmented
 		const AbstrUnit* gridDomainUnit = AsUnit(args[1]); // can be tiled
 
@@ -776,8 +773,6 @@ struct Poly2GridOperator : public BinaryOperator
 	// polyAttr can be segmented
 	void Calculate(AbstrDataObject* resObj, const AbstrUnit* resDomain, const AbstrDataItem* polyAttr, const AbstrBoundingBoxCache* boxesArray) const
 	{
-		bool isAllDefined = polyAttr->HasUndefinedValues(); // note: result not used; kept for future optimizations
-
 		// TODO G8: Avoid double work for polygons that intersect multiple tiles:
 		//          e.g. with an ordered heap processing neighboring tiles together.
 
@@ -862,8 +857,6 @@ struct Poly2AllGridsOperator : public BinaryOperator
 	// polyAttr can be segmented
 	void Calculate(AbstrUnit* resDomain, AbstrDataItem* resPolyRelAttr, AbstrDataItem* resGridRelAttr, const AbstrDataItem* polyAttr, const AbstrUnit* rasterDomain) const
 	{
-		bool isAllDefined = polyAttr->HasUndefinedValues(); // note: retained for future use
-
 		// TODO G8: Avoid double work of polygons that intersect multiple tiles.
 
 		auto tpn = polyAttr->GetAbstrDomainUnit()->GetTiledRangeData()->GetNrTiles();

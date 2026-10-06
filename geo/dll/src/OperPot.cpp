@@ -243,8 +243,6 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
             DataWriteHandle resDataHandle(res, dms_rw_mode::write_only_mustzero);
             tile_id te = resDomainUnit->GetNrTiles();
 
-            BitVector<1> wasInitialized(te, false MG_DEBUG_ALLOCATOR_SRC("BitVector for DirectPotential"));
-
             // Track maximum tile size for buffer preallocation / kernel planning
             UPoint maxDataTileSize{ 0, 0 };
             for (tile_id ti = 0; ti != te; ++ti)
@@ -377,12 +375,6 @@ public:
     DirectPotentialOperator(AbstrOperGroup* gr, AnalysisType at)
         : AbstrDirectPotentialOperator(gr, at, ResultType::GetStaticClass())
     {}
-
-    // Optional scratch buffers (currently not extensively used)
-    struct ResBuffer {
-        std::vector<T>           resultRectData;
-        potential_context<T>     convolutionBuffer;
-    };
 
     // Create and initialize kernel_info (called once before parallel phase)
     kernel_info CreateKernelInfo(const AbstrDataItem* weightGridA, UPoint weightSize, UPoint maxDataTileSize) const override
