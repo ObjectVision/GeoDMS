@@ -19,23 +19,6 @@
 static const GRect s_WindowClipRect = GRect(-1024, -1024, 4096, 4096);
 static const GRect s_EmptyRect      = GRect(0, 0, 0, 0);
 
-#if defined(MG_DEBUG)
-
-#define RGN_LOWERBOUND -16384
-#define RGN_UPPERBOUND 16384
-
-void CheckRgnLimits(const GRect& rect)
-{
-	assert(rect.top  >= RGN_LOWERBOUND);
-	assert(rect.left >= RGN_LOWERBOUND);
-	assert(rect.bottom >= rect.top );
-	assert(rect.right  >= rect.left);
-	assert(RGN_UPPERBOUND >= rect.bottom);
-	assert(RGN_UPPERBOUND >= rect.right );
-}
-
-#endif
-
 GRect ClipRect(const GRect& rect)
 {
 	GRect result = rect & s_WindowClipRect;

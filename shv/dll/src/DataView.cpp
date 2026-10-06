@@ -2022,9 +2022,12 @@ void DataView::SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf)
 
 void DataView::InvalidateDeviceRect(GRect rect)
 {
-#if defined(MG_DEBUG)
-	CheckRgnLimits(rect);
-#endif
+	// Only the part inside the view can be invalidated. A caller may pass a rect that reaches far beyond it,
+	// such as the resize caret of a column of a table with millions of rows; a Debug build used to check
+	// such a rect against the GDI region limits of +/-16384 and stopped on a CRT assert.
+	rect &= ViewDeviceRect();
+	if (rect.empty())
+		return;
 	if (m_ViewHost)
 	{
 		m_ViewHost->VH_InvalidateRect(rect, true);

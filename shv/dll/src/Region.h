@@ -18,10 +18,6 @@
 
 using RectArray = std::vector<GRect>;
 
-#if defined(MG_DEBUG)
-void CheckRgnLimits(const GRect& rect);
-#endif
-
 //----------------------------------------------------------------------
 // GRect <-> QRect conversion helpers
 //----------------------------------------------------------------------
