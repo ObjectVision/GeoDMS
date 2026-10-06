@@ -405,6 +405,10 @@
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="src\sym\Prolog.cpp">
+      <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
   </ItemGroup>
   <!-- ==== merged-in Tic sources (was DmTic.vcxproj) ==== -->
   <ItemGroup>
@@ -632,6 +636,7 @@
     <ClInclude Include="src\sym\LispList.h" />
     <ClInclude Include="src\sym\LispRef.h" />
     <ClInclude Include="src\sym\Parser.h" />
+    <ClInclude Include="src\sym\Prolog.h" />
     <ClInclude Include="src\sym\RewriteRules.h" />
     <ClInclude Include="src\sym\SymBase.h" />
     <ClInclude Include="src\sym\SymInterface.h" />

@@ -989,6 +989,9 @@
     <ClInclude Include="src\tic\Param.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
+    <ClInclude Include="src\sym\Prolog.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
     <ClInclude Include="src\vt\CharPtrRange.h">
       <Filter>Geometry</Filter>
     </ClInclude>
@@ -1386,6 +1389,9 @@
     </ClCompile>
     <ClCompile Include="src\tic\UsingCache.cpp">
       <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sym\Prolog.cpp">
+      <Filter>SymbolicCalculation</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\Metric.cpp">
       <Filter>TreeItemComponent</Filter>

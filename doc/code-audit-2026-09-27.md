@@ -10,9 +10,9 @@ specifically for twins of the defects fixed since 2026-09-01. About forty of the
 re-read once more before this report was written. Line numbers are leads at this HEAD, not gospel;
 every item names its function so it can be re-found.*
 
-*Status (2026-10-06): of the 288 findings, 145 are fixed, 13 partly (CLC-A17, CLC-A30, STG-A30, and ten whose dead code is
-deleted while a part that is not a deletion is open: INF-A15, PLN-A16, TIC-A21, TIC-A40, CLC-A28,
-GEO-A48, GEO-A56, STG-A31, QT-A28, REPO-A30), 2
+*Status (2026-10-06): of the 288 findings, 144 are fixed, 14 partly (CLC-A17, CLC-A30, STG-A30, INF-A14, whose Prolog.cpp
+was kept for further work, and ten whose dead code is deleted while a part that is not a deletion is
+open: INF-A15, PLN-A16, TIC-A21, TIC-A40, CLC-A28, GEO-A48, GEO-A56, STG-A31, QT-A28, REPO-A30), 2
 reverted (CLC-A07 by 793bf1080, because Hestia relies on the null; GEO-A19 by d46a6e199, because RSopen
 is calibrated on segments per quarter circle), 3 dropped (INF-A06, measured without gain, 048ef8efc;
 GEO-A42, measured slower, 612a3cb96; STX-A15, refuted, see its entry) and 125 open, one of them High
