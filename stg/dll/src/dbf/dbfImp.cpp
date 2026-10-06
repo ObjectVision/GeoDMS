@@ -595,8 +595,9 @@ bool DbfImpl::WriteHeader()
 	// STG-A21: the header stores its own size and the record size in 16 bits; more than 2046 columns, or
 	// columns whose widths add up to more than 65535 bytes, wrapped them and wrote a file no reader can
 	// take. Every write of the header is checked, as the record writes are.
-	if (ColumnCount() > (MAX_VALUE(UInt16) - 1) / DBF_HEADER_BLOCK_SIZE - 1)
-		throwErrorF("dbf", "a dbf file holds at most {} columns; {} were to be written", (MAX_VALUE(UInt16) - 1) / DBF_HEADER_BLOCK_SIZE - 1, ColumnCount());
+	const SizeT MAX_DBF_COLUMNS = (MAX_VALUE(UInt16) - 1) / DBF_HEADER_BLOCK_SIZE - 1; // 2046
+	if (ColumnCount() > MAX_DBF_COLUMNS)
+		throwErrorF("dbf", "a dbf file holds at most {} columns; {} were to be written", MAX_DBF_COLUMNS, ColumnCount());
 	if (RecordLength() > MAX_VALUE(UInt16))
 		throwErrorF("dbf", "a dbf record holds at most 65535 bytes; the widths of the {} columns add up to {}", ColumnCount(), RecordLength());
 	m_DbfVersion = 3;
