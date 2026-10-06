@@ -1,9 +1,20 @@
 # Deadlock analysis — lock inventory and (potential) deadlocks
 
 *Static analysis of the GeoDMS source, 2026-09-01, at commit `182e66e9` (post-#1227: `...Lock()`
-accessor naming, `DMS_ENTERS` ceilings, `DMS_CALLEE_ENTERS` callee contracts). **P1, P3 and P4
-were fixed in `b591f683` (issue #1233) and are kept below, marked FIXED, as the record of what the
-failure was; B1 was fixed -- and its earlier statement corrected -- in `d9d791ba`.** Method: exhaustive
+accessor naming, `DMS_ENTERS` ceilings, `DMS_CALLEE_ENTERS` callee contracts). **Status
+(2026-10-06): fixed, and kept below, marked so, as the record of what each failure was: P1, P3 and
+P4 in `b591f683d` (#1233), which also deleted `LevelCheckBlocker` and with it blind spot B2; B1 in
+`d9d791bab`, which corrected its earlier statement as well; P5, P11 and P13 in `e2c6033c4`; P12 in
+`3dfb7ed42`; P14 in `2052ee755`; P15 in `38dc6f81f`; P16 in `eab00bb01`; P17 in `1946a5cdd` (#1266);
+P18 for the configuration dump in `9c4902ffd` (#1268); P19 in `1155a678e`. P8 is superseded by P16.
+P6 was narrowed by `d9d791bab`, and what it leaves, per-item locks against each other, stays
+unchecked by decision: ordering them by item level was measured false (§3.2). Open: P2 (checkable
+in Debug since `e2c6033c4`, no instance known); P7 (`counted_mutex::lock` in `ptr/SharedBase.cpp`
+still waits without a timeout); P9 (the TODO in `tile_task_group::AwaitRunningSlots`); P10 (an
+interface rule); P18 on the "non-default properties" page, where `WritePropValueRows`
+(`tic/Xml/XmlTreeOut.cpp`) calls `HasNonDefaultValue` on computed properties (code audit
+TIC-A29); and the nesting tables for act/ and mem/ser (§6, §9 item 4). Until 2026-10-06 this
+paragraph named only P1, P3, P4 and B1 as fixed.** Method: exhaustive
 grep inventory of every synchronization primitive and every blocking wait, followed by reading the
 wait structures and the sites where locks are held across opaque calls. Each finding states what
 was actually read versus inferred. This is a reading of the code, not a proof: absence from this
@@ -99,11 +110,12 @@ non-trivial calls, or paired with a condition variable):
 
 These block threads but never pass through `EnterLevel`, so no static level assignment covers them:
 
-- **Item production locks** — `TreeItem::m_ItemCount` counter + `cv_lockrelease` under
+- **Item production locks** — `TreeItem::m_ItemLockCount` counter + `cv_lockrelease` under
   `cs_lockCounterUpdate` (tic/ItemLocks.cpp). A negative count is a held write lock; waiting is a
   timed-cv predicate loop.
-- **The token registry usage count** — `counted_mutex` (99): exclusive acquire parks *untimed*
-  until the shared count reaches zero.
+- **The token registry usage count** — a `counted_mutex` (`IndexedString`, 90; each of its
+  operations takes `CountedMutexSection`, 95): exclusive acquire parks *untimed* until the shared
+  count reaches zero.
 - **Task/supplier joins** — `OperationContext::Join`, `tile_task_group::Join`.
 - **Interest counters** — the DemandManagement machinery.
 
@@ -345,8 +357,9 @@ narrows that, and is checked on entry against what the caller holds. The rules t
    and `operation_queue::Process` asserts no global level is held. It may carry
    `DMS_ENTERS_ITEM` (pumping under a per-item lock is by design), or nothing.
 4. The session-usage counter is a `counted_mutex`: every `lock_shared`/`unlock_shared` on it takes
-   `CountedMutexSection` (100), so anything that touches it — `ItemReadLock`, `ItemWriteLock` —
-   is at 100 at the outermost, not at the item counter's 101. The first battery of the wave
+   `CountedMutexSection` (95), so anything that touches it — `ItemReadLock`, `ItemWriteLock` —
+   is at 95 at the outermost, not at the item counter's 98. (This wave ran with them at 100 and
+   101; `e2c6033c4` renumbered every section, §1.1.) The first battery of the wave
    refused 204 + 22 cases on exactly this, before the diagnostic named it.
 5. Run it in Debug and read the `lock level refused` lines, not the assert. Only the **first**
    refusal in a `.out` is evidence: the assert calls `exit(3)` without unwinding, so static
@@ -433,7 +446,8 @@ call through a variable of that type — `(*s_clientFunc)(...)` in `ProgressMsg`
 P16 is visible without the GUI: the contract says what the callback may do, and the caller's
 ceiling is checked against it.
 
-What it sees today: 210 declarations, 372 reaches, all admitted. Put `NotifyTargetCount` back at
+What it sees today (run of 2026-10-06; 210 and 372 when this section was written): 211
+declarations, 390 reaches, all admitted. Put `NotifyTargetCount` back at
 92 and it names all six P16 sites with their chains (the proof it is run with). It caught one
 mislabel of the second wave on the way: `RTC_ParseRegStatusFlag` declared `RegisterAccess` (93)
 and reaches `reportD` (90) for an unknown flag, so it is registry-shared. What it deliberately
@@ -462,8 +476,12 @@ declarations by name.
 
 ## 4. Findings — potential deadlocks
 
-Ranked by (likelihood × cost of diagnosis when it fires). P1, P3, P4 and P15 are fixed (#1233; P15 in `38dc6f81`, ObjectVision/BAG-Tools#2) and are
-kept here as the record of what the failure was; the rest are open.
+Ranked by (likelihood × cost of diagnosis when it fires). Each heading says the state of its
+finding. Fixed, and kept here as the record of what the failure was: P1, P3, P4, P5, P11 to P17,
+P19, and P18 for the configuration dump. Superseded: P8, by P16. Left unchecked by decision: P6.
+Open: P2, P7, P9, P10, and P18 on the properties page (TIC-A29). Until 2026-10-06 this paragraph
+said that only P1, P3, P4 and P15 were fixed. An ordinal quoted in a finding is the one of the day
+it was written; §1.1 gives today's ordinals beside the old ones.
 
 ### P1 — `potential()` ordered accumulation: untimed wait with no exception path — **FIXED (#1233, `b591f683`)**
 
@@ -569,11 +587,15 @@ under a per-item lock is still reported by the Release counter; the cross-thread
 
 ### P7 — the registry-exclusive park is untimed while outer locks are held — **structural**
 
-`counted_mutex::lock()` waits without a deadline. The waiting thread keeps every outer lock it
+`counted_mutex::lock()` (`ptr/SharedBase.cpp`) waits without a deadline. The waiting thread keeps every outer lock it
 already holds; any shared holder that needs one of those to make progress closes a cycle. This
 generalizes P2 beyond item locks to *any* lock held while calling `GetTokenID_mt`. The level
-checker covers the leveled cases in Debug (the registry is 99; holding anything ≤ 99 while
-registering is rejected) — B3/B5 are the gaps.
+checker covers the leveled cases in Debug: the registry is `IndexedString`, 90, so registering
+while holding the registry or anything inner to it (ordinal 90 and up) is refused, and so is the
+other edge of the cycle, a shared holder of the registry taking a section outer to 90. Until
+2026-10-06 this sentence said the registry was at 99 and that holding anything at or below it while
+registering is refused, which is the wrong way round: a section outer to the registry may be held
+while registering. B3/B5 are the gaps.
 
 ### P8 — `TContextNotification` runs under `sc_NotifyTargetCount` — **superseded by P16**
 
@@ -599,11 +621,12 @@ TODO marks the invariant as load-bearing and unchecked.
 
 GDAL's CPL locks, PROJ contexts, FFTW's plan mutex (`g_fftwPlanMutex`,
 `planCacheMutex`), and COM (`CompoundStorageManager`'s `IStream`) are invisible to the level
-system, and our sections (`gdalSection(98)`, `s_OdbcSection(94)`, SpatialRefBlock(95)) are held
-across calls into them. No cycle was found: the reverse edges would require a foreign callback
-re-entering GeoDMS lock-taking code, and the only such callback (the GDAL/CPL error handler)
-reaches only `DebugOutStream(102)`, inner to everything held. The rule to preserve: a foreign
-callback may report, and nothing else.
+system, and our sections (`gdalSection`, `GDALComponent` 83; `s_OdbcSection`, `Storage` 65;
+`cs_SpatialRefBlockCreation`, `SpecificOperator` 68) are held across calls into them. No cycle
+was found: the reverse edges would require a foreign callback re-entering GeoDMS lock-taking code,
+and the only such callback (the GDAL/CPL error handler, `ErrorHandler` in `stg/gdal/gdal_base.cpp`)
+reports, which reads the token registry shared (90) and takes `DebugOutStream` (100), both inner to
+everything held. The rule to preserve: a foreign callback may report, and nothing else.
 
 ### P11 — `GetSequenceBoundingBoxCache` / `GetPointBoundingBoxCache` hold a global over a per-item lock — **FIXED (`e2c6033c`)**
 
@@ -611,15 +634,21 @@ callback may report, and nothing else.
 and then construct a `DataReadLock(featureAttr)`, which takes the item's actor lock. That is rule
 5 in its exact form — a global held while a per-item lock is taken — and the checker refuses it
 the first time a Debug run reaches the bounding-box cache (the testcases battery does not).
-The reverse edge exists: `~AbstrBoundingBoxCache` takes `cs_BB` and runs when a feature's data
-object dies, which happens under `sg_CountSection` (98) in `TryCleanupMem` and under the item's
-own locks. Two threads — one building a cache for feature A while A's data is being cleaned up
-on another — close the cycle. Fix shape: take the `DataReadLock` first and `cs_BB` only around the
+The reverse edge exists: `~AbstrBoundingBoxCache` takes `cs_BB`, and it runs when the last holder
+of the cache lets go of it, which can happen under the item's own locks. Two threads close the
+cycle: one building a cache for feature A while another lets go of A's last cache holder under A's
+locks. Fix shape: take the `DataReadLock` first and `cs_BB` only around the
 registry lookup/insert, which is what the section actually protects. *Fixed:* both getters now take the `DataReadLock` first and hold `cs_BB` only around the registry
 lookup and the insert; building the cache — the expensive part, which used to run under `cs_BB`
 and so serialized every cache build in the process — runs outside it, and a lost race is settled
 by re-checking under the section (the loser's cache dies; its destructor finds the winner in the
 registry and leaves it). Both declare `DMS_ENTERS_ITEM(ItemRegister, exclusive)`, truthfully.
+
+*Corrected 2026-10-06 (code audit of 2026-09-27):* the reverse edge above first said that the cache
+dies when the feature's data object dies, under `sg_CountSection` in `TryCleanupMem`. It does not:
+the registry `g_BB_Register` keys only a `weak_ptr` by the data object, and the cache lives as long
+as a `shared_ptr` to it does, such as `FeatureLayer::m_BoundingBoxCache` or the local of a draw
+routine; the losing build of a race dies inside the getter, under its `DataReadLock`.
 
 ### P12 — `SetStatusFlag` re-enters `RegAccessSection` on the never-read path — **FIXED (`3dfb7ed4`)**
 
@@ -773,7 +802,7 @@ called. The interest the branch holds on the unit itself while it emits the Rang
 and stays. Debug battery 324/324 with `stor_mmd_alias_*` green; Release battery 324/324.
 Rule R6 (§8) is the general form.
 
-### P18 — the dump's raw property reads produced: interest, resolution, creation — **FIXED (#1268)**
+### P18 — the dump's raw property reads produced: interest, resolution, creation — **FIXED for the dump (#1268, `9c4902ffd`); open on the properties page (TIC-A29)**
 
 Found by the first Debug run of the XML round-trip battery (#1261): all 190 of its configurations
 stopped in `@dumpconfig` with exit 3 and an empty output file. The first refusal, on every
@@ -848,6 +877,14 @@ of unrelated definitions (ambiguous, skipped by design, §3.9). Resolving that i
 which is why the XML round-trip battery is back in the two Debug launchers: it is the check for
 this class, and it found five instances on its first run.
 
+*Open (code audit of 2026-09-27, TIC-A29):* the fix covers the properties the dump writes. The
+"non-default properties" page of the GUI goes through `WritePropValueRows`
+(`tic/Xml/XmlTreeOut.cpp`), which asks `HasNonDefaultValue` of every PropDef of the item, and a
+property without a raw override still reaches its cooked `GetValue` through the base
+`GetRawValue` (`mci/PropDef.h`): `NrSubItems`, `FullSource`, `StorageTileSizeX`/`Y` and others
+compute under the `(IndexedString, shared)` ceiling. The audit confirmed the path; the Debug stop
+it predicts there has not been observed.
+
 ### P19 — `ODBCStorageManager::DoUpdateTree` held `s_OdbcSection` over the creation of column items — **FIXED (2026-10-03)**
 
 Found by the first Debug run that read through ODBC: `stor_odbc_dbf` (added in `aec1214ab`) exited 3
@@ -895,8 +932,9 @@ Recorded so the next reader does not re-suspect them:
   design — the meta thread pumps from inside `PrepareDataUsage` — and an oper under it may still
   take every global section).
 - **N4** — FixedAlloc's huge-alloc attribution report deliberately runs after
-  `AllocateFromStock_impl` returns, with no allocator lock held (comment at
-  [FixedAlloc.cpp:1165](../rtc/dll/src/mem/FixedAlloc.cpp)); the allocator↔registry inversion this
+  `AllocateFromStock_impl` returns, with no allocator lock held (the comments at
+  `HUGE_ALLOC_LOG_THRESHOLD` and in `AllocateFromStock`,
+  [FixedAlloc.cpp](../rtc/dll/src/mem/FixedAlloc.cpp)); the allocator↔registry inversion this
   analysis went looking for is designed away.
 - **N5** — `AsString(LispPtr)` streams through `Print` into a local buffer, lock-free; only
   `AsFLispSharedStr` ever took the FLisp cache lock.
@@ -914,9 +952,9 @@ Recorded so the next reader does not re-suspect them:
 
 - The file-mapping pair `FileMapHandle::m_ResizeMutex` (shared) ↔ `tiledata.h cs_file`, held
   across resize/page-in; a full nesting table of the mem/ser tile paging layer was not built.
-- The shv/GUI side beyond the callback contracts (DataView queues at 94, Qt event-loop interplay).
-- Interest-count machinery internals (`MoveSupplInterest(99)`, `UpdatingInterestSet(98)`,
-  `sg_CountSection(98)`) beyond the P3 site: the pairwise order table for the act/ layer is
+- The shv/GUI side beyond the callback contracts (`DataViewQueue` at 63, Qt event-loop interplay).
+- Interest-count machinery internals (`MoveSupplInterest` 88, `UpdatingInterestSet` 85,
+  `sg_CountSection` 78) beyond the P3 site: the pairwise order table for the act/ layer is
   unwritten.
 - Storage managers other than odbc/gdal/cfs.
 

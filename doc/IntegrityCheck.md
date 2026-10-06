@@ -1,5 +1,15 @@
 # IntegrityCheck folding and exact, memoized dedup (#1180, #1182)
 
+*Status (2026-10-06): accurate. #1180 (`9b76395ba` to `abaf2447a`), #1182 (`e375c521f`) and #1218
+(`58c3c1a4a`) are done as described. The #1259 deferral of IntegrityChecks (20.20.0; switched off
+in `238128859`, bounded again in `58def697f`, removed with the deferral of commits in `a7127224f`)
+changed when a check's verdict is taken, not how checks are folded, and needed no change here; what
+its measured rounds say about the check-before-calc follow-up is noted at the end. Open: a sibling
+of the #1218 reset (code audit TIC-A33), noted in the #1218 section. On 2026-10-06 the files named
+for `TreeItem_CreateCheckedExpr` and `TreeItem_GetCheckGuardians` were changed to
+`tic/TreeItemMetaInfo.cpp`, where `821d19459` put them, and the one named for `CheckOperator` to
+`clc/OperMisc.cpp`.*
+
 Design note for the check-set memoization that replaces the depth-bounded redundant-guard
 search. Companion to the #1180 commit series (`9b76395b` ancestor guarding, `8ef86c09` fold
 into checked expressions, `e36611c4` fold every GetCheckedKeyExpr exit, `42441a58`
@@ -131,7 +141,7 @@ union on atoms instead of on opaque whole conditions, and the share-the-child's-
 in the fold fires more often. A nearer ancestor's `a && b` discharges an outer ancestor's `a`,
 collapsing two guards into one.
 
-The wrap-site guard (tic/TreeItem.cpp, TreeItem_CreateCheckedExpr): the caller passes the
+The wrap-site guard (tic/TreeItemMetaInfo.cpp, TreeItem_CreateCheckedExpr): the caller passes the
 DataController of the expression about to be guarded (UpdateDC has it in hand; the non-DC
 funnel of GetCheckedKeyExpr passes null → implied ∅ → wrap all, conservative and cheap since
 those literal/sourceDescr trees are leaves). A loop-local `enforced` set is seeded from the
@@ -148,7 +158,8 @@ propagation, `8ef86c09`) is untouched.
 
 ## Observability
 
-Under MG_DEBUG, CheckOperator::CreateResult (clc/Checker.cpp) counts distinct integrity_check
+Under MG_DEBUG, CheckOperator::CreateResult (clc/OperMisc.cpp, which absorbed Checker.cpp in
+`a03dec1bb`) counts distinct integrity_check
 DC instantiations and traces one `integrity_check dc #N: <cond>` line per instantiation
 (ST_MinorTrace), so before/after totals are grep-able from a /L log.
 
@@ -201,7 +212,7 @@ guards the declaring item with it. Before, a supplier's check was only evaluated
 declaring item by the validate phase (out-of-band, verdict not travelling to consumers), and a
 TreeView/detail-page visit ran it not at all.
 
-Design (TreeItem.cpp, `TreeItem_GetCheckGuardians`):
+Design (TreeItemMetaInfo.cpp, `TreeItem_GetCheckGuardians`):
 
 - The closure is reduced to a per-item **guardian list** (items with `HasIntegrityChecker()`,
   in fold order: own check, then each ExplicitSupplier's closure in declaration order, then the
@@ -209,6 +220,10 @@ Design (TreeItem.cpp, `TreeItem_GetCheckGuardians`):
   like `mc_DC`, reset with the other config-derived state in `DoInvalidate` and in
   `ResetSubTreeConfigData` (the list holds `SharedTreeItem` refs that can cross branches via
   the supplier edge; the teardown reset is what breaks those cycles before refcount collapse).
+  *Open (code audit of 2026-09-27, TIC-A33):* the two size calculators of the same
+  `ConfigProperties`, `mc_SizeExpectation` and `mc_SizeUpperbound` (`3ac27228f`), are built the
+  same way but `TreeItem::DoInvalidate` resets only `mc_IntegrityChecker` and `mc_CheckGuardians`,
+  so after a supplier's expression changes, the count estimates can evaluate a stale calculator.
 - An item that adds nothing **shares its parent's instance and is not memoized**: re-deriving
   it is the walk the pre-#1218 fold did anyway, so no ConfigProperties is allocated per
   descendant of a checked root. For a chain without supplier edges the list is exactly the old
@@ -234,6 +249,15 @@ still compute concurrently (measured: a 20M-element supplier check and the decla
 `add` run on different workers; the view waits for both). Strict check-before-calc ordering
 would need the org expression's OperationContext to depend on the check future — a lookahead-
 scheduling follow-up, not part of this change.
+
+*Note (2026-10-06):* the rounds that measured the #1259 deferral (doc/archive/performance-test-20.20-20.21.md; the
+first bullet of the 20.22.1 release notes) argue against taking that follow-up up without a
+memory measurement first. They are the evidence on moving checks in time relative to the work
+they guard: the deferral of checks never paid, halving one model's wall time at 346 GB of live
+memory and costing an RSopen allocation model a quarter of its wall time at twice its 20.19.3
+commit, and an interim pre-start of the producers of an item's ExplicitSuppliers tripled another
+model's memory. Both went again (`a7127224f`, `92eaa7150`); a check now waits for its checker
+result as before 20.20.0.
 
 Verified: `fn_test_icheck_suppl` (two-hop supplier chain + supplier-under-checked-container;
 Debug trace shows `IntegrityCheck(IntegrityCheck(add(2,3), eq(22,22)), eq(11,11))` — the

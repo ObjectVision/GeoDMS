@@ -1,5 +1,18 @@
 # Interest, Readiness, and Failure
 
+*Status (2026-10-06): done are the `ItemReadLock` rethrow contract and the metainfo-pass fix of
+#1144 (`ad18c1b78`, which also pruned the `UpdateSupplMetaInfoFor*` enum values and the commented
+`static_assert` that "Notes / follow-ups" lists as dead; neither has a hit left), the validation
+pass of `Actor::UpdateSuppliers` (`781f033c0`), and the MMD dictionary re-emit of #1155
+(`bce39af49`). Open: #1202's general case, the two catch sites that still stamp a fixed failtype
+(`Actor::SuspendibleUpdate` stamps `FailType::Committed` in `act/Actor.cpp`; the catch in
+`TreeItem_ValidateIntegrity` stamps `Validate` in `tic/TreeItemMetaInfo.cpp`), since `26265cdac`
+fixed only how #1202 names the item; the var-range MMD commit hang under "Other findings", which
+was never root-caused (`855b891a1`, #1126, only removed a false-positive deadlock detector in
+`lock_shared`); and the super-linear `DetermineState` walk on tree expand, which no commit has
+addressed. Line numbers in the case study are those of June 2026; the module paths are those of
+`rtc/dll/src` since the source tree was flattened (`904525c4d`).*
+
 Architectural notes on what an *interest* on a `TreeItem` guarantees, how it
 relates to data readiness and failure, and the invariants the calculation /
 locking machinery relies on. Derived from the analysis and fix of issue #1144
@@ -80,9 +93,9 @@ contract stops it from ever being a `Check Failed`.
 ## The `ItemReadLock` failure contract (rethrow the actual error)
 
 `ItemReadLock::ItemReadLock(SharedTreeItemInterestPtr&&)`
-(`tic/dll/src/ItemLocks.cpp:388`) is an always-on guard. Precondition: the
+(`rtc/dll/src/tic/ItemLocks.cpp`) is an always-on guard. Precondition: the
 interest ptr must already have been `PrepareData()`'d (turned into a future);
-`WaitReady` (`ItemLocks.cpp:846`) relies on this. For a data item or unit, once
+`WaitReady` (same file) relies on this. For a data item or unit, once
 the read lock is taken the item must be **calculating or ready**; if it is not, it
 can only be **failed**, and the lock must not hand back a data-less item. So
 instead of asserting on a narrow `WasFailed(FailType::Data)` predicate, the ctor
@@ -112,8 +125,8 @@ session usage counter are released by hand first (mirroring `~ItemReadLock`).
 The matching always-on/debug checks were relaxed the same way —
 `WasFailed(FailType::Data)` → `WasFailed()`:
 
-- `cs_lock::ReadLockInit` (`ItemLocks.cpp:334`): `assert(item->WasFailed() || CheckDataReady(item));`
-- `WaitReady` (`ItemLocks.cpp:850`): `assert(CheckCalculatingOrReady(item) || item->WasFailed());`,
+- `cs_lock::ReadLockInit` (`ItemLocks.cpp`): `assert(item->WasFailed() || CheckDataReady(item));`
+- `WaitReady` (`ItemLocks.cpp`): `assert(CheckCalculatingOrReady(item) || item->WasFailed());`,
   and its negative case is now `if (!IsCalculatingOrReady(item)) return false;` — a
   failed item makes `WaitReady` return `false` *before* the lock is taken, so only
   a `PrepareData`→fail race reaches the throwing ctor.
@@ -133,6 +146,10 @@ already on a throwing path (`ShvUtils.cpp:986`, immediately followed by a
 `DataReadLock`). `AbstrStreamManager::WriteUnitRange` (`:137`) is guarded only by a
 `dms_assert`; its storage-commit caller must tolerate the throw. The `try_token`
 overload (`ItemLocks.cpp:412`, used at `ShvUtils.cpp:1020`) stays non-throwing.
+(Those were the lines of June 2026. At HEAD of 2026-10-06 the four sites are
+`XmlTreeOut.cpp:221`, `TreeItemDataUsage.cpp:401` with its catch at :411, since the
+split of `TreeItem.cpp` in `821d19459`, and `shv/dll/src/ShvDesktopData.cpp:438` and
+:472, since `ShvUtils.cpp` was split; `WriteUnitRange` is in `stg/dll/src/AbstrStreamManager.cpp`.)
 
 ## Case study: issue #1144 — root cause
 
@@ -153,7 +170,7 @@ Asserting item, from a full dump under cdb (release):
 Interest-held, data-less, failtype `Validate(16) > Data(12)` → the lock asserts.
 
 **The root model fault** is an operator-resolution (**metainfo**) error:
-`AbstrOperGroup::FindOper` (`tic/dll/src/OperGroups.cpp:416`) throws
+`AbstrOperGroup::FindOper` (`rtc/dll/src/tic/OperGroups.cpp`) throws
 `"Cannot find operator … pointrow … arg1 DataItem<UInt64> … signature
 DataItem<SPoint>"` while building a `FuncDC`. The `AfleidingPandType` chain that
 `pand_type` depends on therefore fails at `FailType::MetaInfo`.
@@ -232,8 +249,9 @@ Notes / follow-ups:
   must still surface via the named/`SourceData` suppliers (which *are* visited) —
   worth a sanity check, but `mc_DC` is created *inside* this call so it is not a
   pre-existing supplier anyway.
-- The now-unused `UpdateSupplMetaInfoFor{DataPrep,Validation,Commit}` enum values
-  and the commented `static_assert` at `Actor.cpp:604` are dead — prune.
+- ~~The now-unused `UpdateSupplMetaInfoFor{DataPrep,Validation,Commit}` enum values
+  and the commented `static_assert` at `Actor.cpp:604` are dead — prune.~~ Done in
+  the fix commit itself, `ad18c1b78`.
 - The other forced-failtype sites (`DoUpdate` integrity-check `Fail(...)` calls;
   `FinalizeFailure(..., FailType::Committed)` in the commit path) follow the same
   "actual failtype" principle; revisit if a similar mislabel appears there.
@@ -301,7 +319,8 @@ Ordering consequences, checked because `DoFail` early-outs on `(prevFT != None) 
   only the label is new, and "the supplier declared to produce my input failed" is the more
   honest of the two, since the alternative serves stale data under a green icon. Debug
   asserts of the shape `!WasFailed(FailType::Data)` on an item known to be ready
-  (`TreeItem.cpp:4520`, `ShvDesktopData.cpp:301`) are where that corner would first show.
+  (`TreeItem.cpp:4520`, since `821d19459` `TreeItemDataUsage.cpp:216`; `ShvDesktopData.cpp:301`)
+  are where that corner would first show.
 
 ### What this does *not* fix: the severity of an ordinary data error
 
@@ -364,7 +383,7 @@ not something `x.AsErrMsg()` carries today.
   (distinct `Actor*` per level — a perf pathology, not a cycle/hang).
 
 - **MMD dictionary timing (#1130 family, fixed as #1155).** `MmdStorageManager::
-  DoWriteTree` (`tic/dll/src/stg/MemoryMappedDataStorageManager.cpp`) runs at
+  DoWriteTree` (`rtc/dll/src/tic/stg/MemoryMappedDataStorageManager.cpp`) runs at
   `OpenForWrite` and serializes each unit's range; for a var-range unit the range
   may not be calculated yet, and its `Range` subtag was silently skipped — leaving
   subunits that are their own domain unreadable (`no primary data found in

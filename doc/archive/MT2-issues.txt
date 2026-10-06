@@ -1,3 +1,12 @@
+*Archived 2026-10-06: working notes on multi-threading that came in with the 2022 import of the
+source history (5a4f0aa45); of the numbered issues, 1 is done (an operator's exception is caught
+in OperationContext::Run_with_catch and recorded as the result item's failure, which a consumer's
+ItemReadLock rethrows), 2 is done (OperationContext::CancelIfNoInterestOrForced cancels a context
+whose result has no interest left), 6 is done (DataReadLockAtom takes the 0 to 1 step of the data
+lock count under the item's own lock, and OpenData no longer exists), and 5 is obsolete, since the
+DataStoreManager was retired (#1189). The current contracts are in doc/deadlocks.md and
+doc/Interest.md.*
+
 Multi Threading and Exceptions:
 - each MT2 thread has a ResultHolder
 - exceptions should be progressed to consumers of a thread's result.

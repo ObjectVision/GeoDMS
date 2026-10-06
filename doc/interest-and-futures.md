@@ -1,5 +1,14 @@
 # Interest vs. futures: demand registration and the `PrepareDataUsage` contract
 
+*Status (2026-10-06): none of the recommendations R1 to R4 is implemented. `FutureData` is still
+`InterestPtr<DataControllerRef>` (`rtc/dll/src/tic/TicBase.h`), the bare retainer name
+`SharedDcInterestPtr` exists only in `shv/dll/src/IndexCollector.h`, the `m_Kept*` point patches
+remain in `OperationContext.h`, and `TryPrepareDataUsage` still has no callers. Folding interest
+into `PrepareDataUsage` was rejected by this note itself (§4, §7). The anchors into `TreeItem.cpp`
+and `AbstrCalculator.cpp`, which `821d19459` split by functional role, and into the three headers
+named here were re-pinned on 2026-10-06; the other line numbers are those of 2026-07-11 and may
+have drifted.*
+
 Design analysis of the relation between *being interesting*, `PrepareDataUsage`, and
 `FutureData`, answering the question whether interest should be foldable into a future
 returned by `PrepareDataUsage`. Based on code review of the `refactor_ownership` branch
@@ -47,10 +56,10 @@ without the fold (section 6).
 ### 2.1 Interest is a precondition of `PrepareDataUsage`, not its effect
 
 - `PrepareDataCalc`: `dms_check(self->HasInterest())`
-  (`rtc/dll/src/tic/TreeItem.cpp:3658`) before `dc->CallCalcResult()`.
+  (`rtc/dll/src/tic/TreeItemDataUsage.cpp:165`) before `dc->CallCalcResult()`.
 - `PrepareDataUsageImpl`: `assert(GetInterestCount() || !IsDataItem(this))`
-  (`rtc/dll/src/tic/TreeItem.cpp:3947`); `PrepareDataRead` re-checks per refItem and
-  domain/values unit (`TreeItem.cpp:3804,3809,3821`).
+  (`rtc/dll/src/tic/TreeItemDataUsage.cpp:270`); `PrepareDataRead` re-checked per refItem and
+  domain/values unit (`TreeItem.cpp:3804,3809,3821` then; it went with #587 in `bcf7317ec`).
 - Clients follow interest-first-then-prepare:
   `GraphicObject::PrepareDataOrUpdateViewLater` asserts interest, takes its own holder,
   then calls `PrepareDataUsageImpl` (`shv/dll/src/GraphicObject.cpp:291-315`);
@@ -62,7 +71,7 @@ without the fold (section 6).
 
 `Actor::IncInterestCount` serializes the 0→1 transition, runs `DetermineState()` first,
 then `StartInterest()` (`rtc/dll/src/act/Actor.cpp:1108-1173`). For a `TreeItem`
-(`rtc/dll/src/tic/TreeItem.cpp:4616-4657`), `StartInterest`:
+(`TreeItem::StartInterest`, `rtc/dll/src/tic/TreeItem.cpp:2651`), `StartInterest`:
 
 - holds the **tree parent** (interest propagates *up* the ownership chain),
 - holds **`mc_DC`** (`SharedActorInterestPtr calcHolder`) and the **referred item**,
@@ -103,12 +112,15 @@ So interest propagates transitively through the supplier graph **without any
   `OperationContext::CancelIfNoInterestOrForced` cancels an OC only when
   `m_Result->GetInterestCount() == 0` (or forced by session teardown via
   `DSM::IsCancelling`, `rtc/dll/src/tic/OperationContext.cpp:1737-1750`,
-  `rtc/dll/src/tic/DataStoreManager.cpp:42`). So *interest already is the OC survival
-  contract*.
+  `rtc/dll/src/tic/DataStoreManager.cpp:42`; since #1189 folded the DSM into `SessionData`
+  (`8e5b375e1`), the forcing flag is `SessionData::IsCurrCancelling()`, which
+  `CancelIfOutOfInterest` in `TicDataSupport.cpp` passes to
+  `CancelableFrame::CurrActiveCancelIfNoInterestOrForced`). So
+  *interest already is the OC survival contract*.
 - The guarantee is **not invariant under invalidation**: `DetermineState` can
   `DoInvalidate → reset m_Data` even while futures are outstanding. The comments on
   `OperationContext::m_KeptResultUnits` / `m_KeptArgUnits` / `m_KeptArgInterests`
-  (`rtc/dll/src/tic/OperationContext.h:322-341`) document the consequences — *"a
+  (`rtc/dll/src/tic/OperationContext.h:375-387`) document the consequences — *"a
   meta-thread DoInvalidate→Clear() during the calculation frees the kept-alive units while
   a worker still reaches them"*, *"nothing on the invalidation path is consumer-aware"* —
   and are targeted, per-OC pinning patches for exactly the hole a real future guarantee
@@ -116,7 +128,7 @@ So interest propagates transitively through the supplier graph **without any
 
 ### 2.5 `FutureData` is two things wearing one type
 
-`FutureData = InterestPtr<DataControllerRef>` (`rtc/dll/src/tic/TicBase.h:114`). It is
+`FutureData = InterestPtr<DataControllerRef>` (`rtc/dll/src/tic/TicBase.h:146`). It is
 used in two roles the type cannot distinguish:
 
 **(a) charged future** — the non-null return of `CallCalcResult` (postcondition 2.3);
@@ -127,14 +139,14 @@ these are what `FutureSuppliers`/`ArgRef` (`rtc/dll/src/tic/OperGroups.h:32-37`)
 
 | site | pattern |
 |---|---|
-| `rtc/dll/src/tic/TreeItem.cpp:3651` | `FutureData dc = self->GetCheckedDC();` before `dc->CallCalcResult()` at `:3662` |
+| `rtc/dll/src/tic/TreeItemDataUsage.cpp:164` (`PrepareDataCalc`) | `FutureData dc = self->GetCheckedDC();` before `dc->CallCalcResult()` at `:169` |
 | (`PrepareDataRead`, retired by #587) | `FutureData tmpFut = dc; // hold interest while obtaining the future` -- the read's pre-charges of its Calc-suppliers and its domain and values units went with the item-writer read path; a read is an operator application now (`stg/StorageReadOperators.cpp`) whose suppliers are arguments, charged as any operator's (a) |
 | `rtc/dll/src/tic/MoreDataControllers.cpp:566` | `FutureData fd = argIter->m_DC; fd = ...CalcResultWithValuesUnits();` |
-| `rtc/dll/src/tic/AbstrCalculator.cpp:1092` | `FutureData dc = GetOrCreateDataController(...)` then `CalcResultWithValuesUnits` |
-| `rtc/dll/src/tic/AbstrCalculator.cpp:193` | `CalledCalcHandle` returns `dc` as `calc_result_t` on the MetaInfo-failed path — a "settled-failed" future by convention only |
+| `rtc/dll/src/tic/MetaFuncApply.cpp:406` | `FutureData dc = GetOrCreateDataController(...)` then `CalcResultWithValuesUnits` |
+| `rtc/dll/src/tic/AbstrCalculator.cpp:202` | `CalledCalcHandle` returns `dc` as `calc_result_t` on the MetaInfo-failed path — a "settled-failed" future by convention only |
 | `rtc/dll/src/tic/Explain.cpp:49,396,666` | `CalcInterestPtr`; `m_CalcInterests.push_back(dc)` holds every sub-expression DC long-lived; `CallCalcResult(context)` follows only later, per explained coordinate |
 | `shv/dll/src/Theme.cpp:474-475` | `GetCheckedDC()` pre-charge, then `CalcResultWithValuesUnits`/`CallCalcResult` |
-| `shv/dll/src/IndexCollector.h:44` | `SharedDcInterestPtr` member; `m_DC->CallCalcResult()` lazily (`IndexCollector.cpp:116`) |
+| `shv/dll/src/IndexCollector.h:55` | `SharedDcInterestPtr` member; `m_DC->CallCalcResult()` lazily (`IndexCollector.cpp:116`) |
 
 So the answer to *"are `InterestPtr<DataControllerRef>` objects created without having
 called `FuncDC::CallCalcResult`?"* is **yes, systematically** — transient pre-charge
@@ -150,21 +162,21 @@ code) says which role a given `FutureData` plays.
   cannot express this; the per-sub-item interest count is the demand mask.
 - **Which OCs survive:** `CancelIfNoInterestOrForced` (2.4).
 - **Which data survives OC removal:** `StopInterest` → `TryCleanupMem` unless `KeepData`
-  (`rtc/dll/src/tic/TreeItem.cpp:4659-4700`), including the interest-scoped release of
+  (`TreeItem::StopInterest`, `rtc/dll/src/tic/TreeItem.cpp:2687`), including the interest-scoped release of
   parked read-OCs (`TSF_ReadAssetsInterestScoped`).
 - **What gets idle-time preparation:** `TryPrepareDataUsage` starts with
-  `if (!GetInterestCount()) return true;` (`rtc/dll/src/tic/TreeItem.cpp:4175-4186`) —
+  `if (!GetInterestCount()) return true;` (`rtc/dll/src/tic/TreeItemDataUsage.cpp:475`) —
   interest is the prefetch filter. (Note: on this branch `TryPrepareDataUsage` currently
   has no callers; the shv components call `PrepareDataUsage` directly from their update
   rounds.)
 - **UI pending state:** the Qt tree view colours "interesting but not ready" as
   `st_scheduled` by piggy-backing via `GetInterestPtrOrNull`
   (`qtgui/exe/src/DmsTreeView.cpp:303-313`), which deliberately returns null when no one
-  else holds interest (`rtc/dll/src/tic/TreeItem.cpp:832-845`).
+  else holds interest (`TreeItem::GetInterestPtrOrNull`, `rtc/dll/src/tic/TreeItem.cpp:922`).
 
 ### 2.7 Interest survives invalidation; futures don't
 
-`TreeItem::SetDC` (`rtc/dll/src/tic/TreeItem.cpp:789-815`): when an interested item's DC
+`TreeItem::SetDC` (`rtc/dll/src/tic/TreeItem.cpp:850`): when an interested item's DC
 is replaced (invalidation, expression change), the interest is *transferred* —
 `newDC->IncInterestCount()`, old DC released. The subscription outlives the round. A
 standing view stays demanded across a source change and the next GUI update round
@@ -255,7 +267,7 @@ Reserve the name `FutureData` for charged futures: private constructor, friended
 `DataController::CallCalcResult` / `FuncDC::CallCalcResult`, plus a `settled-failed`
 factory for the `CalledCalcHandle` MetaInfo-failed path. Reintroduce the bare retainer
 under its own name — shv already defines it: `SharedDcInterestPtr`
-(`shv/dll/src/IndexCollector.h:44`). Convert the pre-charge idioms, `Explain`'s
+(`shv/dll/src/IndexCollector.h:19`). Convert the pre-charge idioms, `Explain`'s
 `m_CalcInterests`, and the SupplInterest DC arm to the retainer type. Zero behaviour
 change; the 2.5b table becomes compiler-enforced. The self-satisfied
 `assert(GetInterestCount())`s become meaningful again: charge via the retainer first,
