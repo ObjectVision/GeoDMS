@@ -1,5 +1,6 @@
-# Std-ptr ownership discipline audit (see doc/development/ptr-safety-review-2026-07-02.md and
-# doc/development/stdptr-migration-handoff.md "Guardrail is now convention-only").
+# Std-ptr ownership discipline audit (see doc/development/ownership.md section 3, and the history in
+# doc/archive/ptr-safety-review-2026-07-02.md and doc/archive/stdptr-migration-handoff.md, "Guardrail is
+# now convention-only").
 #
 # Check 1 (FAIL): rogue control block -- a std::shared_ptr for a TreeItem-family object constructed
 #   directly from a raw pointer. This double-manages a tree-owned object (second control block with a

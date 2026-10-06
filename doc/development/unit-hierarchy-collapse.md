@@ -1,5 +1,18 @@
 # Collapsing the Unit&lt;V&gt; and TileFunctor&lt;V&gt; intermediate hierarchies
 
+*Status (2026-10-06): U1 (0756272cb), U2 (02b3822bc), U4 (111372429) and U5 (c40f06398) landed on
+2026-08-16; U3 was absorbed into U5. The Linux flavour has built and run full.py rounds since
+(20.20.0.l and 20.22.0.l in `doc/performance-test.md`). The data side was merged into
+`DataArrayBase<V>`, not into `TileFunctor<V>` as §3.4 planned: the chain is `AbstrDataObject` →
+`DataArrayBase<V>` → `TileFunctor<V>`, and `TileFunctor<V>` adds only its constructors and
+`DECL_RTTI` (plus a source string under `MG_DEBUG_ALLOCATOR`). U6 is open: one name for the three
+spellings (lines in tracked sources by `git grep`: `DataArray<` 707 in 105 files, against 644 in
+101 at U5; `DataArrayBase<` 119 and `TileFunctor<` 104, both unchanged since U5), and the
+`[[msvc::no_unique_address]]` macro (PLN-A11 of `doc/code-audit-2026-09-27.md`: MSVC ignores the
+plain attribute, so `Unit<V>` still pads for its `Void` metric and projection). The third U6 item,
+the DataArray.h interface/impl split, needs no work: `DataArray.ipp` holds the template bodies and
+only `DataArray.cpp` includes it (`header-hygiene-2026-08.md` §4d).*
+
 Branch `lookahead-scheduling` @ `b34b1267`, 2026-08-16. `file:line` anchors valid at that commit;
 prefer named symbols when lines drift. Companion analysis:
 [config-cache-separation.md](config-cache-separation.md) (separable effort; nothing here depends on
@@ -307,10 +320,11 @@ GCC).
   `debug_cast<const Unit<V>*>`.
 - **U6 — optional follow-ups, separate efforts**: `[[msvc::no_unique_address]]` portability macro
   (plain `[[no_unique_address]]` is a no-op on MSVC — pre-existing, affects only bytes-per-unit);
-  the 644-site `DataArray` → `TileFunctor` substitution (`TicBase.h:84` TODO) and eventual
-  `DataArrayBase` alias retirement; the DataArray.h interface/impl split recommended by
-  [compile-time-refactor-analysis-2026-07.md](compile-time-refactor-analysis-2026-07.md) (easier
-  once there is one class to split).
+  the 644-site `DataArray` → `TileFunctor` substitution (`TicBase.h:84` TODO; 707 lines on
+  2026-10-06) and eventual `DataArrayBase` alias retirement; the DataArray.h interface/impl split
+  recommended by
+  [compile-time-refactor-analysis-2026-07.md](../archive/compile-time-refactor-analysis-2026-07.md) (easier
+  once there is one class to split; *already in place, see the status line*).
 
 ## 6. Risks
 

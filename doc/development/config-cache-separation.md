@@ -1,5 +1,17 @@
 # TreeItem config/cache separation — analysis and staged design
 
+*Status (2026-10-06): none of the seven stages C1 to C7 has landed. `GetOrCreateConfigProperties`
+(TreeItem.cpp) still has the plain CRT `assert(!IsCacheItem())` that C1 would relax; `mc_DC` and
+`mc_RefItem` keep their names (C2); `mc_OrgItem`, `m_Location`, `m_StorageManager` and
+`m_UsingCache` are still members of `TreeItem` itself (C3 to C5); there is no `TreeItemConfig.cpp`
+and no `IsConfigCapable` (C6, C7). The TU half of C6 happened another way: the split of 821d19459
+(2026-08-28) moved `TreeItem_CreateCheckedExpr`, `TreeItem_HasIntegrityCheckerInclAncestors`,
+`UpdateDC` and `GetCheckedKeyExpr` into `TreeItemMetaInfo.cpp`. `ConfigProperties` gained one
+member, `mc_CheckGuardians` (58c3c1a4a, #1218). `doc/continuations-2026-10-06.md` (track C2) puts
+C1 and C2 first. TreeItem.cpp and AbstrCalculator.cpp were split after the commit named below, so
+their line anchors in this document no longer hold: follow the function names. The TreeItem.h
+anchors are re-pinned to member names.*
+
 Branch `lookahead-scheduling` @ `b34b1267`, 2026-08-16. All `file:line` anchors below are valid at
 that commit; prefer the named symbols when lines drift.
 
@@ -64,22 +76,23 @@ does the same (template expr copies via `DataCopyMode::CopyExpr` at `:293`, `ite
 copied source locations (`TreeItem.cpp:2729-2730`) and `mc_OrgItem` (`:2682-2683`).
 
 Consequence for the current code: `GetOrCreateConfigProperties()`'s
-`assert(!IsCacheItem())` (`TreeItem.cpp:179`) is **latently refutable** on the route where a meta
+`assert(!IsCacheItem())` (TreeItem.cpp) is **latently refutable** on the route where a meta
 operator runs with a fresh (`isNew`) holder. It has not fired in practice because the usual route
-instantiates via the `SetTmp` arm directly into the config item (DcRef arm 4,
-`tic/TreeItemDualRef.h:72`) — the flag is then never set on the written items. Stage C1 below
-resolves this deliberately rather than by accident.
+instantiates via the `SetTmp` arm directly into the config item (DcRef arm 4, the
+`std::weak_ptr<TreeItem>` alternative of `DcRef::m_Holder` in `tic/TreeItemDualRef.h`) — the flag
+is then never set on the written items. Stage C1 below resolves this deliberately rather than by
+accident.
 
 ## 2. Current state of the separation
 
-`TreeItem.h:617` already declares the intent:
+`TreeItem.h` already declares the intent, on the `public:` line above `m_StatusFlags`:
 
 ```cpp
 public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate ConfigTreeItem class
 ```
 
 and five of the eight `mc_*` members were already extracted into a lazily-allocated side-object
-(`TreeItem.h:626-634`):
+(`struct ConfigProperties` in TreeItem.h; as of 2026-08-16, before `mc_CheckGuardians` was added):
 
 ```cpp
 struct ConfigProperties
@@ -93,34 +106,34 @@ struct ConfigProperties
 mutable std::unique_ptr<ConfigProperties> m_ConfigProperties;
 ```
 
-with null-safe readers (`GetExprMember` etc., `TreeItem.cpp:185-225`) and the create-side assert at
-`TreeItem.cpp:179`. **This is the model this design extends** — `ConfigProperties` *is* the
+with null-safe readers (`GetExprMember` etc., TreeItem.cpp) and the create-side assert in
+`GetOrCreateConfigProperties`. **This is the model this design extends** — `ConfigProperties` *is* the
 ConfigItem, as a component.
 
 ## 3. Data-member classification
 
-| member | decl | verdict |
+| member | where in TreeItem.h | verdict |
 |---|---|---|
-| `m_ItemCount`, `m_Producer` | `TreeItem.h:158-160` | shared runtime (production scheduling) — stay |
-| `m_ID`, `m_Parent`, `m_FirstSub`, `m_Next` | `:587-607` | shared identity/tree — stay |
-| `m_BackRef` | `:595` | cache-root-only wiring (back-pointer to the owning config item) — stay |
-| `m_SupplCache` | `:612` | runtime, read on cache items (`TicInterface.cpp` error-source walk) — stay |
-| `m_ReadAssets` | `:615` | cache/runtime (parked read contexts) — stay |
-| `m_StatusFlags` | `:620` | shared 32-bit word; USF_*/DSF_* overlap is per-*descendant* (`TreeItemFlags.h:80-91`) — stay; never partition |
-| `mc_DC` | `:649` | **shared wiring, not a config attr** → rename `m_DC` (C2) |
-| `mc_RefItem` | `:650` | **shared wiring** (config→cache and operator-set on cache sub-items) → rename `m_RefItem` (C2) |
-| `mc_OrgItem` | `:650` | config-side (set only under `InTemplate()` in `Copy`, `TreeItem.cpp:2682-2683`) → move into ConfigProperties (C3) |
-| `m_Location` | `:654` | config-side → move into ConfigProperties (C3) |
-| `m_StorageManager` | `:614` | config-side (creation location-gated at `TreeItem.cpp:5491`) → move (C4) |
-| `m_UsingCache` | `:613` | config-capability (cache users are exactly the capability-bearing instantiations) → move (C5) |
-| `m_ConfigProperties` | `:634` | the component itself — grows |
+| `m_ItemLockCount` (`m_ItemCount` until 4734cb209), `m_Producer` | head of the class | shared runtime (production scheduling) — stay |
+| `m_ID`, `m_Parent`, `m_FirstSub`, `m_Next` | the block under `//private: // TODO G8: encapsulate` | shared identity/tree — stay |
+| `m_BackRef` | same block | cache-root-only wiring (back-pointer to the owning config item) — stay |
+| `m_SupplCache` | `// optional pointers to various services` | runtime, read on cache items (`TicInterface.cpp` error-source walk) — stay |
+| `m_ReadAssets` | same group | cache/runtime (parked read contexts) — stay |
+| `m_StatusFlags` | first member after the `public: // TODO G8` line | shared 32-bit word; USF_*/DSF_* overlap is per-*descendant* (`TreeItemFlags.h`) — stay; never partition |
+| `mc_DC` | `// Pluggable behavior` | **shared wiring, not a config attr** → rename `m_DC` (C2) |
+| `mc_RefItem` | same declaration | **shared wiring** (config→cache and operator-set on cache sub-items) → rename `m_RefItem` (C2) |
+| `mc_OrgItem` | same declaration | config-side (set only under `InTemplate()` in `Copy`) → move into ConfigProperties (C3) |
+| `m_Location` | the `private:` section that follows | config-side → move into ConfigProperties (C3) |
+| `m_StorageManager` | `// optional pointers to various services` | config-side (creation location-gated, see C4) → move (C4) |
+| `m_UsingCache` | same group | config-capability (cache users are exactly the capability-bearing instantiations) → move (C5) |
+| `m_ConfigProperties` | after `struct ConfigProperties` | the component itself — grows |
 
 Evidence that `mc_DC`/`mc_RefItem` are not config attrs despite the prefix: operators write them on
 cache items (`Subset.cpp:310` `SetDC`; `ConnectedParts.cpp:110,403`, `Connect.cpp:792`,
 `PhaseContainer.cpp:113` `SetReferredItem`); `StartInterest`/`StopInterest` read both unconditionally
 (`TreeItem.cpp:5584-5585, 5620-5624`); and the documented
 `cacheItem.mc_DC → DC → DC.m_OwnedData → cacheItem` cycle
-([teardown-leak-and-ownership-cycles.md](teardown-leak-and-ownership-cycles.md), §"2-cycle").
+([teardown-leak-and-ownership-cycles.md](../archive/teardown-leak-and-ownership-cycles.md), §"2-cycle").
 
 Memory effect of C3-C5: pure cache items and attr-less config containers lose 8+8+8+16 = **40 bytes
 each**; items with any config attr pay only the already-existing single allocation. No population
@@ -260,31 +273,35 @@ OVSRV10, which also gates any merge toward main. Stage-specific extra checks bel
 teardown-sensitive configs) remain end-of-series items unless a stage is deemed risky on its own.
 
 - **C1 — invariant repair + hygiene (no structural change).** Decide the ConfigProperties invariant:
-  recommended `assert(!IsCacheItem() || TreeItem::s_MakeEndoLockCount)` at `TreeItem.cpp:179`, with a
-  comment citing `Subset.cpp:354`/`ForEach.cpp:323`. (Rejected alternative: delaying
+  recommended `assert(!IsCacheItem() || TreeItem::s_MakeEndoLockCount)` in
+  `GetOrCreateConfigProperties` (TreeItem.cpp), with a comment citing `Subset.cpp:354`/`ForEach.cpp:323`. (Rejected alternative: delaying
   `SetIsCacheItem` until `CreateResult` completes — it changes what `IsCacheItem()` observes during
   instantiation-time name resolution and interest propagation.) First *investigate* exactly when
   `SelectMetaOperator` runs with an `isNew` holder vs the Tmp arm, and pin the cache-DC route with a
-  testcase. Update the `TreeItem.h:622-625` comment ("config-only" → "config-capability; also on
-  meta-operator-instantiated endogenous items").
+  testcase. Update the comment above `struct ConfigProperties` in TreeItem.h ("config-only" →
+  "config-capability; also on meta-operator-instantiated endogenous items").
 - **C2 — rename `mc_DC` → `m_DC`, `mc_RefItem` → `m_RefItem`.** Mechanical, ~72 occurrences, all
-  under `rtc/dll/src` (clc/geo use accessors only); update doc mentions.
+  under `rtc/dll/src` (clc/geo use accessors only); update doc mentions. *(2026-10-06: 90 lines,
+  `mc_DC` 46 and `mc_RefItem` 44; besides `rtc/dll/src` one code use, `srcItem->mc_DC` in
+  `clc/dll/src/PhaseContainer.cpp`, and comments in clc `Subset.cpp` and run `MainRun.cpp`.)*
 - **C3 — move `mc_OrgItem` + `m_Location` into ConfigProperties.** Null-safe readers
   (`GetLocation`/`GetConfigFileName`/… fall back to null/0); write sites `TreeItem.cpp:2682-2683`,
   `:2729-2730`, `:5742`; convert `Xml/XmlTreeOut.cpp` direct `mc_OrgItem` reads to accessors.
   Verify: battery + GUI smoke (source-location tooltips, "original item" display).
 - **C4 — move `m_StorageManager`.** Keep `ASF_GetStorageManagerLock` on `Actor::m_State`; keep the
-  `:5491` location asserts; audit the `AbstrStorageManager` friend (`TreeItem.h:659`). Verify with
+  `:5491` location asserts; audit the `friend class AbstrStorageManager` in TreeItem.h. Verify with
   storage-heavy cases plus the teardown-sensitive configs from the teardown doc (leak counters).
 - **C5 — move `m_UsingCache`.** `GetOrCreateUsingCache` becomes capability-creating (covers `Copy`
-  `:2680` on function copies into cache); audit the `UsingCache` friend (`TreeItem.h:658`). Verify
+  `:2680` on function copies into cache); audit the `friend struct UsingCache` in TreeItem.h. Verify
   with fn_test_fe_* / fn_test_selmeta* / template regressions (name resolution in instantiated
   scopes).
 - **C6 — file split (pure code motion).** New TU `rtc/dll/src/tic/TreeItemConfig.cpp` (add to the
   DmTic vcxproj *and* CMake — build both toolchains; file-list drift is the failure mode); move
-  group-(a) bodies + `TreeItem_CreateCheckedExpr` + the `UpdateDC`/`GetCheckedKeyExpr` fold there;
+  group-(a) bodies + `TreeItem_CreateCheckedExpr` + the `UpdateDC`/`GetCheckedKeyExpr` fold there
+  (*2026-10-06: these last three are in `TreeItemMetaInfo.cpp` since 821d19459*);
   restructure `TreeItem.h` into labeled sections (shared core / config capability / cache wiring);
-  resolve the `:617` TODO text. No signature or export changes; C-API untouched.
+  resolve the TODO G8 text on the `public:` line above `m_StatusFlags`. No signature or export
+  changes; C-API untouched.
 - **C7 — enforcement upgrade.** `m_ConfigProperties` private + friend audit; introduce
   `IsConfigCapable()` distinct from `!IsCacheItem()`; sweep the gates
   (`:3141, :3604, :4028, :2973, :4867, :1061, :2056, :2922, :2243, :5491`) and annotate each as
@@ -309,5 +326,6 @@ Fixed 2026-08-16 (with this doc): `TreeItem.cpp` invariant comment referencing r
 `TSF_AutoDeleteDisabled`; the two stale "mc_Calculator … DC_BackPtr" comments in
 `HasCalculatorImpl`; `TreeItem.h` `// override PersistentSharedObj` (type no longer exists);
 `doc/IntegrityCheck.md` `ImpliesCheck`; `schedule-with-lookahead.md` line-pinned "TreeItem.h:625".
-Remaining, tied to later stages: the `TreeItem.h:617` TODO text itself (C6);
-`tile-data-retainment.md` class-tree refresh (lands with the hierarchy-collapse U4).
+Remaining, tied to later stages: the TODO G8 text on the `public:` line above `m_StatusFlags` in
+TreeItem.h (C6). This line also said that the `tile-data-retainment.md` class-tree refresh would
+land with the hierarchy-collapse U4; it did not, and that document is refreshed on its own.

@@ -1,5 +1,10 @@
 # std-pointer ownership migration — session handoff
 
+*Archived 2026-10-06: the work log of the migration, which was functionally complete on 2026-07-02
+(4cf1238e6); of its remaining items, the six `// TODO ownership` stopgaps are down to two and the
+guard grep is `tools/check-ptr-discipline.ps1`, both tracked in the successor. Successor:
+[ownership.md](../development/ownership.md).*
+
 Branch: `refactor_ownership`. This continues the migration of the TreeItem family off the intrusive
 `SharedPtr<T>`/`WeakPtr<T>` onto std ownership. Read this together with
 `doc/development/std-ptr-migration-plan.md` (§4 = the `DcRef` variant) and `AGENTS.md` (build rules).

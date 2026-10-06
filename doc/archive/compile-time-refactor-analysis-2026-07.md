@@ -1,5 +1,11 @@
 # Compile-time analysis: header inclusion graph, PCH, and the rtc+sym+tic+stx merge question
 
+*Archived 2026-10-06: completed; its plan landed as its status block says (PCH in b4ded8661, the clc
+splits, the rtc+sym+tic merge in 089ebc9f0 with the source flattening of 904525c4d, the std::format
+migration), and the "PCH enrichment" it left open was step 3 of the header-hygiene ladder
+(4a7255e2b). Successors: [header-hygiene-2026-08.md](../development/header-hygiene-2026-08.md) and
+[tu-reorg-and-export-surface-2026-08.md](../development/tu-reorg-and-export-surface-2026-08.md).*
+
 *2026-07-07, branch `refactor_ownership`. Re-examination of
 [issue #462](https://github.com/ObjectVision/GeoDMS/issues/462) ("reduce compilation times by
 splitting up atypically large code-units and merging small projects"), which was closed with
@@ -332,7 +338,7 @@ build, which is the only ground truth for forward-declarability. (Scripts:
 
 ---
 
-*Follow-up 2026-08-16: see [header-hygiene-2026-08.md](header-hygiene-2026-08.md). It
+*Follow-up 2026-08-16: see [header-hygiene-2026-08.md](../development/header-hygiene-2026-08.md). It
 re-measures fan-in/churn on the merged tree and supersedes this document's churn picture:
 `DataArray.h` has gone cold (its `.ipp` split exists — the "explicit follow-up" above is
 done) and `TreeItem.h` is now the dominant PCH-invalidation source; the "keep `Unit.h`

@@ -1,12 +1,17 @@
 # The G8 TODO backlog
 
-*Status: index, 2026-08-21. Branch `lookahead-scheduling`.*
+*Status (2026-10-06): index, written 2026-08-21 on branch `lookahead-scheduling`; recounted and
+re-anchored against HEAD 0563aa5a0. Three markers went since 2026-08-21: the `parallel_for` item of
+`geo/BoostPolygon.cpp` (implemented in 9d5b23b38, GEO-A38), and the `REMOVE` above two
+commented-out one-liners in `AbstrDataItem.h` and "unwind recursion" (both deleted in 2d1e8ec51).
+Theme F's `CopyData` item is dead machinery, not a correctness risk (see F). Line anchors are those
+of 2026-10-06; the live-site counts in the tables are those of 2026-08-21 unless marked otherwise.*
 
 ## What "G8" means
 
 `// TODO G8` marks work that was identified during the GeoDMS 8.0 renovation (first half
 of 2022) and deliberately deferred past it. **It is not a version gate.** The product is
-at 20.16.0; nothing is waiting for a release called "G8". The marker means "this is
+at 20.22.1 (it was at 20.16.0 when this was written); nothing is waiting for a release called "G8". The marker means "this is
 structural debt we chose not to pay while landing 8.0", and it has been carried forward
 unexamined ever since.
 
@@ -16,16 +21,24 @@ because they depend on it. The G8.5 markers cluster on exactly two blockers:
 - **CalcCache restoration** — retired, see [§4](#4-history-retired-mechanisms). The
   blocker is gone because the mechanism is gone, not because it was delivered.
 - **The ownership-direction flip** (`mci/Object.h:108`) — *already landed* in the
-  std-ptr migration. `TreeItem.h:598-607` documents the current state: a parent owns
-  `m_FirstSub`, each child owns `m_Next`, and `m_Parent` is a `std::weak_ptr`.
+  std-ptr migration. The comments on `m_Parent`, `m_FirstSub` and `m_Next` in `TreeItem.h`
+  document the current state: a parent owns `m_FirstSub`, each child owns `m_Next`, and
+  `m_Parent` is a `std::weak_ptr` (see [ownership.md](ownership.md)).
 
-So neither G8.5 blocker is live. The 5 remaining G8.5 markers should be re-tiered or
-deleted rather than left waiting: `mci/Object.h:108` (stale, see §2), `sym/LispList.h:157`,
-and the three in `tic/DataLocks.h` (`:31`, `:109`, `:203`).
+So neither G8.5 blocker is live. The 4 remaining G8.5 markers should be re-tiered or
+deleted rather than left waiting: `mci/Object.h:108` (stale, see §2), `sym/LispList.h:156`,
+and the two in `tic/DataLocks.h` (`:109`, `:203`). The one that stood at `DataLocks.h:31` was
+retired in #1189; a history note at `:34` says so.
 
-**Current count: 71 markers in 37 files** — rtc 25, clc 4, geo 4, stg 2, shv 1, stx 1 —
-plus references in `doc/`. It was 72 in 38 files before the CalcCache retirement (#1189)
-removed the `ASF_WasLoaded` marker.
+**Current count (2026-10-06): 64 markers on 63 lines in 34 files**: 60 `TODO G8` and 4
+`TODO G8.5`; one line of `tic/DataArray.cpp` carries two. Per module, in files: rtc 23, clc 4,
+geo 3, stg 2, stx 1, shv 1. Counted with `git grep -n "TODO G8"` outside `doc/`, which finds 65
+lines; two of them only mention a marker: the description at the head of `tic/DataArrayValue.h`
+and the history note at `tic/DataLocks.h:34`. The grep misses three more that the tables below
+list: the two misspelled `TOOD G8` in `tic/LispTreeType.cpp` and the `TODO RECOMPILE G8` in
+`dbg/DebugReporter.cpp`. Until 2026-10-06 this paragraph said 71 markers in 37 files (rtc 25,
+clc 4, geo 4, stg 2, shv 1, stx 1); it was 72 in 38 files before the CalcCache retirement
+(#1189) removed the `ASF_WasLoaded` marker.
 
 ## Reading this index
 
@@ -34,7 +47,7 @@ existing ladder:
 
 | cluster | authority |
 |---|---|
-| `TreeItem.h:617` — ConfigTreeItem split | `doc/development/config-cache-separation.md`, stages C1–C7 |
+| `TreeItem.h:629` — ConfigTreeItem split | `doc/development/config-cache-separation.md`, stages C1–C7 (none landed by 2026-10-06) |
 | `TicBase.h:84` — `DataArray<V>` → `TileFunctor<V>` | `doc/development/unit-hierarchy-collapse.md`, stage U6 |
 | `TicBase.h:33` — `TICTOC_CALL` | `doc/development/tu-reorg-and-export-surface-2026-08.md` §2 |
 
@@ -50,19 +63,19 @@ doc mentions excluded. That is the number that actually has to be edited.
 | site | marker | resolution |
 |---|---|---|
 | `tic/TreeItemFlags.h:32` | `ASF_WasLoaded` — "G8.5 ? REMOVE AFTER CalcCache restoration" | **Removed** in #1189; the bit is reserved, not reused. See [§4](#4-history-retired-mechanisms). |
-| `tic/DataLocks.h:31` | "FileData primitives; G8.5: Move to DataStoreManager" | **Retired** in #1189: there is no destination class to move them back to. `OpenFileData`/`CreateFileData` are live memory-mapped-storage primitives and tic is where they belong; the banner now says so. |
+| `tic/DataLocks.h:31` (now the history note at `:34`) | "FileData primitives; G8.5: Move to DataStoreManager" | **Retired** in #1189: there is no destination class to move them back to. `OpenFileData`/`CreateFileData` are live memory-mapped-storage primitives and tic is where they belong; the banner now says so. |
 
 ### B. Vocabulary renames — XL, mechanical
 
 | site | asks for | live sites |
 |---|---|---|
-| `tic/TicBase.h:84`, `mci/CompositeCast.h:31` | `DataArray<V>` alias → `TileFunctor<V>` | **~645 spellings / ~101 files** (clc 259, geo 254, stg 51, rtc 47, shv 32, stx 2) |
-| `tic/AbstrCalculator.h:96` | `AbstrCalculator` → `AbstrExprKey` | 161 occ / 32 files |
+| `tic/TicBase.h:84`, `mci/CompositeCast.h:31` | `DataArray<V>` alias → `TileFunctor<V>` | **~645 spellings / ~101 files** (clc 259, geo 254, stg 51, rtc 47, shv 32, stx 2); *2026-10-06: 707 lines / 105 files (clc 267, geo 297, stg 57, rtc 51, shv 33, stx 2)* |
+| `tic/AbstrCalculator.h:102` | `AbstrCalculator` → `AbstrExprKey` | 161 occ / 32 files |
 | `clc/ExprCalculator.h:19` | `ExprCalculator` → `ParsedExprKey` | — |
-| `tic/DC_Ptr.h:43` | `DC_Ptr` → `AssignedExprKey`, "or remove" | — |
-| `stx/DataBlockTask.h:38` | `DataBlockTask` → `DataBlockExprKey` | — |
+| `tic/DC_Ptr.h:18` | `DC_Ptr` → `AssignedExprKey`, "or remove" | — |
+| `stx/DataBlockTask.h:13` | `DataBlockTask` → `DataBlockExprKey` | — |
 | `tic/DataLocks.h:109,203` | `DataReadLock`/`DataWriteLock` → `…Handle` (G8.5) | **704 occ / 134 files**; the `…Handle` aliases already exist, so this can be adopted per TU |
-| `tic/TicBase.h:33` | remove `TICTOC_CALL` | 31 uses, **all inside `tic/DataArray.h`** |
+| `tic/TicBase.h:33` | remove `TICTOC_CALL` | 29 uses, **all inside `tic/DataArray.h`**, plus the `#define` in `TicBase.h` (this cell said 31 until 2026-10-06; the count is the same as on 2026-08-21) |
 | `mci/Object.h:29` | rename `TreeObject`, separate containment from shared ownership | comment-only design note |
 
 Notes:
@@ -71,9 +84,10 @@ Notes:
   cannot be specialized. The costs are practical: it sits in both ClcPCH and GeoPCH, so
   every commit is a full clc+geo rebuild, the diff conflicts with any concurrent branch,
   and a few sites use it in dependent-type position (`typename
-  DataArray<E>::locked_cseq_t`, `geo/Connect.cpp:823,839`).
+  DataArray<E>::locked_cseq_t`, e.g. `geo/Connect.cpp:982,991`; on 2026-10-06, 116 lines spell
+  `typename DataArray<`).
 - `TICTOC_CALL` looks like the cheapest item here and is not. On MSVC, dllexport forces
-  instantiation of decorated template members, and these 31 are exactly the
+  instantiation of decorated template members, and these 29 are exactly the
   template-instantiation farm that serves Clc and Geo. It is a *measurement* task first
   — does clc/geo still link without them? — needing both an MSVC and an OVSRV10 Linux
   link. `tu-reorg` §2 excluded this family from its otherwise-completed step B for that
@@ -83,15 +97,15 @@ Notes:
 
 | site | asks for |
 |---|---|
-| `tic/TreeItem.h:617` | move config attrs (`mc_`) into a separate ConfigTreeItem — **designed**, see C1–C7 |
-| `tic/TreeItem.h:520` | re-encapsulate: a `private:` immediately overridden by `public:` for 12 internal helpers |
-| `tic/TreeItem.h:584` | encapsulate the identity/tree members — the `//private:` is itself commented out |
-| `tic/AbstrDataItem.h:183` | re-encapsulate `m_DataObject`, `m_DataLockCount`; the 5 `friend` declarations below already describe the intended private surface |
+| `tic/TreeItem.h:629` | move config attrs (`mc_`) into a separate ConfigTreeItem — **designed**, see C1–C7 |
+| `tic/TreeItem.h:535` | re-encapsulate: a `private:` immediately overridden by `public:` for 12 internal helpers |
+| `tic/TreeItem.h:596` | encapsulate the identity/tree members — the `//private:` is itself commented out |
+| `tic/AbstrDataItem.h:187` | re-encapsulate `m_DataObject`, `m_DataLockCount`; the 5 `friend` declarations below already describe the intended private surface |
 | `tic/AbstrDataObject.h:37` | move to `rtc/ptr/`, or replace by the Good Coding Guide equivalent |
 | `throwItemError.h:15` | "Why here" — move to a separate header |
-| `tic/DataArrayValue.h:6,95` | move `GetValue`/`SetValue` to a separate header — partly done already |
+| `tic/DataArrayValue.h:95` | move `GetValue`/`SetValue` to a separate header — **done**: `DataArrayValue.h` is that header, split out of `DataArray.h` (its head comment, line 6, says so); the marker at `:95` is a leftover, delete it |
 
-Sequencing: do `TreeItem.h:520`/`:584` and `AbstrDataItem.h:183` **after** C6 has moved
+Sequencing: do `TreeItem.h:535`/`:596` and `AbstrDataItem.h:187` **after** C6 has moved
 the config bodies out. `config-cache-separation.md` §5 lists six genuinely ambiguous
 boundary cases (`SetExpr`, `Copy`/`CopyTreeContext`, `GetUsingCache`/`FindNamespace`,
 absolute `FindItem`, `PartOfInterest`/`TryCleanupMem`/`DoFail`, `HasCalculatorImpl`)
@@ -101,42 +115,42 @@ whose placement is not obvious; deciding them twice is wasted work.
 
 | site | asks for | live sites |
 |---|---|---|
-| `tic/AbstrDataObject.h:95` + `tic/DataArray.h:109` | remove `GetReadableTileLock` | **1** (`stg/gdal/gdal_vect.cpp:2216`) |
-| `tic/AbstrDataObject.h:96` + `tic/DataArray.h:110` | remove `GetWritableTileLock` | **4** (`geo/OperPolygon.cpp:990,1011`; `tic/TileChannel.h:80,101`) |
-| `tic/AbstrDataObject.h:332` | remove `struct ReadableTileLock` | **22 constructions / 8 files**, plus a typedef |
-| `tic/AbstrDataObject.h:339` | remove `struct WritableTileLock` | **3** (`geo/Connect.cpp:851,853`; `geo/OperPot.cpp:227`) |
-| `tic/DataArray.h:112` | substitute away `GetLockedDataRead` → `GetDataRead` | **~107 / 28 files** |
-| `tic/DataArray.h:113` | substitute away `GetLockedDataWrite` → `GetDataWrite` | **6** |
+| `tic/AbstrDataObject.h:95` + `tic/DataArray.h:109` | remove `GetReadableTileLock` | **1** (`stg/gdal/gdal_vect.cpp:2617`) |
+| `tic/AbstrDataObject.h:96` + `tic/DataArray.h:110` | remove `GetWritableTileLock` | **4** (`geo/OperPolygon.cpp:1022,1043`; `tic/TileChannel.h:80,101`) |
+| `tic/AbstrDataObject.h:330` | remove `struct ReadableTileLock` | **22 constructions / 8 files**, plus a typedef; *2026-10-06: 24 / 8* |
+| `tic/AbstrDataObject.h:337` | remove `struct WritableTileLock` | **3** (*2026-10-06: `geo/Connect.cpp:1005,1156`; `geo/OperPot.cpp:272`*) |
+| `tic/DataArray.h:112` | substitute away `GetLockedDataRead` → `GetDataRead` | **~107 / 28 files**; *2026-10-06: ~127 lines / 30 files* |
+| `tic/DataArray.h:113` | substitute away `GetLockedDataWrite` → `GetDataWrite` | **6**; *2026-10-06: 7 (`clc/Regex.cpp`, `clc/ReportFunctions.cpp`, five in `geo/BoostPolygon.cpp`)* |
 | `tic/DataLocks.h:105` | remove `DataReadLock::m_RefPtrLock` | see below |
-| `tic/DataLocks.h:181` | remove `DataWriteLock::GetItem` | **1** (`tic/OperationContext.cpp:2582`, inside an assert) |
+| `tic/DataLocks.h:181` | remove `DataWriteLock::GetItem` | **1** (`tic/OperationContext.cpp:2764`, inside an assert) |
 
 Two traps:
 
-- `ReadableTileLock` is **not** a call-site sweep: `tic/TileIter.h:61` bakes it into
+- `ReadableTileLock` is **not** a call-site sweep: `tic/TileIter.h:36` bakes it into
   `typedef locked_seq<cseq_t, ReadableTileLock> locked_cseq_t`. And most of its uses are
   "pin this tile while I hold raw pointers into it" inside tight geo loops — check each
   against `doc/tile-data-retainment.md` §5, because for a `LazyTileFunctor` source,
   dropping the lock frees the buffer.
-- `m_RefPtrLock` is guarded by the 25-line comment at `DataLocks.h:80-103`, which explains
-  that member *ordering* is load-bearing: `m_KeepItemAlive` is declared first so it
+- `m_RefPtrLock` is guarded by the comments on `DataReadLock::operator=` and above
+  `m_KeepItemAlive` in `DataLocks.h`, which explain that member *ordering* is load-bearing: `m_KeepItemAlive` is declared first so it
   destructs last, guaranteeing neither `m_DRLA` nor `m_RefPtrLock` is ever the item's
-  last owner. Removing it means proving the `m_ItemCount` guard it provides is redundant
+  last owner. Removing it means proving the `m_ItemLockCount` guard it provides is redundant
   — a lifetime argument, not a grep.
 
 `GetLockedDataRead`/`GetLockedDataWrite` are one-line forwarders and by far the cheapest
 volume win. One caveat from `unit-hierarchy-collapse.md` §U1: an argument-less
 `GetLockedDataWrite()` against the two-parameter, no-default declaration was *the*
-uninstantiable dead code that broke explicit instantiation. Verify each of the 6 sites
+uninstantiable dead code that broke explicit instantiation. Verify each of the 7 sites
 passes both arguments.
 
 ### E. Dead code — S
 
 | site | note |
 |---|---|
-| `tic/DataController.cpp:519` | `CalcResultWithValuesUnits` is a husk: fail-check, `CallCalcResult()`, null-check, then a large commented-out block that used to do the `UpdateValuesUnits` work the name promises. **3 call sites** (`tic/MoreDataControllers.cpp:720`, `tic/AbstrCalculator.cpp:6257`, `shv/Theme.cpp:475`), all documented as bare-retainer idioms in `doc/interest-and-futures.md` §2.5b. Callers rely on the null return for `WasFailed(Data)`, which `CallCalcResult` does not reproduce. |
-| `tic/TreeItem.cpp:988` | `CanSubstituteByCalcSpec` — substitute away; 3 occ / 2 files |
-| `tic/AbstrDataItem.h:120` | `REMOVE` sits above two *already commented-out* one-liners (`IsTiled`, `IsCurrTiled`, both trivially `GetAbstrDomainUnit()->IsTiled()`). Delete the corpse. |
-| `sym/LispList.h:157` | `REMOVE` (G8.5) |
+| `tic/DataController.cpp:566` | `CalcResultWithValuesUnits` is a husk: fail-check, `CallCalcResult()`, null-check, then a large commented-out block that used to do the `UpdateValuesUnits` work the name promises. **2 call sites** (`tic/MetaFuncApply.cpp:408`, `tic/MoreDataControllers.cpp:751`; the third, in `shv/Theme.cpp`, went in 233305f1d, #1248, though the marker text still counts 3), documented as bare-retainer idioms in `doc/interest-and-futures.md` §2.5b. Callers rely on the null return for `WasFailed(Data)`, which `CallCalcResult` does not reproduce. |
+| `tic/TreeItem.cpp:995` | `CanSubstituteByCalcSpec` — substitute away; 3 occ / 2 files |
+| ~~`tic/AbstrDataItem.h:120`~~ | ~~`REMOVE` sits above two *already commented-out* one-liners (`IsTiled`, `IsCurrTiled`, both trivially `GetAbstrDomainUnit()->IsTiled()`). Delete the corpse.~~ **Done** in 2d1e8ec51 (2026-09-05). |
+| `sym/LispList.h:156` | `REMOVE` (G8.5) |
 | `dbg/DebugReporter.cpp:70` | move `ReportCount` into `DbgInterface.h` — flagged "TODO **RECOMPILE**", so batch it with another full-rebuild sweep |
 | `mem/tiledata.h:27,34` | replace `tile`/`file_tile` container inheritance by `OwningArrayPtr` — **not cheap despite looking it.** `tile<V>` backs every heap-materialized result and `file_tile<V>` owns the mmap'd sequences with hand-managed re-mapping; the commented-out `, TileBase` base is evidence of an abandoned prior attempt. Low priority. |
 
@@ -144,18 +158,18 @@ passes both arguments.
 
 | site | asks for |
 |---|---|
-| `tic/TicDataSupport.cpp:470` | **use `info->changePos`.** `CopyData` ignores its `DomainChangeInfo*` entirely and copies the whole array, truncating or zero-filling to the new size. It therefore *silently produces wrong data for any domain change that is not a pure append or truncate.* Its only caller, `AbstrDataItem::OnDomainUnitRangeChange:852`, is itself half-finished (a commented-out `MG_CHECK2(false, "NYI: …")`). Pin what `changePos` means for insertion vs deletion vs range-shift first: small implementation, real design question. |
-| `tic/AbstrDataItem.cpp:868,893` | two blocks copied verbatim from `TreeItem::TryCleanupMemImpl` — reorder and de-duplicate |
-| `tic/AbstrDataItem.cpp:886,902` | can the small-object early-out lean on `CleanupMem`; should `CleanupMem` merge with `ClearDataObject` |
-| `tic/TreeItem.cpp:899` | re-evaluate for thread and exception safety: set up private, commit in a nothrow critical section or lock-free |
-| `tic/TreeItem.cpp:894` | avoid constructing `SourceDescr(...)` at this phase |
-| `tic/TreeItem.cpp:1086` | going to `variant` and back looks contrived; re-evaluate the types |
-| `tic/TreeItem.cpp:4310` | unwind recursion — belongs to `RECURSION_REFACTOR_PLAN.md` |
-| `tic/AbstrUnit.cpp:364` | two commented-out `Was(ProgressState::MetaInfo)` asserts to re-enable |
-| `stg/gdal/gdal_vect.cpp:1800` | remove the lazy-init `if`, which `GdalVectlMetaInfo` should have made unnecessary. Carries a nested `// TODO: Lock.` — the lazy init is also unsynchronized, which is a latent MT bug either way. |
+| `tic/TicDataSupport.cpp:384` | **use `info->changePos`.** `CopyData` ignores its `DomainChangeInfo*` entirely and copies the whole array, truncating or zero-filling to the new size. ~~It therefore *silently produces wrong data for any domain change that is not a pure append or truncate.*~~ Its only caller that passes a `DomainChangeInfo` (the two others, in `DataLocks.cpp` and `MemoryMappedDataStorageManager.cpp`, copy a whole array and pass none), `AbstrDataItem::OnDomainUnitRangeChange`, is itself half-finished (a commented-out `MG_CHECK2(false, "NYI: …")`). ~~Pin what `changePos` means for insertion vs deletion vs range-shift first: small implementation, real design question.~~ **Reclassified 2026-10-06: dead machinery, not a correctness risk.** The only producer of `DomainChangeInfo`, `NotifyRangeDataChange` in `tic/Unit.cpp`, sets `changePos` to `min(oldSize, newSize)` unless a `domain_change_context` is active, and that class (declared in `AbstrUnit.h`, defined in `Unit.cpp`) is never constructed. So `changePos` is always the append or truncate position, which is what `CopyData` does. Delete `domain_change_context`, its thread-local and the `changePos` plumbing, then this marker (continuations B7). |
+| `tic/AbstrDataItem.cpp:887,911` | two blocks copied verbatim from `TreeItem::TryCleanupMemImpl` — reorder and de-duplicate |
+| `tic/AbstrDataItem.cpp:905,920` | can the small-object early-out lean on `CleanupMem`; should `CleanupMem` merge with `ClearDataObject` |
+| `tic/TreeItem.cpp:881` | re-evaluate for thread and exception safety: set up private, commit in a nothrow critical section or lock-free |
+| `tic/TreeItem.cpp:876` | avoid constructing `SourceDescr(...)` at this phase |
+| `tic/TreeItem.cpp:1095` | going to `variant` and back looks contrived; re-evaluate the types |
+| ~~`tic/TreeItem.cpp:4310`~~ | ~~unwind recursion — belongs to `RECURSION_REFACTOR_PLAN.md`, now `doc/development/recursion-refactor-plan.md`~~ **Gone**: the marker sat on a commented-out statement, which moved to `TreeItemDataUsage.cpp` in 821d19459 and was deleted in 2d1e8ec51. |
+| `tic/AbstrUnit.cpp:368` | two commented-out `Was(ProgressState::MetaInfo)` asserts to re-enable |
+| `stg/gdal/gdal_vect.cpp:2150` | remove the lazy-init `if`, which `GdalVectlMetaInfo` should have made unnecessary. Carries a nested `// TODO: Lock.` — the lazy init is also unsynchronized, which is a latent MT bug either way. |
 | `tic/OperPolicy.h:16` | reconsider `dont_cache_result` → `CompoundDC`, and the use of `calc_requires_metainfo`. **A design question, not a task** — and the `calc_requires_metainfo` half (it forces data generation onto the main thread) is a scheduling constraint that belongs in `schedule-with-lookahead.md`. Write the analysis note first. |
 
-`AbstrDataItem.cpp:868-902` deserves particular care: it is the data-retention decision
+`AbstrDataItem.cpp:887-920` deserves particular care: it is the data-retention decision
 point (`doc/tile-data-retainment.md` §1, `doc/interest-and-futures.md` §2.6). A change
 there surfaces as memory regressions or recalculation storms — neither of which the unit
 suite catches.
@@ -168,36 +182,37 @@ own before/after measurement.
 
 | site | asks for |
 |---|---|
-| `geo/BoostPolygon.cpp:1238` | `parallel_for` + thread-local `clean_resources` over the result-extraction loop. Verify boost.polygon's `clean_resources` thread-safety rather than assuming it. |
-| `geo/Poly2GridOper.cpp:782,868` | avoid re-rasterizing polygons that intersect multiple tiles, e.g. an ordered heap processing neighbouring tiles together. Highest payoff and highest effort in this group. |
-| `geo/ConnectedParts.cpp:139` | "doe dit zoals in OperDistrict.cpp" — the union-find currently reads both node attrs whole and allocates 5 full-size vectors |
+| ~~`geo/BoostPolygon.cpp:1238`~~ | ~~`parallel_for` + thread-local `clean_resources` over the result-extraction loop. Verify boost.polygon's `clean_resources` thread-safety rather than assuming it.~~ **Done** in 9d5b23b38 (2026-09-30, GEO-A38): `bp_` cleans its elements in parallel. |
+| `geo/Poly2GridOper.cpp:781,867` | avoid re-rasterizing polygons that intersect multiple tiles, e.g. an ordered heap processing neighbouring tiles together. Highest payoff and highest effort in this group. |
+| `geo/ConnectedParts.cpp:142` | "do this as in OperDistrict.cpp" (translated from Dutch in b9ef5fd45) — the union-find currently reads both node attrs whole and allocates 5 full-size vectors |
 | `geo/Point.cpp:201` | generalize `DistOper` to `IPoint`/`UPoint`/`WPoint` and their square-dist types. Watch obj size and compile time; pick each `square_dist_type` so it cannot overflow. |
-| `clc/Union.cpp:184` | copy tile by tile instead of a whole-array `GetDataWrite(no_tile, read_write)`. **Carries its own blocker:** "this will break non covering tilings and non-sequential tilings" — needs a tiling-compatibility predicate first. |
-| `clc/OperUnit.cpp:256` | don't use `CreateTmpUnit` (it calls `SetMaxRange`); use `CreateResultUnit` and copy/intersect the range inside `DuplFrom` with `mustCalc` |
-| `clc/OperUnit.cpp:257` | schedule no calc phase for operators that give a complete result at meta-info time. **This is the `materialization::meta` case — raise it into `schedule-with-lookahead.md`, don't fix it locally.** |
+| `clc/Union.cpp:189` | copy tile by tile instead of a whole-array `GetDataWrite(no_tile, read_write)`. **Carries its own blocker:** "this will break non covering tilings and non-sequential tilings" — needs a tiling-compatibility predicate first. |
+| `clc/OperUnit.cpp:257` | don't use `CreateTmpUnit` (it calls `SetMaxRange`); use `CreateResultUnit` and copy/intersect the range inside `DuplFrom` with `mustCalc` |
+| `clc/OperUnit.cpp:258` | schedule no calc phase for operators that give a complete result at meta-info time. **This is the `materialization::meta` case — raise it into `schedule-with-lookahead.md`, don't fix it locally.** |
 | `clc/OperAccUniNum.h:76` | "use parallel_for and ThreadLocal container" — **likely stale**, see §2 |
-| `stg/str/StrStorageManager.cpp:122` | make `dataBegin` a tile handle with a void pointer, so the mapping stays pinned across the `fwrite`. Same fix as `AbstrDataObject.h:154`. |
+| `stg/str/StrStorageManager.cpp:124` | make `dataBegin` a tile handle with a void pointer, so the mapping stays pinned across the `fwrite`. Same fix as `AbstrDataObject.h:154`. |
 | `tic/AbstrDataObject.h:154` | add a `TileCRef& resourceHolder` parameter to avoid file (un)mapping per row |
-| `shv/ShvDesktopData.cpp:406` | avoid two heap allocations by making the posted action move-only instead of wrapping `ItemWriteLock`s in `make_shared` to satisfy a copyable lambda |
-| `tic/DataArray.cpp:765` | merge with `slUnionDataLispExpr`; consider removing the function from the `AbstrDataObj.h` interface |
-| `tic/DataArray.cpp:807` | drop the `has_fixed_elem_size_v<V>` restriction, especially for `SharedStr` parameters |
-| `tic/OperationContext.cpp:2407` | count the reserve better |
-| `tic/LispTreeType.cpp:332,335` | move to `token::` (note: spelled `TOOD` in both) |
+| `shv/ShvDesktopData.cpp:453` | avoid two heap allocations by making the posted action move-only instead of wrapping `ItemWriteLock`s in `make_shared` to satisfy a copyable lambda |
+| `tic/DataArray.cpp:761` | merge with `slUnionDataLispExpr`; consider removing the function from the `AbstrDataObject.h` interface |
+| `tic/DataArray.cpp:803` | drop the `has_fixed_elem_size_v<V>` restriction, especially for `SharedStr` parameters |
+| `tic/OperationContext.cpp:2566` | count the reserve better |
+| `tic/LispTreeType.cpp:302,305` | move to `token::` (note: spelled `TOOD` in both) |
 
 ---
 
 ## 2. Markers that are already stale
 
 Three describe a world that no longer exists. Verify, then delete the comment — do not
-schedule work.
+schedule work. (*2026-10-06: the third was deleted in 2d1e8ec51, and a new one joined.*)
 
 | site | why it is stale |
 |---|---|
-| `mci/Object.h:108` | "now=subitems shared-own their parents" — the flip already landed. `TreeItem.h:598-607`: parent owns `m_FirstSub`, each child owns `m_Next`, `m_Parent` is a `std::weak_ptr`. |
+| `mci/Object.h:108` | "now=subitems shared-own their parents" — the flip already landed. The comments on `m_Parent`, `m_FirstSub` and `m_Next` in `TreeItem.h`: parent owns `m_FirstSub`, each child owns `m_Next`, `m_Parent` is a `std::weak_ptr`. |
 | `clc/OperAccUniNum.h:76` | asks for `parallel_for` + a thread-local container; the code immediately below already does `MaxAllowedConcurrentTreads()` + `AggregateTiles(..., maxNrThreads)`. Establish whether the TODO predates `AggregateTiles`. |
-| `tic/AbstrDataItem.h:120` | `REMOVE` over code that is already commented out |
+| ~~`tic/AbstrDataItem.h:120`~~ | ~~`REMOVE` over code that is already commented out~~ Deleted in 2d1e8ec51. |
+| `tic/DataArrayValue.h:95` | "MOVE to separate header file", inside the separate header it asked for (theme C) |
 
-`mci/Object.h:140` (`Move to AbstrDataItem`) is *not* stale but is easy to
+`mci/Object.h:148` (`Move to AbstrDataItem`) is *not* stale but is easy to
 under-estimate: `GetDynamicObjClass`/`GetCurrentObjClass` are two vtable slots on the
 universal `Object` base that only `AbstrDataItem` meaningfully overrides (base impls in
 `mci/MciInterface.cpp`, where `GetCurrentObjClass` just forwards). Removing two virtuals
@@ -216,21 +231,23 @@ need a non-virtual `TreeItem`-level shim, which is the design question to settle
 **`tic/AbstrCalculator.cpp` is contended.** At 7075 LOC it is the largest TU in the repo,
 and three separate efforts stake a claim on the same functions:
 
-1. the "dismantle Calculators" TODO (`AbstrCalculator.h:65`, `AbstrCalculator.cpp:176`),
+1. the "dismantle Calculators" TODO (`AbstrCalculator.h:66`, `AbstrCalculator.cpp:179`),
 2. the deferred TU split (`tu-reorg` step D — deferred precisely because of its dense
-   file-local-static graph),
-3. `RECURSION_REFACTOR_PLAN.md` open problem #1: the `SubstituteExpr_impl` ↔
-   `slSupplierExprImpl` recursion, fix C1b, unstarted.
+   file-local-static graph); *done in 821d19459 (2026-08-28): the typed-HOF machinery went to
+   five `Hof*.cpp` TUs and `AbstrCalculator.cpp` is 1835 lines on 2026-10-06*,
+3. `doc/development/recursion-refactor-plan.md` open problem #1: the `SubstituteExpr_impl` ↔
+   `slSupplierExprImpl` recursion, fix C1b, unstarted (still so on 2026-10-06, PLN-A02).
 
 Whichever goes first must land alone. The *rename* half of theme B is mechanical and safe
-at any time; the *dismantle* half should not start before C1b and the TU split.
+at any time; the *dismantle* half should not start before C1b and the TU split (the split
+has landed; C1b has not).
 
 **Suggested low-risk starter batch** — provably semantics-preserving, clears roughly 15%
 of the marker count:
 
 1. `DataWriteLock::GetItem` (`DataLocks.h:181`) — 1 call site.
-2. `CalcResultWithValuesUnits` (`DataController.cpp:519`) — 3 call sites.
-3. The three stale markers in §2.
+2. `CalcResultWithValuesUnits` (`DataController.cpp:566`) — 2 call sites since 233305f1d.
+3. The stale markers in §2.
 4. `GetLockedDataRead`/`GetLockedDataWrite` → `GetDataRead`/`GetDataWrite`, one commit
    per DLL.
 
@@ -307,7 +324,7 @@ register:
 > `DC 0-> DataObj -> KeepDataStore: bool`; `DC 0-> file_name`.
 > Overall: `DataItem -> DC -> RootItem -> DataStoreManager`.
 
-The historical API is recorded in `doc/MT2-issues.txt` — `DSM::GetUnitDCPairPtr`
+The historical API is recorded in `doc/archive/MT2-issues.txt` — `DSM::GetUnitDCPairPtr`
 (issue 5, a deadlock caused by too wide a critical section on DSM),
 `DSM::CreateFileData` and `DSM::OpenFileData` (the `DataWriteLock` → `ADI::CreateMemoryStorage`
 → `DSM::CreateFileData` chain, lines 60-78). The last two were lifted out of DSM verbatim

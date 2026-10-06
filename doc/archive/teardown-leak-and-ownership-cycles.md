@@ -1,5 +1,10 @@
 # Teardown leak & TreeItem ownership cycles (investigation handoff)
 
+*Archived 2026-10-06: historical, as the status line below says; the leak went with the
+`std::shared_ptr` migration, and the tile-functor cycle of section 3, which came back through
+`OperAttrBin`, was cut again by TIC-A10 (0fc692c63). Successor:
+[ownership.md](../development/ownership.md).*
+
 *Status (2026-09-29): historical. The work below was committed in 723c670b1 on the day this note was
 written, and the leak it hunts was closed by the `std::shared_ptr` migration of the TreeItem family on
 2026-06-28 (3f17a26e5 to ae5fecde5; the temporary instrumentation of section 4 went in bae0848ce). The

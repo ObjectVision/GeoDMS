@@ -1,8 +1,18 @@
 # TU reorganization and export-surface reduction — findings and plan, 2026-08
 
+*Status (2026-10-06): steps A to F of the ladder in section 6 are done, all on 2026-08-16: A in
+4fdf4cccd, B in 7197cc2bd, C in c893bb6ea, D in e568385e3 to 836a990f0, E in f03fadcff to
+c72013e4b, F in c72a4d038, and the stg CMake source list in 212c55074. Of the splits that row D
+deferred, TreeItem.cpp and AbstrCalculator.cpp were split in 821d19459 (2026-08-28); Environment.cpp
+is still whole (PLN-A13 of the code audit of 2026-09-27). The decorated lines have regrown since
+212c55074: lines that carry `RTC_CALL` went from 891 to 925 and lines that carry `TIC_CALL` from
+1147 to 1209 (`git grep -w` over the tracked sources, definitions and comments included), so the
+"Final Release numbers" at the end describe 2026-08-16, not today; no dumpbin sweep has been made
+since. Section 1 wrongly said that clc's exec operator uses `RunDllProc`; see the note there.*
+
 *2026-08-16, branch `lookahead-scheduling`, HEAD `ecbccab7`. Follow-up to
 `header-hygiene-2026-08.md` (headers) and to the export-surface follow-up recorded in
-`compile-time-refactor-analysis-2026-07.md` after the rtc+sym+tic merge. This document is
+`doc/archive/compile-time-refactor-analysis-2026-07.md` after the rtc+sym+tic merge. This document is
 the authoritative TODO for: (1) de-exporting symbols not imported by any other binary,
 (2) moving TUs/headers to the DLL that actually consumes them, (3) splitting, merging and
 renaming TUs for functional cohesion and compile time.*
@@ -30,7 +40,11 @@ for the *current* in-tree link graph.
 no GeoDMS→GeoDMS delay-load edges (only `gdal.dll` is delay-loaded, by Stg/Clc/Geo), and
 the only `GetProcAddress` site in the tree (`rtc/dll/src/dllimp/RunDllProc.cpp`, used by
 clc's `DllFunc`/exec operator) loads config-supplied *third-party* DLLs, never GeoDMS
-ones. `geodms.pyd` links all six DLLs as a full C++ importer, so its usage is in the
+ones. *(Correction 2026-10-06: `RunDllProc` is unreachable. Its only caller, the `EXECDLL`
+operator groups in `clc/dll/src/OperExec.cpp`, is compiled only under `OPER_EXECDLL`, whose
+`#define` is commented out (INF-A13 of the code audit of 2026-09-27). Since f27400a01 (#1241)
+`xct/DmsException.cpp` also calls `GetProcAddress`, for kernel32's `SetThreadDescription`. Neither
+loads a GeoDMS DLL, so the import evidence stands.)* `geodms.pyd` links all six DLLs as a full C++ importer, so its usage is in the
 import tables too.
 
 Dependency graph (importer → imported-symbol count from Rtc): Stx 248, Stg 494,
@@ -417,7 +431,7 @@ limits (2026-08-16):
 **Verdict (user-agreed): technically feasible with `/pdbpagesize` — but not in this
 pass.** Execute de-export + targeted moves + splits first; they shrink the surface and
 sharpen the numbers. Tracked as its own GitHub issue referencing this section and
-`compile-time-refactor-analysis-2026-07.md` Finding 3.
+`doc/archive/compile-time-refactor-analysis-2026-07.md` Finding 3.
 
 ## 6. Implementation ladder
 

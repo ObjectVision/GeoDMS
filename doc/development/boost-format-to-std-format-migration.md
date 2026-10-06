@@ -10,7 +10,7 @@ found eight calls that lost text, among them two `throwDmsErrF` calls written in
 Until the code audit of 2026-09-27 (PLN-A04) and this line, the document read as unstarted.*
 
 *2026-07-07, branch `refactor_ownership`. Follow-up to
-`compile-time-refactor-analysis-2026-07.md` finding 4. This analyses **how the format strings
+`doc/archive/compile-time-refactor-analysis-2026-07.md` finding 4. This analyses **how the format strings
 and the `ser/format.h` machinery must change**; it does not perform the migration.*
 
 ## Why

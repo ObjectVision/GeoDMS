@@ -1,5 +1,9 @@
 # Pointer-safety review — unguarded / dangling dereferences after the std-ptr ownership migration
 
+*Archived 2026-10-06: every finding was fixed or deliberately accepted on 2026-07-02 and 2026-07-03
+(36aa718b8, 55a3968ba, 3d5d95f96); the accepted ones and the validity rules of the verification
+round are kept in the successor. Successor: [ownership.md](../development/ownership.md).*
+
 Date: 2026-07-02. Branch: `refactor_ownership` (HEAD `4cf1238e`). Scope: rtc, tic, stx, stg, clc, geo,
 shv, qtgui, exe. Method: pattern sweep (`.lock().get()`, `.lock()->`, rogue `std::shared_ptr<family>(raw)`,
 `GetNew()/GetOld()`, `no_zombies`, `lock_or_cancel`, temporary-`.get()` escapes) + four parallel deep reviews

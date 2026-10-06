@@ -1,5 +1,10 @@
 # TreeItem ownership migration: intrusive `SharedPtr` → `std::shared_ptr` / `std::weak_ptr`
 
+*Archived 2026-10-06: the migration this plans landed on 2026-06-28 (3f17a26e5 to ae5fecde5) and its
+transitional wrappers went in 70c3f9422; the section 15 follow-ups and the decisions whose premises
+no longer hold (15.1, 15.2, 15.7) are tracked in the successor. Successor:
+[ownership.md](../development/ownership.md).*
+
 Branch `MapView_Tilting`, 2026-06-27. Design plan (user-directed). Companion to
 `teardown-leak-and-ownership-cycles.md` (the leak hunt that motivated this).
 

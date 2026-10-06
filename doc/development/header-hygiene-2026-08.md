@@ -1,11 +1,21 @@
 # Header hygiene: PCH contents, dead includes, split candidates, and renames
 
+*Status (2026-10-06): the ladder at the end is implemented, all on 2026-08-16: step 1 in f3bb3adb0,
+step 2 in 89836638f, step 3 in 4a7255e2b, step 4 in c00d65dff, step 5 in ffde99f53, and the prolog
+and guard normalization of the vt/ and geom/ headers in 140365594. Open, and on no step of the
+ladder: Finding 5D (`shv/Region.h` still includes `<QRegion>` and `<QRect>` and defines the two
+inline converters) and the lower-priority renames of Finding 6 (among them `shv/Region.h` →
+`ClipRegion.h`, `cpc/transform.h`, `mci/register.h` and `act/any.h`; `color.h`, `StringBounds.h`
+and `mpf.h` moved to `vt/` with the geo split but kept their names). `mci/SingleLinkedTree.h` and
+`.inc` are dead after all (Finding 2). Until 2026-10-06 the paragraph below said that
+implementation was deferred.*
+
 *2026-08-16, branch `lookahead-scheduling`, HEAD `39c0b5f`. Follow-up to
-[compile-time-refactor-analysis-2026-07.md](compile-time-refactor-analysis-2026-07.md),
+[compile-time-refactor-analysis-2026-07.md](../archive/compile-time-refactor-analysis-2026-07.md),
 re-answering its questions on the current tree: which headers are included a lot or sit in a
 PCH, whether less-used components should be separated out, which `#include`s are unneeded,
-and which headers deserve renaming. Findings only — implementation is deferred; see the
-prioritized ladder at the end. Two of the July conclusions are superseded here: `DataArray.h`
+and which headers deserve renaming. Findings, with a prioritized ladder at the end (implemented:
+see the status line above). Two of the July conclusions are superseded here: `DataArray.h`
 is no longer the churn hot spot (its interface/impl split exists and it has gone cold), and
 the "keep `Unit.h` out of the PCHs" advice no longer holds.*
 
@@ -75,6 +85,10 @@ Union of all closures: **166 of 605 headers (27%)**. First-include discipline is
 NOT dead** — `mci/SingleLinkedTree.inc` (used by `shv/GraphicContainer.cpp`) includes it at
 line 12, which the audit's grep missed. The header stays; only `TreeItem.h`'s unused include
 of it was removed (TreeItem's own comments say the structure was inlined into TreeItem).
+*Correction of the correction (2026-10-06): both files are dead, and both are still tracked.
+`shv/GraphicContainer.cpp` includes `SingleLinkedTree.inc` but uses nothing from it; no type in
+the repository derives from or names `single_linked_tree` any more. They can be deleted, with their
+entries in `DmRtc.vcxproj` and its filters (code audit of 2026-09-27, section 5).*
 
 ## Finding 3 — dead includes in the hot headers (symbol-verified)
 
