@@ -575,6 +575,7 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 	auto fsb = FileOutStreamBuff(dictFileName, true);
 	fsb.WriteBytes(osb.GetData(), osb.CurrPos());
+	fsb.Close(); // RTC-A05: a dictionary that was not written, or only in part, is an error
 }
 
 // #1275: called from TreeItem::PrepareDataUsage for every item under an MMD store, on the meta

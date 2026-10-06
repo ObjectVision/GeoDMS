@@ -33,12 +33,18 @@ public:
 	// until now, which is nothing when the process fail-fasts instead of unwinding; see DBG_FlushLogs.
 	RTC_CALL void Flush();
 
+	// Flush and close, and throw when the file did not open or a write, the flush or the close failed
+	// (code audit RTC-A05). A writer of data calls it when it is done; a log file does not, and keeps
+	// writing where it can.
+	RTC_CALL void Close();
+
 	bool IsOpen() const;
 
 private:
 	SharedStr      m_FileName;
 	std::ofstream  m_ofstream;
 	streamsize_t   m_ByteCount = 0;
+	bool           m_Closed = false;
 };
 
 /********** FileInpStreamBuff Interface **********/

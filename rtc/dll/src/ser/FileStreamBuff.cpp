@@ -57,6 +57,23 @@ void FileOutStreamBuff::Flush()
 		m_ofstream.flush();
 }
 
+// RTC-A05: an open that failed, and a write or a flush that failed on a full disk or a lost share, threw
+// nothing, so an MMD dictionary or an export was silently missing or truncated. MappedFileOutStreamBuff, in
+// this file as well, throws on both.
+void FileOutStreamBuff::Close()
+{
+	if (m_Closed)
+		return;
+	m_Closed = true;
+	bool wasOpen = m_ofstream.is_open();
+	if (wasOpen)
+		m_ofstream.close(); // flushes, and sets failbit when that fails
+	if (!wasOpen)
+		throwErrorF("FileOutStreamBuff", "{} could not be opened for writing; check that its folder exists and can be written", m_FileName);
+	if (m_ofstream.fail())
+		throwErrorF("FileOutStreamBuff", "writing {} failed; the disk may be full or the share unavailable", m_FileName);
+}
+
 streamsize_t FileOutStreamBuff::CurrPos() const
 {
 	return m_ByteCount;

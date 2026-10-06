@@ -194,6 +194,7 @@ void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
     auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), true);
 
     Table_Dump(fout.get(), begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
+    fout->Close(); // RTC-A05: an export that was not written, or only in part, is reported
 }
 
 void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr fullFileName)

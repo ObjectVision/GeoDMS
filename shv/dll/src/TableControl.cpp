@@ -1092,6 +1092,7 @@ void TableControl::Export() const
 
 	FileOutStreamBuff buff(fileName, true);
 	TableControl_SaveTo(this, &buff, TableCopyMode::WholeTable);
+	buff.Close(); // RTC-A05: an export that was not written, or only in part, is reported
 }
 
 // issue #411: build a config table under Desktops/Default/ViewData whose attributes

@@ -350,6 +350,13 @@ int main2_without_SE(int argc, char** argv)
 #else
 		outstream = std::ofstream(fileName);
 #endif
+		// RUN-A12: a file that could not be opened (a missing folder, a read-only share) discarded every
+		// @statistics and @valueinfo result silently, and the run exited 0
+		if (!outstream)
+		{
+			std::cerr << std::endl << "@file " << fileName << " cannot be opened for writing" << std::endl;
+			return 1;
+		}
 		dataOut = &outstream;
 	}
 
@@ -405,6 +412,15 @@ int main2_without_SE(int argc, char** argv)
 		// commit does.
 		if (ReportIfFailed(item))
 			result = 1;
+	}
+	if (outstream.is_open())
+	{
+		outstream.close(); // flushes
+		if (!outstream) // RUN-A12: a write or the flush failed, on a full disk or a lost share
+		{
+			std::cerr << std::endl << "@file " << fileName << ": writing failed; the output is incomplete" << std::endl;
+			result = 1;
+		}
 	}
 	return result;
 }
