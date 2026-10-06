@@ -1,6 +1,7 @@
-// #1287: in pareto_optimal_eps a numeric criterion is followed by its epsilon, also when bool criteria come
-// first. Here the numeric price is the last argument and is refused with "pareto_optimal_eps: criterion 2
-// (argument 3) is numeric and must be followed by its epsilon; ...". Expected: exit nonzero on /checks.
+// #1287: in pareto_optimal_eps a numeric criterion after the first is followed by its epsilon, also when a bool
+// criterion comes first (#1282). Here the numeric price is criterion 2 and the last argument and is refused with
+// "pareto_optimal_eps: criterion 2 (argument 3) is numeric and must be followed by its epsilon; ...". Expected:
+// exit nonzero on /checks.
 container fn_test_pareto_bool_neg2
 {
 	unit<uint32> P : nrofrows = 1;

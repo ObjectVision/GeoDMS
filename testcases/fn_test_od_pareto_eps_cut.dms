@@ -1,0 +1,123 @@
+container fn_test_od_pareto_eps_cut
+{
+	// #1282: with a bound on the second criterion, pareto(OrgZone_max_imp2,imp2_epsilon) applies the relative epsilon per
+	// destination zone only and searches exactly. At a node a label that is at most epsilon better on the bounded criterion
+	// can be the only one whose route stays within the bound.
+	//
+	//   node 0 = origin, node 2 = destination
+	//   L0: 0 -(t=1, c=10   )-> 1      fast, expensive
+	//   L1: 0 -(t=1, c=5    )-> 3
+	//   L2: 3 -(t=1, c=4.95 )-> 1      slow, 0.5% cheaper at node 1: (2, 9.95) against (1, 10)
+	//   L3: 1 -(t=1, c=0.04 )-> 2
+	//
+	// At the destination (2, 10.04) exceeds the bound 10.02 and (3, 9.99) does not. An epsilon of 1% at node 1 would
+	// drop (2, 9.95), as 9.95 is not below 0.99 * 10, and leave the destination unreached; per zone only, the search keeps
+	// it and the destination gets the one route that stays within the bound. Without the bound the epsilon also applies
+	// at the nodes: then the destination gets (2, 10.04) only.
+	unit<uint32> Node : nrofrows = 4;
+	unit<uint32> Link : nrofrows = 4
+	{
+		attribute<Node>    N1_rel : [0, 0, 3, 1];
+		attribute<Node>    N2_rel : [1, 3, 1, 2];
+		attribute<float64> t      : [1.0, 1.0, 1.0, 1.0];
+		attribute<float64> c      : [10.0, 5.0, 4.95, 0.04];
+	}
+	unit<uint32> OrgZone : nrofrows = 1;
+	unit<uint32> DstZone : nrofrows = 1;
+	unit<uint32> StartSet : nrofrows = 1
+	{
+		attribute<Node>    node_rel : [0];
+		attribute<OrgZone> zone_rel : [0];
+	}
+	unit<uint32> EndSet : nrofrows = 1
+	{
+		attribute<Node>    node_rel : [2];
+		attribute<DstZone> zone_rel : [0];
+	}
+
+	unit<uint32> od_cut := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto(OrgZone_max_imp2,imp2_epsilon)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, Link/c
+		, const(10.02, OrgZone)
+		, 0.01
+		);
+
+	unit<uint32> od_nocut := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto(imp2_epsilon)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, Link/c
+		, 0.01
+		);
+
+	// the epsilon is a float of either size and dimensionless, whatever the type of the impedances: float32 on a float64
+	// search, and both on integer impedances (the same network in hundredths)
+	unit<uint32> od_cut_f32 := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto(OrgZone_max_imp2,imp2_epsilon)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, Link/c
+		, const(10.02, OrgZone)
+		, 0.01f
+		);
+	attribute<uint32> t_int (Link) := uint32(Link/t);
+	attribute<uint32> c_int (Link) := uint32(round(Link/c * 100.0));
+	unit<uint32> od_int := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto(OrgZone_max_imp2,imp2_epsilon)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, t_int, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100u, OrgZone)
+		, c_int
+		, const(1002u, OrgZone)
+		, 0.01f
+		);
+	unit<uint32> od_int_nocut := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto(imp2_epsilon)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, t_int, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100u, OrgZone)
+		, c_int
+		, 0.01
+		);
+
+	container checks
+	{
+		parameter<uint32>  f32_rows   := uint32(#od_cut_f32)          , IntegrityCheck = "f32_rows == 1";
+		parameter<float64> f32_imp    := od_cut_f32/impedance[0]      , IntegrityCheck = "f32_imp == 3.0";
+		parameter<uint32>  int_rows   := uint32(#od_int)              , IntegrityCheck = "int_rows == 1";
+		parameter<uint32>  int_imp    := od_int/impedance[0]          , IntegrityCheck = "int_imp == 3";
+		parameter<uint32>  int_alt    := od_int/alt_imp[0]            , IntegrityCheck = "int_alt == 999";
+		parameter<uint32>  int_nocut  := uint32(#od_int_nocut)        , IntegrityCheck = "int_nocut == 1";
+		parameter<uint32>  int_nocut_imp := od_int_nocut/impedance[0] , IntegrityCheck = "int_nocut_imp == 2";
+		parameter<uint32>  cut_rows   := uint32(#od_cut)              , IntegrityCheck = "cut_rows == 1";
+		parameter<float64> cut_imp    := od_cut/impedance[0]          , IntegrityCheck = "cut_imp == 3.0";
+		parameter<float64> cut_alt    := od_cut/alt_imp[0]            , IntegrityCheck = "cut_alt > 9.98 && cut_alt < 10.0";
+		parameter<uint32>  nocut_rows := uint32(#od_nocut)            , IntegrityCheck = "nocut_rows == 1";
+		parameter<float64> nocut_imp  := od_nocut/impedance[0]        , IntegrityCheck = "nocut_imp == 2.0";
+	}
+}

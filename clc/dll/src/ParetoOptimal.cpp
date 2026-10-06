@@ -27,24 +27,34 @@
 // n log n for the sort plus n times the front size for the sweep, instead of the k^2
 // pairs per group of a self-join.
 //
-// pareto_optimal_eps(partition_rel, crit1, eps1, ..., critN, epsN): the same with
-// epsilon-dominance (#1282, the offline form of pareto(imp2_epsilon)). Every criterion is
-// bucketed to floor(crit / eps) (eps 0: exact), the sort is on (partition, bucket1, ...,
-// bucketN, crit1, ..., critN, id) and the sweep compares buckets. Per box the row with the
-// smallest raw values in criterion order survives: eps1 decides which rows count as equal
-// on the first criterion, and among those the lower bucket of the second criterion wins,
-// then the smaller raw first criterion. The result is a subset of the exact result, and
-// every exact-optimal row that drops out has a surviving row of its partition that is
-// less than eps better or equal on every criterion (its bucket is <= on all of them).
+// pareto_optimal_eps(partition_rel, crit1, crit2, eps2, ..., critN, epsN): the same with relative
+// epsilon-dominance (#1282, the offline form of pareto(imp2_epsilon)), each eps a dimensionless
+// fraction from 0 to 1. The sort is the same, on the raw values; in the sweep a row is dominated
+// by an accepted row a of its group when it is not more than the fraction eps better on any
+// criterion after the first: crit_k >= a_k - eps_k * |a_k| for every k > 1, which with eps 0
+// is the exact rule. Rows are thus accepted in lexicographic order, the first criterion first:
+// after (t1, x1) a row (t2, x2) with t2 >= t1 survives only when x2 < (1 - eps2) * x1, where x1
+// is the smallest x accepted so far, as in the label-setting of pareto(imp2_epsilon). The first
+// criterion only orders, and the first row of a group always survives, so it takes no epsilon
+// (since 2026-10-05; before, crit1 was followed by an eps1 that had no effect, and such a call
+// is now refused with a message that says so).
+// Every exact-optimal row that drops out has a surviving row of its partition that is no worse
+// on the first criterion and at most the fraction eps_k better than it on each other criterion,
+// though such a row may itself have dropped out against an earlier one. The result is a subset
+// of the exact result. Until 2026-10-05 eps was a bucket width in the unit of its criterion: every
+// criterion was bucketed to floor(crit / eps), and whether two nearly equal rows both survived
+// depended on where a bucket edge fell; an epsilon with a metric, or above 1, is now refused.
+// An epsilon of 1 makes a criterion one that only orders: it can never keep a row by itself
+// (for nonnegative values), what the bucket width 1e9 did before.
 //
 // A criterion may also be bool (#1287), minimised like the others: false before true, so a
 // criterion where true is better is written not(x). A bool criterion has no epsilon, which
-// makes pareto_optimal_eps read its arguments by type: a numeric criterion is followed by its
-// epsilon, a bool criterion is not, as in pareto_optimal_eps(part, price, 10.0, needsCar,
-// needsBike). The same number of arguments can therefore be read in more than one way (five:
-// two numeric criteria, or one numeric and two bool ones), so there is one operator per number
-// of arguments, and the criteria read from them may be at most eight. In the sort and the sweep
-// a bool criterion is a criterion of 0 and 1 with epsilon 0.
+// makes pareto_optimal_eps read its arguments by type: a numeric criterion after the first is
+// followed by its epsilon, a bool criterion is not, as in pareto_optimal_eps(part, price,
+// time, 0.01, needsCar, needsBike). The same number of arguments can therefore be read in more
+// than one way (five: three numeric criteria, or two numeric and two bool ones), so there is one
+// operator per number of arguments, and the criteria read from them may be at most eight. In
+// the sort and the sweep a bool criterion is a criterion of 0 and 1 with epsilon 0.
 //
 // The criteria may have different value types, numeric or bool; they are compared as Float64.
 // The partition relation is any attribute to a domain unit. A row with an undefined partition
@@ -79,6 +89,7 @@
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "IndexGetterCreator.h"
+#include "Metric.h" // IsEmpty(const UnitMetric*), for the dimensionless epsilons
 #include "ParallelTiles.h"
 #include "TreeItemClass.h"
 #include "Unit.h"
@@ -241,7 +252,7 @@ struct ParetoOptimalOperator : VariadicOperator
 {
 	// The result class is the concrete DataArray<Bool>: the operator lookup of an expression that
 	// uses the result (a != on it, a uint32() of it) matches on that class before anything is calculated.
-	// withEps: a numeric criterion is followed by its epsilon, a bool criterion is not (#1287).
+	// withEps: a numeric criterion after the first is followed by its epsilon; the first and a bool criterion are not (#1287, #1282).
 	ParetoOptimalOperator(arg_index nrArgs, bool withEps)
 		: VariadicOperator(withEps ? &cog_pareto_optimal_eps : &cog_pareto_optimal, DataArray<Bool>::GetStaticClass(), nrArgs)
 		, m_WithEps(withEps)
@@ -256,22 +267,32 @@ struct ParetoOptimalOperator : VariadicOperator
 	static constexpr arg_index NO_EPS = 0;
 	struct CritArgs { arg_index crit, eps; };
 
-	// the criteria in argument order, read by type: in pareto_optimal_eps a numeric criterion takes the
-	// next argument as its epsilon and a bool criterion does not
+	// the criteria in argument order, read by type: in pareto_optimal_eps a numeric criterion after the
+	// first takes the next argument as its epsilon; the first criterion and a bool criterion do not
 	auto GetCritArgs(const ArgSeqType& args) const -> std::vector<CritArgs>
 	{
+		const AbstrDataItem* partA = AsDataItem(args[0]);
+		const bool partIsVoid = partA && partA->HasVoidDomainGuarantee();
 		std::vector<CritArgs> result;
 		for (arg_index i = 1; i != args.size(); )
 		{
 			const SizeT k = result.size() + 1; // the number of the criterion in the messages
 			const AbstrDataItem* critA = AsDataItem(args[i]);
 			MG_USERCHECK2(critA, mySSPrintF("{}: argument {} must be a numeric or bool attribute (criterion {})", Name(), i + 1, k).c_str());
+			// a parameter where a criterion is expected: in pareto_optimal_eps most likely an epsilon after the first
+			// criterion, which takes none since 2026-10-05 (#1282)
+			MG_USERCHECK2(partIsVoid || !critA->HasVoidDomainGuarantee()
+			,	(m_WithEps && k == 2
+					? mySSPrintF("{}: argument {} is a parameter where criterion 2 is expected; the first criterion only orders and takes no epsilon: pareto_optimal_eps(partition_rel, crit1, crit2, eps2, ...)", Name(), i + 1)
+					: mySSPrintF("{}: argument {} is a parameter where criterion {} is expected, an attribute of the domain of the partition relation", Name(), i + 1, k)
+				).c_str()
+			);
 			const ValueClass* vc = critA->GetAbstrValuesUnit()->GetValueType();
 			MG_USERCHECK2(vc->IsNumericOrBool(), mySSPrintF("{}: criterion {} (argument {}) must be numeric or bool", Name(), k, i + 1).c_str());
 			CritArgs critArgs{ i++, NO_EPS };
-			if (m_WithEps && vc->GetValueClassID() != ValueClassID::VT_Bool)
+			if (m_WithEps && k > 1 && vc->GetValueClassID() != ValueClassID::VT_Bool)
 			{
-				MG_USERCHECK2(i != args.size(), mySSPrintF("{}: criterion {} (argument {}) is numeric and must be followed by its epsilon; only a bool criterion has none", Name(), k, critArgs.crit + 1).c_str());
+				MG_USERCHECK2(i != args.size(), mySSPrintF("{}: criterion {} (argument {}) is numeric and must be followed by its epsilon; only the first criterion and a bool criterion have none", Name(), k, critArgs.crit + 1).c_str());
 				critArgs.eps = i++;
 			}
 			result.emplace_back(critArgs);
@@ -297,8 +318,15 @@ struct ParetoOptimalOperator : VariadicOperator
 			{
 				const AbstrDataItem* epsA = AsDataItem(args[critArgs[k].eps]);
 				MG_USERCHECK2(epsA && epsA->HasVoidDomainGuarantee() && epsA->GetAbstrValuesUnit()->GetValueType()->IsNumeric()
-				,	mySSPrintF("{}: argument {} must be a numeric parameter, the epsilon of criterion {} (argument {}): a numeric criterion is followed by its epsilon, a bool criterion is not"
+				,	mySSPrintF("{}: argument {} must be a numeric parameter, the epsilon of criterion {} (argument {}): a numeric criterion after the first is followed by its epsilon, the first criterion and a bool criterion are not"
 					,	Name(), critArgs[k].eps + 1, k + 1, critArgs[k].crit + 1
+					).c_str()
+				);
+				// relative: a fraction, so without a metric; an epsilon in the unit of its criterion, as the builds
+				// until 2026-10-05 took it, is refused here instead of being read as a fraction
+				MG_USERCHECK2(IsEmpty(epsA->GetAbstrValuesUnit()->GetCurrMetric())
+				,	mySSPrintF("{}: the epsilon of criterion {} (argument {}) is relative, a dimensionless fraction from 0 to 1 (0.01 = 1%), and may not have a metric; earlier builds took a bucket width in the unit of the criterion"
+					,	Name(), k + 1, critArgs[k].eps + 1
 					).c_str()
 				);
 			}
@@ -321,7 +349,9 @@ struct ParetoOptimalOperator : VariadicOperator
 				if (critArgs[k].eps != NO_EPS)
 				{
 					eps[k] = AsDataItem(args[critArgs[k].eps])->GetCurrRefObj()->GetValueAsFloat64(0); // argLocks holds it; GetRefObj is meta-thread only and this may run on a worker
-					MG_USERCHECK2(IsDefined(eps[k]) && eps[k] >= 0.0, mySSPrintF("{}: the epsilon of criterion {} must be a defined, nonnegative value", Name(), k + 1).c_str());
+					MG_USERCHECK2(IsDefined(eps[k]) && eps[k] >= 0.0 && eps[k] <= 1.0
+					,	mySSPrintF("{}: the epsilon of criterion {} must be a fraction from 0 to 1 (0.01 = 1%); earlier builds took a bucket width in the unit of the criterion", Name(), k + 1).c_str()
+					);
 				}
 			}
 
@@ -462,21 +492,24 @@ struct ParetoOptimalOperator : VariadicOperator
 		if (!ascending)
 			SortOnPartition(pairs, minPart, maxPart);
 
-		// 4. per block of whole groups, in parallel: per group, the dominance keys and the raw criteria
-		//    in one contiguous record per row, the records sorted lexicographically, and the sweep.
-		//    The keys are the buckets floor(crit / eps) where eps > 0 (#1282; a quotient within a
-		//    millionth of a bucket width below an edge counts as the higher bucket, as in the engine's
-		//    Imp2Bucket) and the raw values elsewhere; after the d keys a record holds the raw values
-		//    of the bucketed criteria, which order the rows within equal buckets, so that the best row
-		//    of a box comes first. The raw value of an unbucketed criterion equals its key and orders
-		//    nothing more. The group index breaks the last tie; it is the row order.
-		//    Sweep: every earlier record of the group has key1 <= the record under test (and, when
-		//    equal on all keys, a lower raw value or row), so dominance reduces to the remaining keys:
-		//    with one criterion only the first row of the group survives, with two the row survives iff
-		//    its key2 is strictly below the minimum key2 accepted so far, with more it must escape every
-		//    accepted row of the group.
+		// 4. per block of whole groups, in parallel: per group, the raw criteria in one contiguous record
+		//    per row, the records sorted lexicographically, and the sweep. The group index breaks the
+		//    last tie; it is the row order.
+		//    Sweep: every earlier record of the group has crit1 <= the record under test (and, when equal
+		//    on all criteria, a lower row), so dominance reduces to the remaining criteria: with one
+		//    criterion only the first row of the group survives, with two the row survives iff its crit2
+		//    improves on the minimum crit2 accepted so far, with more it must improve on every accepted
+		//    row of the group in at least one criterion. Improving is relative (#1282): more than the
+		//    fraction eps_k below the accepted value, see improves; with eps 0, strictly below it. With
+		//    two criteria the minimum suffices, because the bound a - eps * |a| increases with a.
 		OwningPtrSizedArray<UInt8> keep(n, value_construct MG_DEBUG_ALLOCATOR_SRC("pareto_optimal: keep"));
-		const SizeT recSize = d + SizeT(std::count_if(eps.begin(), eps.end(), [](Float64 epsK) { return epsK > 0.0; }));
+		const SizeT recSize = d;
+		auto improves = [&eps](arg_index k, Float64 x, Float64 accepted) -> bool
+			{
+				return eps[k] <= 0.0
+					? x < accepted
+					: x < accepted - eps[k] * std::abs(accepted);
+			};
 
 		// the first position at or after p that starts a group
 		auto groupStart = [&pairs, m](SizeT p) -> SizeT
@@ -519,18 +552,8 @@ struct ParetoOptimalOperator : VariadicOperator
 					{
 						const SizeT row = groupPairs[j].row;
 						Float64* recJ = rec.data() + j * recSize;
-						SizeT rawPos = d;
 						for (arg_index k = 0; k != d; ++k)
-						{
-							Float64 v = critCol[k][row];
-							if (eps[k] > 0.0)
-							{
-								recJ[k] = std::floor(v / eps[k] + 1e-6);
-								recJ[rawPos++] = v;
-							}
-							else
-								recJ[k] = v;
-						}
+							recJ[k] = critCol[k][row];
 						perm[j] = j;
 					}
 
@@ -549,7 +572,7 @@ struct ParetoOptimalOperator : VariadicOperator
 						std::sort(perm.begin(), perm.end(), recLess);
 
 					bool    hasAccepted = false;
-					Float64 minKey2 = 0.0;
+					Float64 minCrit2 = 0.0;
 					front.clear();
 					for (SizeT j : perm)
 					{
@@ -558,7 +581,7 @@ struct ParetoOptimalOperator : VariadicOperator
 						if (d == 1)
 							dominated = hasAccepted;
 						else if (d == 2)
-							dominated = hasAccepted && recJ[1] >= minKey2;
+							dominated = hasAccepted && !improves(1, recJ[1], minCrit2);
 						else
 						{
 							dominated = false;
@@ -567,7 +590,7 @@ struct ParetoOptimalOperator : VariadicOperator
 								const Float64* recF = rec.data() + f * recSize;
 								bool dom = true;
 								for (arg_index k = 1; k != d && dom; ++k)
-									dom = recF[k] <= recJ[k];
+									dom = !improves(k, recJ[k], recF[k]);
 								if (dom)
 								{
 									dominated = true;
@@ -582,7 +605,7 @@ struct ParetoOptimalOperator : VariadicOperator
 							break;
 						hasAccepted = true;
 						if (d == 2)
-							minKey2 = recJ[1];
+							minCrit2 = recJ[1];
 						else
 							front.push_back(j);
 					}
@@ -615,7 +638,7 @@ struct ParetoOptimalOperator : VariadicOperator
 namespace
 {
 	// one instance per number of arguments: the partition relation plus one to eight criteria, and in
-	// pareto_optimal_eps an epsilon after each numeric criterion, so 2 (one bool criterion) to 17
+	// pareto_optimal_eps an epsilon after each numeric criterion but the first, so 2 (one criterion) to 16 are used
 	ParetoOptimalOperator po2 (2, false), po3 (3, false), po4 (4, false), po5 (5, false), po6 (6, false), po7 (7, false), po8 (8, false), po9 (9, false);
 	ParetoOptimalOperator pe2 (2, true ), pe3 (3, true ), pe4 (4, true ), pe5 (5, true ), pe6 (6, true ), pe7 (7, true ), pe8 (8, true ), pe9 (9, true );
 	ParetoOptimalOperator pe10(10, true), pe11(11, true), pe12(12, true), pe13(13, true), pe14(14, true), pe15(15, true), pe16(16, true), pe17(17, true);
