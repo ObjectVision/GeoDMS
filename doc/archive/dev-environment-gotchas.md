@@ -1,5 +1,7 @@
 # Development-environment gotchas
 
+*Archived 2026-10-06: the test launchers moved to `batch\` and run through `batch\run_unit_suite.bat`, which puts the `tst` batch folder on `PATH`; the case renames of ffde99f53 (2026-08-16) made the tracked `shv\dll\src` names mixed case. Successors: AGENTS.md (NoDefaultCurrentDirectoryInExePath), the geodms-commit skill ("Case-sensitive paths") and the geodms-debug skill ("Searching the source").*
+
 Quirks of the Windows + WSL2 setup most developers run into, with the
 right counter-measure beside each.
 

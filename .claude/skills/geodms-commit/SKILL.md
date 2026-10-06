@@ -164,7 +164,11 @@ rest.
 
 ## Case-sensitive paths
 
-A few files under `shv\dll\src` are tracked in lower case (`dataview.cpp`, `dataview.h`,
-`movableobject.h`, `palettecontrol.h`). `git diff -- shv/dll/src/DataView.cpp` is empty on
-this file system; use the tracked spelling, and check with `git diff --name-only` when a diff
-looks too quiet.
+A pathspec is case-sensitive even on this case-insensitive file system
+(`core.ignorecase=true` does not change that): a path in the wrong case matches nothing, and
+the diff or log is silently empty. Since ffde99f53 (2026-08-16) the tracked names match the
+spelling on disk; that commit renamed the files that differed only in case, among them
+`shv\dll\src\dataview.*` to `DataView.*`, and `movableobject.h` and `palettecontrol.h`.
+Their history before it is under the old name: `git log --follow -- shv/dll/src/DataView.cpp`,
+and a diff against an older ref names both spellings. Check with `git diff --name-only` when
+a diff looks too quiet.

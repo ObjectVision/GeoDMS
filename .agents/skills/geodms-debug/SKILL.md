@@ -204,7 +204,19 @@ assertion: `Get-Clipboard -Raw` and `-Format Image`.
 
 ## When a probe is not enough
 
-Threading, stack-pressure and meta-thread bugs do not show in small configs. The `t720`
-(2BURP) project in the `tst` regression fills the stack within a second and hands the
-meta-thread baton to a worker; `doc/development/testing-strategy.md` says how to run a
-single project. A full `full.py` round needs the user's consent (geodms-build, tier 3).
+Threading, stack-pressure and meta-thread bugs do not show in small configs (geodms-build,
+tier 3, says why). #1102 showed in `t720` (the 2BURP project) of the `tst` regression.
+`python full.py -version <v> -tests t720` runs only the experiments whose name contains
+`t720` and deletes their cached `.bin` first, so they really run; `run_exp.py` of
+geodms-perf reruns one experiment on any engine build without full.py. Either needs the
+user's consent, as a full round does (geodms-build, tier 3).
+
+## Searching the source
+
+`git grep` reads the tracked files only, so it skips the build output and the `vcpkg`
+submodule. ripgrep, and a search tool built on it, skips what `.gitignore` names (`bin\`, `obj\`,
+`build\`, `vcpkg_installed\`, `vc_archives\`, `vc_downloads\`) but does enter `vcpkg\`, and
+ripgrep's `cpp` file type leaves out `.ipp`: the template implementations in
+`rtc/dll/src/mem/HeapSequenceProvider.ipp` and `rtc/dll/src/tic/DataArray.ipp` are then
+missed. Use the glob `*.{cpp,h,ipp}` or `--type-add 'cpp:*.ipp' --type cpp`; a `-g '*.ipp'`
+beside `--type cpp` narrows the search to the `.ipp` files alone.

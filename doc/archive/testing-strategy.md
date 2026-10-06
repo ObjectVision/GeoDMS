@@ -1,5 +1,7 @@
 # Testing strategy
 
+*Archived 2026-10-06: the thesis holds, the logistics do not (full.py has a `-tests` filter, the results go where `ResultsBaseDir` says, and the cmake build got the 64 MB stack reserve in 09c2b2d1e, which was the cmake-versus-msbuild difference). Successors: the geodms-build skill (tier 3), the geodms-debug skill ("When a probe is not enough") and the geodms-perf skill (rerunning one experiment).*
+
 ## Unit tests are insufficient for thread / stack / dependency-graph bugs
 
 The unit-test suite (`unit.bat` / `Test{,CMake}{Debug,Release}Unit.bat` /

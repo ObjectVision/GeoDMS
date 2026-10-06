@@ -44,7 +44,7 @@ somebody's link step into a silent skip. Neither side gets an error that says so
 before every build:
 
 ```powershell
-Get-Process msbuild,cl,link,devenv,GeoDmsRun,GeoDmsGuiQt,cdb -ErrorAction SilentlyContinue |
+Get-Process msbuild,cmake,cl,link,devenv,GeoDmsRun,GeoDmsGuiQt,cdb -ErrorAction SilentlyContinue |
   Select-Object Id,ProcessName,StartTime,Path
 git diff --name-only
 ```
@@ -53,7 +53,9 @@ git diff --name-only
   mtimes tell you whether that work is minutes or hours old.
 - `MSBuild.exe /nodemode:1` processes with no children and no CPU are idle leftovers and may
   be killed (`taskkill /F /IM MSBuild.exe`); an msbuild without `/nodemode:` is a live build.
-  `batch\BuildSignAndCreateSetup.bat` has the exact discrimination in a comment.
+  `batch\BuildSignAndCreateSetup.bat` has the exact discrimination in a comment. A
+  `cmake.exe` has no such idle mode: any running one is a build, and the guard of
+  `batch\BuildSignAndCreateSetupCmake.bat` counts it so.
 - A `GeoDmsGuiQt` from `bin\Release\x64` that is not yours: read its command line
   (`Get-CimInstance Win32_Process -Filter "Name='GeoDmsGuiQt.exe'"`), the config or log path
   names the issue it belongs to, and ask before killing it.
@@ -124,9 +126,20 @@ If the build cannot be run exactly this way, stop and ask.
 ## The other flavours
 
 - CMake Windows: `cmake --preset windows-x64-release` (or `-debug`), then `cmake --build`
-  with no target. Paths and the explicit toolchain overrides are in
-  `doc/development/build-tips.md`. The setup script only configures when `CMakeCache.txt`
-  is absent; a `CMakeLists.txt` edit forces the reconfigure.
+  with no target, the way `batch\BuildSignAndCreateSetupCmake.bat` does it. The preset sets
+  the toolchain, `tools/vcpkg-toolchain.cmake` over the in-repo `vcpkg`; never override
+  `CMAKE_TOOLCHAIN_FILE` with the vcpkg that comes with Visual Studio, a different tool with
+  another ABI, which makes the shared `vcpkg_installed` rebuild every time an `.m` and a `.c`
+  build alternate. The configure step of the script adds
+  `-DVCPKG_INSTALLED_DIR=<repo root>/vcpkg_installed` (the folder the msbuild build fills,
+  triplet `x64-windows-v145`) and `-DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64`. The script
+  runs the cmake that vcpkg pins (`vcpkg\vcpkg.exe fetch cmake` prints its path) and falls
+  back to the one in Visual Studio only when that fails: the cmake version is an ABI input
+  of every vcpkg port, and on 2026-08-09 a Visual Studio update that replaced its cmake broke
+  every configure of an existing build folder. The output goes to
+  `build\windows-x64-<config>\bin`, which the `TestCMake*Unit.bat` launchers test, so a `.c`
+  build leaves `bin\Release\x64` alone. The setup script only configures when
+  `CMakeCache.txt` is absent; a `CMakeLists.txt` edit forces the reconfigure.
 - Linux: from WSL, `cd /mnt/c/dev/GeoDMS_2026`, presets `linux-x64-release` / `-debug`, same
   tree, no separate checkout. A file that WSL claims is missing over 9p may exist; verify
   from the Windows side before concluding anything.
@@ -203,6 +216,18 @@ Rules per tier:
   agent app's self-update, never set `PYTHONUTF8`, quote `set "VAR=value"` in cmd
   one-liners, and resume an aborted round with a bare `-version` (a `-tests` argument wipes
   the caches). `C:\dev\tst\CLAUDE.md` has the rest.
+- Why only tier 3 finds a thread, stack or meta-thread bug: the configurations of the lower
+  tiers are small, with shallow supplier chains. `TreeItem::UpdateMetaInfo` and
+  `TreeItem::SuspendibleUpdate` (`rtc/dll/src/tic/TreeItemMetaInfo.cpp`) move their work to a
+  `std::async` thread, which takes over the meta-thread role, only when less than 320 KB
+  (327680 bytes) of the 64 MB stack reserve is left, and no case in `testcases\` or the unit
+  suite is built to get that deep. So code on that path asserts `IsMetaThread()`, never
+  `IsMainThread()`, which holds on the literal main thread only. #1102, such an assertion
+  firing 152 times on a worker thread in t720 (the 2BURP project), was found by a full.py
+  round; 0165494c9 then replaced `IsMainThread()` by `IsMetaThread()` throughout the
+  meta-info, commit and scheduling code. Outside `shv\` and `qtgui\`, whose work runs on the
+  GUI thread, and the implementation in `rtc/dll/src/act/MainThread.cpp`, no `IsMainThread()`
+  call is left.
 - Anything that reaches the network or real source data belongs in `TestShippedContent.bat`,
   not in `testcases\`.
 

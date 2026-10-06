@@ -1,5 +1,7 @@
 # Build tips
 
+*Archived 2026-10-06: the CMake paths contradict the presets, which take the toolchain from `tools/vcpkg-toolchain.cmake` and not from Visual Studio's vcpkg; the x64-hosted compiler has been forced in `Directory.Build.props` since 2026-05-06 and `RLookup.cpp` was split on 2026-07-08; and parallel incremental builds are no longer allowed. Successor: the geodms-build skill, sections "Before you build" and "The other flavours".*
+
 ## Sequencing — never run two full GeoDMS builds in parallel
 
 Whether MSBuild Release, MSBuild Debug, CMake `windows-x64-{debug,release}`,
