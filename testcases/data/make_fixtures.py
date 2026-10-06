@@ -141,6 +141,9 @@ xml('xml_entity.xml', HEADER + '< TreeItem name = "xb" >\n< Descr > a &amp; < / 
 # entity followed by text, on both sides of a decoded character: the whole point of the case is the
 # character right after the ';', which used to be swallowed
 xml('xml_entity_text.xml', HEADER + '< TreeItem name = "xt" >\n< Descr > a &amp; b &lt;c&gt; < / Descr >\n< / TreeItem >\n')
+# INF-A05: numeric references (decimal, hex, one of two UTF-8 bytes) and an unknown entity in element text; each
+# gave a '\0' byte, at which the Descr ended
+xml('xml_entity_numeric.xml', HEADER + '< TreeItem name = "xn" >\n< Descr > x&#65;y&#x42;z&unknown;w&#169;v < / Descr >\n< / TreeItem >\n')
 # INF-A01 of doc/code-audit-2026-09-27.md: entities in an ATTRIBUTE value, which since #1261 is decoded
 # too, a known one and an unknown one; every such value used to hang the load. Only properties fixed at
 # construction are attributes (name, ValuesUnit, DomainUnit, ValueType), and no valid value of those

@@ -16,6 +16,7 @@
 #include "xml/XmlConst.h"
 #include "dbg/debug.h"
 #include "utl/StrFormat.h" // mgFormat2SharedStr, for the error messages of this reader
+#include "utl/Encodes.h" // HtmlDecode, for numeric character references in element text
 
 // *****************************************************************************
 
@@ -127,31 +128,51 @@ bool XmlParser::ReadElemCallback(XmlElement& )
 	return true; // keep element for the parent.
 }
 
-void XmlParser::TransformChar(char& nextChar)
+// An entity reference in element text, the stream on its '&': appends what it stands for to elementText and
+// leaves the stream ON the ';', the last character the reference consumed (ReadText advances once per
+// iteration at the bottom of its loop; consuming the ';' here as well ate the character that followed the
+// entity: 'a &amp; b' decoded to 'a &b', #1260). The name between '&' and ';' goes into a stack buffer; it
+// comes from the file, so its length is checked before every store, and the loop stops at the end of the
+// input as AtEnd() reports it (NextChar() is then 0, never EOF).
+// A predefined XML entity gives its character; a numeric character reference (&#169;, &#xA9;) and &nbsp;
+// give their UTF-8 bytes, as HtmlDecode decodes them; any other reference, and one the input ends inside,
+// is kept as it stands, as an attribute value keeps it. All of these used to give a '\0' byte, at which
+// every c_str() consumer of the text, a Descr or an expression, silently ended it (code audit INF-A05).
+void XmlParser::AppendEntity(XmlElement::TextType& elementText)
 {
-	if (nextChar == '&')
+	char nextToken[MAX_TOKEN_LEN+1], *nextTokenPtr = nextToken;
+	ReadChar();
+	char nextChar = NextChar();
+	while (!AtEnd() && nextChar != ';')
 	{
-		// An entity reference: the name between '&' and ';' goes into a stack buffer. The name comes
-		// from the file, so its length is checked before every store. The loop stops at the end of
-		// the input as AtEnd() reports it; NextChar() is then 0, never EOF, so the earlier test for
-		// EOF ran past the end of any buffer without a trailing sentinel byte.
-		char nextToken[MAX_TOKEN_LEN+1], *nextTokenPtr = nextToken;
+		if (nextTokenPtr - nextToken >= MAX_TOKEN_LEN)
+			throwDmsErrF("XML entity reference '&{}...' is longer than the {} characters supported", SharedStr(CharPtrRange(nextToken, nextTokenPtr)), MAX_TOKEN_LEN);
+		*nextTokenPtr++ = nextChar;
 		ReadChar();
 		nextChar = NextChar();
-		while (!AtEnd() && nextChar != ';')
-		{
-			if (nextTokenPtr - nextToken >= MAX_TOKEN_LEN)
-				throwDmsErrF("XML entity reference '&{}...' is longer than the {} characters supported", SharedStr(CharPtrRange(nextToken, nextTokenPtr)), MAX_TOKEN_LEN);
-			*nextTokenPtr++ = nextChar;
-			ReadChar();
-			nextChar = NextChar();
-		}
-		// Leave the stream ON the ';', the last character this entity consumed. ReadText advances
-		// once per iteration at the bottom of its loop, so consuming the ';' here as well ate the
-		// character that followed the entity: 'a &amp; b' decoded to 'a &b' (#1260).
-		*nextTokenPtr = 0;
-		nextChar = SymbolGetChar(nextToken);
 	}
+	*nextTokenPtr = 0;
+	bool isTerminated = !AtEnd(); // the stream is on the ';'
+	if (isTerminated && nextTokenPtr != nextToken)
+	{
+		if (char ch = SymbolGetChar(nextToken))
+		{
+			elementText.push_back(ch);
+			return;
+		}
+		SharedStr reference = mgFormat2SharedStr("&{};", nextToken);
+		SharedStr decoded = HtmlDecode(reference);
+		if (decoded != reference)
+		{
+			elementText.insert(elementText.end(), decoded.begin(), decoded.send());
+			return;
+		}
+	}
+	// a reference this reader does not know: the text as it stands
+	elementText.push_back('&');
+	elementText.insert(elementText.end(), nextToken, nextTokenPtr);
+	if (isTerminated)
+		elementText.push_back(';');
 }
 
 void XmlParser::SkipMarkupDeclaration()
@@ -195,12 +216,14 @@ void XmlParser::ReadText(XmlElement::TextType& elementText)
 	for (;;)
 	{
 		char nextChar = NextChar();
-		while (!AtEnd() && nextChar != '<') // not EOF: ReadChar answers 0 at the end, see TransformChar
+		while (!AtEnd() && nextChar != '<') // not EOF: ReadChar answers 0 at the end, see AppendEntity
 		{
 			if (!isspace(UChar(nextChar)))
 			{
-				TransformChar(nextChar);
-				elementText.push_back(nextChar);
+				if (nextChar == '&')
+					AppendEntity(elementText);
+				else
+					elementText.push_back(nextChar);
 				seenNonSpace = true;
 			}
 			else if (seenNonSpace)
@@ -440,7 +463,7 @@ SharedStr XmlParser::ReadAttrValue(TokenID tagNameID, WeakStr attrName)
 	// An attribute value carries entity references, not backslash escapes. Reading it through the
 	// word reader ran it past ReadDQuote, which swallows a backslash and rewrites the character
 	// after it, so a StorageName spelled as an attribute lost its path separators; and it left the
-	// entities encoded, unlike element text, which TransformChar decodes.
+	// entities encoded, unlike element text, which AppendEntity decodes.
 	HtmlDecodeInPlace(result);
 	return result;
 }
@@ -544,7 +567,7 @@ static std::map<CharPtr, Char, CompCharPtr> XmlConstMap; // filled by RegisterCo
 char SymbolGetChar(CharPtr symbol)
 {
 	// A lookup, never an insertion: operator[] on a miss stored the caller's pointer as a key --
-	// the stack buffer of TransformChar, or a slice of a string that HtmlDecode erases right
+	// the stack buffer of AppendEntity, or a slice of a string that HtmlDecode erases right
 	// after -- and every later lookup compared against that dangling key. An unknown entity
 	// decodes to 0, as before.
 	auto i = XmlConstMap.find(symbol);

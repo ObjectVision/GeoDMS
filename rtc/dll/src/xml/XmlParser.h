@@ -81,7 +81,7 @@ private:
 	void ReadAttr(XmlElement& element);
 	void ReadEncl(XmlElement& element);
 	void ReadText(XmlElement::TextType& elementText);
-	void TransformChar(char& nextChar);
+	void AppendEntity(XmlElement::TextType& elementText);
 
 	// Tag scanning, character by character. FormattedInpStream's word reader splits on white space
 	// and on its own field separators only, which is why every '<', '=', '?' and '/' used to need a

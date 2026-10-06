@@ -1,0 +1,16 @@
+// Code audit INF-A05: in XML element text a numeric character reference (&#65;, &#x42;, &#169;) and an unknown
+// entity (&unknown;) each gave a '\0' byte, at which the Descr ended: 'x'. Numeric references now give their
+// UTF-8 bytes (the copyright sign is two) and an unknown entity is kept as it stands, as in an attribute value.
+// The text of data/xml_entity_numeric.xml is 'x&#65;y&#x42;z&unknown;w&#169;v': 'xAyBz&unknown;w' (15 bytes),
+// the copyright sign (2) and 'v', 18 bytes.
+container xml_entity_numeric
+{
+	container xmlpart { #include <../data/xml_entity_numeric.xml> }
+	container checks
+	{
+		parameter<string> d   := PropValue(xmlpart/xn, 'Descr');
+		parameter<uint32> len := strlen(d)  , IntegrityCheck = "len == 18";
+		parameter<string> l15 := left(d, 15), IntegrityCheck = "l15 == 'xAyBz&unknown;w'";
+		parameter<string> r1  := right(d, 1), IntegrityCheck = "r1 == 'v'";
+	}
+}

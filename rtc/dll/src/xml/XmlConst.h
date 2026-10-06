@@ -9,7 +9,7 @@
 
 #include "dbg/Diagnostics.h"
 
-// The longest entity name XmlParser::TransformChar accepts. The registered names are 2 to 4
+// The longest entity name XmlParser::AppendEntity accepts. The registered names are 2 to 4
 // characters and numeric references such as &#8212; are 5, so this only bounds the stack buffer
 // against a run of text after an unterminated '&'.
 const UInt32 MAX_TOKEN_LEN = 32;
