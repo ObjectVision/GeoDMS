@@ -1,0 +1,44 @@
+container oper_impedance_precalc_count_null_neg
+{
+	// Negative case of oper_impedance_precalc_count.dms (code audit GEO-A29): a null count in
+	// precalculated_NrDstZones. Until 20.22.1 it was taken as 4294967295 rows for its origin zone; now
+	// the run fails with "precalculated_NrDstZones has a null count for origin zone 1".
+	unit<uint32> Node : nrofrows = 8;
+	unit<uint32> Link : nrofrows = 9
+	{
+		attribute<Node>    N1_rel : [0, 0, 1, 2, 1, 2, 5, 6, 7];
+		attribute<Node>    N2_rel : [1, 2, 3, 3, 4, 4, 2, 4, 4];
+		attribute<float64> t      : [1.0, 5.0, 1.0, 1.0, 10.0, 2.0, 1.0, 1.0, 3.0];
+	}
+	unit<uint32> OrgZone : nrofrows = 3
+	{
+		attribute<uint32> nr_dst_zones : [2, null, 1];
+	}
+	unit<uint32> DstZone : nrofrows = 2;
+	unit<uint32> StartSet : nrofrows = 4
+	{
+		attribute<Node>    node_rel : [0, 5, 6, 7];
+		attribute<OrgZone> zone_rel : [0, 1, 2, 2];
+	}
+	unit<uint32> EndSet : nrofrows = 2
+	{
+		attribute<Node>    node_rel : [3, 4];
+		attribute<DstZone> zone_rel : [0, 1];
+	}
+
+	unit<uint32> od := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp)'
+		  ';od(precalculated_NrDstZones):impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, OrgZone/nr_dst_zones
+		);
+
+	container checks
+	{
+		parameter<uint32> nr_rows := uint32(#od);
+		parameter<float64> sum_imp := sum(od/impedance), IntegrityCheck = "sum_imp >= 0.0";
+	}
+}

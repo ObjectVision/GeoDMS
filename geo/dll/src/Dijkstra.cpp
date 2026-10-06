@@ -200,7 +200,7 @@ void CheckFlags(DijkstraFlag df)
 		MG_USERCHECK2(!flags(df & (DijkstraFlag::UseLinkAttr | DijkstraFlag::ProdOdLinkSet)),
 			"pareto does not (yet) support link_attr or LinkSet productions: they need per-label traceback");
 		MG_USERCHECK2(!flags(df & DijkstraFlag::PrecalculatedNrDstZones),
-			"pareto cannot use precalculateted_NrDstZones: it counts destination zones, not Pareto-optimal routes");
+			"pareto cannot use precalculated_NrDstZones: it counts destination zones, not Pareto-optimal routes");
 		MG_USERCHECK2(!flags(df & DijkstraFlag::VerboseLogging),
 			"pareto does not support verboseLogging");
 	}
@@ -830,25 +830,30 @@ SizeT WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 ,	const NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>& nzc
 ,	const OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>& dh
 ,	DijkstraFlag df, ZoneType orgZone, ZoneType zonalResultCount
-,	const SizeT* resCumulCount, SizeT* resCount
+,	const SizeT* resCumulCount, SizeT nrRes, SizeT* resCount
 ,	const ResultInfo<ZoneType, ImpType, MassType>& res)
 {
 	// Determine per-origin result base
 	SizeT resultCountBase = 0;
+	SizeT nrUndefinedRows = 0; // rows that a precalculated count reserved for this origin beyond the zones it reached
 	if (nzc.IsDense())
 		resultCountBase = SizeT(ni.nrDstZones) * SizeT(orgZone);
 	else if (resCumulCount)
 	{
+		// The rows of this origin end where those of the next one begin, and for the last origin at the
+		// end of the result. The last origin was not compared (GEO-A29), so a precalculated count that
+		// was too small for it wrote past the count of the result.
 		resultCountBase = resCumulCount[orgZone];
-		if (orgZone + 1 < ni.nrOrgZones)
+		SizeT nextBase = (orgZone + 1 < ni.nrOrgZones) ? resCumulCount[orgZone + 1] : nrRes;
+		MG_CHECK(resultCountBase <= nextBase && nextBase <= nrRes);
+		SizeT givenZonalResultCount = nextBase - resultCountBase;
+		if (zonalResultCount != givenZonalResultCount)
 		{
-			SizeT givenZonalResultCount = resCumulCount[orgZone + 1] - resultCountBase;
-			if (zonalResultCount != givenZonalResultCount)
-			{
-				MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
-				if (zonalResultCount > givenZonalResultCount)
-					throwDmsErrF("orgZone {0}: zonalResultCount {1} != givenZonalResultCount {2}", orgZone, zonalResultCount, givenZonalResultCount);
-			}
+			MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
+			if (zonalResultCount > givenZonalResultCount)
+				throwDmsErrF("precalculated_NrDstZones: origin zone {} reaches {} destination zones, more than the {} given for it"
+				,	orgZone, zonalResultCount, givenZonalResultCount);
+			nrUndefinedRows = givenZonalResultCount - zonalResultCount;
 		}
 	}
 
@@ -928,6 +933,26 @@ SizeT WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 	{
 		auto currPtr = res.od_SrcZoneIds + resultCountBase;
 		fast_fill(currPtr, currPtr + zonalResultCount, orgZone);
+	}
+
+	// The rows that a precalculated count reserved beyond the zones reached are undefined, as the wiki
+	// (Impedance-options) promises; they were left as allocated. The later stages write the rows of the
+	// reached zones only, so od_AltLinkImp and od_LinkAttr are filled here as well.
+	if (nrUndefinedRows)
+	{
+		SizeT first = resultCountBase + zonalResultCount, last = first + nrUndefinedRows;
+		auto fillUndefined = [first, last]<typename V>(V* data)
+		{
+			if (data)
+				fast_fill(data + first, data + last, UNDEFINED_VALUE(V));
+		};
+		fillUndefined(res.od_ImpData);
+		fillUndefined(res.od_AltLinkImp);
+		fillUndefined(res.od_LinkAttr);
+		fillUndefined(res.od_SrcZoneIds);
+		fillUndefined(res.od_DstZoneIds);
+		fillUndefined(res.od_StartPointIds);
+		fillUndefined(res.od_EndPointIds);
 	}
 
 	if (res.orgZone_NrDstZones)
@@ -1549,7 +1574,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 			// Emit this origin's od rows / counts; the base offset is needed again below
 			ZoneType zonalResultCount = nzc.ZonalResCount();
-			SizeT resultCountBase = WriteZonalResults(ni, nzc, dh, df, orgZone, zonalResultCount, resCumulCount, resCount, res);
+			SizeT resultCountBase = WriteZonalResults(ni, nzc, dh, df, orgZone, zonalResultCount, resCumulCount, nrRes, resCount, res);
 			resultCount += zonalResultCount;
 
 			const ImpType* d_vj = dh.m_ResultDataPtr;
@@ -1662,7 +1687,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 ,	const ImpType* linkImp2Data, bool linkImp2HasVoidDomain
 ,	const Inverted_rel<ZoneType>& node_endPoint_inv
 ,	DijkstraFlag df
-,	const SizeT* resCumulCount
+,	const SizeT* resCumulCount, SizeT nrRes
 ,	SizeT* resCount
 ,	ResultInfo<ZoneType, ImpType, MassType>&& res
 ,	CharPtr actionMsg
@@ -1834,9 +1859,11 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 			}
 			else if (resCumulCount)
 			{
+				// count and fill pass must replay identical searches; the last origin is bounded by the total
+				// (GEO-A29: it was not compared, and a larger replay wrote past the count of the result)
 				SizeT resultCountBase = resCumulCount[orgZone];
-				if (orgZone + 1 < ni.nrOrgZones)
-					MG_CHECK(zonalResultCount == resCumulCount[orgZone + 1] - resultCountBase); // count and fill pass must replay identical searches
+				SizeT nextBase = (orgZone + 1 < ni.nrOrgZones) ? resCumulCount[orgZone + 1] : nrRes;
+				MG_CHECK(resultCountBase <= nextBase && nextBase <= nrRes && zonalResultCount == nextBase - resultCountBase);
 				for (SizeT r = 0; r != zonalResultCount; ++r)
 				{
 					const auto& commit = nzc.Commit(r);
@@ -2777,7 +2804,7 @@ public:
 								, altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
 								, node_endPoint_inv
 								, DijkstraFlag(df | DijkstraFlag::Counting)
-								, nullptr
+								, nullptr, 0
 								, resCount.begin()
 								, ResultInfo<ZoneType, ImpType, MassType>()
 								, "Counting"
@@ -2813,6 +2840,9 @@ public:
 					{
 						MG_CHECK(argPrecalculatedNrDstZones);
 						auto precalculatedNrDstZoneData = argPrecalculatedNrDstZones->GetLockedDataRead();
+						auto firstNull = std::find_if(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), [](ZoneType c) { return !IsDefined(c); });
+						if (firstNull != precalculatedNrDstZoneData.end())
+							throwErrorF("dijkstra", "precalculated_NrDstZones has a null count for origin zone {}", firstNull - precalculatedNrDstZoneData.begin());
 						std::copy(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), resCount.begin());
 						nrRes = std::accumulate(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), SizeT(0));
 					}
@@ -2880,7 +2910,7 @@ public:
 					,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
 					,	node_endPoint_inv
 					,	df
-					,	resCount.begin(), nullptr
+					,	resCount.begin(), nrRes, nullptr
 					,	std::move(res)
 					,	"Filling"
 					);

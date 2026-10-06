@@ -1,0 +1,62 @@
+container oper_impedance_precalc_count
+{
+	// impedance_matrix with od(precalculated_NrDstZones) (code audit GEO-A29, part c). The given counts
+	// reserve the rows per origin zone; a count above the number of zones the origin reaches leaves
+	// the rest of its rows undefined, as the wiki (Impedance-options) promises. Until 20.22.1 those
+	// rows were left as allocated, the last origin's count was not compared at all (so a count that
+	// was too small for it wrote past the result; see oper_impedance_precalc_count_last_neg.dms), and
+	// only the misspelling precalculateted_NrDstZones parsed. This case uses the documented spelling.
+	//
+	// The network of fn_test_od_pareto.dms, with time as the impedance: org zone 0 reaches dst 0 at 2
+	// and dst 1 at 7, org zone 1 reaches them at 2 and 3, org zone 2 (start points 2 and 3) reaches
+	// dst 1 only, at 1. So 2, 2 and 1 rows; the counts 3, 2, 2 reserve 7.
+	unit<uint32> Node : nrofrows = 8;
+	unit<uint32> Link : nrofrows = 9
+	{
+		attribute<Node>    N1_rel : [0, 0, 1, 2, 1, 2, 5, 6, 7];
+		attribute<Node>    N2_rel : [1, 2, 3, 3, 4, 4, 2, 4, 4];
+		attribute<float64> t      : [1.0, 5.0, 1.0, 1.0, 10.0, 2.0, 1.0, 1.0, 3.0];
+	}
+	unit<uint32> OrgZone : nrofrows = 3
+	{
+		attribute<uint32> nr_dst_zones : [3, 2, 2];
+	}
+	unit<uint32> DstZone : nrofrows = 2;
+	unit<uint32> StartSet : nrofrows = 4
+	{
+		attribute<Node>    node_rel : [0, 5, 6, 7];
+		attribute<OrgZone> zone_rel : [0, 1, 2, 2];
+	}
+	unit<uint32> EndSet : nrofrows = 2
+	{
+		attribute<Node>    node_rel : [3, 4];
+		attribute<DstZone> zone_rel : [0, 1];
+	}
+
+	unit<uint32> od := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp)'
+		  ';od(precalculated_NrDstZones):impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, OrgZone/nr_dst_zones
+		);
+
+	container checks
+	{
+		parameter<uint32>  nr_rows := uint32(#od)                           , IntegrityCheck = "nr_rows == 7";
+		parameter<float64> i0      := od/impedance[0]                      , IntegrityCheck = "i0 == 2.0";
+		parameter<float64> i1      := od/impedance[1]                      , IntegrityCheck = "i1 == 7.0";
+		parameter<bool>    u2      := IsNull(od/impedance[2])              , IntegrityCheck = "u2 == true";
+		parameter<bool>    o2      := IsNull(od/OrgZone_rel[2])            , IntegrityCheck = "o2 == true";
+		parameter<bool>    d2      := IsNull(od/DstZone_rel[2])            , IntegrityCheck = "d2 == true";
+		parameter<float64> i3      := od/impedance[3]                      , IntegrityCheck = "i3 == 2.0";
+		parameter<float64> i4      := od/impedance[4]                      , IntegrityCheck = "i4 == 3.0";
+		parameter<uint32>  o4      := uint32(od/OrgZone_rel[4])            , IntegrityCheck = "o4 == 1";
+		parameter<float64> i5      := od/impedance[5]                      , IntegrityCheck = "i5 == 1.0";
+		parameter<uint32>  o5      := uint32(od/OrgZone_rel[5])            , IntegrityCheck = "o5 == 2";
+		parameter<bool>    u6      := IsNull(od/impedance[6])              , IntegrityCheck = "u6 == true";
+		parameter<uint32>  nr_null := uint32(sum_uint64(IsNull(od/impedance))), IntegrityCheck = "nr_null == 2";
+	}
+}

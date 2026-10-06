@@ -1,0 +1,46 @@
+container oper_impedance_precalc_count_last_neg
+{
+	// Negative case of oper_impedance_precalc_count.dms (code audit GEO-A29, part c): the count given
+	// for the LAST origin zone (0) is below the number of zones it reaches (1). Until 20.22.1 the last
+	// origin was not compared and its row was written past the count of the result; now the run fails
+	// with "precalculated_NrDstZones: origin zone 2 reaches 1 destination zones, more than the 0 given
+	// for it". Written with the old spelling precalculateted_NrDstZones, which still parses.
+	unit<uint32> Node : nrofrows = 8;
+	unit<uint32> Link : nrofrows = 9
+	{
+		attribute<Node>    N1_rel : [0, 0, 1, 2, 1, 2, 5, 6, 7];
+		attribute<Node>    N2_rel : [1, 2, 3, 3, 4, 4, 2, 4, 4];
+		attribute<float64> t      : [1.0, 5.0, 1.0, 1.0, 10.0, 2.0, 1.0, 1.0, 3.0];
+	}
+	unit<uint32> OrgZone : nrofrows = 3
+	{
+		attribute<uint32> nr_dst_zones : [2, 2, 0];
+	}
+	unit<uint32> DstZone : nrofrows = 2;
+	unit<uint32> StartSet : nrofrows = 4
+	{
+		attribute<Node>    node_rel : [0, 5, 6, 7];
+		attribute<OrgZone> zone_rel : [0, 1, 2, 2];
+	}
+	unit<uint32> EndSet : nrofrows = 2
+	{
+		attribute<Node>    node_rel : [3, 4];
+		attribute<DstZone> zone_rel : [0, 1];
+	}
+
+	unit<uint32> od := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp)'
+		  ';od(precalculateted_NrDstZones):impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/N1_rel, Link/N2_rel
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, OrgZone/nr_dst_zones
+		);
+
+	container checks
+	{
+		parameter<uint32> nr_rows := uint32(#od);
+		parameter<float64> sum_imp := sum(od/impedance), IntegrityCheck = "sum_imp >= 0.0";
+	}
+}

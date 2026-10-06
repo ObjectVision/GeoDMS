@@ -192,7 +192,9 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		|	strlit<>("od")
 		)
 		>> !(LBRACE
-			>>	strlit<>("precalculateted_NrDstZones")[AssignFlags(result, DijkstraFlag::PrecalculatedNrDstZones)]
+			>>	(	strlit<>("precalculated_NrDstZones") // the spelling the wiki documents; the other one was the only one accepted until 20.22.1
+				|	strlit<>("precalculateted_NrDstZones")
+				)[AssignFlags(result, DijkstraFlag::PrecalculatedNrDstZones)]
 			>> RBRACE
 			)
 		>> !(COLON >>
