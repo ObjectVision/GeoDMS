@@ -153,8 +153,8 @@ moved to `doc/development/` (recursion, transformation, desktop save) and `doc/l
 (porting status). Not re-pinned: the line anchors of section 2 of the scheduling plan and of the
 typed-HOF design document; their status lines say so. Found on the way: `batch/run_unit.bat` does
 not re-root and passes `S1` where `unit_flagged.bat` now expects the flavour (BAT-A17), so the
-AGENTS.md sentence that every moved script re-roots is false for it; that waits on a decision to
-fix or delete the script.*
+AGENTS.md sentence that every moved script re-roots was false for it. Fixed the same day: it
+re-roots and runs the unit suite through `batch/run_unit_suite.bat`, for any dev-tree selector.*
 
 | Document | Fix |
 |---|---|
