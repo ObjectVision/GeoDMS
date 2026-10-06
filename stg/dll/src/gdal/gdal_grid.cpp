@@ -131,21 +131,27 @@ void GdalGridSM::DoCloseStorage(bool mustCommit) const
 	m_hDS = nullptr; // calls GDALClose
 }
 
+// STG-A17: a raster without a colour table has a null one, which was dereferenced, and a table with more
+// entries than the PaletteData domain was written past it. As TiffSM::ReadPalette: the entries the table
+// has, clamped to the domain, and 0 for the rest of the domain.
 bool GdalGridSM::ReadPalette(AbstrDataObject* ado)
 {
-	auto nrOfBands = this->m_hDS->GetRasterCount();
+	MG_USERCHECK2(this->m_hDS->GetRasterCount() >= 1, "gdal.grid: PaletteData of a dataset without a raster band");
 	auto rBand = this->m_hDS->GetRasterBand(1);
+	MG_CHECK(rBand);
 
-	auto nrElems = ado->GetTiledRangeData()->GetRangeSize();
-	GDALColorTable* ct = rBand->GetColorTable();
-	UInt32 nrColors = ct->GetColorEntryCount();
+	SizeT nrElems = ado->GetTiledRangeData()->GetRangeSize();
+	const GDALColorTable* ct = rBand->GetColorTable();
+	SizeT nrColors = ct ? Min<SizeT>(Max<int>(ct->GetColorEntryCount(), 0), nrElems) : 0;
 
-	UInt32 i;
-	for (i = 0; i != nrColors; ++i)
+	SizeT i = 0;
+	for (; i != nrColors; ++i)
 	{
-		auto ce = ct->GetColorEntry(i);
-		ado->SetValueAsUInt32(i, CombineRGB(ce->c1, ce->c2, ce->c3));
+		const GDALColorEntry* ce = ct->GetColorEntry(int(i));
+		ado->SetValueAsUInt32(i, ce ? CombineRGB(ce->c1, ce->c2, ce->c3) : 0);
 	}
+	for (; i != nrElems; ++i)
+		ado->SetValueAsUInt32(i, 0);
 
 	return true;
 }
@@ -899,20 +905,23 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 	}
 	else // single band
 	{
-		GDALColorTable* color_table = rBand->GetColorTable();
+		const GDALColorTable* color_table = rBand->GetColorTable();
 		if (color_table && color_table->GetPaletteInterpretation() == GPI_RGB)
-		{ 
-			UInt8 r=0,g=0,b=0,a=0;
-			for (SizeT i = 0; i != size; ++i)
+		{
+			// STG-A18: GetColorEntry is null for an index beyond the table, and a downloaded tile may use one;
+			// it was dereferenced. The band is read as bytes, so a lookup of 256 colours, taken from the table
+			// once, covers every pixel; an index the table lacks is transparent white, as an opacity of 0 is
+			// in the four-band case above.
+			UInt32 lookup[256];
+			for (int k = 0; k != 256; ++k)
 			{
-				auto color_entry = color_table->GetColorEntry(buffer.redBand[i]);
-				r = static_cast<UInt8>(color_entry->c1);
-				g = static_cast<UInt8>(color_entry->c2);
-				b = static_cast<UInt8>(color_entry->c3);
-				a = static_cast<UInt8>(color_entry->c4);
-
-				buffer.combinedBands[i] = (a << 24) | (r << 16) | (g << 8) | b;
+				const GDALColorEntry* ce = (k < color_table->GetColorEntryCount()) ? color_table->GetColorEntry(k) : nullptr;
+				lookup[k] = ce
+					? (UInt32(UInt8(ce->c4)) << 24) | (UInt32(UInt8(ce->c1)) << 16) | (UInt32(UInt8(ce->c2)) << 8) | UInt32(UInt8(ce->c3))
+					: 0x00FFFFFF;
 			}
+			for (SizeT i = 0; i != size; ++i)
+				buffer.combinedBands[i] = lookup[buffer.redBand[i]];
 		}
 		else // grayscale
 		{

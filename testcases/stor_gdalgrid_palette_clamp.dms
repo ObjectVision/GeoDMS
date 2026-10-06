@@ -1,0 +1,18 @@
+// Code audit STG-A17: PaletteData read through gdal.grid from a raster whose colour table (256 entries) is
+// larger than the PaletteData domain (4). GdalGridSM::ReadPalette wrote all 256 entries into it; it now
+// takes as many as the domain holds, as the tif storage does. data/tif_u8_palette.tif has colour k =
+// (k, 2k, 3k), so entry k is k * (1 + 2 * 256 + 3 * 65536) = k * 197121 (red least significant).
+container stor_gdalgrid_palette_clamp
+{
+	unit<uint8> colorindex : nrofrows = 4;
+	unit<spoint> grid : StorageName = "%currDir%/data/tif_u8_palette.tif", StorageType = "gdal.grid", StorageReadOnly = "True"
+	{
+		attribute<uint8>  GridData;
+		attribute<uint32> PaletteData (colorindex);
+	}
+	container checks
+	{
+		parameter<uint32> mx := max(grid/PaletteData)  , IntegrityCheck = "mx == 591363"; // entry 3
+		parameter<uint32> s  := sum(grid/PaletteData)  , IntegrityCheck = "s == 1182726";
+	}
+}

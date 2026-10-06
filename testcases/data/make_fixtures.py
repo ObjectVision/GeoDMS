@@ -62,6 +62,10 @@ tiff('tif_u8_sf.tif', W, H, 8, u8, sample_format=1)                       # cont
 c, s = 10 * math.cos(math.radians(30)), 10 * math.sin(math.radians(30))
 mt = [c, s, 0, 1000.0, s, -c, 0, 2000.0, 0, 0, 0, 0, 0, 0, 0, 1]
 tiff('tif_u8_rotated.tif', W, H, 8, u8, sample_format=1, extra=[(34264, DOUBLE, mt)])   # STG-N02: ModelTransformation, 16 doubles
+# STG-A17: a palette image (Photometric 3) with a ColorMap of 256 entries, all reds, then all greens, then all
+# blues, in 16 bits: colour k is (k, 2k mod 256, 3k mod 256), which GDAL reads back as 8 bits (v * 257 / 257)
+cmap = [((k * f) % 256) * 257 for f in (1, 2, 3) for k in range(256)]
+tiff('tif_u8_palette.tif', W, H, 8, u8, sample_format=1, extra=[(320, SHORT, cmap)], photometric=3)
 tiff('tif_u8_truncated.tif', W, H, 8, u8, sample_format=1, truncate=None)              # placeholder, replaced below
 # truncated strip: StripByteCounts says 32, the file ends after 20 data bytes
 full = open(os.path.join(OUT, 'tif_u8_truncated.tif'), 'rb').read()

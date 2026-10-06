@@ -1,0 +1,16 @@
+// Code audit STG-A17: PaletteData read through gdal.grid from a raster without a colour table. GDAL gives a
+// null colour table for it, which GdalGridSM::ReadPalette dereferenced; it now gives 0 for every entry, as the
+// tif storage does (TiffSM::ReadPalette).
+container stor_gdalgrid_palette_none
+{
+	unit<uint8> colorindex : nrofrows = 4;
+	unit<spoint> grid : StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "gdal.grid", StorageReadOnly = "True"
+	{
+		attribute<uint8>  GridData;
+		attribute<uint32> PaletteData (colorindex);
+	}
+	container checks
+	{
+		parameter<uint32> s := sum(grid/PaletteData), IntegrityCheck = "s == 0";
+	}
+}
