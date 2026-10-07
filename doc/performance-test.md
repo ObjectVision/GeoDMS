@@ -1,13 +1,13 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-06): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-07): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
 [`doc/archive/performance-test-20.20-20.21.md`](archive/performance-test-20.20-20.21.md); where a
 section below says "above" of one of them (round 3 of "20.21.1 without deferral", the OVSRV05 section
-of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest round, 20.22.1 at
-15651313f on OVSRV05, gives 27 of 27 `ok` after GeoDMS-Test moved the references. Section 8.1.x of
+of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest round, 20.23.0 at
+d4f23aa43 on OVSRV05, gives 27 of 27 `ok` and the times of 20.22.1. Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
 ## Results (OVSRV10), 20.22.0
@@ -636,6 +636,75 @@ report: 27 of 27 `ok`; the older columns keep their verdicts.
   of a tree that splits at 16: the release changes these model outputs, by up to 0.66 % (t2000's hWP_asl
   R2_2022), and the next change to the index may move them again without any change to a model. Such a
   difference in t060, t301, t2000 or t641.2 is first a question of the visiting order.
+
+## Results (OVSRV05), 20.23.0
+
+Run from 2026-10-07 01:27 to 04:43 on OVSRV05, threshold 60 as above (set by
+`scratch\launch_perf_20230.cmd` and put back to 95 after it), full.py exit 0, nothing on stderr; report
+header 3:13:24, 27 of 27 `ok`. Tree `C:\dev\GeoDMS` on `main` at `d4f23aa43` (the version bump to 20.23.0),
+47 commits after `15651313f`: the dead-code deletions of B7 in every module, the #1282 epsilon-dominance of
+`pareto_optimal_eps` and `pareto(imp2_epsilon)`, the #1284 ceiling of `JoinOperationThatMissesWantedMember`
+and the join of a `storage_read_table` member to its table's read, GEO-A29 (`impedance_matrix` with
+`precalculated_NrDstZones`), the checked raster sizes and the writers of shp, dbf and tif that report a
+failed write, and the GUI changes of SHV-A07 to A13. GeoDMS-Test at `f6fe770`, which carries the 20.22.1
+references of t010, t060, t100, t101, t102, t301, t910, t2000 and t641.2. The build was made before the
+round (`Rtc.dll` 01:02, `GeoDmsRun.exe` 01:06, `GeoDmsGuiQt.exe` 01:15; the version string 20.23.0);
+`testcases\run_testcases.bat` 471 cases, 0 bad. Kept as `C:\LocalData\GeoDMS_engine\head_d4f23aa43`. No
+`20_23_0_m` folder existed beforehand; full.py ran 32 experiments with no reuse.
+
+Running on the machine, from five-minute samples: the Chrome Remote Desktop host 2 215 s of CPU over the
+round (about 19 % of a core), the Claude desktop app 661 s, its webview 76 s, an idle VS18 window 18 s;
+together under 1 % of the 24 logical processors. Free physical memory fell to 1.3 GB during t641.1.
+
+### Wall time, the span between the first and the last timestamp of the GeoDMS log
+
+| test | 20.23.0.m (07-10) | `15651313f` (03-10) | `1315b0357` (02-10) | 20.22.0.m | against `15651313f` |
+|---|---|---|---|---|---|
+| t020 | 0:04:04 | 0:04:03 | 0:04:12 | 0:04:02 | 1.00 |
+| t060 | 0:01:52 | 0:02:03 | 0:02:07 | 0:02:22 | 0.91 |
+| t101 | 0:03:21 | 0:03:29 | 0:03:34 | 0:03:31 | 0.96 |
+| t200 | 0:00:38 | 0:00:38 | 0:00:38 | 0:00:38 | 1.00 |
+| t300 | 0:01:57 | 0:01:56 | 0:01:58 | 0:01:55 | 1.01 |
+| t301 | 0:02:51 | 0:02:36 | 0:02:43 | 0:02:38 | 1.10 |
+| t405.1 | 0:04:26 | 0:04:20 | 0:04:27 | 0:04:31 | 1.02 |
+| t405.2 | 0:18:45 | 0:18:25 | 0:18:46 | 0:19:07 | 1.02 |
+| t405.3 | 0:18:18 | 0:18:37 | 0:18:42 | 0:18:39 | 0.98 |
+| t410 | 0:03:53 | 0:03:59 | 0:04:03 | 0:04:56 | 0.97 |
+| t611 | 0:00:31 | 0:00:31 | 0:00:31 | 0:00:31 | 1.00 |
+| t641.1 | 0:51:01 | 0:52:16 | 0:52:49 | 0:51:32 | 0.98 |
+| t641.2 | 0:44:53 | 0:46:26 | 0:46:06 | 0:43:25 | 0.97 |
+| t710 | 0:01:06 | 0:01:06 | 0:01:11 | 0:01:02 | 1.00 |
+| t720 | 0:09:51 | 0:09:37 | 0:09:30 | failed, #1285 | 1.02 |
+| t810 | 0:05:06 | 0:05:09 | 0:05:02 | 0:05:02 | 0.99 |
+| t910 | 0:00:50 | 0:00:51 | 0:00:50 | 0:00:50 | 0.98 |
+| t2000 | 0:18:44 | 0:19:36 | 0:17:58 | 0:16:52 | 0.96 |
+
+Summed over the 32 logs: 193.7 min, against 197.2 for `15651313f`, 196.8 for `1315b0357` and 183.6 for
+20.22.0.m, which with a t720 of 9.8 min instead of its early failure comes to 193.0. The `15651313f` column
+gives the times of its round; the logs of t010, t060, t101 and t301 in `20_22_1_m` are now those of the
+reruns of 04-10 and 05-10 (t060 2:06, t301 3:01), which bring `durations.py` to 197.7 for that folder.
+
+Memory against `15651313f`, Highest CommitCharge / PeakLiveLarge in MB: t2000 63 200 / 64 459 against
+66 765 / 77 313 (`fd30ef780` 63 591 / 64 231, the A/B of 02-10 62 871 to 67 277 live for one build);
+t641.1 141 334 / 136 920 against 145 029 / 136 920, t641.2 169 508 / 168 907 against 176 362 / 168 907;
+t720 20 656 / 20 049 against 25 210 / 20 361; t910 3 313 / 4 784 against 4 461 / 4 786; t060 8 372 /
+7 823 against 7 023 / 7 826 and t020 2 953 / 2 609 against 1 975 / 2 609, more commit at the same live
+peak; t301 20 738 / 3 413 against 19 515 / 3 207 for `1315b0357`; every other test within 1 GB on both
+figures. `Calling EmptyWorkingSet`: t641.1 262 against 282, t641.2 483 against 448, t2000 55 against 66,
+t405.2 4 against 9. Report cells, peak physical / peak committed in GB: t641.1 54.90 / 157.55, t641.2
+54.25 / 191.38, t2000 42.94 / 82.37, t405.2 30.37 / 52.17.
+
+### Reading
+
+- Correct: 27 of 27 `ok` against the references of GeoDMS-Test `f6fe770`, so none of the 47 commits changes
+  a result that the round checks, the tree-order rows t060, t301, t2000 and t641.2 included.
+- No performance effect: 193.7 min against 197.2, and every test within the drift between sittings that
+  this machine has shown (about 10 %). The largest steps are t060 −11 s, whose 1:52 lies inside the 1:46 to
+  2:22 of the rounds since 20.19.3, and t301 +15 s, whose 2:51 is 3 s above their 2:26 to 2:48; only an
+  interleaved A/B of `head_15651313f` and `head_d4f23aa43` would tell that from the sitting. t410 keeps the
+  #1289 gain, 3:53. Against 20.22.0.m the round is level once t720 is counted.
+- Memory equal or lower; t2000's live peak is back at the 64 GB of `fd30ef780` after 77 GB in the two
+  rounds between, a figure that moves between sittings of one build.
 
 # Known causes of differences between versions
 
