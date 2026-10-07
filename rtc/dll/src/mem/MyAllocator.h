@@ -109,7 +109,10 @@ struct my_allocator {
 
 #if defined(__cpp_lib_allocate_at_least)
 	// C++23 size feedback: MSVC's std::vector takes the count as its capacity, and deallocates with it.
-	std::allocation_result<T*, SizeT> allocate_at_least(SizeT n)
+	// allocation_result<T*> is what allocator_traits expects, its size_type being size_t, and it is the one
+	// spelling both forms accept: the STL of MSVC 14.36, pinned by the .g build, has allocation_result<Ptr>
+	// with a size_t count (__cpp_lib_allocate_at_least 202106L); later ones add a SizeType defaulting to size_t.
+	std::allocation_result<T*> allocate_at_least(SizeT n)
 	{
 		SizeT count = capacity_for(n);
 		return { allocate(count), count };
