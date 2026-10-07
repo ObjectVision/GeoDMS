@@ -74,7 +74,7 @@ ships three examples and six `library\` files, and the battery's `testcases\ship
 cases include every one of them from `%exeDir%`, so they test the copy in the output
 folder, and after installing, the installed copy. `batch\TestShippedDms.bat <output
 folder>` (bash twin `TestShippedDms.sh` for the `.l` build) is the gate: it checks that
-the shipped copy of the battery is not older than `testcases\`, follows the `#include`
+the shipped copy of the battery has the content of `testcases\`, follows the `#include`
 lines from the `shipped_*.dms` cases and fails when a shipped `examples\*.dms` or
 `library\**\*.dms` is reached by none of them, then runs the shipped battery from the
 output folder. All four `batch\BuildSignAndCreateSetup*.bat` scripts run it right before

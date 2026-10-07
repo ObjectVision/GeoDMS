@@ -2,10 +2,13 @@
 # (GeoDMS-Test #24). Run against an OUTPUT folder (bin\<Config>\x64, build\...\bin, bin_GLOBIO\...):
 #
 #   1. the shipped copy of the battery is current: every testcases\*.dms, the item map and the
-#      runners exist under <bin>\examples\testcases and are not older than the source. A stale
+#      runners exist under <bin>\examples\testcases with the content of the source. A stale
 #      copy runs a battery that is not the one that ships, and would pass on cases that were
 #      since changed. CopyResources (msbuild) and DeployResources (cmake) mirror it on a build;
-#      the setup scripts build first, so this only fires on an ad-hoc run.
+#      the setup scripts build first, so this only fires on an ad-hoc run. The content is
+#      compared, not the time: an NSIS install stores file times to 2 seconds, so an installed
+#      copy is up to 2 s older than its source; compared by time, it failed the 20.23.0.g setup,
+#      whose launcher runs this on the installed copy.
 #
 #   2. every shipped .dms is reached from a battery case: starting from the shipped
 #      examples\testcases\shipped_*.dms, every #include is followed (a %exeDir% path against
@@ -29,7 +32,7 @@ $stale = @()
 foreach ($src in Get-ChildItem $Source -File | Where-Object { $_.Extension -in '.dms', '.txt', '.bat', '.ps1' }) {
     $dst = Join-Path $copy $src.Name
     if (-not (Test-Path $dst)) { $stale += "$($src.Name) (missing)"; continue }
-    if ($src.LastWriteTimeUtc -gt (Get-Item $dst).LastWriteTimeUtc) { $stale += "$($src.Name) (source is newer)" }
+    if ((Get-FileHash $src.FullName).Hash -ne (Get-FileHash $dst).Hash) { $stale += "$($src.Name) (differs from the source)" }
 }
 if ($stale.Count) {
     Write-Host "*** the shipped copy of the battery in $copy is not the one in $Source - rebuild so the resource copy mirrors it ***"

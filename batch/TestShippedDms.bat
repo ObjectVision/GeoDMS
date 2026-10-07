@@ -10,7 +10,7 @@ rem The installer ships examples\*.dms, library\**\*.dms and the examples\testca
 rem battery. Three steps, each reported separately at the end:
 rem
 rem   1. the shipped copy of the battery is current: every testcases\*.dms, the item
-rem      map and the runners are in <bin>\examples\testcases and not older than the
+rem      map and the runners are in <bin>\examples\testcases with the content of the
 rem      source. A stale copy would run a battery that is not the one that ships.
 rem
 rem   2. every shipped .dms is reached from a battery case: from the shipped
