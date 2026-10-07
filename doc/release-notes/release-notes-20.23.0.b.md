@@ -4,8 +4,8 @@
 |---|---|
 | `.m`: Windows, MSBuild | `GeoDms20.23.0.m-Setup-x64.exe` |
 | `.c`: Windows, CMake | `GeoDms20.23.0.c-Setup-x64.exe` |
-| `.g`: Windows, GLOBIO compatibility | not in this pre-release |
-| `.l`: Linux, Ubuntu 24.04 | not in this pre-release |
+| `.g`: Windows, GLOBIO compatibility | not in this pre-release; follows in 20.23.1 |
+| `.l`: Linux, Ubuntu 24.04 | not in this pre-release; follows in 20.23.1 |
 
 ## Before you upgrade
 
