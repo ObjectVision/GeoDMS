@@ -32,6 +32,11 @@ script's gate still runs `unit_linux.sh` on the build tree, not on the installed
 uninstaller of the `.m` and `.g` setups left `examples`, `library`, `prelude.dms` and the
 folder behind; it now deletes them, as the `.c` one did. A setup run since then that still
 leaves them behind means the uninstall section is wrong again.
+Before it builds, each Windows script runs `git pull` in `..\tst`, the checkout the suite
+reads, and stops when the pull fails; the `.g` one always did, the `.m` and `.c` ones since
+2026-10-07, after the 20.23.0.m suite failed `Operator\cfg\operator.dms` on the conflict
+markers a conflicting pull had left in `tst` that night. When a setup stops there, resolve
+the merge in `C:\dev\tst` (or ask whether to abort it) and run the setup again.
 Before it installs, each Windows script removes a previous installation of the same version
 with that installation's own uninstaller, so a file the new `.nsh` no longer lists cannot
 survive into the post-install suite; the `.m` script installed over it until BAT-A35, and

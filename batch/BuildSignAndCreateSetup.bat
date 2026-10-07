@@ -43,7 +43,17 @@ if not defined GeoDmsPythonVersions (
 cd ..
 md tst
 cd tst
+REM A pull that fails, on a conflicting merge or on one an earlier run left unfinished,
+REM leaves conflict markers in ..\tst, and the unit suite of this setup reads them: on
+REM 2026-10-07 the 20.23.0.m install failed Operator\cfg\operator.dms on the markers in
+REM Operator\cfg\Operator\Point.dms and was removed again. Stop here instead, as
+REM BuildSignAndCreateSetupGlobio.bat does.
 git pull
+if errorlevel 1 (
+    cd %geodms_rootdir%
+    echo *** ABORT: git pull in ..\tst failed - resolve or abort its merge first ***
+    goto :build_failed
+)
 cd %geodms_rootdir%
 
 REM Mark script start so the post-build staleness guard can verify msbuild

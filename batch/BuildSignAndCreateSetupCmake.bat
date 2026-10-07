@@ -48,11 +48,18 @@ REM Share the in-repo vc_downloads tarball cache with .m too (DmsDef.props --dow
 REM so .m and .c use identical vcpkg tool + binary cache + downloads.
 set VCPKG_DOWNLOADS=%geodms_rootdir%\vc_downloads
 
-REM Pull tst on the parallel checkout for the post-install regression run.
+REM Pull tst on the parallel checkout for the post-install regression run. A pull that
+REM fails leaves conflict markers there for the unit suite to read (the 20.23.0.m install
+REM of 2026-10-07, see BuildSignAndCreateSetup.bat), so it stops the setup.
 cd ..
 md tst 2>nul
 cd tst
 git pull
+if errorlevel 1 (
+    cd %geodms_rootdir%
+    echo *** ABORT: git pull in ..\tst failed - resolve or abort its merge first ***
+    goto :build_failed
+)
 cd %geodms_rootdir%
 
 
