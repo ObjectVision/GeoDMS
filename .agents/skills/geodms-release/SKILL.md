@@ -104,6 +104,13 @@ battery or unit suite. Rerun the whole script after fixing the cause; there is n
 it (until 2026-10-06 it asked after the build, the NSIS step and the signing, and paused at the
 end).
 
+Through `Tee-Object` the text of a CHOICE prompt does not show: `choice` writes it without a
+line end, and Tee passes on whole lines only. A run that seems to hang right after a step may
+be waiting at one; a running `choice.exe` shows it, and the user answers in that console. The
+`.g` script asked "Ready to sign" after NSIS until 2026-10-07, which looked like a hang after
+the makensis summary; it now signs right away. It still asks after a failed build whether to
+retry, besides the two questions the `.m` script keeps.
+
 ## After a flavour
 
 - `Test-Path 'C:\Program Files\ObjectVision\GeoDms<ver>.<f>\GeoDmsGuiQt.exe'`
