@@ -12,11 +12,11 @@ SHORT, LONG, DOUBLE = 3, 4, 12
 SIZES = {SHORT: 2, LONG: 4, DOUBLE: 8}
 FMTS = {SHORT: 'H', LONG: 'I', DOUBLE: 'd'}
 
-def tiff(name, width, height, bps, data, sample_format=None, rows_per_strip='auto', extra=(), truncate=None, photometric=1):
+def tiff(name, width, height, bps, data, sample_format=None, rows_per_strip='auto', extra=(), truncate=None, photometric=1, spp=1):
     entries = [(256, LONG, [width]), (257, LONG, [height]), (259, SHORT, [1]), (262, SHORT, [photometric]),
-               (273, LONG, [0]), (277, SHORT, [1]), (279, LONG, [len(data)])]
+               (273, LONG, [0]), (277, SHORT, [spp]), (279, LONG, [len(data)])]
     if bps is not None:
-        entries.append((258, SHORT, [bps]))
+        entries.append((258, SHORT, [bps] * spp))
     if rows_per_strip == 'auto':
         entries.append((278, LONG, [height]))
     elif rows_per_strip is not None:
@@ -67,6 +67,21 @@ tiff('tif_u8_rotated.tif', W, H, 8, u8, sample_format=1, extra=[(34264, DOUBLE, 
 cmap = [((k * f) % 256) * 257 for f in (1, 2, 3) for k in range(256)]
 tiff('tif_u8_palette.tif', W, H, 8, u8, sample_format=1, extra=[(320, SHORT, cmap)], photometric=3)
 tiff('tif_u8_truncated.tif', W, H, 8, u8, sample_format=1, truncate=None)              # placeholder, replaced below
+# STG-A12: the depths that the tif read expands, in images of 5 x 3, an odd width that is no multiple of 8:
+# - RGB, three samples of 8 bits, pixel k is (17k, k + 100, 255 - k), read into uint32 as r + 256 g + 65536 b
+rgb = bytes(v for k in range(15) for v in (17 * k, k + 100, 255 - k))
+tiff('tif_rgb24.tif', 5, 3, 8, rgb, photometric=2, spp=3)
+# - a palette image of 4 bits, pixel k is 15 - k; TIFF puts the first pixel of a byte in its high nibble, and
+#   pads each row of 5 pixels to 3 bytes
+u4 = [15 - k for k in range(15)]
+u4rows = [u4[r * 5:r * 5 + 5] + [0] for r in range(3)]
+u4data = bytes((row[i] << 4) | row[i + 1] for row in u4rows for i in range(0, 6, 2))
+cmap16 = [((k * f) % 16) * 4369 for f in (1, 2, 3) for k in range(16)]
+tiff('tif_u4_palette.tif', 5, 3, 4, u4data, extra=[(320, SHORT, cmap16)], photometric=3)
+# - a mask of 8 bits, pixel k is 0, 200 or 1 for k mod 3; read into bool, every value but 0 is true (not 255, which
+#   is null in the uint8 read that the cases take as control)
+mask = bytes((0, 200, 1)[k % 3] for k in range(15))
+tiff('tif_u8_mask.tif', 5, 3, 8, mask)
 # truncated strip: StripByteCounts says 32, the file ends after 20 data bytes
 full = open(os.path.join(OUT, 'tif_u8_truncated.tif'), 'rb').read()
 open(os.path.join(OUT, 'tif_u8_truncated.tif'), 'wb').write(full[:len(full) - 12])

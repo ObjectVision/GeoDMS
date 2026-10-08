@@ -450,15 +450,21 @@ void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stri
 
 	if (nrBitsPerPixel == 8)
 	{
+		UInt32 nrReadRows = (currNrProcesedBytes + nrBytesPerRow - 1) / nrBytesPerRow;
 		char* byteBuff = reinterpret_cast<char*>(stripBuff);
 		for (; th; --th, byteBuff += nrBytesPerRow)
 		{
 			for (UInt32 i = 0; i != tw; ++i)
-				*pixelData++ = byteBuff[i] & bint_mask;
+				if constexpr (N == 1)
+					*pixelData++ = (byteBuff[i] != 0); // as bool(uint8) and the tif read: the lowest bit made 2 and 254 false (STG-A12)
+				else
+					*pixelData++ = byteBuff[i] & bint_mask;
 			pixelData += (tw_aligned - tw);
 		}
 
-		currNrProcesedBytes = (N * currNrProcesedBytes + 7) / 8;
+		// the bytes of the read rows in the strip, whose rows hold tw_aligned pixels; counted from the bytes of the
+		// file, the caller took the end of the last read row for unread and filled it with the default (STG-A12)
+		currNrProcesedBytes = (N * nrReadRows * tw_aligned + 7) / 8;
 	}
 }
 

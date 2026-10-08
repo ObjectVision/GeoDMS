@@ -81,12 +81,19 @@ public:
 	{
 		if (nrBitsPerPixel == 8)
 		{
+			// a row of the strip holds tw_aligned pixels, of which the file gives tw; without the step over the
+			// rest every row after the first shifted left, when tw is no multiple of 8 (STG-A12, as gdal.grid does)
+			UInt32 nrReadRows = (currNrProcesedBytes + nrBytesPerRow - 1) / nrBytesPerRow;
 			char* byteBuff = reinterpret_cast<char*>(stripBuff);
 			for (; th; --th, byteBuff += nrBytesPerRow)
+			{
 				for (UInt32 i = 0; i != tw; ++i)
 					*pixelData++ = byteBuff[i];
-
-			currNrProcesedBytes = (N*currNrProcesedBytes + 7) / 8;
+				pixelData += (tw_aligned - tw);
+			}
+			// the bytes of the read rows in the strip; counted from the bytes of the file, the caller took the
+			// end of the last read row for unread and filled it with the default
+			currNrProcesedBytes = (N * nrReadRows * tw_aligned + 7) / 8;
 		}
 	}
 

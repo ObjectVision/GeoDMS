@@ -1,0 +1,16 @@
+// STG-A12: the mask of stor_tif_u8_mask read through gdal.grid (data/tif_u8_mask.tif, pixel k is 0, 200 or 1 for k mod 3).
+// Before 20.24.0 the bool took the lowest bit of a byte, which made 200 false, and the end of each strip
+// false: the read counted the bytes of the file as the bytes of its strip, whose rows are padded to 8 pixels.
+container stor_gdalgrid_u8_mask
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(3s, 5s));
+	attribute<bool>  img  (dom): StorageName = "%currDir%/data/tif_u8_mask.tif", StorageType = "gdal.grid";
+	attribute<uint8> img8 (dom): StorageName = "%currDir%/data/tif_u8_mask.tif", StorageType = "gdal.grid";
+	container checks
+	{
+		attribute<uint32> k        (dom) := uint32(pointrow(id(dom))) * 5 + uint32(pointcol(id(dom)));
+		attribute<bool>   expected (dom) := k % 3 != 0;
+		parameter<uint32> nrWrong  := sum(uint32(img != expected)), IntegrityCheck = "nrWrong == 0";
+		parameter<uint32> nrWrong8 := sum(uint32((img8 != 0b) != expected)), IntegrityCheck = "nrWrong8 == 0";
+	}
+}

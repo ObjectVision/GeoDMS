@@ -1,0 +1,16 @@
+// STG-A12: an 8-bit TIFF read through tif into bool, every value but 0 true (data/tif_u8_mask.tif, 5 x 3, pixel k is
+// 0, 200 or 1 for k mod 3); refused as a mismatch of bits before 20.24.0, and the expansion shifted every row after
+// the first, as 5 is no multiple of 8, and filled the last row with false. The uint8 read is the control.
+container stor_tif_u8_mask
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(3s, 5s));
+	attribute<bool>  img  (dom): StorageName = "%currDir%/data/tif_u8_mask.tif", StorageType = "tif";
+	attribute<uint8> img8 (dom): StorageName = "%currDir%/data/tif_u8_mask.tif", StorageType = "tif";
+	container checks
+	{
+		attribute<uint32> k        (dom) := uint32(pointrow(id(dom))) * 5 + uint32(pointcol(id(dom)));
+		attribute<bool>   expected (dom) := k % 3 != 0;
+		parameter<uint32> nrWrong  := sum(uint32(img != expected)), IntegrityCheck = "nrWrong == 0";
+		parameter<uint32> nrWrong8 := sum(uint32((img8 != 0b) != expected)), IntegrityCheck = "nrWrong8 == 0";
+	}
+}

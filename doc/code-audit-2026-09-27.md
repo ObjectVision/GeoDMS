@@ -10,14 +10,14 @@ specifically for twins of the defects fixed since 2026-09-01. About forty of the
 re-read once more before this report was written. Line numbers are leads at this HEAD, not gospel;
 every item names its function so it can be re-found.*
 
-*Status (2026-10-06): of the 288 findings, 148 are fixed, 14 partly (CLC-A17, CLC-A30, STG-A30, INF-A14, whose Prolog.cpp
+*Status (2026-10-06): of the 288 findings, 149 are fixed, 14 partly (CLC-A17, CLC-A30, STG-A30, INF-A14, whose Prolog.cpp
 was kept for further work, and ten whose dead code is deleted while a part that is not a deletion is
 open: INF-A15, PLN-A16, TIC-A21, TIC-A40, CLC-A28, GEO-A48, GEO-A56, STG-A31, QT-A28, REPO-A30), 2
 reverted (CLC-A07 by 793bf1080, because Hestia relies on the null; GEO-A19 by d46a6e199, because RSopen
 is calibrated on segments per quarter circle), 3 dropped (INF-A06, measured without gain, 048ef8efc;
-GEO-A42, measured slower, 612a3cb96; STX-A15, refuted, see its entry) and 121 open, one of them High
+GEO-A42, measured slower, 612a3cb96; STX-A15, refuted, see its entry) and 120 open, one of them High
 (PLN-A02). GEO-A51 was resolved by #1290 (9d23831a8, f6d34a69a), which do not cite the ID; INF-A03 in part
-by 7cd3d09ac (the eight format calls, and `tools/check-format-args.ps1`), its stage 2 is open. STX-A14, CLC-A11 and STX-A25 were fixed on 2026-10-08 (continuations A4). The input-hardening batch of continuations A5 (0d99c9f0f..3100f7e99) fixed STG-A17 to
+by 7cd3d09ac (the eight format calls, and `tools/check-format-args.ps1`), its stage 2 is open. STX-A14, CLC-A11 and STX-A25 were fixed on 2026-10-08 (continuations A4), and STG-A12 the same day. The input-hardening batch of continuations A5 (0d99c9f0f..3100f7e99) fixed STG-A17 to
 A21, STG-A23, INF-A05, RTC-A05, RUN-A12 and SHV-A13, GEO-A29 part (c) (parts (a) and (b) were
 4ba0b1d28), and from steps 4 and 5 TIC-A33 and SHV-A08/A09. Of the
 delivery order of section 6, steps 1 to 3 are done; step 4 is done except BAT-A10, and the part of

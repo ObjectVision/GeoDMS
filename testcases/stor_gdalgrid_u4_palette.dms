@@ -1,0 +1,16 @@
+// STG-A12: the palette file of stor_tif_u4_palette read through gdal.grid, which gives its pixels as bytes (data/tif_u4_palette.tif,
+// 5 x 3, pixel k is 15 - k). The uint8 read is the control; into uint4 the read filled the end of each strip with 0 before
+// 20.24.0: it counted the bytes it read as the bytes of its strip, whose rows are padded to an even number of pixels.
+container stor_gdalgrid_u4_palette
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(3s, 5s));
+	attribute<uint8> img  (dom): StorageName = "%currDir%/data/tif_u4_palette.tif", StorageType = "gdal.grid";
+	attribute<uint4> img4 (dom): StorageName = "%currDir%/data/tif_u4_palette.tif", StorageType = "gdal.grid";
+	container checks
+	{
+		attribute<uint32> k        (dom) := uint32(pointrow(id(dom))) * 5 + uint32(pointcol(id(dom)));
+		attribute<uint32> expected (dom) := 15 - k;
+		parameter<uint32> nrWrong  := sum(uint32(uint32(img)  != expected)), IntegrityCheck = "nrWrong == 0";
+		parameter<uint32> nrWrong4 := sum(uint32(uint32(img4) != expected)), IntegrityCheck = "nrWrong4 == 0";
+	}
+}

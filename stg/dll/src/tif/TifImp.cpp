@@ -672,10 +672,14 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 {
 	if (nrBitsPerPixel == 4)
 	{
-		currNrProcesedBytes *= 2;
-
 		MG_CHECK(nrBytesPerRow * 2 >= tw); // strip geometry from the file's tags
 
+		// the read rows, expanded to a byte per pixel; doubling the bytes counted the padding nibble of an odd width
+		currNrProcesedBytes = ((currNrProcesedBytes + nrBytesPerRow - 1) / nrBytesPerRow) * tw;
+
+		// UnpackStrip(void*) has swapped the nibbles of each byte already, so the first pixel of a byte, which
+		// TIFF puts in its high nibble, is in its low nibble here. This expansion took the high nibble first,
+		// and read every pair of pixels in reverse and the last pixel of an odd row as its padding (STG-A12).
 		while (th)
 		{
 			--th;
@@ -684,7 +688,7 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 			UInt8* byteDataBegin = pixelData + SizeT(th)*tw;
 			UInt8* byteDataEnd = byteDataBegin + tw;
 			if (tw % 2)
-				*--byteDataEnd = ((*--pixelDataEnd) & 0xF0) >> 4;
+				*--byteDataEnd = (*--pixelDataEnd) & 0x0F;
 			MG_CHECK(byteDataBegin >= pixelDataBegin);
 			MG_CHECK((byteDataEnd - byteDataBegin) % 2 == 0);
 
@@ -695,8 +699,8 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 			{
 				--bytePairEnd, --pixelDataEnd;
 				*bytePairEnd
-					= (((*pixelDataEnd) & 0xF0) >> 4)
-					| (((*pixelDataEnd) & 0x0F) << 8);
+					= ((*pixelDataEnd) & 0x0F)
+					| (((*pixelDataEnd) & 0xF0) << 4);
 			}
 			dms_assert(pixelDataEnd == pixelDataBegin);
 		}

@@ -196,6 +196,20 @@ void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrD
 
 	auto vcid_ado = vc_ado->GetValueClassID();
 
+	// STG-A12: the read expands three depths of the file to that of the attribute (TifImp::UnpackCheck and
+	// UnpackStrip): an RGB image of 24 bits to a uint32 colour, an image of 4 bits, typically a palette, to uint8,
+	// and an 8-bit mask to bool. The comparison of bit sizes below refused all three since #506 (2023-11),
+	// and 24 bits had no value type at all.
+	UInt32 nrFileBits = m_pImp->GetNrBitsPerPixel();
+	bool isExpanded = (nrFileBits == 24 && vcid_ado == ValueClassID::VT_UInt32)
+		|| (nrFileBits == 4 && vcid_ado == ValueClassID::VT_UInt8)
+		|| (nrFileBits == 8 && vcid_ado == ValueClassID::VT_Bool);
+	if (isExpanded)
+	{
+		Grid::ReadGridData(*m_pImp, vpi, ado, t, GetNameStr().c_str());
+		return;
+	}
+
 	auto vcid_tiff = m_pImp->GetValueClassFromTiffDataTypeTag(vcid_ado); // the configured type stands in for an absent SampleFormat tag
 	auto vc_tiff = ValueClass::FindByValueClassID(vcid_tiff);
 	if (!vc_tiff)
