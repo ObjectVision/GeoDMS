@@ -22,6 +22,8 @@
 #include "ser/SequenceArrayStream.h"
 #include "set/VectorFunc.h"
 
+#include <bit>
+
 //=======================================
 // SequenceArray<T>::const_reference
 //=======================================
@@ -636,7 +638,7 @@ template <typename Initializer> void sequence_array<T>::allocateSequence(typenam
 			abandon(oldFirst, oldSecond);  // removes oldSize bytes from m_ActualData
 			*seqPtr = seq_t();
 
-			bool dataWasMoved = allocate_data(oldData, Max<data_size_type>(m_ActualDataSize+2*oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			bool dataWasMoved = allocate_data(oldData, pool_growth(oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			assert(!IsDirty());
 			if (oldSize)
 			{
@@ -710,9 +712,8 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 			abandon(seqPtr->first, seqPtr->second);
 			*seqPtr = seq_t();
 
-			auto newCapacity = Max<data_size_type>(m_ActualDataSize + 2 * oldSize, newSize);
 			locked_sequence<T> oldData(false);
-			bool dataWasMoved = allocate_data(oldData, newCapacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			bool dataWasMoved = allocate_data(oldData, pool_growth(oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			if (!sourceInPool)
 				appendValues(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			else if (dataWasMoved) // compacted into a new pool; the source still lies at its offset in the old one
@@ -732,6 +733,54 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 		cut_seq(seqPtr, newSize);
 	}
 	assert(newSize == seqPtr->size());
+}
+
+// How much a full pool grows by, after the sequence that did not fit has been abandoned: room for at least
+// twice what the pool holds, rounded up so that the new capacity is a power of two, the block sizes that
+// FixedAlloc.cpp hands out (#1280). allocate_data reserves the actual size plus this growth. A stored pool
+// keeps what it does not use until the seal at the end of its write cuts it off.
+// Only this growth on demand is rounded. data_reserve, reserve_data, Reset, Resize, assign and the public
+// allocate_data(expectedGrowth) reserve exactly what they are asked, so a caller that computes the total
+// length of the sequences it is about to add, or a tight upper bound of it, gets that much and no power
+// of two; keep it that way.
+template <typename T>
+auto sequence_array<T>::pool_growth(data_size_type oldSize, data_size_type newSize) const -> data_size_type
+{
+	data_size_type capacity = m_ActualDataSize + Max<data_size_type>(m_ActualDataSize + 2 * oldSize, newSize);
+	return std::bit_ceil(capacity) - m_ActualDataSize;
+}
+
+// #1280: writes the sequences in index order to dst, the abandoned elements left out, and their index ranges
+// in that order to dstIndices; an undefined or empty sequence keeps its range, as in allocate_data.
+template <typename T>
+void sequence_array<T>::compact_to(T* dst, seq_t* dstIndices) const
+{
+	MGD_CHECKDATA(IsLocked());
+
+	data_size_type dataEnd = 0;
+	auto srcData = m_Values.begin();
+	for (auto i = m_Indices.begin(), e = m_Indices.end(); i != e; ++i, ++dstIndices)
+	{
+		*dstIndices = *i;
+		data_size_type size = i->size();
+		if (size)
+		{
+			fast_copy(srcData + i->first, srcData + i->second, dst + dataEnd);
+			*dstIndices = seq_t(dataEnd, dataEnd + size);
+			dataEnd += size;
+		}
+	}
+	assert(dataEnd == calcActualDataSize());
+}
+
+// #1280: overwrites the index ranges, for a pool that compact_to wrote elsewhere; the pool is not locked
+template <typename T>
+void sequence_array<T>::set_indices(const seq_t* indices)
+{
+	MGD_CHECKDATA(!m_Indices.IsLocked());
+
+	SeqLock<seq_vector_t> lock(m_Indices, dms_rw_mode::read_write);
+	fast_copy(indices, indices + m_Indices.size(), m_Indices.begin());
 }
 
 template <typename T>

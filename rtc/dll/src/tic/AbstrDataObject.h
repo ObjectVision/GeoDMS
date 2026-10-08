@@ -79,6 +79,11 @@ public:
 	// object is (deferred-)destroyed and the item possibly dies. Default: nothing to clear.
 	virtual void ImLosingIt() const {}
 
+	// Called once all writing to this data object is done, before it becomes the data of its item
+	// (DataWriteLock::Commit) or is released (MmdStorageManager::MaterializeSharedContent). A stored
+	// sequence attribute cuts its .seq file back to what its sequences hold here (#1280). Default: nothing.
+	virtual void FinishWrite() {}
+
 	TIC_CALL virtual bool CheckValuesUnit(const AbstrUnit* valuesUnit) = 0;
 //	Meta Info
 

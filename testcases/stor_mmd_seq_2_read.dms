@@ -1,0 +1,43 @@
+// The read half of the sealed .seq case (issues #1280 and #1294); stor_mmd_seq_1_write.dms writes the
+// store and carries the description of what is being pinned. run_testcases.ps1 walks the configs
+// sorted by file name, so `_1_write` runs before this one; on its own this config fails because the
+// store does not exist yet.
+//
+// The reader declares nothing but the storage. The expected values are computed again over the
+// domains the store declares, and every value is compared, because a pool that the seal put at a
+// wrong offset still has the right length, and one that it cut too short fails only at its end.
+container stor_mmd_seq_2_read
+{
+	container store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_seq.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	attribute<string> exp_def (store/def) := iif(id(store/def) % 13 == 0, '', 'rij_' + string(id(store/def)) + repeat('x', id(store/def) % 37));
+	attribute<string> exp_one (store/one) := iif(id(store/one) % 13 == 0, '', 'rij_' + string(id(store/one)) + repeat('x', id(store/one) % 37));
+
+	unit<uint32> pts := range(uint32, 0, 600000)
+	{
+		attribute<dpoint>    p   := point_xy(float64(id(.)), float64(id(.) % 7), dpoint);
+		attribute<store/def> seq := value(id(.) / 3, store/def);
+	}
+	attribute<dpoint> exp_line (arc, store/def) := points2sequence(pts/p, pts/seq);
+
+	container checks
+	{
+		parameter<uint32> n_def := #store/def, IntegrityCheck = "n_def == 200000";
+		parameter<uint32> n_one := #store/one, IntegrityCheck = "n_one == 200000";
+
+		parameter<uint32> d_def   := sum(uint32(store/def/s <> exp_def)), IntegrityCheck = "d_def == 0";
+		parameter<uint32> d_one   := sum(uint32(store/one/s <> exp_one)), IntegrityCheck = "d_one == 0";
+		parameter<uint32> e_def   := sum(uint32(store/def/s == '')),      IntegrityCheck = "e_def == 15385";
+		parameter<uint32> l_def   := uint32(sum(strlen(store/def/s))),    IntegrityCheck = "l_def == uint32(sum(strlen(exp_def)))";
+		parameter<uint32> l_one   := uint32(sum(strlen(store/one/s))),    IntegrityCheck = "l_one == l_def";
+		parameter<string> s_last  := store/def/s[199999],                 IntegrityCheck = "s_last == exp_def[199999]";
+
+		parameter<uint32>  d_first := sum(uint32(first_point(store/def/line) <> first_point(exp_line))), IntegrityCheck = "d_first == 0";
+		parameter<uint32>  d_lastp := sum(uint32(last_point (store/def/line) <> last_point (exp_line))), IntegrityCheck = "d_lastp == 0";
+		parameter<float64> len_def := sum(arc_length(store/def/line, float64)), IntegrityCheck = "len_def == sum(arc_length(exp_line, float64))";
+	}
+}

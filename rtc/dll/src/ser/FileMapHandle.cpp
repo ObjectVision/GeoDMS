@@ -416,6 +416,30 @@ void MappedFileHandle::OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes,
 	MapFile(true);
 }
 
+void MappedFileHandle::TruncateAndClose(dms::filesize_t newSize)
+{
+	m_MemPageAllocTable.reset();
+	m_hFileMapping = WinHandle(); // SetEndOfFile refuses a file that a mapping object refers to
+
+	LARGE_INTEGER fs; fs.QuadPart = newSize;
+	bool ok = SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN) && SetEndOfFile(m_hFile);
+	DWORD lastErr = ok ? 0 : GetLastError();
+	if (ok)
+		m_FileSize = m_AllocatedSize = newSize;
+	CloseForReopen(); // also when the cut failed: the file is complete as it was, and the next view reopens it
+	if (!ok)
+		throwSystemError(lastErr, "FileMapHandle('{}').TruncateAndClose({})", m_FileName.c_str(), (UInt64)newSize);
+}
+
+static void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName)
+{
+	auto dstW = Utf8_2_wchar(ConvertDmsFileName(fileName).c_str());
+	auto srcW = Utf8_2_wchar(ConvertDmsFileName(replacementFileName).c_str());
+	UInt32 retryCounter = 0;
+	while (!MoveFileExW(srcW.get(), dstW.get(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+		ManageSystemError(retryCounter, "ReplaceFileBy({})", fileName.c_str(), true, true); // retries a sharing violation, throws otherwise
+}
+
 void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry)
 {
 	FileHandle::OpenForRead(fileName, throwOnError, doRetry);
@@ -552,8 +576,9 @@ void FileViewHandle::MapView(bool alsoWrite)
 	if (!m_ViewSpec.capacity)
 		return;
 
+	m_MappedFile->ReopenIfClosed(alsoWrite); // #1280: the seal closed the file; the first view after it opens it again
 	m_AlsoWrite = alsoWrite;
-	
+
 	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
@@ -811,6 +836,7 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 #include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
+#include <cstdio> // rename
 
 MG_DEBUGCODE(
 	const UInt64 sd_MaxFileSize = 0x4000000000; // 160Gb
@@ -1017,6 +1043,31 @@ void MappedFileHandle::MapFile(bool alsoWrite)
 	// On Linux, mapping is done per-view via ViewData; this is a no-op
 }
 
+void MappedFileHandle::TruncateAndClose(dms::filesize_t newSize)
+{
+	m_MemPageAllocTable.reset();
+	m_hFileMapping = WinHandle();
+	try {
+		SetFileSize(newSize); // ftruncate
+	}
+	catch (...)
+	{
+		CloseForReopen(); // the file is complete as it was, and the next view reopens it
+		throw;
+	}
+	m_AllocatedSize = newSize;
+	CloseForReopen();
+}
+
+static void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName)
+{
+	auto dst = ConvertDmsFileName(fileName);
+	auto src = ConvertDmsFileName(replacementFileName);
+	UInt32 retryCounter = 0;
+	while (::rename(src.c_str(), dst.c_str()) != 0)
+		ManageSystemError(retryCounter, "ReplaceFileBy({})", fileName.c_str(), true, true); // retries EACCES and EBUSY, throws otherwise
+}
+
 FileChunkSpec MappedFileHandle::AllocFile(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity)
 {
 	viewSpec.offset = 0;
@@ -1155,6 +1206,7 @@ void FileViewHandle::MapView(bool alsoWrite)
 	if (!m_ViewSpec.capacity)
 		return;
 
+	m_MappedFile->ReopenIfClosed(alsoWrite); // #1280: the seal closed the file; the first view after it opens it again
 	m_AlsoWrite = alsoWrite;
 
 	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
@@ -1185,4 +1237,71 @@ void FileViewHandle::allocAndMapChunk(dms::filesize_t capacity, tile_id t)
 }
 
 #endif //defined(WIN32)
+
+// =====================================================================
+// #1280: the seal of a stored sequence pool (FileTileArray<V>::SealSequences)
+// =====================================================================
+
+void MappedFileHandle::CloseForReopen()
+{
+	m_MemPageAllocTable.reset(); // unmaps the chunk table; nothing writes chunks after the seal
+	m_hFileMapping = WinHandle();
+	if (IsOpen())
+		CloseFile();
+	m_ClosedForReopen.store(true, std::memory_order_release);
+}
+
+void MappedFileHandle::ReplaceByAndClose(WeakStr replacementFileName)
+{
+	CloseForReopen(); // a file that is open cannot be replaced; when the replacement fails, the next view reopens this one, which is complete
+	ReplaceFileBy(m_FileName, replacementFileName);
+}
+
+void MappedFileHandle::ReopenIfClosed(bool alsoWrite)
+{
+	if (!m_ClosedForReopen.load(std::memory_order_acquire))
+		return;
+
+	auto lock = std::scoped_lock(m_ReopenMutex); // the tiles of one attribute share this file and map their views in parallel
+	if (!m_ClosedForReopen.load(std::memory_order_relaxed))
+		return;
+	MG_CHECK2(!alsoWrite, "a sealed .seq file is opened again for reading only");
+	OpenForRead(m_FileName, true, true);
+	m_ClosedForReopen.store(false, std::memory_order_release);
+}
+
+void WriteCompactSeqFile(WeakStr fileName, tile_id tn, const dms::filesize_t* tileBytes, const std::function<void(tile_id, char*)>& writeTile)
+{
+	dms::filesize_t headerBytes = (tn > 1) ? MinimalSeqFileSize(tn) : 0; // a domain of one tile has no chunk table
+	dms::filesize_t totalBytes = headerBytes;
+	for (tile_id t = 0; t != tn; ++t)
+		totalBytes += tileBytes[t];
+
+	MappedFileHandle file;
+	file.OpenRw(fileName, totalBytes, dms_rw_mode::write_only_all, false);
+	if (!totalBytes)
+		return;
+
+	if (headerBytes)
+	{
+		ViewData header(&file, FILE_MAP_WRITE, 0, headerBytes);
+		auto chunkSpecs = reinterpret_cast<FileChunkSpec*>(header.get_ptr());
+		dms::filesize_t offset = headerBytes;
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			chunkSpecs[t] = FileChunkSpec{ offset, tileBytes[t], tileBytes[t] };
+			offset += tileBytes[t];
+		}
+	}
+	dms::filesize_t offset = headerBytes;
+	for (tile_id t = 0; t != tn; ++t)
+	{
+		if (tileBytes[t])
+		{
+			ViewData view(&file, FILE_MAP_WRITE, offset, tileBytes[t]);
+			writeTile(t, reinterpret_cast<char*>(view.get_ptr()));
+		}
+		offset += tileBytes[t];
+	}
+}
 

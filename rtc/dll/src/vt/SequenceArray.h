@@ -843,6 +843,17 @@ public:
 
 	RTC_CALL void cut(size_type nrSeqs);
 
+	// #1280: what the seal of a stored pool at the end of its write uses (FileTileArray<V>::SealSequences)
+	data_size_type count_actual_data_size() const { return calcActualDataSize(); } // counted afresh from the index
+	void compact_to(T* dst, seq_t* dstIndices) const;
+	void set_indices(const seq_t* indices);
+	void ResetValuesAllocator(abstr_sequence_provider<T>* prSeqs, data_size_type actualDataSize)
+	{
+		MGD_CHECKDATA(!IsLocked());
+		m_Values.ResetAllocator(prSeqs);
+		m_ActualDataSize = actualDataSize;
+	}
+
 	void resizeSO(size_type nrSeqs, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		if (nrSeqs < m_Indices.size())
@@ -875,6 +886,8 @@ private:
 	template<typename Initializer> void appendInitializer(size_type n, Initializer&& init MG_DEBUG_ALLOCATOR_SRC_ARG);
 
 	void appendValues(const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
+
+	data_size_type pool_growth(data_size_type oldSize, data_size_type newSize) const;
 
 protected:
 	auto calcActualDataSize() const->data_size_type;

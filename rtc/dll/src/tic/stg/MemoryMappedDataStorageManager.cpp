@@ -684,6 +684,7 @@ void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, 
 		target.reset(CreateFileTileArray(adi, nullptr, dms_rw_mode::write_only_all, fileName, false).release());
 		MG_CHECK(target);
 		CopyData(adi->GetRefObj().get(), target.get());
+		target->FinishWrite(); // #1280
 	} // mapping closed here, before the caller's UpdateDictionary declares the file
 
 	auto lock = lock_t(m_CriticalSection);
