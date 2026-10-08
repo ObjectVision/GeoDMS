@@ -1,0 +1,20 @@
+// Regression for doc/code-audit-2026-09-27.md STX-A14: a float literal in an expression or a data block
+// was not correctly rounded, as Spirit classic built it digit by digit: 0.3 became 0.30000000000000004,
+// so 0.1 + 0.2 == 0.3 held, and 0.7 became 0.7000000000000001, so a 0.7 in a data block and the same
+// value as text in that block, or float64('0.7'), differed. Since 20.24.0 a literal is read with
+// std::from_chars, as every other text-to-number path.
+// Expected: exit 0 on /checks.
+container stx_float_literal_exact
+{
+	unit<uint32> D : nrofrows = 2;
+	attribute<float64> v (D) : [0.7, 0.7e0];
+
+	container checks
+	{
+		parameter<bool> expr_03  := 0.3 == float64('0.3')          , IntegrityCheck = "expr_03 == true";
+		parameter<bool> expr_07  := 0.7 == float64('0.7')          , IntegrityCheck = "expr_07 == true";
+		parameter<bool> sum_ne   := 0.1 + 0.2 != 0.3               , IntegrityCheck = "sum_ne == true";
+		parameter<bool> expo     := 1.5e-3 == float64('0.0015')    , IntegrityCheck = "expo == true";
+		parameter<bool> block_07 := min(v) == float64('0.7') && max(v) == float64('0.7'), IntegrityCheck = "block_07 == true";
+	}
+}

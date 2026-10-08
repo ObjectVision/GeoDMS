@@ -167,7 +167,8 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 					| unsignedInteger
 					);
 
-			floatValue = strict_ureal_p[([&](Float64 v) { currDBP.DoFloatValue(v);})];
+			floatValue // STX-A14: Spirit for the extent of the literal, std::from_chars for its value
+				= (strict_ureal_p >> epsilon_p)[([&](auto first, auto last) { currDBP.DoFloatValue(ExactFloat64(first, last));})];
 			unsignedInteger = (uint64_p[([&](auto u64) { currDBP.DoUInt64(u64); })])
 				| (PERCENT >> (hex64_p[([&](auto u64) { currDBP.DoUInt64(u64); })]));
 				
