@@ -745,6 +745,20 @@ struct convertAndCastOpers
 	};
 };
 
+// convert() and lookup() only, for a source type whose cast has a member of its own in the target's group
+template <typename TRL>
+struct convertOpersWithoutCast
+{
+	template <typename TA>
+	struct apply_TA
+	{
+		using ConvertOpers = tl_oper::inst_tuple<TRL, tl::bind_placeholders<ConvertAttrOperator, ph::_1, TA, std::false_type> >;
+
+		ConvertOpers m_convertOpers{ &cog_Convert, false };
+		ConvertOpers m_lookupOpers { &cog_lookup , true };
+	};
+};
+
 template <typename TRL>
 struct roundedConvertOpers
 {

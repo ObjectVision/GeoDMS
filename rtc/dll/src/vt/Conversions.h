@@ -358,10 +358,14 @@ inline SharedStr Convert4(std::string_view val, const SharedStr*, const ExceptFu
 }
 
 // conversions to string
+// CLC-A11: without thousand separators. AsString's default adds them unless the GUI option (or GeoDmsRun's
+// /CH) turns them off, so the text that convert(), a cast to string or a storage computed from a number
+// depended on that option: dpoint(463000, 155000.5) gave xy(155,000.5; 463,000), which does not parse back
+// and changed keys and storage names.
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 inline SharedStr Convert4(const T& val, const SharedStr*, const ExceptFunc* /*dummyExceptFunc*/, const ConvertFunc* /*dummyConvertFunc*/)
 {
-	return AsString(val);
+	return AsString(val, FormattingFlags::None);
 }
 
 
