@@ -76,6 +76,21 @@ no heading.
 
 ## A new issue
 
+Every new issue, in either repository, is assigned to the user, carries an issue type and the
+labels that fit:
+
+- Assignee: the user, `--assignee "@me"` (`gh` is authenticated as the user).
+- Type: one of the organisation's three issue types. **Bug**: the engine or a script does
+  something wrong (a wrong answer, a crash, a failure, a misleading message). **Feature**: a
+  capability that does not exist yet. **Task**: work without a behaviour change (clean-up, tests,
+  documentation, a measurement). `gh issue create` has no flag for it, so set it right after
+  creation: `gh api -X PATCH repos/ObjectVision/<repo>/issues/<n> -f type=Bug`, and check it with
+  `gh api repos/ObjectVision/<repo>/issues/<n> --jq '.type.name'` (`gh issue view --json` has no
+  field for the type).
+- Labels: the ones from `gh label list` that describe the area, such as `data import/export`,
+  `diagnostics`, `crash`, `calculations`, `optimization`; none when none fits, never a new one
+  without asking.
+
 Title as a fact, not a question. Body: the configuration path or the operator, the exact
 command line or GUI steps, the observed number against the expected one, the version and
 flavour (`20.19.1.m`), the log lines (`[E]` text, exit code, assertion), what you already
