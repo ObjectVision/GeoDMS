@@ -542,13 +542,23 @@ void ConfigProd::DoAnyProp()
 			m_strIdentifierID
 		);
 	pd->SetValueAsCharRange(m_pCurrent.get(), m_StringVal.begin(), m_StringVal.send());
+	for (auto& sibling : m_LastDeclSiblings) // STX-A25: a multi-name declaration gives every name its properties
+		pd->SetValueAsCharRange(sibling.get(), m_StringVal.begin(), m_StringVal.send());
 }
 
 void ConfigProd::DoExprProp(iterator_t first, iterator_t last)
 {
 	dms_assert(m_pCurrent);
 
-	SharedStr exprStr = MaterializePendingLambdas(&*first, &*last); // §5.11 tier B
+	// The text of a rule ends at its last token. A rule that ends in an integer without suffix took the
+	// whitespace after it: ExprParse.h produces such an integer in the action of an epsilon_p, and Spirit
+	// skips whitespace before it runs an action, which moved the end of the match. The XML notation trims
+	// that whitespace, so a configuration and its XML round trip differed (found with oper_string_point).
+	CharPtr exprFirst = &*first, exprLast = &*last;
+	while (exprLast != exprFirst && std::isspace(static_cast<unsigned char>(exprLast[-1])))
+		--exprLast;
+
+	SharedStr exprStr = MaterializePendingLambdas(exprFirst, exprLast); // §5.11 tier B
 	m_pCurrent->SetExpr(exprStr);
 	for (auto& sibling : m_LastDeclSiblings) // multi-name declaration: all names share the calculation rule
 		sibling->SetExpr(exprStr);
@@ -564,16 +574,22 @@ void ConfigProd::DoNrOfRowsProp()
 	assert(m_eValueType == ValueClassID::VT_UInt64);
 	assert(m_pCurrent);
 
-	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get());
-	assert(unit);
-	const ValueClass* vc = unit->GetValueType();
-	assert(vc);
+	auto setNrOfRows = [this](TreeItem* item)
+	{
+		AbstrUnit* unit = AsCheckedUnit(item);
+		assert(unit);
+		const ValueClass* vc = unit->GetValueType();
+		assert(vc);
 
-	if (!vc->IsNumeric())
-		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType {} of this unit", vc->GetName()).c_str());
+		if (!vc->IsNumeric())
+			throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType {} of this unit", vc->GetName()).c_str());
 
-	unit->SetTSF(USF_HasConfigRange | TSF_Categorical);
-	unit->SetRangeAsUInt64(0, m_IntValAsUInt64);
+		unit->SetTSF(USF_HasConfigRange | TSF_Categorical);
+		unit->SetRangeAsUInt64(0, m_IntValAsUInt64);
+	};
+	setNrOfRows(m_pCurrent.get());
+	for (auto& sibling : m_LastDeclSiblings) // STX-A25: a multi-name declaration gives every name its nrofrows
+		setNrOfRows(sibling.get());
 }
 
 void ConfigProd::throwSemanticError(CharPtr msg)

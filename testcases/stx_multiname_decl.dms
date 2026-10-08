@@ -1,0 +1,22 @@
+// Regression for doc/code-audit-2026-09-27.md STX-A25: a declaration of several names shared the calculation
+// rule, but its data block, its properties (Descr, IntegrityCheck, a storage) and its nrofrows went to the
+// last name only: in a, b: attribute<int32> (D) : [1, 2, 3]; a had no data. Since 20.24.0 every name gets
+// them. A negative integer below -2^63 in a float64 data block became null; it now has its value.
+// Expected: exit 0 on /checks.
+container stx_multiname_decl
+{
+	unit<uint32> D : nrofrows = 3;
+	a, b : attribute<int32> (D) : [1, 2, 3];
+	p, q : parameter<uint32> := 7, Descr = "both";
+
+	unit<uint32> E : nrofrows = 1;
+	attribute<float64> big (E) : [-10000000000000000000];
+
+	container checks
+	{
+		parameter<bool> a_ok   := sum(a) == 6i                                         , IntegrityCheck = "a_ok == true";
+		parameter<bool> b_ok   := sum(b) == 6i                                         , IntegrityCheck = "b_ok == true";
+		parameter<bool> descr  := PropValue(p, 'Descr') == 'both' && PropValue(q, 'Descr') == 'both', IntegrityCheck = "descr == true";
+		parameter<bool> big_ok := min(big) == float64('-1e19')                          , IntegrityCheck = "big_ok == true";
+	}
+}

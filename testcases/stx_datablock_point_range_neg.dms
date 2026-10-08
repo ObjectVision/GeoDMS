@@ -1,0 +1,14 @@
+// Regression for doc/code-audit-2026-09-27.md STX-A25: in a data block, a point coordinate outside the range
+// of the point type became null without a word, while a number outside the range of a numeric attribute is
+// an error. Since 20.24.0 the point is an error too, naming the element and the type.
+// Expected: nonzero exit on /checks, "the point (1, 40000) is outside the range of the coordinates of spoint", in element 1.
+container stx_datablock_point_range_neg
+{
+	unit<uint32> D : nrofrows = 2;
+	attribute<spoint> p (D) : [yx(1, 2), yx(40000, 1)];
+
+	container checks
+	{
+		parameter<bool> ok := all(IsDefined(p)), IntegrityCheck = "ok == true";
+	}
+}

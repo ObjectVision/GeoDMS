@@ -8,6 +8,8 @@
 # Removed with #1268: fn_test_byexample2, whose direct dump used to COMPUTE the range of unit
 # 'app/nodes' (nrofrows on a unit<float32>, for which cat_range has no operator) and wrote the
 # error inline. A dump writes the configured range and computes nothing since #1268.
-
-oper_dms_family         the source rule ends in a line end, which the reader drops together with the layout white space of the element it sits in and cannot tell apart from it, so the ',' the DMS writer appends lands on the previous line
-oper_dms_union_counts   idem, four rules
+#
+# Removed with STX-A25 (2026-10-08): oper_dms_family and oper_dms_union_counts, whose rules ended in
+# white space that the stored rule text kept and the XML reader drops. The text of a rule that ended in
+# an integer without suffix took the white space after it, as Spirit skips before the action of the
+# epsilon_p that produces such an integer; ConfigProd::DoExprProp now ends the text at its last token.
