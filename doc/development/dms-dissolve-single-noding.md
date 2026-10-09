@@ -3,8 +3,9 @@
 *Status (2026-10-06): implemented on 2026-09-07 and committed as f136489d7 on 2026-09-08, for GeoDMS #1214 follow-up.
 The one-element shortcut is for single rings only, and since e73a7d403 (#1283) only a ring that is
 simple on the lattice skips the sweep; the `Prepare` hook described below was not implemented.
-Phase B of a partitioned dissolve is serial over the bags: `DMS_PolygonOperator::StoreImpl` in
-`geo/dll/src/BoostPolygon.cpp` runs one engine over all slots in turn. On NL31 (752,564 buildings),
+Phase B of a partitioned dissolve was serial over the bags until 2026-10-09: `DMS_PolygonOperator::StoreImpl`
+in `geo/dll/src/BoostPolygon.cpp` ran one engine over all slots in turn; since continuations A8 the bags run
+in parallel, one engine per thread (a probe of 1,000,000 overlapping squares in 25 slots: 13.2 to 14.7 s against 26.4 to 47 s, 8 logical processors). On NL31 (752,564 buildings),
 `dms_split_union_polygon(geometry, city_rel)` over 25 municipalities took 244 s in one pass, against
 358 s for geos, and the #1283 optimisations hardly changed it (252 s before them; #1283 comments).
 #1283 is still open on GitHub, although its fixes landed (170f96e45, a0800530c, 26ce1fbd1, 2ccb28116,

@@ -2016,20 +2016,27 @@ public:
 		std::vector<SequenceType> results(domainCount);
 		if (UsesBags())
 		{
+			// Phase B per bag, in parallel: a bag is noded on its own frame, so the bags are independent, and each
+			// result goes to the slot of its bag, which keeps the order. One engine per thread. The loop over one
+			// engine was serial: 244 s for the 25 municipalities of NL31 (#1283, continuations A8).
 			auto bagResourcePtr = debug_cast<ResourceArray<Bag>*>(r.get());
-			Bag* bagPtr = bagResourcePtr ? bagResourcePtr->begin() : nullptr;
-			Engine& engine = EngineOf(ctx);
-			for (SizeT i = 0; i != domainCount; ++i, ++bagPtr)
-			{
-				if (bagPtr->empty())
-					continue;
-				engine.SetFixedFrame(bagPtr->frame.cell, bagPtr->frame.originX, bagPtr->frame.originY);
-				if (bagPtr->singleRing && bagPtr->nrElements == 1)
-					engine.RingFromBag(bagPtr->segs); // phase A took it as it is; so does phase B
-				else
-					engine.UnionBag(bagPtr->segs);
-				engine.Store(results[i]);
-			}
+			Bag* bags = bagResourcePtr ? bagResourcePtr->begin() : nullptr;
+			PolygonOperContexts contexts([this] { return CreateContext(); });
+			parallel_for<SizeT>(domainCount, [bags, &results, &contexts](SizeT i)
+				{
+					Bag& bag = bags[i];
+					if (bag.empty())
+						return;
+					auto bagCtx = contexts.local();
+					Engine& engine = EngineOf(bagCtx.get());
+					engine.SetFixedFrame(bag.frame.cell, bag.frame.originX, bag.frame.originY);
+					if (bag.singleRing && bag.nrElements == 1)
+						engine.RingFromBag(bag.segs); // phase A took it as it is; so does phase B
+					else
+						engine.UnionBag(bag.segs);
+					engine.Store(results[i]);
+				}
+			);
 		}
 		else
 		{
