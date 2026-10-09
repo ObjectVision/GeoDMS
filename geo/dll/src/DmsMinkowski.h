@@ -35,10 +35,11 @@
 //
 // Every piece is a simple counter-clockwise polygon, so the number of pieces covering a point is
 // the winding number of the sum of their boundaries: never negative, and positive exactly on the
-// union. That is the membership rule DmsOverlayEngine::ThresholdBag sweeps with. When the merge
-// of identical fragments has cancelled the shared sides, what the sweep sees is the raw offset
-// curve of GEOS and Clipper: every edge shifted by its support, an arc of K at every convex
-// corner, and the way back through the vertex at every reflex one.
+// union. That is the membership rule DmsOverlayEngine::ThresholdBag sweeps with. The sum of those
+// boundaries, once the sides that adjacent pieces share have cancelled, is the raw offset curve
+// of GEOS and Clipper: every edge shifted by its support, an arc of K at every convex corner, and
+// the way back through the vertex at every reflex one. That curve is what goes into the sweep
+// (dms_append_offset_curve); the cancelled sides never do.
 //
 // Why not the convolution cycle of Guibas, Ramshaw and Stolfi, with backward arcs at the reflex
 // vertices and the positive-winding rule, as #1301 first proposed: its winding number at x is the
@@ -327,12 +328,22 @@ inline void dms_shifted_ring(const std::vector<GPoint>& pts, const GPoint& shift
 			out.push_back(Add(p, shift));
 }
 
-// The pieces of one ring whose material lies on its LEFT: per edge e = a -> b the polygon
-// b, a, a + first, b + last (counter-clockwise, the support lying on the right of e), and per
-// convex corner b the fan b, b + chain[0], ..., b + chain[last]. Each with coverage `coverage`
-// (+1 for a sum, -1 for the eroded strip), so weight +coverage along its counter-clockwise run.
+// The raw offset curve of one ring whose material lies on its LEFT, each segment with weight
+// `weight` in its direction: per edge e = a -> b the edge shifted by its support, a + first ->
+// b + last; per convex corner b the arc b + chain[0] -> ... -> b + chain[last]; per reflex or
+// straight corner, or a convex one whose fan is empty, the way back through b, b + last -> b ->
+// b + first of the next edge.
+//
+// That is the sum of the boundaries of the pieces of the header comment, each run counter-
+// clockwise, plus the ring itself: per edge the piece b, a, a + first, b + last; per convex corner
+// the fan b, b + chain[0], ..., b + chain[last], b. The inner side of every edge's piece cancels
+// the ring's edge, and at a convex corner the fan's two radii cancel the sides of the two edges'
+// pieces; those pairs are identical segments with opposite weights, which the noder's first merge
+// would drop anyway, so leaving them out changes no result, only the work. The winding number of
+// this curve is therefore 1_ring + (the number of pieces covering the point): exactly the coverage
+// count of the sum, and for an erosion, generated on the complement, minus what the pieces take.
 template <typename Support>
-void dms_append_pieces(std::vector<Segment>& bag, const std::vector<GPoint>& ring, const Support& support, Int32 coverage
+void dms_append_offset_curve(std::vector<Segment>& bag, const std::vector<GPoint>& ring, const Support& support, Int32 weight
 	, std::vector<typename Support::Edge>& edges, std::vector<GPoint>& chain)
 {
 	SizeT n = ring.size();
@@ -348,10 +359,10 @@ void dms_append_pieces(std::vector<Segment>& bag, const std::vector<GPoint>& rin
 		edges[j] = support.OfEdge(b.X() - a.X(), b.Y() - a.Y());
 	}
 
-	auto emit = [&bag, coverage](const GPoint& p, const GPoint& q)
+	auto emit = [&bag, weight](const GPoint& p, const GPoint& q)
 	{
 		if (p != q)
-			bag.push_back(Segment{ p, q, 0, coverage });
+			bag.push_back(Segment{ p, q, 0, weight });
 	};
 	for (SizeT j = 0; j != n; ++j)
 	{
@@ -359,23 +370,26 @@ void dms_append_pieces(std::vector<Segment>& bag, const std::vector<GPoint>& rin
 		const GPoint& a = ring[j];
 		const GPoint& b = ring[j1];
 		const GPoint& c = ring[next(j1)];
-		const auto& e = edges[j];
+		const auto& e  = edges[j];
+		const auto& e1 = edges[j1];
 
-		GPoint af = Add(a, e.first), bl = Add(b, e.last);
-		emit(b, a);
-		emit(a, af);
-		emit(af, bl);
-		emit(bl, b);
+		emit(Add(a, e.first), Add(b, e.last));
 
-		if (CrossSign(b.X() - a.X(), b.Y() - a.Y(), c.X() - b.X(), c.Y() - b.Y()) <= 0)
-			continue; // a reflex corner, or a straight one: the two sides above are the way back through b
-		support.FanChain(e, edges[j1], chain);
-		if (chain.size() < 2)
-			continue;
-		emit(b, Add(b, chain.front()));
-		for (SizeT i = 1; i != chain.size(); ++i)
-			emit(Add(b, chain[i - 1]), Add(b, chain[i]));
-		emit(Add(b, chain.back()), b);
+		if (CrossSign(b.X() - a.X(), b.Y() - a.Y(), c.X() - b.X(), c.Y() - b.Y()) > 0)
+		{
+			support.FanChain(e, e1, chain); // from e.last to e1.first
+			if (chain.size() >= 2)
+			{
+				for (SizeT i = 1; i != chain.size(); ++i)
+					emit(Add(b, chain[i - 1]), Add(b, chain[i]));
+				continue;
+			}
+		}
+		if (e.last != e1.first)
+		{
+			emit(Add(b, e.last), b);
+			emit(b, Add(b, e1.first));
+		}
 	}
 }
 
@@ -506,8 +520,9 @@ bool dms_frame_and_clean(DmsOverlayEngine<P>& engine, const R& geometry, Float64
 }
 
 // The sum of the engine's rings (shifted by `shift`) and a support: the convex shortcut when the
-// element is one convex shell and its outline comes out simple on the lattice, the sweep over all
-// pieces otherwise. Stores into res.
+// element is one convex shell and its outline comes out simple on the lattice, otherwise the sweep
+// over the offset curves of its rings, whose winding number is the coverage count P + pieces.
+// Stores into res.
 template <typename P, typename E, typename Support>
 void dms_sum_rings(DmsMinkowskiWorker<P>& w, E&& res, const Support& support, const GPoint& shift
 	, std::vector<typename Support::Edge>& edges)
@@ -524,9 +539,8 @@ void dms_sum_rings(DmsMinkowskiWorker<P>& w, E&& res, const Support& support, co
 	w.bag.clear();
 	for (const auto& ring : rings)
 	{
-		dms_append_ring(w.bag, ring.pts, shift, +1);         // P itself
 		dms_shifted_ring(ring.pts, shift, true, w.ring);     // its material on the left
-		dms_append_pieces(w.bag, w.ring, support, +1, edges, w.chain);
+		dms_append_offset_curve(w.bag, w.ring, support, +1, edges, w.chain);
 	}
 	if (w.engine.ThresholdBag(w.bag, 1))
 		w.engine.Store(std::forward<E>(res));
@@ -534,7 +548,10 @@ void dms_sum_rings(DmsMinkowskiWorker<P>& w, E&& res, const Support& support, co
 
 // The erosion of the engine's rings A by a support given for the reflected kernel and shifted by
 // `shift` (the c of the header comment, reflected): A n (A + shift) minus the pieces of the
-// complement of A + shift. Stores into res.
+// complement of A + shift. The complement's offset curve, generated on A's rings in their stored
+// orientation and run backwards, has winding number 1_{A + shift} - (the number of pieces), so the
+// count is that alone when the shift is zero, threshold 1, and A plus it otherwise, threshold 2.
+// Stores into res.
 template <typename P, typename E, typename Support>
 void dms_erode_rings(DmsMinkowskiWorker<P>& w, E&& res, const Support& support, const GPoint& shift
 	, std::vector<typename Support::Edge>& edges)
@@ -545,11 +562,10 @@ void dms_erode_rings(DmsMinkowskiWorker<P>& w, E&& res, const Support& support, 
 	w.bag.clear();
 	for (const auto& ring : rings)
 	{
-		dms_append_ring(w.bag, ring.pts, Origin(), +1);      // A
 		if (shifted)
-			dms_append_ring(w.bag, ring.pts, shift, +1);     // A + shift
-		dms_shifted_ring(ring.pts, shift, false, w.ring);    // the complement on the left
-		dms_append_pieces(w.bag, w.ring, support, -1, edges, w.chain);
+			dms_append_ring(w.bag, ring.pts, Origin(), +1);  // A
+		dms_shifted_ring(ring.pts, shift, false, w.ring);    // the complement of A + shift on the left
+		dms_append_offset_curve(w.bag, w.ring, support, -1, edges, w.chain);
 	}
 	if (w.engine.ThresholdBag(w.bag, shifted ? 2 : 1))
 		w.engine.Store(std::forward<E>(res));

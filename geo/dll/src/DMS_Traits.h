@@ -332,6 +332,14 @@ inline bool LexLess(const GPoint& p, const GPoint& q)
 	return p.X() < q.X() || (p.X() == q.X() && p.Y() < q.Y());
 }
 
+// LexLess as a function object, for std::sort and std::lower_bound: handed the function itself, they
+// call it through a pointer that the compiler does not inline: the sort of the hot pixels took 8 of
+// 46 stack samples of dms_buffer_multi_polygon on building outlines (#1302).
+struct LexLessFn
+{
+	bool operator()(const GPoint& p, const GPoint& q) const { return LexLess(p, q); }
+};
+
 inline int  Sign(Int64 v) { return (v > 0) - (v < 0); }
 inline bool WithinFastLimit(Int64 v) { return v > -FAST_LIMIT && v < FAST_LIMIT; }
 
@@ -506,7 +514,7 @@ inline bool SegmentMeetsPixel(const GPoint& a, const GPoint& b, const GPoint& c)
 
 inline void SortUnique(std::vector<GPoint>& pts)
 {
-	std::sort(pts.begin(), pts.end(), LexLess);
+	std::sort(pts.begin(), pts.end(), LexLessFn());
 	pts.erase(std::unique(pts.begin(), pts.end()), pts.end());
 }
 
@@ -1013,12 +1021,23 @@ private:
 	// is ordered by pixel column in the segment's x direction and by row within a column: pixels are
 	// disjoint and a segment is monotone in both axes, so this is the order along the segment, and
 	// the segment's own endpoints are its first and last pixel.
+	//
+	// The candidate pixels of a segment are those whose centre lies within one unit of its bounding
+	// box; SegmentMeetsPixel decides exactly, so how the candidates are found changes nothing. Over
+	// many hot pixels a quadtree finds them; over few, as for the one element of a Minkowski sum or
+	// a buffer, building it costs more than the queries save (8 of 46 stack samples of
+	// dms_buffer_multi_polygon on building outlines were in the index, #1302), and the pixels,
+	// sorted as they are by (x, y), are scanned over the segment's column range instead.
+	static constexpr SizeT MAX_HOT_FOR_SCAN = 256;
+
 	bool SnapSegments(std::vector<Segment>& segs)
 	{
 		if (m_Hot.empty())
 			return false;
 
-		m_Index.Rebuild(m_Hot.data(), m_Hot.data() + m_Hot.size());
+		bool useIndex = m_Hot.size() > MAX_HOT_FOR_SCAN;
+		if (useIndex)
+			m_Index.Rebuild(m_Hot.data(), m_Hot.data() + m_Hot.size());
 		const PointIndex& index = m_Index;
 
 		m_Next.clear();
@@ -1031,22 +1050,34 @@ private:
 			int sx = Sign(dx), sy = Sign(dy);
 
 			GRect box(s.a, s.b);
-			// the index tests point leaves half-open against the search box; one more unit above
-			GRect query(
-				MakeGPoint(box.first.X() - 1, box.first.Y() - 1),
-				MakeGPoint(box.second.X() + 2, box.second.Y() + 2)
-			);
 
 			m_Keys.clear();
-			for (PointIter it = index.begin(query); it; ++it)
+			auto consider = [this, &s, sx, sy](const GPoint& c)
 			{
-				const GPoint& c = *(*it)->get_ptr();
 				if (!SegmentMeetsPixel(s.a, s.b, c))
-					continue;
+					return;
 				if (sx)
 					m_Keys.push_back(PixelKey{ sx * c.X(), sy * c.Y(), c });
 				else
 					m_Keys.push_back(PixelKey{ sy * c.Y(), 0, c });
+			};
+			if (useIndex)
+			{
+				// the index tests point leaves half-open against the search box; one more unit above
+				GRect query(
+					MakeGPoint(box.first.X() - 1, box.first.Y() - 1),
+					MakeGPoint(box.second.X() + 2, box.second.Y() + 2)
+				);
+				for (PointIter it = index.begin(query); it; ++it)
+					consider(*(*it)->get_ptr());
+			}
+			else
+			{
+				Int64 xHi = box.second.X() + 1, yLo = box.first.Y() - 1, yHi = box.second.Y() + 1;
+				auto it = std::lower_bound(m_Hot.begin(), m_Hot.end(), MakeGPoint(box.first.X() - 1, std::numeric_limits<Int64>::min()), LexLessFn());
+				for (auto ie = m_Hot.end(); it != ie && it->X() <= xHi; ++it)
+					if (it->Y() >= yLo && it->Y() <= yHi)
+						consider(*it);
 			}
 			std::sort(m_Keys.begin(), m_Keys.end(), [](const PixelKey& l, const PixelKey& r)
 				{
@@ -1071,7 +1102,7 @@ private:
 
 	std::vector<GPoint>   m_Hot;   // sorted and unique between rounds
 	CrossingSweep         m_Sweep;
-	PointIndex            m_Index; // over m_Hot, rebuilt per round; kept for its capacity
+	PointIndex            m_Index; // over m_Hot when it is large, rebuilt per round; kept for its capacity
 	std::vector<Segment>  m_Next;
 	std::vector<PixelKey> m_Keys;
 };
@@ -1444,7 +1475,7 @@ struct Polygonizer
 private:
 	UInt32 FindVertex(const GPoint& p) const
 	{
-		auto it = std::lower_bound(m_Vertices.begin(), m_Vertices.end(), p, LexLess);
+		auto it = std::lower_bound(m_Vertices.begin(), m_Vertices.end(), p, LexLessFn());
 		// In a Release build a miss here used to map the point to whatever vertex sorts next and
 		// let the walk run on from the wrong place; the failures that followed named nothing.
 		MG_CHECK2(it != m_Vertices.end() && *it == p, "dms overlay: a boundary edge ends at a vertex where no boundary edge begins");
@@ -1731,7 +1762,7 @@ struct DmsOverlayEngine
 			return false;
 
 		m_SingleSorted.assign(pts.begin(), pts.end());
-		std::sort(m_SingleSorted.begin(), m_SingleSorted.end(), LexLess);
+		std::sort(m_SingleSorted.begin(), m_SingleSorted.end(), LexLessFn());
 		if (std::adjacent_find(m_SingleSorted.begin(), m_SingleSorted.end()) != m_SingleSorted.end())
 			return false; // a vertex visited twice: more than one ring, or one that touches itself
 		if (!IsSimpleRing(pts))
