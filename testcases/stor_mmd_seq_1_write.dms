@@ -1,0 +1,51 @@
+// The .seq file of a sequence attribute in an MMD store, after the write has cut it back (issues
+// #1280 and #1294). A stored pool grows by doubling, and in a domain of more than one tile the chunk
+// of a tile moves to a free place in the .seq file when it outgrows its place, leaving the old chunk
+// behind, full of the bytes it held. Those were never given back: a string or geometry attribute took
+// up to twice its content on disk, and two writes of the same values gave different files, since which
+// chunk moved where depends on the order in which the tiles were written.
+//
+// Since #1280 the write ends with a seal: when the file holds one byte or more that no sequence refers
+// to, a domain of one tile is truncated to its pool, and any other domain gets its .seq written afresh,
+// the chunk table first and then the pools of the tiles back to back in tile order. Both put the pools
+// at places that differ from where the writing left them, which is what this pair pins: a seal that
+// recorded a wrong offset or a wrong length reads back as wrong values, or not at all.
+//
+//   def    the default tiling, 200,000 strings in 4 tiles, with empty strings among them, and an arc
+//          per element, both copied element by element, so that every tile pool grows and moves
+//   one    one tile over the same range: a .seq without a chunk table, which the seal truncates
+//
+// This config only WRITES the store; stor_mmd_seq_2_read.dms reads it back and checks it. THE TWO
+// BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file name, and
+// the `_1_write` / `_2_read` in the names is what orders them. The file sizes themselves are not checked
+// here, a configuration cannot see them; the issue debrief of #1280 records them.
+container stor_mmd_seq_1_write
+{
+	unit<uint32> base := range(uint32, 0, 200000);
+
+	unit<uint32> dom_def := range(uint32, 0, 200000); // default tiling: 4 tiles
+	unit<uint32> dom_one := TiledUnit(200000[base]);   // exactly 1 tile
+
+	attribute<string> s_def (dom_def) := iif(id(dom_def) % 13 == 0, '', 'rij_' + string(id(dom_def)) + repeat('x', id(dom_def) % 37));
+	attribute<string> s_one (dom_one) := iif(id(dom_one) % 13 == 0, '', 'rij_' + string(id(dom_one)) + repeat('x', id(dom_one) % 37));
+
+	unit<uint32> pts := range(uint32, 0, 600000)
+	{
+		attribute<dpoint>  p   := point_xy(float64(id(.)), float64(id(.) % 7), dpoint);
+		attribute<dom_def> seq := value(id(.) / 3, dom_def);
+	}
+	attribute<dpoint> line_def (arc, dom_def) := points2sequence(pts/p, pts/seq);
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_seq.mmd"
+	{
+		unit<uint32> def := dom_def
+		{
+			attribute<string> s          := s_def;
+			attribute<dpoint> line (arc) := line_def;
+		}
+		unit<uint32> one := dom_one
+		{
+			attribute<string> s := s_one;
+		}
+	}
+}

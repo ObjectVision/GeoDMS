@@ -13,6 +13,10 @@
 #include "vt/IndexRange.h"
 #include "ser/FileCreationMode.h"
 
+#include <atomic>
+#include <functional>
+#include <mutex>
+
 // the following define should clean-up resources of Closed FileMap Handles by Closing the file
 #define DMS_CLOSING_UNMAP
 
@@ -111,11 +115,25 @@ struct MappedFileHandle : FileHandle
 
 	void MapFile(bool alsoWrite);
 
+	// #1280: the seal of a stored sequence pool ends the write of its .seq file. It closes the file, after
+	// cutting it to newSize or after putting a compacted copy in its place; no view may be mapped then. The
+	// first view that is mapped after it opens the file again, for reading.
+	void TruncateAndClose(dms::filesize_t newSize);
+	void ReplaceByAndClose(WeakStr replacementFileName);
+	void ReopenIfClosed(bool alsoWrite);
+
 	WinHandle m_hFileMapping;
 	std::shared_mutex m_ResizeMutex;
 
 	std::unique_ptr< mempage_table > m_MemPageAllocTable;
 	dms::filesize_t m_AllocatedSize = 0;
+
+private:
+	void CloseForReopen();
+
+	std::atomic<bool> m_ClosedForReopen = false;
+	std::mutex        m_ReopenMutex;
+public:
 
 	MappedFileHandle(const MappedFileHandle&&) = delete;
 	MappedFileHandle(MappedFileHandle&&) = delete;
@@ -124,6 +142,19 @@ struct MappedFileHandle : FileHandle
 };
 
 void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOnly, tile_id tn);
+
+// #1280: writes fileName afresh as the compact .seq file of tn tiles: for more than one tile the chunk table,
+// then the pools of the tiles back to back in tile order, each with a capacity equal to its size.
+// writeTile(t, dst) writes the tileBytes[t] bytes of tile t to dst.
+void WriteCompactSeqFile(WeakStr fileName, tile_id tn, const dms::filesize_t* tileBytes, const std::function<void(tile_id, char*)>& writeTile);
+
+// Whether the pool of a domain of one tile, which has no chunk table, stays at offset 0 when it grows. The
+// Linux allocChunk puts every grown pool at the end of the file (#1297).
+#if defined(WIN32)
+constexpr bool SingleChunkGrowsInPlace = true;
+#else
+constexpr bool SingleChunkGrowsInPlace = false;
+#endif
 
 
 struct ConstMappedFileHandle : MappedFileHandle

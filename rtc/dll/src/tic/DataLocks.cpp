@@ -393,6 +393,8 @@ TIC_CALL void DataWriteLock::Commit()
 	MG_CHECK(adi);
 	assert(!m_adi);
 
+	get()->FinishWrite(); // still under this write lock: no reader maps a tile yet
+
 	adi->m_DataObject = std::move(*this); // move from Writable to const
 	assert(adi->m_DataObject);
 	assert(!get());

@@ -18,6 +18,7 @@
 #include "dbg/DebugCast.h"
 #include "mem/FixedAlloc.h"
 #include "mem/tiledata.h"
+#include "ser/FileMapHandle.h"
 
 #include <memory>
 #include <mutex>
@@ -122,10 +123,19 @@ struct FileTileArray : GeneratedTileFunctor<V>
 		return resident;
 	}
 
+	void FinishWrite() override;
+
 	SharedStr m_CacheFileName;
 	files_t m_Files;
 	// No m_IsTmp here: the ctor hands isTmp straight to MappedFileHandle::OpenRw, which owns the
 	// delete-on-close semantics (see ser/FileMapHandle.h).
+
+	// The .seq file of a sequence attribute that was opened for writing, which FinishWrite seals (#1280).
+	std::shared_ptr<MappedFileHandle> m_SeqFile;
+
+private:
+	void SealSequences();
+	void ResetSeqProvider(tile_id t, dms::filesize_t offset, SizeT nrElems);
 };
 
 //----------------------------------------------------------------------
@@ -302,6 +312,9 @@ auto HeapSingleValue<V>::GetTile(tile_id t) const -> locked_cseq_t
 
 #include "mem/MappedSequenceProvider.h"
 #include "vt/mpf.h"
+#include "dbg/debug.h"
+#include "dbg/DmsCatch.h"
+#include "utl/FileSystem.h"
 #include "utl/splitPath.h"
 #include "utl/StrFormat.h"
 
@@ -488,8 +501,124 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
+		m_SeqFile = std::move(mfh_sequences);
 	}
 	m_Files = std::move(seqs);
+}
+
+template <typename V>
+void FileTileArray<V>::FinishWrite()
+{
+	if constexpr (!has_fixed_elem_size_v<V>)
+		if (m_SeqFile)
+			SealSequences();
+}
+
+// #1280, #1294: a stored pool grows by doubling, and in a domain of more than one tile its chunk also moves
+// to a free place in the .seq file when it outgrows its place, leaving the old chunk behind. Once the write
+// is done, the file is cut back to what the sequences refer to, whenever it holds even one byte more: a pool
+// of a domain of one tile that never moved is truncated, any other file is written afresh, chunk table first
+// and then the pools in tile order without the abandoned elements, which also gives the same bytes for the
+// same values. A file without waste is left as it is, whatever the order of its chunks and of the sequences
+// in them. A failure before the new file is in place keeps the old one, which is complete, and only warns.
+template <typename V>
+void FileTileArray<V>::SealSequences()
+{
+	using elem_type = elem_of_t<V>;
+	using seq_t = typename file_tile<V>::seq_t;
+
+	tile_id tn = this->GetTiledRangeData()->GetNrTiles();
+	if (!tn)
+		return;
+	if (tn > 1 && !m_SeqFile->m_MemPageAllocTable)
+		return; // no chunk table: the Linux allocation, which puts every grown chunk at the end (#1297)
+
+	for (tile_id t = 0; t != tn; ++t)
+		if (m_Files[t].m_NrMappedFileTiles)
+		{
+			reportF(SeverityTypeID::ST_MajorTrace, "{} is not sealed: tile {} is still mapped when its write ends", m_SeqFile->GetFileName().c_str(), t);
+			return;
+		}
+
+	std::vector<SizeT> nrElems(tn);
+	std::vector<bool>  isDirty(tn);
+	dms::filesize_t usedBytes = (tn > 1) ? MinimalSeqFileSize(tn) : 0; // a domain of one tile has no chunk table
+	for (tile_id t = 0; t != tn; ++t)
+	{
+		auto mappedTile = m_Files[t].get(this, dms_rw_mode::read_only);
+		nrElems[t] = m_Files[t].count_actual_data_size();
+		isDirty[t] = (nrElems[t] != m_Files[t].data_size());
+		usedBytes += nrElems[t] * sizeof(elem_type);
+	}
+	if (usedBytes == m_SeqFile->GetFileSize())
+		return;
+
+	if (tn == 1 && !isDirty[0] && SingleChunkGrowsInPlace)
+	{
+		try {
+			m_SeqFile->TruncateAndClose(usedBytes);
+		}
+		catch (...)
+		{
+			auto err = catchException(true);
+			reportF(SeverityTypeID::ST_Warning, "{} is not cut back to the {} bytes its sequences use: {}", m_SeqFile->GetFileName().c_str(), usedBytes, err->Why().c_str());
+			return;
+		}
+		ResetSeqProvider(0, 0, nrElems[0]);
+		return;
+	}
+
+	std::vector<dms::filesize_t> tileBytes(tn);
+	for (tile_id t = 0; t != tn; ++t)
+		tileBytes[t] = nrElems[t] * sizeof(elem_type);
+
+	// the new index ranges of a pool with abandoned elements; written only once the new file is in place
+	std::vector<std::vector<seq_t>> newIndices(tn);
+
+	auto seqFileName = m_SeqFile->GetFileName();
+	auto tmpFileName = seqFileName + ".tmp";
+	try {
+		WriteCompactSeqFile(tmpFileName, tn, tileBytes.data(), [this, &isDirty, &newIndices](tile_id t, char* dst)
+			{
+				auto& file = m_Files[t];
+				auto mappedTile = file.get(this, dms_rw_mode::read_only);
+				auto dstElems = reinterpret_cast<elem_type*>(dst);
+				if (isDirty[t])
+				{
+					newIndices[t].resize(file.size());
+					file.compact_to(dstElems, newIndices[t].data());
+				}
+				else
+					fast_copy(file.data_begin(), file.data_end(), dstElems);
+			}
+		);
+		m_SeqFile->ReplaceByAndClose(tmpFileName);
+	}
+	catch (...)
+	{
+		auto err = catchException(true);
+		reportF(SeverityTypeID::ST_Warning, "{} is not compacted to the {} bytes its sequences use: {}", seqFileName.c_str(), usedBytes, err->Why().c_str());
+		KillFileOrDir(tmpFileName, false);
+		return;
+	}
+
+	dms::filesize_t offset = (tn > 1) ? MinimalSeqFileSize(tn) : 0;
+	for (tile_id t = 0; t != tn; ++t)
+	{
+		ResetSeqProvider(t, offset, nrElems[t]);
+		offset += tileBytes[t];
+	}
+	for (tile_id t = 0; t != tn; ++t)
+		if (isDirty[t])
+			m_Files[t].set_indices(newIndices[t].data());
+}
+
+// the pool of tile t now lies at offset in the sealed .seq file and fills its capacity
+template <typename V>
+void FileTileArray<V>::ResetSeqProvider(tile_id t, dms::filesize_t offset, SizeT nrElems)
+{
+	using elem_type = elem_of_t<V>;
+	m_Files[t].ResetValuesAllocator(new mappable_sequence<elem_type>(m_SeqFile, t, nrElems, offset, nrElems * sizeof(elem_type)), nrElems);
 }
 
 template <typename V>
