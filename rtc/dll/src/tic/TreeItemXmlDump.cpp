@@ -13,6 +13,7 @@
 
 #include "TreeItem.h"
 #include "TreeItemFunctionSpec.h"
+#include "UsingCache.h" // TIC-A35: DMS_WriteFunctionUsings reads the cache without resolving it
 //----------------------------------------------------------------------
 // used modules and forward class references
 //----------------------------------------------------------------------
@@ -210,8 +211,9 @@ void DMS_WriteDomainSuffix(OutStreamBase& out, const TreeItem* item)
 		if (vc == ValueComposition::Single)
 		{
 			// source token absent (e.g. some geometry/sequence attributes): fall back to the
-			// resolved domain's script name so the domain is not silently dropped
-			auto adu = adi->GetAbstrDomainUnit();
+			// resolved domain's script name so the domain is not silently dropped; the domain as
+			// resolved so far, as DomainUnitPropDef::GetRawValue reads it (TIC-A35, #1268)
+			auto adu = adi->GetCurrDomainUnit();
 			if (!adu)
 				return; // truly unresolved (an in-template generic domain) -> implicit
 			dt = adu->GetScriptName(item);
@@ -272,24 +274,34 @@ void DMS_WriteFunctionParam(OutStreamBase& out, const TreeItem* fn, const TreeIt
 		for (const TreeItem* m = param->_GetFirstSubItem(); m; m = m->GetNextItem())
 		{
 			DMS_WriteTypedItem(out, m);
-			if (IsDataItem(m) && !m->GetExpr().empty()) { out << " := "; out << SharedStr(m->GetExpr()).c_str(); }
+			if (IsDataItem(m) && !m->GetExprMember().empty()) { out << " := "; out << m->GetExprMember().c_str(); } // the stored rule: GetExpr runs the parent's UpdateMetaInfo (TIC-A35)
 			out << "; ";
 		}
 		out << "}";
 	}
 }
 
+// TIC-A35: the usings as UsingPropDef::GetRawValue reads them (#1268), the namespaces resolved so far and then the
+// urls not resolved yet, as configured. GetNrNamespaceUsages resolved them first (UsingCache::UpdateUsings); a using
+// that did not resolve threw there, and the whole function was dumped as an "ERROR dumping" comment, which a reload
+// of the dump fails on, where an ordinary item is written with its configured using.
 void DMS_WriteFunctionUsings(OutStreamBase& out, const TreeItem* fn)
 {
-	UInt32 n = fn->GetNrNamespaceUsages();
-	for (UInt32 i = 0; i != n; ++i)
+	if (!fn->CurrHasUsingCache())
+		return;
+	auto uc = fn->GetUsingCache();
+	for (UInt32 i = 0, n = uc->GetNrCurrUsings(); i != n; ++i)
 	{
-		auto ns = fn->GetNamespaceUsage(i);
+		auto ns = uc->GetCurrUsing(i); // null for an expired using entry
 		if (ns && !ns->DoesContain(fn))
 		{
 			SharedStr nsName(ns->GetScriptName(fn));
 			if (!nsName.empty()) { out << ", using = "; out << nsName.c_str(); }
 		}
+	}
+	for (auto url : uc->UsingUrls())
+	{
+		out << ", using = "; out << SharedStr(url).c_str();
 	}
 }
 

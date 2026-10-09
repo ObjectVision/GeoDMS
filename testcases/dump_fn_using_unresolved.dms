@@ -1,0 +1,13 @@
+// TIC-A35: a function whose using does not resolve, and which nothing applies, is dumped with its using as configured.
+// The function-declaration writer resolved the usings while it wrote, which threw here, and @dumpconfig put an "ERROR
+// dumping Twice" comment after a header without its result, which a reload fails on: run_roundtrip.bat catches that.
+container dump_fn_using_unresolved
+{
+	unit<uint32> Road: nrofrows = 2;
+	attribute<float64> flow (Road): [1.0, 3.0];
+	function Twice(attribute<float64> x (Road)), using = nowhere -> attribute<float64> (Road) := x * 2.0;
+	container checks
+	{
+		parameter<float64> c := sum(flow), IntegrityCheck = "c == 4.0";
+	}
+}
