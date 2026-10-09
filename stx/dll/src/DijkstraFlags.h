@@ -97,6 +97,9 @@ enum class DijkstraFlag : UInt64
 	Imp2Cut          = 0x80'0000, // pareto(OrgZone_max_imp2): extra argument bounding the second criterion.
 	Imp2Epsilon      = 0x2000'0000, // pareto(imp2_epsilon): extra argument, the relative epsilon of the second criterion, a fraction from 0 to 1 (#1282).
 
+	// Time-dependent link impedances -- issue #1304
+	TimeDependent    = 0x4000'0000, // timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time): four extra arguments; a link's impedance depends on the time at which a route enters it.
+
 	// OD relative outputs
 	ProdOdOrgZone_rel    = 0x100'0000, // Output: origin zone (per OD pair).
 	ProdOdDstZone_rel    = 0x200'0000, // Output: destination zone (per OD pair).

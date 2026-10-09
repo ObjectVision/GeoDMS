@@ -1,0 +1,227 @@
+container fn_test_od_timedep
+{
+	// timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time) (#1304): the
+	// link impedance is the impedance at free flow, and a link with a profile is ridden at the speed
+	// of the time slots in which the route rides it, relative to free flow. The time of entering a
+	// link is the departure time plus the impedance up to the node it leaves.
+	//
+	// Four profiles of four slots of 10 time units each, so a day of 40 that repeats; one factor per
+	// profile and slot, profile-major, the order combine(Profile, Slot) gives:
+	//   0 step: 1, 0.25, 1,    1      one slow slot: the FIFO test
+	//   1 jam:  1, 0.25, 0.25, 1      two slow slots: the route switch
+	//   2 flat: 1, 1,    1,    1      must give the fixed impedance exactly
+	//   3 half: 0.5 throughout        must give the fixed impedance / 0.5 exactly
+	unit<uint32> Profile : nrofrows = 4;
+	unit<uint32> Slot    : nrofrows = 4;
+	unit<uint32> ProfileSlot := combine(Profile, Slot)
+	{
+		attribute<float64> factor := union_data(.
+			, 1.0, 0.25, 1.0,  1.0
+			, 1.0, 0.25, 0.25, 1.0
+			, 1.0, 1.0,  1.0,  1.0
+			, 0.5, 0.5,  0.5,  0.5);
+	}
+	parameter<float64> SlotDuration := 10.0;
+	unit<float64> s := BaseUnit('s', float64); // the impedance unit of container route
+
+	// FIFO: one link of 10 at free flow on profile step, entered at a range of departure times around
+	// the slow slot from 10 to 20. A route that enters at 8 covers 2 at full speed, 2.5 in the slow
+	// slot and the last 5.5 from 20 on: 17.5, out at 25.5. Taking the speed at the time of entering
+	// for the whole link would let an entry at 9.9 leave at 19.9 and one at 10 at 50, and one at 19
+	// leave at 59 while one at 20 leaves at 30: that is what the integral over the slots prevents.
+	// The last departure, 45, lies in the second day and must equal the one at 5.
+	container fifo
+	{
+		unit<uint32> Node : nrofrows = 2;
+		unit<uint32> Link : nrofrows = 1
+		{
+			attribute<Node>    N1_rel  : [0];
+			attribute<Node>    N2_rel  : [1];
+			attribute<float64> t       : [10.0];
+			attribute<uint32>  t_u     : [10];
+			attribute<Profile> profile_rel : [0];
+		}
+		unit<uint32> StartSet : nrofrows = 10
+		{
+			attribute<Node>    node_rel  := const(0, ., Node);
+			attribute<float64> departure : [0, 2, 5, 8, 10, 12, 15, 19, 20, 45];
+			attribute<uint32>  departure_u := uint32(departure);
+		}
+		unit<uint32> EndSet : nrofrows = 1 { attribute<Node> node_rel : [1]; }
+
+		unit<uint32> od := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure
+			)
+		{
+			attribute<float64> exit := StartSet/departure[OrgZone_rel] + impedance;
+		}
+
+		// uint32: the time on the link is rounded to whole units; the time of entering is whole, so the
+		// times of leaving stay in order
+		unit<uint32> od_u := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, Link/t_u, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, Link/profile_rel, ProfileSlot/factor, 10, StartSet/departure_u
+			)
+		{
+			attribute<uint32> exit := StartSet/departure_u[OrgZone_rel] + impedance;
+		}
+	}
+
+	// The route switch, in seconds: route A, 0 -> 1 -> 3, is 20 at free flow, but its first link is on
+	// profile jam; route B, 0 -> 2 -> 3, is 25 and has no profiles (null). Leaving at 0, A enters the
+	// jam-free first slot and takes 20. Leaving at 5, A covers 5 before 10 and the other 5 at a quarter
+	// of the speed, 20 more: 35, so B is faster. Leaving at 30, A is free again: 20.
+	// viaA marks the first link of A, so alt_imp says which route was taken.
+	container route
+	{
+		unit<uint32> Node : nrofrows = 4;
+		unit<uint32> Link : nrofrows = 4
+		{
+			attribute<Node>    N1_rel  : [0, 1, 0, 2];
+			attribute<Node>    N2_rel  : [1, 3, 2, 3];
+			attribute<s>       t       : [10, 10, 15, 10];
+			attribute<float64> viaA   : [1, 0, 0, 0];
+			attribute<float64> cost   : [5, 0, 1, 0];
+			attribute<Profile> profile_rel : [1, null, null, null];
+
+			// the same network on profiles that reduce to fixed impedances, and those impedances
+			attribute<Profile> profile_fixed_rel : [3, 2, null, 3];
+			attribute<s>       t_fixed       : [20, 10, 15, 20];
+		}
+		unit<uint32> StartSet : nrofrows = 3
+		{
+			attribute<Node> node_rel  := const(0, ., Node);
+			attribute<s>    departure : [0, 5, 30];
+		}
+		unit<uint32> EndSet : nrofrows = 1 { attribute<Node> node_rel : [3]; }
+		parameter<s> SlotDuration := 10[s];
+
+		unit<uint32> od := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';alternative(link_imp):alt_imp'
+			  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, Link/viaA
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure
+			);
+
+		// the sparse two-pass: with a cut of 22 the departure at 5 reaches nothing, and the counting
+		// pass must replay the same time-dependent searches as the filling pass
+		unit<uint32> od_cut := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp)'
+			  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, const(22[s], StartSet)
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure
+			);
+
+		// pareto on (time, cost): leaving at 0 the front is A (20, 5) and B (25, 1); leaving at 5, A
+		// (35, 5) is dominated by B (25, 1), one row; leaving at 30 the front of 0 again
+		unit<uint32> od_pareto := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto'
+			  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, const(100[s], StartSet)
+			, Link/cost
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure
+			);
+
+		// impedance_table: one origin, so the departure time is a parameter
+		unit<uint32> Origin : nrofrows = 1 { attribute<Node> node_rel : [0]; }
+		attribute<s> table (Node) := impedance_table(
+			  'directed;startPoint(Node_rel)'
+			  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, Origin/node_rel
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, 5[s]
+			);
+
+		// profiles flat and half against the fixed impedances t / factor: the same impedances exactly,
+		// whatever the departure time
+		unit<uint32> od_fixed_td := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, Link/profile_fixed_rel, ProfileSlot/factor, SlotDuration, StartSet/departure + 7[s]
+			);
+		unit<uint32> od_fixed_ref := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';od:impedance'
+			, Link/t_fixed, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			);
+
+		// the signature walker with the four positions of timedependent() in a function body
+		function tdSum(
+			  attribute<s> w (Link); attribute<Node> fromNd (Link); attribute<Node> toNd (Link)
+			; attribute<Node> sr (StartSet); attribute<Node> er (EndSet)
+			; attribute<Profile> pr (Link); attribute<float64> f (ProfileSlot); parameter<s> sd; attribute<s> dep (StartSet))
+		-> parameter<s>
+		{
+			unit<uint32> od := impedance_matrix(
+				  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+				  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time);od:impedance'
+				, w, fromNd, toNd, sr, er, pr, f, sd, dep);
+			parameter<s> result := sum(od/impedance);
+		}
+		parameter<s> tdSumApplied := tdSum(
+			  Link/t, Link/N1_rel, Link/N2_rel, StartSet/node_rel, EndSet/node_rel
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure);
+	}
+
+	container checks
+	{
+		// FIFO, float64: per departure 0, 2, 5, 8, 10, 12, 15, 19, 20, 45
+		parameter<bool> fifo_imp  := all(fifo/od/impedance == union_data(fifo/od, 10.0, 16.0, 17.5, 17.5, 17.5, 16.0, 13.75, 10.75, 10.0, 17.5)), IntegrityCheck = "fifo_imp == true";
+		// the times of leaving never decrease with the time of entering
+		parameter<bool> fifo_exit := all(fifo/od/exit == union_data(fifo/od, 10.0, 18.0, 22.5, 25.5, 27.5, 28.0, 28.75, 29.75, 30.0, 62.5)), IntegrityCheck = "fifo_exit == true";
+		// uint32: 17.5, 13.75 and 10.75 rounded; leaving at 10, 18, 23, 26, 28, 28, 29, 30, 30
+		parameter<bool> fifo_imp_u  := all(fifo/od_u/impedance == union_data(fifo/od_u, 10, 16, 18, 18, 18, 16, 14, 11, 10, 18)), IntegrityCheck = "fifo_imp_u == true";
+		parameter<bool> fifo_exit_u := all(fifo/od_u/exit == union_data(fifo/od_u, 10, 18, 23, 26, 28, 28, 29, 30, 30, 63)), IntegrityCheck = "fifo_exit_u == true";
+
+		// route switch: A at 0 and 30, B at 5
+		parameter<bool> route_imp := all(route/od/impedance == union_data(route/od, 20[s], 25[s], 20[s])), IntegrityCheck = "route_imp == true";
+		parameter<bool> route_via := all(route/od/alt_imp   == union_data(route/od, 1.0, 0.0, 1.0)), IntegrityCheck = "route_via == true";
+
+		// cut 22: the departures at 0 and 30 only
+		parameter<uint32> cut_rows := #route/od_cut, IntegrityCheck = "cut_rows == 2";
+		parameter<bool>   cut_org  := all(uint32(route/od_cut/OrgZone_rel) == union_data(route/od_cut, 0, 2)), IntegrityCheck = "cut_org == true";
+		parameter<bool>   cut_imp  := all(route/od_cut/impedance == 20[s]), IntegrityCheck = "cut_imp == true";
+
+		// pareto: (20, 5), (25, 1) | (25, 1) | (20, 5), (25, 1)
+		parameter<uint32> p_rows := #route/od_pareto, IntegrityCheck = "p_rows == 5";
+		parameter<bool>   p_imp  := all(route/od_pareto/impedance == union_data(route/od_pareto, 20[s], 25[s], 25[s], 20[s], 25[s])), IntegrityCheck = "p_imp == true";
+		parameter<bool>   p_alt  := all(route/od_pareto/alt_imp   == union_data(route/od_pareto, 5.0, 1.0, 1.0, 5.0, 1.0)), IntegrityCheck = "p_alt == true";
+		parameter<bool>   p_org  := all(uint32(route/od_pareto/OrgZone_rel) == union_data(route/od_pareto, 0, 0, 1, 2, 2)), IntegrityCheck = "p_org == true";
+
+		// impedance_table leaving at 5: node 1 via the jam at 25, node 2 at 15, node 3 via B at 25
+		parameter<bool> table_imp := all(route/table == union_data(route/Node, 0[s], 25[s], 15[s], 25[s])), IntegrityCheck = "table_imp == true";
+
+		// flat and half: exactly the fixed impedances t / factor, 30 for each departure
+		parameter<bool> fixed_ref := all(route/od_fixed_ref/impedance == 30[s]), IntegrityCheck = "fixed_ref == true";
+		parameter<bool> fixed_td  := all(route/od_fixed_td/impedance  == 30[s]), IntegrityCheck = "fixed_td == true";
+
+		// through a function body: 20 + 25 + 20
+		parameter<bool> sig_sum := route/tdSumApplied == 65[s], IntegrityCheck = "sig_sum == true";
+	}
+}

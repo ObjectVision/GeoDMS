@@ -19,6 +19,8 @@
 //        - dstLimitRule: destination limiting
 //        - dstEuclidicRule: Euclidean filter
 //        - altLinkImpRule: alternative link impedance / attributes (+ production outputs)
+//        - paretoRule: bi-criteria search on (imp, alternative imp)
+//        - timeDependentRule: link impedances that depend on the time of entry
 //        - interactionRule: interaction model inputs (+ production outputs)
 //        - tbRule: traceback production
 //        - odRule: OD matrix related options + outputs
@@ -153,6 +155,15 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 				)
 			>> RBRACE);
 
+	// Time-dependent link impedances (issue #1304): the link impedance argument becomes the
+	// impedance at free flow, and a link with a profile is traversed at the relative speed of the
+	// time slots in which the route rides it, from the departure time plus the impedance up to its
+	// start. Four arguments follow, in this order: per link its row in the profile table (null = a
+	// fixed impedance), per profile and time slot the speed relative to free flow, the duration of
+	// a time slot, and the departure time per origin zone or for all.
+	boost::spirit::rule<>  timeDependentRule =
+		strlit<>("timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)")[AssignFlags(result, DijkstraFlag::TimeDependent)];
+
 	// Interaction model configuration + optional production outputs
 	boost::spirit::rule<>  interactionRule =
 		strlit<>("interaction")
@@ -223,6 +234,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		>> !(chlit<>(';') >> dstEuclidicRule)
 		>> !(chlit<>(';') >> altLinkImpRule)
 		>> !(chlit<>(';') >> paretoRule)
+		>> !(chlit<>(';') >> timeDependentRule)
 		>> !(chlit<>(';') >> interactionRule)
 		>> !(chlit<>(';') >> tbRule)
 		>> !(chlit<>(';') >> odRule)
