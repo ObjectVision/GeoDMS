@@ -556,7 +556,10 @@ bool IsCalculating(const TreeItem* item)
 	return false;
 }
 
-bool IsDataCurrCompleted(const TreeItem* item)
+// IsDataCurrCompleted without its side effect: the data object of a failed data item stays where it is. For the
+// assertions of OperationContext, which Release does not evaluate: through IsDataCurrCompleted, a Debug run dropped
+// data objects that a Release run kept, so the two builds went on from different states (A7).
+bool IsDataCurrCompletedAsIs(const TreeItem* item)
 {
 	assert(item);
 	assert(item->GetCurrRangeItem().get() == item);
@@ -568,10 +571,7 @@ bool IsDataCurrCompleted(const TreeItem* item)
 		if (!adi->m_DataObject.has_ptr())
 			return false;
 		if (adi->WasFailed(FailType::Data))
-		{
-			adi->m_DataObject.reset();
 			return false;
-		}
 	}
 	else if (IsUnit(item))
 	{
@@ -583,6 +583,15 @@ bool IsDataCurrCompleted(const TreeItem* item)
 		return item->GetIsInstantiated();
 
 	return true;
+}
+
+bool IsDataCurrCompleted(const TreeItem* item)
+{
+	if (IsDataCurrCompletedAsIs(item))
+		return true;
+	if (IsDataItem(item) && item->WasFailed(FailType::Data))
+		AsDataItem(item)->m_DataObject.reset(); // the data of a failed item goes; a question that produces, left as it was (A7)
+	return false;
 }
 
 bool IsDataCurrReady(const TreeItem* item)

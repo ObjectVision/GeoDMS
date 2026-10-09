@@ -94,6 +94,7 @@ Int32 GetItemLockCount(const TreeItem* item); // TreeItem::m_ItemLockCount; the 
 bool IsReadLocked(const TreeItem* item);
 bool IsCalculating(const TreeItem* item);
 bool IsDataCurrCompleted(const TreeItem* item);
+bool IsDataCurrCompletedAsIs(const TreeItem* item); // the same question, without resetting the data object of a failed item; for assertions
 TIC_CALL bool IsDataCurrReady(const TreeItem* item);
 TIC_CALL bool IsDataCurrStandby(const TreeItem* item);
 TIC_CALL bool IsDataReady(const TreeItem* item);

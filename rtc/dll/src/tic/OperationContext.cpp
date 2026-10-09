@@ -2487,7 +2487,7 @@ struct OC_CalcResultFunc {
 
 			failureProcessor();
 		}
-		assert(!self->m_FuncDC || IsDataCurrCompleted(self->m_Result->GetCurrUltimateItem().get()) || self->GetResult()->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
+		assert(!self->m_FuncDC || IsDataCurrCompletedAsIs(self->m_Result->GetCurrUltimateItem().get()) || self->GetResult()->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
 	}
 };
 
@@ -2719,7 +2719,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 			taskFunc(this, context); // run the payload functor, set by ScheduleItemWriter
 		auto resultItem = GetResult();
 		assert(resultItem);
-		assert(!m_FuncDC || IsDataCurrCompleted(resultItem->GetCurrUltimateItem().get()) || resultItem->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
+		assert(!m_FuncDC || IsDataCurrCompletedAsIs(resultItem->GetCurrUltimateItem().get()) || resultItem->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
 		if (!resultItem->Was(ProgressState::Validated))
 			resultItem->SetProgress(ProgressState::Validated);
 	}
@@ -2742,7 +2742,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 		ItemWriteLock localWriteLock;
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 
-		assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem().get()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FailType::Data) || (getStatus() == task_status::cancelled));
+		assert(!m_FuncDC || IsDataCurrCompletedAsIs(m_Result->GetCurrUltimateItem().get()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FailType::Data) || (getStatus() == task_status::cancelled));
 
 		localWriteLock = std::move(m_WriteLock);
 		assert(!m_WriteLock);
