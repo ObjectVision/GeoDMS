@@ -1,0 +1,205 @@
+// Pins dms_minkowski_sum and dms_minkowski_difference as #1301 rebuilt them: per element one clean
+// and one sweep over the pieces of DmsMinkowski.h (one per edge, one per convex corner), or for a
+// convex element no sweep at all, with convex kernels only.
+//
+// What this guards:
+// - Exact areas on integer coordinates, element by element, for a convex square (the shortcut
+//   without a sweep), an L (a reflex corner: the sweep), a square with a hole smaller than the
+//   kernel (which the sum must fill: the convolution cycle with the positive-winding rule, as
+//   #1301 first proposed, would bring it back) and a square with a hole larger than the kernel.
+// - The erosion, without the box the other backends invert within, on the same four.
+// - Agreement with GEOS and CGAL on float64 coordinates for the 4D, 8D and 16D kernels, for the
+//   sum and for the erosion.
+// - A size per element, a kernel per element, a kernel given counter-clockwise, and a kernel that
+//   does not contain the origin, for the sum (the elements shift by one of its lattice points) and
+//   for the erosion (the threshold of the sweep rises by one).
+// - A thousand elements, squares with collinear vertices and Ls in turn, so that the elements of
+//   the tile run in sixteen parallel blocks and the shortcut drops collinear vertices; and the same
+//   at Dutch RD coordinates with the 0.2 m octagon of BAG-Tools, where every frame spans 2^36 cells
+//   and the predicates take the 128-bit path.
+// - An undefined size gives an empty element, not a failure.
+//
+// The refusals of the star-shaped XHV and XD and of a kernel polygon that is not convex are the
+// _neg cases next to this one.
+//
+// Note on types: area() over an ipoint polygon yields int32, so every comparison on integer
+// coordinates goes through float64() first. Offline and cheap by design (testcases/ rule).
+container oper_dms_minkowski
+{
+	// ---- four elements, clockwise shells, counter-clockwise holes ------------------------
+	// 0: the square [0,100]^2
+	// 1: the L [200,260]x[0,20] with [200,220]x[0,60]
+	// 2: [400,500]x[0,100] with a 10 x 10 hole [445,455]x[45,55]
+	// 3: [600,700]x[0,100] with a 60 x 60 hole [620,680]x[20,80]
+	unit<uint32> G   : nrofrows = 4;
+	unit<uint32> GPt : nrofrows = 34;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100, 0,   200, 200, 220, 220, 260, 260, 200,   400, 400, 500, 500, 400, 445, 455, 455, 445, 445, 400,   600, 600, 700, 700, 600, 620, 680, 680, 620, 620, 600 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0, 0,   0, 60, 60, 20, 20, 0, 0,                0, 100, 100, 0, 0, 45, 45, 55, 55, 45, 0,                0, 100, 100, 0, 0, 20, 20, 80, 80, 20, 0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0, 0,       1, 1, 1, 1, 1, 1, 1,                    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3, 4,       0, 1, 2, 3, 4, 5, 6,                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];
+
+	attribute<ipoint> geom_i (G, polygon) := points2polygon(point_xy(gx, gy, ipoint), gseq, gord);
+	attribute<dpoint> geom_d (G, polygon) := points2polygon(point_xy(float64(gx), float64(gy), dpoint), gseq, gord);
+
+	// ---- kernels as polygons --------------------------------------------------------------
+	// one for the whole attribute: the 4HV square at size 10 given counter-clockwise (taken out of
+	// its row as it is, not through a dissolve that would turn it round), and the same square
+	// moved to [10,30]^2, which does not contain the origin, clockwise, since bp_minkowski_sum,
+	// the reference below, would read it as a hole otherwise
+	unit<uint32> KS  : nrofrows = 1;
+	unit<uint32> KPt : nrofrows = 4;
+	attribute<KS>     kseq (KPt) : [ 0, 0, 0, 0 ];
+	attribute<uint32> kord (KPt) : [ 0, 1, 2, 3 ];
+	attribute<int32>  kx   (KPt) : [ -10,  10,  10, -10 ];
+	attribute<int32>  ky   (KPt) : [ -10, -10,  10,  10 ];
+	attribute<ipoint> kernel_ccw_row (KS, polygon) := points2polygon(point_xy(kx, ky, ipoint), kseq, kord);
+	parameter<ipoint> kernel_ccw (polygon) := kernel_ccw_row[value(0, KS)];
+
+	attribute<int32>  ox   (KPt) : [ 10, 10, 30, 30 ];
+	attribute<int32>  oy   (KPt) : [ 10, 30, 30, 10 ];
+	attribute<ipoint> offkernel_row (KS, polygon) := points2polygon(point_xy(ox, oy, ipoint), kseq, kord);
+	parameter<ipoint> offkernel (polygon) := offkernel_row[value(0, KS)];
+
+	// one per element: size 10 for the squares and the holed squares, 5 for the L
+	unit<uint32> PKPt : nrofrows = 16
+	{
+		attribute<G>      seq := value(id(.) / 4, G);
+		attribute<uint32> ord := id(.) % 4;
+		attribute<int32>  s   := seq == value(1, G) ? 5i : 10i;
+		attribute<int32>  x   := (ord == 1 || ord == 2) ? s : -s;
+		attribute<int32>  y   := (ord == 0 || ord == 1) ? s : -s;
+	}
+	attribute<ipoint>  kernel_per_elem (G, polygon) := points2polygon(point_xy(PKPt/x, PKPt/y, ipoint), PKPt/seq, PKPt/ord);
+	attribute<float64> size_per_elem   (G) : [ 10, 5, 10, 10 ];
+	attribute<float64> size_some_undefined (G) : [ 10, null, 10, 10 ];
+
+	container checks
+	{
+		// ---- 1. exact sums on integer coordinates, element by element ---------------------
+		// [-10,110]^2 = 14400; the L as in oper_minkowski.dms, 4800; the small hole filled,
+		// [390,510]x[-10,110] = 14400; the large hole shrunk to [630,670]x[30,70], 14400 - 1600
+		attribute<float64> expected_sum (G) : [ 14400, 4800, 14400, 12800 ];
+		attribute<ipoint>  sum_4hv (G, polygon) := dms_minkowski_sum(geom_i, 10.0, '4HV');
+		parameter<bool>    sum_4hv_ok := all(float64(area(sum_4hv)) == expected_sum), IntegrityCheck = "sum_4hv_ok == true";
+
+		// ---- 2. exact erosions on integer coordinates --------------------------------------
+		// [5,95]^2 = 8100; the L 900 (oper_minkowski.dms); 8100 minus the hole grown to
+		// [440,460]x[40,60]; 8100 minus [615,685]x[15,85]
+		attribute<float64> expected_dif (G) : [ 8100, 900, 7700, 3200 ];
+		attribute<ipoint>  dif_4hv (G, polygon) := dms_minkowski_difference(geom_i, 5.0, '4HV');
+		parameter<bool>    dif_4hv_ok := all(float64(area(dif_4hv)) == expected_dif), IntegrityCheck = "dif_4hv_ok == true";
+
+		// a kernel wider than every element erodes all of them away
+		attribute<ipoint>  dif_all (G, polygon) := dms_minkowski_difference(geom_i, 60.0, '4HV');
+		parameter<bool>    dif_all_ok := sum(float64(area(dif_all))) == 0.0, IntegrityCheck = "dif_all_ok == true";
+
+		// ---- 3. agreement with GEOS and CGAL on float64 coordinates ----------------------
+		attribute<dpoint> sum_4d_dms   (G, polygon) := dms_minkowski_sum (geom_d, 10.0, '4D');
+		attribute<dpoint> sum_4d_geos  (G, polygon) := geos_minkowski_sum(geom_d, 10.0, '4D');
+		attribute<dpoint> sum_8d_dms   (G, polygon) := dms_minkowski_sum (geom_d, 10.0, '8D');
+		attribute<dpoint> sum_8d_geos  (G, polygon) := geos_minkowski_sum(geom_d, 10.0, '8D');
+		attribute<dpoint> sum_8d_cgal  (G, polygon) := cgal_minkowski_sum(geom_d, 10.0, '8D');
+		attribute<dpoint> sum_16d_dms  (G, polygon) := dms_minkowski_sum (geom_d, 10.0, '16D');
+		attribute<dpoint> sum_16d_geos (G, polygon) := geos_minkowski_sum(geom_d, 10.0, '16D');
+
+		parameter<float64> d_4d_geos  := sum(area(geos_xor(sum_4d_dms,  sum_4d_geos)));
+		parameter<float64> d_8d_geos  := sum(area(geos_xor(sum_8d_dms,  sum_8d_geos)));
+		parameter<float64> d_8d_cgal  := sum(area(geos_xor(sum_8d_dms,  sum_8d_cgal)));
+		parameter<float64> d_16d_geos := sum(area(geos_xor(sum_16d_dms, sum_16d_geos)));
+		parameter<bool> sum_geos_ok := d_4d_geos < 0.001 && d_8d_geos < 0.001 && d_16d_geos < 0.001, IntegrityCheck = "sum_geos_ok == true";
+		parameter<bool> sum_cgal_ok := d_8d_cgal < 0.001, IntegrityCheck = "sum_cgal_ok == true";
+
+		attribute<dpoint> dif_8d_dms  (G, polygon) := dms_minkowski_difference (geom_d, 5.0, '8D');
+		attribute<dpoint> dif_8d_geos (G, polygon) := geos_minkowski_difference(geom_d, 5.0, '8D');
+		attribute<dpoint> dif_8d_cgal (G, polygon) := cgal_minkowski_difference(geom_d, 5.0, '8D');
+		parameter<float64> e_8d_geos := sum(area(geos_xor(dif_8d_dms, dif_8d_geos)));
+		parameter<float64> e_8d_cgal := sum(area(geos_xor(dif_8d_dms, dif_8d_cgal)));
+		parameter<bool> dif_geos_ok := e_8d_geos < 0.001 && e_8d_cgal < 0.001, IntegrityCheck = "dif_geos_ok == true";
+
+		// ---- 4. a size per element, a kernel per element, a counter-clockwise kernel -------
+		// the L grown by 5: [195,265]x[-5,25] (2100) with [195,225]x[-5,65] (2100), overlapping in 900
+		attribute<float64> expected_per_elem (G) : [ 14400, 3300, 14400, 12800 ];
+		attribute<ipoint>  per_elem_size   (G, polygon) := dms_minkowski_sum(geom_i, size_per_elem, '4HV');
+		attribute<ipoint>  per_elem_kernel (G, polygon) := dms_minkowski_sum(geom_i, kernel_per_elem);
+		parameter<bool>    per_elem_ok := all(float64(area(per_elem_size)) == expected_per_elem) && all(float64(area(per_elem_kernel)) == expected_per_elem)
+			, IntegrityCheck = "per_elem_ok == true";
+
+		attribute<ipoint>  sum_ccw (G, polygon) := dms_minkowski_sum(geom_i, kernel_ccw);
+		parameter<bool>    ccw_ok  := sum(float64(area(dms_xor(sum_ccw, sum_4hv)))) == 0.0, IntegrityCheck = "ccw_ok == true";
+
+		// an undefined size leaves its element empty and the others as they were
+		attribute<ipoint>  sum_undef (G, polygon) := dms_minkowski_sum(geom_i, size_some_undefined, '4HV');
+		parameter<bool>    undef_ok  := sum(float64(area(sum_undef))) == 14400.0 + 14400.0 + 12800.0, IntegrityCheck = "undef_ok == true";
+
+		// ---- 5. a kernel that does not contain the origin --------------------------------
+		// the sum is the centred one moved by (20, 20): same area, other place, and exactly the
+		// translate, which bp_minkowski_sum computes independently on the elements without a
+		// hole smaller than the kernel
+		attribute<ipoint>  sum_off (G, polygon) := dms_minkowski_sum(geom_i, offkernel);
+		parameter<bool>    off_area_ok  := all(float64(area(sum_off)) == expected_sum), IntegrityCheck = "off_area_ok == true";
+		parameter<bool>    off_moved_ok := sum(float64(area(dms_xor(sum_off, sum_4hv)))) > 0.0, IntegrityCheck = "off_moved_ok == true";
+		attribute<ipoint>  sum_off_bp (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), offkernel);
+		attribute<float64> d_off_bp (G) := float64(area(dms_xor(sum_off, sum_off_bp)));
+		parameter<bool>    off_bp_ok := d_off_bp[value(0, G)] == 0.0 && d_off_bp[value(1, G)] == 0.0 && d_off_bp[value(3, G)] == 0.0, IntegrityCheck = "off_bp_ok == true";
+
+		// The erosion keeps A n { x : x + K in A }, as the other backends do. For the square
+		// and K = [10,30]^2 that is [-10,70]^2 n [0,100]^2 = [0,70]^2 = 4900; the L has no room
+		// for a 20 x 20 square away from its corner; bp agrees on every element.
+		attribute<ipoint>  dif_off    (G, polygon) := dms_minkowski_difference(geom_i, offkernel);
+		attribute<ipoint>  dif_off_bp (G, polygon) := bp_minkowski_difference(bp_polygon(geom_i), offkernel);
+		attribute<float64> a_dif_off  (G) := float64(area(dif_off));
+		parameter<bool>    dif_off_ok := a_dif_off[value(0, G)] == 4900.0 && a_dif_off[value(1, G)] == 0.0
+			&& sum(float64(area(dms_xor(dif_off, dif_off_bp)))) == 0.0
+			, IntegrityCheck = "dif_off_ok == true";
+	}
+
+	// ---- a thousand elements: sixteen parallel blocks --------------------------------------
+	// 40 per row, 20 apart; even ones the square [0,10]^2 with the collinear vertices (5,10) and
+	// (10,5), odd ones the L [0,10]x[0,5] with [0,5]x[0,10]
+	unit<uint32> Many : nrofrows = 1000;
+	unit<uint32> ManyPt : nrofrows = 7000
+	{
+		attribute<Many>   seq  := value(id(.) / 7, Many);
+		attribute<uint32> ord  := id(.) % 7;
+		attribute<bool>   isSq := uint32(seq) % 2 == 0;
+		attribute<int32>  dx   := (ord == 0 || ord == 1 || ord == 6) ? 0i : ord == 2 ? 5i : ord == 3 ? (isSq ? 10i : 5i) : 10i;
+		attribute<int32>  dy   := (ord == 0 || ord == 5 || ord == 6) ? 0i : (ord == 1 || ord == 2) ? 10i : ord == 3 ? (isSq ? 10i : 5i) : 5i;
+		attribute<int32>  x    := int32(uint32(seq) % 40) * 20i + dx;
+		attribute<int32>  y    := int32(uint32(seq) / 40) * 20i + dy;
+	}
+	attribute<ipoint> many_i (Many, polygon) := points2polygon(point_xy(ManyPt/x, ManyPt/y, ipoint), ManyPt/seq, ManyPt/ord);
+
+	// the same at RD coordinates in metres, as the panden of BAG-Tools
+	attribute<dpoint> many_rd (Many, polygon) := points2polygon(point_xy(155000.0 + float64(ManyPt/x), 463000.0 + float64(ManyPt/y), dpoint), ManyPt/seq, ManyPt/ord);
+
+	container many_checks
+	{
+		// a square grown by 1 is 12 x 12 = 144, an L 12 x 7 + 7 x 12 - 7 x 7 = 119; eroded by 1,
+		// 8 x 8 = 64 and 8 x 3 + 3 x 8 - 3 x 3 = 39
+		attribute<ipoint> sum_many (Many, polygon) := dms_minkowski_sum(many_i, 1.0, '4HV');
+		attribute<ipoint> dif_many (Many, polygon) := dms_minkowski_difference(many_i, 1.0, '4HV');
+		parameter<bool> sum_many_ok := sum(float64(area(sum_many))) == 500.0 * 144.0 + 500.0 * 119.0, IntegrityCheck = "sum_many_ok == true";
+		parameter<bool> dif_many_ok := sum(float64(area(dif_many))) == 500.0 * 64.0 + 500.0 * 39.0, IntegrityCheck = "dif_many_ok == true";
+
+		// the octagon of BAG-Tools at RD coordinates, against GEOS
+		attribute<dpoint> rd_dms  (Many, polygon) := dms_minkowski_sum (many_rd, 0.2, '8D');
+		attribute<dpoint> rd_geos (Many, polygon) := geos_minkowski_sum(many_rd, 0.2, '8D');
+		parameter<float64> d_rd := sum(area(geos_xor(rd_dms, rd_geos)));
+		parameter<bool> rd_ok := d_rd < 0.0001 && abs(sum(area(rd_dms)) - sum(area(rd_geos))) < 0.0001, IntegrityCheck = "rd_ok == true";
+
+		attribute<dpoint> rd_dif_dms  (Many, polygon) := dms_minkowski_difference (many_rd, 0.2, '8D');
+		attribute<dpoint> rd_dif_geos (Many, polygon) := geos_minkowski_difference(many_rd, 0.2, '8D');
+		parameter<float64> e_rd := sum(area(geos_xor(rd_dif_dms, rd_dif_geos)));
+		parameter<bool> rd_dif_ok := e_rd < 0.0001, IntegrityCheck = "rd_dif_ok == true";
+	}
+
+	container all_checks
+	{
+		parameter<bool> ok := checks/sum_4hv_ok && checks/dif_4hv_ok && checks/dif_all_ok && checks/sum_geos_ok && checks/sum_cgal_ok
+			&& checks/dif_geos_ok && checks/per_elem_ok && checks/ccw_ok && checks/undef_ok && checks/off_area_ok && checks/off_moved_ok
+			&& checks/off_bp_ok && checks/dif_off_ok
+			&& many_checks/sum_many_ok && many_checks/dif_many_ok && many_checks/rd_ok && many_checks/rd_dif_ok
+			, IntegrityCheck = "ok == true";
+	}
+}

@@ -142,6 +142,13 @@ inline auto MakeMinkowskiKernel(MinkowskiKernelShape shape, Float64 size) -> std
 // configuration migrating away from bp_polygon_i4HV can keep its literal.
 inline auto MinkowskiKernelShapeNames() -> CharPtr { return "'4HV', '4D', '8D', '16D', 'XHV' or 'XD'"; }
 
+// The star-shaped XHV and XD are the two that are not convex; the dms_ backend refuses them (#1301).
+inline bool MinkowskiKernelShapeIsConvex(MinkowskiKernelShape shape)
+{
+	return shape != MinkowskiKernelShape::kXHV && shape != MinkowskiKernelShape::kXD;
+}
+inline auto MinkowskiConvexKernelShapeNames() -> CharPtr { return "'4HV', '4D', '8D' and '16D'"; }
+
 // Parse a `variant` argument. `wantErode` says which operator is asking: xx_minkowski_difference
 // erodes and accepts the 'd' prefix, xx_minkowski_sum dilates and accepts 'i'. A prefix that
 // disagrees with the operator is a configuration error naming `siblingOperName`, since silently
@@ -327,6 +334,50 @@ inline auto MinkowskiConvexParts(const MinkowskiRing& closedRing) -> std::vector
 	}
 	result.push_back(closeRing(MinkowskiRing{ v[0], v[1], v[2] }));
 	return result;
+}
+
+// Whether a closed ring is convex: every turn the same way round, collinear vertices allowed,
+// and the turns adding up to one revolution rather than the two or more of a star that winds
+// round twice. A turn within a relative 1e-12 of straight counts as straight, so that a
+// computed regular polygon is not refused for a rounding error in one of its vertices.
+inline bool MinkowskiIsConvex(const MinkowskiRing& closedRing)
+{
+	std::vector<DPoint> v;
+	v.reserve(closedRing.size());
+	for (auto p : closedRing) // drop the closing duplicate and any repeated point
+		if (v.empty() || p.X() != v.back().X() || p.Y() != v.back().Y())
+			v.push_back(p);
+	if (v.size() > 1 && v.front().X() == v.back().X() && v.front().Y() == v.back().Y())
+		v.pop_back();
+	SizeT n = v.size();
+	if (n < 3)
+		return false;
+
+	int sign = 0;
+	Float64 turning = 0;
+	for (SizeT i = 0; i != n; ++i)
+	{
+		DPoint a = v[i], b = v[(i + 1) % n], c = v[(i + 2) % n];
+		Float64 ux = b.X() - a.X(), uy = b.Y() - a.Y(), wx = c.X() - b.X(), wy = c.Y() - b.Y();
+		Float64 cross = ux * wy - uy * wx, dot = ux * wx + uy * wy;
+		Float64 tolerance = 1e-12 * std::hypot(ux, uy) * std::hypot(wx, wy);
+		if (cross > tolerance)
+		{
+			if (sign < 0)
+				return false;
+			sign = +1;
+		}
+		else if (cross < -tolerance)
+		{
+			if (sign > 0)
+				return false;
+			sign = -1;
+		}
+		else if (dot < 0)
+			return false; // the ring doubles back on itself
+		turning += std::atan2(cross, dot);
+	}
+	return sign != 0 && std::fabs(turning) < 3 * std::numbers::pi;
 }
 
 // conv(segment(p, q) (+) convexPart), the cell swept by one convex kernel part along one edge.

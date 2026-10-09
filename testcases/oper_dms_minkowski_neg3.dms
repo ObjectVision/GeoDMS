@@ -1,0 +1,33 @@
+// #1301 negative: dms_minkowski_sum refuses a kernel polygon that is not convex, here an L. The
+// other backends accept any simple ring; the dms_ backend sums with convex kernels only, and says
+// so instead of returning a sum that would be wrong.
+// Expected: nonzero exit.
+container oper_dms_minkowski_neg3
+{
+	unit<uint32> G   : nrofrows = 1;
+	unit<uint32> GPt : nrofrows = 4;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3 ];
+
+	attribute<ipoint> geom (G, polygon) := points2polygon(point_xy(gx, gy, ipoint), gseq, gord);
+
+	// the L [0,20]x[0,10] with [0,10]x[0,20], clockwise
+	unit<uint32> KS  : nrofrows = 1;
+	unit<uint32> KPt : nrofrows = 6;
+	attribute<int32>  kx   (KPt) : [ 0, 0, 10, 10, 20, 20 ];
+	attribute<int32>  ky   (KPt) : [ 0, 20, 20, 10, 10, 0 ];
+	attribute<KS>     kseq (KPt) : [ 0, 0, 0, 0, 0, 0 ];
+	attribute<uint32> kord (KPt) : [ 0, 1, 2, 3, 4, 5 ];
+	attribute<ipoint> kernel_row (KS, polygon) := points2polygon(point_xy(kx, ky, ipoint), kseq, kord);
+	parameter<ipoint> kernel (polygon) := kernel_row[value(0, KS)];
+
+	container checks
+	{
+		attribute<ipoint> bad (G, polygon) := dms_minkowski_sum(geom, kernel);
+		parameter<float64> a := sum(float64(area(bad)));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
+	}
+}

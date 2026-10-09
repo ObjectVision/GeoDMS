@@ -1,0 +1,23 @@
+// #1301 negative: dms_minkowski_sum refuses the star-shaped variant 'XHV'. The dms_ backend sums with
+// convex kernels only; the bg_, geos_, cgal_ and bp_ forms keep XHV and XD.
+// Expected: nonzero exit (the variant is checked before any tile runs, and the error names the
+// convex variants).
+container oper_dms_minkowski_neg1
+{
+	unit<uint32> G   : nrofrows = 1;
+	unit<uint32> GPt : nrofrows = 4;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3 ];
+
+	attribute<ipoint> geom (G, polygon) := points2polygon(point_xy(gx, gy, ipoint), gseq, gord);
+
+	container checks
+	{
+		attribute<ipoint> bad (G, polygon) := dms_minkowski_sum(geom, float64(10), 'XHV');
+		parameter<float64> a := sum(float64(area(bad)));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
+	}
+}

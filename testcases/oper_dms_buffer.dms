@@ -1,0 +1,119 @@
+// Pins dms_buffer_multi_polygon (#1302), the dms_ counterpart of geos_buffer_multi_polygon, with its
+// arguments: a distance and a uint8 that, as for GEOS, counts the segments per quarter circle.
+// It places its points as GEOS does, every edge shifted by exactly the distance and every convex
+// corner rounded in round(turn / quantum) equal steps, so the two agree to the lattice.
+//
+// What this guards:
+// - The area of a buffered square, independently of GEOS: 100^2 + 4 * 100 * 10 for the edges and
+//   four quarter circles of 8 steps, together an inscribed 32-gon of radius 10.
+// - The vertex count of that square equals GEOS's: four corners of 8 steps.
+// - Agreement with geos_buffer_multi_polygon on a square, an L, a square with a hole that the
+//   buffer fills and one with a hole it shrinks; for a negative distance; for a distance and a
+//   number of segments per element; for 0 segments, GEOS's bevel join.
+// - Distance 0 gives the cleaned element; an erosion past every element gives nothing.
+// - A thousand elements at RD coordinates with the 0.2 m of BAG-Tools, in parallel blocks.
+//
+// Offline and cheap by design (testcases/ rule). Expected: exit 0 on /all_checks.
+container oper_dms_buffer
+{
+	// the four elements of oper_dms_minkowski.dms: a square, an L, and two squares with a hole
+	unit<uint32> G   : nrofrows = 4;
+	unit<uint32> GPt : nrofrows = 34;
+
+	attribute<float64> gx   (GPt) : [ 0, 0, 100, 100, 0,   200, 200, 220, 220, 260, 260, 200,   400, 400, 500, 500, 400, 445, 455, 455, 445, 445, 400,   600, 600, 700, 700, 600, 620, 680, 680, 620, 620, 600 ];
+	attribute<float64> gy   (GPt) : [ 0, 100, 100, 0, 0,   0, 60, 60, 20, 20, 0, 0,                0, 100, 100, 0, 0, 45, 45, 55, 55, 45, 0,                0, 100, 100, 0, 0, 20, 20, 80, 80, 20, 0 ];
+	attribute<G>       gseq (GPt) : [ 0, 0, 0, 0, 0,       1, 1, 1, 1, 1, 1, 1,                    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ];
+	attribute<uint32>  gord (GPt) : [ 0, 1, 2, 3, 4,       0, 1, 2, 3, 4, 5, 6,                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];
+
+	attribute<dpoint> geom (G, polygon) := points2polygon(point_xy(gx, gy, dpoint), gseq, gord);
+
+	attribute<float64> dist_per_elem (G) : [ 10, 5, 10, 10 ];
+	attribute<uint8>   qs_per_elem   (G) : [ 8, 4, 16, 2 ];
+
+	// the square alone, for its vertex count
+	unit<uint32> Solo : nrofrows = 1;
+	unit<uint32> SoloPt : nrofrows = 5;
+	attribute<Solo>   sseq (SoloPt) : [ 0, 0, 0, 0, 0 ];
+	attribute<uint32> sord (SoloPt) : [ 0, 1, 2, 3, 4 ];
+	attribute<dpoint> square (Solo, polygon) := points2polygon(point_xy(gx[value(sord, GPt)], gy[value(sord, GPt)], dpoint), sseq, sord);
+
+	container checks
+	{
+		// ---- 1. the square, on its own ----------------------------------------------------
+		// edges 10000 + 4000, corners an inscribed 32-gon of radius 10: 16 * 100 * sin(pi / 16)
+		attribute<dpoint>  sq_dms  (Solo, polygon) := dms_buffer_multi_polygon (square, 10.0, 8b);
+		attribute<dpoint>  sq_geos (Solo, polygon) := geos_buffer_multi_polygon(square, 10.0, 8b);
+		parameter<float64> sq_expected := 14000.0 + 1600.0 * sin(pi() / 16.0);
+		parameter<bool>    sq_area_ok  := abs(sum(area(sq_dms)) - sq_expected) < 0.0001, IntegrityCheck = "sq_area_ok == true";
+		parameter<uint32>  sq_nr_dms   := #sequence2points(sq_dms);
+		parameter<uint32>  sq_nr_geos  := #sequence2points(sq_geos);
+		parameter<bool>    sq_count_ok := sq_nr_dms == sq_nr_geos, IntegrityCheck = "sq_count_ok == true";
+
+		// ---- 2. agreement with GEOS ---------------------------------------------------------
+		attribute<dpoint> buf_dms  (G, polygon) := dms_buffer_multi_polygon (geom, 10.0, 8b);
+		attribute<dpoint> buf_geos (G, polygon) := geos_buffer_multi_polygon(geom, 10.0, 8b);
+		parameter<float64> d_buf := sum(area(geos_xor(buf_dms, buf_geos)));
+		parameter<bool> buf_ok := d_buf < 0.001, IntegrityCheck = "buf_ok == true";
+
+		// the 10 x 10 hole is filled: buffered by 10, nothing is left of it
+		attribute<float64> a_buf (G) := area(buf_dms);
+		parameter<bool> hole_filled_ok := abs(a_buf[value(2, G)] - sq_expected) < 0.0001, IntegrityCheck = "hole_filled_ok == true";
+
+		attribute<dpoint> ero_dms  (G, polygon) := dms_buffer_multi_polygon (geom, -5.0, 8b);
+		attribute<dpoint> ero_geos (G, polygon) := geos_buffer_multi_polygon(geom, -5.0, 8b);
+		parameter<float64> d_ero := sum(area(geos_xor(ero_dms, ero_geos)));
+		parameter<bool> ero_ok := d_ero < 0.001 && sum(area(ero_dms)) > 0.0, IntegrityCheck = "ero_ok == true";
+
+		attribute<dpoint> per_elem_dms  (G, polygon) := dms_buffer_multi_polygon (geom, dist_per_elem, qs_per_elem);
+		attribute<dpoint> per_elem_geos (G, polygon) := geos_buffer_multi_polygon(geom, dist_per_elem, qs_per_elem);
+		parameter<float64> d_per_elem := sum(area(geos_xor(per_elem_dms, per_elem_geos)));
+		parameter<bool> per_elem_ok := d_per_elem < 0.001, IntegrityCheck = "per_elem_ok == true";
+
+		attribute<dpoint> bevel_dms  (G, polygon) := dms_buffer_multi_polygon (geom, 10.0, 0b);
+		attribute<dpoint> bevel_geos (G, polygon) := geos_buffer_multi_polygon(geom, 10.0, 0b);
+		parameter<float64> d_bevel := sum(area(geos_xor(bevel_dms, bevel_geos)));
+		parameter<bool> bevel_ok := d_bevel < 0.001, IntegrityCheck = "bevel_ok == true";
+
+		// ---- 3. distance zero, and an erosion past everything -------------------------------
+		attribute<dpoint> zero (G, polygon) := dms_buffer_multi_polygon(geom, 0.0, 8b);
+		parameter<bool> zero_ok := sum(area(dms_xor(zero, dms_polygon(geom)))) == 0.0 && sum(area(zero)) > 0.0, IntegrityCheck = "zero_ok == true";
+
+		attribute<dpoint> gone (G, polygon) := dms_buffer_multi_polygon(geom, -60.0, 8b);
+		parameter<bool> gone_ok := sum(area(gone)) == 0.0, IntegrityCheck = "gone_ok == true";
+	}
+
+	// ---- a thousand elements at RD coordinates: squares with collinear vertices and Ls -------
+	unit<uint32> Many : nrofrows = 1000;
+	unit<uint32> ManyPt : nrofrows = 7000
+	{
+		attribute<Many>    seq  := value(id(.) / 7, Many);
+		attribute<uint32>  ord  := id(.) % 7;
+		attribute<bool>    isSq := uint32(seq) % 2 == 0;
+		attribute<float64> dx   := (ord == 0 || ord == 1 || ord == 6) ? 0.0 : ord == 2 ? 5.0 : ord == 3 ? (isSq ? 10.0 : 5.0) : 10.0;
+		attribute<float64> dy   := (ord == 0 || ord == 5 || ord == 6) ? 0.0 : (ord == 1 || ord == 2) ? 10.0 : ord == 3 ? (isSq ? 10.0 : 5.0) : 5.0;
+		attribute<float64> x    := 155000.0 + float64(uint32(seq) % 40) * 20.0 + dx;
+		attribute<float64> y    := 463000.0 + float64(uint32(seq) / 40) * 20.0 + dy;
+	}
+	attribute<dpoint> many_rd (Many, polygon) := points2polygon(point_xy(ManyPt/x, ManyPt/y, dpoint), ManyPt/seq, ManyPt/ord);
+
+	container many_checks
+	{
+		attribute<dpoint> rd_dms  (Many, polygon) := dms_buffer_multi_polygon (many_rd, 0.2, 8b);
+		attribute<dpoint> rd_geos (Many, polygon) := geos_buffer_multi_polygon(many_rd, 0.2, 8b);
+		parameter<float64> d_rd := sum(area(geos_xor(rd_dms, rd_geos)));
+		parameter<bool> rd_ok := d_rd < 0.0001, IntegrityCheck = "rd_ok == true";
+
+		attribute<dpoint> rd_ero_dms  (Many, polygon) := dms_buffer_multi_polygon (many_rd, -0.2, 8b);
+		attribute<dpoint> rd_ero_geos (Many, polygon) := geos_buffer_multi_polygon(many_rd, -0.2, 8b);
+		parameter<float64> e_rd := sum(area(geos_xor(rd_ero_dms, rd_ero_geos)));
+		parameter<bool> rd_ero_ok := e_rd < 0.0001, IntegrityCheck = "rd_ero_ok == true";
+	}
+
+	container all_checks
+	{
+		parameter<bool> ok := checks/sq_area_ok && checks/sq_count_ok && checks/buf_ok && checks/hole_filled_ok && checks/ero_ok
+			&& checks/per_elem_ok && checks/bevel_ok && checks/zero_ok && checks/gone_ok
+			&& many_checks/rd_ok && many_checks/rd_ero_ok
+			, IntegrityCheck = "ok == true";
+	}
+}
