@@ -91,6 +91,7 @@ container fn_test_od_timedep
 			attribute<s>       t       : [10, 10, 15, 10];
 			attribute<float64> viaA   : [1, 0, 0, 0];
 			attribute<float64> cost   : [5, 0, 1, 0];
+			attribute<float64> dist   : [5, 5, 8, 8]; // the first criterion of container distance_first: A 10, B 16
 			attribute<Profile> profile_rel : [1, null, null, null];
 
 			// the same network on profiles that reduce to fixed impedances, and those impedances
@@ -189,6 +190,82 @@ container fn_test_od_timedep
 			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure);
 	}
 
+	// timedependent_alt: the same network searched on distance first, with the travel time as the
+	// time-dependent second criterion of pareto. Route A is 10 long, B 16. Leaving at 0 or 30, A is
+	// also faster, (10, 20) dominates (16, 25), one row; leaving at 5, A takes 35 and B, longer but
+	// faster, joins the front: (10, 35) and (16, 25).
+	container distance_first
+	{
+		unit<uint32> od := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto'
+			  ';timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, route/Link/dist, route/Link/N1_rel, route/Link/N2_rel
+			, route/StartSet/node_rel, route/EndSet/node_rel
+			, const(100.0, route/StartSet)
+			, route/Link/t
+			, route/Link/profile_rel, ProfileSlot/factor, route/SlotDuration, route/StartSet/departure
+			);
+
+		// a bound of 30 on the travel time: A, 35 when leaving at 5, drops for that departure only
+		unit<uint32> od_bound := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto(OrgZone_max_imp2)'
+			  ';timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, route/Link/dist, route/Link/N1_rel, route/Link/N2_rel
+			, route/StartSet/node_rel, route/EndSet/node_rel
+			, const(100.0, route/StartSet)
+			, route/Link/t
+			, 30[s]
+			, route/Link/profile_rel, ProfileSlot/factor, route/SlotDuration, route/StartSet/departure
+			);
+
+		// relative epsilon 0.4 on the travel time: B, 25 against 35, is not more than 40% faster, so it
+		// drops
+		unit<uint32> od_eps := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto(imp2_epsilon)'
+			  ';timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, route/Link/dist, route/Link/N1_rel, route/Link/N2_rel
+			, route/StartSet/node_rel, route/EndSet/node_rel
+			, const(100.0, route/StartSet)
+			, route/Link/t
+			, 0.4
+			, route/Link/profile_rel, ProfileSlot/factor, route/SlotDuration, route/StartSet/departure
+			);
+
+		// profiles flat and half on the travel time against the fixed travel times t / factor: A (10, 30)
+		// dominates B (16, 35) whatever the departure, in both
+		unit<uint32> od_fixed_td := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto'
+			  ';timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance'
+			, route/Link/dist, route/Link/N1_rel, route/Link/N2_rel
+			, route/StartSet/node_rel, route/EndSet/node_rel
+			, const(100.0, route/StartSet)
+			, route/Link/t
+			, route/Link/profile_fixed_rel, ProfileSlot/factor, route/SlotDuration, route/StartSet/departure + 7[s]
+			);
+		unit<uint32> od_fixed_ref := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto'
+			  ';od:impedance'
+			, route/Link/dist, route/Link/N1_rel, route/Link/N2_rel
+			, route/StartSet/node_rel, route/EndSet/node_rel
+			, const(100.0, route/StartSet)
+			, route/Link/t_fixed
+			);
+	}
+
 	container checks
 	{
 		// FIFO, float64: per departure 0, 2, 5, 8, 10, 12, 15, 19, 20, 45
@@ -223,5 +300,22 @@ container fn_test_od_timedep
 
 		// through a function body: 20 + 25 + 20
 		parameter<bool> sig_sum := route/tdSumApplied == 65[s], IntegrityCheck = "sig_sum == true";
+
+		// distance first: (10, 20) | (10, 35), (16, 25) | (10, 20)
+		parameter<uint32> d_rows := #distance_first/od, IntegrityCheck = "d_rows == 4";
+		parameter<bool>   d_imp  := all(distance_first/od/impedance == union_data(distance_first/od, 10.0, 10.0, 16.0, 10.0)), IntegrityCheck = "d_imp == true";
+		parameter<bool>   d_alt  := all(distance_first/od/alt_imp   == union_data(distance_first/od, 20[s], 35[s], 25[s], 20[s])), IntegrityCheck = "d_alt == true";
+		parameter<bool>   d_org  := all(uint32(distance_first/od/OrgZone_rel) == union_data(distance_first/od, 0, 1, 1, 2)), IntegrityCheck = "d_org == true";
+		// bound 30: (10, 20) | (16, 25) | (10, 20)
+		parameter<uint32> db_rows := #distance_first/od_bound, IntegrityCheck = "db_rows == 3";
+		parameter<bool>   db_alt  := all(distance_first/od_bound/alt_imp == union_data(distance_first/od_bound, 20[s], 25[s], 20[s])), IntegrityCheck = "db_alt == true";
+		parameter<bool>   db_org  := all(uint32(distance_first/od_bound/OrgZone_rel) == union_data(distance_first/od_bound, 0, 1, 2)), IntegrityCheck = "db_org == true";
+		// epsilon 0.4: (10, 20) | (10, 35) | (10, 20)
+		parameter<uint32> de_rows := #distance_first/od_eps, IntegrityCheck = "de_rows == 3";
+		parameter<bool>   de_alt  := all(distance_first/od_eps/alt_imp == union_data(distance_first/od_eps, 20[s], 35[s], 20[s])), IntegrityCheck = "de_alt == true";
+		// flat and half: (10, 30) per departure, as with the fixed travel times
+		parameter<uint32> df_rows := #distance_first/od_fixed_td + #distance_first/od_fixed_ref, IntegrityCheck = "df_rows == 6";
+		parameter<bool>   df_td   := all(distance_first/od_fixed_td/alt_imp  == 30[s]) && all(distance_first/od_fixed_td/impedance  == 10.0), IntegrityCheck = "df_td == true";
+		parameter<bool>   df_ref  := all(distance_first/od_fixed_ref/alt_imp == 30[s]) && all(distance_first/od_fixed_ref/impedance == 10.0), IntegrityCheck = "df_ref == true";
 	}
 }

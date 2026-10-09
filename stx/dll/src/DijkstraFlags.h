@@ -99,6 +99,8 @@ enum class DijkstraFlag : UInt64
 
 	// Time-dependent link impedances -- issue #1304
 	TimeDependent    = 0x4000'0000, // timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time): four extra arguments; a link's impedance depends on the time at which a route enters it.
+	TimeDependentAlt = 0x8000'0000, // timedependent_alt(...): the same four arguments, applied to the alternative link impedance, the second criterion of pareto.
+	TimeDependentAny = TimeDependent | TimeDependentAlt,
 
 	// OD relative outputs
 	ProdOdOrgZone_rel    = 0x100'0000, // Output: origin zone (per OD pair).

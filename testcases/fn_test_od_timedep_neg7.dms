@@ -1,16 +1,16 @@
-// #1304: profile_slot_factor is a speed relative to free flow, and a link is ridden at that speed for as long as
-// the slot lasts, so a factor of 0 would never let a route leave it. It is refused with "timedependent:
-// profile_slot_factor must be a positive speed relative to factor 1, but element 1 (profile 0, slot 1) is 0".
+// #1304: timedependent_alt makes the second criterion of the pareto search time-dependent, so it requires
+// pareto. Without it the specification is refused with "timedependent_alt requires the pareto option ...".
 // Expected: exit nonzero on /checks.
-container fn_test_od_timedep_neg2
+container fn_test_od_timedep_neg7
 {
 	unit<uint32> Profile : nrofrows = 1;
-	unit<uint32> ProfileSlot : nrofrows = 2 { attribute<float64> factor : [1.0, 0.0]; }
+	unit<uint32> ProfileSlot : nrofrows = 2 { attribute<float64> factor : [1.0, 0.5]; }
 	unit<uint32> Node : nrofrows = 2;
 	unit<uint32> Link : nrofrows = 1
 	{
 		attribute<Node>    N1_rel  : [0];
 		attribute<Node>    N2_rel  : [1];
+		attribute<float64> dist    : [1.0];
 		attribute<float64> t       : [10.0];
 		attribute<Profile> profile_rel : [0];
 	}
@@ -23,10 +23,12 @@ container fn_test_od_timedep_neg2
 
 	unit<uint32> od := impedance_matrix(
 		  'directed;startPoint(Node_rel);endPoint(Node_rel)'
-		  ';timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+		  ';alternative(link_imp):alt_imp'
+		  ';timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
 		  ';od:impedance'
-		, Link/t, Link/N1_rel, Link/N2_rel
+		, Link/dist, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, EndSet/node_rel
+		, Link/t
 		, Link/profile_rel, ProfileSlot/factor, 10.0, StartSet/departure
 		);
 

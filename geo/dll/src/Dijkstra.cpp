@@ -108,7 +108,9 @@
 //   With timedependent(...) a link's impedance depends on the time at which the route enters it:
 //   the departure time of the origin zone plus the impedance of the node it leaves. Both engines
 //   ask GraphInfo::LinkImp for it at each relaxation; LinkProfiles states the model and why it
-//   keeps the search exact. Everything downstream (the traceback forest, alt_imp, link_attr, the
+//   keeps the search exact. With timedependent_alt(...), pareto only, the same holds for the
+//   alternative impedance, the second criterion, so that a search on distance first gets
+//   time-dependent travel times. Everything downstream (the traceback forest, alt_imp, link_attr, the
 //   interaction stages, LinkSet, Link_flow) reads the accepted tree and needs no change.
 
 #include "Dijkstra.h"
@@ -215,7 +217,10 @@ void CheckFlags(DijkstraFlag df)
 	{
 		MG_USERCHECK2(!flags(df & DijkstraFlag::Imp2Cut), "OrgZone_max_imp2 requires the pareto option");
 		MG_USERCHECK2(!flags(df & DijkstraFlag::Imp2Epsilon), "imp2_epsilon requires the pareto option");
+		MG_USERCHECK2(!flags(df & DijkstraFlag::TimeDependentAlt), "timedependent_alt requires the pareto option: it makes the second criterion of the pareto search time-dependent");
 	}
+	// one set of profile arguments: the grammar admits one of the two sections
+	MG_CHECK(!flags(df & DijkstraFlag::TimeDependent) || !flags(df & DijkstraFlag::TimeDependentAlt));
 }
 
 using sqr_dist_t = UInt32;
@@ -333,41 +338,52 @@ struct NetworkInfo {
 // *****************************************************************************
 // LinkProfiles -- issue #1304:
 //   The arguments of timedependent(link_profile_rel, profile_slot_factor,
-//   slot_duration, departure_time). The link impedance argument is then the
-//   impedance at free flow, L, and a link with a profile is ridden at the speed
-//   factor[k] relative to free flow during each time slot k it spends on it:
-//   per unit of time it covers factor[k] / L of the link (Ichoua, Gendreau and
+//   slot_duration, departure_time), or of timedependent_alt(...) with the same
+//   arguments. The link impedance they apply to, the first criterion with
+//   timedependent, the alternative one with timedependent_alt, is then the
+//   impedance at factor 1, L, and a link with a profile is ridden at the speed
+//   factor[k] relative to factor 1 during each time slot k it spends on it: per
+//   unit of time it covers factor[k] / L of the link (Ichoua, Gendreau and
 //   Potvin 2003). Its impedance is the time from entering to leaving, which is
 //   an integral over the slots, not L / factor of the slot of entry. That makes
 //   the time of leaving nondecreasing in the time of entering (FIFO): a later
 //   entry never leaves earlier, so reaching a node later never pays off, and
 //   the label-setting search stays exact for the earliest arrival
 //   (Dreyfus 1969; Kaufman and Smith 1993). The time of entering is the
-//   departure time of the origin zone plus the impedance of the label, so the
-//   pareto engine applies it to its first criterion: (t, c) dominating
-//   (t', c') at a node then still dominates after any extension, as t <= t'
-//   gives a(t) <= a(t').
+//   departure time of the origin zone plus the criterion of the label that the
+//   profiles apply to. In the pareto engine, a label (c1, c2) dominating
+//   (c1', c2') at a node then still dominates after any extension, whichever of
+//   the two criteria is time-dependent: c <= c' gives a(c) <= a(c'), and the
+//   other criterion adds the same fixed amount to both. Every extension is
+//   also componentwise no smaller than its label, so the labels still leave the
+//   heap in lexicographic order, which the per-node and per-zone tests rest on.
 //
 //   The profile repeats, as a daily one does: a route that runs past the last
 //   slot continues in the first. A link without a profile (null) keeps its fixed
-//   impedance L, as does a link with L = 0. A run of slots with the same factor
-//   is traversed in one step (runLength), so a profile with one factor
-//   throughout gives exactly L / factor, and factor 1 gives exactly L. With an
-//   integer impedance the time on the link is rounded to the nearest whole
-//   unit; as the time of entering is whole, that rounds the time of leaving and
-//   keeps FIFO.
+//   impedance L, as does a link with L = 0. Slots in a row with the same factor
+//   are crossed in one step, so a profile with one factor throughout gives
+//   exactly L / factor, and factor 1 gives exactly L. The factors are read as
+//   given, float32 or float64, without a copy: a profile per link of a national
+//   network is some 10^8 factors. With an integer impedance the time on the link
+//   is rounded to the nearest whole unit; as the time of entering is whole, that
+//   rounds the time of leaving and keeps FIFO.
 // *****************************************************************************
 template <typename ImpType>
 struct LinkProfiles
 {
-	const UInt32*  linkProfile = nullptr; // per link: its profile, undefined for a link without one; null without timedependent()
-	const Float64* slotFactor  = nullptr; // per (profile, slot), profile-major: the speed relative to free flow, > 0
-	const UInt32*  runLength   = nullptr; // per (profile, slot): the number of slots from this one on, cyclically, with the same factor; nrSlots when the profile has one factor throughout
+	const UInt32*  linkProfile  = nullptr; // per link: its profile, undefined for a link without one; null without the section
+	const Float32* slotFactor32 = nullptr; // per (profile, slot), profile-major: the speed relative to factor 1, > 0; as given, float32 ...
+	const Float64* slotFactor64 = nullptr; // ... or float64
 	UInt32  nrSlots = 0;
-	Float64 slotDuration = 0;             // in the unit of the impedance, > 0
+	Float64 slotDuration = 0;             // in the unit of the impedance the profiles apply to, > 0
 	const ImpType* departureTime = nullptr; bool departureTimeHasVoidDomain = false;
 
 	bool IsTimeDependent() const { return linkProfile != nullptr; }
+
+	Float64 Factor(SizeT i) const
+	{
+		return slotFactor32 ? Float64(slotFactor32[i]) : slotFactor64[i];
+	}
 
 	Float64 DepartureOf(SizeT orgZone) const
 	{
@@ -376,7 +392,7 @@ struct LinkProfiles
 		return departureTime[departureTimeHasVoidDomain ? 0 : orgZone];
 	}
 
-	// The impedance of link e, whose free flow impedance is linkImp, for a route that enters it at
+	// The impedance of link e, whose impedance at factor 1 is linkImp, for a route that enters it at
 	// time entryTime (departure plus the impedance so far); saturated at MaxValue<ImpType>.
 	ImpType LinkImp(LinkType e, ImpType linkImp, Float64 entryTime) const
 	{
@@ -388,35 +404,36 @@ struct LinkProfiles
 		const SizeT row = SizeT(profile) * nrSlots;
 
 		Float64 t = entryTime;
-		Float64 remaining = linkImp; // the free flow impedance still to cover
+		Float64 remaining = linkImp; // the impedance at factor 1 still to cover
 		Float64 duration = 0.0;
-		UInt64 slot = UInt64(t / slotDuration); // counted from time 0; t >= 0
+		UInt64 slot = UInt64(t / slotDuration); // the slot of t, counted from time 0; t >= 0
+		Float64 factor = Factor(row + slot % nrSlots);
+		UInt32 runLength = 1;                   // the slots from slot on with this factor, as far as looked
 		while (true)
 		{
-			UInt32 s = UInt32(slot % nrSlots);
-			Float64 factor = slotFactor[row + s];
-			UInt32 run = runLength[row + s];
-			if (run == nrSlots) // one factor throughout the profile
-			{
-				duration += remaining / factor;
-				break;
-			}
-			slot += run;
-			Float64 runEnd = Float64(slot) * slotDuration;
+			UInt64 runEndSlot = slot + runLength;
+			Float64 runEnd = Float64(runEndSlot) * slotDuration;
 			Float64 span = runEnd - t; // not positive only when t / slotDuration rounded down across a slot edge
+			if (span > 0 && span * factor >= remaining)
+				break; // the link ends in this run
+			Float64 nextFactor = Factor(row + runEndSlot % nrSlots);
+			if (nextFactor == factor)
+			{
+				if (++runLength >= nrSlots)
+					break; // one factor throughout the profile
+				continue;
+			}
 			if (span > 0)
 			{
-				Float64 coverable = span * factor;
-				if (coverable >= remaining)
-				{
-					duration += remaining / factor;
-					break;
-				}
-				remaining -= coverable;
+				remaining -= span * factor;
 				duration += span;
 				t = runEnd;
 			}
+			slot = runEndSlot;
+			factor = nextFactor;
+			runLength = 1;
 		}
+		duration += remaining / factor;
 		if constexpr (std::is_integral_v<ImpType>)
 		{
 			duration = std::floor(duration + 0.5);
@@ -1802,6 +1819,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 ,	sqr_dist_t euclidicSqrDist
 ,	const GraphInfo<NodeType, LinkType, ImpType>& graph
 ,	const ImpType* linkImp2Data, bool linkImp2HasVoidDomain
+,	const LinkProfiles<ImpType>& imp2Profiles // timedependent_alt(): the profiles of the second criterion; empty otherwise
 ,	const Inverted_rel<ZoneType>& node_endPoint_inv
 ,	DijkstraFlag df
 ,	const SizeT* resCumulCount, SizeT nrRes
@@ -1863,7 +1881,15 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 			const Float64 imp2Eps = imp2Epsilon ? Float64(imp2Epsilon[imp2EpsilonHasVoidDomain ? 0 : orgZone]) : 0.0;
 			dh.m_Imp2Epsilon = orgMaxImp2 ? 0.0 : imp2Eps;
 			nzc.m_Imp2Epsilon = imp2Eps;
-			const Float64 departure = graph.profiles.DepartureOf(orgZone); // timedependent(): the time at a first criterion of 0
+			const Float64 departure  = graph.profiles.DepartureOf(orgZone); // timedependent(): the time at a first criterion of 0
+			const Float64 departure2 = imp2Profiles.DepartureOf(orgZone);   // timedependent_alt(): the time at a second criterion of 0
+			auto linkImp2 = [&](LinkType e, Float64 entryTime) -> ImpType
+			{
+				ImpType linkImp = linkImp2Data[linkImp2HasVoidDomain ? 0 : e];
+				if (!imp2Profiles.IsTimeDependent())
+					return linkImp;
+				return imp2Profiles.LinkImp(e, linkImp, entryTime);
+			};
 
 			dh.ResetImpedances();
 			nzc.ResetSrc(orgZone);
@@ -1931,20 +1957,23 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				// Relax the outgoing links on both criteria; InsertLabel applies the cutoffs and
 				// the dominance pre-prune, and the extended labels inherit this route's start point.
 				// With timedependent() the first criterion of a link depends on when the route enters
-				// it; the second does not. The early-out on the link alone changes nothing, as
-				// InsertLabel refuses the sum anyway, but keeps a saturated integer impedance from
-				// overflowing in that sum.
-				const Float64 currTime = departure + Float64(currLabel.first);
+				// it, with timedependent_alt() the second; the time of entering counts from the
+				// departure by that criterion. The early-outs on the link alone change nothing, as
+				// InsertLabel refuses the sums anyway, but keep a saturated integer impedance from
+				// overflowing in them.
+				const Float64 currTime  = departure  + Float64(currLabel.first);
+				const Float64 currTime2 = departure2 + Float64(currLabel.second);
 				LinkType currLink = graph.node_link1_inv.First(currNode);
 				while (currLink != UNDEFINED_VALUE(LinkType))
 				{
 					dms_assert(currLink < ni.nrE);
 					NodeType otherNode = graph.linkF2Data[currLink];
-					ImpType deltaCost = graph.LinkImp(currLink, currTime);
-					if (deltaCost < dh.m_MaxImp)
+					ImpType deltaCost  = graph.LinkImp(currLink, currTime);
+					ImpType deltaCost2 = linkImp2(currLink, currTime2);
+					if (deltaCost < dh.m_MaxImp && deltaCost2 < dh.m_MaxImp2)
 						dh.InsertLabel(otherNode
 						,	currLabel.first + deltaCost
-						,	currLabel.second + linkImp2Data[linkImp2HasVoidDomain ? 0 : currLink]
+						,	currLabel.second + deltaCost2
 						,	currStartPoint);
 					currLink = graph.node_link1_inv.Next(currLink);
 				}
@@ -1955,11 +1984,12 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				{
 					dms_assert(currLink < ni.nrE);
 					NodeType otherNode = graph.linkF1Data[currLink];
-					ImpType deltaCost = graph.LinkImp(currLink, currTime);
-					if (deltaCost < dh.m_MaxImp)
+					ImpType deltaCost  = graph.LinkImp(currLink, currTime);
+					ImpType deltaCost2 = linkImp2(currLink, currTime2);
+					if (deltaCost < dh.m_MaxImp && deltaCost2 < dh.m_MaxImp2)
 						dh.InsertLabel(otherNode
 						,	currLabel.first + deltaCost
-						,	currLabel.second + linkImp2Data[linkImp2HasVoidDomain ? 0 : currLink]
+						,	currLabel.second + deltaCost2
 						,	currStartPoint);
 					currLink = graph.node_link2_inv.Next(currLink);
 				}
@@ -2094,7 +2124,7 @@ class DijkstraMatrOperator : public VariadicOperator
 		if (flags(df & DijkstraFlag::UseLinkAttr)) ++nrArgs;
 		if (flags(df & DijkstraFlag::Imp2Cut)) ++nrArgs;
 		if (flags(df & DijkstraFlag::Imp2Epsilon)) ++nrArgs;
-		if (flags(df & DijkstraFlag::TimeDependent)) nrArgs += 4;
+		if (flags(df & DijkstraFlag::TimeDependentAny)) nrArgs += 4;
 		if (flags(df & DijkstraFlag::InteractionVi)) ++nrArgs;
 		if (flags(df & DijkstraFlag::InteractionWj)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DistDecay)) ++nrArgs;
@@ -2277,7 +2307,7 @@ public:
 			sig_var E2 = sb.UnitVar("Imp2Epsilon"); sb.MemberValueClass(E2, ValueWrap<ParamType>::GetStaticClass());
 			sb.ArgName(i, "imp2_epsilon"); sb.ArgAttr(i, E2, ozDom(), ValueComposition::Single); ++i;
 		}
-		if (flags(df & DijkstraFlag::TimeDependent)) // #1304
+		if (flags(df & DijkstraFlag::TimeDependentAny)) // #1304: timedependent or timedependent_alt, the same four arguments
 		{
 			// the profile relation: uint8, uint16 or uint32 values, so no class claim
 			sb.ArgName(i, "link_profile_rel"); sb.ArgAttr(i, sb.UnitVar("Profiles"), E, ValueComposition::Single); ++i;
@@ -2434,10 +2464,10 @@ public:
 		const AbstrDataItem* adiLinkAttr            = flags(df & DijkstraFlag::UseLinkAttr  ) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiOrgMaxImp2          = flags(df & DijkstraFlag::Imp2Cut      ) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiImp2Epsilon         = flags(df & DijkstraFlag::Imp2Epsilon  ) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiLinkProfile         = flags(df & DijkstraFlag::TimeDependent) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiProfileSlotFactor   = flags(df & DijkstraFlag::TimeDependent) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiSlotDuration        = flags(df & DijkstraFlag::TimeDependent) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiDepartureTime       = flags(df & DijkstraFlag::TimeDependent) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiLinkProfile         = flags(df & DijkstraFlag::TimeDependentAny) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiProfileSlotFactor   = flags(df & DijkstraFlag::TimeDependentAny) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiSlotDuration        = flags(df & DijkstraFlag::TimeDependentAny) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiDepartureTime       = flags(df & DijkstraFlag::TimeDependentAny) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 
 		const AbstrDataItem* adiOrgMinImp  = flags(df & DijkstraFlag::OrgMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiDstMinImp  = flags(df & DijkstraFlag::DstMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
@@ -2599,13 +2629,16 @@ public:
 			MG_USERCHECK2(dynamic_cast<const Unit<ImpType>*>(adiSlotDuration->GetAbstrValuesUnit())
 			,	"timedependent: the value type of slot_duration doesn't match with the value type of the link impedances"
 			);
-			impUnit->UnifyValues(adiSlotDuration->GetAbstrValuesUnit(), "ImpedanceUnit", "Values of slot_duration", UnifyMode(UM_Throw | UM_AllowDefault));
+			// in the unit of the impedance the profiles apply to: the link impedance, or with timedependent_alt the alternative one
+			const Unit<ImpType>* tdUnit = flags(df & DijkstraFlag::TimeDependentAlt) ? imp2Unit : impUnit;
+			CharPtr tdUnitRef = flags(df & DijkstraFlag::TimeDependentAlt) ? "AltImpUnit" : "ImpedanceUnit";
+			tdUnit->UnifyValues(adiSlotDuration->GetAbstrValuesUnit(), tdUnitRef, "Values of slot_duration", UnifyMode(UM_Throw | UM_AllowDefault));
 
 			orgZonesOrVoid->UnifyDomain(adiDepartureTime->GetAbstrDomainUnit(), "OrgZones", "Domain of departure_time", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			MG_USERCHECK2(dynamic_cast<const Unit<ImpType>*>(adiDepartureTime->GetAbstrValuesUnit())
 			,	"timedependent: the value type of departure_time doesn't match with the value type of the link impedances"
 			);
-			impUnit->UnifyValues(adiDepartureTime->GetAbstrValuesUnit(), "ImpedanceUnit", "Values of departure_time", UnifyMode(UM_Throw | UM_AllowDefault));
+			tdUnit->UnifyValues(adiDepartureTime->GetAbstrValuesUnit(), tdUnitRef, "Values of departure_time", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiOrgMinImp)
 		{
@@ -2839,31 +2872,16 @@ public:
 				for (SizeT i = 0; i != nrEps; ++i)
 					imp2EpsilonData[i] = epsObj->GetValueAsFloat64(i);
 			}
-			// timedependent() (#1304): the profile per link read as uint32 and the factors as float64, whatever
-			// their value types, and per profile and slot the run of slots with the same factor (LinkProfiles)
-			std::vector<UInt32>  linkProfileData, slotRunLengthData;
-			std::vector<Float64> slotFactorData;
+			// timedependent() and timedependent_alt() (#1304): the profile per link read as uint32, whatever its value type;
+			// the factors are read in place, float32 or float64 as given, as a profile per link of a national network is
+			// some 10^8 of them
+			std::vector<UInt32> linkProfileData;
+			typename DataArray<Float32>::locked_cseq_t slotFactor32Data;
+			typename DataArray<Float64>::locked_cseq_t slotFactor64Data;
 			UInt32  nrSlots = 0;
 			Float64 slotDuration = 0.0;
 			if (adiLinkProfile)
 			{
-				auto readAllTiles = [](const AbstrDataItem* adi, auto& data)
-				{
-					auto obj = adi->GetCurrRefObj(); // the caller's DataReadLock holds the data
-					const SizeT n = adi->GetAbstrDomainUnit()->GetCount();
-					data.resize(n);
-					SizeT nrRead = 0;
-					auto trd = obj->GetTiledRangeData();
-					for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
-					{
-						if constexpr (std::is_same_v<typename std::remove_reference_t<decltype(data)>::value_type, UInt32>)
-							nrRead += obj->GetValuesAsUInt32Array(tile_loc(t, 0), n - nrRead, data.data() + nrRead);
-						else
-							nrRead += obj->GetValuesAsFloat64Array(tile_loc(t, 0), n - nrRead, data.data() + nrRead);
-					}
-					MG_CHECK(nrRead == n);
-				};
-
 				const AbstrUnit* profileUnit = adiLinkProfile->GetAbstrValuesUnit();
 				if (!profileUnit->IsOrdinalAndZeroBased())
 					throwErrorF("dijkstra", "timedependent: the profile unit must have a range that starts at 0, as its ids are used as indices, but its range is {}"
@@ -2880,37 +2898,46 @@ public:
 					nrSlots = UInt32(nrFactors / nrProfiles);
 				}
 
-				readAllTiles(adiLinkProfile, linkProfileData);
+				{
+					auto obj = adiLinkProfile->GetCurrRefObj(); // argLinkProfileLock holds the data
+					const SizeT nrLinks = adiLinkProfile->GetAbstrDomainUnit()->GetCount();
+					linkProfileData.resize(nrLinks);
+					SizeT nrRead = 0;
+					auto trd = obj->GetTiledRangeData();
+					for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+						nrRead += obj->GetValuesAsUInt32Array(tile_loc(t, 0), nrLinks - nrRead, linkProfileData.data() + nrRead);
+					MG_CHECK(nrRead == nrLinks);
+				}
 				for (SizeT link = 0, n = linkProfileData.size(); link != n; ++link)
 					if (IsDefined(linkProfileData[link]) && linkProfileData[link] >= nrProfiles)
 						throwErrorF("dijkstra", "timedependent: link {} has profile {}, outside the {} profiles of link_profile_rel"
 							, link, linkProfileData[link], nrProfiles);
 
-				readAllTiles(adiProfileSlotFactor, slotFactorData);
-				for (SizeT i = 0, n = slotFactorData.size(); i != n; ++i)
-					if (!(slotFactorData[i] > 0.0 && std::isfinite(slotFactorData[i])))
-						throwErrorF("dijkstra", "timedependent: profile_slot_factor must be a positive speed relative to free flow, but element {} (profile {}, slot {}) is {}"
-							, i, nrSlots ? i / nrSlots : 0, nrSlots ? i % nrSlots : i, slotFactorData[i]);
+				auto checkFactors = [nrSlots](const auto& factors)
+				{
+					for (SizeT i = 0, n = factors.size(); i != n; ++i)
+					{
+						Float64 factor = factors[i];
+						if (!(factor > 0.0 && std::isfinite(factor)))
+							throwErrorF("dijkstra", "timedependent: profile_slot_factor must be a positive speed relative to factor 1, but element {} (profile {}, slot {}) is {}"
+								, i, nrSlots ? i / nrSlots : 0, nrSlots ? i % nrSlots : i, factor);
+					}
+				};
+				if (adiProfileSlotFactor->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_Float32)
+				{
+					slotFactor32Data = const_array_cast<Float32>(adiProfileSlotFactor)->GetLockedDataRead();
+					checkFactors(slotFactor32Data);
+				}
+				else
+				{
+					slotFactor64Data = const_array_cast<Float64>(adiProfileSlotFactor)->GetLockedDataRead();
+					checkFactors(slotFactor64Data);
+				}
 
 				CheckDefineMode(adiSlotDuration, "slot_duration");
 				slotDuration = adiSlotDuration->GetCurrRefObj()->GetValueAsFloat64(0);
 				if (!(slotDuration > 0.0 && std::isfinite(slotDuration)))
 					throwErrorF("dijkstra", "timedependent: slot_duration must be positive, but is {}", slotDuration);
-
-				// the run of equal factors from each slot on, cyclically: two passes from the last slot down, the first
-				// without the wrap; a profile with one factor throughout reaches the cap nrSlots in every slot
-				slotRunLengthData.resize(slotFactorData.size());
-				for (SizeT profile = 0; profile != nrProfiles; ++profile)
-				{
-					const Float64* factor = slotFactorData.data() + profile * nrSlots;
-					UInt32* run = slotRunLengthData.data() + profile * nrSlots;
-					run[nrSlots - 1] = 1;
-					for (SizeT i = 2 * SizeT(nrSlots) - 1; i--;)
-					{
-						SizeT s = i % nrSlots, next = (s + 1) % nrSlots;
-						run[s] = (factor[s] == factor[next]) ? std::min<UInt32>(run[next] + 1, nrSlots) : 1;
-					}
-				}
 			}
 			const ArgMassType* argOrgMassLimit = const_opt_array_checkedcast<MassType >(adiOrgMassLimit);
 			const ArgMassType* argDstMassLimit = const_opt_array_checkedcast<MassType >(adiDstMassLimit);
@@ -3031,15 +3058,18 @@ public:
 
 			auto linkImpDataPtr = linkImpData.begin();
 			GraphInfo<NodeType, LinkType, ImpType> graph{ linkF1Data.begin(), linkF2Data.begin(), linkImpDataPtr, {}, {} };
+			// timedependent() applies the profiles to the link impedance, timedependent_alt() to the alternative one
+			LinkProfiles<ImpType> imp2Profiles;
 			if (adiLinkProfile)
 			{
-				graph.profiles.linkProfile = linkProfileData.data();
-				graph.profiles.slotFactor  = slotFactorData.data();
-				graph.profiles.runLength   = slotRunLengthData.data();
-				graph.profiles.nrSlots      = nrSlots;
-				graph.profiles.slotDuration = slotDuration;
-				graph.profiles.departureTime = departureTimeData.begin();
-				graph.profiles.departureTimeHasVoidDomain = HasVoidDomainGuarantee(adiDepartureTime);
+				auto& linkProfiles = flags(df & DijkstraFlag::TimeDependentAlt) ? imp2Profiles : graph.profiles;
+				linkProfiles.linkProfile  = linkProfileData.data();
+				linkProfiles.slotFactor32 = slotFactor32Data.size() ? slotFactor32Data.begin() : nullptr;
+				linkProfiles.slotFactor64 = slotFactor64Data.size() ? slotFactor64Data.begin() : nullptr;
+				linkProfiles.nrSlots      = nrSlots;
+				linkProfiles.slotDuration = slotDuration;
+				linkProfiles.departureTime = departureTimeData.begin();
+				linkProfiles.departureTimeHasVoidDomain = HasVoidDomainGuarantee(adiDepartureTime);
 			}
 			graph.node_link1_inv.template Init<NodeType>(linkF1Data.begin(), networkInfo.nrE, networkInfo.nrV);
 			if (isBidirectional)
@@ -3070,6 +3100,7 @@ public:
 								, euclidicSqrDist
 								, graph
 								, altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
+								, imp2Profiles
 								, node_endPoint_inv
 								, DijkstraFlag(df | DijkstraFlag::Counting)
 								, nullptr, 0
@@ -3176,6 +3207,7 @@ public:
 					,	euclidicSqrDist
 					,	graph
 					,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
+					,	imp2Profiles
 					,	node_endPoint_inv
 					,	df
 					,	resCount.begin(), nrRes, nullptr

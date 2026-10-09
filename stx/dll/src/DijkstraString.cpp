@@ -160,9 +160,12 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 	// time slots in which the route rides it, from the departure time plus the impedance up to its
 	// start. Four arguments follow, in this order: per link its row in the profile table (null = a
 	// fixed impedance), per profile and time slot the speed relative to free flow, the duration of
-	// a time slot, and the departure time per origin zone or for all.
+	// a time slot, and the departure time per origin zone or for all. timedependent_alt takes the
+	// same arguments and applies them to the alternative link impedance instead, the second
+	// criterion of pareto, so that a search on distance first gets time-dependent travel times.
 	boost::spirit::rule<>  timeDependentRule =
-		strlit<>("timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)")[AssignFlags(result, DijkstraFlag::TimeDependent)];
+		strlit<>("timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time)")[AssignFlags(result, DijkstraFlag::TimeDependent)]
+	|	strlit<>("timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)")[AssignFlags(result, DijkstraFlag::TimeDependentAlt)];
 
 	// Interaction model configuration + optional production outputs
 	boost::spirit::rule<>  interactionRule =
