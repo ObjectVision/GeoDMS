@@ -8,8 +8,8 @@ check in `UpdateMark.cpp` an `MG_USERCHECK2` that throws in Release as well; D18
 with §3.4 step 1 (the `DetermineExternalChange` line in `TreeItem::DetermineLastSupplierChange` is
 still commented out), D15 (`UM_AllowDefaultLeft` in `AbstrUnit::UnifyValues`), D16 (`SetTSF` in
 `AbstrDataItem::CheckResultItem`), E20 (the `SetDC` TODO in `TreeItem.cpp`), E22 (now in
-`TreeItemMetaInfo.cpp`), and C14's `DMS_IsConfigDirty`, which takes
-`sd_SessionDataCriticalSection` twice (code audit TIC-A14). Corrected on 2026-10-06: §3.2 missed the
+`TreeItemMetaInfo.cpp`). C14's `DMS_IsConfigDirty` took `sd_SessionDataCriticalSection` twice
+until 2026-10-09 (code audit TIC-A14). Corrected on 2026-10-06: §3.2 missed the
 existing activation hook, `ReportChangedFiles`, which watches configuration files only; §1.1
 described `Renumber()` as working, and it has no caller (code audit INF-A14). The items not named
 here were not re-checked. The `tic/dll/src` paths now name their files in the flattened tree
@@ -142,11 +142,12 @@ Based on code review of the GeoDMS26 tree (rtc, tic, clc, stg, stx, qtgui), 2026
     at read time and are not suppliers; indirect `='…'` expressions only participate via what
     they resolved to at substitution time.
 14. **No in-session config reload.** `DMS_IsConfigDirty` (`rtc/dll/src/tic/SessionData.cpp`)
-    only reports "any TS issued since load"; it does not watch `.dms` files. And it does not
-    work as written: it takes `sd_SessionDataCriticalSection`, a plain `std::mutex`, and calls
-    `SessionData::IsConfigDirty`, which takes it again; MSVC throws `resource_deadlock_would_occur`
-    (reported as an error, the call returns false) and Linux deadlocks. It is exported and has no
-    caller in the tree (code audit TIC-A14, open).
+    only reports "any TS issued since load"; it does not watch `.dms` files. Until 2026-10-09 it
+    did not work as written either: it took `sd_SessionDataCriticalSection`, a plain `std::mutex`,
+    and called `SessionData::IsConfigDirty`, which takes it again; MSVC threw
+    `resource_deadlock_would_occur` (reported as an error, the call returned false) and Linux
+    deadlocked. It takes the session through `SessionData::GetIt` now (code audit TIC-A14). It is
+    exported and has no caller in the tree.
 
 ### D. Rule-change / cache-key edge cases (incl. "rule change → different unit type")
 

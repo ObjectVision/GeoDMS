@@ -132,10 +132,11 @@ bool DMS_IsConfigDirty(const TreeItem* configRoot)
 {
 	DMS_CALL_BEGIN
 
-		auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
-
-		SessionData::activateIt(configRoot);
-		return s_CurrSD->IsConfigDirty();
+		// TIC-A14: this held sd_SessionDataCriticalSection, a plain std::mutex, around IsConfigDirty, which takes it as
+		// well: MSVC threw resource_deadlock_would_occur, reported as an error with false for an answer, and Linux hung.
+		// GetIt takes it for the session pointer only.
+		auto sd = SessionData::GetIt(configRoot);
+		return sd && sd->IsConfigDirty();
 
 	DMS_CALL_END
 	return false;
