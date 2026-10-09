@@ -14,6 +14,10 @@
 #include "mci/ValueClassID.h"
 #include "utl/StrFormat.h"
 
+#include <algorithm>
+#include <cctype>
+#include <string_view>
+
 #include "AbstrDataItem.h"
 #include "DataArray.h"
 #include "DataLocks.h"
@@ -39,6 +43,14 @@ DataBlockProd::~DataBlockProd()
 // Description:       add record to attribute
 // *****************************************************************************
 
+// the text of an element that stands for null, in any case
+static bool IsNullText(CharPtr first, CharPtr last)
+{
+	constexpr std::string_view nullText = "null";
+	return SizeT(last - first) == nullText.size()
+		&& std::equal(first, last, nullText.begin(), [](char c, char n) { return std::tolower(static_cast<unsigned char>(c)) == n; });
+}
+
 void DataBlockProd::DoArrayAssignment()
 {
 	AbstrDataItem* adi = CurrDI(); // stack-local borrow; kept alive by m_Lock
@@ -59,20 +71,48 @@ void DataBlockProd::DoArrayAssignment()
 	{
 		if (m_eValueType == ValueClassID::VT_Unknown)
 			return; // OK to have undefined values for untiled area 
-		adi->throwItemErrorF("DoArrayAssignment: Index {} is not part of any tile. Untiled area's cannot be assigned, this index should have a null value", m_nIndexValue);
+		adi->throwItemErrorF("DoArrayAssignment: Index {} is not part of any tile. Untiled area's cannot be assigned, this index should have a null value", i);
 	}
 
-	switch (m_eValueType) 
+	try {
+		AssignElement(adi, i);
+	}
+	catch (DmsException& x)
+	{
+		// STX-A25: the errors of a conversion name the C++ type and not where the value is. The element goes
+		// into the message itself: dms_guard_d passes on only m_Why, so an extra context would be lost.
+		x.AsErrMsg()->m_Why = mySSPrintF("{}, in element {} of the data block", x.AsErrMsg()->m_Why, i);
+		throw;
+	}
+}
+
+void DataBlockProd::AssignElement(AbstrDataItem* adi, SizeT i)
+{
+	switch (m_eValueType)
 	{
 		case ValueClassID::VT_SharedStr:
 		{
 			m_AbstrValue->AssignFromCharPtrs(m_StringVal.begin(), m_StringVal.send());
+			// STX-A25: a text that the values type cannot hold, such as '300' for a uint8, became null without
+			// a word, where the same number written as a number is a range error
+			if (m_AbstrValue->IsNull() && m_StringVal.begin() != m_StringVal.send() && !IsNullText(m_StringVal.begin(), m_StringVal.send()))
+				throwErrorF("DataBlock", "the text '{}' is not a value of {}"
+				,	std::string_view(m_StringVal.begin(), m_StringVal.send() - m_StringVal.begin()), adi->GetAbstrValuesUnit()->GetValueType()->GetName());
 			m_Lock->SetAbstrValue(i, *m_AbstrValue); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
 			break;
 		}
 		case ValueClassID::VT_DPoint:
+		{
 			m_Lock->SetValueAsDPoint(i, m_DPointVal); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
+			// STX-A25: a coordinate outside the range of the point type became null without a word, where a
+			// number outside the range of a numeric attribute is an error; read back, a defined coordinate
+			// that came back null did not fit
+			DPoint stored = m_Lock->GetValueAsDPoint(i);
+			if ((IsDefined(m_DPointVal.first) && !IsDefined(stored.first)) || (IsDefined(m_DPointVal.second) && !IsDefined(stored.second)))
+				throwErrorF("DataBlock", "the point ({}, {}) is outside the range of the coordinates of {}"
+				,	m_DPointVal.first, m_DPointVal.second, adi->GetAbstrValuesUnit()->GetValueType()->GetName());
 			break;
+		}
 		case ValueClassID::VT_Bool:
 		{
 			DataArray<Bool>* di = mutable_array_dynacast<Bool>(m_Lock);
@@ -140,14 +180,22 @@ void ConfigProd::DoArrayAssignment()
 
 void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
 {
-	if (!IsDataItem(m_pCurrent.get()) )
-		m_pCurrent->throwItemError("DataBlockAssignment: assignee must be a DataItem");
-	dms_assert(!m_pCurrent->GetInterestCount());
+	// STX-A25: a multi-name declaration gives every name the data block, as it gives them the calculation
+	// rule; in `a, b: attribute<int32>(d): [1, 2, 3];` only b got it, and a was left without data
+	auto assignDataBlock = [&](TreeItem* item)
+	{
+		if (!IsDataItem(item))
+			item->throwItemError("DataBlockAssignment: assignee must be a DataItem");
+		dms_assert(!item->GetInterestCount());
 
-	m_pCurrent->GetOrCreateConfigProperties().mc_Calculator =
-		new DataBlockTask(
-			AsDataItem(m_pCurrent.get()), 
-			&*first, &*last
-		);
+		item->GetOrCreateConfigProperties().mc_Calculator =
+			new DataBlockTask(
+				AsDataItem(item),
+				&*first, &*last
+			);
+	};
+	assignDataBlock(m_pCurrent.get());
+	for (auto& sibling : m_LastDeclSiblings)
+		assignDataBlock(sibling.get());
 }
 

@@ -1,0 +1,22 @@
+// Regression for doc/code-audit-2026-09-27.md CLC-A11: string(point) was registered twice in the string
+// group, as asstring_assign and as a cast, and static-init order picked the one a configuration got. The
+// cast wrote a null point as the text xy(null; null), and it wrote coordinates with thousand separators
+// when the GUI option (or GeoDmsRun's /SH) asked for them, which also held for convert() of a number to
+// a string: xy(155,000.5; 463,000). Since 20.24.0 only asstring_assign remains, which gives null for a
+// null point, and a number converts to text without separators whatever the option.
+// Expected: exit 0 on /checks.
+container oper_string_point
+{
+	unit<uint32> P : nrofrows = 2
+	{
+		attribute<dpoint> p := union_data(., point_xy(155000.5, 463000.0, dpoint), point_xy(null_d, null_d, dpoint));
+		attribute<string> s := string(p);
+	}
+
+	container checks
+	{
+		parameter<bool> no_sep    := strcount(P/s[0], ',') == 0      , IntegrityCheck = "no_sep == true";
+		parameter<bool> null_null := IsNull(P/s[1])                    , IntegrityCheck = "null_null == true";
+		parameter<bool> has_x     := strcount(P/s[0], '155000.5') == 1 , IntegrityCheck = "has_x == true";
+	}
+}

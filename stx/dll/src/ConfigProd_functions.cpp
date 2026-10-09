@@ -122,6 +122,8 @@ void ConfigProd::DoStorageProp()
 		m_sPropFileTypeID.GetStrLock().c_str(),
 		StorageReadOnlySetting::Default
 	);
+	for (auto& sibling : m_LastDeclSiblings) // STX-A25: a multi-name declaration gives every name its properties
+		DMS_TreeItem_SetStorageManager(sibling.get(), m_strIdentifierID.GetStrLock().c_str(), m_sPropFileTypeID.GetStrLock().c_str(), StorageReadOnlySetting::Default);
 }
 
 void ConfigProd::DoFileType()
@@ -140,6 +142,8 @@ void ConfigProd::DoUsingProp()
 {
 	dms_assert(m_pCurrent);
 	m_pCurrent->AddUsingUrl(m_strIdentifierID); // splits up on ';' so will look into Str anyway
+	for (auto& sibling : m_LastDeclSiblings) // STX-A25: a multi-name declaration gives every name its properties
+		sibling->AddUsingUrl(m_strIdentifierID);
 }
 
 // *****************************************************************************

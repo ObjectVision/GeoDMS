@@ -1,0 +1,12 @@
+// Regression for doc/code-audit-2026-09-27.md STX-A14: a float literal beyond the range of float64 is an
+// error that names it, since 20.24.0, when a literal is read with std::from_chars.
+// Expected: nonzero exit on /checks, "the number 1.0e400 is outside the range of float64".
+container stx_float_literal_range_neg
+{
+	parameter<float64> huge := 1.0e400;
+
+	container checks
+	{
+		parameter<bool> ok := huge > 0.0, IntegrityCheck = "ok == true";
+	}
+}

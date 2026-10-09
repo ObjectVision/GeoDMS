@@ -198,6 +198,9 @@ void ExprProd::ProdFloat64(Float64 x)
 #include "mci/ValueClassID.h"
 #include "vt/StringBounds.h"
 #include <algorithm>
+#include <cmath>
+#include <limits>
+#include <string_view>
 
 // The value-type suffixes of a numeric literal (1d, 2f, 3u, 4i, 5w, 6s, 7b, 8c, and the sized
 // forms u64 .. u2) are recognised by TEXT, exactly and in lower case, and are not interned as
@@ -237,6 +240,43 @@ static ValueClassID GetValueTypeOfSuffix(CharPtr first, CharPtr last)
 	return ValueClassID::VT_Unknown;
 }
 
+// STX-A25: a literal whose value the type of its suffix cannot hold (5000000000u, 300b, 1e40f) was wrapped
+// in a cast that made it null at run time, where an unsuffixed integer above uint32 is a parse error (see
+// ProdUInt32WithoutSuffix). It is an error here as well, naming the literal and the type.
+static void CheckLiteralFitsSuffix(const LispRef& literal, const ValueClass* vc, CharPtr suffixFirst, CharPtr suffixLast)
+{
+	UInt64 maxInteger = 0;
+	switch (vc->GetValueClassID())
+	{
+		case ValueClassID::VT_UInt2:  maxInteger = 3; break;
+		case ValueClassID::VT_UInt4:  maxInteger = 15; break;
+		// the whole bit range, the null value of an unsigned type included, as for an unsuffixed literal,
+		// which accepts 4294967295, the null of uint32 (MAX_VALUE(UInt8) is 254, as 255 is its null)
+		case ValueClassID::VT_UInt8:  maxInteger = std::numeric_limits<UInt8 >::max(); break;
+		case ValueClassID::VT_Int8:   maxInteger = std::numeric_limits<Int8  >::max(); break;
+		case ValueClassID::VT_UInt16: maxInteger = std::numeric_limits<UInt16>::max(); break;
+		case ValueClassID::VT_Int16:  maxInteger = std::numeric_limits<Int16 >::max(); break;
+		case ValueClassID::VT_UInt32: maxInteger = std::numeric_limits<UInt32>::max(); break;
+		case ValueClassID::VT_Int32:  maxInteger = std::numeric_limits<Int32 >::max(); break;
+		case ValueClassID::VT_Int64:  maxInteger = std::numeric_limits<Int64 >::max(); break;
+		case ValueClassID::VT_UInt64: maxInteger = std::numeric_limits<UInt64>::max(); break;
+		case ValueClassID::VT_Float32:
+			if (literal.IsNumb() && std::abs(literal.GetNumbVal().m_Value) > std::numeric_limits<Float32>::max())
+				throwErrorF("ExprProd", "the literal {}{} is outside the range of {}", literal.GetNumbVal().m_Value, std::string_view(suffixFirst, suffixLast - suffixFirst), vc->GetName());
+			if (literal.IsUI64() && Float64(literal.GetUI64Val()) > std::numeric_limits<Float32>::max())
+				throwErrorF("ExprProd", "the literal {}{} is outside the range of {}", literal.GetUI64Val(), std::string_view(suffixFirst, suffixLast - suffixFirst), vc->GetName());
+			return;
+		default:
+			return;
+	}
+	// a literal is unsigned here: a minus sign is an operator applied to the cast literal
+	auto suffixText = std::string_view(suffixFirst, suffixLast - suffixFirst);
+	if (literal.IsUI64() && literal.GetUI64Val() > maxInteger)
+		throwErrorF("ExprProd", "the literal {}{} is outside the range of {}, which holds at most {}", literal.GetUI64Val(), suffixText, vc->GetName(), maxInteger);
+	if (literal.IsNumb() && literal.GetNumbVal().m_Value > Float64(maxInteger))
+		throwErrorF("ExprProd", "the literal {}{} is outside the range of {}, which holds at most {}", literal.GetNumbVal().m_Value, suffixText, vc->GetName(), maxInteger);
+}
+
 void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 {
 	// (n tail) -> ((cast n) tail) or ((value n unit) tail);
@@ -269,6 +309,7 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 
 	if (vc)
 	{
+		CheckLiteralFitsSuffix(m_Result.back(), vc, &*first, &*last);
 		m_Result.repl_back1(List2<LispRef>(LispRef(suffixToken), m_Result.back()));
 		return;
 	}

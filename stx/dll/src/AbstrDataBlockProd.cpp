@@ -81,6 +81,12 @@ void AbstrDataBlockProd::DoUInt64(UInt64 nIntVal)
 			? +Int64(nIntVal)
 			: -Int64(nIntVal);
 	m_eValueType = (m_bSignIsPlus) ? ValueClassID::VT_UInt64 : ValueClassID::VT_Int64;
+
+	// STX-A25: a negative integer below -2^63 has no Int64, and became null, even in a float64 block. It
+	// goes the float way instead: a float attribute gets its value, an integer attribute the range error
+	// that every number outside its range gets.
+	if (!m_bSignIsPlus && nIntVal > UInt64(MAX_VALUE(Int64)))
+		m_eValueType = ValueClassID::VT_Float64;
 }
 
 // *****************************************************************************

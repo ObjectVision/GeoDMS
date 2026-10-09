@@ -1,0 +1,14 @@
+// Regression for doc/code-audit-2026-09-27.md STX-A25: in a data block, a text element that the values type
+// cannot hold, such as '300' for a uint8, became null without a word, while the number 300 is a range error.
+// Since 20.24.0 it is an error that names the text, the type and the element.
+// Expected: nonzero exit on /checks, "the text '300' is not a value of uint8".
+container stx_datablock_text_range_neg
+{
+	unit<uint32> D : nrofrows = 2;
+	attribute<uint8> x (D) : ['200', '300'];
+
+	container checks
+	{
+		parameter<bool> ok := all(IsDefined(x)), IntegrityCheck = "ok == true";
+	}
+}

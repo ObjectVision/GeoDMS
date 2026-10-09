@@ -75,6 +75,7 @@ private:
 	std::unique_ptr<AbstrValue> m_AbstrValue;
 
 	[[noreturn]] void throwSemanticError(CharPtr msg) override;
+	void AssignElement(AbstrDataItem* adi, SizeT i);
 
 	AbstrDataItem* CurrDI  () { return m_Lock.GetItem(); }
 };

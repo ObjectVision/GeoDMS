@@ -343,8 +343,8 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 				= (uint64_p[([&](auto u64) { cp.ProdUInt64(u64);})])
 			| (PERCENT >> (hex64_p[([&](auto u64) { cp.ProdUInt64(u64); })]));
 
-			unsignedReal
-				= strict_ureal_p[([&](auto f64) { cp.ProdFloat64(f64);})];
+			unsignedReal // STX-A14: Spirit for the extent of the literal, std::from_chars for its value
+				= (strict_ureal_p >> epsilon_p)[([&](auto first, auto last) { cp.ProdFloat64(ExactFloat64(first, last));})];
 
 			//-----------------------------------------------------------------
 			//  End grammar definition
