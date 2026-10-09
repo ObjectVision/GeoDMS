@@ -21,6 +21,8 @@
 #include "mci/AbstrValue.h"
 #include "LockLevels.h" // DMS_ENTERS
 
+#include <optional>
+
 //*****************************************************************
 //**********         PropDef Interface                   **********
 //*****************************************************************
@@ -48,6 +50,13 @@ public:
 
 	virtual SharedStr GetValueAsSharedStr   (const Object* self) const=0;
 	virtual SharedStr GetRawValueAsSharedStr(const Object* self) const=0; // same contract as HasNonDefaultValue above
+	// The cooked value as text when the property is set, and nothing when it is not: the rows of the "non default"
+	// properties page, which shows cooked values. No ceiling. A property that a configuration writes (an xml_mode
+	// other than none) is set when HasNonDefaultValue says so, and evaluates only then. One that none writes, computed
+	// or diagnostic, has no raw value but its cooked one: it evaluates once and is set when the result is not the
+	// default. Through HasNonDefaultValue such a property evaluated under the IndexedString ceiling, as its raw read
+	// forwards to GetValue, and then a second time for the row (TIC-A29).
+	virtual std::optional<SharedStr> GetValueAsSharedStrIfSet(const Object* self) const;
 	virtual void   SetValueAsCharArray(Object* self, CharPtr value) =0;
 	virtual void SetValueAsCharRange(Object* self, CharPtr begin, CharPtr end) =0;
 
@@ -183,6 +192,18 @@ public:
 		const ItemType* item = debug_cast<const ItemType*>(self);
 		dms_assert(item);
 		typename ValueWrap<PropType>::value_type propValue = GetValue(item);
+		return ::AsString( propValue );
+	}
+	std::optional<SharedStr> GetValueAsSharedStrIfSet(const Object* self) const override
+	{
+		if (this->GetXmlMode() != xml_mode::none)
+			return AbstrPropDef::GetValueAsSharedStrIfSet(self);
+		const ItemType* item = debug_cast<const ItemType*>(self);
+		dms_assert(item);
+		ApiType value = GetValue(item);
+		if (value == ApiType())
+			return std::nullopt;
+		typename ValueWrap<PropType>::value_type propValue = value;
 		return ::AsString( propValue );
 	}
 	SharedStr GetRawValueAsSharedStr(const Object* self) const override

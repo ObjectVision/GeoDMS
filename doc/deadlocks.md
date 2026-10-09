@@ -6,14 +6,13 @@ accessor naming, `DMS_ENTERS` ceilings, `DMS_CALLEE_ENTERS` callee contracts). *
 P4 in `b591f683d` (#1233), which also deleted `LevelCheckBlocker` and with it blind spot B2; B1 in
 `d9d791bab`, which corrected its earlier statement as well; P5, P11 and P13 in `e2c6033c4`; P12 in
 `3dfb7ed42`; P14 in `2052ee755`; P15 in `38dc6f81f`; P16 in `eab00bb01`; P17 in `1946a5cdd` (#1266);
-P18 for the configuration dump in `9c4902ffd` (#1268); P19 in `1155a678e`. P8 is superseded by P16.
+P18 for the configuration dump in `9c4902ffd` (#1268) and for the properties page on 2026-10-09 (code
+audit TIC-A29); P19 in `1155a678e`. P8 is superseded by P16.
 P6 was narrowed by `d9d791bab`, and what it leaves, per-item locks against each other, stays
 unchecked by decision: ordering them by item level was measured false (§3.2). Open: P2 (checkable
 in Debug since `e2c6033c4`, no instance known); P7 (`counted_mutex::lock` in `ptr/SharedBase.cpp`
 still waits without a timeout); P9 (the TODO in `tile_task_group::AwaitRunningSlots`); P10 (an
-interface rule); P18 on the "non-default properties" page, where `WritePropValueRows`
-(`tic/Xml/XmlTreeOut.cpp`) calls `HasNonDefaultValue` on computed properties (code audit
-TIC-A29); and the nesting tables for act/ and mem/ser (§6, §9 item 4). Until 2026-10-06 this
+interface rule); and the nesting tables for act/ and mem/ser (§6, §9 item 4). Until 2026-10-06 this
 paragraph named only P1, P3, P4 and B1 as fixed.** Method: exhaustive
 grep inventory of every synchronization primitive and every blocking wait, followed by reading the
 wait structures and the sites where locks are held across opaque calls. Each finding states what
@@ -478,8 +477,8 @@ declarations by name.
 
 Ranked by (likelihood × cost of diagnosis when it fires). Each heading says the state of its
 finding. Fixed, and kept here as the record of what the failure was: P1, P3, P4, P5, P11 to P17,
-P19, and P18 for the configuration dump. Superseded: P8, by P16. Left unchecked by decision: P6.
-Open: P2, P7, P9, P10, and P18 on the properties page (TIC-A29). Until 2026-10-06 this paragraph
+P18 and P19. Superseded: P8, by P16. Left unchecked by decision: P6.
+Open: P2, P7, P9 and P10. Until 2026-10-06 this paragraph
 said that only P1, P3, P4 and P15 were fixed. An ordinal quoted in a finding is the one of the day
 it was written; §1.1 gives today's ordinals beside the old ones.
 
@@ -802,7 +801,7 @@ called. The interest the branch holds on the unit itself while it emits the Rang
 and stays. Debug battery 324/324 with `stor_mmd_alias_*` green; Release battery 324/324.
 Rule R6 (§8) is the general form.
 
-### P18 — the dump's raw property reads produced: interest, resolution, creation — **FIXED for the dump (#1268, `9c4902ffd`); open on the properties page (TIC-A29)**
+### P18 — the dump's raw property reads produced: interest, resolution, creation — **FIXED for the dump (#1268, `9c4902ffd`) and for the properties page (TIC-A29, 2026-10-09)**
 
 Found by the first Debug run of the XML round-trip battery (#1261): all 190 of its configurations
 stopped in `@dumpconfig` with exit 3 and an empty output file. The first refusal, on every
@@ -877,13 +876,15 @@ of unrelated definitions (ambiguous, skipped by design, §3.9). Resolving that i
 which is why the XML round-trip battery is back in the two Debug launchers: it is the check for
 this class, and it found five instances on its first run.
 
-*Open (code audit of 2026-09-27, TIC-A29):* the fix covers the properties the dump writes. The
+*Fixed on 2026-10-09 (code audit of 2026-09-27, TIC-A29); what was open:* the fix covered the properties the dump writes. The
 "non-default properties" page of the GUI goes through `WritePropValueRows`
 (`tic/Xml/XmlTreeOut.cpp`), which asks `HasNonDefaultValue` of every PropDef of the item, and a
 property without a raw override still reaches its cooked `GetValue` through the base
 `GetRawValue` (`mci/PropDef.h`): `NrSubItems`, `FullSource`, `StorageTileSizeX`/`Y` and others
 compute under the `(IndexedString, shared)` ceiling. The audit confirmed the path; the Debug stop
-it predicts there has not been observed.
+it predicts there had not been observed. The page now asks `AbstrPropDef::GetValueAsSharedStrIfSet`,
+which keeps `HasNonDefaultValue` for a property that a configuration writes and evaluates one that
+none writes once, outside the ceiling, testing that value against the default.
 
 ### P19 — `ODBCStorageManager::DoUpdateTree` held `s_OdbcSection` over the creation of column items — **FIXED (2026-10-03)**
 

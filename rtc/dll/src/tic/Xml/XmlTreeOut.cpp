@@ -1055,11 +1055,14 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 		try {
 			if (pd->IsAlias())          // its value is already listed under the primary name
 				continue;
-			if (!showAll && !pd->HasNonDefaultValue(self))
-				continue;
 			if (SuspendTrigger::DidSuspend())
 				return;
-			result = pd->GetValueAsSharedStr(self);
+			if (showAll)
+				result = pd->GetValueAsSharedStr(self);
+			else if (auto value = pd->GetValueAsSharedStrIfSet(self)) // TIC-A29: one evaluation, outside the ceiling of HasNonDefaultValue
+				result = std::move(*value);
+			else
+				continue;
 			if (SuspendTrigger::DidSuspend())
 				return;
 		}

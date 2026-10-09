@@ -74,6 +74,13 @@ bool AbstrPropDef::HasNonDefaultValue(const Object* self) const
 	return true; // best guess.
 }
 
+std::optional<SharedStr> AbstrPropDef::GetValueAsSharedStrIfSet(const Object* self) const
+{
+	if (!HasNonDefaultValue(self))
+		return std::nullopt;
+	return GetValueAsSharedStr(self);
+}
+
 auto AbstrPropDef::CreateValue() const -> std::unique_ptr<AbstrValue>
 {
 	return std::unique_ptr<AbstrValue>( debug_cast<AbstrValue*>(m_ValueClass->CreateObj()) );
