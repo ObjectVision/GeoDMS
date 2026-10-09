@@ -1543,10 +1543,23 @@ static Timer sd_LedgerSampleTimer;
 static UInt32 sd_LedgerAdmittedTotal = 0, sd_LedgerParkedTotal = 0;
 static SizeT LedgerBudgetBytes(); // defined below, beside the charge policy
 
-static void MemoryLedger_ConsiderSample(CharPtr event)
+static void MemoryLedger_ReportSample(CharPtr event);
+
+// noexcept: MemoryLedger_Release calls this on the cleanup path of the noexcept onEnd, where a throw is
+// std::terminate, and the sample reads the registry (LedgerBudgetBytes) and the OS (TotalAllowedPhysicalMemory,
+// GetMemoryStatus), which throw when their query fails. A sample that fails is skipped (RTC-12, TIC-10, A7).
+static void MemoryLedger_ConsiderSample(CharPtr event) noexcept
 {
-	if (!IsLedgerLogging() || !sd_LedgerSampleTimer.PassedSecs_impl(30))
-		return;
+	try {
+		if (!IsLedgerLogging() || !sd_LedgerSampleTimer.PassedSecs_impl(30))
+			return;
+		MemoryLedger_ReportSample(event);
+	}
+	catch (...) {}
+}
+
+static void MemoryLedger_ReportSample(CharPtr event)
+{
 	auto retains = sd_LedgerRetainCount.load(std::memory_order_relaxed);
 	auto releases = sd_LedgerReleaseCount.load(std::memory_order_relaxed);
 	auto booked = sd_LedgerBookedSum.load(std::memory_order_relaxed);
@@ -1692,7 +1705,7 @@ void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObject* obj, 
 	// Name the offenders. Tested on the RAW cardinality figure, not on the booked one, so it keeps
 	// reporting them after RetainedBytesOf has bounded them -- the point is to see WHICH domains
 	// produce an impossible element count, not merely that the bound engaged.
-	if (raw > TotalAllowedPhysicalMemory() && IsLedgerLogging())
+	if (raw > TotalAllowedPhysicalMemoryOrNoCap() && IsLedgerLogging()) // OrNoCap: it ran outside the try below, on the noexcept path of onEnd (A7)
 	{
 		static std::atomic<UInt32> sd_OutlierReports = 0;
 		if (sd_OutlierReports.fetch_add(1, std::memory_order_relaxed) < 20)
@@ -2125,39 +2138,47 @@ garbage_can OperationContext::separateResources(task_status status)
 	// GetCurrDataObj() (a bare m_DataObject read) rather than GetCurrRefObj(): we want THIS item's
 	// object, and the latter walks to the ultimate item behind an MG_CHECK that can throw -- which
 	// must not happen on a cleanup path that runs while cs_ThreadMessing is held.
-	if (status == task_status::done && m_LedgerBooked && m_Estimate)
-		if (auto resultItem = GetResult(); resultItem && IsDataItem(resultItem.get()))
-		{
-			// Book against the ULTIMATE item, not the referring one. A data object is routinely shared
-			// by several items -- PhaseContainer::CalcResult assigns
-			// `resItem->m_DataObject = srcUltItem->m_DataObject` outright, and reference items
-			// (a := b) resolve through the same chain -- so booking per referring item counts the
-			// same bytes once per referrer. Keying on the ultimate item collapses those to one
-			// booking, and because MemoryLedger_Retain releases any previous booking on its key
-			// first, a second referrer completing simply re-books the same entry instead of adding.
-			// GetCurrUltimateItem() is noexcept and non-updating, so it is safe on this cleanup path
-			// (unlike GetCurrRefObj(), whose MG_CHECK can throw while cs_ThreadMessing is held).
-			auto adi = AsDataItem(resultItem.get());
-			auto ult = adi->GetCurrUltimateItem();
-			auto owner = (ult && IsDataItem(ult.get())) ? AsDataItem(ult.get()) : adi;
+	// separateResources runs inside the noexcept onEnd: a throw from the booking, which reads the OS and the
+	// registry, ended the process with std::terminate and skipped the release below (RTC-12, TIC-10, A7)
+	try {
+		if (status == task_status::done && m_LedgerBooked && m_Estimate)
+			if (auto resultItem = GetResult(); resultItem && IsDataItem(resultItem.get()))
+			{
+				// Book against the ULTIMATE item, not the referring one. A data object is routinely shared
+				// by several items -- PhaseContainer::CalcResult assigns
+				// `resItem->m_DataObject = srcUltItem->m_DataObject` outright, and reference items
+				// (a := b) resolve through the same chain -- so booking per referring item counts the
+				// same bytes once per referrer. Keying on the ultimate item collapses those to one
+				// booking, and because MemoryLedger_Retain releases any previous booking on its key
+				// first, a second referrer completing simply re-books the same entry instead of adding.
+				// GetCurrUltimateItem() is noexcept and non-updating, so it is safe on this cleanup path
+				// (unlike GetCurrRefObj(), whose MG_CHECK can throw while cs_ThreadMessing is held).
+				auto adi = AsDataItem(resultItem.get());
+				auto ult = adi->GetCurrUltimateItem();
+				auto owner = (ult && IsDataItem(ult.get())) ? AsDataItem(ult.get()) : adi;
 
-			auto dataObj = owner->GetCurrDataObj();
-			auto regime = dataObj ? dataObj->GetMaterialization() : materialization::meta;
+				auto dataObj = owner->GetCurrDataObj();
+				auto regime = dataObj ? dataObj->GetMaterialization() : materialization::meta;
 
-			// Tally EVERY completed result, booked or not: the skipped ones are the open question.
-			TallyRegime(regime, m_Estimate->resultingMemory);
+				// Tally EVERY completed result, booked or not: the skipped ones are the open question.
+				TallyRegime(regime, m_Estimate->resultingMemory);
 
-			if (regime == materialization::eager || regime == materialization::deferred)
-				MemoryLedger_Retain(owner, dataObj.get(), RetainedBytesOf(owner, dataObj.get(), *m_Estimate));
-			else if (regime == materialization::spilled)
-				// Not zero, as it was: a spilled result's data is in a cache file, but the tiles in
-				// use are mapped into RAM and those pages are as real as heap. Charge one tile's
-				// volume per live mapping. This is a snapshot at completion -- mappings come and go
-				// afterwards -- so it under-states a result that gets mapped more heavily later; it
-				// is still strictly better than the 0 that made spilled results invisible.
-				if (auto resident = dataObj->GetNrResidentTilesNow())
-					MemoryLedger_Retain(owner, dataObj.get(), SpilledResidentBytes(*m_Estimate, resident));
-		}
+				if (regime == materialization::eager || regime == materialization::deferred)
+					MemoryLedger_Retain(owner, dataObj.get(), RetainedBytesOf(owner, dataObj.get(), *m_Estimate));
+				else if (regime == materialization::spilled)
+					// Not zero, as it was: a spilled result's data is in a cache file, but the tiles in
+					// use are mapped into RAM and those pages are as real as heap. Charge one tile's
+					// volume per live mapping. This is a snapshot at completion -- mappings come and go
+					// afterwards -- so it under-states a result that gets mapped more heavily later; it
+					// is still strictly better than the 0 that made spilled results invisible.
+					if (auto resident = dataObj->GetNrResidentTilesNow())
+						MemoryLedger_Retain(owner, dataObj.get(), SpilledResidentBytes(*m_Estimate, resident));
+			}
+	}
+	catch (...)
+	{
+		DBG_ReportBoundaryException("OperationContext::separateResources: retained booking");
+	}
 
 	MemoryLedger_Release(this); // the running charge is done; the retained one lives on the item
 

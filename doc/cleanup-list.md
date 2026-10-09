@@ -298,7 +298,10 @@ note below.
       and `MemoryLedger_Release` outside any `try`, and is reached from the
       `noexcept` `OperationContext::onEnd` (:2028), so a throw there ends the
       process. Catch on that path, or make those calls `noexcept` (code audit,
-      section 4.3; continuations A7).
+      section 4.3; continuations A7). **Done 2026-10-09**: the ledger sample is
+      `noexcept`, the outlier test of `MemoryLedger_Retain` asks
+      `TotalAllowedPhysicalMemoryOrNoCap`, and the retained booking runs in a
+      `try`, so the release after it always runs.
     - **STG-14 residue**: `ReadTiles` keeps the `SizeT` that `TifImp::ReadTile`
       returns in an `Int32 read_result` (`stg/dll/src/GridStorageManager.h:185`,
       :193). Use `SizeT`, or an explicit checked conversion. It goes with the

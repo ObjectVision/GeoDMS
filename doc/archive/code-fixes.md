@@ -454,7 +454,7 @@ All S effort / low fix-risk unless stated. Suggested commits: (i) token registry
 
 *2026-10-06: only partly done (code audit, section 4.3): the `MemoryLedger_Retain` and
 `MemoryLedger_Release` calls in `OperationContext::separateResources` run outside any `try` and are
-reached from the `noexcept` `onEnd`. Open in `doc/cleanup-list.md`.*
+reached from the `noexcept` `onEnd`. Open in `doc/cleanup-list.md`; done there on 2026-10-09 (continuations A7).*
 - **Where:** `rtc/dll/src/act/Actor.cpp:1249-1290` `DecInterestCount() noexcept` (constructs `actor_section_lock_map::ScopedLock` → `GetorCreateMutex` → `std::map::insert`), `:1317-1331` `StopInterest() noexcept` (calls `ReportSuspension`); `rtc/dll/src/tic/OperationContext.cpp:1584, 1600, 1695` `RetainedBytesOf` / `SpilledResidentBytes` `noexcept` (call `TotalAllowedPhysicalMemory()` outside their `try`; `memory_info`'s ctor throws on `GlobalMemoryStatusEx` failure, `RTC_GetRegDWord` MG_CHECKs).
 - **Defect:** a throw becomes `std::terminate`. Low plausibility (a failed ~100-byte allocation means the process is dying), but the memory-info path is a real OS-failure branch.
 - **Fix:** catch and `DBG_ReportBoundaryException` / return an empty can; give `TotalAllowedPhysicalMemory` a noexcept cached variant, or move the call inside the `try` with a `SizeT(-1)` fallback.
