@@ -37,10 +37,17 @@
 
 #include <iostream>
 #include <algorithm>
+#include <mutex>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+// #1303: while main2 runs, the log lines are delivered by a thread of Rtc (DBG_SetMsgDeliveryOffMainThread),
+// so std::cout and std::cerr have two writers: that thread, in logMsg, and the main thread, with the
+// lines of this file. Each writes its lines whole under this section, so that a log line cannot land
+// inside another line. It is held to compose and write a line, never across a computation.
+static std::mutex s_ConsoleSection;
 
 #if defined(_MSC_VER) && defined(_DEBUG)
 #include <crtdbg.h>
@@ -90,6 +97,7 @@ static void DumpValueInfo(std::ostream& out, const TreeItem* item, SizeT index)
 	const AbstrDataItem* studyObject = AsDynamicDataItem(item);
 	if (!studyObject)
 	{
+		std::lock_guard lock(s_ConsoleSection);
 		out << "@valueinfo: " << item->GetFullName().c_str() << " is not a data item" << std::endl;
 		return;
 	}
@@ -110,6 +118,7 @@ static void DumpValueInfo(std::ostream& out, const TreeItem* item, SizeT index)
 
 		if (done || attempt == 1000)
 		{
+			std::lock_guard lock(s_ConsoleSection);
 			if (!done)
 				out << "@valueinfo: gave up waiting for the explanation to complete" << std::endl;
 			out << outStreamBuff.AsString().c_str() << std::endl;
@@ -128,6 +137,7 @@ static void DumpSourceDescr(std::ostream& out, const TreeItem* cfg, CharPtr item
 	const TreeItem* item = DMS_TreeItem_GetItem(cfg, itemPath);
 	if (!item)
 	{
+		std::lock_guard lock(s_ConsoleSection);
 		out << "@sourcedescr: item " << itemPath << " not found" << std::endl;
 		return;
 	}
@@ -139,9 +149,14 @@ static void DumpSourceDescr(std::ostream& out, const TreeItem* cfg, CharPtr item
 		{ SourceDescrMode::All,        "Utilized Storage Managers"      },
 	};
 
+	SharedStr descrs[std::size(modes)];
+	for (SizeT i = 0; i != std::size(modes); ++i)
+		descrs[i] = TreeItem_GetSourceDescr(item, modes[i].first, true);
+
+	std::lock_guard lock(s_ConsoleSection);
 	out << "@sourcedescr " << item->GetFullName().c_str() << std::endl;
-	for (const auto& [mode, caption] : modes)
-		out << caption << ":" << TreeItem_GetSourceDescr(item, mode, true).c_str() << std::endl;
+	for (SizeT i = 0; i != std::size(modes); ++i)
+		out << modes[i].second << ":" << descrs[i].c_str() << std::endl;
 }
 
 using itemCmdPair = std::pair<itemCmd, SharedTreeItemInterestPtr>;
@@ -186,6 +201,7 @@ static bool ReportIfFailed(const TreeItem* item)
 	if (fr)
 	{
 		reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 due to failure: {}", fr->GetAsText().c_str()); ProcessMainThreadOpers();
+		std::lock_guard lock(s_ConsoleSection);
 		std::cerr << std::endl << "Failure: " << fr->GetAsText() << std::endl;
 	}
 	return true;
@@ -195,7 +211,11 @@ int main2_without_SE(int argc, char** argv)
 {
 	ParseRegStatusFlags(argc, argv);
 
-	std::cout << std::endl << "LocalDataDir:" << GetLocalDataDir() << std::endl;
+	auto localDataDir = GetLocalDataDir();
+	{
+		std::lock_guard lock(s_ConsoleSection);
+		std::cout << std::endl << "LocalDataDir:" << localDataDir << std::endl;
+	}
 
 	// Unknown-option guard: on Windows '/x' is the option-prefix convention,
 	// on Linux it's '-x'. Anything that survives the known-option parsing
@@ -210,6 +230,7 @@ int main2_without_SE(int argc, char** argv)
 #endif
 		if (isUnknownOpt)
 		{
+			std::lock_guard lock(s_ConsoleSection);
 			std::cerr << std::endl
 				<< "Unknown command-line option " << argv[0]
 				<< ", or an option given out of turn." << std::endl << std::endl;
@@ -220,18 +241,24 @@ int main2_without_SE(int argc, char** argv)
 
 	if (argc <= 1)
 	{
+		std::lock_guard lock(s_ConsoleSection);
 		ReportUsage(std::cerr);
 		return 2;
 	}
 
 	int result = 0;
 
-	std::cout << std::endl << "Read configuration file " << argv[0] << std::endl;
+	{
+		std::lock_guard lock(s_ConsoleSection);
+		std::cout << std::endl << "Read configuration file " << argv[0] << std::endl;
+	}
 	AutoDeletePtr<TreeItem> cfg = DMS_CreateTreeFromConfiguration( argv[0] );
 	if (!cfg)
 	{
+		CharPtr lastErrMsg = DMS_GetLastErrorMsg();
+		std::lock_guard lock(s_ConsoleSection);
 		std::cerr << "Failure to read configuration file " << argv[0] << std::endl;
-		std::cerr << "Last ErrMsg: " << DMS_GetLastErrorMsg() << std::endl;
+		std::cerr << "Last ErrMsg: " << lastErrMsg << std::endl;
 		return 2;
 	}
 
@@ -272,10 +299,16 @@ int main2_without_SE(int argc, char** argv)
 				// config (including never-referenced ones, which the ordinary
 				// application-triggered checker never reaches). Reports per function and
 				// raises the error level if any definition fails.
-				std::cout << std::endl << "Checking all function definitions..." << std::endl;
+				{
+					std::lock_guard lock(s_ConsoleSection);
+					std::cout << std::endl << "Checking all function definitions..." << std::endl;
+				}
 				UInt32 nrFailed = CheckAllFunctionDefinitions(cfg, &ReportFunctionDefinitionCheck, nullptr);
 				ProcessMainThreadOpers();
-				std::cout << std::endl << "Function definition check complete: " << nrFailed << " failed." << std::endl;
+				{
+					std::lock_guard lock(s_ConsoleSection);
+					std::cout << std::endl << "Function definition check complete: " << nrFailed << " failed." << std::endl;
+				}
 				if (nrFailed)
 				{
 					reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because {} function definition(s) failed the type check.", nrFailed);
@@ -291,7 +324,10 @@ int main2_without_SE(int argc, char** argv)
 				if (argc > 1)
 				{
 					--argc, ++argv;
-					std::cout << std::endl << "Dumping configuration to " << *argv << std::endl;
+					{
+						std::lock_guard lock(s_ConsoleSection);
+						std::cout << std::endl << "Dumping configuration to " << *argv << std::endl;
+					}
 					if (!DMS_TreeItem_Dump(cfg, *argv))
 					{
 						reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because the configuration dump to '{}' failed.", *argv);
@@ -327,7 +363,10 @@ int main2_without_SE(int argc, char** argv)
 			if (!item)
 			{
 				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because the specified item '{}' was not found.", *argv);
-				std::cerr << std::endl << "Item " << *argv << " not found" << std::endl;
+				{
+					std::lock_guard lock(s_ConsoleSection);
+					std::cerr << std::endl << "Item " << *argv << " not found" << std::endl;
+				}
 				result = 1;
 			}
 			ProcessMainThreadOpers();
@@ -354,6 +393,7 @@ int main2_without_SE(int argc, char** argv)
 		// @statistics and @valueinfo result silently, and the run exited 0
 		if (!outstream)
 		{
+			std::lock_guard lock(s_ConsoleSection);
 			std::cerr << std::endl << "@file " << fileName << " cannot be opened for writing" << std::endl;
 			return 1;
 		}
@@ -377,8 +417,11 @@ int main2_without_SE(int argc, char** argv)
 		assert(item);
 		SharedStr itemSourceName = item->GetSourceName();
 		CDebugContextHandle ch("Updating", itemSourceName.c_str(), true);
-		std::cout  << std::endl << "Update " << itemSourceName.c_str() << std::endl;
-		
+		{
+			std::lock_guard lock(s_ConsoleSection);
+			std::cout << std::endl << "Update " << itemSourceName.c_str() << std::endl;
+		}
+
 		DMS_TreeItem_Update(item);
 		if (ReportIfFailed(item))
 		{
@@ -389,16 +432,24 @@ int main2_without_SE(int argc, char** argv)
 		switch (itemPair.first)
 		{
 		case itemCmd::statistics:
-			(*dataOut) << DMS_NumericDataItem_GetStatistics(item, nullptr) << std::endl;
+		{
+			CharPtr statistics = DMS_NumericDataItem_GetStatistics(item, nullptr); // computes the item
+			std::lock_guard lock(s_ConsoleSection);
+			(*dataOut) << statistics << std::endl;
 			break;
-
+		}
 		case itemCmd::histogram:
+		{
+			std::lock_guard lock(s_ConsoleSection);
 			(*dataOut) << "@histogram is Not Yet Implemented" << std::endl;
 			break;
-
+		}
 		case itemCmd::list:
+		{
+			std::lock_guard lock(s_ConsoleSection);
 			(*dataOut) << "@list is Under Construction" << std::endl;
 			break;
+		}
 
 		case itemCmd::valueinfo:
 			DumpValueInfo(*dataOut, item, valueInfoIndex);
@@ -418,6 +469,7 @@ int main2_without_SE(int argc, char** argv)
 		outstream.close(); // flushes
 		if (!outstream) // RUN-A12: a write or the flush failed, on a full disk or a lost share
 		{
+			std::lock_guard lock(s_ConsoleSection);
 			std::cerr << std::endl << "@file " << fileName << ": writing failed; the output is incomplete" << std::endl;
 			result = 1;
 		}
@@ -434,6 +486,19 @@ int main2(int argc, char** argv)
 		return result;
 
 	DMS_SE_CALLBACK_END // throws
+}
+
+// #1303: the main thread delivers the log lines only when it processes its operations, which it does
+// while it waits for other threads; with /C1 /C2 /C3, or in any long task it runs itself, the log
+// and the console stayed silent until the task ended (81 minutes in the case of BAG-Tools#7). So
+// while main2 runs a thread of Rtc delivers them, to logMsg and to the /L log, whose receivers were
+// both registered before it starts and are both released after it stops.
+int main2_delivering_msgs_off_main_thread(int argc, char** argv)
+{
+	DBG_SetMsgDeliveryOffMainThread(true);
+	auto deliverOnMainThreadAgain = make_scoped_exit([] { DBG_SetMsgDeliveryOffMainThread(false); });
+
+	return main2(argc, argv);
 }
 
 int s_argcOrg = 0;
@@ -460,6 +525,7 @@ void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool mor
 	assert(msgData);
 	assert(clientHandle == nullptr);
 
+	std::lock_guard lock(s_ConsoleSection);
 
 	if (!msgData->m_IsFollowup)
 	{
@@ -489,9 +555,9 @@ int main1(int argc, char** argv)
 
 		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()), true);
 		SetCachedStatusFlag(RSF_TraceLogFile);
-		return main2(argc - 1, argv + 1);
+		return main2_delivering_msgs_off_main_thread(argc - 1, argv + 1);
 	}
-	return main2(argc, argv);
+	return main2_delivering_msgs_off_main_thread(argc, argv);
 }
 
 int main_with_catch(int argc, char** argv)
@@ -539,6 +605,7 @@ int main_with_error_report(int argc, char** argv)
 
 void DMS_CONV reportMsg(CharPtr msg)
 {
+	std::lock_guard lock(s_ConsoleSection);
 	std::cerr << std::endl << "\nCaught at Main:" << msg << std::endl;
 }
 

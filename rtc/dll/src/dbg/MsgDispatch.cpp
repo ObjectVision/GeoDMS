@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DbgInterface.h"
+#include "LockLevels.h"
 #include "Parallel.h"
 
 #include "debug.h"
@@ -35,6 +36,12 @@
 
 #include <vector>
 #include <ctime>
+
+// for the delivery thread of DBG_SetMsgDeliveryOffMainThread
+#include <chrono>
+#include <condition_variable>
+#include <thread>
+#include <utility>
 
 // for the fatal (abort) diagnostics further down
 #include <algorithm>
@@ -76,6 +83,11 @@ namespace { // local defs
 	static_ptr<TMsgCallbackSinkContainer>       g_MsgCallbacks;
 
 	TASyncContinueCheck s_asyncContinueCheckFunc;
+
+	// #1303: the thread that delivers the messages while DBG_SetMsgDeliveryOffMainThread(true) holds.
+	// A pointer, because a std::thread that is still joinable when it is destroyed calls terminate.
+	std::thread*      s_MsgDeliveryThread = nullptr;
+	THREAD_LOCAL bool tl_IsMsgDeliveryThread = false;
 } // end anonymous namespace
 
 
@@ -97,6 +109,7 @@ RTC_CALL void DMS_CONV DMS_RegisterMsgCallback(MsgCallbackFunc fcb, ClientHandle
 	DMS_CALL_BEGIN
 
 		assert(IsMetaThread());
+		assert(!s_MsgDeliveryThread); // #1303: the receivers change only while nobody else delivers
 
 		if (!g_MsgCallbacks) 
 			g_MsgCallbacks.assign( new TMsgCallbackSinkContainer );
@@ -111,6 +124,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 	DMS_CALL_BEGIN
 
 		assert(IsMetaThread());
+		assert(!s_MsgDeliveryThread); // #1303: the receivers change only while nobody else delivers
 
 		MG_CHECK(g_MsgCallbacks)
 		vector_erase(*g_MsgCallbacks, TMsgCallbackSink(fcb, clientHandle));
@@ -123,7 +137,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 void MsgDispatch(MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
-	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMetaThread());
+	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMetaThread() || tl_IsMsgDeliveryThread);
 	if (!g_MsgCallbacks)
 		return;
 	if (msgData->m_Txt.ssize() > 256)
@@ -222,6 +236,22 @@ namespace { // DebugOutStreamBuff is local
 	ElemAllocComponent s_AllocComponent;
 	static std::vector< MsgData > s_FlushPipeline;
 
+	// #1303: set while the delivery thread, and not the main thread, empties s_FlushPipeline. Read
+	// and written under g_DebugStream, like the pipeline itself.
+	bool s_MsgDeliveryOffMainThread = false;
+
+	// What the producers queued, for the consumer that owns the pipeline: the main thread, or the
+	// delivery thread while it runs. The other one gets nothing, so that one thread at a time calls
+	// the receivers, in the order the messages were produced.
+	std::vector< MsgData > TakeFlushPipeline(bool byDeliveryThread)
+	{
+		DMS_ENTERS(ord_level_type::DebugOutStream, dms_exclusive_v);
+		leveled_critical_section::scoped_lock lock(*g_DebugStream);
+		if (s_MsgDeliveryOffMainThread != byDeliveryThread)
+			return {};
+		return std::exchange(s_FlushPipeline, {});
+	}
+
 	void ProcessMsgDataPipeline()
 	{
 		assert(IsMetaThread());
@@ -229,12 +259,7 @@ namespace { // DebugOutStreamBuff is local
 		if (!s_nrRtcStreamLocks)
 			return;
 
-		std::vector< MsgData > localFlushPileLine;
-		{
-			leveled_critical_section::scoped_lock lock(*g_DebugStream);
-			localFlushPileLine = std::move(s_FlushPipeline);
-		}
-		for (auto& msgData : localFlushPileLine)
+		for (auto& msgData : TakeFlushPipeline(false))
 		{
 			assert(!msgData.m_IsFollowup);
 			FlushMsg(&msgData);
@@ -248,9 +273,48 @@ namespace { // DebugOutStreamBuff is local
 
 		assert(!g_DebugStream->try_lock());
 
-		if (s_FlushPipeline.empty())
+		if (s_FlushPipeline.empty() && !s_MsgDeliveryOffMainThread) // the delivery thread looks by itself
 			PostMainThreadOper(ProcessMsgDataPipeline);
 		s_FlushPipeline.emplace_back(std::move(msgData));
+	}
+
+	// #1303: the delivery thread of DBG_SetMsgDeliveryOffMainThread. The producers do not signal it;
+	// it looks every MSG_DELIVERY_INTERVAL, so that producing a message costs what it did, and it
+	// calls the receivers holding no lock at all.
+	constexpr auto MSG_DELIVERY_INTERVAL = std::chrono::milliseconds(200);
+
+	std::mutex              s_MsgDeliveryControl; // guards s_MsgDeliveryMustStop only
+	std::condition_variable s_MsgDeliveryWakeUp;
+	bool                    s_MsgDeliveryMustStop = false;
+
+	void MsgDeliveryThreadFunc()
+	{
+		DBG_InstallFatalHandlers(); // MSVC keeps the terminate handler per thread
+		tl_IsMsgDeliveryThread = true;
+
+		std::unique_lock control(s_MsgDeliveryControl);
+		bool mustStop = false;
+		while (!mustStop)
+		{
+			mustStop = s_MsgDeliveryWakeUp.wait_for(control, MSG_DELIVERY_INTERVAL, [] { return s_MsgDeliveryMustStop; });
+			control.unlock();
+			auto msgs = TakeFlushPipeline(true); // a last round after the stop, for what came before it
+			for (auto& msgData : msgs)
+			{
+				assert(!msgData.m_IsFollowup);
+				try {
+					FlushMsg(&msgData);
+				}
+				catch (...) {
+					DBG_ReportBoundaryException("log message delivery"); // queued for the next round; this thread must not end
+				}
+			}
+			// a log file reaches the disk when its buffer is full, 4 KB of lines that could take an
+			// hour to fill, so what was delivered is pushed out with it
+			if (!msgs.empty())
+				DBG_FlushLogs();
+			control.lock();
+		}
 	}
 
 	struct DebugOutStreamBuff : VectorOutStreamBuff
@@ -307,8 +371,6 @@ namespace { // DebugOutStreamBuff is local
 } // end anonymous namespace
 
 /********** DebugOutStream Singleton **********/
-
-#include "LockLevels.h"
 
 DebugOutStream::DebugOutStream()
 :	FormattedOutStream(g_DebugStreamBuff, FormattingFlags::None) // Don't use ThousandSeparator here, issue with initialization of s_RegAccess by GetRegStatusFlags.
@@ -371,6 +433,43 @@ DebugOutStream::scoped_lock::~scoped_lock()
 {
 	m_Str->NewLine();
 	MG_DEBUGCODE( SetSeverity(m_Str, SeverityTypeID::ST_Nothing ); )
+}
+
+/********** message delivery off the main thread (#1303) **********/
+
+// Switching on drains what is queued on the calling thread first, so that it reaches the receivers
+// in the order it would have; switching off joins the thread, which delivers what came before the
+// stop, and then drains what came after it on the calling thread. The thread is created before
+// the switch is set, so that a failure to create it leaves the main thread in charge.
+void DMS_CONV DBG_SetMsgDeliveryOffMainThread(bool offMainThread)
+{
+	assert(IsMetaThread());
+	if (!s_nrRtcStreamLocks || offMainThread == (s_MsgDeliveryThread != nullptr))
+		return;
+
+	if (offMainThread)
+	{
+		ProcessMsgDataPipeline();
+		s_MsgDeliveryMustStop = false;
+		s_MsgDeliveryThread = new std::thread(MsgDeliveryThreadFunc);
+
+		leveled_critical_section::scoped_lock lock(*g_DebugStream);
+		s_MsgDeliveryOffMainThread = true;
+		return;
+	}
+
+	{
+		std::lock_guard control(s_MsgDeliveryControl);
+		s_MsgDeliveryMustStop = true;
+	}
+	s_MsgDeliveryWakeUp.notify_one();
+	s_MsgDeliveryThread->join();
+	delete std::exchange(s_MsgDeliveryThread, nullptr);
+	{
+		leveled_critical_section::scoped_lock lock(*g_DebugStream);
+		s_MsgDeliveryOffMainThread = false;
+	}
+	ProcessMsgDataPipeline();
 }
 
 // *****************************************************************************
@@ -781,8 +880,11 @@ SharedStr DatedName(WeakStr fileName)
 
 namespace {
 
-	// Guards s_LiveLogs only; never held while arbitrary code runs, so the fatal path can take it.
-	std::mutex          s_LiveLogsMutex;
+	// Guards s_LiveLogs and every write into the logs it lists; never held while arbitrary code runs, so
+	// the fatal path can take it. Since #1303 the delivery thread can be writing a line into a log while
+	// the fatal path of another thread writes into it too; recursive, for a fault on the thread that
+	// holds it.
+	std::recursive_mutex    s_LiveLogsMutex;
 	std::vector<CDebugLog*> s_LiveLogs;
 
 } // end anonymous namespace
@@ -1009,6 +1111,7 @@ CDebugLog::~CDebugLog()
 			*g_DebugStream << "@@@@@ Logging ended for " << m_FileBuff.FileName().c_str() << " at " << buff;
 		}
 	}
+	assert(!s_MsgDeliveryThread); // #1303: with it running, the drain below takes nothing and the tail misses this log
 	ProcessMsgDataPipeline();
 	UnregisterLiveLog(this);
 	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
@@ -1016,6 +1119,7 @@ CDebugLog::~CDebugLog()
 
 void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
+	std::lock_guard lock(s_LiveLogsMutex); // the fatal path writes into the same stream (WriteFatalLine)
 	CDebugLog* dl = reinterpret_cast<CDebugLog*>(clientHandle);
 	dl->m_Stream << '\n' << msgData->m_DateTime
 		<< "[" << msgData->m_ThreadID << "]"

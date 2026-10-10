@@ -40,8 +40,9 @@ void ProgressMsg(CharPtr msg);
 //		clientHandle: a client suppplied DWord to identify a client object that handles the message
 
 // #1227: deliberately UNCONSTRAINED -- MsgDispatch moves the flush pipeline out of the
-// DebugOutStream lock before invoking these (meta thread, re-entrance blocked per sink), so a
-// callback may take what it needs; a false ceiling here would be worse than none.
+// DebugOutStream lock before invoking these (meta thread, or the delivery thread of
+// DBG_SetMsgDeliveryOffMainThread; re-entrance blocked per sink), so a callback may take what it
+// needs; a false ceiling here would be worse than none.
 using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, const MsgData* data, bool moreToCome);
 // #1227: a cancellation probe called from compute loops that may hold tile and shadow locks. It
 // may THROW the host's cancel (building that DmsException reads names, registry-shared) but must
@@ -66,6 +67,17 @@ RTC_CALL void       DMS_CONV DBG_DebugLog_Close(CDebugLog*);
 
 
 RTC_CALL void       DMS_CONV DBG_DebugReport();
+
+// #1303: a message is queued where it is produced and delivered to the receivers registered above
+// by the main thread, when it processes its operations; a main thread that computes for an hour
+// delivers nothing for an hour. With true, a thread of its own delivers them instead, every 200 ms,
+// holding no lock while the receivers run, and pushes the session logs to disk after each round
+// that wrote into them (see DBG_FlushLogs); false stops it and returns the delivery to the main
+// thread, with nothing lost or reordered. Call both from the main thread. While it runs, no
+// receiver may be registered or released, and no CDebugLog closed: switch on after the last
+// registration and off before the first release. The receivers then run on that thread, so this
+// is for a process whose receivers need no particular thread: GeoDmsRun sets it, the GUI does not.
+RTC_CALL void       DMS_CONV DBG_SetMsgDeliveryOffMainThread(bool offMainThread);
 
 // Push every open session log to disk. A log line only reaches the file when the ofstream buffer
 // happens to fill or when ~CDebugLog closes it, so any exit that skips destructors -- above all a
