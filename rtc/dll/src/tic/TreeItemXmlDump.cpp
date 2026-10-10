@@ -240,6 +240,26 @@ void DMS_WriteTypedItem(OutStreamBase& out, const TreeItem* item)
 	DMS_WriteDomainSuffix(out, item);
 }
 
+// The member block of a unit or container parameter: ' { <member>; ... }', a nested container or unit with members
+// written with its own block, as the source does ('container nested { parameter<float64> offset; }').
+static void DMS_WriteMemberBlock(OutStreamBase& out, const TreeItem* item)
+{
+	out << " { ";
+	for (const TreeItem* m = item->_GetFirstSubItem(); m; m = m->GetNextItem())
+	{
+		DMS_WriteTypedItem(out, m);
+		if (IsDataItem(m) && !m->GetExprMember().empty()) { out << " := "; out << m->GetExprMember().c_str(); } // the stored rule: GetExpr runs the parent's UpdateMetaInfo (TIC-A35)
+		if (!IsDataItem(m) && m->_GetFirstSubItem())
+		{
+			DMS_WriteMemberBlock(out, m);
+			out << " ";
+		}
+		else
+			out << "; ";
+	}
+	out << "}";
+}
+
 void DMS_WriteFunctionParam(OutStreamBase& out, const TreeItem* fn, const TreeItem* param, UInt32 idx, UInt32 nrParams)
 {
 	SharedStr pname(param->GetName());
@@ -266,19 +286,22 @@ void DMS_WriteFunctionParam(OutStreamBase& out, const TreeItem* fn, const TreeIt
 		DMS_WriteTypeArgs(out, TreeItem_GetFunctionParamSigTypeArgs(fn, idx));
 		return;
 	}
-	DMS_WriteTypedItem(out, param); // '<values-prefix> name <domain-suffix>'
-	// unit param carrying a member block: 'unit<uint32> Road { attribute<float64> flow; }'
-	if (IsUnit(param) && param->_GetFirstSubItem())
+	// A10: a parameter typed by example, 'nw: network_links' or 'cfg: Settings': the declared members of its unit or
+	// container exemplar are a contract checked at the definition and at each application (K11a-3.2). Written as
+	// its class, 'unit<uint32> nw', a dump and reload dropped that check. Named from the function item, as the
+	// XML notation's paramex is.
+	if (auto exemplar = TreeItem_GetFunctionParamTypeExemplar(fn, idx))
 	{
-		out << " { ";
-		for (const TreeItem* m = param->_GetFirstSubItem(); m; m = m->GetNextItem())
-		{
-			DMS_WriteTypedItem(out, m);
-			if (IsDataItem(m) && !m->GetExprMember().empty()) { out << " := "; out << m->GetExprMember().c_str(); } // the stored rule: GetExpr runs the parent's UpdateMetaInfo (TIC-A35)
-			out << "; ";
-		}
-		out << "}";
+		out << pname.c_str(); out << ": ";
+		out << SharedStr(fn->GetFindableName(exemplar.get())).c_str();
+		return;
 	}
+	DMS_WriteTypedItem(out, param); // '<values-prefix> name <domain-suffix>'
+	// a unit or container param carrying a member block: 'unit<uint32> Road { attribute<float64> flow; }',
+	// 'container cfg { parameter<float64> factor; }'. A10: the container's block is a contract since K11a-4 and was
+	// not written, so a dump and reload dropped the check of its members.
+	if (!IsDataItem(param) && param->_GetFirstSubItem())
+		DMS_WriteMemberBlock(out, param);
 }
 
 // TIC-A35: the usings as UsingPropDef::GetRawValue reads them (#1268), the namespaces resolved so far and then the
