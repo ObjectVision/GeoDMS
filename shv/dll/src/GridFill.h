@@ -180,14 +180,17 @@ void GridFill(
 				continue;
 
 			typename sequence_traits<PixelType>::pointer resultingClassIdRowBegin = resultingClassIds;
-			currGridRow -= rowOffset;
+			// SHV-A14: the row in the tile in a variable of its own. currGridRow stays the absolute row, as the GridCoords
+			// arrays hold it, for the duplicate-line check below; made tile-relative, it matched no neighbour in any tile
+			// but the first, and every device row was classified anew.
+			grid_rowcol_id tileRow = currGridRow - rowOffset;
 
-			if (currGridRow >= grid_rowcol_id(gridSize.Row()))
+			if (tileRow >= grid_rowcol_id(gridSize.Row()))
 				continue;
 
 			const grid_rowcol_id* currGridColPtr = gridColBeginPtr;
 
-			SizeT currGridRowBegin = CheckedMul<SizeT>(currGridRow, gridSize.Col(), false);
+			SizeT currGridRowBegin = CheckedMul<SizeT>(tileRow, gridSize.Col(), false);
 
 			GType currViewCol = viewColBegin;
 			PixelType result;
@@ -204,10 +207,10 @@ void GridFill(
 						: gridDrawer->m_TileRect.first.Col();
 					if (currGridCol >= colOffset)
 					{
-						currGridCol -= colOffset;
-						if (currGridCol < grid_rowcol_id(gridSize.Col()))
+						grid_rowcol_id tileCol = currGridCol - colOffset; // SHV-A14: currGridCol stays absolute for the duplicate-column checks below
+						if (tileCol < grid_rowcol_id(gridSize.Col()))
 						{
-							SizeT currGridNr = currGridRowBegin + currGridCol;
+							SizeT currGridNr = currGridRowBegin + tileCol;
 							if (gridDrawer->m_EntityIndex)
 							{
 								entity_id e = gridDrawer->m_EntityIndex.GetEntityIndex(currGridNr);
