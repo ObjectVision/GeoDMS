@@ -2742,6 +2742,46 @@ void dms_write_single_polygon(E&& ref, const dms_ring_t<P>& shell, const std::ve
 	assert(ref.size() == count);
 }
 
+// Rings written back to back, each closed and nothing between them, as dms_split_convex_polygon
+// keeps its parts until the store (#1300): a ring ends where its first point recurs. The ring
+// iterator above cannot take such a sequence apart, since parts share vertices and it tells rings
+// apart by where any point recurs.
+template <typename R, typename OnRing>
+void dms_for_rings_apart(const R& seq, OnRing&& onRing)
+{
+	SizeT n = seq.size(), s = 0;
+	while (s < n)
+	{
+		SizeT e = s + 1;
+		while (e < n && !(seq[e] == seq[s]))
+			++e;
+		MG_CHECK2(e < n, "dms_split_convex_polygon: a part that is not closed");
+		onRing(s, e + 1);
+		s = e + 1;
+	}
+}
+
+template <typename R>
+SizeT dms_rings_apart_count(const R& seq)
+{
+	SizeT count = 0;
+	dms_for_rings_apart(seq, [&count](SizeT, SizeT) { ++count; });
+	return count;
+}
+
+template <typename P, typename RI, typename R>
+RI dms_rings_apart_assign(RI resIter, const R& seq)
+{
+	const P* base = begin_ptr(seq);
+	static const std::vector<dms_ring_t<P>> noHoles;
+	dms_for_rings_apart(seq, [&](SizeT s, SizeT e)
+		{
+			dms_write_single_polygon(*resIter, dms_ring_t<P>(base + s, base + e), noHoles);
+			++resIter;
+		});
+	return resIter;
+}
+
 template <typename P, typename RI, typename R>
 RI dms_split_assign(RI resIter, const R& poly)
 {

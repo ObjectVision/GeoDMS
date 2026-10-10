@@ -1,0 +1,149 @@
+// Pins dms_split_convex_polygon (#1300): every element, read under the even-odd rule as the rest
+// of the dms_ family reads it, split into strictly convex parts, with polygon_rel to the element.
+//
+// What this guards:
+// - The number of parts where it is fixed: a square stays one part, an L becomes two, a bow tie
+//   (two triangles under the even-odd rule) two, two separate squares in one element two; a
+//   square with a hole at least four, and with a hole that touches the shell at a vertex at least
+//   three.
+// - The parts together are the element: their dissolve per element equals dms_polygon of it, and
+//   their areas add up to its area.
+// - Every part is strictly convex: every corner of every part turns the same way, none is
+//   straight, also where the input has collinear vertices.
+// - The same at Dutch RD coordinates in float64, and for a thousand elements in three tiles of
+//   unequal size, so that polygon_rel is the element's index in the domain.
+//
+// Offline and cheap by design (testcases/ rule). Expected: exit 0 on /checks.
+container oper_dms_split_convex
+{
+	// 0: the square [0,10]^2
+	// 1: the L [20,26]x[0,2] with [20,22]x[0,6]
+	// 2: [40,50]x[0,10] with the hole [43,47]x[3,7]
+	// 3: [60,70]x[0,10] with a triangular hole that touches the left side at (60,5)
+	// 4: a bow tie, its two triangles meeting at (85,5)
+	// 5: two squares, [100,104]x[0,4] and [110,114]x[0,4], joined by a corridor along y = 0
+	unit<uint32> G   : nrofrows = 6;
+	unit<uint32> GPt : nrofrows = 49;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0,10,10, 0,   20,20,22,22,26,26,20,   40,40,50,50,40,43,47,47,43,43,40,   60,60,70,70,60,60,65,65,60,60,   80,90,90,80,80,   100,100,104,104,100,110,110,114,114,110,100 ];
+	attribute<int32>  gy   (GPt) : [ 0,10,10, 0, 0,    0, 6, 6, 2, 2, 0, 0,    0,10,10, 0, 0, 3, 3, 7, 7, 3, 0,    0,10,10, 0, 0, 5, 3, 7, 5, 0,    0,10, 0,10, 0,     0,  4,  4,  0,  0,  0,  4,  4,  0,  0,  0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0, 0,    1, 1, 1, 1, 1, 1, 1,    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,    3, 3, 3, 3, 3, 3, 3, 3, 3, 3,    4, 4, 4, 4, 4,     5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3, 4,    0, 1, 2, 3, 4, 5, 6,    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,    0, 1, 2, 3, 4,     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10 ];
+
+	// the part counts: exact where the minimum is unique, a lower bound where it depends on the
+	// diagonals the triangulation happens to take
+	attribute<uint32> minParts   (G) : [ 1, 2, 4, 3, 2, 2 ];
+	attribute<bool>   exactParts (G) : [ true, true, false, false, true, true ];
+
+	attribute<ipoint> geom_i  (G, polygon) := points2polygon(point_xy(gx, gy, ipoint), gseq, gord);
+	attribute<dpoint> geom_rd (G, polygon) := points2polygon(point_xy(155000.0 + float64(gx), 463000.0 + float64(gy), dpoint), gseq, gord);
+
+	unit<uint32> parts := dms_split_convex_polygon(geom_i);
+	// the areas are taken at RD coordinates: area of an ipoint polygon is an integer, and two parts
+	// of element 3 have 27.5
+	unit<uint32> parts_rd := dms_split_convex_polygon(geom_rd)
+	{
+		attribute<float64> a := area(geometry);
+	}
+
+	// the corners of every part: a part is written closed and clockwise, so every corner but the
+	// closing point turns right, strictly. A part of n points has n - 1 corners; the neighbours
+	// are taken modulo n - 1, since a ternary computes both of its branches.
+	unit<uint32> Pt := sequence2points(parts/geometry)
+	{
+		attribute<int64>  x       := int64(pointcol(point));
+		attribute<int64>  y       := int64(pointrow(point));
+		attribute<uint32> n       := pcount(sequence_rel)[sequence_rel];
+		attribute<uint32> first   := uint32(id(.)) - ordinal;
+		attribute<bool>   closing := ordinal + 1 == n;
+		attribute<Pt>     prevPt  := value(first + (ordinal + n - 2) % (n - 1), Pt);
+		attribute<Pt>     nextPt  := value(first + (ordinal + 1) % (n - 1), Pt);
+		attribute<int64>  turn    := (x - x[prevPt]) * (y[nextPt] - y) - (y - y[prevPt]) * (x[nextPt] - x);
+	}
+
+	// ---- a thousand elements in three tiles: an L and a holed square in turn ------------------
+	// Both outlines have eleven points; the L carries four collinear ones, which no part may keep.
+	unit<uint32> Shape : nrofrows = 11
+	{
+		attribute<int32> lx : [ 0, 0, 0, 2, 2, 2, 4, 6, 6, 6, 0 ];
+		attribute<int32> ly : [ 0, 3, 6, 6, 4, 2, 2, 2, 1, 0, 0 ];
+		attribute<int32> hx : [ 0, 0,10,10, 0, 3, 7, 7, 3, 3, 0 ];
+		attribute<int32> hy : [ 0,10,10, 0, 0, 3, 3, 7, 7, 3, 0 ];
+	}
+	unit<uint32> ManyBase := range(uint32, 0, 1000);
+	unit<uint32> ManyTiles : nrofrows = 3
+	{
+		attribute<ManyBase> lb : [   0, 300,  800 ];
+		attribute<ManyBase> ub : [ 300, 800, 1000 ];
+	}
+	unit<uint32> Many := TiledUnit(ManyTiles/lb, ManyTiles/ub)
+	{
+		attribute<bool> isL := uint32(id(.)) % 2 == 0;
+	}
+	unit<uint32> ManyPt := range(uint32, 0, 11000)
+	{
+		attribute<Many>   seq_rel   := value(id(.) / 11, Many);
+		attribute<Shape>  shape_rel := value(id(.) % 11, Shape);
+		attribute<bool>   isL       := Many/isL[seq_rel];
+		attribute<int32>  x         := int32(uint32(seq_rel) % 40) * 20i + (isL ? Shape/lx[shape_rel] : Shape/hx[shape_rel]);
+		attribute<int32>  y         := int32(uint32(seq_rel) / 40) * 20i + (isL ? Shape/ly[shape_rel] : Shape/hy[shape_rel]);
+	}
+	attribute<ipoint> many_i (Many, polygon) := points2polygon(point_xy(ManyPt/x, ManyPt/y, ipoint), ManyPt/seq_rel, uint32(ManyPt/shape_rel));
+
+	unit<uint32> many_parts := dms_split_convex_polygon(many_i);
+
+	unit<uint32> ManyCorner := sequence2points(many_parts/geometry)
+	{
+		attribute<int64>  x       := int64(pointcol(point));
+		attribute<int64>  y       := int64(pointrow(point));
+		attribute<uint32> n       := pcount(sequence_rel)[sequence_rel];
+		attribute<uint32> first   := uint32(id(.)) - ordinal;
+		attribute<bool>   closing := ordinal + 1 == n;
+		attribute<ManyCorner> prevPt := value(first + (ordinal + n - 2) % (n - 1), ManyCorner);
+		attribute<ManyCorner> nextPt := value(first + (ordinal + 1) % (n - 1), ManyCorner);
+		attribute<int64>  turn    := (x - x[prevPt]) * (y[nextPt] - y) - (y - y[prevPt]) * (x[nextPt] - x);
+		// twice the signed area, exact, per corner of the shoelace; negative for a clockwise part
+		attribute<int64>  cross   := closing ? 0i64 : x * y[nextPt] - x[nextPt] * y;
+		attribute<Many>   elem_rel := many_parts/polygon_rel[sequence_rel];
+	}
+
+	container checks
+	{
+		attribute<uint32> nrParts (G) := pcount(parts/polygon_rel);
+		parameter<bool> counts_ok := all(exactParts ? nrParts == minParts : nrParts >= minParts), IntegrityCheck = "counts_ok == true";
+
+		attribute<ipoint> cleaned (G, polygon) := dms_polygon(geom_i);
+		attribute<ipoint> reunion (G, polygon) := dms_union_polygon(parts/geometry, parts/polygon_rel);
+		// exact: the difference has no points at all, rather than an area that rounds to 0
+		attribute<ipoint> diff    (G, polygon) := dms_xor(reunion, cleaned);
+		unit<uint32> DiffPt := sequence2points(diff);
+		parameter<bool> union_ok := #DiffPt == 0, IntegrityCheck = "union_ok == true";
+
+		parameter<bool> convex_ok := all(Pt/closing || Pt/turn < 0i64) && all(Pt/n >= 4), IntegrityCheck = "convex_ok == true";
+
+		// the same shapes at RD coordinates: as many parts per element, and the same union
+		attribute<dpoint> cleaned_rd (G, polygon) := dms_polygon(geom_rd);
+		attribute<dpoint> reunion_rd (G, polygon) := dms_union_polygon(parts_rd/geometry, parts_rd/polygon_rel);
+		parameter<bool> rd_ok := all(pcount(parts_rd/polygon_rel) == nrParts) && sum(area(dms_xor(reunion_rd, cleaned_rd))) < 1e-6
+			, IntegrityCheck = "rd_ok == true";
+
+		// the areas of the parts add up to the area of their element, and over all elements to the
+		// area of the six shapes, the bow tie counted as its two triangles
+		attribute<float64> partArea (G) := sum(parts_rd/a, parts_rd/polygon_rel);
+		parameter<bool> area_ok := all(abs(partArea - area(cleaned_rd)) < 1e-6) && abs(sum(parts_rd/a) - (100.0 + 20.0 + 84.0 + 90.0 + 50.0 + 32.0)) < 1e-6
+			, IntegrityCheck = "area_ok == true";
+
+		// the thousand: per element the count of its shape, in its own slot of the tiled domain
+		attribute<uint32> many_nr (Many) := pcount(many_parts/polygon_rel);
+		parameter<bool> many_counts_ok := all(Many/isL ? many_nr == 2 : many_nr >= 4), IntegrityCheck = "many_counts_ok == true";
+		attribute<ipoint> many_reunion (Many, polygon) := dms_union_polygon(many_parts/geometry, many_parts/polygon_rel);
+		attribute<ipoint> many_diff    (Many, polygon) := dms_xor(many_reunion, dms_polygon(many_i));
+		unit<uint32> ManyDiffPt := sequence2points(many_diff);
+		parameter<bool> many_union_ok := #ManyDiffPt == 0, IntegrityCheck = "many_union_ok == true";
+		// the parts of an element do not overlap: twice their areas add up to twice its area, 2 * 20
+		// for an L and 2 * 84 for a holed square
+		attribute<int64> many_twice_area (Many) := sum(ManyCorner/cross, ManyCorner/elem_rel);
+		parameter<bool> many_area_ok := all(many_twice_area == (Many/isL ? -40i64 : -168i64)), IntegrityCheck = "many_area_ok == true";
+		parameter<bool> many_convex_ok := all(ManyCorner/closing || ManyCorner/turn < 0i64), IntegrityCheck = "many_convex_ok == true";
+	}
+}

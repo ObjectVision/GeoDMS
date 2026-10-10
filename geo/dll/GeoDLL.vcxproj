@@ -95,6 +95,7 @@
     <ClInclude Include="src\GeoPCH.h" />
     <ClInclude Include="src\GEOS_Traits.h" />
     <ClInclude Include="src\DMS_Traits.h" />
+    <ClInclude Include="src\DmsConvexPartition.h" />
     <ClInclude Include="src\DmsMinkowski.h" />
     <ClInclude Include="src\ThreadScratch.h" />
     <ClInclude Include="src\minkowski.h" />

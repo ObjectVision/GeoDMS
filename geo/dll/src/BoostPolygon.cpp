@@ -9,6 +9,7 @@
 #endif
 
 #include "DMS_Traits.h" // the dms_ sweep: the fifth geometry_library, and the fold it is folded with
+#include "DmsConvexPartition.h" // dms_split_convex_polygon (#1300)
 
 #include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
 
@@ -157,12 +158,58 @@ struct DmsEngineContext : PolygonOperContext
 	DmsEngineContext(dms_overlay::BoolOp op, CharPtr operName) : engine(op, operName) {}
 	dms_overlay::DmsOverlayEngine<P> engine;
 
+	// dms_split_convex_polygon: the partitioner and its scratch
+	dms_overlay::ConvexPartitioner partitioner;
+	std::vector<const std::vector<dms_overlay::GPoint>*> ringRefs;
+	dms_overlay::ConvexPartitioner::Rings parts;
+
 	static dms_overlay::DmsOverlayEngine<P>& EngineOf(PolygonOperContext* ctx)
 	{
 		MG_CHECK(ctx);
 		return debug_cast<DmsEngineContext*>(ctx)->engine;
 	}
+	static DmsEngineContext& Of(PolygonOperContext* ctx)
+	{
+		MG_CHECK(ctx);
+		return *debug_cast<DmsEngineContext*>(ctx);
+	}
 };
+
+// dms_split_convex_polygon (#1300): the element read as dms_split_polygon reads it, on the same
+// lattice, then all its rings split into strictly convex parts, which go into the accumulator as
+// closed rings back to back: clockwise, each from its lexicographically first vertex, and the parts
+// in the order of those vertices, so that the result depends neither on the order of the input's
+// vertices nor on its rings'. StoreImpl takes them apart (dms_rings_apart_assign).
+template <typename P, typename R>
+void dms_split_convex_into(DmsEngineContext<P>& ctx, dms_overlay::DmsPolySet<P>& lhs, const R& poly, Float64 cell)
+{
+	using namespace dms_overlay;
+	auto& engine = ctx.engine;
+	engine.SetFixedCell(cell);
+	lhs.m_Cell = cell;
+	lhs.m_Poly.clear();
+
+	const auto& rings = engine.SingleRingToRings(poly) ? engine.CurrRings() : engine.CleanToRings(poly);
+	if (rings.empty())
+		return;
+	ctx.ringRefs.clear();
+	for (const auto& ring : rings)
+		ctx.ringRefs.push_back(&ring.pts);
+	ctx.parts.clear();
+	ctx.partitioner.Run(ctx.ringRefs, ctx.parts);
+
+	for (auto& part : ctx.parts)
+	{
+		std::reverse(part.begin(), part.end());
+		std::rotate(part.begin(), std::min_element(part.begin(), part.end(), LexLessFn()), part.end());
+	}
+	std::sort(ctx.parts.begin(), ctx.parts.end(), [](const auto& a, const auto& b)
+		{
+			return LexLess(a[0], b[0]) || (a[0] == b[0] && LexLess(a[1], b[1]));
+		});
+	for (const auto& part : ctx.parts)
+		engine.WriteRing(lhs.m_Poly, part);
+}
 
 // *****************************************************************************
 //	PolygonOverlay
@@ -692,6 +739,7 @@ enum class PolygonFlags {
 	F_DoUnion = 2,
 	F_HasPartition = 4,
 	F_DoPartUnion = 6,
+	F_Convex = 8, // with F_DoSplit: dms_split_convex_polygon, strictly convex parts (#1300)
 
 	F_Inflate1 = 0x0010,
 	F_Deflate1 = 0x0020,
@@ -1992,7 +2040,10 @@ public:
 
 			// the per-element forms: every element is its slot's only one, so a single ring is taken as it is
 			PolySet geometry;
-			dms_overlay::dms_clean_single_into(engine, geometry, *pi, cell);
+			if (m_Flags & PolygonFlags::F_Convex)
+				dms_split_convex_into(DmsEngineContext<P>::Of(ctx), geometry, *pi, cell);
+			else
+				dms_overlay::dms_clean_single_into(engine, geometry, *pi, cell);
 			towerPtr->add(std::move(geometry));
 
 			if (processTimer.PassedSecs())
@@ -2047,13 +2098,19 @@ public:
 					results[i] = std::move(towerPtr->get_result().m_Poly);
 		}
 
+		// a convex split keeps its parts as closed rings back to back (dms_split_convex_into)
+		bool apart = m_Flags & PolygonFlags::F_Convex;
+		auto nrParts = [apart](const SequenceType& value)
+		{
+			return apart ? dms_overlay::dms_rings_apart_count(value) : dms_overlay::dms_split_count<P>(value);
+		};
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			assert(resUnit);
 			SizeT splitCount = 0;
 			for (SizeT i = 0; i != domainCount; ++i)
 				if (!results[i].empty())
-					splitCount += dms_overlay::dms_split_count<P>(results[i]);
+					splitCount += nrParts(results[i]);
 
 			resUnit->SetCount(splitCount); // we must be in delayed store now
 			if (resNrOrgEntity)
@@ -2064,7 +2121,7 @@ public:
 				{
 					if (!results[i].empty())
 					{
-						SizeT nrSplits = dms_overlay::dms_split_count<P>(results[i]);
+						SizeT nrSplits = nrParts(results[i]);
 						SizeT nextCount = splitCount2 + nrSplits;
 						while (splitCount2 != nextCount)
 							resRelLock->SetValueAsSizeT(splitCount2++, i);
@@ -2085,7 +2142,9 @@ public:
 
 		for (SizeT i = 0; i != domainCount; ++i)
 		{
-			if (m_Flags & PolygonFlags::F_DoSplit)
+			if (apart)
+				resIter = dms_overlay::dms_rings_apart_assign<P>(resIter, results[i]);
+			else if (m_Flags & PolygonFlags::F_DoSplit)
 				resIter = dms_overlay::dms_split_assign<P>(resIter, results[i]);
 			else
 			{
@@ -2766,6 +2825,8 @@ namespace
 	// dms_polygon, dms_union_polygon (with and without a partitioning), dms_split_polygon and
 	// dms_split_union_polygon: the sweep of DMS_Traits.h, which does not require valid operands.
 	DMS_PolyOperatorGroupss dms_simple;
+	// dms_split_convex_polygon: dms_split_polygon's reading and result, with strictly convex parts (#1300)
+	DMS_PolyOperatorGroup dms_split_convex("dms_split_convex_polygon", PolygonFlags::F_DoSplit | PolygonFlags::F_Convex);
 
 	// The obsolete UNPREFIXED filtered/inflated/deflated boost::polygon operators (PolyOperatorGroupsss
 	// f2..f2f) have been removed; they were deprecated in v20. Use the bp_*/bg_*/cgal_*/geos_* variants above.
