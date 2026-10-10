@@ -32,6 +32,7 @@
 
 #include "CGAL_Traits.h"
 #include "DMS_Traits.h"
+#include "DmsMinkowski.h" // dms_minkowski_sum, dms_minkowski_difference, dms_buffer_multi_polygon (#1301, #1302)
 #include "GEOS_Traits.h"
 #include "minkowski.h"
 
@@ -182,6 +183,9 @@ void cgal_buffer_multi_linestring(CGAL_Traits::Polygon_set& resPS, SA_ConstRefer
 //
 // which is the same trick boost.polygon's polygon_set_data::resize plays for a negative resize.
 // Callers hand in the ALREADY REFLECTED kernel, so the sum inside the identity is the ordinary one.
+//
+// The dms_ backend is not here: since #1301 it sums and erodes per element in one sweep over the
+// pieces of DmsMinkowski.h, without the box, and with convex kernels only.
 
 // The box that the erosion inverts within: A's extent, grown past anything -K can reach outward,
 // so that R \ A really is the outside and no part of the eroded rim is clipped by R's own edge.
@@ -448,168 +452,6 @@ inline auto geos_minkowski_difference(const geos::geom::Geometry* a, const Prepa
 	return result;
 }
 
-// ---- the dms_ sweep ---------------------------------------------------------
-
-// The same cell decomposition boost.geometry and GEOS use: per convex part of the kernel, the
-// geometry translated by the part's first vertex, plus one cell per edge of the geometry, all
-// unioned. What differs is the union: the sweep of DMS_Traits.h, folded pairwise through an
-// assoc_tower, on one lattice for the whole element, so that the answer cannot depend on the
-// order the cells happen to be folded in.
-//
-// It also differs in what it accepts: the geometry argument need not be a valid polygon, since
-// the sweep reads it under the even-odd rule. That is the whole point of this backend.
-
-template <typename P>
-P dms_minkowski_point(DPoint p)
-{
-	using Scalar = scalar_of_t<P>;
-	if constexpr (std::is_floating_point_v<Scalar>)
-		return shp2dms_order<Scalar>(Scalar(p.X()), Scalar(p.Y()));
-	else
-		return shp2dms_order<Scalar>(Scalar(std::llround(p.X())), Scalar(std::llround(p.Y()))); // the kernel lands on the integer lattice
-}
-
-// The cell one Minkowski call stays on: the geometry's own frame, grown by how far the kernel
-// reaches beyond it. Zero for integer coordinates, where the lattice is the integer grid.
-template <typename P, typename R>
-Float64 dms_minkowski_cell(const R& geometry, Float64 grow)
-{
-	if constexpr (!std::is_floating_point_v<scalar_of_t<P>>)
-		return 0.0;
-	else
-	{
-		typename dms_overlay::DmsOverlayEngine<P>::CoordStats stats;
-		stats.Add(geometry);
-		if (!stats.usable || !stats.any)
-			return 0.0;
-		return dms_overlay::DmsOverlayEngine<P>::CellFor(stats.Extent() + 2 * grow, stats.MaxAbs() + grow);
-	}
-}
-
-// A closed convex cell ring as a polygon value, wound the way the sweep writes shells so that a
-// single cell is already canonical when the tower never has to reduce it.
-template <typename P>
-void dms_minkowski_add_cell(assoc_tower<dms_overlay::DmsPolySet<P>, dms_overlay::union_dms_polygons<P>>& tower
-	, const MinkowskiRing& ring, Float64 cell)
-{
-	if (ring.size() < 4) // fewer than three distinct points: no area to add
-		return;
-
-	dms_overlay::DmsPolySet<P> cellSet;
-	cellSet.m_Cell = cell;
-	cellSet.m_Poly.reserve(ring.size() MG_DEBUG_ALLOCATOR_SRC("dms_minkowski_add_cell"));
-	for (auto p : ring)
-		cellSet.m_Poly.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("dms_minkowski_add_cell") dms_minkowski_point<P>(p));
-
-	if (Area<Float64>(cellSet.m_Poly.begin(), cellSet.m_Poly.end()) < 0)
-		std::reverse(cellSet.m_Poly.begin(), cellSet.m_Poly.end());
-
-	tower.add(std::move(cellSet));
-}
-
-// The engine is the caller's, one per tile: the clean and every fold of every element go through it (GEO-A35).
-template <typename P, typename R>
-void dms_minkowski_sum(dms_overlay::DmsOverlayEngine<P>& engine, dms_overlay::DmsPolySet<P>& res, const R& geometry, const PreparedMinkowskiKernel& kernel
-	, Float64 cell)
-{
-	using namespace dms_overlay;
-
-	res = DmsPolySet<P>();
-	if (kernel.empty())
-		return;
-
-	// The geometry read once, under the even-odd rule: every cell below is built from these rings,
-	// and a translate of a canonical value is canonical, so nothing downstream re-reads the source.
-	DmsPolySet<P> base;
-	dms_clean_into(engine, base, geometry, cell);
-	if (base.empty())
-		return;
-
-	std::vector<dms_ring_t<P>> rings;
-	dms_collect_rings<P>(base.m_Poly, rings);
-
-	assoc_tower<DmsPolySet<P>, union_dms_polygons<P>> tower(union_dms_polygons<P>{ &engine });
-	std::vector<DPoint> scratch;
-
-	for (const auto& part : kernel.parts)
-	{
-		if (part.empty())
-			continue;
-
-		DPoint shift = part.front();
-		DmsPolySet<P> shifted;
-		shifted.m_Cell = cell;
-		shifted.m_Poly.reserve(base.m_Poly.size() MG_DEBUG_ALLOCATOR_SRC("dms_minkowski_sum"));
-		for (const auto& p : base.m_Poly)
-			shifted.m_Poly.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("dms_minkowski_sum")
-				dms_minkowski_point<P>(DPoint(Float64(p.X()) + shift.X(), Float64(p.Y()) + shift.Y())));
-		tower.add(std::move(shifted));
-
-		for (const auto& ring : rings)
-			for (SizeT i = 0, n = ring.size(); i + 1 < n; ++i)
-				dms_minkowski_add_cell<P>(tower
-					, MinkowskiEdgeCell(DPoint(Float64(ring[i].X()), Float64(ring[i].Y()))
-						, DPoint(Float64(ring[i + 1].X()), Float64(ring[i + 1].Y())), part, scratch)
-					, cell);
-	}
-	res = tower.get_result();
-	res.m_Cell = cell;
-}
-
-// A (-) K = A \ ((box \ A) (+) -K), with box the bounding box of A grown by the pad, the same
-// identity the other three backends erode with.
-template <typename P, typename R>
-void dms_minkowski_difference(dms_overlay::DmsOverlayEngine<P>& engine, dms_overlay::DmsPolySet<P>& res, const R& geometry, const PreparedMinkowskiKernel& reflectedKernel
-	, Float64 pad, Float64 cell)
-{
-	using namespace dms_overlay;
-
-	res = DmsPolySet<P>();
-	if (reflectedKernel.empty())
-		return;
-
-	DmsPolySet<P> base;
-	dms_clean_into(engine, base, geometry, cell);
-	if (base.empty())
-		return;
-
-	typename DmsOverlayEngine<P>::CoordStats stats;
-	stats.Add(base.m_Poly);
-	if (!stats.usable || !stats.any)
-		return;
-
-	// the box, clockwise, as the sweep writes a shell
-	DmsPolySet<P> box;
-	box.m_Cell = cell;
-	box.m_Poly.reserve(5 MG_DEBUG_ALLOCATOR_SRC("dms_minkowski_difference"));
-	Float64 x0 = stats.minX - pad, y0 = stats.minY - pad, x1 = stats.maxX + pad, y1 = stats.maxY + pad;
-	for (auto corner : { DPoint(x0, y0), DPoint(x0, y1), DPoint(x1, y1), DPoint(x1, y0), DPoint(x0, y0) })
-		box.m_Poly.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("dms_minkowski_difference") dms_minkowski_point<P>(corner));
-
-	engine.SetFixedCell(cell);
-
-	dms_polygon_t<P> outside;
-	if (!engine.ApplyRanges(outside, BoolOp::Difference, box.m_Poly, base.m_Poly))
-		return;
-	if (outside.empty())
-	{
-		res = std::move(base); // the kernel fits everywhere inside the box: nothing erodes
-		return;
-	}
-
-	DmsPolySet<P> grownOutside;
-	dms_minkowski_sum<P>(engine, grownOutside, outside, reflectedKernel, cell);
-	if (grownOutside.empty())
-	{
-		res = std::move(base);
-		return;
-	}
-
-	res.m_Cell = cell;
-	engine.SetFixedCell(cell); // as the sum left it, but said here, where it is relied on
-	engine.ApplyRanges(res.m_Poly, BoolOp::Difference, base.m_Poly, grownOutside.m_Poly);
-}
-
 // ---- CGAL -------------------------------------------------------------------
 
 // CGAL has an exact Minkowski sum of its own (reduced convolution over the exact-construction
@@ -763,6 +605,17 @@ auto MinkowskiKernelRingFromSequence(SA_ConstReference<P> kernelRef, CharPtr ope
 	return result;
 }
 
+// The dms_ backend sums and erodes with convex kernels only (#1301): there the kernel's pieces
+// along the edges and at the corners of an element make up the sum in one sweep. A kernel that is
+// not convex is a configuration error there; the other backends take any simple ring.
+inline auto DmsConvexKernelRing(MinkowskiRing ring, CharPtr operName) -> MinkowskiRing
+{
+	if (!MinkowskiIsConvex(ring))
+		throwErrorF(operName, "the kernel is not convex. The dms_ backend accepts a convex kernel only; "
+			"for a kernel that is not convex, use the bg_, geos_, cgal_ or bp_ form of this operator");
+	return ring;
+}
+
 // One prepared kernel plus the per-element scratch, so that the common case -- a Void-domain
 // kernel or a parameter size, i.e. one kernel for the whole attribute -- prepares exactly once
 // per operator call rather than once per element.
@@ -773,8 +626,6 @@ struct MinkowskiEngine
 
 	void SetKernelRing(const MinkowskiRing& ring, CharPtr operName)
 	{
-		m_OperName = operName; // the dms_ branch reports its refusals under the operator's own name
-
 		// xx_minkowski_difference erodes, and A (-) K = A \ ((R \ A) (+) -K). Reflecting once here
 		// is what lets everything below stay an ordinary sum.
 		auto effective = Erode ? MinkowskiReflect(ring) : ring;
@@ -862,34 +713,13 @@ struct MinkowskiEngine
 				bp_minkowski_sum<CoordType>(result, geometry, m_Bp.kernel, m_Bp.resources);
 			bp_assign(resRef, result, m_Bp.resources.cleanResources);
 		}
-		else if constexpr (GL == geometry_library::dms)
-		{
-			// One lattice for every union below, derived from the geometry grown by how far the
-			// work reaches beyond it: one kernel radius for a sum, and the inverted box on top of
-			// that for an erosion.
-			Float64 cell = dms_minkowski_cell<P>(geometryRef, Erode ? m_Kernel.reach + m_Pad : m_Kernel.reach);
-
-			if (!m_DmsEngine)
-				m_DmsEngine.emplace(dms_overlay::BoolOp::Union, m_OperName);
-
-			dms_overlay::DmsPolySet<P> result;
-			if constexpr (Erode)
-				dms_minkowski_difference<P>(*m_DmsEngine, result, geometryRef, m_Kernel, m_Pad, cell);
-			else
-				dms_minkowski_sum<P>(*m_DmsEngine, result, geometryRef, m_Kernel, cell);
-
-			if (result.empty())
-				return;
-			dms_overlay::dms_store_polygon(resRef, result.m_Poly);
-		}
 		else
-			static_assert(unsupported_geometry_library_v<GL>);
+			static_assert(unsupported_geometry_library_v<GL>, "the dms_ backend has its own element loop, dms_minkowski_tile");
 	}
 
 private:
-	PreparedMinkowskiKernel m_Kernel;   // boost.geometry, GEOS and dms: the convex cells
+	PreparedMinkowskiKernel m_Kernel;   // boost.geometry and GEOS: the convex cells
 	Float64 m_Pad = 0;                  // erosion: how far outside A the inverted box must reach
-	CharPtr m_OperName = "minkowski";   // the calling operator group, for the dms_ diagnostics
 
 	bg_ring_t m_BgHelperRing;
 	bg_polygon_t m_BgHelperPolygon;
@@ -900,10 +730,6 @@ private:
 	CGAL_Traits::Polygon_set m_CgalGeometry, m_CgalResult;
 
 	BpMinkowskiState<CoordType, GL == geometry_library::boost_polygon> m_Bp;
-
-	// dms: the one engine of the tile, made at its first element; each element of the tile, and each
-	// fold of it, reuses its buffers (GEO-A35)
-	std::conditional_t<GL == geometry_library::dms, std::optional<dms_overlay::DmsOverlayEngine<P>>, bool> m_DmsEngine = {};
 };
 
 // *****************************************************************************
@@ -1159,15 +985,41 @@ struct MinkowskiKernelOperator : BinaryMapAlgebraicOperator<P>
 		bool kernelIsParam = (af & AF2_ISPARAM);
 
 		CharPtr operName = this->GetGroup()->GetNameStr();
-		MinkowskiEngine<P, GL, Erode> engine;
-		if (kernelIsParam)
-			engine.SetKernelRing(MinkowskiKernelRingFromSequence<P>(arg2Data[0], operName), operName);
-
-		for (SizeT i = 0; i != n; ++i)
+		if constexpr (GL == geometry_library::dms)
 		{
-			if (!kernelIsParam)
-				engine.SetKernelRing(MinkowskiKernelRingFromSequence<P>(arg2Data[i], operName), operName);
-			engine.Apply(resData[i], arg1Data[geometryIsParam ? 0 : i]);
+			// a parameter kernel is read and checked once; a kernel per element with its element
+			MinkowskiRing paramKernel;
+			if (kernelIsParam)
+				paramKernel = DmsConvexKernelRing(MinkowskiKernelRingFromSequence<P>(arg2Data[0], operName), operName);
+			Float64 paramReach = MinkowskiReach(paramKernel);
+
+			dms_overlay::dms_minkowski_tile<P>(resData, n, operName
+				, [&](dms_overlay::DmsMinkowskiWorker<P>& w, SizeT i, dms_overlay::dms_polygon_t<P>& result)
+				{
+					auto geometry = arg1Data[geometryIsParam ? 0 : i];
+					if (kernelIsParam)
+						dms_overlay::dms_minkowski<P>(w, result, geometry, paramKernel, paramReach, Erode);
+					else
+					{
+						auto kernel = DmsConvexKernelRing(MinkowskiKernelRingFromSequence<P>(arg2Data[i], operName), operName);
+						dms_overlay::dms_minkowski<P>(w, result, geometry, kernel, MinkowskiReach(kernel), Erode);
+					}
+				}
+				, [](SizeT) {}
+			);
+		}
+		else
+		{
+			MinkowskiEngine<P, GL, Erode> engine;
+			if (kernelIsParam)
+				engine.SetKernelRing(MinkowskiKernelRingFromSequence<P>(arg2Data[0], operName), operName);
+
+			for (SizeT i = 0; i != n; ++i)
+			{
+				if (!kernelIsParam)
+					engine.SetKernelRing(MinkowskiKernelRingFromSequence<P>(arg2Data[i], operName), operName);
+				engine.Apply(resData[i], arg1Data[geometryIsParam ? 0 : i]);
+			}
 		}
 	}
 };
@@ -1244,6 +1096,10 @@ protected:
 
 			auto variantSpec = GetTheCurrValue<SharedStr>(arg3A);
 			auto shape = ParseMinkowskiKernelShape(variantSpec.c_str(), m_Erode, GetGroup()->GetNameStr(), m_SiblingOperName);
+			if (ConvexKernelsOnly() && !MinkowskiKernelShapeIsConvex(shape))
+				throwErrorF(GetGroup()->GetNameStr(), "kernel variant '{}' is not convex. The dms_ backend accepts the convex variants {} only; "
+					"for '{}', use the bg_, geos_, cgal_ or bp_ form of this operator"
+					, variantSpec.c_str(), MinkowskiConvexKernelShapeNames(), variantSpec.c_str());
 
 			Float64 size = e2IsVoid ? const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0] : 0;
 
@@ -1268,6 +1124,9 @@ protected:
 		, bool e2IsVoid, const AbstrDataItem* sizeItem, Float64 size
 		, MinkowskiKernelShape shape
 		, tile_id t, Timer& processTimer, CharPtr itemRef) const = 0;
+
+	// the dms_ backend: XHV and XD are refused (#1301)
+	virtual bool ConvexKernelsOnly() const { return false; }
 };
 
 template <typename P, geometry_library GL, bool Erode>
@@ -1293,16 +1152,8 @@ struct MinkowskiNamedOperator : AbstrMinkowskiNamedOperator
 		SizeT n = polyData.size();
 		CharPtr operName = GetGroup()->GetNameStr();
 
-		MinkowskiEngine<P, GL, Erode> engine;
-		if (e2IsVoid)
-			engine.SetKernelRing(MakeMinkowskiKernel(shape, size), operName);
-
-		for (SizeT i = 0; i != n; ++i)
+		auto reportProgress = [&](SizeT i)
 		{
-			if (!e2IsVoid)
-				engine.SetKernelRing(MakeMinkowskiKernel(shape, sizeData[i]), operName);
-			engine.Apply(resData[i], polyData[i]);
-
 			if (processTimer.PassedSecs())
 			{
 				reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
@@ -1312,8 +1163,47 @@ struct MinkowskiNamedOperator : AbstrMinkowskiNamedOperator
 					, AsString(t), AsString(resObj->GetTiledRangeData()->GetNrTiles())
 				);
 			}
+		};
+
+		if constexpr (GL == geometry_library::dms)
+		{
+			// the elements of the tile in parallel blocks, each on its own lattice (DmsMinkowski.h)
+			MinkowskiRing paramKernel;
+			if (e2IsVoid)
+				paramKernel = MakeMinkowskiKernel(shape, size);
+			Float64 paramReach = MinkowskiReach(paramKernel);
+
+			dms_overlay::dms_minkowski_tile<P>(resData, n, operName
+				, [&](dms_overlay::DmsMinkowskiWorker<P>& w, SizeT i, dms_overlay::dms_polygon_t<P>& result)
+				{
+					if (e2IsVoid)
+						dms_overlay::dms_minkowski<P>(w, result, polyData[i], paramKernel, paramReach, Erode);
+					else
+					{
+						auto kernel = MakeMinkowskiKernel(shape, sizeData[i]);
+						dms_overlay::dms_minkowski<P>(w, result, polyData[i], kernel, MinkowskiReach(kernel), Erode);
+					}
+				}
+				, reportProgress
+			);
+		}
+		else
+		{
+			MinkowskiEngine<P, GL, Erode> engine;
+			if (e2IsVoid)
+				engine.SetKernelRing(MakeMinkowskiKernel(shape, size), operName);
+
+			for (SizeT i = 0; i != n; ++i)
+			{
+				if (!e2IsVoid)
+					engine.SetKernelRing(MakeMinkowskiKernel(shape, sizeData[i]), operName);
+				engine.Apply(resData[i], polyData[i]);
+				reportProgress(i);
+			}
 		}
 	}
+
+	bool ConvexKernelsOnly() const override { return GL == geometry_library::dms; }
 };
 
 // *****************************************************************************

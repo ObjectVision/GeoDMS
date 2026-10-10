@@ -234,6 +234,9 @@ ambiguity to guard against.
 - `DmsSegmentBag<P>`, `dms_append_rings(bag, rings)`.
 - `DmsPolySet`, `union_dms_polygons`, `dms_clean_into` stay for the Minkowski operators
   (`BoostGeometryImpl.h:490-607`), which are out of scope here and can migrate to bags later.
+  (2026-10-09: the Minkowski operators did migrate, in #1301, to one bag per element with a
+  threshold rule, `ThresholdBag` and `geo/dll/src/DmsMinkowski.h`; the three stay for the
+  `dms_polygon` fold of `BoostPolygon.cpp`.)
 
 `geo/dll/src/BoostPolygon.cpp`
 

@@ -49,7 +49,7 @@
 //     arithmetic below within 128 bits;
 //   - whatever an operator's own grid argument says, for the three-argument forms.
 //
-// An operator that folds MANY operands together (a dissolve, the cells of a Minkowski sum)
+// An operator that folds MANY operands together (a dissolve, dms_polygon over a tile)
 // must not let the derived cell change from one reduction to the next, or its answer would
 // depend on the fold order. Such a caller derives one cell up front, with DeriveCell over
 // all the operands, and hands it to every engine it then uses (SetFixedCell). Lattices for
@@ -101,9 +101,16 @@
 // All predicates (orientation, fraction comparison, the segment/pixel test) and the crossing
 // pixel are computed exactly. With internal coordinates below 2^36, differences are below
 // 2^37, a cross product below 2^75, and the numerator of a crossing coordinate,
-// p.x * den + r.x * num, below 2^114: comfortably within
-// boost::multiprecision::int128_t. Orientation takes an Int64 fast path when all differences
-// are below 2^31, which is nearly always.
+// p.x * den + r.x * num, below 2^114: comfortably within 128 bits. Orientation takes an Int64
+// fast path when all differences are below 2^31, which holds for an element pair whose frame
+// spans far more than the pair itself, and not for a single element framed on its own extent.
+//
+// The 128-bit type is the machine's own (Int128 below): __int128 on GCC and Clang, a pair of
+// 64-bit words over the x64 multiply and divide instructions on MSVC. Until #1301 it was
+// boost::multiprecision::int128_t, a signed-magnitude number whose every multiply went through
+// the generic limb loop of cpp_int: 41 percent of the samples of a dms_minkowski_sum over
+// building outlines were spent there. The arithmetic is exact either way, so the switch changes
+// no result. The rare 256-bit comparisons of the crossing sweep stay with boost.
 //
 // ==== Who uses this header ==============================================================
 //
@@ -113,8 +120,9 @@
 //     DmsPolySet and union_dms_polygons below, and dms_overlay_polygon /
 //     dms_polygon_connectivity through the geometry_library::dms branch of
 //     PolygonOverlayOperator.
-//   - BoostGeometryImpl.h: dms_minkowski_sum and dms_minkowski_difference, which union the
-//     convex cells of minkowski.h with this sweep instead of with a library.
+//   - DmsMinkowski.h, for BoostGeometryImpl.h and BoostGeometry_dms.cpp: dms_minkowski_sum,
+//     dms_minkowski_difference and dms_buffer_multi_polygon, which put the pieces of an element
+//     along its edges and at its corners in one bag and sweep it once (ThresholdBag).
 
 #include "dbg/Diagnostics.h"    // throwErrorF and MG_CHECK2
 #include "geom/Area.h"         // Area: the sign that tells a shell from a hole when splitting
@@ -127,6 +135,7 @@
 #include <boost/multiprecision/cpp_int.hpp>
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <cstdlib>
 #include <format>
@@ -140,10 +149,167 @@
 
 #include "ThreadScratch.h"
 
+#if !defined(__SIZEOF_INT128__)
+#include <intrin.h> // _mul128, _umul128, _udiv128
+#endif
+
 namespace dms_overlay
 {
 
-using Int128 = boost::multiprecision::int128_t;
+// *****************************************************************************
+//	Int128: the machine's own 128-bit integer
+// *****************************************************************************
+
+// What the predicates need of it, and no more: construction from Int64, +, -, *, the comparisons,
+// Sign, and FloorDiv for a quotient that is a grid coordinate. A product is exact wherever it fits
+// 128 bits, which every product here does (see Exact arithmetic above).
+
+#if defined(__SIZEOF_INT128__)
+
+__extension__ typedef __int128 Int128;
+
+inline Int128 MulFull(Int64 a, Int64 b) { return Int128(a) * b; }
+inline int    Sign(const Int128& v) { return (v > 0) - (v < 0); }
+inline Int64  Hi64(const Int128& v) { return Int64(v >> 64); }
+inline UInt64 Lo64(const Int128& v) { return UInt64(v); }
+
+// floor(num / den) for den > 0; the quotient is a grid coordinate, so it fits an Int64.
+inline Int64 FloorDiv(const Int128& num, const Int128& den)
+{
+	assert(den > 0);
+	Int128 q = num / den; // truncates toward zero
+	if (num < 0 && q * den != num)
+		--q;
+	return Int64(q);
+}
+
+#else
+
+// Two's complement in two words. The products and quotients use the x64 instructions through
+// the MSVC intrinsics: _mul128 and _umul128 for 64 x 64 -> 128, _udiv128 for 128 / 64.
+struct Int128
+{
+	UInt64 lo = 0;
+	Int64  hi = 0;
+
+	constexpr Int128() = default;
+	constexpr Int128(Int64 v) : lo(UInt64(v)), hi(v < 0 ? -1 : 0) {}
+
+	static constexpr Int128 FromWords(Int64 h, UInt64 l)
+	{
+		Int128 r;
+		r.hi = h;
+		r.lo = l;
+		return r;
+	}
+
+	friend constexpr bool operator==(const Int128& a, const Int128& b) { return a.hi == b.hi && a.lo == b.lo; }
+	friend constexpr bool operator!=(const Int128& a, const Int128& b) { return !(a == b); }
+	friend constexpr bool operator< (const Int128& a, const Int128& b) { return a.hi < b.hi || (a.hi == b.hi && a.lo < b.lo); }
+	friend constexpr bool operator> (const Int128& a, const Int128& b) { return b < a; }
+	friend constexpr bool operator<=(const Int128& a, const Int128& b) { return !(b < a); }
+	friend constexpr bool operator>=(const Int128& a, const Int128& b) { return !(a < b); }
+
+	friend constexpr Int128 operator-(const Int128& a)
+	{
+		return FromWords(Int64(UInt64(0) - UInt64(a.hi) - (a.lo != 0)), UInt64(0) - a.lo);
+	}
+	friend constexpr Int128 operator+(const Int128& a, const Int128& b)
+	{
+		UInt64 l = a.lo + b.lo;
+		return FromWords(Int64(UInt64(a.hi) + UInt64(b.hi) + (l < a.lo)), l);
+	}
+	friend constexpr Int128 operator-(const Int128& a, const Int128& b)
+	{
+		UInt64 l = a.lo - b.lo;
+		return FromWords(Int64(UInt64(a.hi) - UInt64(b.hi) - (a.lo < b.lo)), l);
+	}
+	// modulo 2^128, which in two's complement is the signed product whenever that fits
+	friend Int128 operator*(const Int128& a, const Int128& b)
+	{
+		UInt64 h;
+		UInt64 l = _umul128(a.lo, b.lo, &h);
+		h += a.lo * UInt64(b.hi) + UInt64(a.hi) * b.lo;
+		return FromWords(Int64(h), l);
+	}
+
+	Int128& operator+=(const Int128& b) { return *this = *this + b; }
+	Int128& operator-=(const Int128& b) { return *this = *this - b; }
+	Int128& operator*=(const Int128& b) { return *this = *this * b; }
+};
+
+inline Int128 MulFull(Int64 a, Int64 b)
+{
+	Int64 h;
+	Int64 l = _mul128(a, b, &h);
+	return Int128::FromWords(h, UInt64(l));
+}
+inline int    Sign(const Int128& v) { return v.hi < 0 ? -1 : (v.hi > 0 || v.lo != 0); }
+inline Int64  Hi64(const Int128& v) { return v.hi; }
+inline UInt64 Lo64(const Int128& v) { return v.lo; }
+
+// u / v with remainder, both unsigned 128-bit and v > 0, for a quotient below 2^64. A divisor of
+// one word is one _udiv128. A divisor of two words is Hacker's Delight's doubleword division
+// (figure 9-5) one word size up: divide the halved dividend by the divisor's normalized top
+// word, undo the normalization, and the estimate is the quotient or one too small.
+inline UInt64 UDivRem128(UInt64 uHi, UInt64 uLo, UInt64 vHi, UInt64 vLo, UInt64& rHi, UInt64& rLo)
+{
+	UInt64 r;
+	if (vHi == 0)
+	{
+		MG_CHECK2(uHi < vLo, "dms overlay: a 128-bit quotient does not fit 64 bits");
+		UInt64 q = _udiv128(uHi, uLo, vLo, &r);
+		rHi = 0;
+		rLo = r;
+		return q;
+	}
+	int n = std::countl_zero(vHi); // 0 .. 63
+	UInt64 v1 = n ? (vHi << n) | (vLo >> (64 - n)) : vHi; // the top word of v << n, its top bit set
+	UInt64 u1Hi = uHi >> 1, u1Lo = (uLo >> 1) | (uHi << 63); // u >> 1: below 2^127, so u1Hi < v1
+	UInt64 q = _udiv128(u1Hi, u1Lo, v1, &r) >> (63 - n);
+	if (q)
+		--q;
+
+	UInt64 pHi;
+	UInt64 pLo = _umul128(q, vLo, &pHi);
+	pHi += q * vHi; // q * v <= u, so the product fits two words
+	rLo = uLo - pLo;
+	rHi = uHi - pHi - (uLo < pLo);
+	if (rHi > vHi || (rHi == vHi && rLo >= vLo))
+	{
+		++q;
+		UInt64 l = rLo - vLo;
+		rHi = rHi - vHi - (rLo < vLo);
+		rLo = l;
+	}
+	return q;
+}
+
+// floor(num / den) for den > 0; the quotient is a grid coordinate, so it fits an Int64.
+inline Int64 FloorDiv(const Int128& num, const Int128& den)
+{
+	assert(den > 0);
+	bool negative = num < 0;
+	Int128 u = negative ? -num : num;
+	UInt64 rHi, rLo;
+	UInt64 q = UDivRem128(UInt64(u.hi), u.lo, UInt64(den.hi), den.lo, rHi, rLo);
+	MG_CHECK2(q < (UInt64(1) << 63), "dms overlay: a quotient that should be a grid coordinate does not fit 64 bits");
+	if (!negative)
+		return Int64(q);
+	return -Int64(q) - ((rHi | rLo) != 0);
+}
+
+#endif
+
+// For the crossing sweep's rare 256-bit comparisons.
+inline boost::multiprecision::int256_t ToInt256(const Int128& v)
+{
+	boost::multiprecision::int256_t r = Hi64(v);
+	r *= boost::multiprecision::int256_t(1) << 64;
+	r += Lo64(v);
+	return r;
+}
+
 using GPoint = Point<Int64>;    // internal grid coordinates: pixel centres
 using GRect  = Range<GPoint>;
 using EdgeId = UInt32;
@@ -166,19 +332,27 @@ inline bool LexLess(const GPoint& p, const GPoint& q)
 	return p.X() < q.X() || (p.X() == q.X() && p.Y() < q.Y());
 }
 
+// LexLess as a function object, for std::sort and std::lower_bound: handed the function itself, they
+// call it through a pointer that the compiler does not inline: the sort of the hot pixels took 8 of
+// 46 stack samples of dms_buffer_multi_polygon on building outlines (#1302).
+struct LexLessFn
+{
+	bool operator()(const GPoint& p, const GPoint& q) const { return LexLess(p, q); }
+};
+
 inline int  Sign(Int64 v) { return (v > 0) - (v < 0); }
 inline bool WithinFastLimit(Int64 v) { return v > -FAST_LIMIT && v < FAST_LIMIT; }
 
 inline Int128 Cross128(Int64 ax, Int64 ay, Int64 bx, Int64 by)
 {
-	return Int128(ax) * by - Int128(ay) * bx;
+	return MulFull(ax, by) - MulFull(ay, bx);
 }
 
 inline int CrossSign(Int64 ax, Int64 ay, Int64 bx, Int64 by)
 {
 	if (WithinFastLimit(ax) && WithinFastLimit(ay) && WithinFastLimit(bx) && WithinFastLimit(by))
 		return Sign(ax * by - ay * bx);
-	return Cross128(ax, ay, bx, by).sign();
+	return Sign(Cross128(ax, ay, bx, by));
 }
 
 // +1 when c lies to the left of the directed line a -> b (counter-clockwise turn, x to the right and
@@ -186,16 +360,6 @@ inline int CrossSign(Int64 ax, Int64 ay, Int64 bx, Int64 by)
 inline int Orient(const GPoint& a, const GPoint& b, const GPoint& c)
 {
 	return CrossSign(b.X() - a.X(), b.Y() - a.Y(), c.X() - a.X(), c.Y() - a.Y());
-}
-
-// floor(num / den) for den > 0; the quotient is a grid coordinate, so it fits an Int64.
-inline Int64 FloorDiv(const Int128& num, const Int128& den)
-{
-	assert(den > 0);
-	Int128 q = num / den; // truncates toward zero
-	if (num < 0 && q * den != num)
-		--q;
-	return q.convert_to<Int64>();
 }
 
 // floor(a / b) for Int64 with b > 0
@@ -350,7 +514,7 @@ inline bool SegmentMeetsPixel(const GPoint& a, const GPoint& b, const GPoint& c)
 
 inline void SortUnique(std::vector<GPoint>& pts)
 {
-	std::sort(pts.begin(), pts.end(), LexLess);
+	std::sort(pts.begin(), pts.end(), LexLessFn());
 	pts.erase(std::unique(pts.begin(), pts.end()), pts.end());
 }
 
@@ -444,11 +608,11 @@ struct CrossingSweep
 			r = q.ny * p.d;
 			return (l > r) - (l < r);
 		}
-		Int256 l = Int256(p.nx) * Int256(q.d), r = Int256(q.nx) * Int256(p.d);
+		Int256 l = ToInt256(p.nx) * ToInt256(q.d), r = ToInt256(q.nx) * ToInt256(p.d);
 		if (l != r)
 			return l < r ? -1 : +1;
-		l = Int256(p.ny) * Int256(q.d);
-		r = Int256(q.ny) * Int256(p.d);
+		l = ToInt256(p.ny) * ToInt256(q.d);
+		r = ToInt256(q.ny) * ToInt256(p.d);
 		return (l > r) - (l < r);
 	}
 
@@ -458,7 +622,7 @@ struct CrossingSweep
 		Int64 dx = s.b.X() - s.a.X(), dy = s.b.Y() - s.a.Y();
 		Int128 ex = c.nx - Int128(s.a.X()) * c.d;
 		Int128 ey = c.ny - Int128(s.a.Y()) * c.d;
-		Int256 v = Int256(dx) * Int256(ey) - Int256(dy) * Int256(ex);
+		Int256 v = Int256(dx) * ToInt256(ey) - Int256(dy) * ToInt256(ex);
 		return (v > 0) - (v < 0);
 	}
 
@@ -857,12 +1021,23 @@ private:
 	// is ordered by pixel column in the segment's x direction and by row within a column: pixels are
 	// disjoint and a segment is monotone in both axes, so this is the order along the segment, and
 	// the segment's own endpoints are its first and last pixel.
+	//
+	// The candidate pixels of a segment are those whose centre lies within one unit of its bounding
+	// box; SegmentMeetsPixel decides exactly, so how the candidates are found changes nothing. Over
+	// many hot pixels a quadtree finds them; over few, as for the one element of a Minkowski sum or
+	// a buffer, building it costs more than the queries save (8 of 46 stack samples of
+	// dms_buffer_multi_polygon on building outlines were in the index, #1302), and the pixels,
+	// sorted as they are by (x, y), are scanned over the segment's column range instead.
+	static constexpr SizeT MAX_HOT_FOR_SCAN = 256;
+
 	bool SnapSegments(std::vector<Segment>& segs)
 	{
 		if (m_Hot.empty())
 			return false;
 
-		m_Index.Rebuild(m_Hot.data(), m_Hot.data() + m_Hot.size());
+		bool useIndex = m_Hot.size() > MAX_HOT_FOR_SCAN;
+		if (useIndex)
+			m_Index.Rebuild(m_Hot.data(), m_Hot.data() + m_Hot.size());
 		const PointIndex& index = m_Index;
 
 		m_Next.clear();
@@ -875,22 +1050,34 @@ private:
 			int sx = Sign(dx), sy = Sign(dy);
 
 			GRect box(s.a, s.b);
-			// the index tests point leaves half-open against the search box; one more unit above
-			GRect query(
-				MakeGPoint(box.first.X() - 1, box.first.Y() - 1),
-				MakeGPoint(box.second.X() + 2, box.second.Y() + 2)
-			);
 
 			m_Keys.clear();
-			for (PointIter it = index.begin(query); it; ++it)
+			auto consider = [this, &s, sx, sy](const GPoint& c)
 			{
-				const GPoint& c = *(*it)->get_ptr();
 				if (!SegmentMeetsPixel(s.a, s.b, c))
-					continue;
+					return;
 				if (sx)
 					m_Keys.push_back(PixelKey{ sx * c.X(), sy * c.Y(), c });
 				else
 					m_Keys.push_back(PixelKey{ sy * c.Y(), 0, c });
+			};
+			if (useIndex)
+			{
+				// the index tests point leaves half-open against the search box; one more unit above
+				GRect query(
+					MakeGPoint(box.first.X() - 1, box.first.Y() - 1),
+					MakeGPoint(box.second.X() + 2, box.second.Y() + 2)
+				);
+				for (PointIter it = index.begin(query); it; ++it)
+					consider(*(*it)->get_ptr());
+			}
+			else
+			{
+				Int64 xHi = box.second.X() + 1, yLo = box.first.Y() - 1, yHi = box.second.Y() + 1;
+				auto it = std::lower_bound(m_Hot.begin(), m_Hot.end(), MakeGPoint(box.first.X() - 1, std::numeric_limits<Int64>::min()), LexLessFn());
+				for (auto ie = m_Hot.end(); it != ie && it->X() <= xHi; ++it)
+					if (it->Y() >= yLo && it->Y() <= yHi)
+						consider(*it);
 			}
 			std::sort(m_Keys.begin(), m_Keys.end(), [](const PixelKey& l, const PixelKey& r)
 				{
@@ -915,7 +1102,7 @@ private:
 
 	std::vector<GPoint>   m_Hot;   // sorted and unique between rounds
 	CrossingSweep         m_Sweep;
-	PointIndex            m_Index; // over m_Hot, rebuilt per round; kept for its capacity
+	PointIndex            m_Index; // over m_Hot when it is large, rebuilt per round; kept for its capacity
 	std::vector<Segment>  m_Next;
 	std::vector<PixelKey> m_Keys;
 };
@@ -1170,7 +1357,7 @@ inline int RingOrientation(const std::vector<GPoint>& pts)
 	const GPoint& o = pts[0];
 	for (SizeT i = 1, n = pts.size(); i + 1 < n; ++i)
 		twiceArea += Cross128(pts[i].X() - o.X(), pts[i].Y() - o.Y(), pts[i + 1].X() - o.X(), pts[i + 1].Y() - o.Y());
-	return twiceArea.sign();
+	return Sign(twiceArea);
 }
 
 // Chains the directed edges into simple rings.
@@ -1288,7 +1475,7 @@ struct Polygonizer
 private:
 	UInt32 FindVertex(const GPoint& p) const
 	{
-		auto it = std::lower_bound(m_Vertices.begin(), m_Vertices.end(), p, LexLess);
+		auto it = std::lower_bound(m_Vertices.begin(), m_Vertices.end(), p, LexLessFn());
 		// In a Release build a miss here used to map the point to whatever vertex sorts next and
 		// let the walk run on from the wrong place; the failures that followed named nothing.
 		MG_CHECK2(it != m_Vertices.end() && *it == p, "dms overlay: a boundary edge ends at a vertex where no boundary edge begins");
@@ -1575,7 +1762,7 @@ struct DmsOverlayEngine
 			return false;
 
 		m_SingleSorted.assign(pts.begin(), pts.end());
-		std::sort(m_SingleSorted.begin(), m_SingleSorted.end(), LexLess);
+		std::sort(m_SingleSorted.begin(), m_SingleSorted.end(), LexLessFn());
 		if (std::adjacent_find(m_SingleSorted.begin(), m_SingleSorted.end()) != m_SingleSorted.end())
 			return false; // a vertex visited twice: more than one ring, or one that touches itself
 		if (!IsSimpleRing(pts))
@@ -1704,11 +1891,55 @@ struct DmsOverlayEngine
 	// came out.
 	bool UnionBag(std::vector<Segment>& bag)
 	{
-		MG_CHECK2(m_HasFixedOrigin, "dms overlay: UnionBag needs a fixed frame");
-		m_Polygonizer.Recycle(m_Rings);
-		m_Framed = true;
 		m_Segments.assign(bag.begin(), bag.end());
 		std::vector<Segment>().swap(bag);
+		return SweepBag([](Int32 count) { return count != 0; });
+	}
+
+	// The same sweep with another membership rule: a face is in the result when at least threshold
+	// elements cover it. This is the rule of a Minkowski sum or a buffer assembled from pieces (see
+	// DmsMinkowski.h), whose coverage counts never go negative, and of an erosion, which subtracts
+	// the pieces of the eroded strip and keeps what is still covered by every positive term. The
+	// bag is the caller's per-element scratch: it is swapped with the engine's buffer and comes back
+	// empty, both keeping their capacity for the next element.
+	bool ThresholdBag(std::vector<Segment>& bag, Int32 threshold)
+	{
+		m_Segments.swap(bag);
+		bag.clear();
+		return SweepBag([threshold](Int32 count) { return count >= threshold; });
+	}
+
+	// A shell that the caller built on this engine's fixed frame itself, counter-clockwise and simple:
+	// the convex sum of a convex element and a convex kernel, which needs no sweep. It becomes the
+	// engine's one ring, wound and started as the sweep would have written it, for Store.
+	void SetSingleShell(const std::vector<GPoint>& ccwPts)
+	{
+		MG_CHECK2(m_HasFixedOrigin, "dms overlay: SetSingleShell needs a fixed frame");
+		MG_CHECK2(ccwPts.size() >= 3, "dms overlay: a shell with fewer than three vertices");
+		m_Polygonizer.Recycle(m_Rings);
+		m_Framed = true;
+
+		Ring ring;
+		ring.pts = m_Polygonizer.TakeSparePts();
+		ring.pts.assign(ccwPts.rbegin(), ccwPts.rend()); // a shell runs clockwise
+		std::rotate(ring.pts.begin(), std::min_element(ring.pts.begin(), ring.pts.end(), LexLess), ring.pts.end());
+		ring.isShell = true;
+		m_Rings.push_back(std::move(ring));
+	}
+
+	// The fixed frame's cell: what a displacement in world units is divided by to land on the lattice.
+	Float64 FixedCell() const { return m_FixedCell; }
+
+private:
+	// Nodes the segments of the bag, now in m_Segments, once, sweeps once for the coverage counts,
+	// keeps every fragment whose two sides differ in membership, directed with the member side on
+	// its right, and chains those into rings.
+	template <typename IsMember>
+	bool SweepBag(IsMember&& isMember)
+	{
+		MG_CHECK2(m_HasFixedOrigin, "dms overlay: a bag sweep needs a fixed frame");
+		m_Polygonizer.Recycle(m_Rings);
+		m_Framed = true;
 
 		m_Noder.Run(m_Segments);
 
@@ -1725,8 +1956,8 @@ struct DmsOverlayEngine
 		m_Kept.clear();
 		for (SizeT i = 0; i != n; ++i)
 		{
-			bool inRight = m_Counts[i].below != 0;
-			bool inLeft  = (m_Counts[i].below + m_Counts[i].delta) != 0;
+			bool inRight = isMember(m_Counts[i].below);
+			bool inLeft  = isMember(m_Counts[i].below + m_Counts[i].delta);
 			if (inRight == inLeft)
 				continue;
 			if (inRight)
@@ -1734,7 +1965,7 @@ struct DmsOverlayEngine
 			else
 				m_Kept.push_back(DirEdge{ m_Edges[i].hi, m_Edges[i].lo });
 		}
-		CheckKeptClosed(n);
+		CheckKeptClosed(n, isMember);
 
 		m_Polygonizer.Run(m_Kept, m_Rings);
 		m_HoleAssigner.Run(m_Rings);
@@ -1747,7 +1978,8 @@ struct DmsOverlayEngine
 	// vertices). So it is checked here, and the first offending vertex is reported with every
 	// fragment that touches it: its endpoints, its weight, the count on its right and on its left,
 	// and whether it was kept. That is the whole local configuration, enough to reason from.
-	void CheckKeptClosed(SizeT nrFragments) const
+	template <typename IsMember>
+	void CheckKeptClosed(SizeT nrFragments, IsMember&& isMember) const
 	{
 		auto& ends = m_KeptEnds;
 		ends.clear();
@@ -1776,8 +2008,8 @@ struct DmsOverlayEngine
 					if (m_Edges[f].lo != v && m_Edges[f].hi != v)
 						continue;
 					++listed;
-					bool inRight = m_Counts[f].below != 0;
-					bool inLeft  = (m_Counts[f].below + m_Counts[f].delta) != 0;
+					bool inRight = isMember(m_Counts[f].below);
+					bool inLeft  = isMember(m_Counts[f].below + m_Counts[f].delta);
 					msg += std::format("\n  lo ({}, {}) hi ({}, {}) weight {} below {} above {} {}"
 						, m_Edges[f].lo.X(), m_Edges[f].lo.Y(), m_Edges[f].hi.X(), m_Edges[f].hi.Y()
 						, m_Counts[f].delta, m_Counts[f].below, m_Counts[f].below + m_Counts[f].delta
@@ -1789,6 +2021,7 @@ struct DmsOverlayEngine
 		}
 	}
 
+public:
 	// Run the sweep and keep its rings. Returns whether the result encloses any area, which is
 	// what dms_polygon_connectivity asks and what saves dms_overlay_polygon a store.
 	template <typename RA, typename RB>
@@ -2363,8 +2596,9 @@ struct DmsPolySet
 // does for GEOS.
 //
 // A caller that folds many operands passes its engine, so that the folds share its buffers instead
-// of each growing a new engine's from nothing: a Minkowski sum folds a cell per ring edge and
-// kernel part of every element (GEO-A35). Without one, each fold makes an engine of its own.
+// of each growing a new engine's from nothing (GEO-A35, when the Minkowski sum still folded a cell
+// per ring edge; since #1301 it sweeps one bag per element). Without one, each fold makes an
+// engine of its own.
 template <typename P>
 struct union_dms_polygons
 {

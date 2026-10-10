@@ -56,6 +56,8 @@ fn_test_vv_neg2.dms /z
 fn_test_vv_neg3.dms /b
 fn_test_vv4.dms /checks
 oper_table_spec_neg.dms /bad
+oper_dms_minkowski.dms /all_checks
+oper_dms_buffer.dms /all_checks
 stor_gdalwrite_geom_name.dms /Export/shape
 stor_gdalwrite_sibling_dep.dms /Export/sel/y
 stor_gdalwrite_sibling_sup.dms /Export/sel/name

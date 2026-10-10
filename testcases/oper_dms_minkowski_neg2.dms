@@ -1,0 +1,22 @@
+// #1301 negative: dms_minkowski_difference refuses the star-shaped variant 'XD', in its d-prefixed
+// spelling as well. The dms_ backend erodes with convex kernels only.
+// Expected: nonzero exit.
+container oper_dms_minkowski_neg2
+{
+	unit<uint32> G   : nrofrows = 1;
+	unit<uint32> GPt : nrofrows = 4;
+
+	attribute<float64> gx   (GPt) : [ 0, 0, 100, 100 ];
+	attribute<float64> gy   (GPt) : [ 0, 100, 100, 0 ];
+	attribute<G>       gseq (GPt) : [ 0, 0, 0, 0 ];
+	attribute<uint32>  gord (GPt) : [ 0, 1, 2, 3 ];
+
+	attribute<dpoint> geom (G, polygon) := points2polygon(point_xy(gx, gy, dpoint), gseq, gord);
+
+	container checks
+	{
+		attribute<dpoint> bad (G, polygon) := dms_minkowski_difference(geom, float64(10), 'dXD');
+		parameter<float64> a := sum(area(bad));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
+	}
+}
