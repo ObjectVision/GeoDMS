@@ -180,10 +180,13 @@ struct DmsEngineContext : PolygonOperContext
 // closed rings back to back: clockwise, each from its lexicographically first vertex, and the parts
 // in the order of those vertices, so that the result depends neither on the order of the input's
 // vertices nor on its rings'. StoreImpl takes them apart (dms_rings_apart_assign).
+// minimal: dms_split_convex_polygon_keilsnoeyink (#1305), the minimum number of parts for a ring
+// without holes; otherwise Hertel and Mehlhorn for every ring.
 template <typename P, typename R>
-void dms_split_convex_into(DmsEngineContext<P>& ctx, dms_overlay::DmsPolySet<P>& lhs, const R& poly, Float64 cell)
+void dms_split_convex_into(DmsEngineContext<P>& ctx, dms_overlay::DmsPolySet<P>& lhs, const R& poly, Float64 cell, bool minimal)
 {
 	using namespace dms_overlay;
+	ctx.partitioner.m_UseMinimum = minimal;
 	auto& engine = ctx.engine;
 	engine.SetFixedCell(cell);
 	lhs.m_Cell = cell;
@@ -740,6 +743,7 @@ enum class PolygonFlags {
 	F_HasPartition = 4,
 	F_DoPartUnion = 6,
 	F_Convex = 8, // with F_DoSplit: dms_split_convex_polygon, strictly convex parts (#1300)
+	F_ConvexMin = 0x1000, // with F_Convex: dms_split_convex_polygon_keilsnoeyink, the minimum for rings without holes (#1305)
 
 	F_Inflate1 = 0x0010,
 	F_Deflate1 = 0x0020,
@@ -2041,7 +2045,7 @@ public:
 			// the per-element forms: every element is its slot's only one, so a single ring is taken as it is
 			PolySet geometry;
 			if (m_Flags & PolygonFlags::F_Convex)
-				dms_split_convex_into(DmsEngineContext<P>::Of(ctx), geometry, *pi, cell);
+				dms_split_convex_into(DmsEngineContext<P>::Of(ctx), geometry, *pi, cell, m_Flags & PolygonFlags::F_ConvexMin);
 			else
 				dms_overlay::dms_clean_single_into(engine, geometry, *pi, cell);
 			towerPtr->add(std::move(geometry));
@@ -2827,6 +2831,9 @@ namespace
 	DMS_PolyOperatorGroupss dms_simple;
 	// dms_split_convex_polygon: dms_split_polygon's reading and result, with strictly convex parts (#1300)
 	DMS_PolyOperatorGroup dms_split_convex("dms_split_convex_polygon", PolygonFlags::F_DoSplit | PolygonFlags::F_Convex);
+	// dms_split_convex_polygon_keilsnoeyink: the same, with the minimum number of parts for every ring without holes
+	// that stays within the caps of MinConvexPartition (#1305); slower, by a factor 4 on building outlines
+	DMS_PolyOperatorGroup dms_split_convex_min("dms_split_convex_polygon_keilsnoeyink", PolygonFlags::F_DoSplit | PolygonFlags::F_Convex | PolygonFlags::F_ConvexMin);
 
 	// The obsolete UNPREFIXED filtered/inflated/deflated boost::polygon operators (PolyOperatorGroupsss
 	// f2..f2f) have been removed; they were deprecated in v20. Use the bp_*/bg_*/cgal_*/geos_* variants above.

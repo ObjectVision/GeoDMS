@@ -12,6 +12,10 @@
 //   straight, also where the input has collinear vertices.
 // - The same at Dutch RD coordinates in float64, and for a thousand elements in three tiles of
 //   unequal size, so that polygon_rel is the element's index in the domain.
+// - #1305, dms_split_convex_polygon_keilsnoeyink: the same checks, and a ring without holes gets the
+//   minimum number of parts, never more than dms_split_convex_polygon gives. Element 6, a building
+//   outline with one reflex vertex, gets three parts from dms_split_convex_polygon (Hertel-Mehlhorn)
+//   and two from the minimum; element 7, two L shapes in one element, two parts for each from both.
 //
 // Offline and cheap by design (testcases/ rule). Expected: exit 0 on /checks.
 container oper_dms_split_convex
@@ -22,18 +26,27 @@ container oper_dms_split_convex
 	// 3: [60,70]x[0,10] with a triangular hole that touches the left side at (60,5)
 	// 4: a bow tie, its two triangles meeting at (85,5)
 	// 5: two squares, [100,104]x[0,4] and [110,114]x[0,4], joined by a corridor along y = 0
-	unit<uint32> G   : nrofrows = 6;
-	unit<uint32> GPt : nrofrows = 49;
+	// 6: a BAG outline (mm), one reflex vertex at (2716,-523)
+	// 7: two L shapes as element 1, at x = 300 and x = 320, joined by a corridor along y = 0
+	unit<uint32> G   : nrofrows = 8;
+	unit<uint32> GPt : nrofrows = 70;
 
-	attribute<int32>  gx   (GPt) : [ 0, 0,10,10, 0,   20,20,22,22,26,26,20,   40,40,50,50,40,43,47,47,43,43,40,   60,60,70,70,60,60,65,65,60,60,   80,90,90,80,80,   100,100,104,104,100,110,110,114,114,110,100 ];
-	attribute<int32>  gy   (GPt) : [ 0,10,10, 0, 0,    0, 6, 6, 2, 2, 0, 0,    0,10,10, 0, 0, 3, 3, 7, 7, 3, 0,    0,10,10, 0, 0, 5, 3, 7, 5, 0,    0,10, 0,10, 0,     0,  4,  4,  0,  0,  0,  4,  4,  0,  0,  0 ];
-	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0, 0,    1, 1, 1, 1, 1, 1, 1,    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,    3, 3, 3, 3, 3, 3, 3, 3, 3, 3,    4, 4, 4, 4, 4,     5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5 ];
-	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3, 4,    0, 1, 2, 3, 4, 5, 6,    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,    0, 1, 2, 3, 4,     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10 ];
+	attribute<int32>  gx   (GPt) : [ 0, 0,10,10, 0,   20,20,22,22,26,26,20,   40,40,50,50,40,43,47,47,43,43,40,   60,60,70,70,60,60,65,65,60,60,   80,90,90,80,80,   100,100,104,104,100,110,110,114,114,110,100
+		,  2716, 1458, 7508, 9598, 1036, 200, 2716,   300,300,302,302,306,306,300,320,320,322,322,326,326,320 ];
+	attribute<int32>  gy   (GPt) : [ 0,10,10, 0, 0,    0, 6, 6, 2, 2, 0, 0,    0,10,10, 0, 0, 3, 3, 7, 7, 3, 0,    0,10,10, 0, 0, 5, 3, 7, 5, 0,    0,10, 0,10, 0,     0,  4,  4,  0,  0,  0,  4,  4,  0,  0,  0
+		,  -523,-6569,-7808, 2237, 4018,   0, -523,     0,  6,  6,  2,  2,  0,  0,  0,  6,  6,  2,  2,  0,  0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0, 0,    1, 1, 1, 1, 1, 1, 1,    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,    3, 3, 3, 3, 3, 3, 3, 3, 3, 3,    4, 4, 4, 4, 4,     5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5
+		,     6,    6,    6,    6,    6,   6,    6,     7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3, 4,    0, 1, 2, 3, 4, 5, 6,    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,    0, 1, 2, 3, 4,     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10
+		,     0,    1,    2,    3,    4,   5,    6,     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13 ];
 
-	// the part counts: exact where the minimum is unique, a lower bound where it depends on the
-	// diagonals the triangulation happens to take
-	attribute<uint32> minParts   (G) : [ 1, 2, 4, 3, 2, 2 ];
-	attribute<bool>   exactParts (G) : [ true, true, false, false, true, true ];
+	// the part counts: the minimum, exact for the minimum where it is unique, a lower bound where the
+	// count depends on the diagonals the triangulation happens to take (elements with holes, which
+	// both operators split with Hertel-Mehlhorn); dms_split_convex_polygon reaches the minimum of
+	// element 6 only by chance, so there it is a lower bound too
+	attribute<uint32> minParts   (G) : [ 1, 2, 4, 3, 2, 2, 2, 4 ];
+	attribute<bool>   exactParts (G) : [ true, true, false, false, true, true, true, true ];
+	attribute<bool>   exactHM    (G) : [ true, true, false, false, true, true, false, true ];
 
 	attribute<ipoint> geom_i  (G, polygon) := points2polygon(point_xy(gx, gy, ipoint), gseq, gord);
 	attribute<dpoint> geom_rd (G, polygon) := points2polygon(point_xy(155000.0 + float64(gx), 463000.0 + float64(gy), dpoint), gseq, gord);
@@ -107,10 +120,29 @@ container oper_dms_split_convex
 		attribute<Many>   elem_rel := many_parts/polygon_rel[sequence_rel];
 	}
 
+	// ---- dms_split_convex_polygon_keilsnoeyink (#1305) on the same elements ---------------------
+	unit<uint32> parts_ks    := dms_split_convex_polygon_keilsnoeyink(geom_i);
+	unit<uint32> parts_ks_rd := dms_split_convex_polygon_keilsnoeyink(geom_rd)
+	{
+		attribute<float64> a := area(geometry);
+	}
+	unit<uint32> KsPt := sequence2points(parts_ks/geometry)
+	{
+		attribute<int64>  x       := int64(pointcol(point));
+		attribute<int64>  y       := int64(pointrow(point));
+		attribute<uint32> n       := pcount(sequence_rel)[sequence_rel];
+		attribute<uint32> first   := uint32(id(.)) - ordinal;
+		attribute<bool>   closing := ordinal + 1 == n;
+		attribute<KsPt>   prevPt  := value(first + (ordinal + n - 2) % (n - 1), KsPt);
+		attribute<KsPt>   nextPt  := value(first + (ordinal + 1) % (n - 1), KsPt);
+		attribute<int64>  turn    := (x - x[prevPt]) * (y[nextPt] - y) - (y - y[prevPt]) * (x[nextPt] - x);
+	}
+	unit<uint32> many_parts_ks := dms_split_convex_polygon_keilsnoeyink(many_i);
+
 	container checks
 	{
 		attribute<uint32> nrParts (G) := pcount(parts/polygon_rel);
-		parameter<bool> counts_ok := all(exactParts ? nrParts == minParts : nrParts >= minParts), IntegrityCheck = "counts_ok == true";
+		parameter<bool> counts_ok := all(exactHM ? nrParts == minParts : nrParts >= minParts), IntegrityCheck = "counts_ok == true";
 
 		attribute<ipoint> cleaned (G, polygon) := dms_polygon(geom_i);
 		attribute<ipoint> reunion (G, polygon) := dms_union_polygon(parts/geometry, parts/polygon_rel);
@@ -128,9 +160,10 @@ container oper_dms_split_convex
 			, IntegrityCheck = "rd_ok == true";
 
 		// the areas of the parts add up to the area of their element, and over all elements to the
-		// area of the six shapes, the bow tie counted as its two triangles
+		// area of the eight shapes, the bow tie counted as its two triangles
 		attribute<float64> partArea (G) := sum(parts_rd/a, parts_rd/polygon_rel);
-		parameter<bool> area_ok := all(abs(partArea - area(cleaned_rd)) < 1e-6) && abs(sum(parts_rd/a) - (100.0 + 20.0 + 84.0 + 90.0 + 50.0 + 32.0)) < 1e-6
+		parameter<float64> totalArea := 100.0 + 20.0 + 84.0 + 90.0 + 50.0 + 32.0 + 73966365.0 + 40.0;
+		parameter<bool> area_ok := all(abs(partArea - area(cleaned_rd)) < 1e-9 * area(cleaned_rd) + 1e-6) && abs(sum(parts_rd/a) - totalArea) < 1e-9 * totalArea
 			, IntegrityCheck = "area_ok == true";
 
 		// the thousand: per element the count of its shape, in its own slot of the tiled domain
@@ -145,5 +178,23 @@ container oper_dms_split_convex
 		attribute<int64> many_twice_area (Many) := sum(ManyCorner/cross, ManyCorner/elem_rel);
 		parameter<bool> many_area_ok := all(many_twice_area == (Many/isL ? -40i64 : -168i64)), IntegrityCheck = "many_area_ok == true";
 		parameter<bool> many_convex_ok := all(ManyCorner/closing || ManyCorner/turn < 0i64), IntegrityCheck = "many_convex_ok == true";
+
+		// #1305: the minimum, never more parts than dms_split_convex_polygon, the same union, strictly
+		// convex, the same at RD coordinates and over the three tiles
+		attribute<uint32> nrPartsKs (G) := pcount(parts_ks/polygon_rel);
+		parameter<bool> ks_counts_ok := all(exactParts ? nrPartsKs == minParts : nrPartsKs >= minParts) && all(nrPartsKs <= nrParts)
+			, IntegrityCheck = "ks_counts_ok == true";
+		attribute<ipoint> ks_reunion (G, polygon) := dms_union_polygon(parts_ks/geometry, parts_ks/polygon_rel);
+		attribute<ipoint> ks_diff    (G, polygon) := dms_xor(ks_reunion, cleaned);
+		unit<uint32> KsDiffPt := sequence2points(ks_diff);
+		parameter<bool> ks_union_ok  := #KsDiffPt == 0, IntegrityCheck = "ks_union_ok == true";
+		parameter<bool> ks_convex_ok := all(KsPt/closing || KsPt/turn < 0i64) && all(KsPt/n >= 4), IntegrityCheck = "ks_convex_ok == true";
+		attribute<float64> ksPartArea (G) := sum(parts_ks_rd/a, parts_ks_rd/polygon_rel);
+		parameter<bool> ks_rd_ok := all(pcount(parts_ks_rd/polygon_rel) == nrPartsKs) && all(abs(ksPartArea - area(cleaned_rd)) < 1e-9 * area(cleaned_rd) + 1e-6)
+			, IntegrityCheck = "ks_rd_ok == true";
+		attribute<uint32> many_ks_nr (Many) := pcount(many_parts_ks/polygon_rel);
+		attribute<ipoint> many_ks_diff (Many, polygon) := dms_xor(dms_union_polygon(many_parts_ks/geometry, many_parts_ks/polygon_rel), dms_polygon(many_i));
+		unit<uint32> ManyKsDiffPt := sequence2points(many_ks_diff);
+		parameter<bool> many_ks_ok := all(Many/isL ? many_ks_nr == 2 : many_ks_nr >= 4) && #ManyKsDiffPt == 0, IntegrityCheck = "many_ks_ok == true";
 	}
 }
