@@ -13,7 +13,10 @@
 
 #include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
 
+#include <array>
+#include <mutex>
 #include <numbers>
+#include <unordered_map>
 
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
@@ -224,30 +227,198 @@ static TokenID
 	s_tFR = token::first_rel,
 	s_tSR = token::second_rel;
 
+// The forms of the overlay and connectivity operators: one set (each pair once, forward), two sets, and
+// each of those with a group per polygon (#1305): (polygons, groups) and (polyA, polyB, groupsA, groupsB).
+enum class OverlayForm : UInt8 { One, Two, OneGrouped, TwoGrouped };
+
+// #1305: the groups of the grouped forms. Two polygons of the same group are never a pair, and of the
+// pairs between one pair of groups only the first in the order of (first_rel, second_rel) is kept: a
+// candidate is not computed at all once an earlier pair of its pair of groups is known, and what more than
+// one thread found is reduced to the first when the result is stored, so the result does not depend on
+// the order in which the threads find them. In the one-set form the pair of groups has no direction.
+// Undefined groups are never equal, and their pairs are all kept.
+struct OverlayGroupPairs
+{
+	std::vector<UInt32> a, b;
+	bool symmetric = false;
+
+	bool Defined(const Point<SizeT>& r) const { return IsDefined(a[r.first]) && IsDefined(b[r.second]); }
+	UInt64 Key(const Point<SizeT>& r) const
+	{
+		UInt32 x = a[r.first], y = b[r.second];
+		if (symmetric && y < x)
+			std::swap(x, y);
+		return (UInt64(x) << 32) | y;
+	}
+
+	// whether the pair need not be computed: the same group, or an earlier pair of its groups is known
+	bool Skip(const Point<SizeT>& r)
+	{
+		if (!Defined(r))
+			return false;
+		if (a[r.first] == b[r.second])
+			return true;
+		UInt64 key = Key(r);
+		Stripe& s = StripeOf(key);
+		std::lock_guard lock(s.m);
+		auto it = s.first.find(key);
+		return it != s.first.end() && it->second < r;
+	}
+	void Found(const Point<SizeT>& r)
+	{
+		if (!Defined(r))
+			return;
+		UInt64 key = Key(r);
+		Stripe& s = StripeOf(key);
+		std::lock_guard lock(s.m);
+		auto [it, isNew] = s.first.try_emplace(key, r);
+		if (!isNew && r < it->second)
+			it->second = r;
+	}
+	// after all threads are done: whether a found pair is the first of its groups
+	bool IsFirst(const Point<SizeT>& r) const
+	{
+		if (!Defined(r))
+			return true;
+		UInt64 key = Key(r);
+		const Stripe& s = stripes[StripeNr(key)];
+		auto it = s.first.find(key);
+		return it != s.first.end() && it->second == r;
+	}
+
+private:
+	static constexpr UInt32 NrStripeBits = 6;
+	struct Stripe { std::mutex m; std::unordered_map<UInt64, Point<SizeT>> first; };
+	std::array<Stripe, 1 << NrStripeBits> stripes;
+
+	static SizeT StripeNr(UInt64 key) { return SizeT((key * 0x9E3779B97F4A7C15ull) >> (64 - NrStripeBits)); }
+	Stripe& StripeOf(UInt64 key) { return stripes[StripeNr(key)]; }
+};
+
+// #1305: convex_polygon_connectivity. Two convex polygons overlap with a positive area exactly when no
+// edge of either one has all of the other on its outer side or on it (the separating axis theorem for
+// polygons). Exact: on integer coordinates by 128-bit products, on floating point ones by the filtered
+// predicates of CGAL. The premise is the caller's: a polygon that is not one convex ring gives an answer
+// for its convex hull at best.
+template <typename P>
+int ConvexOrientation(const P& a, const P& b, const P& c)
+{
+	if constexpr (std::is_integral_v<scalar_of_t<P>>)
+		return dms_overlay::CrossSign(Int64(b.X()) - Int64(a.X()), Int64(b.Y()) - Int64(a.Y()), Int64(c.X()) - Int64(a.X()), Int64(c.Y()) - Int64(a.Y()));
+	else
+	{
+		using K = CGAL::Exact_predicates_inexact_constructions_kernel;
+		auto o = CGAL::orientation(K::Point_2(a.X(), a.Y()), K::Point_2(b.X(), b.Y()), K::Point_2(c.X(), c.Y()));
+		return o == CGAL::LEFT_TURN ? 1 : o == CGAL::RIGHT_TURN ? -1 : 0;
+	}
+}
+
+// the points of a ring, without the closing repetition of the first
+template <typename Iter>
+SizeT ConvexRingSize(Iter b, Iter e)
+{
+	SizeT n = e - b;
+	if (n >= 2 && b[0] == b[n - 1])
+		--n;
+	return n;
+}
+
+// +1 counter-clockwise, -1 clockwise, 0 without area
+template <typename Iter>
+int ConvexSense(Iter r, SizeT n)
+{
+	for (SizeT k = 1; k + 1 < n; ++k)
+		if (int o = ConvexOrientation(r[0], r[k], r[k + 1]))
+			return o;
+	return 0;
+}
+
+// whether an edge of A has all of B on its outer side or on it
+template <typename IterA, typename IterB>
+bool ConvexSeparatedByEdgeOf(IterA A, SizeT na, int sa, IterB B, SizeT nb)
+{
+	for (SizeT k = 0; k != na; ++k)
+	{
+		const auto& p = A[k];
+		const auto& q = A[k + 1 == na ? 0 : k + 1];
+		if (p == q)
+			continue;
+		SizeT v = 0;
+		while (v != nb && sa * ConvexOrientation(p, q, B[v]) <= 0)
+			++v;
+		if (v == nb)
+			return true;
+	}
+	return false;
+}
+
+template <typename RA, typename RB>
+bool ConvexOverlap(const RA& A, const RB& B)
+{
+	SizeT na = ConvexRingSize(A.begin(), A.end()), nb = ConvexRingSize(B.begin(), B.end());
+	if (na < 3 || nb < 3)
+		return false;
+	int sa = ConvexSense(A.begin(), na), sb = ConvexSense(B.begin(), nb);
+	if (!sa || !sb)
+		return false;
+	return !ConvexSeparatedByEdgeOf(A.begin(), na, sa, B.begin(), nb) && !ConvexSeparatedByEdgeOf(B.begin(), nb, sb, A.begin(), na);
+}
+
 class AbstrPolygonOverlayOperator : public VariadicOperator
 {
 protected:
 	using ResultingDomainType = UInt32;
 
-	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass, bool mustCreateGeometries, bool onlyForwardMatches)
-		: VariadicOperator(&gr, Unit<ResultingDomainType>::GetStaticClass(), onlyForwardMatches ? 1 : 2)
-		,	m_MustCreateGeometries(mustCreateGeometries)
-		,	m_OnlyForwardMatches(onlyForwardMatches)
+	static arg_index NrArgs(OverlayForm form)
 	{
-		m_ArgClasses[0] = polyAttrClass;
-		if (onlyForwardMatches)
-			return;
-		m_ArgClasses[1] = polyAttrClass;
+		switch (form)
+		{
+		case OverlayForm::One:        return 1;
+		case OverlayForm::OneGrouped: return 2;
+		case OverlayForm::Two:        return 2;
+		default:                      return 4;
+		}
+	}
+	static bool IsOneSet (OverlayForm form) { return form == OverlayForm::One || form == OverlayForm::OneGrouped; }
+	static bool IsGrouped(OverlayForm form) { return form == OverlayForm::OneGrouped || form == OverlayForm::TwoGrouped; }
+
+	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass, bool mustCreateGeometries, OverlayForm form)
+		: VariadicOperator(&gr, Unit<ResultingDomainType>::GetStaticClass(), NrArgs(form))
+		,	m_MustCreateGeometries(mustCreateGeometries)
+		,	m_OnlyForwardMatches(IsOneSet(form))
+		,	m_Form(form)
+	{
+		switch (form)
+		{
+		case OverlayForm::One:
+			m_ArgClasses[0] = polyAttrClass;
+			break;
+		case OverlayForm::OneGrouped:
+			m_ArgClasses[0] = polyAttrClass;
+			m_ArgClasses[1] = DataArray<UInt32>::GetStaticClass();
+			break;
+		case OverlayForm::Two:
+			m_ArgClasses[0] = polyAttrClass;
+			m_ArgClasses[1] = polyAttrClass;
+			break;
+		case OverlayForm::TwoGrouped:
+			m_ArgClasses[0] = polyAttrClass;
+			m_ArgClasses[1] = polyAttrClass;
+			m_ArgClasses[2] = DataArray<UInt32>::GetStaticClass();
+			m_ArgClasses[3] = DataArray<UInt32>::GetStaticClass();
+			break;
+		}
 	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		assert(args.size() == (m_OnlyForwardMatches ? 1 : 2));
+		assert(args.size() == NrArgs(m_Form));
+		bool oneSet = IsOneSet(m_Form), grouped = IsGrouped(m_Form);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		const AbstrDataItem* arg2A = m_OnlyForwardMatches ? arg1A : AsDataItem(args[1]);
-		assert(arg1A); 
-		assert(arg2A); 
+		const AbstrDataItem* arg2A = oneSet ? arg1A : AsDataItem(args[1]);
+		assert(arg1A);
+		assert(arg2A);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -256,6 +427,19 @@ protected:
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
+
+		// the groups: one per polygon of each argument, both of the same values unit
+		const AbstrDataItem* group1A = !grouped ? nullptr : AsDataItem(args[oneSet ? 1 : 2]);
+		const AbstrDataItem* group2A = !grouped ? nullptr : oneSet ? group1A : AsDataItem(args[3]);
+		if (grouped)
+		{
+			domain1Unit->UnifyDomain(group1A->GetAbstrDomainUnit(), "the domain of the first polygons", "the domain of the first groups", UM_Throw);
+			if (!oneSet)
+			{
+				domain2Unit->UnifyDomain(group2A->GetAbstrDomainUnit(), "the domain of the second polygons", "the domain of the second groups", UM_Throw);
+				group1A->GetAbstrValuesUnit()->UnifyValues(group2A->GetAbstrValuesUnit(), "the values of the first groups", "the values of the second groups", UM_Throw);
+			}
+		}
 
 		auto res_owner = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); auto res = res_owner.get();
 		resultHolder = res;
@@ -269,6 +453,33 @@ protected:
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
 			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
+
+			// the groups, by the index of a polygon in its domain, over all tiles
+			std::unique_ptr<OverlayGroupPairs> groups;
+			if (grouped)
+			{
+				auto readGroups = [](const AbstrDataItem* groupA, std::vector<UInt32>& values)
+					{
+						DataReadLock groupLock(groupA);
+						auto groupData = const_array_cast<UInt32>(groupA);
+						const AbstrUnit* domain = groupA->GetAbstrDomainUnit();
+						values.resize(domain->GetCount());
+						for (tile_id t = 0, te = domain->GetNrTiles(); t != te; ++t)
+						{
+							ReadableTileLock tileLock(groupA->GetCurrRefObj().get(), t);
+							auto tile = groupData->GetTile(t);
+							std::copy(tile.begin(), tile.end(), values.begin() + domain->GetTileFirstIndex(t));
+						}
+					};
+				groups = std::make_unique<OverlayGroupPairs>();
+				groups->symmetric = oneSet;
+				readGroups(group1A, groups->a);
+				if (oneSet)
+					groups->b = groups->a;
+				else
+					readGroups(group2A, groups->b);
+			}
+			OverlayGroupPairs* groupsPtr = groups.get();
 
 			ResourceHandle resData;
 			ResourceHandle pointBoxDataHandle;
@@ -290,13 +501,13 @@ protected:
 
 				leveled_critical_section resInsertSection(item_level_type(0), ord_level_type::SpecificOperatorGroup, "PolygonOverlay.InsertSection");
 
-				parallel_tileloop(domain1Unit->GetNrTiles(), [this, &resInsertSection, arg1A, arg2A, u, &pointBoxDataHandle, &polyInfoHandle, &resData, &intersectCount, &contexts](tile_id t)->void
+				parallel_tileloop(domain1Unit->GetNrTiles(), [this, &resInsertSection, arg1A, arg2A, u, &pointBoxDataHandle, &polyInfoHandle, &resData, &intersectCount, &contexts, groupsPtr](tile_id t)->void
 					{
 						if (this->IsIntersecting(t, u, pointBoxDataHandle, polyInfoHandle))
 						{
 							ReadableTileLock readPoly1Lock (arg1A->GetCurrRefObj().get(), t);
 
-							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle, contexts);
+							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle, contexts, groupsPtr);
 
 							++intersectCount;
 						}
@@ -311,23 +522,29 @@ protected:
 				);
 			}
 
-			StoreRes(res, resG, res1, res2, resData);
+			StoreRes(res, resG, res1, res2, resData, groupsPtr);
 		}
 		return true;
 	}
 	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& polyInfoHandle) const =0;
 	virtual void CreatePointHandle(const AbstrDataItem* pointDataA, tile_id t, ResourceHandle& pointBoxDataHandle) const =0;
 	virtual bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const=0;
-	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContexts& contexts) const=0;
+	// groups: those of the grouped forms; nullptr otherwise
+	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContexts& contexts
+		, OverlayGroupPairs* groups) const=0;
 	virtual std::unique_ptr<PolygonOperContext> CreateContext() const { return std::make_unique<PolygonOperContext>(); }
-	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData) const=0;
+	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData, const OverlayGroupPairs* groups) const=0;
 
 	bool m_MustCreateGeometries = true, m_OnlyForwardMatches = false;
+	OverlayForm m_Form = OverlayForm::Two;
 };
 
-template <typename P, geometry_library GL, bool MustProduceGeometries>
+// ConvexPremise (with the dms_ library, without geometries): dms_convex_polygon_connectivity, whose pairs are
+// decided by ConvexOverlap instead of the sweep (#1305)
+template <typename P, geometry_library GL, bool MustProduceGeometries, bool ConvexPremise = false>
 class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 {
+	static_assert(!ConvexPremise || (GL == geometry_library::dms && !MustProduceGeometries));
 	using PointType = P;
 	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Unit<PointType>         PointUnitType;
@@ -369,7 +586,10 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 
 public:
 	PolygonOverlayOperator(AbstrOperGroup& gr, bool unaryOperation)
-		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass(), MustProduceGeometries, unaryOperation)
+		:	PolygonOverlayOperator(gr, unaryOperation ? OverlayForm::One : OverlayForm::Two)
+	{}
+	PolygonOverlayOperator(AbstrOperGroup& gr, OverlayForm form)
+		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass(), MustProduceGeometries, form)
 	{
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<ScalarType> || sizeof(ScalarType) < 8))
 		{
@@ -417,7 +637,8 @@ public:
 			return AbstrPolygonOverlayOperator::CreateContext();
 	}
 
-	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContexts& contexts) const override
+	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle, PolygonOperContexts& contexts
+		, OverlayGroupPairs* groups) const override
 	{
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8))
 		{
@@ -467,7 +688,21 @@ public:
 		// StoreRes sorts the results of a tile pair, so the order in which the blocks finish does not show.
 		using ConvertedPolygons = std::unordered_map<SizeT, ConvertedPolygonType>; // by the index of the polygon in the tile of the second argument
 		bool onlyForwardMatches = this->m_OnlyForwardMatches;
-		auto processElement = [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, onlyForwardMatches](SizeT i, PolygonOperContext* ctx, ConvertedPolygons& converted)->void
+		// a pair is skipped before any geometry is touched: in a one-set form when it does not run forward,
+		// and in a grouped form when both have the same group or an earlier pair of their groups is known
+		// (#1305); a pair that is found is told to the groups, so that the later ones of its groups are skipped
+		auto skipPair = [onlyForwardMatches, groups](const Point<SizeT>& r) -> bool
+			{
+				if (onlyForwardMatches && r.first >= r.second)
+					return true;
+				return groups && groups->Skip(r);
+			};
+		auto foundPair = [groups](const Point<SizeT>& r)
+			{
+				if (groups)
+					groups->Found(r);
+			};
+		auto processElement = [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, &skipPair, &foundPair](SizeT i, PolygonOperContext* ctx, ConvertedPolygons& converted)->void
 		{
 			Point<SizeT> orgRels;
 			PolygonType lastResGeometry;
@@ -486,7 +721,7 @@ public:
 					{
 						orgRels.first = p1_rel;
 						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-						if (onlyForwardMatches && orgRels.first >= orgRels.second)
+						if (skipPair(orgRels))
 							continue;
 						using namespace bp::operators;
 						bp::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, psdCleanResources); // intersection
@@ -497,6 +732,7 @@ public:
 						if constexpr (MustProduceGeometries)
 							bp_assign(lastResGeometry, geometry, psdCleanResources);
 
+						foundPair(orgRels);
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
 						resTileData->emplace_back(orgRels);
 						if constexpr (MustProduceGeometries)
@@ -529,7 +765,7 @@ public:
 						SizeT j = ((*iter)->get_ptr()) - poly2Array.begin();
 						orgRels.first = p1_rel;
 						orgRels.second = p2Offset + j;
-						if (onlyForwardMatches && orgRels.first >= orgRels.second)
+						if (skipPair(orgRels))
 							continue;
 
 						auto [pos, isNew] = converted.try_emplace(j);
@@ -547,6 +783,7 @@ public:
 						if constexpr (MustProduceGeometries)
 							bg_store_multi_polygon(lastResGeometry, resMP);
 
+						foundPair(orgRels);
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
 						resTileData->emplace_back(orgRels);
 						if constexpr (MustProduceGeometries)
@@ -566,7 +803,7 @@ public:
 					{
 						orgRels.first = p1_rel;
 						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-						if (onlyForwardMatches && orgRels.first >= orgRels.second)
+						if (skipPair(orgRels))
 							continue;
 
 						SizeT j = ((*iter)->get_ptr()) - poly2Array.begin();
@@ -584,6 +821,7 @@ public:
 						if constexpr (MustProduceGeometries)
 							cgal_assign_polygon_set(lastResGeometry, res);
 
+						foundPair(orgRels);
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
 						resTileData->push_back(orgRels);
 						if constexpr (MustProduceGeometries)
@@ -607,7 +845,7 @@ public:
 						SizeT j = ((*iter)->get_ptr()) - poly2Array.begin();
 						orgRels.first = p1_rel;
 						orgRels.second = p2Offset + j;
-						if (onlyForwardMatches && orgRels.first >= orgRels.second)
+						if (skipPair(orgRels))
 							continue;
 
 						auto [pos, isNew] = converted.try_emplace(j);
@@ -625,6 +863,7 @@ public:
 						if constexpr (MustProduceGeometries)
 							geos_assign_geometry(lastResGeometry, res.get());
 
+						foundPair(orgRels);
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
 						resTileData->push_back(orgRels);
 						if constexpr (MustProduceGeometries)
@@ -643,17 +882,23 @@ public:
 					{
 						orgRels.first = p1_rel;
 						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-						if (onlyForwardMatches && orgRels.first >= orgRels.second)
+						if (skipPair(orgRels))
 							continue;
 
 						// Compute keeps the rings and says whether they enclose anything, so the
 						// connectivity variant never pays for a geometry it would throw away.
-						if (!engine.Compute(dms_overlay::BoolOp::Intersection, *polyPtr, *((*iter)->get_ptr())))
+						if constexpr (ConvexPremise)
+						{
+							if (!ConvexOverlap(*polyPtr, *((*iter)->get_ptr())))
+								continue;
+						}
+						else if (!engine.Compute(dms_overlay::BoolOp::Intersection, *polyPtr, *((*iter)->get_ptr())))
 							continue;
 
 						if constexpr (MustProduceGeometries)
 							engine.Store(lastResGeometry);
 
+						foundPair(orgRels);
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
 						resTileData->push_back(orgRels);
 						if constexpr (MustProduceGeometries)
@@ -681,9 +926,14 @@ public:
 		);
 	}
 
-	void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resDataHandle) const override
+	void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resDataHandle, const OverlayGroupPairs* groups) const override
 	{
 		ResDataType* resData = GetOptional<ResDataType>(resDataHandle);
+
+		// the grouped forms keep one pair per pair of groups: the first, whichever thread found it (#1305)
+		if (resData && groups)
+			for (auto& resTiles : *resData)
+				std::erase_if(resTiles.second, [groups](const ResDataElemType& e) { return !groups->IsFirst(e.m_OrgRel); });
 
 		SizeT count = 0;
 		if (resData)
@@ -2796,6 +3046,18 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator> geosConnectivity1Operators(grGEOSPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, DMS_OverlayOperator> dmsOverlay1Operators(grDMSOverlayPolygon, true);
 	tl_oper::inst_tuple_templ<typelists::points, DMS_ConnectivityOperator> dmsConnectivity1Operators(grDMSPolygonConnectivity, true);
+	// the grouped forms (#1305): dms_polygon_connectivity(poly, groups), each pair once, and
+	// dms_polygon_connectivity(polyA, polyB, groupsA, groupsB): no pair within one group, and one pair per pair of groups
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConnectivityOperator> dmsConnectivityG1Operators(grDMSPolygonConnectivity, OverlayForm::OneGrouped);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConnectivityOperator> dmsConnectivityG2Operators(grDMSPolygonConnectivity, OverlayForm::TwoGrouped);
+
+	// dms_convex_polygon_connectivity: the same four forms, with every polygon a convex ring as premise (#1305)
+	static CommonOperGroup grDMSConvexPolygonConnectivity("dms_convex_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	template <typename P> using DMS_ConvexConnectivityOperator = PolygonOverlayOperator<P, geometry_library::dms, false, true>;
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConvexConnectivityOperator> dmsConvexConnectivity1Operators (grDMSConvexPolygonConnectivity, OverlayForm::One);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConvexConnectivityOperator> dmsConvexConnectivity2Operators (grDMSConvexPolygonConnectivity, OverlayForm::Two);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConvexConnectivityOperator> dmsConvexConnectivityG1Operators(grDMSConvexPolygonConnectivity, OverlayForm::OneGrouped);
+	tl_oper::inst_tuple_templ<typelists::points, DMS_ConvexConnectivityOperator> dmsConvexConnectivityG2Operators(grDMSConvexPolygonConnectivity, OverlayForm::TwoGrouped);
 
 
 	// The obsolete UNPREFIXED boost::polygon operators (was: PolyOperatorGroupss simple) have been

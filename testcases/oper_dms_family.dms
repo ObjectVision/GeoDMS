@@ -127,6 +127,37 @@ container oper_dms_family
 		unit<uint32> self_pairs := dms_polygon_connectivity(squares);
 		parameter<bool> self_connectivity_ok := #self_pairs == 0, IntegrityCheck = "self_connectivity_ok == true";
 
+		// #1305: the grouped forms, with the groups of part_rel (squares 0 and 1, squares 2 and 3).
+		// Grown by 3 each square overlaps the squares up to two places away except at the ends: the
+		// pairs (0,1), (0,2), (1,2), (1,3), (2,3). The pairs within a group, (0,1) and (2,3), are
+		// skipped, and of the three between the groups only the first is kept, (0,2); with two sets
+		// the pairs of groups have a direction, so (2,0) is kept too.
+		attribute<ipoint> grown3 (Sq4, polygon) := dms_minkowski_sum(squares, float64(3), '4HV');
+		unit<uint32> all_pairs3   := dms_polygon_connectivity(grown3);
+		unit<uint32> one_group3   := dms_polygon_connectivity(grown3, part_rel);
+		unit<uint32> two_groups3  := dms_polygon_connectivity(grown3, grown3, part_rel, part_rel);
+		parameter<bool> group_connectivity_ok := #all_pairs3 == 5
+			&& #one_group3 == 1 && all(uint32(one_group3/first_rel) == 0 && uint32(one_group3/second_rel) == 2)
+			&& #two_groups3 == 2 && all(uint32(two_groups3/first_rel) + uint32(two_groups3/second_rel) == 2)
+			, IntegrityCheck = "group_connectivity_ok == true";
+
+		// dms_convex_polygon_connectivity: the same pairs, the squares being convex. Grown by 2, square
+		// k touches square k+2 at an edge, which encloses no area and is no pair: three pairs, on ipoint
+		// and on dpoint (where the test takes the filtered predicates of CGAL)
+		unit<uint32> convex_all3  := dms_convex_polygon_connectivity(grown3);
+		unit<uint32> convex_one3  := dms_convex_polygon_connectivity(grown3, part_rel);
+		unit<uint32> convex_two3  := dms_convex_polygon_connectivity(grown3, grown3, part_rel, part_rel);
+		attribute<ipoint> grown2   (Sq4, polygon) := dms_minkowski_sum(squares,   float64(2), '4HV');
+		attribute<dpoint> grown2_d (Sq4, polygon) := dms_minkowski_sum(squares_d, float64(2), '4HV');
+		unit<uint32> convex_touch   := dms_convex_polygon_connectivity(grown2);
+		unit<uint32> convex_touch_d := dms_convex_polygon_connectivity(grown2_d);
+		unit<uint32> dms_touch      := dms_polygon_connectivity(grown2);
+		parameter<bool> convex_connectivity_ok := #convex_all3 == 5
+			&& #convex_one3 == 1 && all(uint32(convex_one3/first_rel) == 0 && uint32(convex_one3/second_rel) == 2)
+			&& #convex_two3 == 2
+			&& #convex_touch == 3 && #convex_touch_d == 3 && #dms_touch == 3
+			, IntegrityCheck = "convex_connectivity_ok == true";
+
 		// ---- 5. dms_minkowski_sum and dms_minkowski_difference ------------------------------
 		// [0,100]^2 grown by the 4HV kernel at size 10 is [-10,110]^2 = 14400, the number
 		// oper_minkowski.dms pins for the other four backends
