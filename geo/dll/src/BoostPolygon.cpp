@@ -147,8 +147,9 @@ FormattedOutStream& operator << (FormattedOutStream& os, const boost::polygon::r
 // What one polygon operation keeps from its first element to its last: an operator that needs
 // scratch state (the dms_ family's overlay engine) derives from this and hands it out through
 // CreateContext, so that its buffers are allocated once per operation instead of once per element.
-// Where the tiles of an operation run in parallel, the functor of the tile loop holds a
-// thread_scratch of contexts, one per thread, that lives as long as the operation.
+// An operation holds a thread_scratch of contexts, one per thread, that lives as long as the
+// operation, so a thread keeps its context, buffers included, over all the tiles and the blocks of
+// elements it works on (#1306).
 struct PolygonOperContext
 {
 	virtual ~PolygonOperContext() = default;
@@ -1301,41 +1302,50 @@ protected:
 			Timer processTimer;
 			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
+			// One context per thread for the whole operation (#1306): a thread takes its context, with an
+			// engine whose buffers have grown, for every block of elements and every tile it works on.
+			// Calculate takes a context only for the stretch it works in, so that its parallel blocks find
+			// the context of their thread free; a context still held there would make thread_scratch build
+			// a fresh one for every block.
+			PolygonOperContexts contexts([this] { return CreateContext(); });
 			if (DoDelayStore())
 			{
 				SizeT domainCount = resDomain->GetCount();
 				ResourceArrayHandle r;
-				auto ctx = CreateContext(); // for the tiles that run one after the other, and for the store
-				auto calculateTile = [this, &r, domainCount, domain1Unit, argPoly, argPart, &processTimer, itemRefPtr = itemRef.c_str()](tile_id t, PolygonOperContext* tileCtx)
+				auto calculateTile = [this, &r, &contexts, domainCount, domain1Unit, argPoly, argPart, &processTimer, itemRefPtr = itemRef.c_str()](tile_id t)
 				{
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
 					// #1283: r spans the whole domain here, so an unpartitioned element's slot is its tile's first index plus its index within the tile
-					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, tileCtx, processTimer, itemRefPtr);
+					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, contexts, processTimer, itemRefPtr);
 				};
 				tile_id te = domain1Unit->GetNrTiles();
-				if (!(m_Flags & PolygonFlags::F_DoUnion) && !argPart && te > 1)
+				bool perElement = !(m_Flags & PolygonFlags::F_DoUnion) && !argPart;
+				if (perElement && CalculatesElementsInParallel())
 				{
 					// A split without a union is delayed only because the count of its result must be known
-					// before it is stored. Each element has a slot of its own there, so the tiles run in
-					// parallel, once the first has made r (GEO-A38).
-					calculateTile(0, ctx.get());
-					PolygonOperContexts contexts([this] { return CreateContext(); }); // one per thread
-					parallel_tileloop(te - 1, [&calculateTile, &contexts](tile_id t)
-						{
-							auto tileCtx = contexts.local();
-							calculateTile(t + 1, tileCtx.get());
-						}
-					);
+					// before it is stored. Each element has a slot of its own there, and an operator that
+					// computes the elements of a tile in parallel blocks gets the tiles one after another:
+					// a domain of one tile then uses every thread too (#1306).
+					for (tile_id t = 0; t != te; ++t)
+						calculateTile(t);
+				}
+				else if (perElement && te > 1)
+				{
+					// the other backends compute an element per tile in turn: the tiles run in parallel, once
+					// the first has made r (GEO-A38)
+					calculateTile(0);
+					parallel_tileloop(te - 1, [&calculateTile](tile_id t) { calculateTile(t + 1); });
 				}
 				else
 				{
 					// a union folds the elements of several tiles into one slot: the tiles run one after the other
 					for (tile_id t = 0; t != te; ++t)
-						calculateTile(t, ctx.get());
+						calculateTile(t);
 				}
 				DataWriteLock resGeometryHandle; // will be assigned after establishing the count of resUnit
+				auto ctx = contexts.local();
 				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, ctx.get(), processTimer, itemRef.c_str());
 				resGeometryHandle.Commit();
 			}
@@ -1343,7 +1353,7 @@ protected:
 			{
 				DataWriteLock resGeometryHandle(resGeometry);
 				auto tn = domain1Unit->GetNrTiles();
-				PolygonOperContexts contexts([this] { return CreateContext(); }); // the tiles run concurrently here: one context per thread
+				// the tiles run concurrently here, each with a store of its own
 				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn, &processTimer, &contexts, itemRefPtr = itemRef.c_str()](tile_id t)
 				{
 					if (resultHolder.WasFailed(FailType::Data))
@@ -1352,8 +1362,8 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
+					Calculate(r, resDomain->GetTileSize(t), 0, argPoly, argPart, t, contexts, processTimer, itemRefPtr); // r is this tile only
 					auto ctx = contexts.local();
-					Calculate(r, resDomain->GetTileSize(t), 0, argPoly, argPart, t, ctx.get(), processTimer, itemRefPtr); // r is this tile only
 					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, ctx.get(), processTimer, itemRefPtr);
 				});
 				resGeometryHandle.Commit();
@@ -1409,7 +1419,10 @@ protected:
 		StoreImpl(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, t, r, ctx);
 	}
 	virtual std::unique_ptr<PolygonOperContext> CreateContext() const { return std::make_unique<PolygonOperContext>(); }
-	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const=0;
+	// whether Calculate computes the elements of a tile in parallel blocks, where each element has a slot of its own (#1306)
+	virtual bool CalculatesElementsInParallel() const { return false; }
+	// contexts: one per thread for the whole operation; Calculate takes this thread's for as long as it works with it
+	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContexts& contexts, Timer& processTimer, CharPtr itemRef = "") const=0;
 	virtual void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const=0;
 	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, tile_id tn, PolygonFlags f, Timer& processTimer, CharPtr itemRef = "") const {}
 };
@@ -1513,7 +1526,7 @@ public:
 		:	AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContexts& contexts, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
@@ -1771,7 +1784,7 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContexts& contexts, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
@@ -1880,7 +1893,7 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContexts& contexts, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, tileOffset, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
@@ -1978,7 +1991,7 @@ public:
 		}
 	}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContexts& contexts, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
@@ -2102,9 +2115,11 @@ public:
 
 	// A dissolve, plain or partitioned, goes through a segment bag per result element and is noded
 	// once at store time (doc/development/dms-dissolve-single-noding.md). The per-element forms,
-	// dms_polygon and dms_split_polygon, keep the tower: one element per slot, cleaned once and
-	// stored, and they run tile-parallel with a store per tile, which the bag path does not need.
+	// dms_polygon, dms_split_polygon and dms_split_convex_polygon, keep the tower: one element per
+	// slot, cleaned once and stored. They compute the elements of a tile in parallel blocks (#1306);
+	// dms_polygon also runs its tiles in parallel, with a store per tile, which the bag path does not need.
 	bool UsesBags() const { return m_Flags & PolygonFlags::F_DoUnion; }
+	bool CalculatesElementsInParallel() const override { return !UsesBags(); }
 
 	// The frame of one dissolve: from the values unit's declared range when it has one, which is
 	// deterministic and needs no pass over the data; otherwise from the extent of all the tiles,
@@ -2183,7 +2198,7 @@ public:
 		}
 	}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContext* ctx, Timer& processTimer, CharPtr itemRef = "") const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, SizeT tileOffset, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, PolygonOperContexts& contexts, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto polyData = const_array_cast<SequenceType>(polyDataA);
 		assert(polyData);
@@ -2241,7 +2256,9 @@ public:
 			// an empty partition unit has no bag to take the frame from; its elements are skipped or refused below
 			const auto frame = domainCount ? bagResourcePtr->begin()->frame : dms_overlay::DmsFrameFor<P>(0, 0, 0, 0);
 
-			Engine& engine = EngineOf(ctx);
+			// the elements of a tile go into shared bags one after another, on this thread's engine
+			auto ctx = contexts.local();
+			Engine& engine = EngineOf(ctx.get());
 			engine.SetFixedFrame(frame.cell, frame.originX, frame.originY);
 
 			for (auto pb = polyArray.begin(), pi = pb, pe = polyArray.end(); pi != pe; ++pi)
@@ -2282,34 +2299,47 @@ public:
 		// one lattice for every reduction of this tile; zero for integer coordinates, where the
 		// lattice is the integer grid whatever the extent
 		Float64 cell = dms_overlay::DeriveFoldCell<P>(polyArray);
-		Engine& engine = EngineOf(ctx);
 
-		for (auto pb = polyArray.begin(), pi = pb, pe = polyArray.end(); pi != pe; ++pi)
-		{
-			bool skip;
-			SizeT slot = slotOf(pi - pb, skip);
-			if (skip)
-				continue;
-			auto towerPtr = towerResourcePtr->begin() + slot;
-
-			// the per-element forms: every element is its slot's only one, so a single ring is taken as it is
-			PolySet geometry;
-			if (m_Flags & PolygonFlags::F_Convex)
-				dms_split_convex_into(DmsEngineContext<P>::Of(ctx), geometry, *pi, cell, m_Flags & PolygonFlags::F_ConvexMin);
-			else
-				dms_overlay::dms_clean_single_into(engine, geometry, *pi, cell);
-			towerPtr->add(std::move(geometry));
-
-			if (processTimer.PassedSecs())
+		// The per-element forms: every element is its slot's only one, so a single ring is taken as it
+		// is, and the elements of the tile run in parallel blocks (#1306), each block on the context of
+		// its thread, whose engine and partitioner keep their buffers from block to block and from tile
+		// to tile. What an element gives does not depend on the engine it ran on: each element sets the
+		// cell and the partitioner's mode itself, and its result goes to its own slot.
+		SizeT n = polyArray.size();
+		std::atomic<SizeT> nrDone = 0;
+		constexpr SizeT blockSize = 64;
+		parallel_for<SizeT>((n + blockSize - 1) / blockSize, [&](SizeT blockNr)
 			{
-				reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
-					, itemRef
-					, operName
-					, AsString(pi - pb), AsString(pe - pb)
-					, AsString(t), AsString(polyDataA->GetAbstrDomainUnit()->GetNrTiles())
-				);
+				auto ctx = contexts.local();
+				SizeT i = blockNr * blockSize, ie = std::min(n, i + blockSize);
+				SizeT nrInBlock = ie - i;
+				for (; i != ie; ++i)
+				{
+					bool skip;
+					SizeT slot = slotOf(i, skip);
+					if (skip)
+						continue;
+					auto towerPtr = towerResourcePtr->begin() + slot;
+
+					PolySet geometry;
+					if (m_Flags & PolygonFlags::F_Convex)
+						dms_split_convex_into(DmsEngineContext<P>::Of(ctx.get()), geometry, polyArray[i], cell, m_Flags & PolygonFlags::F_ConvexMin);
+					else
+						dms_overlay::dms_clean_single_into(EngineOf(ctx.get()), geometry, polyArray[i], cell);
+					towerPtr->add(std::move(geometry));
+				}
+				SizeT done = nrDone += nrInBlock;
+				if (processTimer.PassedSecs())
+				{
+					reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
+						, itemRef
+						, operName
+						, AsString(done), AsString(n)
+						, AsString(t), AsString(polyDataA->GetAbstrDomainUnit()->GetNrTiles())
+					);
+				}
 			}
-		}
+		);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, PolygonOperContext* ctx) const override
