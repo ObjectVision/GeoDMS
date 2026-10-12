@@ -43,9 +43,18 @@
 //    diagonals between vertices can give; a rectangle stays one part, an L becomes two.
 //
 // A single ring that is already strictly convex is returned as it is, without any of this.
+//
+// dms_split_convex_polygon_keilsnoeyink (#1305, m_UseMinimum): a shell without a hole that touches
+// no other ring is taken apart from the other rings, triangulated on its own by steps 4 to 6, and
+// split into the minimum number of strictly convex parts by MinConvexPartition below; only when it
+// exceeds that class's caps does it get step 7. The other rings, the shells with holes and the rings
+// that touch, go through steps 2 to 7 together; with holes the minimum is NP-hard. The minimum costs
+// 4 times the time of Hertel and Mehlhorn on building outlines and 29 times on CBS buurten, so it is
+// a separate operator and dms_split_convex_polygon keeps step 7 alone.
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <set>
 #include <type_traits>
 #include <unordered_map>
@@ -55,11 +64,569 @@
 namespace dms_overlay
 {
 
+// ==== #1305: the minimum for a ring without holes =======================================
+//
+// The minimum number of strictly convex parts of a simple ring by diagonals, with the dynamic
+// programme of Keil (1985) in the form that Keil and Snoeyink (2002) bound:
+//
+// - Only chords with a reflex end are used. In a partition from which no diagonal can be removed,
+//   every diagonal has a reflex end, and every part can be triangulated by a fan from one of its
+//   reflex corners; so the chords of such fans and the diagonals together have reflex ends.
+// - The chord (i, j), i < j, closes the sub-polygon Q(i, j) of the vertices i..j. It is the
+//   triangle (i, k, j) on the chord, with Q(i, k) and Q(k, j) beside it, and the part on the chord
+//   is that triangle, merged across (i, k) and across (k, j) with the parts on those chords where
+//   the corners stay strictly convex. The apex k is a vertex that both ends see, or is next to one.
+// - Per chord only the partitions of Q(i, j) with the fewest parts are kept: a merge across the
+//   chord later saves one part, never more, so one part more is never worth a better shape. Of
+//   those, only the ones whose part on the chord is narrowest at a reflex end of the chord are
+//   kept: a narrower part merges wherever a wider one does. At a convex end every merge stays
+//   convex, so there the shape does not matter, and a chord with one reflex end keeps one shape.
+//
+// The diagonals with a reflex end are found by triangular expansion (Bungiu, Hemmer, Hershberger,
+// Huang and Kroeller 2014) over a triangulation of the ring: from each reflex vertex the triangles
+// are entered through the edges that the view still passes, and the view narrows to the vertices it
+// passes. A vertex is seen only strictly inside the view, so a diagonal never runs through a vertex.
+//
+// The root is the ring itself, closed by its edge from the last vertex to the first, the first
+// being the lexicographically smallest vertex: the result does not depend on where the ring starts,
+// and ties are broken by the order of the vertices. Every test is exact. A ring is declined, and
+// left to Hertel and Mehlhorn, when r * n exceeds m_MaxPairs or the work counted on the way
+// (triangles entered, apices tried, shapes combined) exceeds m_MaxWork.
+
+class MinConvexPartition
+{
+public:
+	using Ring  = std::vector<GPoint>;
+	using Rings = std::vector<Ring>;
+	using Tri   = std::array<UInt32, 3>;
+
+	// The caps, from the CBS buurten of 2025 (14,638 rings without holes, median n 93 and r 44, the
+	// largest n 30,426): a unit of work took about 9 ns, so a ring costs at most about 0.1 s, and the
+	// rings within both caps (14,061) hold 70% of what the minimum saves over Hertel-Mehlhorn there.
+	// r * n bounds the chord table (4 bytes each) before any work is done.
+	double m_MaxPairs = 2.0e6;
+	double m_MaxWork  = 1.0e7;
+
+	// pts[0..n): counter-clockwise (the material on the left), simple, without straight vertices.
+	// tris: a triangulation of it, each triangle counter-clockwise, as indices into pts. Appends the
+	// parts, each counter-clockwise and strictly convex, and returns true; returns false, appending
+	// nothing, when the ring exceeds a cap.
+	bool Run(const GPoint* pts, UInt32 n, const std::vector<Tri>& tris, Rings& parts)
+	{
+		UInt32 i0 = 0;
+		for (UInt32 i = 1; i != n; ++i)
+			if (PosLess(pts[i], pts[i0]))
+				i0 = i;
+		m_N = n;
+		m_P.resize(n);
+		Int64 x0 = pts[0].X(), x1 = x0, y0 = pts[0].Y(), y1 = y0;
+		for (UInt32 i = 0; i != n; ++i)
+		{
+			m_P[i] = pts[(i0 + i) % n];
+			x0 = std::min(x0, m_P[i].X()); x1 = std::max(x1, m_P[i].X());
+			y0 = std::min(y0, m_P[i].Y()); y1 = std::max(y1, m_P[i].Y());
+		}
+		m_Small = UInt64(x1 - x0) < (UInt64(1) << 31) && UInt64(y1 - y0) < (UInt64(1) << 31);
+
+		m_IsReflex.assign(n, 0);
+		m_RIdx.assign(n, NONE);
+		m_Reflex.clear();
+		for (UInt32 i = 0; i != n; ++i)
+			if (Orient(Prev(i), i, Next(i)) < 0)
+			{
+				m_IsReflex[i] = 1;
+				m_RIdx[i] = UInt32(m_Reflex.size());
+				m_Reflex.push_back(i);
+			}
+		if (m_Reflex.empty())
+		{
+			parts.emplace_back(m_P.begin(), m_P.end());
+			return true;
+		}
+		if (double(m_Reflex.size()) * n > m_MaxPairs)
+			return false;
+		m_Work = 0;
+		LoadTriangles(tris, i0);
+		if (!FindChords() || !Solve())
+			return false;
+		Emit(parts);
+		return true;
+	}
+
+private:
+	static constexpr UInt32 NONE = UInt32(-1);
+	static constexpr UInt32 EDGE = UInt32(-2);
+
+	struct State { UInt32 a, b, k, sA, sB; bool mA, mB; }; // a, b: the neighbours of i and j in the part on the chord
+	struct Chord { UInt32 i, j, w = 0, first = 0, count = 0; };
+	struct Partner { UInt32 v, chord; };
+	struct View { UInt32 t, e, r, l; }; // entering across edge e of triangle t, seeing between the rays to r and to l
+
+	static Int128 Cross(const GPoint& o, const GPoint& a, const GPoint& b)
+	{
+		return MulFull(a.X() - o.X(), b.Y() - o.Y()) - MulFull(a.Y() - o.Y(), b.X() - o.X());
+	}
+	static bool PosLess(const GPoint& a, const GPoint& b) { return a.X() < b.X() || (a.X() == b.X() && a.Y() < b.Y()); }
+	static UInt64 Key(UInt32 a, UInt32 b) { return (UInt64(a) << 32) | b; }
+	int Orient(UInt32 a, UInt32 b, UInt32 c) const
+	{
+		const GPoint& A = m_P[a];
+		const GPoint& B = m_P[b];
+		const GPoint& C = m_P[c];
+		if (m_Small) // every difference below 2^31, so both products below 2^62
+		{
+			Int64 v = (B.X() - A.X()) * (C.Y() - A.Y()) - (B.Y() - A.Y()) * (C.X() - A.X());
+			return (v > 0) - (v < 0);
+		}
+		return Sign(Cross(A, B, C));
+	}
+	UInt32 Prev(UInt32 i) const { return i ? i - 1 : m_N - 1; }
+	UInt32 Next(UInt32 i) const { return i + 1 == m_N ? 0 : i + 1; }
+
+	// ---- the diagonals with a reflex end ----
+
+	void LoadTriangles(const std::vector<Tri>& tris, UInt32 i0)
+	{
+		UInt32 n = m_N, nt = UInt32(tris.size());
+		m_T.resize(nt);
+		for (UInt32 t = 0; t != nt; ++t)
+			for (UInt32 k = 0; k != 3; ++k)
+				m_T[t][k] = (tris[t][k] + n - i0) % n;
+		// the neighbour across every edge, NONE at the ring
+		m_EdgeKeys.clear();
+		for (UInt32 t = 0; t != nt; ++t)
+			for (UInt32 k = 0; k != 3; ++k)
+				m_EdgeKeys.emplace_back(Key(m_T[t][k], m_T[t][(k + 1) % 3]), t);
+		std::sort(m_EdgeKeys.begin(), m_EdgeKeys.end());
+		m_Nb.assign(nt, Tri{ NONE, NONE, NONE });
+		for (UInt32 t = 0; t != nt; ++t)
+			for (UInt32 k = 0; k != 3; ++k)
+			{
+				UInt64 twin = Key(m_T[t][(k + 1) % 3], m_T[t][k]);
+				auto it = std::lower_bound(m_EdgeKeys.begin(), m_EdgeKeys.end(), std::pair<UInt64, UInt32>(twin, 0));
+				if (it != m_EdgeKeys.end() && it->first == twin)
+					m_Nb[t][k] = it->second;
+			}
+		// the triangles at every vertex
+		m_VTriStart.assign(n + 1, 0);
+		for (const auto& T : m_T)
+			for (UInt32 v : T)
+				++m_VTriStart[v + 1];
+		for (UInt32 v = 0; v != n; ++v)
+			m_VTriStart[v + 1] += m_VTriStart[v];
+		m_VTri.resize(m_VTriStart[n]);
+		m_Fill.assign(m_VTriStart.begin(), m_VTriStart.end() - 1);
+		for (UInt32 t = 0; t != nt; ++t)
+			for (UInt32 v : m_T[t])
+				m_VTri[m_Fill[v]++] = t;
+	}
+
+	// every diagonal with a reflex end, ordered by the length of its chain, and per vertex its partners
+	bool FindChords()
+	{
+		UInt32 n = m_N;
+		m_Chords.clear();
+		m_Seen.assign(n, NONE);
+		for (UInt32 u : m_Reflex)
+		{
+			auto see = [&](UInt32 v)
+			{
+				if (m_Seen[v] == u)
+					return;
+				m_Seen[v] = u;
+				if (v == Prev(u) || v == Next(u) || (m_IsReflex[v] && v < u)) // an edge, or found from v
+					return;
+				m_Chords.push_back({ std::min(u, v), std::max(u, v) });
+			};
+			m_Views.clear();
+			for (UInt32 q = m_VTriStart[u]; q != m_VTriStart[u + 1]; ++q)
+			{
+				UInt32 t = m_VTri[q];
+				UInt32 e = m_T[t][0] == u ? 0 : m_T[t][1] == u ? 1 : 2;
+				UInt32 a = m_T[t][(e + 1) % 3], b = m_T[t][(e + 2) % 3];
+				see(a);
+				see(b);
+				UInt32 eab = (e + 1) % 3;
+				if (m_Nb[t][eab] != NONE)
+					m_Views.push_back({ t, eab, a, b });
+			}
+			// the edge crossed runs from the right of the view to its left
+			while (!m_Views.empty())
+			{
+				if (++m_Work > m_MaxWork)
+					return false;
+				View w = m_Views.back();
+				m_Views.pop_back();
+				UInt32 x = m_T[w.t][w.e], y = m_T[w.t][(w.e + 1) % 3];
+				UInt32 s = m_Nb[w.t][w.e];
+				UInt32 f = m_T[s][0] == y ? 0 : m_T[s][1] == y ? 1 : 2;
+				MG_CHECK2(m_T[s][(f + 1) % 3] == x, "dms convex split: the triangles of a ring do not match");
+				UInt32 c = m_T[s][(f + 2) % 3];
+				UInt32 exc = (f + 1) % 3, ecy = (f + 2) % 3; // x -> c on the right, c -> y on the left
+				bool rightOk = Orient(u, w.r, c) > 0, leftOk = Orient(u, w.l, c) < 0;
+				if (rightOk && leftOk)
+				{
+					see(c);
+					if (m_Nb[s][exc] != NONE) m_Views.push_back({ s, exc, w.r, c });
+					if (m_Nb[s][ecy] != NONE) m_Views.push_back({ s, ecy, c, w.l });
+				}
+				else if (!rightOk)
+				{
+					if (m_Nb[s][ecy] != NONE) m_Views.push_back({ s, ecy, w.r, w.l });
+				}
+				else if (m_Nb[s][exc] != NONE)
+					m_Views.push_back({ s, exc, w.r, w.l });
+			}
+		}
+		std::sort(m_Chords.begin(), m_Chords.end(), [](const Chord& x, const Chord& y)
+			{
+				return x.j - x.i < y.j - y.i || (x.j - x.i == y.j - y.i && x.i < y.i);
+			});
+
+		m_PartStart.assign(n + 1, 0);
+		for (const auto& c : m_Chords)
+		{
+			++m_PartStart[c.i + 1];
+			++m_PartStart[c.j + 1];
+		}
+		for (UInt32 v = 0; v != n; ++v)
+			m_PartStart[v + 1] += m_PartStart[v];
+		m_Part.resize(m_PartStart[n]);
+		m_Fill.assign(m_PartStart.begin(), m_PartStart.end() - 1);
+		for (UInt32 c = 0, nc = UInt32(m_Chords.size()); c != nc; ++c)
+		{
+			m_Part[m_Fill[m_Chords[c].i]++] = { m_Chords[c].j, c };
+			m_Part[m_Fill[m_Chords[c].j]++] = { m_Chords[c].i, c };
+		}
+		for (UInt32 v = 0; v != n; ++v)
+			std::sort(m_Part.begin() + m_PartStart[v], m_Part.begin() + m_PartStart[v + 1], [](const Partner& p, const Partner& q) { return p.v < q.v; });
+
+		// the apices that the dynamic programme will walk: per chord (i, j) the shorter of the partners
+		// of i after i + 1 and those of j before j - 1, both counted from the place of the other end in
+		// the sorted list. A ring above the cap is declined now rather than halfway.
+		m_LenA.resize(m_Chords.size());
+		m_LenB.resize(m_Chords.size());
+		for (UInt32 v = 0; v != n; ++v)
+		{
+			UInt32 s = m_PartStart[v], e = m_PartStart[v + 1];
+			UInt32 afterNext = s, beforePrev = s;
+			while (afterNext != e && m_Part[afterNext].v <= v + 1) ++afterNext;
+			while (beforePrev != e && m_Part[beforePrev].v + 1 < v) ++beforePrev;
+			for (UInt32 q = s; q != e; ++q)
+			{
+				if (m_Part[q].v > v)
+					m_LenA[m_Part[q].chord] = q - afterNext;
+				else
+					m_LenB[m_Part[q].chord] = beforePrev - q - 1;
+			}
+		}
+		double walk = 0;
+		for (UInt32 c = 0, nc = UInt32(m_Chords.size()); c != nc; ++c)
+			walk += std::min(m_LenA[c], m_LenB[c]) + 1;
+		if (m_Work + walk > m_MaxWork)
+			return false;
+
+		// the chord of a reflex vertex and any other, in a table of r rows of n
+		m_ChordOf.assign(m_Reflex.size() * SizeT(n), NONE);
+		for (UInt32 c = 0, nc = UInt32(m_Chords.size()); c != nc; ++c)
+		{
+			UInt32 i = m_Chords[c].i, j = m_Chords[c].j;
+			if (m_IsReflex[i]) m_ChordOf[SizeT(m_RIdx[i]) * n + j] = c;
+			if (m_IsReflex[j]) m_ChordOf[SizeT(m_RIdx[j]) * n + i] = c;
+		}
+		return true;
+	}
+
+	// the chord (u, v), u < v: EDGE for an edge of the ring, NONE when it is not a diagonal with a reflex end
+	UInt32 ChordId(UInt32 u, UInt32 v) const
+	{
+		if (v == u + 1)
+			return EDGE;
+		if (m_IsReflex[u]) return m_ChordOf[SizeT(m_RIdx[u]) * m_N + v];
+		if (m_IsReflex[v]) return m_ChordOf[SizeT(m_RIdx[v]) * m_N + u];
+		return NONE;
+	}
+
+	// the partners of v strictly between lo and hi
+	std::pair<UInt32, UInt32> PartnersBetween(UInt32 v, UInt32 lo, UInt32 hi) const
+	{
+		auto b = m_Part.begin() + m_PartStart[v], e = m_Part.begin() + m_PartStart[v + 1];
+		auto f = std::upper_bound(b, e, lo, [](UInt32 x, const Partner& p) { return x < p.v; });
+		auto l = std::lower_bound(f, e, hi, [](const Partner& p, UInt32 x) { return p.v < x; });
+		return { UInt32(f - m_Part.begin()), UInt32(l - m_Part.begin()) };
+	}
+
+	// ---- the dynamic programme ----
+
+	// a1 narrower than a2 as the neighbour of i in the part on (i, j): its edge closer to the chord
+	bool NarrowerAtI(UInt32 i, UInt32 a1, UInt32 a2) const { return Orient(i, a2, a1) > 0; }
+	bool NarrowerAtJ(UInt32 j, UInt32 b1, UInt32 b2) const { return Orient(j, b2, b1) < 0; }
+
+	// The part on (i, j) can always be fanned from a reflex end: with i reflex, its triangle on the
+	// chord has as apex the vertex before j in the part, and then the part does not continue across
+	// (k, j); with i convex and j reflex, mirrored. Only the root, whose ends may both be convex,
+	// tries both merges.
+	enum Merges : UInt8 { BOTH, ONLY_A, ONLY_B };
+
+	void Consider(UInt32 i, UInt32 j, UInt32 k, UInt32 cA, UInt32 cB, bool needA, bool needB, Merges merges)
+	{
+		UInt32 wA = cA == EDGE ? 0 : m_Chords[cA].w;
+		UInt32 wB = cB == EDGE ? 0 : m_Chords[cB].w;
+		UInt32 w0 = wA + wB + 1;
+		if (m_BestW != NONE && w0 > m_BestW + 2)
+			return;
+		if (Orient(i, k, j) <= 0)
+			return;
+		UInt32 firstA = cA == EDGE ? NONE : m_Chords[cA].first, nA = cA == EDGE ? 0 : m_Chords[cA].count;
+		UInt32 firstB = cB == EDGE ? NONE : m_Chords[cB].first, nB = cB == EDGE ? 0 : m_Chords[cB].count;
+		UInt32 sA0 = firstA, sB0 = firstB; // the shapes kept when the part does not continue
+		if (merges == ONLY_A) nB = 0;
+		if (merges == ONLY_B) nA = 0;
+		m_Work += 1 + nA + nB + (merges == BOTH ? double(nA) * nB : 0.0);
+
+		Add(w0, { k, k, k, sA0, sB0, false, false });
+
+		// merged across (i, k) only: the narrowest neighbour of i among the shapes that stay convex at i and k
+		UInt32 best = NONE;
+		for (UInt32 s = firstA; s != firstA + nA; ++s)
+		{
+			const State& sa = m_States[s];
+			if (Orient(j, i, sa.a) > 0 && Orient(sa.b, k, j) > 0
+				&& (best == NONE || (needA && NarrowerAtI(i, sa.a, m_States[best].a))))
+				best = s;
+		}
+		if (best != NONE)
+			Add(w0 - 1, { m_States[best].a, k, k, best, sB0, true, false });
+
+		// merged across (k, j) only
+		best = NONE;
+		for (UInt32 s = firstB; s != firstB + nB; ++s)
+		{
+			const State& sb = m_States[s];
+			if (Orient(i, k, sb.a) > 0 && Orient(sb.b, j, i) > 0
+				&& (best == NONE || (needB && NarrowerAtJ(j, sb.b, m_States[best].b))))
+				best = s;
+		}
+		if (best != NONE)
+			Add(w0 - 1, { k, m_States[best].b, k, sA0, best, false, true });
+		if (merges != BOTH)
+			return;
+
+		// merged across both: per shape of A, the narrowest shape of B that keeps k convex
+		for (UInt32 s = firstA; s != firstA + nA; ++s)
+		{
+			const State& sa = m_States[s];
+			if (Orient(j, i, sa.a) <= 0)
+				continue;
+			UInt32 bestB = NONE;
+			for (UInt32 t = firstB; t != firstB + nB; ++t)
+			{
+				const State& sb = m_States[t];
+				if (Orient(sb.b, j, i) > 0 && Orient(sa.b, k, sb.a) > 0
+					&& (bestB == NONE || (needB && NarrowerAtJ(j, sb.b, m_States[bestB].b))))
+					bestB = t;
+			}
+			if (bestB != NONE)
+				Add(w0 - 2, { sa.a, m_States[bestB].b, k, s, bestB, true, true });
+		}
+	}
+
+	void Add(UInt32 w, const State& s)
+	{
+		if (m_BestW == NONE || w < m_BestW)
+		{
+			m_BestW = w;
+			m_Cand.clear();
+		}
+		if (w == m_BestW)
+			m_Cand.push_back(s);
+	}
+
+	// the partitions of Q(i, j) with the fewest parts, and of those the narrowest at a reflex end
+	bool SolveChord(Chord& ch, bool needA, bool needB, bool isRoot = false)
+	{
+		UInt32 i = ch.i, j = ch.j;
+		m_BestW = NONE;
+		m_Cand.clear();
+
+		// the apices, in increasing order: next to i or seen from it, and next to j or seen from it.
+		// The shorter of the two lists is walked, and the other chord looked up in the table.
+		auto [ai, ae] = PartnersBetween(i, i + 1, j);
+		auto [bi, be] = PartnersBetween(j, i, j - 1);
+		Merges merges = isRoot ? BOTH : m_IsReflex[i] ? ONLY_A : ONLY_B;
+		auto tryApex = [&](UInt32 k, UInt32 cA, UInt32 cB)
+		{
+			if (cA != NONE && cB != NONE)
+				Consider(i, j, k, cA, cB, needA, needB, merges);
+		};
+		UInt32 nWalk;
+		if (ae - ai <= be - bi)
+		{
+			nWalk = ae - ai + 1;
+			tryApex(i + 1, EDGE, ChordId(i + 1, j));
+			for (UInt32 p = ai; p != ae; ++p)
+				tryApex(m_Part[p].v, m_Part[p].chord, ChordId(m_Part[p].v, j));
+		}
+		else
+		{
+			nWalk = be - bi + 1;
+			for (UInt32 q = bi; q != be; ++q)
+				tryApex(m_Part[q].v, ChordId(i, m_Part[q].v), m_Part[q].chord);
+			tryApex(j - 1, ChordId(i, j - 1), EDGE);
+		}
+		m_Work += nWalk;
+		if (m_Cand.empty() || m_Work > m_MaxWork)
+			return false;
+
+		ch.w = m_BestW;
+		ch.first = UInt32(m_States.size());
+		if (!needA && !needB)
+			m_States.push_back(m_Cand[0]);
+		else if (!needB)
+		{
+			UInt32 b = 0;
+			for (UInt32 c = 1; c != m_Cand.size(); ++c)
+				if (NarrowerAtI(i, m_Cand[c].a, m_Cand[b].a))
+					b = c;
+			m_States.push_back(m_Cand[b]);
+		}
+		else if (!needA)
+		{
+			UInt32 b = 0;
+			for (UInt32 c = 1; c != m_Cand.size(); ++c)
+				if (NarrowerAtJ(j, m_Cand[c].b, m_Cand[b].b))
+					b = c;
+			m_States.push_back(m_Cand[b]);
+		}
+		else
+		{
+			// the staircase: narrowest at i first, and kept only when also narrower at j than all before
+			std::stable_sort(m_Cand.begin(), m_Cand.end(), [this, i, j](const State& x, const State& y)
+				{
+					if (NarrowerAtI(i, x.a, y.a)) return true;
+					if (NarrowerAtI(i, y.a, x.a)) return false;
+					return NarrowerAtJ(j, x.b, y.b);
+				});
+			UInt32 last = NONE;
+			for (const State& s : m_Cand)
+				if (last == NONE || NarrowerAtJ(j, s.b, m_States[last].b))
+				{
+					last = UInt32(m_States.size());
+					m_States.push_back(s);
+				}
+		}
+		ch.count = UInt32(m_States.size()) - ch.first;
+		return true;
+	}
+
+	bool Solve()
+	{
+		m_States.clear();
+		for (auto& ch : m_Chords)
+			if (!SolveChord(ch, m_IsReflex[ch.i], m_IsReflex[ch.j]))
+				return false;
+		m_Root = { 0, m_N - 1 };
+		return SolveChord(m_Root, false, false, true);
+	}
+
+	// ---- the parts ----
+
+	void Emit(Rings& parts)
+	{
+		UInt32 n = m_N;
+		// the diagonals that the root's partition keeps, from its derivation
+		m_Diag.clear();
+		m_Todo.clear();
+		m_Todo.push_back({ 0, n - 1, m_Root.first });
+		while (!m_Todo.empty())
+		{
+			Todo td = m_Todo.back();
+			m_Todo.pop_back();
+			const State& st = m_States[td.s];
+			if (st.k > td.i + 1)
+			{
+				if (!st.mA)
+					m_Diag.emplace_back(td.i, st.k);
+				m_Todo.push_back({ td.i, st.k, st.sA });
+			}
+			if (td.j > st.k + 1)
+			{
+				if (!st.mB)
+					m_Diag.emplace_back(st.k, td.j);
+				m_Todo.push_back({ st.k, td.j, st.sB });
+			}
+		}
+		// per vertex its neighbours further on: the next vertex and the kept diagonals
+		m_UpStart.assign(n + 1, 0);
+		for (UInt32 v = 0; v + 1 < n; ++v)
+			++m_UpStart[v + 1];
+		for (const auto& [u, v] : m_Diag)
+			++m_UpStart[u + 1];
+		for (UInt32 v = 0; v != n; ++v)
+			m_UpStart[v + 1] += m_UpStart[v];
+		m_Up.resize(m_UpStart[n]);
+		m_Fill.assign(m_UpStart.begin(), m_UpStart.end() - 1);
+		for (UInt32 v = 0; v + 1 < n; ++v)
+			m_Up[m_Fill[v]++] = v + 1;
+		for (const auto& [u, v] : m_Diag)
+			m_Up[m_Fill[u]++] = v;
+		for (UInt32 v = 0; v != n; ++v)
+			std::sort(m_Up.begin() + m_UpStart[v], m_Up.begin() + m_UpStart[v + 1]);
+
+		// every part is closed by the root edge or by a kept diagonal (i, j), and its vertices are the
+		// farthest steps from i towards j
+		auto emitPart = [&](UInt32 i, UInt32 j)
+		{
+			Ring part;
+			part.push_back(m_P[i]);
+			for (UInt32 c = i; c != j; )
+			{
+				auto b = m_Up.begin() + m_UpStart[c], e = m_Up.begin() + m_UpStart[c + 1];
+				auto it = std::upper_bound(b, e, c == i ? j - 1 : j);
+				MG_CHECK2(it != b, "dms convex split: a part of the minimum does not close");
+				c = *(it - 1);
+				part.push_back(m_P[c]);
+			}
+			parts.push_back(std::move(part));
+		};
+		emitPart(0, n - 1);
+		for (const auto& [u, v] : m_Diag)
+			emitPart(u, v);
+	}
+
+	struct Todo { UInt32 i, j, s; };
+
+	UInt32 m_N = 0;
+	bool m_Small = false;
+	std::vector<GPoint> m_P;
+	std::vector<UInt8>  m_IsReflex;
+	std::vector<UInt32> m_RIdx, m_Reflex, m_Seen, m_Fill, m_ChordOf;
+	std::vector<Tri>    m_T, m_Nb;
+	std::vector<std::pair<UInt64, UInt32>> m_EdgeKeys;
+	std::vector<UInt32> m_VTriStart, m_VTri;
+	std::vector<View>   m_Views;
+	std::vector<Chord>  m_Chords;
+	std::vector<UInt32> m_PartStart, m_LenA, m_LenB;
+	std::vector<Partner> m_Part;
+	Chord m_Root{ 0, 0 };
+	std::vector<State> m_States, m_Cand;
+	UInt32 m_BestW = NONE;
+	double m_Work = 0;
+	std::vector<std::pair<UInt32, UInt32>> m_Diag;
+	std::vector<Todo> m_Todo;
+	std::vector<UInt32> m_UpStart, m_Up;
+};
+
 class ConvexPartitioner
 {
 public:
 	using Ring  = std::vector<GPoint>;
 	using Rings = std::vector<Ring>;
+
+	// true: the minimum for a ring without holes (dms_split_convex_polygon_keilsnoeyink, #1305);
+	// false: Hertel and Mehlhorn for every ring (dms_split_convex_polygon)
+	bool m_UseMinimum = false;
+	MinConvexPartition m_Min;
 
 	// rings: every ring of one element, open, with the material on the right of every edge (shells
 	// clockwise, holes counter-clockwise), as DmsOverlayEngine keeps them. parts: appended, each
@@ -78,13 +645,37 @@ public:
 			parts.push_back(std::move(part));
 			return;
 		}
+
+		// #1305: a shell without a hole that touches no other ring gets the minimum, on its own
+		if (m_UseMinimum)
+			SelectMinimalRings();
+		if (m_UseMinimum && !m_MinRings.empty())
+		{
+			bool reload = m_NrRings != 1;
+			std::vector<RingRef> sub;
+			for (UInt32 src : m_MinRings)
+			{
+				if (reload)
+				{
+					sub.assign(1, rings[src]);
+					Load(sub);
+				}
+				Triangulate();
+				m_RingPts.clear();
+				for (const auto& v : m_V)
+					m_RingPts.push_back(v.p);
+				if (!m_Min.Run(m_RingPts.data(), UInt32(m_RingPts.size()), m_Tri, parts))
+					HertelMehlhorn(parts);
+			}
+			if (m_RestRings.empty())
+				return;
+			sub.clear();
+			for (UInt32 src : m_RestRings)
+				sub.push_back(rings[src]);
+			Load(sub);
+		}
 		Relink();
-		MakeMonotone();
-		ExtractFaces();
-		m_Tri.clear();
-		for (SizeT f = 0, nf = m_FaceStart.size() - 1; f != nf; ++f)
-			TriangulateMonotone(m_FaceStart[f], m_FaceStart[f + 1]);
-		RepairFlatTriangles();
+		Triangulate();
 		HertelMehlhorn(parts);
 	}
 
@@ -137,9 +728,11 @@ private:
 				m_Touch.push_back(m_Pos[i]);
 		auto isTouch = [this](const GPoint& p) { return std::binary_search(m_Touch.begin(), m_Touch.end(), p, PosLess); };
 
-		for (const auto& r : rings)
+		m_RingFirst.clear();
+		m_RingSrc.clear();
+		for (UInt32 src = 0, nSrc = UInt32(rings.size()); src != nSrc; ++src)
 		{
-			const Ring& pts = PtsOf(r);
+			const Ring& pts = PtsOf(rings[src]);
 			// reversed, and without straight vertices: a stack, as DropCollinear does
 			m_Ring.clear();
 			for (auto it = pts.rbegin(); it != pts.rend(); ++it)
@@ -178,8 +771,85 @@ private:
 				v.next = base + (i + 1 == n ? 0 : i + 1);
 				m_V.push_back(v);
 			}
+			m_RingFirst.push_back(base);
+			m_RingSrc.push_back(src);
 			++m_NrRings;
 		}
+		m_RingFirst.push_back(UInt32(m_V.size()));
+	}
+
+	// #1305: the rings that get the minimum: shells (the material on the left, so counter-clockwise)
+	// that touch no other ring and have no hole inside them. A hole inside a shell's ring is a hole of
+	// that shell, or lies in an island inside one of its holes; either way the shell has a hole.
+	void SelectMinimalRings()
+	{
+		m_MinRings.clear();
+		m_RestRings.clear();
+		UInt32 nr = m_NrRings;
+		m_RingOk.assign(nr, 0);
+		m_RingBox.resize(nr);
+		m_Holes.clear();
+		for (UInt32 g = 0; g != nr; ++g)
+		{
+			UInt32 b = m_RingFirst[g], e = m_RingFirst[g + 1];
+			Int128 area2 = 0;
+			bool touch = false;
+			auto& box = m_RingBox[g];
+			box = { m_V[b].p.X(), m_V[b].p.Y(), m_V[b].p.X(), m_V[b].p.Y() };
+			for (UInt32 v = b; v != e; ++v)
+			{
+				const GPoint& p = m_V[v].p;
+				area2 += Cross(m_V[b].p, p, m_V[m_V[v].next].p);
+				if (!m_Touch.empty() && std::binary_search(m_Touch.begin(), m_Touch.end(), p, PosLess))
+					touch = true;
+				box[0] = std::min(box[0], p.X()); box[1] = std::min(box[1], p.Y());
+				box[2] = std::max(box[2], p.X()); box[3] = std::max(box[3], p.Y());
+			}
+			if (area2 > 0)
+				m_RingOk[g] = !touch;
+			else
+				m_Holes.push_back(g);
+		}
+		for (UInt32 h : m_Holes)
+		{
+			const GPoint& q = m_V[m_RingFirst[h]].p;
+			for (UInt32 g = 0; g != nr; ++g)
+			{
+				const auto& box = m_RingBox[g];
+				if (m_RingOk[g] && box[0] <= q.X() && q.X() <= box[2] && box[1] <= q.Y() && q.Y() <= box[3] && InsideRing(q, g))
+					m_RingOk[g] = 0;
+			}
+		}
+		for (UInt32 g = 0; g != nr; ++g)
+			(m_RingOk[g] ? m_MinRings : m_RestRings).push_back(m_RingSrc[g]);
+	}
+
+	// q inside ring g, by the crossings of a ray to the right; q is not on the ring
+	bool InsideRing(const GPoint& q, UInt32 g) const
+	{
+		bool inside = false;
+		for (UInt32 v = m_RingFirst[g], e = m_RingFirst[g + 1]; v != e; ++v)
+		{
+			const GPoint& a = m_V[v].p;
+			const GPoint& b = m_V[m_V[v].next].p;
+			if ((a.Y() > q.Y()) != (b.Y() > q.Y()))
+			{
+				int o = RealOrient(a, b, q);
+				if (b.Y() > a.Y() ? o > 0 : o < 0)
+					inside = !inside;
+			}
+		}
+		return inside;
+	}
+
+	void Triangulate()
+	{
+		MakeMonotone();
+		ExtractFaces();
+		m_Tri.clear();
+		for (SizeT f = 0, nf = m_FaceStart.size() - 1; f != nf; ++f)
+			TriangulateMonotone(m_FaceStart[f], m_FaceStart[f + 1]);
+		RepairFlatTriangles();
 	}
 
 	bool IsStrictlyConvexRing() const
@@ -782,6 +1452,12 @@ private:
 	std::unordered_map<UInt64, UInt32> m_EdgeTri;
 	std::vector<UInt32> m_Org, m_Nxt, m_Prv, m_Twin;
 	std::vector<bool>   m_Gone;
+
+	// #1305
+	std::vector<UInt32> m_RingFirst, m_RingSrc, m_MinRings, m_RestRings, m_Holes;
+	std::vector<UInt8>  m_RingOk;
+	std::vector<std::array<Int64, 4>> m_RingBox;
+	std::vector<GPoint> m_RingPts;
 };
 
 } // namespace dms_overlay
