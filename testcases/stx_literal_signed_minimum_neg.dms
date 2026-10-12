@@ -1,0 +1,12 @@
+// Companion of stx_literal_signed_minimum: only a unary minus directly before 128c makes it the minimum of
+// int8. After a binary minus, 1c - 128c, the literal 128c stands alone and is outside the range of int8.
+// Expected: nonzero exit on /checks, "the literal 128c is outside the range of int8, which holds at most 127".
+container stx_literal_signed_minimum_neg
+{
+	parameter<int8> x := 1c - 128c;
+
+	container checks
+	{
+		parameter<bool> ok := IsDefined(x), IntegrityCheck = "ok == true";
+	}
+}

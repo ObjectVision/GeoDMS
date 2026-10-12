@@ -16,10 +16,12 @@
 #include "LispList.h"
 #include "ExprRewrite.h"
 
+#include <algorithm>
+
 #if defined(MG_DEBUG)
 bool ExprProd::empty() const
 {
-	return m_Result.empty() && m_ExprListBase.empty() && m_StringProd.empty();
+	return m_Result.empty() && m_ExprListBase.empty() && m_StringProd.empty() && m_UnnegatedSignedMinima.empty();
 }
 #endif
 
@@ -75,6 +77,14 @@ void ExprProd::ProdUnaryOper(TokenID id)
 {
 	// expr -> OPER(exprL1)
 	// (expr1, tail) -> ((id, expr1), tail)
+	if (id == token::neg)
+	{
+		auto negated = std::find_if(m_UnnegatedSignedMinima.begin(), m_UnnegatedSignedMinima.end()
+		,	[operand = m_Result.First().get()](const auto& listed) { return listed.first.get() == operand; }
+		);
+		if (negated != m_UnnegatedSignedMinima.end())
+			m_UnnegatedSignedMinima.erase(negated);
+	}
 	m_Result.repl_back1(
 		RewriteExprTop_InParse(
 			List2<LispRef>(
@@ -243,38 +253,54 @@ static ValueClassID GetValueTypeOfSuffix(CharPtr first, CharPtr last)
 // STX-A25: a literal whose value the type of its suffix cannot hold (5000000000u, 300b, 1e40f) was wrapped
 // in a cast that made it null at run time, where an unsuffixed integer above uint32 is a parse error (see
 // ProdUInt32WithoutSuffix). It is an error here as well, naming the literal and the type.
-static void CheckLiteralFitsSuffix(const LispRef& literal, const ValueClass* vc, CharPtr suffixFirst, CharPtr suffixLast)
+// Returns the error, without throwing it, for the magnitude of the minimum of a signed type (128c), which a
+// minus directly before it makes fit; ProdSuffix lists it in m_UnnegatedSignedMinima.
+static std::string CheckLiteralFitsSuffix(const LispRef& literal, const ValueClass* vc, CharPtr suffixFirst, CharPtr suffixLast)
 {
 	UInt64 maxInteger = 0;
+	bool   isSigned   = false;
 	switch (vc->GetValueClassID())
 	{
 		case ValueClassID::VT_UInt2:  maxInteger = 3; break;
 		case ValueClassID::VT_UInt4:  maxInteger = 15; break;
 		// the whole bit range, the null value of an unsigned type included, as for an unsuffixed literal,
-		// which accepts 4294967295, the null of uint32 (MAX_VALUE(UInt8) is 254, as 255 is its null)
+		// which accepts 4294967295, the null of uint32 (MAX_VALUE(UInt8) is 254, as 255 is its null); for a
+		// signed type that null is its minimum, -128c, so the magnitude one above the maximum can be negated
 		case ValueClassID::VT_UInt8:  maxInteger = std::numeric_limits<UInt8 >::max(); break;
-		case ValueClassID::VT_Int8:   maxInteger = std::numeric_limits<Int8  >::max(); break;
+		case ValueClassID::VT_Int8:   maxInteger = std::numeric_limits<Int8  >::max(); isSigned = true; break;
 		case ValueClassID::VT_UInt16: maxInteger = std::numeric_limits<UInt16>::max(); break;
-		case ValueClassID::VT_Int16:  maxInteger = std::numeric_limits<Int16 >::max(); break;
+		case ValueClassID::VT_Int16:  maxInteger = std::numeric_limits<Int16 >::max(); isSigned = true; break;
 		case ValueClassID::VT_UInt32: maxInteger = std::numeric_limits<UInt32>::max(); break;
-		case ValueClassID::VT_Int32:  maxInteger = std::numeric_limits<Int32 >::max(); break;
-		case ValueClassID::VT_Int64:  maxInteger = std::numeric_limits<Int64 >::max(); break;
+		case ValueClassID::VT_Int32:  maxInteger = std::numeric_limits<Int32 >::max(); isSigned = true; break;
+		case ValueClassID::VT_Int64:  maxInteger = std::numeric_limits<Int64 >::max(); isSigned = true; break;
 		case ValueClassID::VT_UInt64: maxInteger = std::numeric_limits<UInt64>::max(); break;
 		case ValueClassID::VT_Float32:
 			if (literal.IsNumb() && std::abs(literal.GetNumbVal().m_Value) > std::numeric_limits<Float32>::max())
 				throwErrorF("ExprProd", "the literal {}{} is outside the range of {}", literal.GetNumbVal().m_Value, std::string_view(suffixFirst, suffixLast - suffixFirst), vc->GetName());
 			if (literal.IsUI64() && Float64(literal.GetUI64Val()) > std::numeric_limits<Float32>::max())
 				throwErrorF("ExprProd", "the literal {}{} is outside the range of {}", literal.GetUI64Val(), std::string_view(suffixFirst, suffixLast - suffixFirst), vc->GetName());
-			return;
+			return {};
 		default:
-			return;
+			return {};
 	}
 	// a literal is unsigned here: a minus sign is an operator applied to the cast literal
 	auto suffixText = std::string_view(suffixFirst, suffixLast - suffixFirst);
 	if (literal.IsUI64() && literal.GetUI64Val() > maxInteger)
-		throwErrorF("ExprProd", "the literal {}{} is outside the range of {}, which holds at most {}", literal.GetUI64Val(), suffixText, vc->GetName(), maxInteger);
+	{
+		auto error = mgFormat2string("the literal {}{} is outside the range of {}, which holds at most {}", literal.GetUI64Val(), suffixText, vc->GetName(), maxInteger);
+		if (isSigned && literal.GetUI64Val() == maxInteger + 1)
+			return error;
+		throwErrorD("ExprProd", error.c_str());
+	}
 	if (literal.IsNumb() && literal.GetNumbVal().m_Value > Float64(maxInteger))
 		throwErrorF("ExprProd", "the literal {}{} is outside the range of {}, which holds at most {}", literal.GetNumbVal().m_Value, suffixText, vc->GetName(), maxInteger);
+	return {};
+}
+
+void ExprProd::CheckSignedMinimaNegated() const
+{
+	if (!m_UnnegatedSignedMinima.empty())
+		throwErrorD("ExprProd", m_UnnegatedSignedMinima.front().second.c_str());
 }
 
 void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
@@ -309,8 +335,10 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 
 	if (vc)
 	{
-		CheckLiteralFitsSuffix(m_Result.back(), vc, &*first, &*last);
+		auto errorUnlessNegated = CheckLiteralFitsSuffix(m_Result.back(), vc, &*first, &*last);
 		m_Result.repl_back1(List2<LispRef>(LispRef(suffixToken), m_Result.back()));
+		if (!errorUnlessNegated.empty())
+			m_UnnegatedSignedMinima.emplace_back(m_Result.back(), std::move(errorUnlessNegated));
 		return;
 	}
 

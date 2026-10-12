@@ -1,0 +1,12 @@
+// Companion of stx_literal_signed_minimum: the two literals 128c of 128c + -128c are one shared expression
+// object, and the minus before the second must not also excuse the first, which stands alone.
+// Expected: nonzero exit on /checks, "the literal 128c is outside the range of int8, which holds at most 127".
+container stx_literal_signed_minimum_unpaired_neg
+{
+	parameter<int8> x := 128c + -128c;
+
+	container checks
+	{
+		parameter<bool> ok := IsDefined(x), IntegrityCheck = "ok == true";
+	}
+}

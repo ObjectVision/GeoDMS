@@ -55,6 +55,7 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 			,	comment_skipper()
 			);
 		CheckInfo(info);
+		prod.CheckSignedMinimaNegated(); // 128c without a minus before it
 	}
 	catch (const parser_error_t& problem)
 	{

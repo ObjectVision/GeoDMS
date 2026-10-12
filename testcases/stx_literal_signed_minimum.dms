@@ -1,0 +1,23 @@
+// The minimum of a signed type is its null value, written as a minus before its magnitude: -128c, -32768s,
+// -2147483648i, -9223372036854775808i64. The range check of STX-A25 (20.24.0) checked the magnitude, 128c,
+// before the minus was applied and rejected these literals, with which GeoDMS-Test's ExplicitNullvalues.dms
+// writes the null of every signed type. A minus directly before the literal makes it fit again; 128c alone or
+// after a binary minus is still the range error (stx_literal_signed_minimum_neg, _unpaired_neg).
+// Expected: exit 0 on /checks.
+container stx_literal_signed_minimum
+{
+	parameter<int8>  n8   := -128c;
+	parameter<int8>  n8b  := -128i8;
+	parameter<int16> n16  := -32768s;
+	parameter<int16> n16b := - 32768i16; // white space after the minus
+	parameter<int32> n32  := -2147483648i;
+	parameter<int64> n64  := -9223372036854775808i64;
+	parameter<int8>  m8   := -127c;      // the lowest defined value
+
+	container checks
+	{
+		parameter<bool> nulls   := IsNull(n8) && IsNull(n8b) && IsNull(n16) && IsNull(n16b) && IsNull(n32) && IsNull(n64), IntegrityCheck = "nulls == true";
+		parameter<bool> twice   := IsNull(-128c + -128c), IntegrityCheck = "twice == true";
+		parameter<bool> defined := IsDefined(m8) && int32(m8) == -127, IntegrityCheck = "defined == true";
+	}
+}

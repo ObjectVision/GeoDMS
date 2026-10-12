@@ -57,6 +57,9 @@ struct ExprProd
 	void StartExprList();
 	void CloseExprList();
 
+	// throws the range error of a literal that m_UnnegatedSignedMinima still holds; called when the parse ends
+	void CheckSignedMinimaNegated() const;
+
 	MG_DEBUGCODE( bool empty() const; )
 
 	using string_prod_type = StringProd;
@@ -64,6 +67,14 @@ struct ExprProd
 	quick_replace_stack<LispRef> m_Result;
 	std::vector<SizeT>           m_ExprListBase;
 	StringProd                   m_StringProd;
+
+	// The minimum of a signed type, its null value, is written as a minus before its magnitude: -128c,
+	// -32768s, -2147483648i, -9223372036854775808i64. That magnitude alone is outside the type, and the minus
+	// is an operator that is produced after the literal, so ProdSuffix cannot see it. It lists such a literal
+	// here with its range error, ProdUnaryOper(neg) strikes the one it negates directly, and one that is left
+	// when the parse ends is the error. Literals are shared (LispRef is hash-consed), so 128c + -128c lists
+	// the same cast twice and strikes it once.
+	std::vector<std::pair<LispRef, std::string>> m_UnnegatedSignedMinima;
 };
 
 struct ExprProdBase
