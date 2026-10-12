@@ -1,0 +1,24 @@
+// uint2() and uint4() of a float truncate toward zero, as the wider integer conversions do (int32(-2.5) is -2), and
+// only then check the range: uint2(3.9) is 3 and uint4(15.5) is 15. The range used to be checked on the float itself,
+// so 3 < v < 4 failed it and gave 0, the value that a sub-byte type gives for anything outside its range. An integral
+// part outside the range still gives 0: uint2(4.0), uint2(-1.5), uint4(16.0).
+//   v  : -1.5 -1.0 -0.5  0.0  1.9  2.5  3.0  3.49 3.99 4.0   -> uint2  0 0 0 0 1 2 3 3 3 0
+//   w  : 14.9 15.0 15.5 15.99 16.0 99.9                      -> uint4  14 15 15 15 0 0
+// Expected: exit 0 on /checks.
+container oper_subbyte_float_trunc
+{
+	unit<uint32> F2: nrofrows = 10;
+	attribute<float32> v           (F2): [-1.5, -1.0, -0.5, 0.0, 1.9, 2.5, 3.0, 3.49, 3.99, 4.0];
+	attribute<uint32>  u2_expected (F2): [0, 0, 0, 0, 1, 2, 3, 3, 3, 0];
+
+	unit<uint32> F4: nrofrows = 6;
+	attribute<float64> w           (F4): [14.9, 15.0, 15.5, 15.99, 16.0, 99.9];
+	attribute<uint32>  u4_expected (F4): [14, 15, 15, 15, 0, 0];
+
+	container checks
+	{
+		parameter<bool> uint2_float32 := all(uint32(uint2(v)) == u2_expected), IntegrityCheck = "uint2_float32 == true";
+		parameter<bool> uint4_float64 := all(uint32(uint4(w)) == u4_expected), IntegrityCheck = "uint4_float64 == true";
+		parameter<bool> uint2_param   := uint32(uint2(3.9f)) == 3 && uint32(uint2(4.0)) == 0, IntegrityCheck = "uint2_param == true";
+	}
+}

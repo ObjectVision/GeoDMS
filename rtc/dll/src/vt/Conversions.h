@@ -28,6 +28,8 @@
 #include "ser/AsString.h"
 #include "ser/FormattedStream.h"
 
+#include <cmath>
+
 #define __VT_CONVERSIONS_H
 
 //----------------------------------------------------------------------
@@ -87,12 +89,20 @@ struct check_defined_func
 template <typename T, typename U>
 constexpr bool float_to_integral_v = std::is_floating_point_v<T> && std::is_integral_v<U>;
 
+// A floating source converted to a sub-byte target (uint2, uint4) is truncated toward zero by U(val), as the wider
+// integers are, so the range applies to its integral part: uint2(3.9) is 3. Checked on the float itself, 3 < v < 4
+// failed the max check and gave 0 like an out-of-range value; an integral part outside the range still gives 0.
+template <typename T, typename U>
+constexpr bool float_to_bitvalue_v = std::is_floating_point_v<T> && is_bitvalue_v<U>;
+
 template <typename T, typename U>
 struct check_min_func
 {
 	bool operator () (typename param_type<T>::type v) const
 	{
-		if constexpr (float_to_integral_v<T, U> && std::is_signed_v<U>)
+		if constexpr (float_to_bitvalue_v<T, U>)
+			return std::trunc(v) >= T(MIN_VALUE(U));
+		else if constexpr (float_to_integral_v<T, U> && std::is_signed_v<U>)
 		{
 			const T minT = T(MIN_VALUE(U));
 			const T lowest = -(T(std::numeric_limits<U>::max() / 2 + 1) * T(2)); // -2^digits, exact in T
@@ -108,7 +118,9 @@ struct check_max_func
 {
 	bool operator () (typename param_type<T>::type v) const
 	{
-		if constexpr (float_to_integral_v<T, U>)
+		if constexpr (float_to_bitvalue_v<T, U>)
+			return std::trunc(v) <= T(MAX_VALUE(U));
+		else if constexpr (float_to_integral_v<T, U>)
 		{
 			const T maxT = T(MAX_VALUE(U));
 			const T beyond = T(std::numeric_limits<U>::max() / 2 + 1) * T(2); // 2^digits, exact in T
