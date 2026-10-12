@@ -1,7 +1,10 @@
 // Pins doc/code-audit-2026-09-27.md GEO-A37: the *_overlay_polygon operators run the elements of a
-// tile of their first argument in blocks of 256, in parallel, and a block converts a polygon of the
-// second argument once, when one of its elements first meets it. 900 squares in one tile are four
-// blocks, and each zone is met by hundreds of them, so the blocks and that reuse are both exercised.
+// tile of their first argument in blocks of at most 256, in parallel, and a block converts a polygon
+// of the second argument once, when one of its elements first meets it. Since #1205 a tile of few
+// elements gets smaller blocks, so that every thread gets a few: the 900 squares in one tile are four
+// blocks with parallel processing off, and blocks of 7 on 32 threads. Either way there are several
+// blocks, and each zone is met by several elements of a block, so the blocks and that reuse are both
+// exercised, and the result does not depend on the block size.
 //
 // 30 x 30 squares of side 2 on [0, 60]^2, overlaid with four zones that meet at x = 31 and y = 31,
 // an odd coordinate, so that column 15 and row 15 of the squares straddle a zone border and no

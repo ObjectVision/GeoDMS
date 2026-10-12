@@ -7,10 +7,27 @@
 #if !defined(__GEO_THREADSCRATCH_H)
 #define __GEO_THREADSCRATCH_H
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 
+#include "Parallel.h"
 #include "parallel/dms_combinable.h"
+
+// The number of elements per block of a parallel loop over the n elements of a tile: at most
+// maxBlockSize, which keeps what a block costs apart from its elements small against their work,
+// and fewer when the tile has few elements, so that every thread still gets a few blocks (#1205).
+// With 32 threads, a tile of 300 elements in blocks of 256 ran on 2 of them; it now gets blocks of
+// 2. The work of an element is not estimated: a tile of a few very large polygons is split over the
+// threads by count, and one polygon is never split (a modeller can split it explicitly, for instance
+// with dms_split_convex_polygon). With parallel processing off there is one thread, and the blocks
+// keep their largest size.
+inline SizeT element_block_size(SizeT n, SizeT maxBlockSize)
+{
+	constexpr SizeT blocksPerThread = 4;
+	SizeT nrThreads = MaxConcurrentTreads();
+	return std::clamp<SizeT>(n / (nrThreads * blocksPerThread), 1, maxBlockSize);
+}
 
 // thread_scratch<T>: one scratch object per thread for the tiles of one parallel tile loop, so
 // that an object whose buffers have grown serves every tile its thread works on instead of being
