@@ -1,0 +1,45 @@
+// Reading an MMD store whose array files carry the page padding of the versions before 20.24.0 (issue #1308).
+// The tiles of a stored array lie back to back in its file, but up to 20.24.0 the file was sized as if every tile
+// but the last started on a memory page of its own: it ended in zeros, and since #1187 the reader demanded exactly
+// that padded size. Since 20.24.0 the writer sizes the file to its values and the reader accepts both sizes. This
+// case pins the second half: a store written before 20.24.0 still reads, with every value in place.
+//
+// data/mmd_padded.mmd was written by the build of 363698452 (20.24.0 before #1308) from this configuration, with
+// the store's StorageName set to that folder:
+//
+//   unit<uint32> base := range(uint32, 0, 10);
+//   unit<uint32> tiles : nrofrows = 3 { attribute<base> lb : [0, 2, 7]; attribute<base> ub : [2, 7, 10]; }
+//   unit<uint32> reg := TiledUnit(3[base]);             // regular: tiles of 3, 3, 3 and 1
+//   unit<uint32> irr := TiledUnit(tiles/lb, tiles/ub);  // irregular: tiles of 2, 5 and 3
+//   b := uint8(id(.) + 1), u := id(.) * 1000, f := id(.) % 3 == 0, s := 'r' / 'i' + string(id(.))
+//
+// The two tilings are the two formulas the padding had: a regular tiling padded every tile to the pages of the
+// largest tile (reg/b is 3 * 4096 + 1 bytes), an irregular one each tile to its own pages (irr/b is 2 * 4096 + 3).
+// The values compare element by element, because a reader that took the padding for the layout would find the
+// right count and the wrong values from the second tile on.
+container stor_mmd_padded_read
+{
+	container store
+	:	StorageName = "%currDir%/data/mmd_padded.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n_reg := #store/reg, IntegrityCheck = "n_reg == 10";
+		parameter<uint32> n_irr := #store/irr, IntegrityCheck = "n_irr == 10";
+
+		parameter<uint32> d_reg_b := sum_uint32(store/reg/b <> uint8(id(store/reg) + 1)),            IntegrityCheck = "d_reg_b == 0";
+		parameter<uint32> d_reg_u := sum_uint32(store/reg/u <> id(store/reg) * 1000),                IntegrityCheck = "d_reg_u == 0";
+		parameter<uint32> d_reg_f := sum_uint32(store/reg/f <> (id(store/reg) % 3 == 0)),            IntegrityCheck = "d_reg_f == 0";
+		parameter<uint32> d_reg_s := sum_uint32(store/reg/s <> 'r' + string(id(store/reg))),        IntegrityCheck = "d_reg_s == 0";
+
+		parameter<uint32> d_irr_b := sum_uint32(store/irr/b <> uint8(id(store/irr) + 1)),            IntegrityCheck = "d_irr_b == 0";
+		parameter<uint32> d_irr_u := sum_uint32(store/irr/u <> id(store/irr) * 1000),                IntegrityCheck = "d_irr_u == 0";
+		parameter<uint32> d_irr_f := sum_uint32(store/irr/f <> (id(store/irr) % 3 == 0)),            IntegrityCheck = "d_irr_f == 0";
+		parameter<uint32> d_irr_s := sum_uint32(store/irr/s <> 'i' + string(id(store/irr))),        IntegrityCheck = "d_irr_s == 0";
+
+		parameter<string> s_last  := store/reg/s[9], IntegrityCheck = "s_last == 'r9'";
+	}
+}
