@@ -118,7 +118,7 @@ set "SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signto
 "%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "%INSTALLER%"
 if errorlevel 1 goto :build_failed
 
-if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
+call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 "%INSTALLER%" /S
 if errorlevel 1 goto :unit_failed
 
@@ -137,8 +137,7 @@ exit /b 0
 
 :unit_failed
 echo *** G post-install tests failed - unit suite, testcases battery or shipped content, see above; removing the installed build and setup. ***
-if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
-if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
+call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 if exist "%INSTALLER%" del /q "%INSTALLER%"
 endlocal
 exit /b 1
