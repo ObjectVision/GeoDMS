@@ -148,15 +148,6 @@ void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOn
 // writeTile(t, dst) writes the tileBytes[t] bytes of tile t to dst.
 void WriteCompactSeqFile(WeakStr fileName, tile_id tn, const dms::filesize_t* tileBytes, const std::function<void(tile_id, char*)>& writeTile);
 
-// Whether the pool of a domain of one tile, which has no chunk table, stays at offset 0 when it grows. The
-// Linux allocChunk puts every grown pool at the end of the file (#1297).
-#if defined(WIN32)
-constexpr bool SingleChunkGrowsInPlace = true;
-#else
-constexpr bool SingleChunkGrowsInPlace = false;
-#endif
-
-
 struct ConstMappedFileHandle : MappedFileHandle
 {
 	ConstMappedFileHandle(WeakStr fileName, bool throwOnError = true, bool doRetry = false)
@@ -190,6 +181,7 @@ struct ViewData : ptr_base<void, movable>
 	// UnmapViewOfFile which only needs the address; Linux munmap requires
 	// the size and leaks the mapping if we forget. Fixed an unbounded
 	// anon-RSS growth that OOM-killed long-running tile-heavy runs (t641).
+	// The size counts from the start of the page that holds the view's first byte (#1297).
 	std::size_t m_LinuxMmapSize = 0;
 #endif
 };

@@ -530,8 +530,6 @@ void FileTileArray<V>::SealSequences()
 	tile_id tn = this->GetTiledRangeData()->GetNrTiles();
 	if (!tn)
 		return;
-	if (tn > 1 && !m_SeqFile->m_MemPageAllocTable)
-		return; // no chunk table: the Linux allocation, which puts every grown chunk at the end (#1297)
 
 	for (tile_id t = 0; t != tn; ++t)
 		if (m_Files[t].m_NrMappedFileTiles)
@@ -553,7 +551,7 @@ void FileTileArray<V>::SealSequences()
 	if (usedBytes == m_SeqFile->GetFileSize())
 		return;
 
-	if (tn == 1 && !isDirty[0] && SingleChunkGrowsInPlace)
+	if (tn == 1 && !isDirty[0])
 	{
 		try {
 			m_SeqFile->TruncateAndClose(usedBytes);
