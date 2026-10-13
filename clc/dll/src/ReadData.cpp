@@ -419,9 +419,10 @@ struct SplitSequenceOperator : public UnaryOperator
 		DataReadLock lock(arg1);
 		auto sequences = const_array_cast<SequenceValueType>(args[0])->GetDataRead();
 
-		SizeT nrBreaks = 0;
+		SizeT nrBreaks = 0, nrElems = 0;
 		for (auto seqRef : sequences)
 		{
+			nrElems += seqRef.size(); // #1299: not the data_size() of sequences, which is a const shadow when arg1 has more than one tile
 			for (const auto& elem : seqRef)
 				if (m_ElementPredicate(elem))
 					++nrBreaks;
@@ -435,7 +436,7 @@ struct SplitSequenceOperator : public UnaryOperator
 
 		auto resSequences = mutable_array_cast<SequenceValueType>(dwlSequences)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		
-		resSequences.get_sa().data_reserve(sequences.get_sa().data_size() - nrBreaks MG_DEBUG_ALLOCATOR_SRC("SplitSequenceOperator: resSequences.data_reserve"));
+		resSequences.get_sa().data_reserve(nrElems - nrBreaks MG_DEBUG_ALLOCATOR_SRC("SplitSequenceOperator: resSequences.data_reserve"));
 		auto resSequenceIter = resSequences.begin();
 		SizeT orgRelIndex = 0;
 
