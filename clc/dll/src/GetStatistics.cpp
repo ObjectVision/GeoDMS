@@ -316,6 +316,24 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 	}
 }
 
+// #1299: the pools of a sequence attribute, summed over its tiles. A read without a tile of a domain of more
+// than one tile is a const shadow, which has no pool of its own (sequence_array::HasAliasedValues): its
+// data_size() refuses. Building it would also lock every tile at once and allocate an index pair per element.
+template <typename V>
+void WritePoolSizes(PostLinkedTable& table, const AbstrDataItem* di, CharPtr actualLabel, CharPtr reservedLabel)
+{
+	SizeT nrActual = 0, nrReserved = 0;
+	auto da = const_array_cast<V>(di);
+	for (tile_id t = 0, tn = di->GetAbstrDomainUnit()->GetNrTiles(); t != tn; ++t)
+	{
+		auto tileData = da->GetTile(t);
+		nrActual   += tileData.get_sa().actual_data_size();
+		nrReserved += tileData.get_sa().data_size();
+	}
+	table.AddRow(actualLabel,   AsString(nrActual  ).c_str());
+	table.AddRow(reservedLabel, AsString(nrReserved).c_str());
+}
+
 void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	PostLinkedTable table(os);
@@ -475,23 +493,16 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			table.AddRow("#Values", AsString(d).c_str());
 
 			if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
-			{
-				auto da = const_array_cast<SharedStr>(di)->GetDataRead();
-				table.AddRow("# actual   bytes in strings", AsString(da.get_sa().actual_data_size()).c_str());
-				table.AddRow("# reserved bytes in strings", AsString(da.get_sa().data_size()).c_str());
-			}
+				WritePoolSizes<SharedStr>(table, di, "# actual   bytes in strings", "# reserved bytes in strings");
+
 			if (di->GetValueComposition() != ValueComposition::Single)
 			{
 				visit<typelists::sequence_fields>(di->GetAbstrValuesUnit(),
-					[&table, di, &os, nrPoints] <typename V> (const Unit<V>*)
+					[&table, di, nrPoints] <typename V> (const Unit<V>*)
 				{
-					using a_seq = sequence_traits<V>::container_type;
-
-					auto da = const_array_cast<a_seq>(di)->GetDataRead();
 					if (nrPoints)
 						table.AddRow("# counted  elements in values", AsString(nrPoints).c_str());
-					table.AddRow("# actual   elements in values", AsString(da.get_sa().actual_data_size()).c_str());
-					table.AddRow("# reserved elements in values", AsString(da.get_sa().data_size()).c_str());
+					WritePoolSizes<typename sequence_traits<V>::container_type>(table, di, "# actual   elements in values", "# reserved elements in values");
 				}
 				);
 			}

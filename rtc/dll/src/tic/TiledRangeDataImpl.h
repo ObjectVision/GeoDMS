@@ -102,15 +102,10 @@ struct RegularAdapter: Base
 	tile_loc GetTileDataLocation(row_id index) const override;
 	tile_id GetNrTiles() const override;
 
-	SizeT GetNrMemPages(UInt8 log2BitsPerElem) const override
-	{
-		// TODO OPTIMIZE for edge and corner tiles 
-		return GetMemPageIndex(log2BitsPerElem, GetNrTiles());
-	}
-	SizeT GetMemPageIndex(UInt8 log2BitsPerElem, tile_id t) const override
+	SizeT GetLegacyDatPageCount(UInt8 log2BitsPerElem, tile_id t) const override
 	{
 		assert(t <= GetNrTiles());
-		// TODO OPTIMIZE for edge and corner tiles 
+		// every tile counted with the pages of the largest, edge and corner tiles too, as the files have it
 		SizeT maxTileSizeInBytes;
 		if (log2BitsPerElem >= 3)
 		{
@@ -274,12 +269,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 		return m_Ranges.size();
 	}
 
-	SizeT GetNrMemPages(UInt8 log2BitsPerElem) const override
-	{		
-		return GetMemPageIndex(log2BitsPerElem, GetNrTiles());
-	}
-
-	SizeT GetMemPageIndex(UInt8 log2BitsPerElem, tile_id t) const override
+	SizeT GetLegacyDatPageCount(UInt8 log2BitsPerElem, tile_id t) const override
 	{
 		assert(t <= GetNrTiles());
 		SizeT result = 0;

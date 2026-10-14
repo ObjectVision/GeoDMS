@@ -48,6 +48,10 @@ vcpkg-triplets/*.cmake text eol=crlf
 *.cur  binary
 *.ttf  binary
 
+# The array files of an MMD test store hold raw values, among them the byte 10, which
+# eol conversion would turn into CR LF and so shift every value behind it (#1308).
+testcases/data/*.mmd/*/* binary
+
 # UTF-16LE, so it looks binary to git and must stay that way. Its sibling
 # shv/dll/res/DmShv32.rc is plain text and is covered by `* text=auto` above.
 qtgui/exe/GeoDmsGuiQt.rc binary

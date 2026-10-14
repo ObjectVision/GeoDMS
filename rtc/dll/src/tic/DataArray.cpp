@@ -102,6 +102,9 @@ struct const_shadow_sequence_tile : tile<V>
 	// was corrected (§8.1.16).
 	using seq_lock_t = typename DataArrayBase<V>::locked_cseq_t;
 	std::vector<seq_lock_t, my_allocator<seq_lock_t>> m_Seqs;
+
+	// #1299: what the sequences of all tiles hold; the shadow's indices are theirs, shifted
+	void SetActualDataSize(SizeT actualDataSize) { this->m_ActualDataSize = actualDataSize; }
 };
 
 template <typename V>
@@ -234,8 +237,12 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 	if (tn != 0)
 	{
 		shadowTilePtr->m_Seqs.reserve(tn);
+		SizeT actualDataSize = 0;
 		for (tile_id t = 0; t != tn; ++t)
+		{
 			shadowTilePtr->m_Seqs.emplace_back(tileFunctor->GetTile(t));
+			actualDataSize += shadowTilePtr->m_Seqs.back().get_sa().actual_data_size();
+		}
 
 		auto minValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_begin();
 		auto maxValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_end();
@@ -273,18 +280,19 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 
 		SizeT nrElem = trd->GetRangeSize();
 		shadowTilePtr->resizeSO(nrElem, true MG_DEBUG_ALLOCATOR_SRC("ConstShadowSequenceArrayTile "));
+		shadowTilePtr->SetActualDataSize(actualDataSize);
 
 		auto range = trd->GetRangeAsI64Rect();
 		dms_assert(Cardinality(range) == nrElem);
 
 		U64Grid<IndexRange<SizeT>> shadowData(Size(range), &*shadowTilePtr->index_begin());
 
-		parallel_tileloop_if_separable<V>(tn, [shadowTilePtr, trd, &shadowData, shadowRangeBase = range.first, minValuePtr](tile_id t)
+		parallel_tileloop_if_separable<V>(tn, [shadowTilePtr, trd, &shadowData, shadowRangeBase = range.first, minValuePtr, maxValuePtr](tile_id t)
 			{
 				I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
 				auto tileData = shadowTilePtr->m_Seqs[t];
 				assert(Cardinality(tileRange) == tileData.size());
-				SizeT shadowDataSize = shadowTilePtr->data_size();
+				[[maybe_unused]] SizeT shadowDataSize = maxValuePtr - minValuePtr; // the shadow's own data_size() refuses (#1299)
 				SizeT tileDataSize = tileData.get_sa().data_size();
 				SizeT offset = tileData.get_sa().data_begin() - minValuePtr;
 				assert(!tileDataSize || offset <= shadowDataSize);

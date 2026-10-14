@@ -780,6 +780,12 @@ public:
 	bool IsAssigned()      const { return m_Indices.IsAssigned     (); }
 	bool IsHeapAllocated() const { return m_Indices.IsHeapAllocated() && m_Values.IsHeapAllocated(); }
 
+	// #1299: the const shadow of a sequence attribute of more than one tile (MakeConstShadowTile) has no pool of its own.
+	// Its values are a view without a provider from the lowest to the highest address of the pools of its tiles, which
+	// can be separate heap blocks or mapped views with unrelated memory between them; its indices are offsets from that
+	// lowest address. Only the shadow has indices with a provider and values without one.
+	bool HasAliasedValues() const { return m_Indices.IsAssigned() && !m_Values.IsAssigned(); }
+
 	RTC_CALL void Lock  (dms_rw_mode rwMode) const;
 
 //	void Close () { m_Indices.Close(); m_Values.Close(); dms_assert(Empty()); m_ActualDataSize = 0; }
@@ -810,6 +816,8 @@ public:
 	}
 	auto data_size() const
 	{
+		if (HasAliasedValues()) // the extent of aliased values is the distance between the pools of tiles, not a pool size: read the tiles
+			throwIllegalAbstract(MG_POS, "sequence_array::data_size of a const shadow");
 		return m_Values.size();
 	}
 	auto data_begin() const
@@ -826,6 +834,8 @@ public:
 	}
 	auto data_capacity() const
 	{
+		if (HasAliasedValues())
+			throwIllegalAbstract(MG_POS, "sequence_array::data_capacity of a const shadow");
 		return m_Values.capacity();
 	}
 	auto index_begin()

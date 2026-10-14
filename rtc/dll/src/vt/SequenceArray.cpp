@@ -850,6 +850,9 @@ void sequence_array<T>::appendValues(const_data_iterator first, const_data_itera
 template <typename T>
 void sequence_array<T>::StreamOut(BinaryOutStream& ar) const
 {
+	if (HasAliasedValues()) // #1299: would write the memory between the pools of the tiles; write per tile
+		throwIllegalAbstract(MG_POS, "sequence_array::StreamOut of a const shadow");
+
 	if (CanWrite())
 		const_cast<sequence_array<T>*>(this)->allocate_data(0 MG_DEBUG_ALLOCATOR_SRC_SA); // we only want to write allocated elements, so reallocate if dirty
 

@@ -628,7 +628,7 @@ void dms_minkowski_tile(ResTile&& resData, SizeT n, CharPtr operName, PerElement
 	thread_scratch<DmsMinkowskiWorker<P>> workers([operName] { return std::make_unique<DmsMinkowskiWorker<P>>(operName); });
 	std::atomic<SizeT> nrDone = 0;
 
-	constexpr SizeT blockSize = 64;
+	const SizeT blockSize = element_block_size(n, 64); // fewer elements per block when the tile has few (#1205)
 	parallel_for<SizeT>((n + blockSize - 1) / blockSize, [&](SizeT blockNr)
 		{
 			auto w = workers.local();

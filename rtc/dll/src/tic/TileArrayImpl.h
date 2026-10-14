@@ -330,48 +330,35 @@ SharedStr TileSuffix(tile_id t)
 	return result;
 }
 
-template <typename V> SizeT MinimalNrMemPages(const AbstrTileRangeData* trd);
-
-template <fixed_elem V>
-SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
-{
-	assert(trd);
-	return trd->GetNrMemPages(mpf::log2_v<nrbits_of_v<V>>);
-}
-
-template <sequence_or_string V>
-SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
-{
-	assert(trd);
-	using seq_t = typename sequence_traits<V>::polymorph_vec_t::seq_t;
-	return trd->GetNrMemPages(mpf::log2_v<nrbits_of_v<seq_t>>);
-}
-
-SizeT NrAllocTableMemPages(const AbstrTileRangeData* trd)
-{
-	auto nrTiles = trd->GetNrTiles();
-	auto tileFileChunkSize = safe_size_n<nrbits_of_v<FileChunkSpec>>(nrTiles);
-	return NrMemPages(tileFileChunkSize);
-}
-
-// the .dat file size (not the sequence file) has mappable tile data, 
-// thus each tile starts at a new mapping boundary, but the last tile can end directly after the last byte of its last element.
+// #1308: the .dat file of a stored array (for a sequence attribute: its index, not the .seq file) holds the tiles
+// back to back, in tile order, each in exactly the bytes of its elements: the constructor below gives each tile a
+// view at the end of what the tiles before it took (MappedFileHandle::allocAtEnd), and a view can start at any
+// byte, since ViewData maps from the allocation boundary below its offset.
 
 template <fixed_elem V>
 SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
+{
+	SizeT rawSize = 0;
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+		rawSize += safe_size_n<nrbits_of_v<V>>(trd->GetTileSize(t));
+	return rawSize;
+}
+
+// The size of the same .dat file as written before GeoDMS 20.24.0: the same tiles at the same places, but the file
+// was sized as if every tile but the last started on a memory page of its own, so it ended in zeros. Only for
+// recognising such a file; do not use it for a layout.
+template <fixed_elem V>
+SizeT LegacyPaddedDatFileSize(const AbstrTileRangeData* trd)
 {
 	tile_id tn = trd->GetNrTiles();
 	SizeT rawSize = 0;
 	if (tn > 1)
 	{
-		rawSize = trd->GetMemPageIndex(mpf::log2_v<nrbits_of_v<V>>, tn-1);
+		rawSize = trd->GetLegacyDatPageCount(mpf::log2_v<nrbits_of_v<V>>, tn-1);
 		rawSize <<= GetLog2MemPageSize();
 	}
 	if (tn > 0)
-	{
-		// now add the size of last tile (= tn-1) can be smaller than page size
 		rawSize += safe_size_n<nrbits_of_v<V>>(trd->GetTileSize(tn - 1));
-	}
 	return rawSize;
 }
 
@@ -380,6 +367,13 @@ SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 {
 	using seq_t = IndexRange<SizeT>; // typename sequence_traits<V>::polymorph_vec_t::seq_t;
 	return MinimalDatFileSize<seq_t>(trd);
+}
+
+template <sequence_or_string V>
+SizeT LegacyPaddedDatFileSize(const AbstrTileRangeData* trd)
+{
+	using seq_t = IndexRange<SizeT>;
+	return LegacyPaddedDatFileSize<seq_t>(trd);
 }
 
 template <typename V>
@@ -414,10 +408,13 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		// every value may be attached to the wrong element -- a wrong answer that looks plausible
 		// (issue #1187). The writer sizes this file with the very same MinimalDatFileSize<V>(trd), so
 		// equality is the right test, and it is the last line of defence for stores whose dictionary
-		// carries no domain restriction (everything written before 20.15.0).
+		// carries no domain restriction (everything written before 20.15.0). A file written before
+		// 20.24.0 has the padded size of LegacyPaddedDatFileSize instead, with the tiles at the same
+		// places (#1308), so that size is accepted as well.
 		auto expectedFileSize = dms::filesize_t(MinimalDatFileSize<V>(trd));
+		auto legacyFileSize = dms::filesize_t(LegacyPaddedDatFileSize<V>(trd));
 		auto actualFileSize = cmfh->GetFileSize();
-		if (actualFileSize != expectedFileSize)
+		if (actualFileSize != expectedFileSize && actualFileSize != legacyFileSize)
 			throwErrorF("FileTileArray"
 				, "stored array '{}' holds {} bytes, but the domain it is read into requires exactly {} bytes"
 				  " ({} elements in {} tile(s)). "
@@ -530,8 +527,6 @@ void FileTileArray<V>::SealSequences()
 	tile_id tn = this->GetTiledRangeData()->GetNrTiles();
 	if (!tn)
 		return;
-	if (tn > 1 && !m_SeqFile->m_MemPageAllocTable)
-		return; // no chunk table: the Linux allocation, which puts every grown chunk at the end (#1297)
 
 	for (tile_id t = 0; t != tn; ++t)
 		if (m_Files[t].m_NrMappedFileTiles)
@@ -553,7 +548,7 @@ void FileTileArray<V>::SealSequences()
 	if (usedBytes == m_SeqFile->GetFileSize())
 		return;
 
-	if (tn == 1 && !isDirty[0] && SingleChunkGrowsInPlace)
+	if (tn == 1 && !isDirty[0])
 	{
 		try {
 			m_SeqFile->TruncateAndClose(usedBytes);

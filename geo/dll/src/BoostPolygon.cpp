@@ -915,9 +915,9 @@ public:
 			}
 		};
 
-		constexpr SizeT blockSize = 256;
 		SizeT nrElems = poly1Array.size();
-		parallel_for<SizeT>((nrElems + blockSize - 1) / blockSize, [&processElement, &contexts, nrElems](SizeT blockNr)->void
+		const SizeT blockSize = element_block_size(nrElems, 256); // fewer elements per block when the tile has few (#1205)
+		parallel_for<SizeT>((nrElems + blockSize - 1) / blockSize, [&processElement, &contexts, nrElems, blockSize](SizeT blockNr)->void
 			{
 				auto ctx = contexts.local();
 				ConvertedPolygons converted;
@@ -2307,7 +2307,7 @@ public:
 		// cell and the partitioner's mode itself, and its result goes to its own slot.
 		SizeT n = polyArray.size();
 		std::atomic<SizeT> nrDone = 0;
-		constexpr SizeT blockSize = 64;
+		const SizeT blockSize = element_block_size(n, 64); // fewer elements per block when the tile has few (#1205)
 		parallel_for<SizeT>((n + blockSize - 1) / blockSize, [&](SizeT blockNr)
 			{
 				auto ctx = contexts.local();
