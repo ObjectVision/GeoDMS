@@ -1,13 +1,14 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-07): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-14): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
 [`doc/archive/performance-test-20.20-20.21.md`](archive/performance-test-20.20-20.21.md); where a
 section below says "above" of one of them (round 3 of "20.21.1 without deferral", the OVSRV05 section
-of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest round, 20.23.0 at
-d4f23aa43 on OVSRV05, gives 27 of 27 `ok` and the times of 20.22.1. Section 8.1.x of
+of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest round, 20.24.1 at
+4c06c9c97 on OVSRV05, gives 23 of 27 `ok`: t010, t641.1, t641.2 and t2000 stop on the relation check that
+#1293 gave `combine_data`, and the tests that ran have the times of 20.24.0. Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
 ## Results (OVSRV10), 20.22.0
@@ -705,6 +706,86 @@ t405.2 4 against 9. Report cells, peak physical / peak committed in GB: t641.1 5
   #1289 gain, 3:53. Against 20.22.0.m the round is level once t720 is counted.
 - Memory equal or lower; t2000's live peak is back at the 64 GB of `fd30ef780` after 77 GB in the two
   rounds between, a figure that moves between sittings of one build.
+
+## Results (OVSRV05), 20.24.1
+
+Run on 2026-10-14 from 13:02 to 14:24 on OVSRV05, threshold 60 as above (set by
+`scratch\launch_perf_20241.cmd` and put back to 95 after it), full.py exit 0, nothing on stderr; report
+header 1:19:39, 23 of 27 `ok`. Tree `C:\dev\GeoDMS` on `main` at `4c06c9c97` (version 20.24.1, pulled at
+12:25), GeoDMS-Test at `6c30635`. The binaries in `bin\Release\x64` were built after the pull, from 12:32
+(`Rtc.dll`) to 12:42 (`GeoDmsGuiQt.exe`), not by this session: every DLL whose sources the pull changed is
+younger than it, and `prelude.dms` and `RewriteExpr.lsp` match `res\`. `testcases\run_testcases.bat` 513
+cases, 0 bad, highest peak commit 0.29 GB. Kept as `C:\LocalData\GeoDMS_engine\head_4c06c9c97`. No
+`20_24_1_m` folder existed beforehand; full.py ran 32 experiments with no reuse.
+
+Running on the machine, from five-minute samples: the Chrome Remote Desktop host at about a third of a core,
+the Claude desktop app at a tenth, three idle VS18 windows; together 1.7 % of the 24 logical processors.
+
+The columns compared: 20.24.0.m, the round of 2026-10-10 from 16:42 to 19:58 on the local build `dd343fa16`
+(kept as `head_dd343fa16`); 20.23.1.m, the installed release, 2026-10-08 from 16:37 to 19:54; 20.23.0.m, the
+section above. All three at threshold 60, each with 27 of 27 `ok` exit codes in its own round.
+
+### Four tests stop in the meta phase: the relation check of `combine_data` (#1293)
+
+t010, t641.1, t641.2 and t2000 end with exit 1 within 2 to 19 s. The first error in each log comes from the
+check that `c247d85cc` (#1293) gave `combine_data` when it made it an operator again: with a combine record
+on its first argument, it unifies the values unit of every relation with the factor at its position
+(`clc/dll/src/OperUnit.cpp`, `CombineData_GetFactors` and the `UnifyValues` loop of `CreateResult`), and
+it requires one relation per factor. The configurations break both rules:
+
+| test | first error |
+|---|---|
+| t010 | `Relational/.../combine_data/CityForEachYear_rel`: factor 1 `NoordHollandBigCities` of `unit_CityForEachYear` against the values unit `/domains/RegionDomain` of the relation |
+| t641.1, t641.2 | `.../Uitsmeer_key/pand_grid_5m_tabel/pandAdmin_keyset` (and `pandAlloc_keyset`): factor 2, the 25 m (100 m) grid domain with its projection, against the values unit of the relation |
+| t2000 | `BouwSoortBouwJaarKlasseeigendom_rel := combine_data(BouwSoortBouwJaarKlasseEigendom, BouwSoortBouwJaarKlasse_rel, Eigendom_rel)`: X is `combine(Bouwsoort, BouwJaarWoning, Eigendom)`, "a combine of 3 factors, but 2 relations were given"; the first relation is itself a `combine_data` to `combine(Bouwsoort, BouwJaarWoning)`, so the prelude function computed the same index as three relations would |
+
+The errors after the first are its consequences: `ToedelingsMatrix` is a copy of the unit whose keyset
+failed, so its `Pand_rel` is an unknown identifier, and likewise `UniekIsolatieCode/values` and
+`GeschikteOptie/InstallatiePerProduct/RVb` in Hestia. No other commit between 20.24.0 and 20.24.1 touches
+`OperUnit.cpp`. Rerun with `run_exp.py`, t2000 computes on `head_dd343fa16` (exit 0, 1212 s) and stops after
+2 s on `head_4c06c9c97` with the same error. t010 cannot be cleared that way: on `head_dd343fa16` it stops on
+`-128c`, the literal regression STX-A25 that `36deb9395` fixed on 2026-10-13. A build of `382316377`, the
+parent of `c247d85cc`, would complete the proof; none was made.
+
+### Wall time of the tests that ran, and an A/B of the two that moved
+
+| test | 20.24.1.m (14-10) | 20.24.0.m (10-10) | 20.23.1.m (08-10) | 20.23.0.m (07-10) | against 20.24.0.m |
+|---|---|---|---|---|---|
+| t020 | 0:04:00 | 0:04:25 | 0:04:17 | 0:04:04 | 0.91 |
+| t060 | 0:01:52 | 0:02:02 | 0:01:53 | 0:01:52 | 0.92 |
+| t101 | 0:03:32 | 0:03:56 | 0:03:56 | 0:03:21 | 0.90 |
+| t200 | 0:00:37 | 0:00:39 | 0:00:39 | 0:00:38 | 0.95 |
+| t300 | 0:01:55 | 0:01:54 | 0:01:58 | 0:01:57 | 1.01 |
+| t301 | 0:02:49 | 0:02:46 | 0:02:44 | 0:02:51 | 1.02 |
+| t405.1 | 0:04:19 | 0:04:27 | 0:04:24 | 0:04:26 | 0.97 |
+| t405.2 | 0:18:36 | 0:18:29 | 0:18:53 | 0:18:45 | 1.01 |
+| t405.3 | 0:18:19 | 0:18:25 | 0:18:39 | 0:18:18 | 0.99 |
+| t410 | 0:03:59 | 0:04:05 | 0:03:55 | 0:03:53 | 0.98 |
+| t611 | 0:00:33 | 0:00:34 | 0:00:32 | 0:00:31 | 0.97 |
+| t710 | 0:01:04 | 0:01:04 | 0:01:03 | 0:01:06 | 1.00 |
+| t720 | 0:09:51 | 0:09:35 | 0:09:13 | 0:09:51 | 1.03 |
+| t810 | 0:05:48 | 0:05:18 | 0:05:00 | 0:05:06 | 1.09 |
+| t910 | 0:00:55 | 0:00:49 | 0:00:49 | 0:00:50 | 1.12 |
+| t641.1, t641.2, t2000 | stopped | 0:51:40, 0:43:51, 0:17:42 | 0:52:08, 0:44:43, 0:18:20 | 0:51:01, 0:44:53, 0:18:44 | |
+
+t810 and t910 are above all three earlier rounds, so they were rerun interleaved on `head_dd343fa16` and
+`head_4c06c9c97` the same afternoon (14:49 to 15:13), A, B, A, B, threshold 60:
+t810 315 and 311 s on 20.24.0 against 310 and 311 s on 20.24.1, t910 50 and 46 s against 47 and 47 s, with the
+same result files. Both moved with the sitting, not with the build. Memory of the tests that ran is within the
+spread of the earlier rounds (t405.2's commit peak of 47.7 GB at a PeakLiveLarge of 31 377 MB is the figure that
+moves between 29.5 and 48.9 GB on one build, see above).
+
+### Reading
+
+- Not releasable as it stands: #1293's `combine_data` rejects three configurations of the round, the Operator
+  test, RSopen and Hestia, that 20.24.0 and every earlier release compute. Two kinds: a relation whose values
+  unit differs from the factor in what `UnifyValues` compares (t010's region unit, t641's projected grid
+  domains), and a relation that encodes two leading factors at once (t2000). Whether the check becomes a
+  warning, accepts a relation to a combine of leading factors, or the configurations change, is a decision
+  outside this measurement; the commit names neither the tst unit suite nor full.py among what it ran.
+- No performance effect where the round could measure: every test that ran is within the drift between
+  sittings of the earlier rounds, and the two above it are level with 20.24.0 in an A/B. t641 and t2000, the
+  largest models, are not measured by this round.
 
 # Known causes of differences between versions
 
