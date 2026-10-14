@@ -1918,7 +1918,7 @@ namespace {
 	template <typename T>
 	field_writer MakeNumericWriter(AbstrDataObject* ado, tile_id t, SizeT fieldIndex, field_kind kind)
 	{
-		auto tile = mutable_array_cast<T>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all).get_view();
+		auto tile = mutable_array_cast<T>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all); // the writer holds the tile it writes into, not only a view of it
 		switch (kind)
 		{
 		case field_kind::integer32: return [tile, fieldIndex](const feature_ptr& f, SizeT i) mutable { AssignIntegerField<T>(tile[i], f, fieldIndex, false); };
@@ -1987,7 +1987,7 @@ namespace {
 		case ValueClassID::VT_SharedStr:
 			if (targetType == ValueClassID::VT_SharedStr)
 			{
-				auto tile = mutable_array_cast<SharedStr>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all).get_view();
+				auto tile = mutable_array_cast<SharedStr>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all); // as in MakeNumericWriter
 				return [tile, fieldIndex](const feature_ptr& f, SizeT i) mutable { AssignStringField(tile[i], f, fieldIndex); };
 			}
 			kind = (targetType == ValueClassID::VT_Float32 || targetType == ValueClassID::VT_Float64) ? field_kind::floating : field_kind::integer64;
