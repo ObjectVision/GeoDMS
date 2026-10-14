@@ -250,6 +250,8 @@ public:
 // They take the factors from the record UnitCombine_impl leaves on X (AbstrUnit::GetCombineFactors).
 // Until #1293 combine_data was a function in the prelude, computed from the values units of its
 // arguments alone; for an X without such a record it still computes that way.
+// Since (AB)C, A(BC) and ABC number their elements alike, combine_data lets a unit made by combine
+// stand for its factors on either side, in X and in the values units of its relations (#1310).
 // *****************************************************************************
 
 namespace {
@@ -278,14 +280,21 @@ namespace {
 		return result;
 	}
 
-	// The factors that the relations of combine_data(X, a1, .., an) index, one per relation. When the
-	// combine that made X recorded its factors, those, unfolded through nested combines when that makes
-	// their number equal to n, so that combine_data(V, a, b, c) on V := combine(combine(A, B), C) keeps
-	// the meaning the prelude fold gave it. Without a record, the values units of the relations.
+	// What each relation of combine_data(X, a1, .., an) indexes. When the combine that made X recorded its
+	// factors, CombineData_Matcher pairs them with the values units of the relations, and a relation indexes
+	// either one factor of X, with the range of that factor, or, when its values unit is a combine that stood
+	// for its own factors, the run of factors of X that those matched, with the range of its values unit.
+	// Without a record, each relation indexes its own values unit.
 	struct CombineDataFactors
 	{
-		std::shared_ptr<const AbstrUnit::CombineFactors> m_Record; // keeps the factors below alive
-		std::vector<const AbstrUnit*> m_Factors;
+		struct Rel
+		{
+			const AbstrUnit* m_IndexUnit = nullptr;   // the unit whose range gives the index of a value of the relation
+			std::vector<const AbstrUnit*> m_Span;    // the factors of X that the relation takes the place of, in order
+			bool m_Substituted = false;              // its values unit stood for its factors
+		};
+		std::vector<std::shared_ptr<const AbstrUnit::CombineFactors>> m_Records; // keep the factors in m_Rels alive
+		std::vector<Rel> m_Rels;
 		bool m_FromRecord = false;
 	};
 
@@ -301,33 +310,195 @@ namespace {
 		}
 	}
 
+	// a unit of one of the two streams that CombineData_Matcher pairs
+	struct CombineData_StreamUnit
+	{
+		const AbstrUnit* m_Unit = nullptr;
+		arg_index        m_RelIndex = 0; // in the stream of the relations: the relation, counted from 0
+		SharedStr        m_Path;         // "2.1" is factor 1 of factor 2; empty for the values unit of a relation itself
+	};
+	using CombineData_Stream = std::vector<CombineData_StreamUnit>; // back() comes first
+
+	struct CombineData_Match
+	{
+		arg_index        m_RelIndex = 0;
+		const AbstrUnit* m_Factor = nullptr; // a factor of X, or of a combine among them
+		bool             m_Whole = false;    // the values unit of the relation itself matched m_Factor
+	};
+
+	// Pairs the factors of X, from the left, with the values units of the relations (#1310). Two units that are
+	// the same are a pair. Otherwise a unit made by combine may stand for its factors, a factor of X first and
+	// else the values unit of a relation, so that combine_data(V, a, b, c) on V := combine(combine(A, B), C)
+	// keeps the meaning the prelude fold gave it and combine_data(X, ab_rel, c_rel) on X := combine(A, B, C)
+	// takes a relation to combine(A, B) for the first two. Two units that neither are the same nor stand for
+	// anything must unify as values. When a choice does not end both streams together, the next is tried.
+	struct CombineData_Matcher
+	{
+		const AbstrOperGroup* m_Group;
+		const AbstrUnit*      m_XUnit;
+		const ArgSeqType&     m_Args;
+		const AbstrUnit::CombineFactors& m_Record;
+		bool                  m_MetaPhase;
+		std::vector<std::shared_ptr<const AbstrUnit::CombineFactors>>& m_Records;
+		std::vector<CombineData_Match> m_Matches;
+
+		const AbstrUnit* ValuesUnit(arg_index k) const { return AsDataItem(m_Args[k + 1])->GetAbstrValuesUnit(); }
+
+		const AbstrUnit::CombineFactors* Factors(const AbstrUnit* unit)
+		{
+			auto factors = m_MetaPhase ? unit->GetCombineFactors() : unit->GetCurrCombineFactors();
+			if (!factors)
+				return nullptr;
+			if (std::find(m_Records.begin(), m_Records.end(), factors) == m_Records.end())
+				m_Records.emplace_back(factors);
+			return factors.get();
+		}
+
+		bool IsSame(const AbstrUnit* a, const AbstrUnit* b) const
+		{
+			if (a == b)
+				return true;
+			if (a->GetValueType() != b->GetValueType())
+				return false;
+			return m_MetaPhase
+				? a->GetUltimateItem() == b->GetUltimateItem()
+				: a->GetCurrUltimateItem() == b->GetCurrUltimateItem();
+		}
+
+		// the units of a calculation have no full name of their own, so the roles name them
+		SharedStr FactorRole(const CombineData_StreamUnit& f) const
+		{
+			return mySSPrintF("factor {} {} of {}", f.m_Path.c_str(), f.m_Unit->GetSourceName().c_str(), m_XUnit->GetSourceName().c_str());
+		}
+		SharedStr RelRole(const CombineData_StreamUnit& r) const
+		{
+			if (r.m_Path.empty())
+				return mySSPrintF("Values {} of argument {}", r.m_Unit->GetSourceName().c_str(), r.m_RelIndex + 2);
+			return mySSPrintF("factor {} {} of Values {} of argument {}"
+			,	r.m_Path.c_str(), r.m_Unit->GetSourceName().c_str(), ValuesUnit(r.m_RelIndex)->GetSourceName().c_str(), r.m_RelIndex + 2
+			);
+		}
+
+		bool Unify(const CombineData_StreamUnit& f, const CombineData_StreamUnit& r, bool mustThrow) const
+		{
+			// a literal comes with a default unit, of whatever integer type the parser gave it
+			auto um = UnifyMode(UM_AllowDefault);
+			if (r.m_Unit->IsDefaultUnit() && r.m_Unit->GetNrDimensions() == 1 && f.m_Unit->GetNrDimensions() == 1)
+				um = um | UM_AllowTypeDiff;
+			if (!mustThrow)
+				return f.m_Unit->UnifyValues(r.m_Unit, "", "", um);
+			auto factorRole = FactorRole(f), relRole = RelRole(r);
+			return f.m_Unit->UnifyValues(r.m_Unit, factorRole.c_str(), relRole.c_str(), um | UM_Throw);
+		}
+
+		static auto Substituted(CombineData_Stream stream, const AbstrUnit::CombineFactors& factors) -> CombineData_Stream
+		{
+			auto combined = stream.back();
+			stream.pop_back();
+			for (SizeT j = factors.size(); j--; )
+				stream.push_back({ factors[j].get(), combined.m_RelIndex
+				,	combined.m_Path.empty() ? mySSPrintF("{}", j + 1) : mySSPrintF("{}.{}", combined.m_Path.c_str(), j + 1)
+				});
+			return stream;
+		}
+
+		void ThrowUnpaired(const CombineData_Stream& factors, const CombineData_Stream& rels) const
+		{
+			std::vector<const AbstrUnit*> unfolded;
+			CombineData_Unfold(m_Record, unfolded, m_MetaPhase);
+			auto unfoldedStr = (unfolded.size() != m_Record.size())
+				? mySSPrintF(", or {} after unfolding the combines among them", unfolded.size())
+				: SharedStr();
+			auto unpaired = !factors.empty()
+				? mySSPrintF("factor {} {} is left without a relation", factors.back().m_Path.c_str(), factors.back().m_Unit->GetSourceName().c_str())
+				: mySSPrintF("{} is left without a factor", RelRole(rels.back()).c_str());
+			m_Group->throwOperErrorF("{} is a combine of {} factors{}, but {} relations were given, and {}"
+			,	m_XUnit->GetSourceName().c_str(), m_Record.size(), unfoldedStr.c_str(), m_Args.size() - 1, unpaired.c_str()
+			);
+		}
+
+		// Appends the pairs to m_Matches and returns true, or leaves m_Matches as it found it and returns false.
+		// mustThrow: take the first choice at every step and throw where it fails.
+		bool Match(CombineData_Stream factors, CombineData_Stream rels, bool mustThrow)
+		{
+			SizeT nrMatches = m_Matches.size();
+			while (!factors.empty() && !rels.empty())
+			{
+				const auto& f = factors.back();
+				const auto& r = rels.back();
+				if (!IsSame(f.m_Unit, r.m_Unit))
+				{
+					// with mustThrow, a Match below returns true or throws
+					if (auto fFactors = Factors(f.m_Unit))
+						if (Match(Substituted(factors, *fFactors), rels, mustThrow))
+							return true;
+					if (auto rFactors = Factors(r.m_Unit))
+						if (Match(factors, Substituted(rels, *rFactors), mustThrow))
+							return true;
+					if (!Unify(f, r, mustThrow))
+					{
+						m_Matches.resize(nrMatches);
+						return false;
+					}
+				}
+				m_Matches.push_back({ r.m_RelIndex, f.m_Unit, r.m_Path.empty() });
+				factors.pop_back();
+				rels.pop_back();
+			}
+			if (factors.empty() && rels.empty())
+				return true;
+			if (mustThrow)
+				ThrowUnpaired(factors, rels);
+			m_Matches.resize(nrMatches);
+			return false;
+		}
+	};
+
 	auto CombineData_GetFactors(const AbstrOperGroup* og, const AbstrUnit* xUnit, const ArgSeqType& args, bool metaPhase) -> CombineDataFactors
 	{
 		arg_index nrRels = args.size() - 1;
 		CombineDataFactors result;
-		result.m_Record = metaPhase ? xUnit->GetCombineFactors() : xUnit->GetCurrCombineFactors();
-		if (!result.m_Record)
+		result.m_Rels.resize(nrRels);
+		auto record = metaPhase ? xUnit->GetCombineFactors() : xUnit->GetCurrCombineFactors();
+		if (!record)
 		{
-			for (arg_index i = 1; i <= nrRels; ++i)
-				result.m_Factors.emplace_back(AsDataItem(args[i])->GetAbstrValuesUnit());
+			for (arg_index k = 0; k != nrRels; ++k)
+			{
+				auto valuesUnit = AsDataItem(args[k + 1])->GetAbstrValuesUnit();
+				result.m_Rels[k].m_IndexUnit = valuesUnit;
+				result.m_Rels[k].m_Span.emplace_back(valuesUnit);
+			}
 			return result;
 		}
 		result.m_FromRecord = true;
-		if (result.m_Record->size() == nrRels)
+		result.m_Records.emplace_back(record);
+
+		CombineData_Matcher matcher{ og, xUnit, args, *record, metaPhase, result.m_Records };
+		CombineData_Stream factors, rels;
+		for (SizeT i = record->size(); i--; )
+			factors.push_back({ (*record)[i].get(), 0, mySSPrintF("{}", i + 1) });
+		for (arg_index k = nrRels; k--; )
+			rels.push_back({ matcher.ValuesUnit(k), k, SharedStr() });
+		if (!matcher.Match(factors, rels, false))
 		{
-			for (const auto& factor : *result.m_Record)
-				result.m_Factors.emplace_back(factor.get());
-			return result;
+			bool matched = matcher.Match(factors, rels, true); // throws where the first choices fail
+			MG_CHECK(matched);
 		}
-		CombineData_Unfold(*result.m_Record, result.m_Factors, metaPhase);
-		if (result.m_Factors.size() != nrRels)
+
+		for (arg_index k = 0; k != nrRels; ++k)
 		{
-			auto unfolded = (result.m_Factors.size() != result.m_Record->size())
-				? mySSPrintF(", or {} after unfolding the combines among them", result.m_Factors.size())
-				: SharedStr();
-			og->throwOperErrorF("{} is a combine of {} factors{}, but {} relations were given"
-			,	xUnit->GetSourceName().c_str(), result.m_Record->size(), unfolded.c_str(), nrRels
-			);
+			result.m_Rels[k].m_IndexUnit = matcher.ValuesUnit(k);
+			result.m_Rels[k].m_Substituted = true; // until a pair says it matched whole
+		}
+		for (const auto& match : matcher.m_Matches)
+		{
+			auto& rel = result.m_Rels[match.m_RelIndex];
+			rel.m_Span.emplace_back(match.m_Factor);
+			if (match.m_Whole)
+			{
+				rel.m_IndexUnit = match.m_Factor;
+				rel.m_Substituted = false;
+			}
 		}
 		return result;
 	}
@@ -414,7 +585,7 @@ namespace {
 			sb.ArgUnit(0, V);
 			sb.RepeatArgs(1, no_sig_var, D, ValueComposition::Single);
 			sb.ResultAttr(V, D, ValueComposition::Single);
-			sb.DeferredRelation("the values unit of relation i matches factor i of the combine that made V");
+			sb.DeferredRelation("the values units of the relations match the factors of the combine that made V, a combine on either side standing for its factors");
 			return true;
 		}
 
@@ -451,21 +622,7 @@ namespace {
 					}
 				}
 
-				auto factors = CombineData_GetFactors(GetGroup(), xUnit, args, true);
-				if (factors.m_FromRecord)
-					for (arg_index k = 0; k != nrRels; ++k)
-					{
-						const AbstrUnit* factor = factors.m_Factors[k];
-						const AbstrUnit* argValuesUnit = AsDataItem(args[k + 1])->GetAbstrValuesUnit();
-						// a literal comes with a default unit, of whatever integer type the parser gave it
-						auto um = UnifyMode(UM_Throw | UM_AllowDefault);
-						if (argValuesUnit->IsDefaultUnit() && argValuesUnit->GetNrDimensions() == 1 && factor->GetNrDimensions() == 1)
-							um = um | UM_AllowTypeDiff;
-						// the units of a calculation have no full name of their own, so the roles name them
-						auto leftRole  = mySSPrintF("factor {} {} of {}", k + 1, factor->GetSourceName().c_str(), xUnit->GetSourceName().c_str());
-						auto rightRole = mySSPrintF("Values {} of argument {}", argValuesUnit->GetSourceName().c_str(), k + 2);
-						factor->UnifyValues(argValuesUnit, leftRole.c_str(), rightRole.c_str(), um);
-					}
+				CombineData_GetFactors(GetGroup(), xUnit, args, true); // throws when the relations do not match the factors of X
 
 				resultHolder = CreateCacheDataItem(domain, xUnit);
 				resultHolder->SetTSF(TSF_Categorical);
@@ -476,9 +633,28 @@ namespace {
 				auto res = AsDataItem(resultHolder.GetNew());
 				auto factorUnits = CombineData_GetFactors(GetGroup(), xUnit, args, false);
 
+				// per relation, the range that gives its index, and the number of elements of the factors of X it takes the place of
 				std::vector<CombineFactor> factors; factors.reserve(nrRels);
-				for (auto factor : factorUnits.m_Factors)
-					factors.emplace_back(GetCombineFactor(factor));
+				std::vector<SizeT> spanCounts; spanCounts.reserve(nrRels);
+				for (arg_index k = 0; k != nrRels; ++k)
+				{
+					const auto& rel = factorUnits.m_Rels[k];
+					factors.emplace_back(GetCombineFactor(rel.m_IndexUnit));
+					SizeT spanCount = factors.back().m_Count;
+					if (rel.m_Substituted)
+					{
+						// factors of X, which multiply to #X, so this cannot overflow
+						spanCount = 1;
+						for (auto factor : rel.m_Span)
+							spanCount *= GetCombineFactor(factor).m_Count;
+						// the factors of the values unit unified with those of X as values, which says nothing of their counts
+						if (spanCount != factors.back().m_Count)
+							GetGroup()->throwOperErrorF("the values unit {} of argument {} has {} elements, but the factors of {} that its factors stand for have {} combinations"
+							,	rel.m_IndexUnit->GetSourceName().c_str(), k + 2, factors.back().m_Count, xUnit->GetSourceName().c_str(), spanCount
+							);
+					}
+					spanCounts.push_back(spanCount);
+				}
 
 				// the weight of each index: the product of the counts of the later factors, saturated, which only
 				// an X without a record can reach, and then CombineData_AddArg checks every sum against #X
@@ -487,7 +663,7 @@ namespace {
 				for (arg_index k = nrRels; k--; )
 				{
 					multipliers[k] = multiplier;
-					SizeT count = factors[k].m_Count;
+					SizeT count = spanCounts[k];
 					multiplier = (count && multiplier > MAX_VALUE(SizeT) / count) ? MAX_VALUE(SizeT) : multiplier * count;
 				}
 				SizeT countX = AsUnit(xUnit->GetCurrRangeItem().get())->GetCount();

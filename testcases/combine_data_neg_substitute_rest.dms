@@ -1,0 +1,19 @@
+// #1310: in combine_data a combine in the values unit of a relation may stand for its factors, but they
+// must end together with the factors of X. A relation to combine(Town, Year, Mode) for X := combine(Town,
+// Year) leaves Mode without a factor of X, and is refused in the meta phase. Expected: exit nonzero on /checks.
+container combine_data_neg_substitute_rest
+{
+	unit<uint32> Town : nrofrows = 3;
+	unit<uint32> Year : nrofrows = 4;
+	unit<uint32> Mode : nrofrows = 2;
+	unit<uint32> Row  : nrofrows = 6;
+	unit<uint32> TY   := combine_unit(Town, Year);
+	unit<uint32> TYM  := combine_unit(Town, Year, Mode);
+
+	attribute<TYM> tym_rel (Row) := combine_data(TYM, value(id(Row) % 3, Town), value(id(Row) % 4, Year), value(id(Row) % 2, Mode));
+
+	container checks
+	{
+		parameter<uint32> n := count(combine_data(TY, tym_rel));
+	}
+}

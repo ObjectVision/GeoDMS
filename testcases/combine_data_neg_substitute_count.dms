@@ -1,0 +1,23 @@
+// #1310: in combine_data a combine in the values unit of a relation may stand for its factors, which are then
+// paired with factors of X. Month and Year unify as values, both uint32 without a metric, but a relation to
+// combine(Town, Month) cannot number the combinations of Town and Year, and is refused when it is calculated,
+// which the IntegrityCheck forces; a build that computed a key from it anyway would pass the check.
+// Expected: exit nonzero on /checks.
+container combine_data_neg_substitute_count
+{
+	unit<uint32> Town  : nrofrows = 3;
+	unit<uint32> Year  : nrofrows = 4;
+	unit<uint32> Month : nrofrows = 12;
+	unit<uint32> Mode  : nrofrows = 2;
+	unit<uint32> Row   : nrofrows = 6;
+	unit<uint32> TM    := combine_unit(Town, Month);
+	unit<uint32> TYM   := combine_unit(Town, Year, Mode);
+
+	attribute<TM>   tm_rel   (Row) := combine_data(TM, value(id(Row) % 3, Town), value(id(Row) % 12, Month));
+	attribute<Mode> mode_rel (Row) := value(id(Row) % 2, Mode);
+
+	container checks
+	{
+		parameter<uint32> n := count(combine_data(TYM, tm_rel, mode_rel)), IntegrityCheck = "n == 6";
+	}
+}
