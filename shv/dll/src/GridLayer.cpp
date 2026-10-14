@@ -774,7 +774,8 @@ void GridLayer::CopySelValues()
 	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttr();
 	dms_assert(selAttr);                // PRECONDITION
 
-	bit_iterator<1, const UInt32> selArray = const_array_cast<Bool>(selAttr)->GetDataRead().begin();
+	auto selData = const_array_cast<Bool>(selAttr)->GetDataRead(); // readLocks holds the item, this holds the data that selArray points into
+	bit_iterator<1, const UInt32> selArray = selData.begin();
 
 	Theme* colorTheme   = m_Themes[AN_BrushColor].get();
 	Theme* featureTheme = m_Themes[AN_Feature   ].get();
@@ -786,7 +787,8 @@ void GridLayer::CopySelValues()
 
 	const AbstrDataItem*      colorAttr = colorTheme->GetThemeAttr();
 	const DataArray<ClassID>* colorData = const_array_cast<ClassID>( colorAttr );
-	const ClassID*            colorArray= colorData->GetDataRead().begin();
+	auto                      colorValues = colorData->GetDataRead(); // holds the data that colorArray points into
+	const ClassID*            colorArray= colorValues.begin();
 
 	IRect gridRange = colorTheme->GetThemeEntityUnit()->GetRangeAsIRect();
 	Int32 gridWidth = Width(gridRange);
@@ -904,7 +906,6 @@ void GridLayer::PasteNow()
 	AbstrDataItem*      colorAttr = const_cast<AbstrDataItem*>(colorTheme->GetThemeAttrSource());
 	DataWriteLock lock(colorAttr, dms_rw_mode::read_write);
 	DataArray<ClassID>* colorData = mutable_array_cast<ClassID>( lock.get() );
-	ClassID*            colorArray= colorData->GetDataWrite(no_tile, dms_rw_mode::read_write).begin();
 
 	IRect pselRect = m_PasteHandler->GetSelValues()->m_Rect;
 	IRect gridRect = colorAttr->GetAbstrDomainUnit()->GetRangeAsIRect();
@@ -914,14 +915,19 @@ void GridLayer::PasteNow()
 	UInt32 nrCols = Right(copyRect) - Left(copyRect);
 	const ClassID* pselArray = m_PasteHandler->GetSelValues()->m_Data;
 
-	for (Int32 row = Top(copyRect); row != Bottom(copyRect); ++row)
 	{
-		const ClassID* srcPtr = pselArray + Range_GetIndex_naked(pselRect, shp2dms_order(IPoint(Left(copyRect),row)));
-		copy_defined(
-			srcPtr,
-			srcPtr + nrCols,
-			colorArray + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(copyRect),row)))
-		);
+		// named, and gone before the Commit: over a tiled grid this is a shadow of all tiles, which writes itself back into them when it goes
+		auto colorValues = colorData->GetDataWrite(no_tile, dms_rw_mode::read_write);
+		ClassID* colorArray = colorValues.begin();
+		for (Int32 row = Top(copyRect); row != Bottom(copyRect); ++row)
+		{
+			const ClassID* srcPtr = pselArray + Range_GetIndex_naked(pselRect, shp2dms_order(IPoint(Left(copyRect),row)));
+			copy_defined(
+				srcPtr,
+				srcPtr + nrCols,
+				colorArray + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(copyRect),row)))
+			);
+		}
 	}
 	lock.Commit();
 	dataChangeLock.ProcessChange();

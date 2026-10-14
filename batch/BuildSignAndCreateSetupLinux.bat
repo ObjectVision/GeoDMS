@@ -31,6 +31,9 @@ REM capture below (and the WSL geodms_wsldir derived from it) points at the repo
 REM the relative nsi/ + TestLinuxReleaseUnit.sh references resolve.
 cd /d "%~dp0.."
 
+REM At Normal priority, whatever the console it is started from: see batch\RaisePriorityToNormal.ps1.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RaisePriorityToNormal.ps1"
+
 REM Version comes from GeoDmsVersion.cmd in the repo root (shared with the msbuild +
 REM cmake sister scripts). Bump the patch number there, not here.
 REM Called by an explicit path, not by bare name: cmd resolves a bare name through the

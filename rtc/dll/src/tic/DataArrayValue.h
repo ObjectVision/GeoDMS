@@ -31,14 +31,6 @@ auto GetValue(const AbstrDataItem* adi, SizeT idx)
 }
 
 template <typename V>
-auto GetReference(const AbstrDataItem* adi, SizeT idx) 
-	-> DataArrayBase<V>::const_reference
-{
-	PreparedDataReadLock lck(adi);
-	return const_array_cast<V>(adi)->GetIndexedValue(idx);
-}
-
-template <typename V>
 auto GetCurrValue(const AbstrDataItem* adi, SizeT idx)
 	-> typename DataArrayBase<V>::value_type
 {

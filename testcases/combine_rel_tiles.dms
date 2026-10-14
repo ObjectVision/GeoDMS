@@ -1,0 +1,20 @@
+// #1309: id() and the factor relations first_rel .. of combine compute a tile when it is asked for and
+// keep nothing per tile. Over a result of several tiles they give the same values as before: the
+// relations recombine to id(X), and each one agrees with the decoding of #1293 and with the arithmetic.
+container combine_rel_tiles
+{
+	unit<uint32> A : nrofrows = 300;
+	unit<uint32> B : nrofrows = 500;
+	unit<uint32> C : nrofrows = 7;
+	unit<uint32> X := combine(A, B, C); // 1.050.000 elements, 17 tiles of 2^16
+
+	container checks
+	{
+		parameter<bool> c_id     := min(id(X)) == 0 && max(id(X)) == #X - 1, IntegrityCheck = "c_id == true";
+		parameter<bool> c_recomb := all(combine_data(X, X/first_rel, X/second_rel, X/third_rel) == id(X)), IntegrityCheck = "c_recomb == true";
+		parameter<bool> c_decode := all(X/first_rel == first_rel(id(X)) && X/second_rel == second_rel(id(X)) && X/third_rel == third_rel(id(X))), IntegrityCheck = "c_decode == true";
+		parameter<bool> c_arith  := all(X/first_rel == value(id(X) / (#B * #C), A) && X/third_rel == value(id(X) % #C, C)), IntegrityCheck = "c_arith == true";
+		// the same relation twice in one expression: two requests for the same tile at once
+		parameter<bool> c_twice  := all(X/second_rel == X/second_rel), IntegrityCheck = "c_twice == true";
+	}
+}

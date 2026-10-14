@@ -7,7 +7,10 @@ function of its own and a binary attribute operator holds its result weakly (0fc
 §3.3); `mapping_count` became a fifth direct
 `LazyTileFunctor` site (1ba7854d6, §4.3); `materialization` gained `spilled` for `FileTileArray`
 (fa3d7e50c) and `PredictMaterialization` no longer mislabels `KeepData` results (§4.7); the
-storage read moved to `StorageReadOperators.cpp` under #587 (bcf7317ec, observation 2). `ElementWeight` and `EasyRereadTiles`, which no code called, were deleted on 2026-10-06 (2ba5557d3, fc31ce5c5).*
+storage read moved to `StorageReadOperators.cpp` under #587 (bcf7317ec, observation 2). `ElementWeight` and `EasyRereadTiles`, which no code called, were deleted on 2026-10-06 (2ba5557d3, fc31ce5c5). Under #1309 (2026-10-14) `id()` and the factor
+relations of `combine` moved from `LazyTileFunctor` to the new `GeneratorTileFunctor`, which keeps
+no record per tile, only a table of 64 recent tiles (§3.5a, §4.3); three sites still call
+`make_unique_LazyTileFunctor` directly.*
 
 Inventory of all (template) classes deriving from `AbstrDataObject` and analysis of whether each
 one **retains** lazily calculated (future) tiles, or **recalculates** them after all consumers
@@ -83,6 +86,7 @@ SharedObj
          │  ├─ HeapSingleValue<V>                     TileArrayImpl.h       RETAINS
          │  ├─ FileTileArray<V>                       TileArrayImpl.h       RETAINS (on disk)
          │  ├─ LazyTileFunctor<V, MustZero, ApplyFunc> TileFunctorImpl.h    RECALCULATES
+         │  ├─ GeneratorTileFunctor<V, GenFunc>       TileFunctorImpl.h    RECALCULATES
          │  └─ ConstTileFunctor<V>                    clc/dll/src/ConstOper.h  RECALCULATES
          └─ DelayedTileFunctor<V>  [owns future_tile records]  TileFunctorImpl.h
             └─ FutureTileFunctor<V,PrepareState,MustZero,PrepareFunc,ApplyFunc>
@@ -194,6 +198,26 @@ contain no classes deriving from `AbstrDataObject` or any of the classes above (
   when the last consumer releases; refilled on the next request. Recomputation is a
   `fast_fill`, but it does allocate a full tile each time the value is re-requested from cold.
 
+### 3.5a GeneratorTileFunctor — recalculates, remembers a few recent tiles
+
+- No state per tile: a fixed table of 64 recently generated tiles, held weakly in slot
+  `t % 64`, under one mutex (`TileFunctorImpl.h`, #1309). Construction costs nothing per tile. A
+  `LazyTileFunctor` allocates a `std::mutex` and a `std::weak_ptr` per tile when it is
+  constructed, 96 bytes per tile, which for the 10^12 elements of `combine_uint64(Big, Big)` came
+  to 1.4 GB per factor relation before any tile was read.
+- `GetTile(t)` hands out the tile in its slot if it is still held by someone; otherwise it
+  allocates a buffer, lets the generator write every element of it outside the mutex, and puts it
+  in the slot. A consumer that holds a tile and reads it element by element, each read calling
+  `GetTile` again, therefore finds it there: a table cell (`IsDataRowNull`, `AsCharArraySize`,
+  `AsCharArray`), `FeatureLayer::GetMaxLabelStrLen` (`AsString` per element under a
+  `ReadableTileLock`), map labels, `GetStatistics`. Without the table each of those reads would
+  generate the whole tile.
+- Differences from a `LazyTileFunctor`: two requests for a tile that nobody holds may both
+  generate it (no per-tile mutex), and a held tile whose slot another tile took is generated
+  again. For an arithmetic fill that costs about as much as the copy that sharing saves.
+- Used only where a tile is a cheap function of its tile id: `id()` and `first_rel` ..
+  `sixteenth_rel` of `combine` (§4.3).
+
 ### 3.6 GeneratedTileFunctor (mid-layer) — delegating
 
 - Contributes only the future implementation: `future_caller` stores `(t, SharedPtr self)` and
@@ -303,15 +327,17 @@ reachable only until each consumer tile is computed.
 
 ### 4.3 Unconditionally lazy channels (bypass the fork and the `lazy` flag)
 
-Five sites call `make_unique_LazyTileFunctor` directly (counted on 2026-10-06; four when this was
-written), so they **always** recalculate — the `LazyCalculated` property is never consulted:
+Five sites install a recalculating functor without consulting the `LazyCalculated` property, so
+they **always** recalculate. Three call `make_unique_LazyTileFunctor` directly; `id()` and the
+`combine()` back-refs did so too until #1309 and now make a `GeneratorTileFunctor` (§3.5a)
+(counted on 2026-10-14; four sites when this was written):
 
 | Site | Gate | Notes |
 |---|---|---|
 | `AbstrMappingOperator::CreateResult` (`clc/dll/include/CastedUnaryAttrOper.h`) | `IsMultiThreaded3() && tn>1 && !IsInMMD(res)` — no `lazy` | Retains interest in both argument units via `SharedUnitInterestPtr` captured in the closure, then re-runs `Calculate` per request. The `tn > 1` conjunct was added 2026-07-30 to conform to §4.2; before that a single-tile mapping result was lazy too, recomputing its only tile on every access after a release. |
 | `AbstrMappingCountOperator::CreateResult` (`CastedUnaryAttrOper.h`) | `HasIndependentResultTiles(*mappingState)` (a coordinate-separable transformation), then `IsMultiThreaded3() && tn>1 && !IsInMMD(res)`; no `lazy` | Added by 1ba7854d6 (#298, 2026-08-10): `mapping_count` produces result tiles on demand like `mapping`, with the same closure shape. Without a separable cross it stays a serial loop over the source tiles. |
-| `AbstrIDOperator::CreateResult` (`clc/dll/src/OperMappings.cpp`, formerly `ID.cpp`) | none at all | `id()` is a pure generator; the result also sets `SetFreeDataState(true)` ("never cache"), so recomputation is the intended design rather than a fallback. |
-| `combine()` back-refs (`clc/dll/src/OperUnit.cpp`) | none at all | One lazy functor per `first_rel`/`second_rel`/… sub-item; each tile is regenerated arithmetically from `(groupSize, cycleSize, unitCount)`. |
+| `AbstrIDOperator::CreateResult` (`clc/dll/src/OperMappings.cpp`, formerly `ID.cpp`) | none at all | `id()` is a pure generator; the result also sets `SetFreeDataState(true)` ("never cache"), so recomputation is the intended design rather than a fallback. A `GeneratorTileFunctor` since #1309. |
+| `combine()` back-refs (`clc/dll/src/OperUnit.cpp`) | none at all | One functor per `first_rel`/`second_rel`/… sub-item; each tile is regenerated arithmetically from `(groupSize, cycleSize, unitCount)`. A `GeneratorTileFunctor` since #1309. |
 | Storage read (`ReadDataItemInto`, `tic/stg/StorageReadOperators.cpp`; before #587 `AbstrDataItem::DoReadItem`) | `IsMultiThreaded3() && tn>1 && sm->AllowRandomTileAccess()`, values in `typelists::numerics` | *Every* random-access storage manager gets the lazy re-reading functor (the `EasyRereadTiles()` distinction was short-circuited before the move and is not consulted: the virtual is still declared in `AbstrStorageManager.h` and overridden by the memory-mapped manager, but nothing calls it). The closure holds a `reader_clone_farm` so concurrent tile reads use per-thread reader clones. |
 
 For the first four the recompute cost is a small arithmetic kernel, so weak retention is a
@@ -383,7 +409,7 @@ exact:
 | `meta` | none (unit or container result) | n/a |
 | `eager` | `HeapTileArray` / `HeapSingle*` via `DataWriteLock::Commit` | §3.1 — retains |
 | `deferred` | `FutureTileFunctor` | §3.3 — retains once computed |
-| `streaming` | `LazyTileFunctor` | §3.4 — recalculates |
+| `streaming` | `LazyTileFunctor`, `GeneratorTileFunctor` | §3.4, §3.5a — recalculate |
 | `spilled` | `FileTileArray` via `DataWriteLock::Commit` under an `MmdStorageManager` | §3.2, retains on disk |
 
 `spilled` was added on 2026-07-30 (fa3d7e50c): until then a `FileTileArray` counted as `eager` and
@@ -440,6 +466,7 @@ supplier interest on the `AbstrDataItem` the whole time and now requests read ac
 | `FileTileArray` | retained on disk; mapping closed | re-map + OS page-in (I/O, no recompute) |
 | `FutureTileFunctor` (via `DelayedTileFunctor`) | retained in the owned `tile_record` once computed (first demand computes under mutex) | pointer handout |
 | `LazyTileFunctor` | **freed** at A's last release (object holds only a weak ref) | full re-run of the apply functor; cascades into lazy suppliers / storage re-read |
+| `GeneratorTileFunctor` | **freed** at A's last release; while held, found again through its slot of the 64 recent tiles | a full run of the generator |
 | `ConstTileFunctor` | **freed** at A's last release | reallocate + refill with the constant |
 | `GeneratedTileFunctor::future_caller` held by B | caches nothing itself | whatever the leaf's `GetTile` costs (rows above) |
 
@@ -462,10 +489,13 @@ supplier interest on the `AbstrDataItem` the whole time and now requests read ac
   top of a fully retaining `HeapTileArray`.
 - **Thundering herd**: both `LazyTileFunctor` and `tile_record` compute under a per-tile mutex,
   so simultaneous requesters never duplicate work; duplication happens only across
-  *non-overlapping* access intervals.
+  *non-overlapping* access intervals. A `GeneratorTileFunctor` generates outside its mutex:
+  simultaneous requesters of a tile that nobody holds each generate it (§3.5a).
 - **Failure propagation**: `LazyTileFunctor` and `DelayedTileFunctor` report calculation
   failures into the owning item via the weak `m_ResultAdi` back-ref and re-throw on subsequent
-  requests (`TileFunctorImpl.h:55-71`, `226-256`).
+  requests (`TileFunctorImpl.h:55-71`, `226-256`). A `GeneratorTileFunctor` has no back-ref: a
+  failure of its generator, in practice only a failed allocation, reaches the consumer and is not
+  recorded on the item.
 
 ---
 
@@ -483,6 +513,7 @@ supplier interest on the `AbstrDataItem` the whole time and now requests read ac
 | `DelayedTileFunctor<V>` | mid-layer | retains whatever its records hold |
 | `FutureTileFunctor<V,...>` | leaf, `deferred` | **retains** once first computed; never evicts |
 | `LazyTileFunctor<V,MustZero,ApplyFunc>` | leaf, `streaming` | **recalculates** after last release |
+| `GeneratorTileFunctor<V,GenFunc>` | leaf, `streaming` | **recalculates** after last release; nothing per tile |
 | `ConstTileFunctor<V>` (clc) | leaf, lazy | **recalculates** (refill) after last release |
 
 Which class an item ends up with is decided entirely at creation time (§4): the seven MT3-gated
@@ -498,7 +529,7 @@ Observations that may warrant follow-up:
 
 1. Supplier interest does not pin lazy tiles — only live `TileCRef`s do. Consumers that release
    between accesses silently pay recomputation on every `LazyTileFunctor` /
-   `ConstTileFunctor` / shadow-tile path.
+   `GeneratorTileFunctor` / `ConstTileFunctor` / shadow-tile path.
 2. The storage random-tile-access read path is unconditionally lazy
    (`ReadDataItemInto` in `rtc/dll/src/tic/stg/StorageReadOperators.cpp` since #587; the
    `if (true || sm->EasyRereadTiles())` it had in `AbstrDataItem.cpp` was deleted in bcf7317ec, and

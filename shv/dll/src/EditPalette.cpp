@@ -731,9 +731,13 @@ void EditPaletteControl::FillStdColors()
 		{
 			DataWriteLock dwl(colorAttr);
 			DataArray<UInt32>* colorData = mutable_array_cast<UInt32>(dwl);
-			UInt32* colorArray = colorData->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin();
-			for (UInt32 i = 0; i !=n; ++i)
-				colorArray[i] = STG_Bmp_GetDefaultColor(i & 0xFF);
+			{
+				// named, and gone before the Commit: over a tiled domain this is a shadow of all tiles, which writes itself back into them when it goes
+				auto colorValues = colorData->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+				UInt32* colorArray = colorValues.begin();
+				for (UInt32 i = 0; i !=n; ++i)
+					colorArray[i] = STG_Bmp_GetDefaultColor(i & 0xFF);
+			}
 			dwl.Commit();
 		}
 	}

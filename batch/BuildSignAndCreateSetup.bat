@@ -5,6 +5,9 @@ REM This script now lives in <repo-root>\batch; re-root to the repo root so all 
 REM relative paths below (all22.sln, nsi, distr, ..\tst\batch, %cd% capture) resolve.
 cd /d "%~dp0.."
 
+REM At Normal priority, whatever the console it is started from: see batch\RaisePriorityToNormal.ps1.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RaisePriorityToNormal.ps1"
+
 REM It asks a question only where BuildSignAndCreateSetupCmake.bat does: when another build is
 REM running, and after vcpkg drift (30 s, default yes). Every other step is checked and stops the
 REM script when the check fails: the source checks, msbuild's exit code and a no-op build, the

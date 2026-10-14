@@ -69,7 +69,8 @@ struct DataArrayOperator : TernaryOperator
 			return true;
 
 		DataReadLock readLock(arg3A);
-		auto dataBlock = const_array_cast<SharedStr>(arg3A)->GetDataRead()[0];
+		auto dataLock = const_array_cast<SharedStr>(arg3A)->GetDataRead(); // readLock holds the item, this the data that dataBlock points into
+		auto dataBlock = dataLock[0];
 		AbstrDataItem* resultAttr = AsDataItem(resultHolder.GetNew());
 
 		assert(!IsDataReady(resultAttr)); // must be here only once.

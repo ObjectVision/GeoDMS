@@ -17,6 +17,9 @@ REM This script now lives in <repo-root>\batch; re-root to the repo root so all 
 REM relative paths below (all22.sln, nsi, distr, ..\tst\batch, %cd% capture) resolve.
 cd /d "%~dp0.."
 
+REM At Normal priority, whatever the console it is started from: see batch\RaisePriorityToNormal.ps1.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RaisePriorityToNormal.ps1"
+
 REM Version comes from GeoDmsVersion.cmd in the repo root (shared with the msbuild +
 REM linux sister scripts). Bump the patch number there, not here.
 REM Called by an explicit path, not by bare name: cmd resolves a bare name through the

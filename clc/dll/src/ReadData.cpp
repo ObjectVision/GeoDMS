@@ -340,7 +340,8 @@ struct ReadLinesOperator: public TernaryOperator
 		}
 
 		DataReadLock drl0(AsDataItem(args[0]));
-		Arg1Type::const_reference dataValues = const_array_cast<SharedStr>(args[0])->GetDataRead()[0];
+		auto dataLock = const_array_cast<SharedStr>(args[0])->GetDataRead(); // drl0 holds the item, this the data that dataValues and inpBuff point into
+		Arg1Type::const_reference dataValues = dataLock[0];
 
 		if (readPos > dataValues.size())
 			throwErrorF("ReadLines", "readPos {} is larger than dataArraySize {}",

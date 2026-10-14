@@ -1,0 +1,66 @@
+// #1310: combine_data pairs the factors of X with the values units of its relations, and a unit made by
+// combine may stand for its factors on either side, since (AB)C, A(BC) and ABC number their elements alike.
+// Checked against combine_data over the three factors themselves: a relation to combine(A, B) for the first
+// two factors of combine(A, B, C), as BebouwingsComponentT.dms of Hestia gives it (t2000); a relation to
+// combine(B, C) for the last two; a nested combine in X against another nesting in the relation; a factor
+// whose range starts at -2 behind a nested one; a null and a parameter in the place of a nested combine;
+// and a literal for a nested factor of X, which only the pairing of that factor as a whole fits.
+// Expected: exit 0 on /checks.
+container combine_data_substitute
+{
+	unit<uint32> Town  : nrofrows = 3;
+	unit<uint32> Year  : nrofrows = 4;
+	unit<int32>  Shift := range(int32, -2i, 3i); // a factor whose range does not start at 0
+	unit<uint32> Row   : nrofrows = 60;
+
+	attribute<Town>  town_rel  (Row) := value(id(Row) % 3, Town);
+	attribute<Year>  year_rel  (Row) := value(id(Row) / 3 % 4, Year);
+	attribute<Shift> shift_rel (Row) := value(int32(id(Row) / 12 % 5) - 2i, Shift);
+	attribute<Town>  town_null (Row) := id(Row) % 7 == 0 ? value(null_u, Town) : town_rel;
+
+	unit<uint32> TYS  := combine_unit(Town, Year, Shift); // ABC
+	unit<uint32> TY   := combine_unit(Town, Year);        // AB
+	unit<uint32> YS   := combine_unit(Year, Shift);       // BC
+	unit<uint32> TY_S := combine_unit(TY, Shift);         // (AB)C
+	unit<uint32> T_YS := combine_unit(Town, YS);          // A(BC)
+
+	attribute<TY> ty_rel  (Row) := combine_data(TY, town_rel,  year_rel);
+	attribute<TY> ty_null (Row) := combine_data(TY, town_null, year_rel);
+	attribute<YS> ys_rel  (Row) := combine_data(YS, year_rel,  shift_rel);
+	parameter<TY> ty_seven      := value(7, TY);
+
+	attribute<TYS>  abc       (Row) := combine_data(TYS,  town_rel, year_rel, shift_rel); // the reference
+	attribute<TYS>  abc_ab    (Row) := combine_data(TYS,  ty_rel, shift_rel);             // (AB)C for ABC, as in t2000
+	attribute<TYS>  abc_bc    (Row) := combine_data(TYS,  town_rel, ys_rel);              // A(BC) for ABC
+	attribute<TY_S> ab_c_abc  (Row) := combine_data(TY_S, town_rel, year_rel, shift_rel); // ABC for (AB)C, as before #1310
+	attribute<TY_S> ab_c_ab   (Row) := combine_data(TY_S, ty_rel, shift_rel);             // the same unit, as before #1310
+	attribute<TY_S> ab_c_bc   (Row) := combine_data(TY_S, town_rel, ys_rel);              // A(BC) for (AB)C
+	attribute<T_YS> a_bc_ab   (Row) := combine_data(T_YS, ty_rel, shift_rel);             // (AB)C for A(BC)
+	attribute<TYS>  abc_null  (Row) := combine_data(TYS,  ty_null, shift_rel);
+	attribute<TYS>  abc_seven (Row) := combine_data(TYS,  ty_seven, shift_rel);
+	attribute<TY_S> ab_c_lit  (Row) := combine_data(TY_S, 5, shift_rel);                  // 5 indexes TY, not Town
+
+	container checks
+	{
+		parameter<bool> c_abc      := all(uint32(abc) == (uint32(town_rel) * 4 + uint32(year_rel)) * 5 + uint32(int32(shift_rel) + 2i)), IntegrityCheck = "c_abc == true";
+		parameter<bool> c_abc_ab   := all(abc_ab == abc), IntegrityCheck = "c_abc_ab == true";
+		parameter<bool> c_abc_bc   := all(abc_bc == abc), IntegrityCheck = "c_abc_bc == true";
+		parameter<bool> c_ab_c_abc := all(uint32(ab_c_abc) == uint32(abc)), IntegrityCheck = "c_ab_c_abc == true";
+		parameter<bool> c_ab_c_ab  := all(ab_c_ab == ab_c_abc), IntegrityCheck = "c_ab_c_ab == true";
+		parameter<bool> c_ab_c_bc  := all(ab_c_bc == ab_c_abc), IntegrityCheck = "c_ab_c_bc == true";
+		parameter<bool> c_a_bc_ab  := all(uint32(a_bc_ab) == uint32(abc)), IntegrityCheck = "c_a_bc_ab == true";
+
+		// decoded by the factors of each X
+		parameter<bool> c_decode := all(first_rel(abc_ab) == town_rel && second_rel(abc_ab) == year_rel && third_rel(abc_ab) == shift_rel
+			&& first_rel(ab_c_bc) == ty_rel && second_rel(ab_c_bc) == shift_rel
+			&& first_rel(a_bc_ab) == town_rel && second_rel(a_bc_ab) == ys_rel)
+		,	IntegrityCheck = "c_decode == true";
+
+		// a null in the relation to the nested combine gives null; a parameter takes its place in every row
+		parameter<bool> c_null  := all(IsNull(abc_null) == IsNull(town_null) && (IsNull(abc_null) || abc_null == abc)), IntegrityCheck = "c_null == true";
+		parameter<bool> c_seven := all(uint32(abc_seven) == 7 * 5 + uint32(int32(shift_rel) + 2i)), IntegrityCheck = "c_seven == true";
+
+		// a literal: pairing it with Town leaves Year against Shift, which do not unify, so it pairs with TY as a whole
+		parameter<bool> c_lit := all(uint32(ab_c_lit) == 5 * 5 + uint32(int32(shift_rel) + 2i) && first_rel(ab_c_lit) == value(5, TY)), IntegrityCheck = "c_lit == true";
+	}
+}
