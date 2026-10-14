@@ -477,8 +477,9 @@ public:
         // Source: contiguous overlapping output region computed in Calculate
         UGrid<const A> overlappedResult(Size(overlapTileRect), workingBuffer.overlappingOutput.begin());
 
-        // Destination: entire result tile
-        UGrid<T> resultTile(Size(resTileRect), result->GetDataWrite(tr, dms_rw_mode::read_write).begin());
+        // Destination: entire result tile, held while it is written: a tile of a FileTileArray is unmapped as soon as nothing holds it
+        auto resultData = result->GetDataWrite(tr, dms_rw_mode::read_write);
+        UGrid<T> resultTile(Size(resTileRect), resultData.begin());
 
         MG_CHECK(resultTile.GetDataPtr()); // Guarantee by underlying tile system
 
