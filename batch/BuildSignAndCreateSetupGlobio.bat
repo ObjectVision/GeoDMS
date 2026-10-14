@@ -8,6 +8,9 @@ REM outputs and dependencies to bin_GLOBIO/obj_GLOBIO/vcpkg_installed_GLOBIO.
 cd /d "%~dp0.."
 set "geodms_rootdir=%CD%"
 
+REM At Normal priority, whatever the console it is started from: see batch\RaisePriorityToNormal.ps1.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RaisePriorityToNormal.ps1"
+
 call "%geodms_rootdir%\GeoDmsVersion.cmd"
 if not defined DMS_VERSION_MAJOR goto :version_failed
 set "GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%"

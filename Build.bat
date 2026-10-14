@@ -30,6 +30,10 @@ REM By its full path, as every other call since 39c0b5fed: with NoDefaultCurrent
 REM the bare name is not found, GEODMS_VERSION_HEADER_DONE stays unset and every flavour rewrites
 REM buildstamp.h (BAT-A37). setlocal above keeps these variables out of the calling console.
 cd /d "%~dp0"
+
+REM At Normal priority, whatever the console it is started from: see batch\RaisePriorityToNormal.ps1.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0batch\RaisePriorityToNormal.ps1"
+
 set "GEODMS_VERSION_HEADER_DONE="
 call "%~dp0GeoDmsVersion.cmd"
 if errorlevel 1 goto :version_failed

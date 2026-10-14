@@ -117,6 +117,18 @@ be waiting at one; a running `choice.exe` shows it, and the user answers in that
 the makensis summary; it now signs right away. It still asks after a failed build whether to
 retry, besides the two questions the `.m` script keeps.
 
+A run that crawls without a prompt: look at the priority of its processes. A shell in the
+Terminal of Visual Studio is started by `DevHub.exe` at BelowNormal and passes that on, and
+vcpkg starts its own children at Idle whatever its own priority. On 2026-10-14, with a model run
+at BelowNormal holding 26 of 32 cores, the vcpkg drift check of the `.m` script sat 20 minutes,
+and on the rerun from a Normal console 18 minutes, in a `vcvarsall.bat` that got under half a
+second of CPU, and the `.c` script once more in the `vcpkg install` that its CMake configure
+started. Since then `Build.bat` and the four setup scripts first call
+`batch\RaisePriorityToNormal.ps1`: it raises their `cmd.exe` to Normal and starts one hidden
+watcher per `cmd.exe` that, while that `cmd.exe` lives, raises every process below it at Idle or
+BelowNormal to Normal once a second, so every vcpkg the setup reaches is covered. It prints a line
+for each. Do not change the priority of someone else's run unless the user asks.
+
 ## After a flavour
 
 - `Test-Path 'C:\Program Files\ObjectVision\GeoDms<ver>.<f>\GeoDmsGuiQt.exe'`
