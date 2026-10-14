@@ -31,7 +31,13 @@ script's gate still runs `unit_linux.sh` on the build tree, not on the installed
 (BAT-A10, open). A failed suite uninstalls: until the fix of NSI-A32 (2026-09-27) the
 uninstaller of the `.m` and `.g` setups left `examples`, `library`, `prelude.dms` and the
 folder behind; it now deletes them, as the `.c` one did. A setup run since then that still
-leaves them behind means the uninstall section is wrong again.
+leaves them behind means the uninstall section is wrong again. Both uninstalls, before the
+install and after a failed suite, go through `batch\UninstallGeoDms.bat "<install dir>"`,
+which runs a copy of `uninstaller.exe` from `%TEMP%` with `_?=` and then reports whether the
+folder is gone (#1296). Run from the install folder itself, the uninstaller could not delete
+its own exe, and the `rmdir` that followed it failed in a console without administrator
+rights, so every failed setup left `GeoDms<ver>.<flavour>\uninstaller.exe` behind. A folder
+the helper reports as still there holds something the uninstall section does not list.
 Before it builds, each Windows script runs `git pull` in `..\tst`, the checkout the suite
 reads, and stops when the pull fails; the `.g` one always did, the `.m` and `.c` ones since
 2026-10-07, after the 20.23.0.m suite failed `Operator\cfg\operator.dms` on the conflict

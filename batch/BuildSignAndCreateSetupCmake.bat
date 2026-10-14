@@ -217,10 +217,7 @@ set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtoo
 if errorlevel 1 goto :sign_failed
 
 set INSTALL_DIR=%ProgramFiles%\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%
-if exist "%INSTALL_DIR%" (
-    echo --- silent uninstall of previous %INSTALL_DIR% ---
-    if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
-)
+call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 
 echo --- silent install ---
 "%INSTALLER%" /S
@@ -251,10 +248,9 @@ exit /B 0
 
 :unit_failed
 echo *** Unit tests FAILED - removing installed build and signed setup file so a broken build cannot ship ***
-if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
-if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
+call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 del /q "%INSTALLER%" 2>nul
-echo Removed "%INSTALL_DIR%" and "%INSTALLER%"
+echo Removed "%INSTALLER%"
 endlocal
 exit /B 1
 

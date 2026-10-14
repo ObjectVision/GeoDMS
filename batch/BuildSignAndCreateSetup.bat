@@ -233,10 +233,7 @@ if errorlevel 1 (
 )
 
 set "INSTALL_DIR=C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%"
-if exist "%INSTALL_DIR%" (
-    echo --- silent uninstall of previous %INSTALL_DIR% ---
-    if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
-)
+call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 
 "%INSTALLER%" /S
 if errorlevel 1 goto :install_failed
@@ -264,10 +261,9 @@ exit /B 0
 :unit_failed
 echo *** Unit tests FAILED - removing installed build and setup file so a broken build cannot ship ***
 set "INSTALL_DIR=C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%"
-if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
-if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
+call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 del /q "distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe" 2>nul
-echo Removed "%INSTALL_DIR%" and distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe
+echo Removed distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe
 exit /B 1
 
 :shipped_failed
