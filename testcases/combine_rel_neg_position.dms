@@ -1,0 +1,17 @@
+// #1293: combine_rel at a position beyond the factors of the combined unit is refused in the meta
+// phase; positions count from 0, so a combine of two factors has none at position 2.
+// Expected: exit nonzero on /checks.
+container combine_rel_neg_position
+{
+	unit<uint32> Town : nrofrows = 3;
+	unit<uint32> Year : nrofrows = 4;
+	unit<uint32> Row  : nrofrows = 6;
+	unit<uint32> TY   := combine_unit(Town, Year);
+
+	attribute<TY> ty_rel (Row) := combine_data(TY, value(id(Row) % 3, Town), value(id(Row) % 4, Year));
+
+	container checks
+	{
+		parameter<uint32> n := count(combine_rel(ty_rel, 2));
+	}
+}

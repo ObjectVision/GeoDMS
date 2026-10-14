@@ -481,6 +481,25 @@ void AbstrUnit::SetCrs(const UnitCrs* crs)
 	m_Crs = IsEmpty(crs) ? nullptr : crs;
 }
 
+auto AbstrUnit::GetCombineFactors() const -> std::shared_ptr<const CombineFactors>
+{
+	if (auto refItem = AsDynamicUnit(GetReferredItem().get()))
+		return refItem->GetCombineFactors();
+	return m_CombineFactors;
+}
+
+auto AbstrUnit::GetCurrCombineFactors() const -> std::shared_ptr<const CombineFactors>
+{
+	if (auto refItem = AsDynamicUnit(GetCurrRefItem().get()))
+		return refItem->GetCurrCombineFactors();
+	return m_CombineFactors;
+}
+
+void AbstrUnit::SetCombineFactors(std::shared_ptr<const CombineFactors> factors)
+{
+	m_CombineFactors = std::move(factors);
+}
+
 void AbstrUnit::SetSpatialReference(TokenID format)
 {
 	// An empty token legitimately means CLEAR (see the Stage-0 note: the old
@@ -787,6 +806,8 @@ void AbstrUnit::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) 
 	// case that the old flag-pair condition expressed (and that used to trip an assert).
 	if (m_Crs || resultUnit->m_Crs)
 		resultUnit->SetCrs(m_Crs.get_ptr());
+	// m_CombineFactors is deliberately not copied: a copy of a config unit, such as one in a template
+	// instance, gets its own combine and so its own factors, which the getters find by its referred item
 	if (GetTSF(USF_HasConfigRange))
 		resultUnit->SetTSF(USF_HasConfigRange);
 }

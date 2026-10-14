@@ -1,0 +1,14 @@
+// #1293: first_rel of a relation whose values unit is not made by combine or combine_unit is refused
+// in the meta phase: there are no factors to relate to. Expected: exit nonzero on /checks.
+container combine_rel_neg_nocombine
+{
+	unit<uint32> Town : nrofrows = 3;
+	unit<uint32> Row  : nrofrows = 6;
+
+	attribute<Town> town_rel (Row) := value(id(Row) % 3, Town);
+
+	container checks
+	{
+		parameter<uint32> n := count(first_rel(town_rel));
+	}
+}

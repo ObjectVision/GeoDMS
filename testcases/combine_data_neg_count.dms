@@ -1,0 +1,19 @@
+// #1293: combine_data needs one relation per factor of the combined unit, or per factor after
+// unfolding the combines among them. Two relations for a combine of three factors are refused in
+// the meta phase. Expected: exit nonzero on /checks.
+container combine_data_neg_count
+{
+	unit<uint32> Town : nrofrows = 3;
+	unit<uint32> Year : nrofrows = 4;
+	unit<uint32> Mode : nrofrows = 2;
+	unit<uint32> Row  : nrofrows = 6;
+	unit<uint64> TYM  := combine_unit_uint64(Town, Year, Mode);
+
+	attribute<Town> town_rel (Row) := value(id(Row) % 3, Town);
+	attribute<Year> year_rel (Row) := value(id(Row) % 4, Year);
+
+	container checks
+	{
+		parameter<uint32> n := count(combine_data(TYM, town_rel, year_rel));
+	}
+}

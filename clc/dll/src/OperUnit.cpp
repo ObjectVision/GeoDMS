@@ -34,6 +34,8 @@
 #include "UnitProcessor.h"
 
 #include "OperGroups.h"
+#include "OperSignature.h"
+#include "ParallelTiles.h"
 #include "TiledUnit.h"
 #include "DataArrayValue.h"
 
@@ -91,6 +93,17 @@ bool DefaultUnitOperator::CreateResult(TreeItemDualRef& resultHolder, const ArgS
 	return true;
 }
 
+// The names of the sub-items that combine gives its result, one relation per factor, and also of the
+// operators that give the relation to one factor per element (#1293). "twelfth_rel" was spelled
+// "twelveth_rel" up to GeoDMS 20.23.1.
+static CharPtr s_FactorRelNames[16] = {
+	"first_rel", "second_rel", "third_rel", "fourth_rel"
+,	"fifth_rel", "sixth_rel", "seventh_rel", "eighth_rel"
+,	"ninth_rel", "tenth_rel", "eleventh_rel", "twelfth_rel"
+,	"thirteenth_rel", "fourteenth_rel", "fifteenth_rel", "sixteenth_rel"
+};
+constexpr arg_index MAX_NR_COMBINE_FACTORS = 16;
+
 bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, bool mustCreateBackRefs)
 {
 	arg_index n = args.size();
@@ -102,10 +115,21 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			throwErrorF("combine_unit", "ranged units expected, but argument {} is a {}", i + 1, clsName.c_str());
 		}
 
-	if (n > 16)
+	if (n > MAX_NR_COMBINE_FACTORS)
 		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16."
 			"\nConsider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit."
 		);
+
+	// #1293: record the factors on the result, for combine_data, combine_rel and first_rel .. sixteenth_rel.
+	// The meta phase creates the result and the calculation phase finds them there.
+	if (!mustCalc)
+	{
+		auto factors = std::make_shared<AbstrUnit::CombineFactors>();
+		factors->reserve(n);
+		for (arg_index i = 0; i != n; ++i)
+			factors->emplace_back(make_shared_tree(AsCertainUnit(args[i]), existing_obj{}));
+		res->SetCombineFactors(std::move(factors));
+	}
 
 	SizeT productSize = 1;
 	if (mustCalc)
@@ -132,16 +156,10 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	// assign all combinations of domain elements in lexicographical order
 	arg_index i = n;
 	SizeT groupSize = 1;
-	static TokenID subItemNameID[] = {
-		GetTokenID_mt("first_rel"), GetTokenID_mt("second_rel"), GetTokenID_mt("third_rel"), GetTokenID_mt("fourth_rel")
-	,	GetTokenID_mt("fifth_rel"), GetTokenID_mt("sixth_rel"), GetTokenID_mt("seventh_rel"), GetTokenID_mt("eighth_rel")
-	,	GetTokenID_mt("ninth_rel"), GetTokenID_mt("tenth_rel"), GetTokenID_mt("eleventh_rel"), GetTokenID_mt("twelveth_rel")
-	,	GetTokenID_mt("thirteenth_rel"), GetTokenID_mt("fourteenth_rel"), GetTokenID_mt("fifteenth_rel"), GetTokenID_mt("sixteenth_rel")
-	};
 	for (; i; --i)
 	{
 		std::shared_ptr<const AbstrUnit> ithUnit = make_shared_tree(AsCertainUnit(args[i - 1]), existing_obj{});
-		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit.get()).get(); // owned by res
+		AbstrDataItem* resSub = CreateDataItem(res, GetTokenID_mt(s_FactorRelNames[i-1]), res, ithUnit.get()).get(); // owned by res
 		resSub->SetTSF(TSF_Categorical);
 
 		if (!mustCalc)
@@ -219,6 +237,420 @@ public:
 		return UnitCombine_impl(resUnit, args, mustCalc, m_MustCreateBackRefs);
 	}
 };
+
+// *****************************************************************************
+// combine_data, combine_rel and first_rel .. sixteenth_rel (#1293)
+//
+// An element of X := combine(A, B, C) is the mixed-radix number ((a * #B) + b) * #C + c of the
+// indices a, b and c within the ranges of its factors: the last factor varies fastest, as in
+// UnitCombine_impl. combine_data(X, a_rel, b_rel, c_rel) encodes one element per factor into an
+// element of X, and combine_rel(x_rel, k) decodes factor k back out of one; first_rel(x_rel) ..
+// sixteenth_rel(x_rel) are combine_rel(x_rel, 0) .. combine_rel(x_rel, 15). They work per element
+// of their arguments and hold no data over X, so they work for an X of 10^12 elements and more,
+// where the sub-items first_rel .. sixteenth_rel of a combine would each be an attribute over X.
+// They take the factors from the record UnitCombine_impl leaves on X (AbstrUnit::GetCombineFactors).
+// Until #1293 combine_data was a function in the prelude, computed from the values units of its
+// arguments alone; for an X without such a record it still computes that way.
+// *****************************************************************************
+
+namespace {
+
+	// the range of one factor, in the terms the encoding needs
+	struct CombineFactor
+	{
+		SharedTreeItem   m_RangeItem;
+		const AbstrUnit* m_Unit = nullptr;   // the unit that carries the range
+		SizeT            m_Count = 0;
+		Int64            m_LowerBound = 0;   // of a one-dimensional factor with a variable range
+	};
+
+	CombineFactor GetCombineFactor(const AbstrUnit* factor)
+	{
+		CombineFactor result;
+		result.m_RangeItem = factor->GetCurrRangeItem();
+		result.m_Unit = AsUnit(result.m_RangeItem.get());
+		result.m_Count = result.m_Unit->GetCount();
+		visit<typelists::domain_elements>(result.m_Unit, [&result] <typename F> (const Unit<F>* fu)
+			{
+				if constexpr (dimension_of_v<F> == 1 && has_var_range_v<F>)
+					result.m_LowerBound = Int64(fu->GetRange().first);
+			}
+		);
+		return result;
+	}
+
+	// The factors that the relations of combine_data(X, a1, .., an) index, one per relation. When the
+	// combine that made X recorded its factors, those, unfolded through nested combines when that makes
+	// their number equal to n, so that combine_data(V, a, b, c) on V := combine(combine(A, B), C) keeps
+	// the meaning the prelude fold gave it. Without a record, the values units of the relations.
+	struct CombineDataFactors
+	{
+		std::shared_ptr<const AbstrUnit::CombineFactors> m_Record; // keeps the factors below alive
+		std::vector<const AbstrUnit*> m_Factors;
+		bool m_FromRecord = false;
+	};
+
+	void CombineData_Unfold(const AbstrUnit::CombineFactors& factors, std::vector<const AbstrUnit*>& result, bool metaPhase)
+	{
+		for (const auto& factor : factors)
+		{
+			auto inner = metaPhase ? factor->GetCombineFactors() : factor->GetCurrCombineFactors();
+			if (inner)
+				CombineData_Unfold(*inner, result, metaPhase);
+			else
+				result.emplace_back(factor.get());
+		}
+	}
+
+	auto CombineData_GetFactors(const AbstrOperGroup* og, const AbstrUnit* xUnit, const ArgSeqType& args, bool metaPhase) -> CombineDataFactors
+	{
+		arg_index nrRels = args.size() - 1;
+		CombineDataFactors result;
+		result.m_Record = metaPhase ? xUnit->GetCombineFactors() : xUnit->GetCurrCombineFactors();
+		if (!result.m_Record)
+		{
+			for (arg_index i = 1; i <= nrRels; ++i)
+				result.m_Factors.emplace_back(AsDataItem(args[i])->GetAbstrValuesUnit());
+			return result;
+		}
+		result.m_FromRecord = true;
+		if (result.m_Record->size() == nrRels)
+		{
+			for (const auto& factor : *result.m_Record)
+				result.m_Factors.emplace_back(factor.get());
+			return result;
+		}
+		CombineData_Unfold(*result.m_Record, result.m_Factors, metaPhase);
+		if (result.m_Factors.size() != nrRels)
+		{
+			auto unfolded = (result.m_Factors.size() != result.m_Record->size())
+				? mySSPrintF(", or {} after unfolding the combines among them", result.m_Factors.size())
+				: SharedStr();
+			og->throwOperErrorF("{} is a combine of {} factors{}, but {} relations were given"
+			,	xUnit->GetSourceName().c_str(), result.m_Record->size(), unfolded.c_str(), nrRels
+			);
+		}
+		return result;
+	}
+
+	// the index of v within the range of factor f; undefined for a null or a value outside that range
+	template <typename V>
+	SizeT CombineData_IndexInFactor(V v, const CombineFactor& f)
+	{
+		static_assert(dimension_of_v<V> == 1);
+		if constexpr (has_undefines_v<V>)
+			if (!IsDefined(v))
+				return UNDEFINED_VALUE(SizeT);
+
+		UInt64 index;
+		if constexpr (is_bitvalue_v<V>)
+			index = UInt64(v.base_value()) - UInt64(f.m_LowerBound);
+		else if constexpr (std::is_signed_v<V>)
+		{
+			if (Int64(v) < f.m_LowerBound)
+				return UNDEFINED_VALUE(SizeT);
+			index = UInt64(Int64(v)) - UInt64(f.m_LowerBound);
+		}
+		else
+		{
+			if (f.m_LowerBound > 0 && UInt64(v) < UInt64(f.m_LowerBound))
+				return UNDEFINED_VALUE(SizeT);
+			index = UInt64(v) - UInt64(f.m_LowerBound);
+		}
+		if (index >= f.m_Count)
+			return UNDEFINED_VALUE(SizeT);
+		return index;
+	}
+
+	// acc[i] += (the index of element i of argA within factor f) * multiplier, or undefined where that element is null
+	// or outside its factor. checkSum: also where the sum would leave X, which only an X without a record of
+	// its factors allows, since only there the factors need not multiply to #X.
+	template <typename V, typename IndexOf>
+	void CombineData_AddIndices(SizeT* acc, SizeT n, const AbstrDataItem* argA, tile_id t, IndexOf&& indexOf, SizeT multiplier, SizeT countX, bool checkSum)
+	{
+		bool isParameter = argA->HasVoidDomainGuarantee();
+		auto argTile = const_array_cast<V>(argA)->GetTile(isParameter ? 0 : t);
+
+		SizeT parameterIndex = isParameter ? indexOf(V(argTile[0])) : 0;
+		for (SizeT i = 0; i != n; ++i)
+		{
+			if (!IsDefined(acc[i]))
+				continue;
+			SizeT index = isParameter ? parameterIndex : indexOf(V(argTile[i]));
+			if (!IsDefined(index) || (checkSum && index && index > (countX - 1 - acc[i]) / multiplier))
+				acc[i] = UNDEFINED_VALUE(SizeT);
+			else
+				acc[i] += index * multiplier;
+		}
+	}
+
+	template <typename V>
+	void CombineData_AddArg(SizeT* acc, SizeT n, const AbstrDataItem* argA, tile_id t, const CombineFactor& f, SizeT multiplier, SizeT countX, bool checkSum)
+	{
+		if constexpr (dimension_of_v<V> == 1)
+			CombineData_AddIndices<V>(acc, n, argA, t, [&f](V v) { return CombineData_IndexInFactor<V>(v, f); }, multiplier, countX, checkSum);
+		else
+		{
+			// a two-dimensional factor has the value type of its relations: UnifyValues allows no other
+			auto range = debug_cast<const Unit<V>*>(f.m_Unit)->GetRange();
+			CombineData_AddIndices<V>(acc, n, argA, t, [&range](V v) { return Range_GetIndex_checked(range, v); }, multiplier, countX, checkSum);
+		}
+	}
+
+	template <typename X>
+	struct CombineDataOperator : UnaryOperator
+	{
+		CombineDataOperator(AbstrOperGroup* gr)
+			: UnaryOperator(gr, DataArray<X>::GetStaticClass(), Unit<X>::GetStaticClass())
+		{}
+
+		// mirrors CreateResult below: combine_data(X; a1 (D), .., an (D)) -> X (D), void broadcasting.
+		// The values unit of each relation is checked against a factor of X, which the vocabulary cannot
+		// state, so those stay unclaimed.
+		bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+		{
+			sig_var V = sb.UnitVar("V"), D = sb.UnitVar("D");
+			sb.MemberValueClass(V, ValueWrap<X>::GetStaticClass());
+			sb.ArgName(0, "combined_unit");
+			sb.ArgUnit(0, V);
+			sb.RepeatArgs(1, no_sig_var, D, ValueComposition::Single);
+			sb.ResultAttr(V, D, ValueComposition::Single);
+			sb.DeferredRelation("the values unit of relation i matches factor i of the combine that made V");
+			return true;
+		}
+
+		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+		{
+			arg_index nrRels = args.size() - 1;
+			const AbstrUnit* xUnit = AsUnit(args[0]);
+			assert(xUnit);
+
+			if (!resultHolder)
+			{
+				assert(!mustCalc);
+				if (!nrRels)
+					GetGroup()->throwOperErrorF("expects a combined unit followed by one relation per factor, but got no relation");
+
+				const AbstrUnit* domain = nullptr;
+				for (arg_index i = 1; i <= nrRels; ++i)
+				{
+					if (!IsDataItem(args[i]))
+						GetGroup()->throwOperErrorF("argument {} is not an attribute or a parameter", i + 1);
+					auto argA = AsDataItem(args[i]);
+					auto argValuesUnit = argA->GetAbstrValuesUnit();
+					if (!argValuesUnit->CanBeDomain())
+						GetGroup()->throwOperErrorF("argument {} has values of type {}, which cannot index a factor of a combined unit"
+						,	i + 1, argValuesUnit->GetValueType()->GetNameID()
+						);
+					auto argDomain = argA->GetAbstrDomainUnit();
+					if (!domain || domain->GetValueType() == ValueWrap<Void>::GetStaticClass())
+						domain = argDomain;
+					else
+					{
+						auto rightRole = mySSPrintF("Domain of argument {}", i + 1);
+						domain->UnifyDomain(argDomain, "Domain of the first relation", rightRole.c_str(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+					}
+				}
+
+				auto factors = CombineData_GetFactors(GetGroup(), xUnit, args, true);
+				if (factors.m_FromRecord)
+					for (arg_index k = 0; k != nrRels; ++k)
+					{
+						const AbstrUnit* factor = factors.m_Factors[k];
+						const AbstrUnit* argValuesUnit = AsDataItem(args[k + 1])->GetAbstrValuesUnit();
+						// a literal comes with a default unit, of whatever integer type the parser gave it
+						auto um = UnifyMode(UM_Throw | UM_AllowDefault);
+						if (argValuesUnit->IsDefaultUnit() && argValuesUnit->GetNrDimensions() == 1 && factor->GetNrDimensions() == 1)
+							um = um | UM_AllowTypeDiff;
+						// the units of a calculation have no full name of their own, so the roles name them
+						auto leftRole  = mySSPrintF("factor {} {} of {}", k + 1, factor->GetSourceName().c_str(), xUnit->GetSourceName().c_str());
+						auto rightRole = mySSPrintF("Values {} of argument {}", argValuesUnit->GetSourceName().c_str(), k + 2);
+						factor->UnifyValues(argValuesUnit, leftRole.c_str(), rightRole.c_str(), um);
+					}
+
+				resultHolder = CreateCacheDataItem(domain, xUnit);
+				resultHolder->SetTSF(TSF_Categorical);
+			}
+
+			if (mustCalc)
+			{
+				auto res = AsDataItem(resultHolder.GetNew());
+				auto factorUnits = CombineData_GetFactors(GetGroup(), xUnit, args, false);
+
+				std::vector<CombineFactor> factors; factors.reserve(nrRels);
+				for (auto factor : factorUnits.m_Factors)
+					factors.emplace_back(GetCombineFactor(factor));
+
+				// the weight of each index: the product of the counts of the later factors, saturated, which only
+				// an X without a record can reach, and then CombineData_AddArg checks every sum against #X
+				std::vector<SizeT> multipliers(nrRels);
+				SizeT multiplier = 1;
+				for (arg_index k = nrRels; k--; )
+				{
+					multipliers[k] = multiplier;
+					SizeT count = factors[k].m_Count;
+					multiplier = (count && multiplier > MAX_VALUE(SizeT) / count) ? MAX_VALUE(SizeT) : multiplier * count;
+				}
+				SizeT countX = AsUnit(xUnit->GetCurrRangeItem().get())->GetCount();
+				bool checkSum = !factorUnits.m_FromRecord;
+
+				auto domain = res->GetAbstrDomainUnit();
+				DataWriteLock resLock(res);
+				parallel_tileloop(domain->GetNrTiles(), [&](tile_id t)
+					{
+						SizeT n = domain->GetTileSize(t);
+						std::vector<SizeT> acc(n, countX ? SizeT(0) : UNDEFINED_VALUE(SizeT));
+						for (arg_index k = 0; k != nrRels; ++k)
+						{
+							auto argA = AsDataItem(args[k + 1]);
+							visit<typelists::domain_elements>(argA->GetAbstrValuesUnit(), [&] <typename V> (const Unit<V>*)
+								{
+									CombineData_AddArg<V>(acc.data(), n, argA, t, factors[k], multipliers[k], countX, checkSum);
+								}
+							);
+						}
+						auto resTile = mutable_array_cast<X>(resLock)->GetWritableTile(t, dms_rw_mode::write_only_all);
+						assert(resTile.size() == n);
+						for (SizeT i = 0; i != n; ++i)
+							resTile[i] = IsDefined(acc[i]) ? X(acc[i]) : UNDEFINED_VALUE(X);
+					}
+				);
+				resLock.Commit();
+			}
+			return true;
+		}
+	};
+
+	// the relation to factor pos of the combine that made the values unit of xA, per element of xA
+	template <typename X>
+	bool CombineRel_CreateResult(const AbstrOperGroup* og, TreeItemDualRef& resultHolder, const AbstrDataItem* xA, SizeT pos, bool mustCalc)
+	{
+		const AbstrUnit* xUnit = xA->GetAbstrValuesUnit();
+		if (!resultHolder)
+		{
+			assert(!mustCalc);
+			auto factors = xUnit->GetCombineFactors();
+			if (!factors)
+				og->throwOperErrorF("the values unit {} of its argument is not made by combine or combine_unit, so it has no factors to relate to"
+				,	xUnit->GetSourceName().c_str()
+				);
+			if (pos >= factors->size())
+				og->throwOperErrorF("{} is a combine of {} factors, so it has no factor at position {} (counted from 0)"
+				,	xUnit->GetSourceName().c_str(), factors->size(), pos
+				);
+			resultHolder = CreateCacheDataItem(xA->GetAbstrDomainUnit(), (*factors)[pos].get());
+			resultHolder->SetTSF(TSF_Categorical);
+		}
+
+		if (mustCalc)
+		{
+			auto factors = xUnit->GetCurrCombineFactors();
+			MG_CHECK(factors && pos < factors->size());
+
+			SizeT divisor = 1; // the product of the counts of the later factors, which cannot overflow since all of them multiply to #X
+			for (SizeT j = pos + 1; j != factors->size(); ++j)
+				divisor *= GetCombineFactor((*factors)[j].get()).m_Count;
+			CombineFactor factor = GetCombineFactor((*factors)[pos].get());
+			SizeT count = factor.m_Count;
+			SizeT countX = AsUnit(xUnit->GetCurrRangeItem().get())->GetCount();
+
+			auto res = AsDataItem(resultHolder.GetNew());
+			auto domain = res->GetAbstrDomainUnit();
+			DataReadLock argLock(xA);
+			DataWriteLock resLock(res);
+			visit<typelists::domain_elements>(factor.m_Unit, [&] <typename F> (const Unit<F>* factorUnit)
+				{
+					auto conv = CountableValueConverter<F>(factorUnit->m_RangeDataPtr);
+					auto xData = const_array_cast<X>(xA);
+					parallel_tileloop(domain->GetNrTiles(), [&](tile_id t)
+						{
+							auto xTile = xData->GetTile(t);
+							auto resTile = mutable_array_cast<F>(resLock)->GetWritableTile(t, dms_rw_mode::write_only_all);
+							assert(xTile.size() == resTile.size());
+							for (SizeT i = 0, n = resTile.size(); i != n; ++i)
+							{
+								X x = xTile[i];
+								if (!IsDefined(x) || SizeT(x) >= countX) // a value outside X gives null, as lookup does
+									Assign(resTile[i], Undefined());
+								else
+									Assign(resTile[i], conv.GetValue((SizeT(x) / divisor) % count));
+							}
+						}
+					);
+				}
+			);
+			resLock.Commit();
+		}
+		return true;
+	}
+
+	template <typename X>
+	bool CombineRel_DescribeSignature(AbstrSignatureBuilder& sb, bool hasPositionArg)
+	{
+		// mirrors CombineRel_CreateResult: x_rel: X (D) -> F (D), where F is a factor of the combine that made
+		// X, which only the meta phase knows
+		sig_var VX = sb.UnitVar("X"), D = sb.UnitVar("D"), F = sb.UnitVar("F");
+		sb.MemberValueClass(VX, ValueWrap<X>::GetStaticClass());
+		sb.ArgName(0, "x_rel");
+		sb.ArgAttr(0, VX, D, ValueComposition::Single);
+		if (hasPositionArg)
+		{
+			sb.ArgName(1, "position");
+			sb.ArgMetaValue(1, ValueWrap<UInt32>::GetStaticClass(), "the position of the factor, counted from 0");
+		}
+		sb.ResultAttr(F, D, ValueComposition::Single);
+		sb.DeferredRelation("F is a factor of the combine that made X");
+		return true;
+	}
+
+	// first_rel .. sixteenth_rel
+	template <typename X>
+	struct FactorRelOperator : UnaryOperator
+	{
+		FactorRelOperator(AbstrOperGroup* gr, arg_index pos)
+			: UnaryOperator(gr, AbstrDataItem::GetStaticClass(), DataArray<X>::GetStaticClass())
+			, m_Pos(pos)
+		{}
+
+		bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+		{
+			return CombineRel_DescribeSignature<X>(sb, false);
+		}
+
+		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+		{
+			assert(args.size() == 1);
+			return CombineRel_CreateResult<X>(GetGroup(), resultHolder, AsDataItem(args[0]), m_Pos, mustCalc);
+		}
+
+	private:
+		arg_index m_Pos;
+	};
+
+	// combine_rel(x_rel, pos), for templates; pos is a parameter that the meta phase reads
+	template <typename X>
+	struct CombineRelOperator : BinaryOperator
+	{
+		CombineRelOperator(AbstrOperGroup* gr)
+			: BinaryOperator(gr, AbstrDataItem::GetStaticClass(), DataArray<X>::GetStaticClass(), DataArray<UInt32>::GetStaticClass())
+		{}
+
+		bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+		{
+			return CombineRel_DescribeSignature<X>(sb, true);
+		}
+
+		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+		{
+			assert(args.size() == 2);
+			checked_domain<Void>(args[1], "a2");
+			UInt32 pos = mustCalc ? GetCurrValue<UInt32>(args[1], 0) : GetValue<UInt32>(args[1], 0);
+			if (!IsDefined(pos))
+				GetGroup()->throwOperErrorF("the position of the factor is null");
+			return CombineRel_CreateResult<X>(GetGroup(), resultHolder, AsDataItem(args[0]), pos, mustCalc);
+		}
+	};
+} // namespace
 
 // *****************************************************************************
 // CastUnitOperator
@@ -1384,6 +1816,39 @@ namespace
 	UnitCombineOperator<UInt16> g_UnitCombineu16(cog_combineu16, false);
 	UnitCombineOperator<UInt32> g_UnitCombineu32(cog_combineu32, false);
 	UnitCombineOperator<UInt64> g_UnitCombineu64(cog_combineu64, false);
+
+	// #1293: encoding into and decoding out of a combined unit, per element
+	CommonOperGroup cog_CombineData("combine_data", oper_policy::allow_extra_args);
+	tl_oper::inst_tuple_templ<typelists::domain_int_objects, CombineDataOperator> combineDataOpers(&cog_CombineData);
+
+	oper_arg_policy oap_CombineRel[2] = { oper_arg_policy::calc_as_result, oper_arg_policy::calc_always }; // the position decides the values unit
+	SpecialOperGroup sog_CombineRel("combine_rel", 2, oap_CombineRel, oper_policy::dynamic_result_class);
+
+	CommonOperGroup cog_FactorRel[MAX_NR_COMBINE_FACTORS] = {
+		{ s_FactorRelNames[ 0], oper_policy::dynamic_result_class }, { s_FactorRelNames[ 1], oper_policy::dynamic_result_class }
+	,	{ s_FactorRelNames[ 2], oper_policy::dynamic_result_class }, { s_FactorRelNames[ 3], oper_policy::dynamic_result_class }
+	,	{ s_FactorRelNames[ 4], oper_policy::dynamic_result_class }, { s_FactorRelNames[ 5], oper_policy::dynamic_result_class }
+	,	{ s_FactorRelNames[ 6], oper_policy::dynamic_result_class }, { s_FactorRelNames[ 7], oper_policy::dynamic_result_class }
+	,	{ s_FactorRelNames[ 8], oper_policy::dynamic_result_class }, { s_FactorRelNames[ 9], oper_policy::dynamic_result_class }
+	,	{ s_FactorRelNames[10], oper_policy::dynamic_result_class }, { s_FactorRelNames[11], oper_policy::dynamic_result_class }
+	,	{ s_FactorRelNames[12], oper_policy::dynamic_result_class }, { s_FactorRelNames[13], oper_policy::dynamic_result_class }
+	,	{ s_FactorRelNames[14], oper_policy::dynamic_result_class }, { s_FactorRelNames[15], oper_policy::dynamic_result_class }
+	};
+
+	template <typename X>
+	struct CombineRelOperators
+	{
+		CombineRelOperators()
+			: m_CombineRel(&sog_CombineRel)
+		{
+			for (arg_index k = 0; k != MAX_NR_COMBINE_FACTORS; ++k)
+				m_FactorRels[k] = std::make_unique<FactorRelOperator<X>>(&cog_FactorRel[k], k);
+		}
+
+		CombineRelOperator<X> m_CombineRel;
+		std::unique_ptr<FactorRelOperator<X>> m_FactorRels[MAX_NR_COMBINE_FACTORS];
+	};
+	tl_oper::inst_tuple_templ<typelists::uints, CombineRelOperators> combineRelOpers;
 
 
 	tl_oper::inst_tuple_templ<typelists::points, PointOperators > pointOpers;

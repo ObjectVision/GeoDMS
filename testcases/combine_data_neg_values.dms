@@ -1,0 +1,20 @@
+// #1293: combine_data checks the values unit of each relation against the factor at its position with
+// UnifyValues. A relation of value type uint8 in the place of a uint32 factor is refused in the meta
+// phase; the prelude function that combine_data was until then computed a key from it without notice.
+// Expected: exit nonzero on /checks.
+container combine_data_neg_values
+{
+	unit<uint32> Town  : nrofrows = 3;
+	unit<uint32> Year  : nrofrows = 4;
+	unit<uint8>  Year8 : nrofrows = 4;
+	unit<uint32> Row   : nrofrows = 6;
+	unit<uint32> TY    := combine_unit(Town, Year);
+
+	attribute<Town>  town_rel  (Row) := value(id(Row) % 3, Town);
+	attribute<Year8> year8_rel (Row) := value(id(Row) % 4, Year8);
+
+	container checks
+	{
+		parameter<uint32> n := count(combine_data(TY, town_rel, year8_rel));
+	}
+}

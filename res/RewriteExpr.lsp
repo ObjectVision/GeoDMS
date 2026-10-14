@@ -241,11 +241,9 @@
    arity error (or reach a same-named function via arity-aware head dispatch,
    should one ever be defined). */
 
-/* combine_data is RETIRED to a prelude variadic function: base = the value(...)
-   linearization formula, fold = combine_data(V, combine_data(combine_unit(...),
-   a1, a2), rest) -- the exact resolvents; ValuesUnit/LowerBound/nrofrows args are
-   calc_as_result (subst_allowed), so body params substitute identically to the
-   syntactic _a/_b of this rule. */
+/* combine_data was retired to a prelude variadic function, and is since #1293 an
+   operator (clc/dll/src/OperUnit.cpp) that checks its relations against the
+   factors of the combined unit. */
 
 
 // [(invert _X)              (rlookup (id (ValuesUnit _X)) _X)]

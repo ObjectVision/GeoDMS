@@ -1,0 +1,141 @@
+// #1293: combine_data(X, a_rel, b_rel, ..) encodes one element per factor into an element of a
+// combined unit X, and combine_rel(x_rel, k) and first_rel(x_rel) .. sixteenth_rel(x_rel) decode
+// factor k back out, per element and without data over X. Checked against each other, against the
+// index arithmetic they replace and against the sub-items of combine, for every combine variant,
+// with three factors, a nested combine, a factor whose range does not start at 0, a bool and a
+// point factor, nulls, values outside a factor or outside X, a literal, and an X of 10^12 elements.
+// Expected: exit 0 on /checks.
+container combine_rel
+{
+	unit<uint32> Town  : nrofrows = 3;
+	unit<uint32> Year  : nrofrows = 4;
+	unit<int32>  Shift := range(int32, -2i, 3i); // a factor whose range does not start at 0
+	unit<bool>   Flag;
+	unit<uint32> Row   : nrofrows = 60;
+
+	attribute<Town>  town_rel  (Row) := value(id(Row) % 3, Town);
+	attribute<Year>  year_rel  (Row) := value(id(Row) / 3 % 4, Year);
+	attribute<Shift> shift_rel (Row) := value(int32(id(Row) / 12 % 5) - 2i, Shift);
+	attribute<Flag>  flag_rel  (Row) := id(Row) % 2 == 0;
+
+	// two factors, in every variant of combine
+	unit<uint32> TY     := combine            (Town, Year);
+	unit<uint8>  TY_8   := combine_uint8      (Town, Year);
+	unit<uint16> TY_16  := combine_uint16     (Town, Year);
+	unit<uint32> TY_32  := combine_uint32     (Town, Year);
+	unit<uint64> TY_64  := combine_uint64     (Town, Year);
+	unit<uint32> TYu    := combine_unit       (Town, Year);
+	unit<uint8>  TYu_8  := combine_unit_uint8 (Town, Year);
+	unit<uint16> TYu_16 := combine_unit_uint16(Town, Year);
+	unit<uint32> TYu_32 := combine_unit_uint32(Town, Year);
+	unit<uint64> TYu_64 := combine_unit_uint64(Town, Year);
+
+	attribute<TY>     ty_rel     (Row) := combine_data(TY,     town_rel, year_rel);
+	attribute<TY_8>   ty8_rel   (Row) := combine_data(TY_8,   town_rel, year_rel);
+	attribute<TY_16>  ty16_rel  (Row) := combine_data(TY_16,  town_rel, year_rel);
+	attribute<TY_32>  ty32_rel  (Row) := combine_data(TY_32,  town_rel, year_rel);
+	attribute<TY_64>  ty64_rel  (Row) := combine_data(TY_64,  town_rel, year_rel);
+	attribute<TYu>    tyu_rel    (Row) := combine_data(TYu,    town_rel, year_rel);
+	attribute<TYu_8>  tyu8_rel  (Row) := combine_data(TYu_8,  town_rel, year_rel);
+	attribute<TYu_16> tyu16_rel (Row) := combine_data(TYu_16, town_rel, year_rel);
+	attribute<TYu_32> tyu32_rel (Row) := combine_data(TYu_32, town_rel, year_rel);
+	attribute<TYu_64> tyu64_rel (Row) := combine_data(TYu_64, town_rel, year_rel);
+
+	// three factors, and the same three with the last two in a nested combine
+	unit<uint64> TYS  := combine_unit_uint64(Town, Year, Shift);
+	unit<uint32> TYSc := combine(Town, Year, Shift);
+	unit<uint32> YS   := combine_unit(Year, Shift);
+	unit<uint64> T_YS := combine_unit_uint64(Town, YS);
+
+	attribute<TYS>  tys_rel         (Row) := combine_data(TYS, town_rel, year_rel, shift_rel);
+	attribute<T_YS> t_ys_rel        (Row) := combine_data(T_YS, town_rel, year_rel, shift_rel); // unfolds YS
+	attribute<T_YS> t_ys_nested_rel (Row) := combine_data(T_YS, town_rel, combine_data(YS, year_rel, shift_rel));
+
+	// a bool and a point factor
+	unit<spoint> Cell := range(spoint, point_yx(0s, 0s), point_yx(2s, 3s)); // 2 rows of 3 columns
+	unit<uint32> CellNr : nrofrows = 6
+	{
+		attribute<Cell> cell_value := point_yx(int16(id(.) / 3), int16(id(.) % 3), Cell);
+	}
+	attribute<Cell> cell_rel (Row) := CellNr/cell_value[value(id(Row) % 6, CellNr)];
+	unit<uint32> FC := combine(Flag, Cell);
+	attribute<FC> fc_rel (Row) := combine_data(FC, flag_rel, cell_rel);
+
+	// nulls, and values outside a factor or outside X
+	attribute<Town> town_null   (Row) := id(Row) % 7 == 0 ? value(null_u, Town) : town_rel;
+	attribute<TYu>  tyu_null    (Row) := combine_data(TYu, town_null, year_rel);
+	attribute<TYu>  tyu_beyond  (Row) := value(id(Row) + 10, TYu); // #TYu is 12, so only rows 0 and 1 lie in it
+	attribute<Year> year_beyond (Row) := value(id(Row) % 6, Year);  // 4 and 5 lie outside Year
+
+	// a literal for one factor, as in combine_data(part_value_combi, 0, ID(P))
+	attribute<TYu> town1 (Year) := combine_data(TYu, 1, id(Year));
+
+	// all sixteen positions, and the sub-item twelfth_rel (spelled twelveth_rel up to 20.23.1)
+	unit<uint32> Two   : nrofrows = 2;
+	unit<uint32> Two16 := combine(Two, Two, Two, Two, Two, Two, Two, Two, Two, Two, Two, Two, Two, Two, Two, Two);
+
+	// 10^12 elements: neither operator may hold data over X. (Not combine_uint64 here: its sub-items cost
+	// 2.77 GB of commit at this size whether or not they are used, also before #1293.)
+	unit<uint32> Big       : nrofrows = 1000000;
+	unit<uint64> BigBig    := combine_unit_uint64(Big, Big);
+	attribute<Big>       big1 (Row) := value(id(Row) * 16661 % 1000000, Big);
+	attribute<Big>       big2 (Row) := value(id(Row) * 7 + 999000, Big);
+	attribute<BigBig>    bb_rel   (Row) := combine_data(BigBig, big1, big2);
+
+	container checks
+	{
+		// first_rel(combine_data(X, a, b)) == a, second_rel(..) == b, and combine_data(X, first_rel(x), second_rel(x)) == x
+		parameter<bool> c_ty     := all(first_rel(ty_rel    ) == town_rel && second_rel(ty_rel    ) == year_rel && combine_data(TY,     first_rel(ty_rel    ), second_rel(ty_rel    )) == ty_rel    ), IntegrityCheck = "c_ty == true";
+		parameter<bool> c_ty_8   := all(first_rel(ty8_rel  ) == town_rel && second_rel(ty8_rel  ) == year_rel && combine_data(TY_8,   first_rel(ty8_rel  ), second_rel(ty8_rel  )) == ty8_rel  ), IntegrityCheck = "c_ty_8 == true";
+		parameter<bool> c_ty_16  := all(first_rel(ty16_rel ) == town_rel && second_rel(ty16_rel ) == year_rel && combine_data(TY_16,  first_rel(ty16_rel ), second_rel(ty16_rel )) == ty16_rel ), IntegrityCheck = "c_ty_16 == true";
+		parameter<bool> c_ty_32  := all(first_rel(ty32_rel ) == town_rel && second_rel(ty32_rel ) == year_rel && combine_data(TY_32,  first_rel(ty32_rel ), second_rel(ty32_rel )) == ty32_rel ), IntegrityCheck = "c_ty_32 == true";
+		parameter<bool> c_ty_64  := all(first_rel(ty64_rel ) == town_rel && second_rel(ty64_rel ) == year_rel && combine_data(TY_64,  first_rel(ty64_rel ), second_rel(ty64_rel )) == ty64_rel ), IntegrityCheck = "c_ty_64 == true";
+		parameter<bool> c_tyu    := all(first_rel(tyu_rel   ) == town_rel && second_rel(tyu_rel   ) == year_rel && combine_data(TYu,    first_rel(tyu_rel   ), second_rel(tyu_rel   )) == tyu_rel   ), IntegrityCheck = "c_tyu == true";
+		parameter<bool> c_tyu_8  := all(first_rel(tyu8_rel ) == town_rel && second_rel(tyu8_rel ) == year_rel && combine_data(TYu_8,  first_rel(tyu8_rel ), second_rel(tyu8_rel )) == tyu8_rel ), IntegrityCheck = "c_tyu_8 == true";
+		parameter<bool> c_tyu_16 := all(first_rel(tyu16_rel) == town_rel && second_rel(tyu16_rel) == year_rel && combine_data(TYu_16, first_rel(tyu16_rel), second_rel(tyu16_rel)) == tyu16_rel), IntegrityCheck = "c_tyu_16 == true";
+		parameter<bool> c_tyu_32 := all(first_rel(tyu32_rel) == town_rel && second_rel(tyu32_rel) == year_rel && combine_data(TYu_32, first_rel(tyu32_rel), second_rel(tyu32_rel)) == tyu32_rel), IntegrityCheck = "c_tyu_32 == true";
+		parameter<bool> c_tyu_64 := all(first_rel(tyu64_rel) == town_rel && second_rel(tyu64_rel) == year_rel && combine_data(TYu_64, first_rel(tyu64_rel), second_rel(tyu64_rel)) == tyu64_rel), IntegrityCheck = "c_tyu_64 == true";
+
+		// the numbering is the one the index arithmetic gave, and the one of the sub-items of combine
+		parameter<bool> c_arithmetic := all(uint32(ty_rel) == uint32(town_rel) * 4 + uint32(year_rel)), IntegrityCheck = "c_arithmetic == true";
+		parameter<bool> c_decode     := all(first_rel(tyu64_rel) == value(uint64(tyu64_rel) / uint64(#Year), Town) && second_rel(tyu64_rel) == value(uint64(tyu64_rel) % uint64(#Year), Year)), IntegrityCheck = "c_decode == true";
+		parameter<bool> c_subitems   := all(TY/first_rel[ty_rel] == town_rel && TY/second_rel[ty_rel] == year_rel) && all(first_rel(id(TY)) == TY/first_rel && second_rel(id(TY)) == TY/second_rel), IntegrityCheck = "c_subitems == true";
+
+		// three factors, positions by name and by number, and a factor whose range starts at -2
+		parameter<bool> c_tys       := all(first_rel(tys_rel) == town_rel && second_rel(tys_rel) == year_rel && third_rel(tys_rel) == shift_rel && combine_rel(tys_rel, 0) == town_rel && combine_rel(tys_rel, 2) == shift_rel), IntegrityCheck = "c_tys == true";
+		parameter<bool> c_tys_index := all(uint64(tys_rel) == (uint64(town_rel) * 4u64 + uint64(year_rel)) * 5u64 + uint64(int32(shift_rel) + 2i)), IntegrityCheck = "c_tys_index == true";
+		parameter<bool> c_tysc      := all(first_rel(id(TYSc)) == TYSc/first_rel && second_rel(id(TYSc)) == TYSc/second_rel && third_rel(id(TYSc)) == TYSc/third_rel), IntegrityCheck = "c_tysc == true";
+
+		// a nested combine: combine_data unfolds it, and second_rel gives the inner combined unit, on which the operators work again
+		parameter<bool> c_nested := all(t_ys_rel == t_ys_nested_rel && uint64(t_ys_rel) == uint64(tys_rel) && first_rel(t_ys_rel) == town_rel && first_rel(second_rel(t_ys_rel)) == year_rel && second_rel(second_rel(t_ys_rel)) == shift_rel), IntegrityCheck = "c_nested == true";
+
+		// a bool and a point factor
+		parameter<bool> c_fc := all(first_rel(fc_rel) == flag_rel && second_rel(fc_rel) == cell_rel) && all(first_rel(id(FC)) == FC/first_rel && second_rel(id(FC)) == FC/second_rel), IntegrityCheck = "c_fc == true";
+
+		// null stays null; a value outside its factor, or outside X, gives null
+		parameter<uint32> n_null    := sum_uint32(IsNull(tyu_null)), IntegrityCheck = "n_null == 9";
+		parameter<bool>   c_null    := all(IsNull(tyu_null) == IsNull(town_null) && IsNull(first_rel(tyu_null)) == IsNull(town_null) && IsNull(second_rel(tyu_null)) == IsNull(town_null)), IntegrityCheck = "c_null == true";
+		parameter<bool>   c_beyond  := all(IsNull(first_rel(tyu_beyond)) == (id(Row) >= 2) && IsNull(second_rel(tyu_beyond)) == (id(Row) >= 2)), IntegrityCheck = "c_beyond == true";
+		parameter<bool>   c_outside := all(IsNull(combine_data(TYu, town_rel, year_beyond)) == (id(Row) % 6 >= 4)), IntegrityCheck = "c_outside == true";
+
+		// a literal for one factor
+		parameter<bool> c_literal := all(first_rel(town1) == value(1, Town) && second_rel(town1) == id(Year)), IntegrityCheck = "c_literal == true";
+
+		// all sixteen positions against the sub-items, twelfth_rel among them
+		parameter<bool> c_sixteen := #Two16 == 65536
+			&& all(first_rel     (id(Two16)) == Two16/first_rel     ) && all(second_rel    (id(Two16)) == Two16/second_rel    )
+			&& all(third_rel     (id(Two16)) == Two16/third_rel     ) && all(fourth_rel    (id(Two16)) == Two16/fourth_rel    )
+			&& all(fifth_rel     (id(Two16)) == Two16/fifth_rel     ) && all(sixth_rel     (id(Two16)) == Two16/sixth_rel     )
+			&& all(seventh_rel   (id(Two16)) == Two16/seventh_rel   ) && all(eighth_rel    (id(Two16)) == Two16/eighth_rel    )
+			&& all(ninth_rel     (id(Two16)) == Two16/ninth_rel     ) && all(tenth_rel     (id(Two16)) == Two16/tenth_rel     )
+			&& all(eleventh_rel  (id(Two16)) == Two16/eleventh_rel  ) && all(twelfth_rel   (id(Two16)) == Two16/twelfth_rel   )
+			&& all(thirteenth_rel(id(Two16)) == Two16/thirteenth_rel) && all(fourteenth_rel(id(Two16)) == Two16/fourteenth_rel)
+			&& all(fifteenth_rel (id(Two16)) == Two16/fifteenth_rel ) && all(sixteenth_rel (id(Two16)) == Two16/sixteenth_rel )
+		,	IntegrityCheck = "c_sixteen == true";
+
+		// 10^12 elements
+		parameter<bool> c_big := #BigBig == 1000000000000u64
+			&& all(first_rel(bb_rel) == big1 && second_rel(bb_rel) == big2 && uint64(bb_rel) == uint64(big1) * 1000000u64 + uint64(big2))
+		,	IntegrityCheck = "c_big == true";
+	}
+}

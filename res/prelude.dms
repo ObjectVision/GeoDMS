@@ -178,16 +178,8 @@ function replace_value
 	:=	replace_value(replace_value(subject, oldval, newval), rest);
 }
 
-function combine_data
-{
-	variant base(container vunit; container lhs; container rhs) -> container
-	:=	value(
-			(int64(lhs) - int64(LowerBound(ValuesUnit(lhs)))) * int64(nrofrows(ValuesUnit(rhs)))
-			+ (int64(rhs) - int64(LowerBound(ValuesUnit(rhs))))
-		,	vunit);
-	variant more(container vunit; container a1; container a2; ...rest) -> container
-	:=	combine_data(vunit, combine_data(combine_unit(ValuesUnit(a1), ValuesUnit(a2)), a1, a2), rest);
-}
+// combine_data was a variadic function here until #1293 made it an operator (clc/dll/src/OperUnit.cpp),
+// which checks its relations against the factors of the combined unit.
 
 // MakeDefined: a pure rule head (no registered operator) — retired at ALL arities.
 // The structural idempotence collapse MakeDefined(MakeDefined(val,alt),alt) -> MakeDefined(val,alt)

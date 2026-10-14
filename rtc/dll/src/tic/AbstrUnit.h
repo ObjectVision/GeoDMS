@@ -16,6 +16,8 @@
 #include "mci/ValueComposition.h"
 #include "ptr/OwningPtrSizedArray.h"
 
+#include <vector>
+
 class InpStreamBuff;
 class OutStreamBuff;
 
@@ -108,6 +110,17 @@ public:
 	// is what stops derived units from emitting SpatialReference lines they never declared.
 	// See SpatialReferencePropDef::GetRawValue and feedback on the raw-vs-cooked seam.
 	const UnitCrs* GetLocalCrs() const { return m_Crs.get_ptr(); }
+
+	// #1293: the factors of a unit made by combine or combine_unit, in the order of their arguments;
+	// the last one varies fastest. UnitCombine_impl records them on the unit it creates; every other
+	// unit has none, and CopyProps does not copy them. Like GetCrs, the getters ask the referred item
+	// first, so a config unit answers for the cache unit its own combine made.
+	// GetCombineFactors may update meta info and is for the meta phase; GetCurrCombineFactors updates
+	// nothing and is for the calculation phase.
+	using CombineFactors = std::vector<SharedUnit>;
+	TIC_CALL auto GetCombineFactors    () const -> std::shared_ptr<const CombineFactors>;
+	TIC_CALL auto GetCurrCombineFactors() const -> std::shared_ptr<const CombineFactors>;
+	TIC_CALL void SetCombineFactors(std::shared_ptr<const CombineFactors> factors);
 
 	TIC_CALL SharedStr GetBackgroundReference() const;
 	TIC_CALL TokenID   GetSpatialReference    () const;
@@ -255,6 +268,8 @@ private:
 	// keyed on raw pointers, which therefore could not be written from worker threads)
 	// plus its USF_HasSpatialReference flag bit and ~AbstrUnit erase.
 	SharedPtr<const UnitCrs>                         m_Crs;
+
+	std::shared_ptr<const CombineFactors>            m_CombineFactors; // #1293, see GetCombineFactors
 
 	DECL_ABSTR(TIC_CALL, Class)
 };

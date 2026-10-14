@@ -20,6 +20,7 @@ side*); every claim was checked on GeoDMS 20.22.1 with a probe.
 | `sum_uint64(IsX)` | `sum(uint64(IsX))` | the `sum_<type>` variants count the true values of a `bool` attribute directly, and say the result type once |
 | `=asList(...)` | `='' + asList(...)` | `asList` already yields the string of an indirect expression |
 | `combine_data(AB, a_rel, b_rel)` | `uint64(a_rel) * uint64(#B) + uint64(b_rel)` | a key from two relations is a relation to their combined domain; see below |
+| `second_rel(ab_rel)` | `value(uint64(ab_rel) % uint64(#B), B)` | the relation back to a factor (20.24.0, #1293); see below |
 
 Conversions that are needed:
 
@@ -105,8 +106,17 @@ attribute<uint64> key (R) := uint64(R/a_rel) * uint64(#B) + uint64(R/b_rel);
 - Use `combine_unit_<type>` for large domains. `combine` itself also adds the subitems
   `first_rel` and `second_rel`, attributes on the combined domain, which can explode memory
   (the `combine` wiki page).
-- More than two relations: chain them, `combine_data(ABC, a_rel, combine_data(BC, b_rel,
-  c_rel))` (the `combine_data` wiki page).
+- More than two relations: one per factor, `combine_data(ABC, a_rel, b_rel, c_rel)` with
+  `ABC := combine_unit(A, B, C)`. Before 20.24.0 they had to be chained,
+  `combine_data(ABC, a_rel, combine_data(BC, b_rel, c_rel))`, which still works.
+- Back from the key to a factor: `first_rel(AB_rel)`, `second_rel(AB_rel)` and on, or
+  `combine_rel(AB_rel, k)` counting from 0 (20.24.0, #1293). They work per element and hold
+  nothing over `AB`, unlike the subitem `AB/second_rel[AB_rel]`, and they work on
+  `combine_unit_<type>` too. Not `value(uint64(AB_rel) % uint64(#B), B)`: that repeats the
+  order of the factors at every place that decodes.
+- Since 20.24.0 `combine_data` checks each relation against its factor with `UnifyValues`:
+  the value type, metric, projection and CRS, not which unit it is. Two factors of the same
+  type can still be swapped without notice.
 - A large combined range costs nothing by itself: with 1 million places (a range of 10^12)
   and 10 million rows, `unique`, `rlookup` and `any` on the `combine_data` relation took as
   long as on the hand-made `uint64` key (0.5 s, 0.3 s and 0.1 s), with the same result.
