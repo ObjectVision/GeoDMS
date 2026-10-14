@@ -1,0 +1,17 @@
+// The failing rewrite of the #1298 case; stor_mmd_failed_1_write.dms describes the three configs.
+// The same store and the same m as the write before it, with a pattern that boost's regex refuses to
+// finish on the 120 a's of element 900000: "The complexity of matching the regular expression exceeded
+// predefined bounds". The other tiles are written, tile 13 only up to that element.
+container stor_mmd_failed_2_rewrite_neg
+{
+	unit<uint32> src := range(uint32, 0, 1000000)
+	{
+		attribute<string> s := id(.) == 900000 ? 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' : 'ab';
+	}
+
+	unit<uint32> store := src
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_failed.mmd"
+	{
+		attribute<bool> m := regex_match(src/s, '(a|aa)*(a|aa)*(a|aa)*c|ab');
+	}
+}

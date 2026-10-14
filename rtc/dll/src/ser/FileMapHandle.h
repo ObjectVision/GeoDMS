@@ -14,7 +14,10 @@
 #include "ser/FileCreationMode.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <functional>
+#include <map>
+#include <memory>
 #include <mutex>
 
 // the following define should clean-up resources of Closed FileMap Handles by Closing the file
@@ -77,7 +80,8 @@ struct FileHandle
 	RTC_CALL ~FileHandle();
 
 	RTC_CALL void OpenRw (WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp, bool retry = true, bool deleteOnClose = false);
-	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty = false );
+	// shareDelete lets another handle move or delete the file while this one has it open (#1298)
+	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty = false, bool shareDelete = false);
 	RTC_CALL void CloseFile();
 	RTC_CALL void DropFile (WeakStr fileName);
 
@@ -107,7 +111,10 @@ struct MappedFileHandle : FileHandle
 	RTC_CALL ~MappedFileHandle();
 
 	void OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
-	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry);
+	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool shareDelete = false);
+
+	// #1298: gives this file, open and mapped as it is, another name; the views and the handle keep working
+	void RenameTo(WeakStr newFileName);
 
 	FileChunkSpec AllocFile (FileChunkSpec& viewSpec, dms::filesize_t viewCapacity);
 	FileChunkSpec allocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity, tile_id t);
@@ -116,8 +123,9 @@ struct MappedFileHandle : FileHandle
 	void MapFile(bool alsoWrite);
 
 	// #1280: the seal of a stored sequence pool ends the write of its .seq file. It closes the file, after
-	// cutting it to newSize or after putting a compacted copy in its place; no view may be mapped then. The
-	// first view that is mapped after it opens the file again, for reading.
+	// cutting it to newSize or after putting a compacted copy in its place; no view may be mapped then.
+	// ReopenIfClosed opens it again, for reading; FileTileArray::FinishWrite calls it right after the seal
+	// (#1298), because the name may belong to another file later on.
 	void TruncateAndClose(dms::filesize_t newSize);
 	void ReplaceByAndClose(WeakStr replacementFileName);
 	void ReopenIfClosed(bool alsoWrite);
@@ -266,6 +274,113 @@ protected:
 
 	FileChunkSpec m_ViewSpec = { 0, 0, 0 };
 	ViewData      m_ViewData;
+};
+
+// =====================================================================
+// #1298: the files of an MMD store
+//
+// A reader takes the presence of a file in a store for proof that the array in it is complete. So an array is
+// written under a temporary name and gets its own name only when its write has finished (StoreFilePublisher),
+// and the files of its previous version are moved aside under a temporary name and deleted there when its
+// write begins (RetireStoreFile): a handle or view that still has them open, in this process or another,
+// keeps their data until it closes, while the name is free at once. A write that fails or is interrupted
+// therefore leaves no file under the array's name, and a reader reports that instead of reading zeros.
+// Every temporary name contains ".~", which no item name can, so what an interrupted write left behind is
+// removed when the next write session of the store begins (RemoveStoreLeftovers).
+// =====================================================================
+
+// The lock file 0Lock of a store. Its byte 0 keeps the opening of an array's two files (shared) apart from
+// the replacement of that pair (exclusive); its byte 1 is held by the one process that writes the store.
+// The OS releases both when the process ends. The counts make one OS lock serve all threads of this process.
+struct StoreLock
+{
+	// forWrite creates the folder of the store and its lock file; a reader opens an existing lock file and
+	// reads without lock when there is none, which is the case for a store written before 20.24.
+	RTC_CALL StoreLock(WeakStr storeFolder, bool forWrite);
+	RTC_CALL ~StoreLock();
+
+	bool IsForWrite() const { return m_ForWrite; }
+
+	// takes byte 1 for as long as this object lives; throws when another process holds it
+	RTC_CALL void BeginWriteSession();
+
+	RTC_CALL void LockShared();
+	RTC_CALL void UnlockShared();
+	RTC_CALL void LockExclusive();
+	RTC_CALL void UnlockExclusive();
+
+	// The writes of an array in this process are numbered; only the last one begun may publish, so a write
+	// that a later one overtook cannot put an outdated version under the array's name.
+	RTC_CALL UInt64 StartWrite(WeakStr finalName);
+	RTC_CALL bool IsLatestWrite(WeakStr finalName, UInt64 writeNr);
+
+	StoreLock(const StoreLock&) = delete;
+	StoreLock& operator =(const StoreLock&) = delete;
+
+private:
+	bool OsLock(UInt32 byteNr, bool exclusive, bool failImmediately);
+	void OsUnlock(UInt32 byteNr);
+
+	SharedStr m_StoreFolder, m_LockFileName;
+	WinHandle m_hFile;
+	bool      m_ForWrite = false, m_HasWriteSession = false, m_Exclusive = false;
+	UInt32    m_NrShared = 0;
+
+	std::mutex m_Mutex;
+	std::condition_variable m_Released;
+	std::map<SharedStr, UInt64> m_LatestWrite;
+};
+
+struct StoreLockShared
+{
+	explicit StoreLockShared(StoreLock* storeLock) : m_StoreLock(storeLock) { if (m_StoreLock) m_StoreLock->LockShared(); }
+	~StoreLockShared() { if (m_StoreLock) m_StoreLock->UnlockShared(); }
+	StoreLockShared(const StoreLockShared&) = delete;
+	StoreLockShared& operator =(const StoreLockShared&) = delete;
+private:
+	StoreLock* m_StoreLock;
+};
+
+struct StoreLockExclusive
+{
+	explicit StoreLockExclusive(StoreLock* storeLock) : m_StoreLock(storeLock) { if (m_StoreLock) m_StoreLock->LockExclusive(); }
+	~StoreLockExclusive() { if (m_StoreLock) m_StoreLock->UnlockExclusive(); }
+	StoreLockExclusive(const StoreLockExclusive&) = delete;
+	StoreLockExclusive& operator =(const StoreLockExclusive&) = delete;
+private:
+	StoreLock* m_StoreLock;
+};
+
+// fileName + ".~" + kind + <process id> + "_" + nr: 'w' for a file being written, 'z' for a file moved aside
+RTC_CALL SharedStr MakeStoreTmpName(WeakStr fileName, char kind, UInt64 nr);
+RTC_CALL UInt64    NextStoreFileNr();
+
+// moves the file replacementFileName to fileName, replacing what is there; retries a sharing violation
+RTC_CALL void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName);
+
+// removes, in the store folder and below, the temporary files that a write of another process left
+RTC_CALL void RemoveStoreLeftovers(WeakStr storeFolder);
+
+// The write of one stored array: Begin moves the files of the previous version aside and returns the name
+// to write under, Publish gives the written files the array's name. An unpublished write removes its files.
+struct StoreFilePublisher
+{
+	StoreFilePublisher() = default;
+	RTC_CALL ~StoreFilePublisher();
+
+	RTC_CALL SharedStr Begin(std::shared_ptr<StoreLock> storeLock, WeakStr finalName, bool hasSeqFile);
+	RTC_CALL void Publish(MappedFileHandle& dataFile, MappedFileHandle* seqFile);
+
+	bool IsActive() const { return bool(m_StoreLock); }
+
+	StoreFilePublisher(const StoreFilePublisher&) = delete;
+	StoreFilePublisher& operator =(const StoreFilePublisher&) = delete;
+
+private:
+	std::shared_ptr<StoreLock> m_StoreLock;
+	SharedStr m_FinalName, m_PartialName;
+	UInt64    m_WriteNr = 0;
+	bool      m_HasSeqFile = false, m_Published = false;
 };
 
 //  -----------------------------------------------------------------------

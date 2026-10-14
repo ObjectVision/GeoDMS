@@ -99,7 +99,9 @@ struct FileTileArray : GeneratedTileFunctor<V>
 
 	using files_t = OwningPtrSizedArray<file_tile<V>>;
 
-	FileTileArray(const AbstrTileRangeData* domain, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp);
+	// storeLock: the array belongs to an MMD store (#1298). A write then goes under a temporary name that
+	// FinishWrite replaces by filenameBase, and a read opens the two files of a sequence attribute together.
+	FileTileArray(const AbstrTileRangeData* domain, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, std::shared_ptr<StoreLock> storeLock = {});
 
 	locked_seq_t GetWritableTile(tile_id t, dms_rw_mode rwMode) override;
 	locked_cseq_t GetTile(tile_id t) const override;
@@ -126,11 +128,15 @@ struct FileTileArray : GeneratedTileFunctor<V>
 	void FinishWrite() override;
 
 	SharedStr m_CacheFileName;
+	// #1298: declared before the files, so that it removes an unpublished write after their handles closed
+	StoreFilePublisher m_Publisher;
 	files_t m_Files;
 	// No m_IsTmp here: the ctor hands isTmp straight to MappedFileHandle::OpenRw, which owns the
 	// delete-on-close semantics (see ser/FileMapHandle.h).
 
-	// The .seq file of a sequence attribute that was opened for writing, which FinishWrite seals (#1280).
+	// The files that were opened for writing: the values, or the index ranges of a sequence attribute, and
+	// the .seq file of a sequence attribute, which FinishWrite seals (#1280) and publishes (#1298).
+	std::shared_ptr<MappedFileHandle> m_DataFile;
 	std::shared_ptr<MappedFileHandle> m_SeqFile;
 
 private:
@@ -377,7 +383,7 @@ SizeT LegacyPaddedDatFileSize(const AbstrTileRangeData* trd)
 }
 
 template <typename V>
-FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp)
+FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, std::shared_ptr<StoreLock> storeLock)
 	: m_CacheFileName(filenameBase)
 {
 	this->m_TileRangeData = trd;
@@ -395,7 +401,11 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 
 	if (rwMode <= dms_rw_mode::read_only)
 	{
-		std::shared_ptr<ConstMappedFileHandle> 
+		// #1298: the index and the .seq file of a sequence attribute are opened while no writer replaces the pair;
+		// once open, they stay this pair whatever happens to the names
+		StoreLockShared pairLock(has_fixed_elem_size_v<V> ? nullptr : storeLock.get());
+
+		std::shared_ptr<ConstMappedFileHandle>
 			cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, true, false)
 		,	cmfh_sequences;
 
@@ -457,6 +467,9 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	}
 	else
 	{
+		if (storeLock)
+			fullFileName = m_Publisher.Begin(std::move(storeLock), fullFileName, !has_fixed_elem_size_v<V>);
+
 		std::shared_ptr<MappedFileHandle> mfh = std::make_shared<MappedFileHandle>();
 		std::shared_ptr<MappedFileHandle> mfh_sequences;
 		mfh->OpenRw(fullFileName, MinimalDatFileSize<V>(trd), rwMode, isTmp);
@@ -498,6 +511,7 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
+		m_DataFile = std::move(mfh);
 		m_SeqFile = std::move(mfh_sequences);
 	}
 	m_Files = std::move(seqs);
@@ -508,7 +522,16 @@ void FileTileArray<V>::FinishWrite()
 {
 	if constexpr (!has_fixed_elem_size_v<V>)
 		if (m_SeqFile)
+		{
 			SealSequences();
+			// #1298: opened again now and not at the next view, because by then its name may belong to a later write
+			m_SeqFile->ReopenIfClosed(false);
+		}
+	if (m_Publisher.IsActive())
+	{
+		assert(m_DataFile);
+		m_Publisher.Publish(*m_DataFile, m_SeqFile.get());
+	}
 }
 
 // #1280, #1294: a stored pool grows by doubling, and in a domain of more than one tile its chunk also moves

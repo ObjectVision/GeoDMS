@@ -573,9 +573,47 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 	TreeItem_XML_DumpOrThrow(storageHolder, &out, false);
 
-	auto fsb = FileOutStreamBuff(dictFileName, true);
-	fsb.WriteBytes(osb.GetData(), osb.CurrPos());
-	fsb.Close(); // RTC-A05: a dictionary that was not written, or only in part, is an error
+	// #1298: the first emission begins the write session; another process that writes this store stops it here,
+	// before the dictionary is touched
+	GetStoreLockForWrite();
+
+	// #1298: a new dictionary replaces the old one as a whole; overwriting it in place left half a dictionary
+	// to a reader, and to the next session when the write was interrupted
+	auto tmpFileName = MakeStoreTmpName(dictFileName, 'w', NextStoreFileNr());
+	try {
+		{
+			auto fsb = FileOutStreamBuff(tmpFileName, true);
+			fsb.WriteBytes(osb.GetData(), osb.CurrPos());
+			fsb.Close(); // RTC-A05: a dictionary that was not written, or only in part, is an error
+		}
+		ReplaceFileBy(dictFileName, tmpFileName);
+	}
+	catch (...)
+	{
+		KillFileOrDir(tmpFileName, false);
+		throw;
+	}
+}
+
+auto MmdStorageManager::GetStoreLockForWrite() const -> std::shared_ptr<StoreLock>
+{
+	auto lock = std::scoped_lock(m_StoreLockMutex);
+	if (!m_StoreLock || !m_StoreLock->IsForWrite())
+	{
+		auto storeLock = std::make_shared<StoreLock>(GetNameStr(), true);
+		storeLock->BeginWriteSession(); // throws when another process writes this store
+		RemoveStoreLeftovers(GetNameStr()); // of another process: none writes now
+		m_StoreLock = std::move(storeLock);
+	}
+	return m_StoreLock;
+}
+
+auto MmdStorageManager::GetStoreLockForRead() const -> std::shared_ptr<StoreLock>
+{
+	auto lock = std::scoped_lock(m_StoreLockMutex);
+	if (!m_StoreLock)
+		m_StoreLock = std::make_shared<StoreLock>(GetNameStr(), false);
+	return m_StoreLock;
 }
 
 // #1275: called from TreeItem::PrepareDataUsage for every item under an MMD store, on the meta
@@ -681,7 +719,7 @@ void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, 
 		// which destroys the object while the unique_ptr still owns it and deletes it again. This
 		// release-into-a-SharedPtr is the same handoff DataWriteLock makes (DataLocks.cpp).
 		SharedPtr<AbstrDataObject> target;
-		target.reset(CreateFileTileArray(adi, nullptr, dms_rw_mode::write_only_all, fileName, false).release());
+		target.reset(CreateFileTileArray(adi, nullptr, dms_rw_mode::write_only_all, fileName, false, GetStoreLockForWrite()).release()); // #1298: published by FinishWrite
 		MG_CHECK(target);
 		CopyData(adi->GetRefObj().get(), target.get());
 		target->FinishWrite(); // #1280

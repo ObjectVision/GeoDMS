@@ -21,6 +21,10 @@
 #include "utl/PlatformError.h"
 #include "utl/MemGuard.h"
 #include "utl/scoped_exit.h"
+#include "utl/splitPath.h"
+#include "utl/StrFormat.h"
+
+#include <filesystem>
 
 #if defined(WIN32)
 #include <windows.h>
@@ -208,7 +212,7 @@ void FileHandle::SetFileSize(dms::filesize_t requiredNrBytes)
 	SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN);
 }
 
-void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty)
+void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty, bool shareDelete)
 {
 	assert(!IsOpen());
 
@@ -222,7 +226,7 @@ void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, 
 		fileHandle = CreateFileW(
 				dosFileNameW.get()
 			,	GENERIC_READ                            // access mode
-			,	FILE_SHARE_READ                         // share mode
+			,	FILE_SHARE_READ | (shareDelete ? FILE_SHARE_DELETE : 0) // share mode
 			,	NULL                                    // SD
 			,	mayBeEmpty ?  OPEN_ALWAYS : OPEN_EXISTING // how to create
 			,	FILE_ATTRIBUTE_NORMAL
@@ -333,7 +337,7 @@ void MappedFileHandle::TruncateAndClose(dms::filesize_t newSize)
 		throwSystemError(lastErr, "FileMapHandle('{}').TruncateAndClose({})", m_FileName.c_str(), (UInt64)newSize);
 }
 
-static void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName)
+void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName)
 {
 	auto dstW = Utf8_2_wchar(ConvertDmsFileName(fileName).c_str());
 	auto srcW = Utf8_2_wchar(ConvertDmsFileName(replacementFileName).c_str());
@@ -342,9 +346,23 @@ static void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName)
 		ManageSystemError(retryCounter, "ReplaceFileBy({})", fileName.c_str(), true, true); // retries a sharing violation, throws otherwise
 }
 
-void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry)
+// #1298: one attempt; returns 0 or the error, which the caller passes on to ManageSystemError
+static DWORD TryMoveFile(WeakStr fileName, WeakStr newFileName)
 {
-	FileHandle::OpenForRead(fileName, throwOnError, doRetry);
+	auto srcW = Utf8_2_wchar(ConvertDmsFileName(fileName).c_str());
+	auto dstW = Utf8_2_wchar(ConvertDmsFileName(newFileName).c_str());
+	if (MoveFileExW(srcW.get(), dstW.get(), MOVEFILE_WRITE_THROUGH))
+		return 0;
+	return GetLastError();
+}
+
+static void SetLastSystemError(DWORD err) { SetLastError(err); }
+
+static DWORD GetProcessIdForStoreFiles() { return GetCurrentProcessId(); }
+
+void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool shareDelete)
+{
+	FileHandle::OpenForRead(fileName, throwOnError, doRetry, false, shareDelete);
 
 	// #1246: a zero-length file has nothing to map, and CreateFileMapping refuses a zero-length
 	// mapping with ERROR_FILE_INVALID (1006), which made every MMD attribute of an empty domain
@@ -396,6 +414,59 @@ ViewData::~ViewData()
 
 		UnmapViewOfFile(reinterpret_cast<void*>(pageBase));
 	}
+}
+
+//  -----------------------------------------------------------------------
+// #1298: the lock file of a store
+//  -----------------------------------------------------------------------
+
+StoreLock::StoreLock(WeakStr storeFolder, bool forWrite)
+	: m_StoreFolder(storeFolder)
+	, m_LockFileName(DelimitedConcat(storeFolder.c_str(), "0Lock"))
+	, m_ForWrite(forWrite)
+{
+	if (forWrite)
+		GetWritePermission(m_LockFileName); // makes the folder of a new store
+	auto nameW = Utf8_2_wchar(ConvertDmsFileName(m_LockFileName).c_str());
+	HANDLE h = CreateFileW(nameW.get()
+		, forWrite ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ
+		, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+		, nullptr
+		, forWrite ? OPEN_ALWAYS : OPEN_EXISTING
+		, FILE_ATTRIBUTE_NORMAL
+		, nullptr
+	);
+	if (h == INVALID_HANDLE_VALUE)
+	{
+		if (forWrite)
+			throwLastSystemError("StoreLock({})", m_LockFileName.c_str());
+		return; // a store written before 20.24 has no lock file, and a reader then reads without lock
+	}
+	m_hFile = WinHandle(h);
+}
+
+bool StoreLock::OsLock(UInt32 byteNr, bool exclusive, bool failImmediately)
+{
+	if (!m_hFile)
+		return true;
+	OVERLAPPED ov = {};
+	ov.Offset = byteNr;
+	DWORD flags = (exclusive ? LOCKFILE_EXCLUSIVE_LOCK : 0) | (failImmediately ? LOCKFILE_FAIL_IMMEDIATELY : 0);
+	if (LockFileEx(m_hFile, flags, 0, 1, 0, &ov))
+		return true;
+	DWORD err = GetLastError();
+	if (failImmediately && err == ERROR_LOCK_VIOLATION)
+		return false;
+	throwSystemError(err, "LockFileEx({})", m_LockFileName.c_str());
+}
+
+void StoreLock::OsUnlock(UInt32 byteNr)
+{
+	if (!m_hFile)
+		return;
+	OVERLAPPED ov = {};
+	ov.Offset = byteNr;
+	UnlockFileEx(m_hFile, 0, 1, 0, &ov);
 }
 
 
@@ -537,9 +608,10 @@ void FileHandle::SetFileSize(dms::filesize_t requiredNrBytes)
 		throwLastSystemError("ftruncate({}, {})", m_FileName.c_str(), (unsigned long long)requiredNrBytes);
 }
 
-void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty)
+void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty, bool shareDelete)
 {
 	assert(!IsOpen());
+	// shareDelete: an open file can always be renamed or unlinked here
 
 	auto path = ConvertDmsFileName(fileName);
 	int fd = -1;
@@ -603,9 +675,9 @@ void MappedFileHandle::OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes,
 	m_hFileMapping = WinHandle(FdToHandle(dup(fd)));
 }
 
-void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry)
+void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool shareDelete)
 {
-	FileHandle::OpenForRead(fileName, throwOnError, doRetry);
+	FileHandle::OpenForRead(fileName, throwOnError, doRetry, false, shareDelete);
 	if (IsOpen())
 	{
 		int fd = HandleToFd(m_hFile);
@@ -634,13 +706,93 @@ void MappedFileHandle::TruncateAndClose(dms::filesize_t newSize)
 	CloseForReopen();
 }
 
-static void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName)
+void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName)
 {
 	auto dst = ConvertDmsFileName(fileName);
 	auto src = ConvertDmsFileName(replacementFileName);
 	UInt32 retryCounter = 0;
 	while (::rename(src.c_str(), dst.c_str()) != 0)
 		ManageSystemError(retryCounter, "ReplaceFileBy({})", fileName.c_str(), true, true); // retries EACCES and EBUSY, throws otherwise
+}
+
+// #1298: one attempt; returns 0 or the error, which the caller passes on to ManageSystemError
+static DWORD TryMoveFile(WeakStr fileName, WeakStr newFileName)
+{
+	auto src = ConvertDmsFileName(fileName);
+	auto dst = ConvertDmsFileName(newFileName);
+	if (::rename(src.c_str(), dst.c_str()) == 0)
+		return 0;
+	return errno;
+}
+
+static void SetLastSystemError(DWORD err) { errno = int(err); }
+
+static DWORD GetProcessIdForStoreFiles() { return DWORD(getpid()); }
+
+// -----------------------------------------------------------------------
+// #1298: the lock file of a store
+// -----------------------------------------------------------------------
+
+StoreLock::StoreLock(WeakStr storeFolder, bool forWrite)
+	: m_StoreFolder(storeFolder)
+	, m_LockFileName(DelimitedConcat(storeFolder.c_str(), "0Lock"))
+	, m_ForWrite(forWrite)
+{
+	if (forWrite)
+		GetWritePermission(m_LockFileName); // makes the folder of a new store
+	auto path = ConvertDmsFileName(m_LockFileName);
+	int fd = ::open(path.c_str(), forWrite ? (O_RDWR | O_CREAT) : O_RDONLY, 0644);
+	if (fd < 0)
+	{
+		if (forWrite)
+			throwLastSystemError("StoreLock({})", m_LockFileName.c_str());
+		return; // a store written before 20.24 has no lock file, and a reader then reads without lock
+	}
+	m_hFile = WinHandle(FdToHandle(fd));
+}
+
+// An OFD lock belongs to the open file description, as a lock of LockFileEx belongs to its handle; a classic
+// POSIX lock belongs to the process and would go with the close of any other descriptor of the same file.
+bool StoreLock::OsLock(UInt32 byteNr, bool exclusive, bool failImmediately)
+{
+	if (!m_hFile)
+		return true;
+	struct flock fl = {};
+	fl.l_type   = exclusive ? F_WRLCK : F_RDLCK;
+	fl.l_whence = SEEK_SET;
+	fl.l_start  = byteNr;
+	fl.l_len    = 1;
+#if defined(F_OFD_SETLKW)
+	int cmd = failImmediately ? F_OFD_SETLK : F_OFD_SETLKW;
+#else
+	int cmd = failImmediately ? F_SETLK : F_SETLKW;
+#endif
+	while (fcntl(HandleToFd(m_hFile), cmd, &fl) != 0)
+	{
+		int err = errno;
+		if (err == EINTR)
+			continue;
+		if (failImmediately && (err == EAGAIN || err == EACCES))
+			return false;
+		throwSystemError(err, "fcntl(lock {})", m_LockFileName.c_str());
+	}
+	return true;
+}
+
+void StoreLock::OsUnlock(UInt32 byteNr)
+{
+	if (!m_hFile)
+		return;
+	struct flock fl = {};
+	fl.l_type   = F_UNLCK;
+	fl.l_whence = SEEK_SET;
+	fl.l_start  = byteNr;
+	fl.l_len    = 1;
+#if defined(F_OFD_SETLK)
+	fcntl(HandleToFd(m_hFile), F_OFD_SETLK, &fl);
+#else
+	fcntl(HandleToFd(m_hFile), F_SETLK, &fl);
+#endif
 }
 
 // -----------------------------------------------------------------------
@@ -1158,7 +1310,7 @@ void MappedFileHandle::ReopenIfClosed(bool alsoWrite)
 	if (!m_ClosedForReopen.load(std::memory_order_relaxed))
 		return;
 	MG_CHECK2(!alsoWrite, "a sealed .seq file is opened again for reading only");
-	OpenForRead(m_FileName, true, true);
+	OpenForRead(m_FileName, true, true, true); // shareDelete: a later write of the same array moves this file aside (#1298)
 	m_ClosedForReopen.store(false, std::memory_order_release);
 }
 
@@ -1195,5 +1347,239 @@ void WriteCompactSeqFile(WeakStr fileName, tile_id tn, const dms::filesize_t* ti
 		}
 		offset += tileBytes[t];
 	}
+}
+
+// =====================================================================
+// #1298: the files of an MMD store (see FileMapHandle.h)
+// =====================================================================
+
+void MappedFileHandle::RenameTo(WeakStr newFileName)
+{
+	ReplaceFileBy(newFileName, m_FileName); // a handle of this file shares delete, so the open file can be moved
+	m_FileName = newFileName;
+}
+
+UInt64 NextStoreFileNr()
+{
+	static std::atomic<UInt64> s_LastNr = 0;
+	return ++s_LastNr;
+}
+
+SharedStr MakeStoreTmpName(WeakStr fileName, char kind, UInt64 nr)
+{
+	return mySSPrintF("{}.~{}{}_{}", fileName.c_str(), kind, GetProcessIdForStoreFiles(), nr);
+}
+
+StoreLock::~StoreLock() = default; // the OS releases the locks of the handle when it closes
+
+void StoreLock::BeginWriteSession()
+{
+	auto lock = std::scoped_lock(m_Mutex);
+	if (m_HasWriteSession)
+		return;
+	MG_CHECK(m_ForWrite);
+	if (!OsLock(1, true, true))
+		throwErrorF("MMD", "storage {} is being written by another process, which holds {}. "
+			"A store is written by one process at a time; try again when that process has finished or closed its configuration."
+			, m_StoreFolder.c_str(), m_LockFileName.c_str());
+	m_HasWriteSession = true;
+}
+
+void StoreLock::LockShared()
+{
+	std::unique_lock lock(m_Mutex);
+	m_Released.wait(lock, [this] { return !m_Exclusive; });
+	if (!m_NrShared)
+		OsLock(0, false, false); // waits while another process replaces a pair
+	++m_NrShared;
+}
+
+void StoreLock::UnlockShared()
+{
+	std::unique_lock lock(m_Mutex);
+	assert(m_NrShared);
+	if (--m_NrShared)
+		return;
+	OsUnlock(0);
+	m_Released.notify_all();
+}
+
+void StoreLock::LockExclusive()
+{
+	std::unique_lock lock(m_Mutex);
+	m_Released.wait(lock, [this] { return !m_Exclusive && !m_NrShared; });
+	OsLock(0, true, false); // waits while another process opens a pair
+	m_Exclusive = true;
+}
+
+void StoreLock::UnlockExclusive()
+{
+	std::unique_lock lock(m_Mutex);
+	assert(m_Exclusive);
+	OsUnlock(0);
+	m_Exclusive = false;
+	m_Released.notify_all();
+}
+
+UInt64 StoreLock::StartWrite(WeakStr finalName)
+{
+	auto nr = NextStoreFileNr();
+	auto lock = std::scoped_lock(m_Mutex);
+	m_LatestWrite[SharedStr(finalName)] = nr;
+	return nr;
+}
+
+bool StoreLock::IsLatestWrite(WeakStr finalName, UInt64 writeNr)
+{
+	auto lock = std::scoped_lock(m_Mutex);
+	auto i = m_LatestWrite.find(SharedStr(finalName));
+	return i != m_LatestWrite.end() && i->second == writeNr;
+}
+
+namespace {
+
+	// Moves fileName aside, when it exists, and returns the name it now has, or the error. A handle of this
+	// process shares delete; a reader in another process does not, and keeps it in place until it closes.
+	DWORD TryRetireStoreFile(WeakStr fileName, std::vector<SharedStr>& retired)
+	{
+		if (!IsFileOrDirAccessible(fileName))
+			return 0;
+		auto zombieName = MakeStoreTmpName(fileName, 'z', NextStoreFileNr());
+		if (auto err = TryMoveFile(fileName, zombieName))
+			return err;
+		retired.emplace_back(std::move(zombieName));
+		return 0;
+	}
+
+	// The data of a retired file stays where an open handle or view needs it; the name goes now, or, on a file
+	// system without POSIX delete semantics, when the last handle closes.
+	void DeleteRetiredStoreFiles(const std::vector<SharedStr>& retired)
+	{
+		for (const auto& zombieName : retired)
+			KillFileOrDir(zombieName, false);
+	}
+
+} // anonymous namespace
+
+SharedStr StoreFilePublisher::Begin(std::shared_ptr<StoreLock> storeLock, WeakStr finalName, bool hasSeqFile)
+{
+	assert(storeLock && storeLock->IsForWrite());
+	assert(!IsActive());
+	m_FinalName  = finalName;
+	m_HasSeqFile = hasSeqFile;
+	m_WriteNr    = storeLock->StartWrite(finalName);
+	m_PartialName = MakeStoreTmpName(finalName, 'w', m_WriteNr);
+
+	// The previous version goes before this one is written, so that a failed write leaves no array rather than
+	// the old one under a dictionary that no longer describes it. The index file first: a reader that comes in
+	// between finds no array, never half a pair. A reader in another process that has the old files open is
+	// waited for outside the lock, as a sharing violation always was.
+	std::vector<SharedStr> retired;
+	UInt32 retryCounter = 0;
+	while (true)
+	{
+		DWORD err = 0;
+		{
+			StoreLockExclusive pairLock(storeLock.get());
+			err = TryRetireStoreFile(finalName, retired);
+			if (!err && hasSeqFile)
+				err = TryRetireStoreFile(SharedStr(finalName) + ".seq", retired);
+		}
+		if (!err)
+			break;
+		SetLastSystemError(err);
+		ManageSystemError(retryCounter, "the previous version of {} cannot be moved aside", finalName.c_str(), true, true); // waits, or throws
+	}
+	DeleteRetiredStoreFiles(retired);
+
+	m_StoreLock = std::move(storeLock);
+	return m_PartialName;
+}
+
+void StoreFilePublisher::Publish(MappedFileHandle& dataFile, MappedFileHandle* seqFile)
+{
+	assert(IsActive());
+	assert(bool(seqFile) == m_HasSeqFile);
+	if (m_Published)
+		return;
+
+	std::vector<SharedStr> retired;
+	{
+		StoreLockExclusive pairLock(m_StoreLock.get());
+		if (!m_StoreLock->IsLatestWrite(m_FinalName, m_WriteNr))
+		{
+			reportF(SeverityTypeID::ST_MajorTrace, "{} is not published: a later write of it has begun", m_FinalName.c_str());
+			return; // the destructor removes what this write left
+		}
+		// The .seq file first, the index last: until the index has its name, a reader finds no array.
+		if (seqFile)
+		{
+			auto finalSeqName = m_FinalName + ".seq";
+			if (auto err = TryRetireStoreFile(finalSeqName, retired))
+				throwSystemError(err, "the file {} that is in the way cannot be moved aside", finalSeqName.c_str());
+			seqFile->RenameTo(finalSeqName);
+		}
+		if (auto err = TryRetireStoreFile(m_FinalName, retired))
+			throwSystemError(err, "the file {} that is in the way cannot be moved aside", m_FinalName.c_str());
+		dataFile.RenameTo(m_FinalName);
+		m_Published = true;
+	}
+	DeleteRetiredStoreFiles(retired);
+}
+
+StoreFilePublisher::~StoreFilePublisher()
+{
+	if (!IsActive() || m_Published)
+		return;
+	// what a write left that did not reach its publish goes, so that nothing of it can be taken for the array
+	try {
+		KillFileOrDir(m_PartialName, false);
+		if (m_HasSeqFile)
+		{
+			KillFileOrDir(m_PartialName + ".seq", false);
+			KillFileOrDir(m_PartialName + ".seq.tmp", false); // what a seal left that failed halfway
+		}
+	}
+	catch (...) {}
+}
+
+void RemoveStoreLeftovers(WeakStr storeFolder)
+{
+	using path_t = std::filesystem::path;
+	using string_t = path_t::string_type;
+
+	auto toNative = [](const std::string& ascii) { return string_t(ascii.begin(), ascii.end()); };
+	string_t marker = toNative(".~");
+	auto pid = std::to_string(GetProcessIdForStoreFiles());
+	string_t ownWrite = toNative(".~w" + pid + "_"), ownZombie = toNative(".~z" + pid + "_");
+
+#if defined(WIN32)
+	path_t folder(Utf8_2_wchar(ConvertDmsFileName(storeFolder).c_str()).get());
+#else
+	path_t folder(ConvertDmsFileName(storeFolder).c_str());
+#endif
+
+	std::error_code ec;
+	std::vector<path_t> leftovers;
+	for (auto it = std::filesystem::recursive_directory_iterator(folder, ec); !ec && it != std::filesystem::recursive_directory_iterator(); it.increment(ec))
+	{
+		std::error_code entryError;
+		if (!it->is_regular_file(entryError))
+			continue;
+		auto fileName = it->path().filename();
+		const string_t& name = fileName.native();
+		if (name.find(marker) == string_t::npos)
+			continue;
+		if (name.find(ownWrite) != string_t::npos || name.find(ownZombie) != string_t::npos)
+			continue; // this process may still write or map it
+		leftovers.emplace_back(it->path());
+	}
+	for (const auto& leftover : leftovers)
+	{
+		std::error_code removeError; // a file that cannot go now is tried again by the next session
+		std::filesystem::remove(leftover, removeError);
+	}
+	if (!leftovers.empty())
+		reportF(SeverityTypeID::ST_MajorTrace, "{} temporary file(s) of an interrupted write removed from {}", leftovers.size(), storeFolder.c_str());
 }
 

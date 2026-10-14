@@ -92,3 +92,5 @@ run_valueinfo_supplier_neg.dms @valueinfo 0 /w
 stor_mmd_missing_neg1.dms /store
 stor_mmd_missing_neg2.dms /store
 stor_mmd_seq_1_write.dms /store
+stor_mmd_failed_1_write.dms /store
+stor_mmd_failed_2_rewrite_neg.dms /store

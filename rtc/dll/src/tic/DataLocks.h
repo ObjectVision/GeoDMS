@@ -38,7 +38,8 @@ enum class DrlType : UInt8 { UpdateNever = 0, Suspendible = 1, Certain = 2, Thro
 // belong. See doc/development/g8-todos.md.
 //----------------------------------------------------------------------
 
-auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase)
+struct StoreLock; // ser/FileMapHandle.h; given for an array of an MMD store (#1298)
+auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase, std::shared_ptr<StoreLock> storeLock = {})
 -> std::unique_ptr<const AbstrDataObject>;
 
 //----------------------------------------------------------------------

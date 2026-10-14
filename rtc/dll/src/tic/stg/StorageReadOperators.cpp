@@ -78,6 +78,7 @@
 #include "UnitClass.h"
 #include "UnitProcessor.h"
 #include "stg/AbstrStorageManager.h"
+#include "stg/MemoryMappedDataStorageManager.h" // #1298: the store lock of the mapping arm
 
 #include <optional>
 #include <semaphore>
@@ -429,7 +430,11 @@ void MapMember(storage_read_request& req, storage_read_member& m)
 	auto fileName = DelimitedConcat(sm->GetNameStr().AsRange(), relName.AsRange());
 	if (!IsFileOrDirAccessible(fileName))
 	{
-		cacheItem->Fail("Data not found in .MMD storage folder", FailType::Data);
+		// #1298: an array gets its file only when its write has finished, so a missing file is also what a failed
+		// or interrupted write leaves
+		cacheItem->Fail(mySSPrintF("MMD storage {} has no data for {}: the file {} is missing. "
+			"The write of this attribute did not finish, or never started; write the storage again."
+			, sm->GetNameStr().c_str(), relName.c_str(), fileName.c_str()), FailType::Data);
 		return;
 	}
 	if (!sm->IsOpen())
@@ -444,7 +449,8 @@ void MapMember(storage_read_request& req, storage_read_member& m)
 		}
 	}
 	auto avu = AbstrValuesUnit(cacheItem);
-	auto fh = OpenFileData(cacheItem, avu ? avu->GetTiledRangeData().get() : nullptr, fileName);
+	auto mmd = dynamic_cast<MmdStorageManager*>(sm);
+	auto fh = OpenFileData(cacheItem, avu ? avu->GetTiledRangeData().get() : nullptr, fileName, mmd ? mmd->GetStoreLockForRead() : nullptr);
 	if (!fh)
 	{
 		cacheItem->Fail("Cannot open data in .MMD storage folder", FailType::Data);

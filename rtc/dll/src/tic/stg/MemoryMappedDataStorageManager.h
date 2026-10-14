@@ -65,6 +65,13 @@ public:
 	// the first time an item under it is prepared, where a stored property may be read.
 	void GatherPresentationTagsOnce(const TreeItem* storageHolder);
 
+	// #1298: the lock file 0Lock of the store (see StoreLock in ser/FileMapHandle.h). The first request for
+	// writing begins the write session: it creates the lock file, takes the lock that keeps other processes
+	// from writing this store, and removes what an interrupted write of another process left. A reader gets
+	// a lock without file when the store has none, which is a store written before 20.24.
+	auto GetStoreLockForWrite() const -> std::shared_ptr<StoreLock>;
+	auto GetStoreLockForRead () const -> std::shared_ptr<StoreLock>;
+
 protected:
 //	implement AbstrStorageManager interface
 	FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const override;
@@ -76,7 +83,9 @@ protected:
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 	void DoWriteTree(const TreeItem* storageHolder) override;
 
-	mutable FileHandle m_MmdLockFile;
+	// #1298: taken on producing threads and by readers; m_CriticalSection may be held then, never the other way round
+	mutable std::mutex                 m_StoreLockMutex;
+	mutable std::shared_ptr<StoreLock> m_StoreLock;
 
 	// #1154/#1179: read holders whose dictionary has been merged. Consulted only to keep
 	// DoUpdateTree idempotent -- after the merge the holder HAS sub-items, which must not trip

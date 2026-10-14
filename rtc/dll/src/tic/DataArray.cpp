@@ -908,7 +908,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	return resultHolder;
 }
 
-auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, dms_rw_mode rwMode, SharedStr filenameBase, bool isTmp)
+auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, dms_rw_mode rwMode, SharedStr filenameBase, bool isTmp, std::shared_ptr<StoreLock> storeLock)
 -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
@@ -932,11 +932,11 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	if (adi->GetValueComposition() != ValueComposition::Single)
 		visit<typelists::sequence_fields>(avu.get(),
-			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, &storeLock] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				using sequence_t = sequence_traits<value_type>::container_type;
 
-				auto newTileFunctor = std::make_unique<FileTileArray<sequence_t>>(currTRD.get(), filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<sequence_t>>(currTRD.get(), filenameBase, rwMode, isTmp, storeLock);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}
@@ -944,9 +944,9 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 
 	else if (avu->GetDynamicClass() == Unit<SharedStr>::GetStaticClass())
 		visit<typelists::strings>(avu.get(),
-			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, &storeLock] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
-				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp, storeLock);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}
@@ -954,18 +954,18 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 
 	else if (avu->GetValueType()->IsSubByteElem())
 		visit<typelists::bints>(avu.get(),
-			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, &storeLock] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
-				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp, storeLock);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}
 		);
 	else
 		visit<typelists::sequence_fields>(avu.get(),
-			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, &storeLock] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
-				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp, storeLock);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}

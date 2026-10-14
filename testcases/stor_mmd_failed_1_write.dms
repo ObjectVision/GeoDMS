@@ -1,0 +1,26 @@
+// #1298: a write to an MMD store that fails halfway leaves no array that a reader can take for data.
+// Three configs, run in the order of their names (stor_mmd_empty_1_write.dms says why a write and its
+// read cannot share one config):
+//   stor_mmd_failed_1_write.dms        writes the store completely: m is true for every element;
+//   stor_mmd_failed_2_rewrite_neg.dms  writes it again with a rule that fails in tile 13 of the 16 (boost's
+//                                      regex gives up on the backtracking over the 120 a's of element
+//                                      900000), so that run must fail;
+//   stor_mmd_failed_3_read_neg.dms     reads the store, and must fail: m has no file.
+// Until 20.24 an array was written in place, in a file created at its full size when the write began, and
+// the dictionary was written before any data. The failed rewrite left an m that looked complete, the read
+// returned it with exit 0, and the part of tile 13 that was never written read false. Since then an array
+// is written under a temporary name and gets its own name only when its write has finished, and the
+// previous version is moved aside when the new write begins, so the failed rewrite leaves no m at all.
+container stor_mmd_failed_1_write
+{
+	unit<uint32> src := range(uint32, 0, 1000000)
+	{
+		attribute<string> s := id(.) == 900000 ? 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' : 'ab';
+	}
+
+	unit<uint32> store := src
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_failed.mmd"
+	{
+		attribute<bool> m := regex_match(src/s, 'a*|ab');
+	}
+}

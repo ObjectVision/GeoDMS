@@ -1,0 +1,17 @@
+// The read after the failed rewrite of the #1298 case; stor_mmd_failed_1_write.dms describes the three
+// configs. The check holds for any m that can be read, so this config exits 0, and fails as a negative,
+// on every build that still hands out an array whose write did not finish: before 20.24 that was the
+// partly rewritten m. Now the read of m fails, naming the store and the missing file.
+container stor_mmd_failed_3_read_neg
+{
+	unit<uint32> store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_failed.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n_true := sum(uint32(store/m)), IntegrityCheck = "n_true <= 1000000";
+	}
+}

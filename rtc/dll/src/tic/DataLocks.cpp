@@ -254,7 +254,7 @@ PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi, CharPtr blo
 	, DataReadLock((Update(adi), adi))
 {}
 
-auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filename, bool mustClear)
+auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filename, bool mustClear, std::shared_ptr<StoreLock> storeLock)
 -> std::unique_ptr<AbstrDataObject>
 {
 	bool isPersistent = adi->IsCacheItem() && MustStorePersistent(adi);
@@ -263,14 +263,14 @@ auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, S
 	assert(!filename.empty());
 	return CreateFileTileArray(adi, abstrValuesRangeData
 		,	mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all
-		,	filename, isTmp
+		,	filename, isTmp, std::move(storeLock)
 	);
 }
 
-auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase)
+auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase, std::shared_ptr<StoreLock> storeLock)
 -> std::unique_ptr<const AbstrDataObject>
 {
-	return CreateFileTileArray(adi, abstrValuesRangeData, dms_rw_mode::read_only, filenameBase, false);
+	return CreateFileTileArray(adi, abstrValuesRangeData, dms_rw_mode::read_only, filenameBase, false, std::move(storeLock));
 }
 
 //----------------------------------------------------------------------
@@ -327,7 +327,8 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 					}
 
 					auto fn = DelimitedConcat(fsn, rn);
-					reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+					// #1298: written under a temporary name, which Commit replaces by fn (FileTileArray::FinishWrite)
+					reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear, mmd->GetStoreLockForWrite()).release());
 					goto afterReset;
 				}
 			}
