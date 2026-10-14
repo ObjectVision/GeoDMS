@@ -134,7 +134,8 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_GetValuesAsFloat64Array(const AbstrDataIt
 		PreparedDataReadLock dlr(self, "DMS_NumericAttr_GetValuesAsFloat64Array");
 		while (len)
 		{
-			auto tl = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
+			// the tiling the data object was made with; the domain unit's own GetTiledRangeData() is null when it takes its range from the unit it refers to (see CreateAbstrHeapTileFunctor)
+			auto tl = self->GetRefObj()->GetTiledLocation(index);
 //			ReadableTileLock tileLck(self->GetRefObj(), tl.first);
 			auto nrRead = self->GetRefObj()->GetValuesAsFloat64Array(tl, len, data);
 			MG_CHECK(nrRead);
@@ -151,10 +152,9 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_SetValuesAsFloat64Array(AbstrDataItem* se
 	DMS_CALL_BEGIN
 		TreeItemContextHandle checkPtr(self, AbstrDataItem::GetStaticClass(), "DMS_NumericAttr_SetValuesAsFloat64Array");
 
-		DataWriteLock lock(self, dms_rw_mode::read_write);
+		DataWriteLock lock(self, dms_rw_mode::read_write); // no read lock beside it: DataReadLock refuses an item that is write-locked
 
-		PreparedDataReadLock dlr(self, "DMS_NumericAttr_SetValuesAsFloat64Array");
-		auto tl = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
+		auto tl = lock->GetTiledLocation(index);
 //		ReadableTileLock tileLck(self->GetRefObj(), tl.first);
 		lock->SetValuesAsFloat64Array(tl, len, data);
 
@@ -171,7 +171,7 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_GetValuesAsInt32Array  (const AbstrDataIt
 		PreparedDataReadLock dlr(self, "DMS_NumericAttr_GetValuesAsInt32Array");
 		while (len)
 		{
-			auto tl = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
+			auto tl = self->GetRefObj()->GetTiledLocation(index);
 
 //			ReadableTileLock tileLck(self->GetRefObj(), tl.first);
 			SizeT nrRead = self->GetRefObj()->GetValuesAsInt32Array(tl, len, data);
@@ -193,7 +193,7 @@ TIC_CALL void    DMS_CONV DMS_NumericAttr_SetValuesAsInt32Array  (AbstrDataItem*
 		TreeItemContextHandle checkPtr(self, AbstrDataItem::GetStaticClass(), "DMS_NumericAttr_SetValuesAsInt32Array");
 
 		DataWriteLock lock(self, dms_rw_mode::read_write);
-		tile_loc location = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
+		tile_loc location = lock->GetTiledLocation(index);
 	
 		lock->SetValuesAsInt32Array(location, len, data);
 
