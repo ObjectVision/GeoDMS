@@ -774,7 +774,8 @@ void GridLayer::CopySelValues()
 	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttr();
 	dms_assert(selAttr);                // PRECONDITION
 
-	bit_iterator<1, const UInt32> selArray = const_array_cast<Bool>(selAttr)->GetDataRead().begin();
+	auto selData = const_array_cast<Bool>(selAttr)->GetDataRead(); // readLocks holds the item, this holds the data that selArray points into
+	bit_iterator<1, const UInt32> selArray = selData.begin();
 
 	Theme* colorTheme   = m_Themes[AN_BrushColor].get();
 	Theme* featureTheme = m_Themes[AN_Feature   ].get();
@@ -786,7 +787,8 @@ void GridLayer::CopySelValues()
 
 	const AbstrDataItem*      colorAttr = colorTheme->GetThemeAttr();
 	const DataArray<ClassID>* colorData = const_array_cast<ClassID>( colorAttr );
-	const ClassID*            colorArray= colorData->GetDataRead().begin();
+	auto                      colorValues = colorData->GetDataRead(); // holds the data that colorArray points into
+	const ClassID*            colorArray= colorValues.begin();
 
 	IRect gridRange = colorTheme->GetThemeEntityUnit()->GetRangeAsIRect();
 	Int32 gridWidth = Width(gridRange);
