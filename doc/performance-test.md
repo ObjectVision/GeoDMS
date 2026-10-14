@@ -1,14 +1,14 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-14): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-15): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
 [`doc/archive/performance-test-20.20-20.21.md`](archive/performance-test-20.20-20.21.md); where a
 section below says "above" of one of them (round 3 of "20.21.1 without deferral", the OVSRV05 section
-of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest round, 20.24.1 at
-4c06c9c97 on OVSRV05, gives 23 of 27 `ok`: t010, t641.1, t641.2 and t2000 stop on the relation check that
-#1293 gave `combine_data`, and the tests that ran have the times of 20.24.0. Section 8.1.x of
+of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest round, 20.24.2 at
+806e7dd61 on OVSRV05, gives 27 of 27 `ok` with the results and the times of 20.24.0; the four tests that
+stopped in 20.24.1 on the relation check of `combine_data` (#1293) compute again. Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
 ## Results (OVSRV10), 20.22.0
@@ -786,6 +786,76 @@ moves between 29.5 and 48.9 GB on one build, see above).
 - No performance effect where the round could measure: every test that ran is within the drift between
   sittings of the earlier rounds, and the two above it are level with 20.24.0 in an A/B. t641 and t2000, the
   largest models, are not measured by this round.
+
+## Results (OVSRV05), 20.24.2
+
+Run from 2026-10-14 21:16 to 2026-10-15 00:30 on OVSRV05, threshold 60 as above (set by
+`scratch\launch_perf_20242.cmd` and put back to 95 after it), full.py exit 0, nothing on stderr; report
+header 3:10:49, 27 of 27 `ok`. Tree `C:\dev\GeoDMS` on `main` at `806e7dd61` (version 20.24.2: the bump
+0860841e4, #1309 `e075b670c`, #1310 `12925994b` and the eight #1311 commits on top of 20.24.1), GeoDMS-Test at
+`2cd9891`, which has the t010 change `8765a6e` (#1293) and t641's keysets over `AdminDomain/id_key` (#1310).
+Built with the VS18 msbuild, Release x64 of `all22.sln`, 21:05:19 to 21:15:45, exit 0, no error and no C
+warning, every engine DLL rebuilt (`Rtc.dll` 21:05:47 to `GeoDmsGuiQt.exe` 21:15:40);
+`testcases\run_testcases.bat` 518 cases, 0 bad. Kept as `C:\LocalData\GeoDMS_engine\head_806e7dd61`. No
+`20_24_2_m` folder existed beforehand; full.py ran 32 experiments with no reuse.
+
+Running on the machine, from five-minute samples: the Chrome Remote Desktop host at about a sixth of a core,
+the Claude desktop app, three idle VS18 windows; together 0.8 % of the 24 logical processors. Free physical
+memory fell to 0.1 GB during t641.1.
+
+### Correct again
+
+27 of 27 `ok`, and every result file of the round is byte for byte the one of 20.24.0.m, except t010's
+`operator_coverage.txt` and `operator_groups.txt`, which follow from its changed Relational test and the new
+operators of #1293. The four tests of the section above compute again: t010 through GeoDMS-Test `8765a6e`,
+which gives the relations in factor order; t2000 through `12925994b`, in which a relation to a combine of
+leading factors stands for those factors; t641.1 and t641.2 through GeoDMS-Test `2cd9891`.
+
+### Wall time and Highest CommitCharge
+
+| test | 20.24.2.m (14-10) | 20.23.0.m (07-10) | 20.24.0.m (10-10) | 20.24.1.m (14-10) | against 20.23.0.m |
+|---|---|---|---|---|---|
+| t020 | 0:04:02, 2.4 GB | 0:04:04, 2.9 GB | 0:04:25, 2.4 GB | 0:04:00, 2.4 GB | 0.99 |
+| t060 | 0:01:52, 8.2 GB | 0:01:52, 8.2 GB | 0:02:02, 6.9 GB | 0:01:52, 8.0 GB | 1.00 |
+| t101 | 0:03:24, 1.6 GB | 0:03:21, 1.6 GB | 0:03:56, 1.6 GB | 0:03:32, 1.6 GB | 1.01 |
+| t200 | 0:00:36, 2.8 GB | 0:00:38, 2.8 GB | 0:00:39, 2.8 GB | 0:00:37, 2.7 GB | 0.95 |
+| t300 | 0:01:53, 9.6 GB | 0:01:57, 6.5 GB | 0:01:54, 9.6 GB | 0:01:55, 8.6 GB | 0.97 |
+| t301 | 0:02:40, 15.9 GB | 0:02:51, 20.3 GB | 0:02:46, 19.9 GB | 0:02:49, 17.1 GB | 0.94 |
+| t405.1 | 0:04:21, 8.2 GB | 0:04:26, 8.2 GB | 0:04:27, 8.2 GB | 0:04:19, 8.2 GB | 0.98 |
+| t405.2 | 0:17:54, 27.9 GB | 0:18:45, 29.0 GB | 0:18:29, 29.0 GB | 0:18:36, 46.6 GB | 0.95 |
+| t405.3 | 0:17:55, 28.4 GB | 0:18:18, 29.1 GB | 0:18:25, 29.0 GB | 0:18:19, 29.1 GB | 0.98 |
+| t410 | 0:04:14, 1.1 GB | 0:03:53, 1.1 GB | 0:04:05, 1.2 GB | 0:03:59, 1.1 GB | 1.09 |
+| t611 | 0:00:32, 4.0 GB | 0:00:31, 3.8 GB | 0:00:34, 3.8 GB | 0:00:33, 3.7 GB | 1.03 |
+| t641.1 | 0:51:03, 137.9 GB | 0:51:01, 138.0 GB | 0:51:40, 138.0 GB | stopped | 1.00 |
+| t641.2 | 0:44:42, 165.7 GB | 0:44:53, 165.5 GB | 0:43:51, 165.7 GB | stopped | 1.00 |
+| t710 | 0:01:04, 6.7 GB | 0:01:06, 5.7 GB | 0:01:04, 7.4 GB | 0:01:04, 5.7 GB | 0.97 |
+| t720 | 0:09:41, 20.4 GB | 0:09:51, 20.2 GB | 0:09:35, 20.6 GB | 0:09:51, 16.8 GB | 0.98 |
+| t810 | 0:04:58, 26.6 GB | 0:05:06, 26.7 GB | 0:05:18, 25.8 GB | 0:05:48, 26.3 GB | 0.97 |
+| t910 | 0:00:51, 4.3 GB | 0:00:50, 3.2 GB | 0:00:49, 3.1 GB | 0:00:55, 3.9 GB | 1.02 |
+| t1640 | 6 s, 95 MB | 6 s, 94 MB | 6 s, 94 MB | 5 s, 95 MB | 1.00 |
+| t1642 | 13 s, 87 MB | 12 s, 89 MB | 13 s, 87 MB | 12 s, 90 MB | 1.08 |
+| t2000 | 0:17:53, 61.6 GB | 0:18:44, 61.7 GB | 0:17:42, 61.9 GB | stopped | 0.95 |
+
+Summed over the rows: 190.3 min, against 192.9 for 20.23.0.m and 192.5 for 20.24.0.m.
+
+t410 is the one row above the drift of 20.24.0 and 20.24.1, so it was rerun interleaved on `head_4c06c9c97`
+(20.24.1) and `head_806e7dd61` the same night, 00:32 to 00:48, A, B, A, B, threshold 60: 236 and 245 s on
+20.24.1 against 242 and 243 s on 20.24.2, the same result file every time. The two builds are level.
+
+Memory: Highest CommitCharge equal or lower than 20.23.0.m on every test except t910 (4.3 GB against 3.2) and
+t710 (6.7 against 5.7, 7.4 in 20.24.0.m). t910's figure moves between 3.7 and 4.4 GB on one build: in the A/B
+of the section above it was 4.0 and 3.7 GB on 20.24.0 and 3.8 and 4.4 GB on 20.24.1. t405.2's 46.6 GB in
+20.24.1.m is the commit peak that moves between sittings at the same PeakLiveLarge, see 20.22.1 above.
+
+### Reading
+
+- Correct: 27 of 27, with the results of 20.24.0, so neither the combine record of #1293, nor the generated
+  tiles of #1309, nor the lock fixes of #1311 change a result that the round checks.
+- No performance regression: every experiment is within the drift between sittings of the earlier rounds, the
+  one above it, t410, is level with 20.24.1 in an A/B, and t2000, t405.2 and t405.3 are 4 to 5 % below
+  20.23.0.m, which a single round does not attribute to a build. The experiments that #1309 named, t641.1,
+  t641.2, t2000, t405.2, t405.3, t710, t720, t1640 and t1642, are each level with 20.23.0.m or faster, within
+  a second for the value-info tests.
 
 # Known causes of differences between versions
 
