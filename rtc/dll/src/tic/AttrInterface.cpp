@@ -139,8 +139,9 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_GetValuesAsFloat64Array(const AbstrDataIt
 			auto nrRead = self->GetRefObj()->GetValuesAsFloat64Array(tl, len, data);
 			MG_CHECK(nrRead);
 
-			len  -= nrRead;
-			data += nrRead;
+			index += nrRead;
+			len   -= nrRead;
+			data  += nrRead;
 		}
 	DMS_CALL_END
 }
@@ -176,8 +177,9 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_GetValuesAsInt32Array  (const AbstrDataIt
 			SizeT nrRead = self->GetRefObj()->GetValuesAsInt32Array(tl, len, data);
 			MG_CHECK(nrRead);
 
-			len  -= nrRead;
-			data += nrRead;
+			index += nrRead;
+			len   -= nrRead;
+			data  += nrRead;
 		}
 
 	DMS_CALL_END
