@@ -797,9 +797,13 @@ void ClassBreaks_ApplyToItems(DataView* dv, const ClassBreakItems& items, const 
 		else
 		{
 			DataWriteLock dwl(colorAttr);
-			auto colorArray = mutable_array_cast<UInt32>(dwl)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin();
-			for (SizeT i = 0; i != k; ++i)
-				colorArray[i] = clip.m_Colors[i];
+			{
+				// named, and gone before the Commit: over a tiled domain this is a shadow of all tiles, which writes itself back into them when it goes
+				auto colorValues = mutable_array_cast<UInt32>(dwl)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+				auto colorArray = colorValues.begin();
+				for (SizeT i = 0; i != k; ++i)
+					colorArray[i] = clip.m_Colors[i];
+			}
 			dwl.Commit();
 		}
 	}
