@@ -1,0 +1,15 @@
+// #1309: the factor relations of a combined unit cost nothing per tile until they are read. Before,
+// each relation allocated 96 bytes per tile when the unit was computed: for the 4 * 10^12 elements
+// below, 61 million tiles of 2^16 and three relations, 17.6 GB, which the guard of the battery
+// stops at 8 GB (LIMIT(commit)). Since #1309 the case commits about as much as combine_unit_uint64.
+container combine_huge_subitems
+{
+	unit<uint32> Big  : nrofrows = 1000000;
+	unit<uint32> Four : nrofrows = 4;
+	unit<uint64> Huge := combine_uint64(Big, Big, Four);
+
+	container checks
+	{
+		parameter<bool> c_n := #Huge == 4000000000000u64, IntegrityCheck = "c_n == true";
+	}
+}

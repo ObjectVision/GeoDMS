@@ -205,8 +205,8 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 	mutable std::weak_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
 };
 
-// MustZero defaults to false to keep the four sites that construct a LazyTileFunctor directly
-// (OperMappings.cpp, OperUnit.cpp, CastedUnaryAttrOper.h, AbstrDataItem.cpp) at today's behaviour; only
+// MustZero defaults to false to keep the sites that construct a LazyTileFunctor directly
+// (CastedUnaryAttrOper.h twice, StorageReadOperators.cpp) at today's behaviour; only
 // make_unique_FutureTileFunctor's lazy branch passes it explicitly.
 template <typename V, bool MustZero = false, typename ApplyFunc>
 auto make_unique_LazyTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
@@ -234,7 +234,7 @@ auto LazyTileFunctor<V, MustZero, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_
 	// from MustZero), so rwMode cannot zero anything here. An apply-func asking for a zeroed tile from
 	// a functor instantiated MustZero=false would silently accumulate into indeterminate memory --
 	// the shape of issue #1169. Only for fixed-size elements; sequence/string elements are
-	// raw_construct-ed regardless. Reachable via the four direct make_unique_LazyTileFunctor callers,
+	// raw_construct-ed regardless. Reachable via the three direct make_unique_LazyTileFunctor callers,
 	// whose apply-funcs choose their own mode; the FutureTileFunctor branch passes none.
 	if constexpr (has_fixed_elem_size_v<V>)
 		MGD_CHECK_OBJ(MustZero || rwMode != dms_rw_mode::write_only_mustzero);
@@ -277,6 +277,83 @@ auto LazyTileFunctor<V, MustZero, ApplyFunc>::GetTile(tile_id t) const -> locked
 			resultAdi->CatchFail(FailType::Data);
 		throw;
 	}
+}
+
+//----------------------------------------------------------------------
+// GeneratorTileFunctor
+//----------------------------------------------------------------------
+// For a pure generator, whose tile is a cheap function of its tile id: id() and the factor relations
+// first_rel .. sixteenth_rel of combine. A LazyTileFunctor allocates a mutex and a weak_ptr per tile when
+// it is constructed, 96 bytes per tile, which for the 10^12 elements of combine_uint64(Big, Big) was
+// 1.4 GB per relation before any tile was read (#1309). This functor keeps a fixed number of recently
+// generated tiles instead, weakly, in slot t % NR_RECENT_TILES. That is what a consumer needs that holds
+// a tile and then reads it element by element, each read calling GetTile again: a table cell
+// (IsDataRowNull, AsCharArraySize, AsCharArray), FeatureLayer::GetMaxLabelStrLen (AsString per element
+// under a ReadableTileLock), map labels, GetStatistics. Without it each element would generate the
+// whole tile. A tile is generated outside the lock, so two requests for the same tile that is not held
+// may both generate it, and a held tile whose slot was taken by another one is generated again; for an
+// arithmetic fill that costs about as much as the copy that sharing saves.
+// The generator writes every element of the sequence it is given, which may be empty.
+template <typename V, typename GenFunc>
+struct GeneratorTileFunctor : GeneratedTileFunctor<V>
+{
+	using typename TileFunctor<V>::locked_cseq_t;
+
+	struct tile_data : sequence_traits<V>::tile_container_type {};
+
+	// at least the number of tiles that the worker threads read at once, so that x + x on a generated x
+	// finds the tile of its first argument when it reads the second
+	static constexpr tile_id NR_RECENT_TILES = 64;
+
+	struct recent_tile
+	{
+		tile_id                   m_TileID = no_tile;
+		std::weak_ptr<tile_data>  m_TileWPtr; // don't keep it !
+	};
+
+	GeneratorTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, GenFunc gFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
+		: GeneratedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
+		, m_GenFunc(std::move(gFunc))
+	{}
+
+	// Tiles are held weakly, as by a LazyTileFunctor: freed at the last release, generated again on the next request.
+	materialization GetMaterialization() const override { return materialization::streaming; }
+
+	auto GetTile(tile_id t) const -> locked_cseq_t override
+	{
+		assert(t < this->GetTiledRangeData()->GetNrTiles());
+
+		recent_tile& slot = m_RecentTiles[t % NR_RECENT_TILES];
+		std::shared_ptr<tile_data> tileSPtr;
+		{
+			auto lock = std::scoped_lock(m_RecentMutex);
+			if (slot.m_TileID == t)
+				tileSPtr = slot.m_TileWPtr.lock();
+		}
+		if (!tileSPtr)
+		{
+			tileSPtr = std::make_shared<tile_data>();
+			resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), false MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
+			m_GenFunc(GetSeq(*tileSPtr), t);
+
+			auto lock = std::scoped_lock(m_RecentMutex);
+			slot.m_TileID = t;
+			slot.m_TileWPtr = tileSPtr;
+		}
+		assert(tileSPtr->size() == this->GetTiledRangeData()->GetTileSize(t));
+
+		return locked_cseq_t(std::static_pointer_cast<const void>(tileSPtr), GetConstSeq(*tileSPtr));
+	}
+
+	GenFunc m_GenFunc;
+	mutable std::mutex  m_RecentMutex;
+	mutable recent_tile m_RecentTiles[NR_RECENT_TILES];
+};
+
+template <typename V, typename GenFunc>
+auto make_unique_GeneratorTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, GenFunc&& gFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
+{
+	return std::make_unique<GeneratorTileFunctor<V, std::decay_t<GenFunc>>>(tiledDomainRangeData, valueRangePtr, std::forward<GenFunc>(gFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
 }
 
 #endif //!defined(__TIC_TILEFUNCTORIMPL_H)

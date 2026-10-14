@@ -370,27 +370,34 @@ public:
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
-			const AbstrIDOperator* idOper = this;
 			auto trd = e1->GetTiledRangeData();
 			MG_CHECK(trd);
 			resultHolder->m_StatusFlags.SetHasSortedValues(trd->HasSortedValues());
 
-			auto lazyFunctorCreator = [idOper, res, trd]<typename V>(const Unit<V>*domainUnit) {
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(make_shared_tree(res, existing_obj{}), trd.get(), domainUnit->m_RangeDataPtr
-				,	[idOper, res, trd](AbstrDataObject* self, tile_id t) {
-						idOper->Calculate(self, trd.get(), t); // write into the same tile.
+			// a pure generator: a tile is computed when it is asked for, and only a few recent tiles are remembered, weakly (#1309)
+			auto functorCreator = [res, trd]<typename V>(const Unit<V>*domainUnit) {
+				auto generatorTileFunctor = make_unique_GeneratorTileFunctor<V>(trd.get(), domainUnit->m_RangeDataPtr
+				,	[trd](typename sequence_traits<V>::seq_t resData, tile_id t) {
+						auto resRange = debug_cast<const typename Unit<V>::range_data_t*>(trd.get())->GetTileRange(t);
+						auto
+							i = resData.begin(),
+							e = resData.end();
+
+						assert(SizeT(e - i) == Cardinality(resRange));
+
+						for (row_id count = 0; i != e; ++i)
+							*i = Range_GetValue_naked(resRange, count++);
 					}
 					MG_DEBUG_ALLOCATOR_SRC(res->md_FullName +  ": = id()")
 				);
-				res->m_DataObject = lazyTileFunctor.release();
+				res->m_DataObject = generatorTileFunctor.release();
 			};
 
 			e1 = AsUnit(e1->GetCurrRangeItem()).get();
-			visit<typelists::domain_elements>(e1, std::move(lazyFunctorCreator));
+			visit<typelists::domain_elements>(e1, std::move(functorCreator));
 		}
 		return true;
 	}
-	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrTileRangeData* anyRange, tile_id t) const =0;
 };
 
 template <class E1>
@@ -401,30 +408,8 @@ class IDOperator : public AbstrIDOperator
 
 public:
 	// Override Operator
-	IDOperator() : AbstrIDOperator(ResultType::GetStaticClass(), Arg1Type::GetStaticClass()) 
+	IDOperator() : AbstrIDOperator(ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
 	{}
-
-	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrTileRangeData* tileRanges, tile_id t) const override
-	{
-		ResultType* result = mutable_array_cast<E1>(borrowedDataHandle);
-		assert(result);
-
-		auto resData = result->GetWritableTile(t, dms_rw_mode::write_only_all);
-		auto resRange = debug_cast<const typename Unit<E1>::range_data_t*>(tileRanges)->GetTileRange(t);
-		CalcTile(resData, resRange MG_DEBUG_ALLOCATOR_SRC(borrowedDataHandle->md_SrcStr.c_str()));
-	}
-
-	void CalcTile(sequence_traits<E1>::seq_t resData, Unit<E1>::range_t resRange MG_DEBUG_ALLOCATOR_SRC_ARG) const
-	{
-		auto
-			i = resData.begin(),
-			e = resData.end();
-
-		assert(SizeT(e-i) == Cardinality(resRange));
-
-		for (row_id count = 0; i != e; ++i)
-			*i = Range_GetValue_naked(resRange, count++);
-	}
 };
 
 

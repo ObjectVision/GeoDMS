@@ -173,17 +173,16 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			[resSub, trd, groupSize, cycleSize, unitCount MG_DEBUG_ALLOCATOR_SRC(res)] <typename V> (const Unit<V>*valuesUnit)
 			{
 				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(make_shared_tree(resSub, existing_obj{}), trd.get(), valuesUnit->m_RangeDataPtr
-					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
-						tile_offset  tileSize = trd->GetTileSize(t);
+				// a pure generator: a tile is computed when it is asked for, and only a few recent tiles are remembered, weakly (#1309)
+				auto generatorTileFunctor = make_unique_GeneratorTileFunctor<V>(trd.get(), valuesUnit->m_RangeDataPtr
+					, [trd, groupSize, cycleSize, unitCount, conv](typename sequence_traits<V>::seq_t resData, tile_id t) {
+						tile_offset  tileSize = resData.size(); assert(tileSize == trd->GetTileSize(t));
 						if (!tileSize)
 							return; // an empty argument unit makes cycleSize 0; a small-range result (combine08/16) still has one, empty, tile
 						SizeT tileStart = trd->GetFirstRowIndex(t);
 						SizeT cyclePos = tileStart % cycleSize;
 						SizeT iGroup = cyclePos % groupSize;
 						SizeT iOrg = cyclePos / groupSize; assert(iOrg < unitCount);
-						auto resultObj = mutable_array_cast<V>(self);
-						auto resData = resultObj->GetWritableTile(t, dms_rw_mode::write_only_all);
 						for (tile_offset r = 0; r != tileSize; ++r)
 						{
 							Assign(resData[r], conv.GetValue(iOrg));
@@ -198,7 +197,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 					}
 					MG_DEBUG_ALLOCATOR_SRC(res->md_FullName +  ": = combine()")
 				);
-				resSub->m_DataObject = lazyTileFunctor.release();
+				resSub->m_DataObject = generatorTileFunctor.release();
 			}
 		);
 		groupSize = cycleSize;
