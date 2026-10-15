@@ -103,10 +103,10 @@ struct bit_reference : private bit_sequence_base<N, Block>
 	using bit_info_t = bit_info<N, Block>;
 	using typename bit_info_t::value_type;
 
-	bit_reference(bit_value<N>& elem)
-		:	bit_sequence_base<N, Block>(reinterpret_cast<Block*>(&elem), 0)
-	{}
-
+	// A bit_reference reads and writes the whole Block it points into, so it never refers to a lone
+	// 1-byte bit_value: that would touch three bytes past it, which GCC reported as -Warray-bounds
+	// from the any and all accumulators. A lone value that is changed through a bit_reference, such
+	// as the accumulator of a total aggregation, is kept in a Block of its own, as element 0.
 	bit_reference(Block* blockData, SizeT elemNr)
 		:	bit_sequence_base<N, Block>(blockData, elemNr)
 	{
@@ -114,7 +114,7 @@ struct bit_reference : private bit_sequence_base<N, Block>
 		assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
 	}
 
-	value_type value() const { return (*this->m_BlockData >> (this->m_NrElems * N)) & Block(bit_value<N>::mask); }
+	value_type value() const { return (*this->m_BlockData >> shift()) & Block(bit_value<N>::mask); }
 	operator value_type() const { return value(); }
 
 	void operator =(bit_reference<N, Block> rhs) { do_assign(this, rhs.value()); }
@@ -131,22 +131,9 @@ struct bit_reference : private bit_sequence_base<N, Block>
 	bit_iterator<N, Block>       operator &()       { return bit_iterator<N,       Block>(this->m_BlockData, this->m_NrElems); }
 	bit_iterator<N, const Block> operator &() const { return bit_iterator<N, const Block>(this->m_BlockData, this->m_NrElems); }
 
-	// These read-modify-write the whole Block word at m_BlockData. When this reference wraps a
-	// standalone 1-byte bit_value (the bit_reference(bit_value<N>&) ctor reinterprets &elem as a
-	// Block*), the Block-wide access touches bytes past the 1-byte object. It is benign -- only the
-	// masked bits change and the trailing bytes are written back unchanged, and object alignment/
-	// allocator slack keeps it from faulting -- so suppress GCC's -Warray-bounds here.
-	// TODO: a byte-granular single-element path would remove the underlying out-of-bounds access.
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
 	void do_set() { block() |= mask(); }
 	void do_clear() { block() &= ~mask(); }
 	void do_flip() { block() ^= mask(); }
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
 
 	typename bit_info_t::bit_index_type shift() const { return this->m_NrElems * N;  }
 	Block  mask() const { return Block(bit_value<N>::mask) << shift(); }

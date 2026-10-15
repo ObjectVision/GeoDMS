@@ -53,13 +53,28 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		}
 
 		auto value = this->m_Acc1Func.InitialValue(); // set value to MIN_VALUE, MAX_VALUE, or NULL depending on the TAcc1Func type
-		for (; t<te; ++t)
+		auto accumulateTiles = [&](auto& accumulator)
 		{
-			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-			this->m_Acc1Func(value, arg1Data.get_view());
+			for (; t<te; ++t)
+			{
+				auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+				this->m_Acc1Func(accumulator, arg1Data.get_view());
+			}
+		};
+		if constexpr (is_bitvalue_v<decltype(value)>)
+		{
+			// a bit_reference reads and writes a whole Block, so the accumulator gets one of its own
+			typename sequence_traits<decltype(value)>::block_type valueBlock = 0;
+			vref_t<decltype(value)> valueRef(&valueBlock, 0);
+			valueRef = value;
+			accumulateTiles(valueRef);
+			return valueRef.value();
 		}
-
-		return value;
+		else
+		{
+			accumulateTiles(value);
+			return value;
+		}
 	}
 
 	// Override Operator

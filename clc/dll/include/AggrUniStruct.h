@@ -81,9 +81,21 @@ struct initializer
 
 	auto InitialValue() const
 	{
-		typename TNullaryAssign::assignee_type accumulator;
-		m_Assign(accumulator);
-		return accumulator;
+		using assignee_type = typename TNullaryAssign::assignee_type;
+		if constexpr (is_bitvalue_v<assignee_type>)
+		{
+			// a bit_reference reads and writes a whole Block, so the accumulator gets one of its own
+			typename sequence_traits<assignee_type>::block_type accumulator = 0;
+			vref_t<assignee_type> accumulatorRef(&accumulator, 0);
+			m_Assign(accumulatorRef);
+			return accumulatorRef.value();
+		}
+		else
+		{
+			assignee_type accumulator;
+			m_Assign(accumulator);
+			return accumulator;
+		}
 	}
 private:
 	TNullaryAssign m_Assign;
