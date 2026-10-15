@@ -148,7 +148,7 @@ private:
 		const typename SpatialIndexType::Node& node = m_SPI->m_Nodes[nodeID];
 		if (!node.IsNonEmpty())
 			return;
-		SqrDistType sqrDist = MinDist(m_Center, node.m_BoundingBox);
+		SqrDistType sqrDist = MinDist(m_Center, m_SPI->QueryBox(node)); // the box that holds the objects of its subtree
 		m_NodeHeap.push_back(NodeRec(nodeID, sqrDist));
 		std::push_heap(m_NodeHeap.begin(), m_NodeHeap.end());
 	}

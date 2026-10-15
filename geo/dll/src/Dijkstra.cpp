@@ -456,7 +456,7 @@ struct GraphInfo {
 	const ImpType * linkImpDataPtr;
 
 	Inverted_rel<LinkType> node_link1_inv, node_link2_inv;
-	LinkProfiles<ImpType> profiles; // timedependent(); without it every link keeps linkImpDataPtr[e]
+	LinkProfiles<ImpType> profiles = {}; // timedependent(); without it every link keeps linkImpDataPtr[e]
 
 	// The impedance of link e for a route that enters it at time entryTime; entryTime matters only with timedependent()
 	ImpType LinkImp(LinkType e, Float64 entryTime) const

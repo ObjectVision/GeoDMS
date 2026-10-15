@@ -34,7 +34,7 @@ struct MetaFuncCurry
 {
 //	LispRef callArgList;
 	LispRef fullLispExpr;
-	std::shared_ptr<const StructuredFunctionResult> structuredResult;
+	std::shared_ptr<const StructuredFunctionResult> structuredResult = {};
 
 	const TreeItem* applyItem = nullptr;
 	const AbstrOperGroup* og = nullptr;

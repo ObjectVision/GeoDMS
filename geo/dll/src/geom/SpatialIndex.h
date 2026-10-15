@@ -9,7 +9,9 @@
 /*
  *  SpatialIndex<ScalarType, ObjectPtr>: a quad-tree-like spatial index over
  *  point, box and sequence (arc/polygon) collections, with range queries
- *  and neighbour iteration support (see geo/NeighbourIter.h).
+ *  and neighbour iteration support (see geo/NeighbourIter.h). Points are
+ *  kept in the node whose cell holds them; objects with extents in a loose
+ *  quadtree (SpatialIndex::IsLoose, #1292).
  */
 
 #ifndef __GEO_SPATIALINDEX_H
@@ -109,18 +111,6 @@ UInt32 GetQuadrantOffset(UInt32 offset, const Range<PointType>& r, const PointTy
 	return offset;
 }
 
-template <typename PointType>
-bool InOneQuadrant(const PointType& p, const PointType& mid)
-{
-	return true;
-}
-
-template <typename PointType>
-bool InOneQuadrant(const Range<PointType>& r, const PointType& mid)
-{
-	return GetQuadrantOffset<PointType>(1, r, mid);
-}
-
 
 // *****************************************************************************
 //									SpatialIndexImpl::Leaf
@@ -184,48 +174,6 @@ template <typename PointType> struct LeafTypeGetter<PointType, sequence_array_in
 
 template <typename PointType, typename ObjectPtr> using LeafTypeGetter_t = typename LeafTypeGetter<PointType, ObjectPtr>::type;
 
-
-template <typename PointType, typename LeafType>
-Bool AnyOffCross(PointType center, LeafType lf)
-{
-	while (lf)
-	{
-		if (GetQuadrantOffset(1, lf->GetExtents(), center))
-			return true;
-		lf = lf->GetNext();
-	}
-	return false;
-}
-
-// Leaf must split if that would separate its objects into quadrants after a finite number of splits, which is usually true
-// if the extent of the set of objects that fall into specific quadrants is substantially non-zero. This tests only that
-// extent: whether two leaves that lie in one quadrant differ. Where splitting cannot separate them, Node::SplitWouldRepeat
-// stops the split (#1289).
-template <typename LeafType, typename PointType>
-Bool MustSplit(const LeafType* lf, PointType center)
-{
-	dms_assert(lf); // follows from !IsSplit and NrObjects() > 3
-
-	do {
-		dms_assert(lf->IsDefined());
-		const auto& extents = lf->GetExtents();
-		if (InOneQuadrant(extents, center)) // is lf in a specific quadrant? Always true for Points
-		{
-			while ((lf = lf->GetNext()))
-			{
-				dms_assert(lf->IsDefined());
-				const auto& nextExtents = lf->GetExtents();
-				if (InOneQuadrant(nextExtents, center)) // is next lf in a specific quadrant? Always true for Points
-					if (extents != nextExtents)
-						return true;
-			}
-			return false;
-		}
-		lf = lf->GetNext();
-	} while (lf);
-	return false;
-}
-
 } // namespace SpatialIndexImpl
 
 // *****************************************************************************
@@ -243,9 +191,23 @@ struct SpatialIndex
 
 
 	using LeafType = SpatialIndexImpl::LeafTypeGetter_t<PointType, ObjectPtrType>;
+	using ExtentsType = typename LeafType::extents_type;
 	// One leaf per indexed object and quadtree nodes in groups of 4: the whole index is
 	// operator working set, so it lives in the allocation stocks where the census sees it.
 	using LeafContainer = my_vec_t<LeafType>;
+
+	// Where an object goes (#1292). A point lies in one quadrant of every node, so a point index keeps each point in a node
+	// that has not split, as it always did. An object with extents, a box, a polygon or an arc, stayed in the highest node
+	// whose centre lines it crossed or ended on, and a query tests the objects of every node it passes on its way to the
+	// leaves: in a dense set of small objects a centre line meets thousands of them wherever it falls, and every query that
+	// passes the node tested them all. Such an object is now kept in a loose quadtree with k = 1.5: it goes on to the child
+	// whose cell holds its centre as long as it lies within that child's loose box, the cell grown by a quarter of its size on
+	// each side (LooseBox). Its depth then follows from its size, not from where the centre lines fall, and only objects of
+	// about a node's size or more stay high. The objects of a node's subtree lie in its loose box, which overlaps those of its
+	// siblings: queries, distance bounds and the nearest-object search prune with QueryBox, and a query enters every child
+	// whose loose box it touches.
+	static constexpr bool IsLoose = !std::is_same_v<ExtentsType, PointType>;
+	static constexpr int LooseMarginDivisor = 4; // the margin on each side, a quarter of the cell: k = 1 + 2 / 4
 
 	// A node splits once it holds this many objects and a split can separate them (Node::MustSplit). It was 4; with 16 the
 	// tree is about one level shallower and a query tests more leaves per node, which is faster for the point searches and
@@ -265,6 +227,50 @@ struct SpatialIndex
 		}
 	}
 
+	// The box that holds every object of the subtree of a node with this cell: the cell itself in a point index, and in a loose
+	// one the cell grown by a quarter of its size on each side and cut off at the root box. Nothing lies outside the root box,
+	// and the cut keeps a margin from wrapping below 0 or past the largest value of an integer coordinate type.
+	static RangeType LooseBox(RangeType cell, [[maybe_unused]] const RangeType& rootBox)
+	{
+		if constexpr (IsLoose)
+		{
+			Loosen(cell.first.first , cell.second.first , rootBox.first.first , rootBox.second.first );
+			Loosen(cell.first.second, cell.second.second, rootBox.first.second, rootBox.second.second);
+		}
+		return cell;
+	}
+	static void Loosen(T& lo, T& hi, T rootLo, T rootHi)
+	{
+		// lo and hi lie within [rootLo, rootHi], so neither difference below wraps for an unsigned type
+		T margin = T((hi - lo) / LooseMarginDivisor);
+		lo = (lo - rootLo < margin) ? rootLo : T(lo - margin);
+		hi = (rootHi - hi < margin) ? rootHi : T(hi + margin);
+	}
+
+	// The point by which an object chooses a quadrant: a point itself, and the centre of the extents of the others.
+	static PointType ObjCenter(const ExtentsType& objExtents)
+	{
+		if constexpr (IsLoose)
+			return Center(objExtents);
+		else
+			return objExtents;
+	}
+
+	// Where an object goes from a node with this cell when the node splits: its quadrant, 1 to 4 as GetQuadrantOffset counts,
+	// or 0 when it stays in the node. A point always has a quadrant; an object with extents has the one that holds its centre
+	// when it lies within the loose box of that quadrant.
+	static UInt32 ChildQuadrant(const RangeType& cell, [[maybe_unused]] const ExtentsType& objExtents, const PointType& objCenter, [[maybe_unused]] const RangeType& rootBox)
+	{
+		PointType mid = Center(cell);
+		UInt32 q = SpatialIndexImpl::GetQuadrantOffset(1, objCenter, mid);
+		if constexpr (IsLoose)
+		{
+			if (!IsIncluding(LooseBox(QuadrantBox(cell, mid, q - 1), rootBox), objExtents))
+				return 0;
+		}
+		return q;
+	}
+
 	struct Node
 	{
 		Node(const RangeType& bb, UInt32 offsetFromParent) : m_BoundingBox(bb), m_OffsetFromParent(offsetFromParent), 
@@ -273,17 +279,36 @@ struct SpatialIndex
 		bool IsSplit()    const { return m_OffsetToFirstQuadrant; }
 		bool IsNonEmpty() const { return IsSplit() || m_FirstLeaf; }
 		UInt32 NrObjects()const { return m_NrObjects; }
-		bool MustSplit() const
+		bool MustSplit([[maybe_unused]] const RangeType& rootBox) const
 		{
 			if (IsSplit() || NrObjects() < MinObjectsToSplit)
 				return false;
 
-			// any gain from splitting? Only if the leaves that lie in one quadrant have more than one extent between them.
+			// any gain from splitting? Only if the leaves that would go to a quadrant have more than one extent between them.
 			// The record AddLeaf keeps of that is checked against a scan of the leaves when their number is a power of 2, so
 			// the check costs a node of k objects 2k in total; on every insert it cost k * k / 2, which made a Debug build
 			// crawl on a node of many coincident or refused objects.
-			assert((NrObjects() & (NrObjects() - 1)) || m_QuadrantLeafExtentsDiffer == SpatialIndexImpl::MustSplit(m_FirstLeaf, Center(m_BoundingBox)));
+			assert((NrObjects() & (NrObjects() - 1)) || m_QuadrantLeafExtentsDiffer == ScanQuadrantLeafExtentsDiffer(rootBox));
 			return m_QuadrantLeafExtentsDiffer;
+		}
+
+		// What AddLeaf records, from the leaves themselves: do two leaves that would go to a quadrant differ in extents? A split
+		// separates objects after a finite number of splits when that set has an extent, which is usually true; where it
+		// cannot, SplitWouldRepeat stops the split (#1289).
+		bool ScanQuadrantLeafExtentsDiffer(const RangeType& rootBox) const
+		{
+			const LeafType* quadrantLeaf = nullptr;
+			for (const LeafType* lf = m_FirstLeaf; lf; lf = lf->GetNext())
+			{
+				dms_assert(lf->IsDefined());
+				if (!ChildQuadrant(m_BoundingBox, lf->GetExtents(), ObjCenter(lf->GetExtents()), rootBox))
+					continue;
+				if (!quadrantLeaf)
+					quadrantLeaf = lf;
+				else if (quadrantLeaf->GetExtents() != lf->GetExtents())
+					return true;
+			}
+			return false;
 		}
 
 		// Would a split send obj and every leaf of this node into the one quadrant whose box is this node's own? That child
@@ -291,35 +316,35 @@ struct SpatialIndex
 		// integer extent of one unit, (a + a + 1) / 2 == a for a >= 0, nor the extent between two floats one ULP apart whose
 		// sum rounds down, so that quadrant exists in the smallest boxes only. Every other split reaches a smaller box or fewer
 		// leaves, so refusing this one changes no index that was completed before; the node keeps its objects, as it keeps
-		// objects with equal extents.
-		bool SplitWouldRepeat(const typename LeafType::extents_type& objExtents)
+		// objects with equal extents. In a loose index that child would also have this node's loose box, which is computed
+		// from the cell, and so it would take the same objects again.
+		bool SplitWouldRepeat(const ExtentsType& objExtents, const PointType& objCenter, const RangeType& rootBox)
 		{
 			dms_assert(!IsSplit());
-			PointType mid = Center(m_BoundingBox);
-			UInt32 q = SpatialIndexImpl::GetQuadrantOffset(1, objExtents, mid); // 1 to 4, or 0 for obj on mid, which stays here
+			UInt32 q = ChildQuadrant(m_BoundingBox, objExtents, objCenter, rootBox); // 1 to 4, or 0 for an obj that stays here
 			if (m_RepeatQuadrant)
 				return q == m_RepeatQuadrant;
-			if (!q || QuadrantBox(m_BoundingBox, mid, q - 1) != m_BoundingBox)
+			if (!q || QuadrantBox(m_BoundingBox, Center(m_BoundingBox), q - 1) != m_BoundingBox)
 				return false;
 			for (const LeafType* lf = m_FirstLeaf; lf; lf = lf->GetNext())
-				if (SpatialIndexImpl::GetQuadrantOffset(1, lf->GetExtents(), mid) != q)
+				if (ChildQuadrant(m_BoundingBox, lf->GetExtents(), ObjCenter(lf->GetExtents()), rootBox) != q)
 					return false;
 			// Kept, so that the leaves are scanned once: obj is added here and the record stays true. The first object that
-			// falls in another quadrant splits this node.
+			// goes to another quadrant splits this node.
 			m_RepeatQuadrant = UInt8(q);
 			return true;
 		}
 
-		void AddLeaf(LeafType* lf)
+		void AddLeaf(LeafType* lf, const RangeType& rootBox)
 		{
 			++m_NrObjects;
 
 			// What MustSplit asks, kept up to date here: it rescanned the whole leaf list on every insert, k * k / 2
 			// comparisons for k coincident objects, which never split (GEO-A54). A leaf added to a node that has split
-			// (one that lies in no quadrant) stays with it and needs no record. The record points at the first such leaf
+			// (one that goes to no quadrant) stays with it and needs no record. The record points at the first such leaf
 			// instead of copying its extents: the copy took a node of a dpoint index from 64 to 104 bytes, and every query
 			// walks the nodes (GEO-A54 follow-up). Once two extents differed, nothing more needs recording.
-			if (!IsSplit() && !m_QuadrantLeafExtentsDiffer && SpatialIndexImpl::InOneQuadrant(lf->GetExtents(), Center(m_BoundingBox)))
+			if (!IsSplit() && !m_QuadrantLeafExtentsDiffer && ChildQuadrant(m_BoundingBox, lf->GetExtents(), ObjCenter(lf->GetExtents()), rootBox))
 			{
 				if (!m_QuadrantLeaf)
 					m_QuadrantLeaf = lf;
@@ -349,25 +374,27 @@ struct SpatialIndex
 			dms_assert(IsSplit());
 			return SpatialIndexImpl::GetQuadrantOffset(m_OffsetToFirstQuadrant, p, Center(m_BoundingBox));
 		}
-		SizeT GetQuadrantOffset(const RangeType& r) const // actually, result is part of this
+		// the offset from this node to the child that obj goes to, or 0 when it stays here; see ChildQuadrant
+		UInt32 GetChildOffset(const ExtentsType& objExtents, const PointType& objCenter, const RangeType& rootBox) const
 		{
-			dms_assert(IsSplit()); 
-			return SpatialIndexImpl::GetQuadrantOffset(m_OffsetToFirstQuadrant, r, Center(m_BoundingBox));
+			dms_assert(IsSplit());
+			UInt32 q = ChildQuadrant(m_BoundingBox, objExtents, objCenter, rootBox);
+			return q ? m_OffsetToFirstQuadrant + q - 1 : 0;
 		}
 
-		RangeType m_BoundingBox; 
+		RangeType m_BoundingBox; // the cell of this node; in a loose index the objects of its subtree lie in its QueryBox
 //	private:
 		// UInt32, as DoSplit and _Add compute them; Rebuild checks the number of objects and DoSplit the number of nodes
 		UInt32    m_OffsetFromParent;     // offset back to the parent node, 0 for the root
 		UInt32    m_OffsetToFirstQuadrant;  // index of first quadrant node (always allocated in groups of 4).
 		LeafType* m_FirstLeaf;  // index of first leaf; leafs form a singly-linked list
 
-		// the first leaf added that lies in one quadrant, and whether a later one had other extents; see AddLeaf.
+		// the first leaf added that would go to a quadrant, and whether a later one had other extents; see AddLeaf.
 		// It points into m_Leafs, which does not reallocate after Rebuild, as m_FirstLeaf does.
 		const LeafType* m_QuadrantLeaf = nullptr;
 		UInt32    m_NrObjects;
 		bool      m_QuadrantLeafExtentsDiffer = false;
-		UInt8     m_RepeatQuadrant = 0; // set by SplitWouldRepeat: every leaf lies in this quadrant (1 to 4), whose box is this node's own
+		UInt8     m_RepeatQuadrant = 0; // set by SplitWouldRepeat: every leaf goes to this quadrant (1 to 4), whose box is this node's own
 	};
 	static_assert(sizeof(RangeType) != 32 || sizeof(Node) == 64, "a node of a dpoint index keeps the 64 bytes it had before GEO-A54: every query walks the nodes");
 	typedef my_vec_t<Node> NodeContainer;
@@ -380,14 +407,14 @@ struct SpatialIndex
 	// polygons it tests, so that adjacent polygons have neither a gap nor a point in common: a point on the upper x or y edge
 	// of a polygon's bounding box lies outside it. With Touching, a box query yields every leaf that touches the box: float
 	// boxes that share a point with it, and integer boxes that overlap it or are adjacent to it, the second of one equal to
-	// the first of the other, as box_connectivity needs. The nodes are pruned with IsTouching either way, and a leaf of a lower
-	// quadrant ends strictly below the centre, so only the leaf test differs.
+	// the first of the other, as box_connectivity needs. The nodes are pruned with IsTouching on their QueryBox either way, so
+	// only the leaf test differs. The leaves come in post-order: those of a child before those of its parent.
 	template <typename SelType, bool Touching = false>
 	struct iterator
 	{
 		static_assert(!Touching || std::is_same_v<SelType, RangeType>, "a touching query is a box query");
 
-		iterator() : m_NodePtr(nullptr), m_LeafPtr(nullptr) {}
+		iterator() : m_RootPtr(nullptr), m_NodePtr(nullptr), m_LeafPtr(nullptr) {}
 		explicit operator bool () const { return m_NodePtr; }
 		void operator ++()
 		{
@@ -401,9 +428,10 @@ struct SpatialIndex
 			return m_LeafPtr;
 		}
 
-		iterator(SelType searchObj, const Node* firstNode)
+		iterator(SelType searchObj, const Node* rootPtr)
 			: m_SearchObj(std::move(searchObj))
-			, m_NodePtr(GoDeep(firstNode))
+			, m_RootPtr(rootPtr)
+			, m_NodePtr(GoDeep(rootPtr))
 			, m_LeafPtr(m_NodePtr->m_FirstLeaf)
 		{
 			ReFit();
@@ -439,7 +467,7 @@ struct SpatialIndex
 			const Node* nextSibbling = m_NodePtr;
 			do {
 				nextSibbling = nextSibbling->GetNextSibbling();
-			} while (nextSibbling && !IsTouching(nextSibbling->m_BoundingBox, m_SearchObj));
+			} while (nextSibbling && !MayHold(nextSibbling));
 			if (nextSibbling)
 				m_NodePtr = GoDeep(nextSibbling);
 			else
@@ -455,18 +483,35 @@ struct SpatialIndex
 			}
 			m_LeafPtr = m_NodePtr->m_FirstLeaf;
 		}
-		// uses local nodePtr and m_SearchObj
+		// can the subtree of nodePtr hold a leaf that meets the search object?
+		bool MayHold(const Node* nodePtr) const
+		{
+			return nodePtr->IsNonEmpty() && IsTouching(LooseBox(nodePtr->m_BoundingBox, m_RootPtr->m_BoundingBox), m_SearchObj);
+		}
+		// the first node of the post-order below nodePtr: down to its first child that may hold a leaf, and so on
 		const Node* GoDeep(const Node* nodePtr)
 		{
-			//go as deep as possible as far as it fits
-			while (true)
+			while (nodePtr->IsSplit())
 			{
-				if (!nodePtr->IsSplit())
-					return nodePtr;
-				nodePtr += nodePtr->GetQuadrantOffset(SpatialIndexImpl::_FirstElem( m_SearchObj ) );
+				if constexpr (!IsLoose)
+					// a point lies in one quadrant and those of a lower quadrant lie strictly below the centre, so no child before
+					// the one that holds the first point of the search object can meet it
+					nodePtr += nodePtr->GetQuadrantOffset(SpatialIndexImpl::_FirstElem(m_SearchObj));
+				else
+				{
+					// loose boxes overlap: the first child whose loose box the search object touches
+					const Node* childPtr = nodePtr + nodePtr->m_OffsetToFirstQuadrant;
+					const Node* childEnd = childPtr + 4;
+					while (!MayHold(childPtr))
+						if (++childPtr == childEnd)
+							return nodePtr; // no child can hold a leaf that meets it: the leaves of nodePtr itself
+					nodePtr = childPtr;
+				}
 			}
+			return nodePtr;
 		}
 		SelType         m_SearchObj;
+		const Node*     m_RootPtr; // whose cell, the bounding box of the index, cuts off the loose boxes
 		const Node*     m_NodePtr;
 		const LeafType* m_LeafPtr;
 	};
@@ -526,6 +571,9 @@ struct SpatialIndex
 		_Add(&lf);
 	}
 
+	// The square of a distance from p within which an object lies: the farthest corner of the box that holds the objects of the
+	// deepest non-empty node around p, at most maxDepth deep. That box is the node's QueryBox, in a loose index larger than its
+	// cell, so the bound is larger there too.
 	template <typename SqrDistType>
 	SqrDistType GetSqrProximityUpperBound(const PointType& p, UInt32& maxDepth, const SqrDistType* sqrDist) const
 	{
@@ -546,11 +594,11 @@ struct SpatialIndex
 			{
 				maxDepth = depth - 1;
 				SqrDistType result;
+				const RangeType bb = QueryBox(*nodePtr);
 				if constexpr (std::is_integral_v<DistType>)
 				{
 					// the farthest side of the box per axis, in Float64: in the coordinate type the side p lies beyond
 					// gave a negative difference, which wrapped for unsigned coordinates and won the Max (GEO-A34)
-					const auto& bb = nodePtr->m_BoundingBox;
 					Float64 dx = Max<Float64>(Float64(p.first ) - Float64(bb.first.first ), Float64(bb.second.first ) - Float64(p.first ));
 					Float64 dy = Max<Float64>(Float64(p.second) - Float64(bb.first.second), Float64(bb.second.second) - Float64(p.second));
 					result = SqrDistType(dx * dx + dy * dy);
@@ -558,8 +606,8 @@ struct SpatialIndex
 				else
 					result = Norm<SqrDistType>(
 						PointType(
-							Max<DistType>(p.first  - nodePtr->m_BoundingBox.first.first , nodePtr->m_BoundingBox.second.first  - p.first),
-							Max<DistType>(p.second - nodePtr->m_BoundingBox.first.second, nodePtr->m_BoundingBox.second.second - p.second)
+							Max<DistType>(p.first  - bb.first.first , bb.second.first  - p.first),
+							Max<DistType>(p.second - bb.first.second, bb.second.second - p.second)
 						)
 					);
 				if (sqrDist)
@@ -578,29 +626,34 @@ struct SpatialIndex
 private:
 	SpatialIndex(const SpatialIndex&) {}
 
+	// the box that holds the objects of the subtree of node; see LooseBox
+	RangeType QueryBox(const Node& node) const { return LooseBox(node.m_BoundingBox, GetBoundingBox()); }
+
 	void _Add(LeafType* obj)
 	{
 		const auto& objExtents = obj->GetExtents();
+		const PointType objCenter = ObjCenter(objExtents);
+		const RangeType rootBox = GetBoundingBox(); // a copy: DoSplit can grow m_Nodes
 		Node*  nodePtr = &*m_Nodes.begin();
 		UInt32 nodeIdx = 0;
 		while (true)
 		{
 			dms_assert( IsTouching(nodePtr->m_BoundingBox, objExtents ) );
-			if (nodePtr->MustSplit() && !nodePtr->SplitWouldRepeat(objExtents))
+			dms_assert(!IsLoose || IsIncluding(LooseBox(nodePtr->m_BoundingBox, rootBox), objExtents));
+			if (nodePtr->MustSplit(rootBox) && !nodePtr->SplitWouldRepeat(objExtents, objCenter, rootBox))
 				nodePtr = DoSplit(nodeIdx);
 			dms_assert(nodePtr == &*m_Nodes.begin() + nodeIdx); // nodePtr survived possible growth of m_Nodes
 
 			if (!nodePtr->IsSplit())
 				break;
-			auto q = nodePtr->GetQuadrantOffset(objExtents);
+			auto q = nodePtr->GetChildOffset(objExtents, objCenter, rootBox);
 			if (!q)
 				break;
-
 
 			nodePtr += q;
 			nodeIdx += q;
 		}
-		nodePtr->AddLeaf(obj);
+		nodePtr->AddLeaf(obj, rootBox);
 	}
 
 	Node* DoSplit(UInt32 nodeIdx) // must be member of SpatialIndex to grow m_Nodes.
@@ -610,6 +663,7 @@ private:
 
 		RangeType box = nodePtr->m_BoundingBox;
 		PointType mid = Center(box);
+		const RangeType rootBox = GetBoundingBox(); // a copy: m_Nodes grows below
 
 		// the node offsets, nodeIdx and offset are UInt32. The number of nodes depends on the depth that separates the
 		// objects, not only on their number, so it is checked here and not in Rebuild.
@@ -626,8 +680,8 @@ private:
 		while (lf)
 		{
 			LeafType* lf2 = lf->GetNext();
-			UInt32 q = nodePtr->GetQuadrantOffset(lf->GetExtents());
-			nodePtr[q].AddLeaf(lf); // could be *nodePtr itself when q==0
+			UInt32 q = nodePtr->GetChildOffset(lf->GetExtents(), ObjCenter(lf->GetExtents()), rootBox);
+			nodePtr[q].AddLeaf(lf, rootBox); // could be *nodePtr itself when q==0
 			lf = lf2;
 		}
 		dms_assert(nodePtr == &*m_Nodes.begin() + nodeIdx); // m_Nodes shouldn't have grown anymore

@@ -1,0 +1,123 @@
+// #1292: the spatial index keeps a box, a polygon or an arc in a loose quadtree. Such an object goes on to the child whose
+// cell holds its centre as long as it lies within that child's loose box, the cell grown by a quarter of its size on each
+// side and cut off at the bounding box of the index; before, it stayed in the highest node whose centre lines it crossed or
+// ended on. A query now enters every child whose loose box it touches. This case checks the queries against a brute-force
+// comparison of every pair, on 400 boxes of mixed sizes in [0, 210]^2: small ones, one in ten up to 50 wide, a few of zero
+// size, and box 7 over the whole area, which stays at the root. The coordinates are integers, so that many boxes share an
+// edge or a corner exactly, in every coordinate type, and lie against 0, where the loose box of an unsigned type is cut off.
+//   box_connectivity in spoint, wpoint, ipoint, upoint, fpoint and dpoint gives the pairs that touch, in the order (F1, F2)
+//   that the brute force has too. A float box is closed and an integer box half-open, and touching means the same for both
+//   here: an overlap, or a shared edge or corner.
+//   point_in_all_polygons over the boxes as polygons gives each of 2000 points at half-integer coordinates in every box that
+//   holds it, a query that runs to its end, and point_in_polygon one of them, or null for a point in none.
+// Expected: exit 0 on /checks.
+container geo_spatial_index_loose
+{
+	unit<dpoint> crd;
+
+	unit<uint32> Box := range(uint32, 0, 400)
+	{
+		attribute<uint32>  i    := id(.);
+		attribute<uint32>  sz   := i == 7 ? 210 : i % 37 == 5 ? 0 : i % 10 == 0 ? 20 + (i * 13) % 31 : 1 + (i * 7) % 3;
+		attribute<float64> x0   := i == 7 ? 0.0 : float64((i * 37 + (i * i) % 23) % 160);
+		attribute<float64> y0   := i == 7 ? 0.0 : float64((i * 53 + (i * i) % 29) % 160);
+		attribute<float64> x1   := x0 + float64(sz);
+		attribute<float64> y1   := y0 + float64(sz);
+
+		attribute<spoint>  lbs  := point_xy(int16(x0), int16(y0), spoint);
+		attribute<spoint>  ubs  := point_xy(int16(x1), int16(y1), spoint);
+		attribute<wpoint>  lbw  := point_xy(uint16(x0), uint16(y0), wpoint);
+		attribute<wpoint>  ubw  := point_xy(uint16(x1), uint16(y1), wpoint);
+		attribute<ipoint>  lbi  := point_xy(int32(x0), int32(y0), ipoint);
+		attribute<ipoint>  ubi  := point_xy(int32(x1), int32(y1), ipoint);
+		attribute<upoint>  lbu  := point_xy(uint32(x0), uint32(y0), upoint);
+		attribute<upoint>  ubu  := point_xy(uint32(x1), uint32(y1), upoint);
+		attribute<fpoint>  lbf  := point_xy(float32(x0), float32(y0), fpoint);
+		attribute<fpoint>  ubf  := point_xy(float32(x1), float32(y1), fpoint);
+		attribute<dpoint>  lbd  := point_xy(x0, y0, dpoint);
+		attribute<dpoint>  ubd  := point_xy(x1, y1, dpoint);
+
+		attribute<crd>     geometry (polygon) := points2polygon(Corner/pt, Corner/s, Corner/o);
+	}
+	unit<uint32> Corner := range(uint32, 0, 5 * #Box)
+	{
+		attribute<Box>     s  := value(id(.) / 5, Box);
+		attribute<uint32>  o  := id(.) % 5;
+		attribute<float64> x  := o == 1 || o == 2 ? Box/x1[s] : Box/x0[s];
+		attribute<float64> y  := o == 2 || o == 3 ? Box/y1[s] : Box/y0[s];
+		attribute<crd>     pt := point_xy(x, y, crd);
+	}
+
+	// every pair of boxes, the first one varying slowest, as box_connectivity orders its pairs
+	unit<uint32> BB := combine_unit(Box, Box)
+	{
+		attribute<Box>  a     := first_rel(id(.));
+		attribute<Box>  b     := second_rel(id(.));
+		attribute<bool> touch := a < b
+			&& Box/x0[a] <= Box/x1[b] && Box/x0[b] <= Box/x1[a]
+			&& Box/y0[a] <= Box/y1[b] && Box/y0[b] <= Box/y1[a];
+	}
+	unit<uint32> Brute := select_with_org_rel(BB/touch)
+	{
+		attribute<Box> F1 := BB/a[org_rel];
+		attribute<Box> F2 := BB/b[org_rel];
+	}
+
+	unit<uint32> PS := box_connectivity(Box/lbs, Box/ubs);
+	unit<uint32> PW := box_connectivity(Box/lbw, Box/ubw);
+	unit<uint32> PI := box_connectivity(Box/lbi, Box/ubi);
+	unit<uint32> PU := box_connectivity(Box/lbu, Box/ubu);
+	unit<uint32> PF := box_connectivity(Box/lbf, Box/ubf);
+	unit<uint32> PD := box_connectivity(Box/lbd, Box/ubd);
+
+	unit<uint32> Q := range(uint32, 0, 2000)
+	{
+		attribute<uint32>  i        := id(.);
+		attribute<float64> x        := float64((i * 61 + (i * i) % 41) % 215) + 0.5;
+		attribute<float64> y        := float64((i * 83 + (i * i) % 43) % 215) + 0.5;
+		attribute<crd>     pt       := point_xy(x, y, crd);
+		attribute<uint32>  nrAll    := pcount(QB/first_rel);
+		attribute<uint32>  nrBrute  := pcount(QBrute/q_rel);
+		attribute<Box>     pip      := point_in_polygon(pt, Box/geometry);
+		attribute<bool>    pipOk    := IsNull(pip)
+			? nrBrute == 0
+			: Box/x0[pip] < x && x < Box/x1[pip] && Box/y0[pip] < y && y < Box/y1[pip];
+	}
+	unit<uint32> QB := point_in_all_polygons(Q/pt, Box/geometry);
+
+	// every pair of a point and a box; a point at half-integer coordinates never lies on the edge of a box
+	unit<uint32> QxB := combine_unit(Q, Box)
+	{
+		attribute<Q>    q_rel  := first_rel(id(.));
+		attribute<Box>  b      := second_rel(id(.));
+		attribute<bool> inside := Box/x0[b] < Q/x[q_rel] && Q/x[q_rel] < Box/x1[b] && Box/y0[b] < Q/y[q_rel] && Q/y[q_rel] < Box/y1[b];
+	}
+	unit<uint32> QBrute := select_with_org_rel(QxB/inside)
+	{
+		attribute<Q> q_rel := QxB/q_rel[org_rel];
+	}
+
+	container checks
+	{
+		// the numbers of a separate computation of the same boxes and points, in Python
+		parameter<bool> brute_pairs  := #Brute == 1173 && #QBrute == 4092, IntegrityCheck = "brute_pairs == true";
+
+		parameter<bool> count_s := #PS == #Brute, IntegrityCheck = "count_s == true";
+		parameter<bool> count_w := #PW == #Brute, IntegrityCheck = "count_w == true";
+		parameter<bool> count_i := #PI == #Brute, IntegrityCheck = "count_i == true";
+		parameter<bool> count_u := #PU == #Brute, IntegrityCheck = "count_u == true";
+		parameter<bool> count_f := #PF == #Brute, IntegrityCheck = "count_f == true";
+		parameter<bool> count_d := #PD == #Brute, IntegrityCheck = "count_d == true";
+
+		parameter<bool> pairs_s := all(PS/F1 == union_data(PS, Brute/F1) && PS/F2 == union_data(PS, Brute/F2)), IntegrityCheck = "pairs_s == true";
+		parameter<bool> pairs_w := all(PW/F1 == union_data(PW, Brute/F1) && PW/F2 == union_data(PW, Brute/F2)), IntegrityCheck = "pairs_w == true";
+		parameter<bool> pairs_i := all(PI/F1 == union_data(PI, Brute/F1) && PI/F2 == union_data(PI, Brute/F2)), IntegrityCheck = "pairs_i == true";
+		parameter<bool> pairs_u := all(PU/F1 == union_data(PU, Brute/F1) && PU/F2 == union_data(PU, Brute/F2)), IntegrityCheck = "pairs_u == true";
+		parameter<bool> pairs_f := all(PF/F1 == union_data(PF, Brute/F1) && PF/F2 == union_data(PF, Brute/F2)), IntegrityCheck = "pairs_f == true";
+		parameter<bool> pairs_d := all(PD/F1 == union_data(PD, Brute/F1) && PD/F2 == union_data(PD, Brute/F2)), IntegrityCheck = "pairs_d == true";
+
+		parameter<bool> all_polygons := #QB == #QBrute && all(Q/nrAll == Q/nrBrute), IntegrityCheck = "all_polygons == true";
+		parameter<bool> polygon      := all(Q/pipOk), IntegrityCheck = "polygon == true";
+		parameter<bool> some_outside := sum_uint32(Q/nrBrute == 0) == 98 && sum_uint32(Q/nrBrute > 1) == 677, IntegrityCheck = "some_outside == true";
+	}
+}

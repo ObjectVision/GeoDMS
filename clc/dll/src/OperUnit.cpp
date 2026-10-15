@@ -340,7 +340,7 @@ namespace {
 		const AbstrUnit::CombineFactors& m_Record;
 		bool                  m_MetaPhase;
 		std::vector<std::shared_ptr<const AbstrUnit::CombineFactors>>& m_Records;
-		std::vector<CombineData_Match> m_Matches;
+		std::vector<CombineData_Match> m_Matches = {};
 
 		const AbstrUnit* ValuesUnit(arg_index k) const { return AsDataItem(m_Args[k + 1])->GetAbstrValuesUnit(); }
 
