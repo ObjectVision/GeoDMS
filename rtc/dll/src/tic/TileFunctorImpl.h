@@ -237,7 +237,9 @@ auto LazyTileFunctor<V, MustZero, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_
 	// raw_construct-ed regardless. Reachable via the three direct make_unique_LazyTileFunctor callers,
 	// whose apply-funcs choose their own mode; the FutureTileFunctor branch passes none.
 	if constexpr (has_fixed_elem_size_v<V>)
+	{
 		MGD_CHECK_OBJ(MustZero || rwMode != dms_rw_mode::write_only_mustzero);
+	}
 
 	return locked_seq_t(std::static_pointer_cast<void>(tileSPtr), GetSeq(*tileSPtr));
 }

@@ -244,7 +244,9 @@ auto HeapSingleArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 	// raw_construct instead, so they are always constructed and an unhonoured mustzero costs nothing
 	// -- points2sequence states the same contradiction harmlessly, and should not be flagged.
 	if constexpr (has_fixed_elem_size_v<V>)
+	{
 		MGD_CHECK_OBJ(md_WasZeroed || rwMode != dms_rw_mode::write_only_mustzero);
+	}
 
 	return locked_seq_t(std::make_shared<SharedPtr<AbstrDataObject>>(this), GetSeq(m_Seq));
 }
