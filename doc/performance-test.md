@@ -6,9 +6,10 @@ measured the deferral of commits and IntegrityChecks of #1259 that was removed a
 92eaa7150), moved on 2026-10-06 to
 [`doc/archive/performance-test-20.20-20.21.md`](archive/performance-test-20.20-20.21.md); where a
 section below says "above" of one of them (round 3 of "20.21.1 without deferral", the OVSRV05 section
-of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest round, 20.24.2 at
-806e7dd61 on OVSRV05, gives 27 of 27 `ok` with the results and the times of 20.24.0; the four tests that
-stopped in 20.24.1 on the relation check of `combine_data` (#1293) compute again. Section 8.1.x of
+of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest rounds, 20.24.2 at
+806e7dd61 on OVSRV05 and the setup GeoDms20.24.2.m after it, give 27 of 27 `ok` with the results and the times
+of 20.24.0; the four tests that stopped in 20.24.1 on the relation check of `combine_data` (#1293) compute
+again. Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
 ## Results (OVSRV10), 20.22.0
@@ -856,6 +857,55 @@ of the section above it was 4.0 and 3.7 GB on 20.24.0 and 3.8 and 4.4 GB on 20.2
   20.23.0.m, which a single round does not attribute to a build. The experiments that #1309 named, t641.1,
   t641.2, t2000, t405.2, t405.3, t710, t720, t1640 and t1642, are each level with 20.23.0.m or faster, within
   a second for the value-info tests.
+
+### The setup GeoDms20.24.2.m against the local build
+
+The `.m` setup of 20.24.2 (`distr\GeoDms20.24.2.m-Setup-x64.exe` of 2026-10-14 23:21, signed by Object Vision
+B.V., SHA256 `C8284A49...B0F4`) was installed silently on 2026-10-15 to
+`C:\Program Files\ObjectVision\GeoDms20.24.2.m`, and full.py ran on it with `-version 20.24.2.m` from 03:29
+to 06:38, threshold 60, exit 0, 32 experiments with no reuse; report header 3:06:40, 27 of 27 `ok`. The round
+of the local build went to `_Archive\20_24_2_m_local_806e7dd61_20261014` beforehand (its intermediates to
+`C:\LocalData\runs\_aside_20_24_2_m_local_806e7dd61_20261014`), so the `20_24_2_m` column is now the setup's.
+`testcases\run_testcases.bat` with the installed `GeoDmsRun.exe`: 518 cases, 0 bad.
+
+The setup was built in `C:\dev\GeoDMS_2026`, the local build in `C:\dev\GeoDMS` (82 occurrences in `Rtc.dll`).
+Of the files the two have in common, 687 are identical; the 58 executables that differ, the six engine DLLs,
+the Python modules, the two exe's and the vcpkg libraries alike, have `.text` sections of exactly the same size
+(by `dumpbin /headers`), and only their `.rdata` grows, by the longer source path; the 136 text files that
+differ do so in line endings only. The binaries show no code change against `806e7dd61`; a change that keeps
+every code section at its size is not excluded by this.
+
+Every `.json`, `.txt` and `.tif` result file of the setup's round is byte for byte the one of the local round;
+the `.xml` results differ in `GeoDmsVersion`, `SessionStartTime` and `CurrentTime` only (the local build stamps
+its version `[2026-09-14]`, the setup `[2026-10-14]`).
+
+| test | setup (15-10) | local `806e7dd61` (14-10) | setup / local |
+|---|---|---|---|
+| t020 | 0:04:03, 1.9 GB | 0:04:02, 2.4 GB | 1.00 |
+| t060 | 0:01:53, 7.3 GB | 0:01:52, 8.2 GB | 1.01 |
+| t101 | 0:03:17, 1.6 GB | 0:03:24, 1.6 GB | 0.97 |
+| t300 | 0:01:55, 9.6 GB | 0:01:53, 9.6 GB | 1.02 |
+| t301 | 0:02:41, 18.4 GB | 0:02:40, 15.9 GB | 1.01 |
+| t405.1 | 0:04:23, 10.0 GB | 0:04:21, 8.2 GB | 1.01 |
+| t405.2 | 0:17:33, 28.9 GB | 0:17:54, 27.9 GB | 0.98 |
+| t405.3 | 0:17:24, 29.0 GB | 0:17:55, 28.4 GB | 0.97 |
+| t410 | 0:03:50, 1.3 GB | 0:04:14, 1.1 GB | 0.91 |
+| t641.1 | 0:50:20, 137.7 GB | 0:51:03, 137.9 GB | 0.99 |
+| t641.2 | 0:43:34, 172.7 GB | 0:44:42, 165.7 GB | 0.97 |
+| t710 | 0:01:03, 7.4 GB | 0:01:04, 6.7 GB | 0.98 |
+| t720 | 0:09:21, 23.6 GB | 0:09:41, 20.4 GB | 0.97 |
+| t810 | 0:05:02, 25.7 GB | 0:04:58, 26.6 GB | 1.01 |
+| t910 | 0:00:48, 2.6 GB | 0:00:51, 4.3 GB | 0.94 |
+| t2000 | 0:17:14, 67.0 GB | 0:17:53, 61.6 GB | 0.96 |
+
+Wall time and Highest CommitCharge as above; summed over the rows of the earlier table 186.3 min against 190.3.
+t1640 and t1642 6 and 13 s in both. The commit peaks that rose, t641.2 by 7 GB, t2000 by 5.4, t720 by 3.2, come
+at the same PeakLiveLarge (168 907 MB for t641.2 in both, 136 936 for t641.1, 9296 for t405.1; t2000 63 876
+against 61 708 to 64 459 in the earlier rounds), and lie within what the process commit of those tests has
+shown between sittings of one build (t641.2 169.5 to 180.7 GB since 20.22.0).
+
+Reading: the setup computes what the local build computes, in the same time (every row within 9 %, the larger
+ones within 4 %, none slower than the drift), with the same live memory. No A/B was needed.
 
 # Known causes of differences between versions
 
