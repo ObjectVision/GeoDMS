@@ -661,6 +661,14 @@ ReadCallSpec MmdStorageManager::DescribeReadCall(const TreeItem* storageHolder, 
 	return DescribeAttrRead(storageHolder, AsDataItem(item));
 }
 
+void MmdStorageManager::NoteWriteThrough(const TreeItem* configItem, const TreeItem* producedItem)
+{
+	assert(configItem && producedItem);
+	auto produced = make_shared_tree(producedItem, no_zombies{});
+	auto lock = std::lock_guard(m_WriteThroughMutex);
+	m_WrittenThrough[configItem] = produced;
+}
+
 // #1247: see the declaration for why a stored item can end up without a file of its own.
 void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi)
 {
@@ -674,9 +682,17 @@ void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, 
 	auto ultimate = adi->GetCurrUltimateItem();
 	if (!ultimate || !ultimate->IsCacheItem())
 		return; // nothing shared: this item produced its own array, write-through already wrote it
-	auto owner = ultimate->GetBackRef();
-	if (!owner || owner.get() == adi)
-		return; // this item IS the one the array was filed under
+
+	// #1318: and when the back reference is this item, that says nothing about whether an array was
+	// produced at all. A tile functor, the result of const() and id(), computes a tile when asked for
+	// and never passes a DataWriteLock, so the store got no file while the dictionary declared data,
+	// or kept the file an earlier session wrote. So skip only when the write-through mapped THIS
+	// result into this item's file.
+	{
+		auto lock = std::lock_guard(m_WriteThroughMutex);
+		if (auto i = m_WrittenThrough.find(adi); i != m_WrittenThrough.end() && i->second.lock() == ultimate)
+			return;
+	}
 
 	auto stamp = adi->GetLastChangeTS();
 

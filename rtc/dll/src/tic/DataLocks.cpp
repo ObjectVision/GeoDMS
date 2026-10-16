@@ -329,6 +329,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 					auto fn = DelimitedConcat(fsn, rn);
 					// #1298: written under a temporary name, which Commit replaces by fn (FileTileArray::FinishWrite)
 					reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear, mmd->GetStoreLockForWrite()).release());
+					mmd->NoteWriteThrough(configItem.get(), adi); // #1318: what lets MaterializeSharedContent tell a written file from a missing one
 					goto afterReset;
 				}
 			}

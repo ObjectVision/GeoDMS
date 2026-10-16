@@ -59,7 +59,12 @@ public:
 	// file while the dictionary declared both, and the store promised data it did not have.
 	// Everything a store declares must be in it, so the other claimants get a copy here.
 	// Called from TreeItem::CommitDataChanges once the data is ready, before UpdateDictionary.
+	// #1318: and to every item whose current result was not written through into its own file,
+	// such as a tile functor (const(), id()) that no DataWriteLock produced; see NoteWriteThrough.
 	void MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi);
+
+	// #1318: DataWriteLock maps producedItem's array into the file of configItem in this store
+	void NoteWriteThrough(const TreeItem* configItem, const TreeItem* producedItem);
 
 	// #1275: gather the presentation properties of the store's items (see Mmd_PresentationTags)
 	// the first time an item under it is prepared, where a stored property may be read.
@@ -100,6 +105,13 @@ protected:
 	// Actor::GetLastChangeTS, which covers the item and its suppliers: a recommit produces a FRESH
 	// cache item, so a cache-keyed guard could only ever say "unknown" and would never skip at all.
 	mutable std::map<const TreeItem*, TimeStamp> m_MaterializedAt;
+
+	// #1318: per configured item, the cache item whose array DataWriteLock mapped into that item's
+	// file. Written on producing threads, so under a mutex of its own, a leaf: nothing is taken while
+	// it is held. Weak, and compared with the item's current ultimate item: a recommit produces a
+	// fresh cache item, so a record of an earlier production can never pass for the current one.
+	mutable std::mutex m_WriteThroughMutex;
+	std::map<const TreeItem*, std::weak_ptr<const TreeItem>> m_WrittenThrough;
 
 	// #1275: the presentation properties of the store's items, gathered by DoWriteTree on the meta
 	// thread at the first emission of the dictionary and read by every later one; both under
