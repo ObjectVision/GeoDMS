@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-16): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-17): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -10,7 +10,8 @@ of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. On OVS
 (0176bebdb) gives 27 of 27 `ok` in `.c` and `.m` and 19 of 21 in `.l`, with the results of 20.24.0; the latest
 round, 20.25.0 at cd3e83ec7, gave 23 of 27: the loose quadtree of #1292 makes `point_in_polygon` take another
 of overlapping polygons in t060, t301, t641.2 and t2000, whose references GeoDMS-Test 6387c67 moved (27 of 27
-since), and makes t060 and t301 4 to 7 % faster. t300's two levels on this machine are the first read of its XML, not the build (see
+since), and makes t060 and t301 4 to 7 % faster; the final engine code of 20.25.0, c56fe51a2, gives 27 of 27 with
+the same results and times. t300's two levels on this machine are the first read of its XML, not the build (see
 the known causes at the end). Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
@@ -1094,6 +1095,85 @@ Each run gave the results of its build's round, byte for byte. t405.1's 266 s in
 - The cases where `7c4000cdc` measured its large gains, `box_connectivity` of dense unit squares (30 to 40 s to
   2.5 s) and `point_in_ranked_polygon` (6.1 to 1.5 s), dominate no experiment of the round, so the round does not
   show them.
+
+## Results (OVSRV05), 20.25.0 at `c56fe51a2`: the final engine code
+
+Run from 2026-10-16 20:56 to 2026-10-17 00:11 on OVSRV05, threshold 60 (set by `scratch\launch_perf_20250b.cmd`
+and put back to 95 after it), full.py exit 0, nothing on stderr; report header 3:11:52, 27 of 27 `ok`. Tree
+`C:\dev\GeoDMS` on `main` at `c56fe51a2`: the round above (`cd3e83ec7`) with this file's `1f4455e02` and
+`c953d8949` and the engine commits #1313 `b17d330f1` (a unit made by combine keeps its factors in interest while it
+is in interest), #1314 `7b4e2b9dc` (`mid` and `centroid_or_mid` of a polygon with a null vertex), #1315 `8487e5f39`,
+#1316 `374149dce`, #1317 `22f424664` and #1318 `13b875271` and `48f7e71ad` (MMD read holders, files of `const()`
+and `id()` attributes, the dictionary across write sessions, units outside a store). GeoDMS-Test at `6387c67`, with
+the 20.25.0 references of the section above. Built with the VS18 msbuild, 20:44:26 to 20:54:58, exit 0, no error
+and no C warning, every engine DLL rebuilt (`Rtc.dll` 20:45:00 to `GeoDmsGuiQt.exe` 20:54:54);
+`testcases\run_testcases.bat` 529 cases, 0 bad. Kept as `C:\LocalData\GeoDMS_engine\head_c56fe51a2`. The column of
+the round above went to `_Archive\20_25_0_m_cd3e83ec7_20261016` with its report, its intermediates to
+`C:\LocalData\runs\_aside_20_25_0_m_cd3e83ec7_20261016`; full.py ran 32 experiments with no reuse. t300's XML was
+read once beforehand (`warm_inputs.py`), as the A/B before the round above had done: 500 files, 5.6 GiB in 57 s,
+the first-read rate of the known cause below, a third time.
+
+Running on the machine, from 39 five-minute samples: the Claude desktop app 128 s of CPU, its web view 73 s,
+nothing else above 30 s.
+
+### The same results
+
+Every `.json`, `.txt` and `.tif` result of the round is byte for byte the one of the round above, t010, t641.1,
+t641.2 and t2000 included; the t060 gpkg has the tables of the `_v20250` reference, column for column, and differs in
+metadata bytes only. #1313 to #1318 change no result that the round checks.
+
+### Wall time and Highest CommitCharge
+
+| test | `c56fe51a2` (16-10) | `cd3e83ec7` (16-10) | release 20.24.2.m (15-10) | against `cd3e83ec7` |
+|---|---|---|---|---|
+| t020 | 0:04:00, 2.5 GB | 0:04:07, 2.5 GB | 0:03:46, 1.9 GB | 0.97 |
+| t060 | 0:01:41, 7.4 GB | 0:01:57, 6.9 GB | 0:01:50, 6.8 GB | 0.86 |
+| t101 | 0:03:11, 1.6 GB | 0:03:29, 1.6 GB | 0:03:14, 1.6 GB | 0.91 |
+| t200 | 0:00:37, 2.7 GB | 0:00:38, 2.9 GB | 0:00:36, 2.9 GB | 0.97 |
+| t300 | 0:00:58, 10.4 GB | 0:00:59, 10.1 GB | 0:01:03, 9.6 GB | 0.98 |
+| t301 | 0:02:44, 17.8 GB | 0:02:36, 18.2 GB | 0:02:32, 13.6 GB | 1.05 |
+| t405.1 | 0:04:26, 8.2 GB | 0:04:34, 9.6 GB | 0:04:22, 10.0 GB | 0.97 |
+| t405.2 | 0:18:18, 36.2 GB | 0:18:05, 29.1 GB | 0:17:37, 29.1 GB | 1.01 |
+| t405.3 | 0:18:17, 29.2 GB | 0:18:32, 29.4 GB | 0:17:48, 29.0 GB | 0.99 |
+| t410 | 0:03:55, 1.3 GB | 0:04:05, 1.2 GB | 0:04:04, 1.2 GB | 0.96 |
+| t611 | 0:00:31, 4.1 GB | 0:00:32, 3.9 GB | 0:00:31, 3.9 GB | 0.97 |
+| t641.1 | 0:51:22, 139.4 GB | 0:51:23, 137.6 GB | 0:49:31, 142.4 GB | 1.00 |
+| t641.2 | 0:46:06, 171.4 GB | 0:45:20, 171.7 GB | 0:45:46, 165.8 GB | 1.02 |
+| t710 | 0:01:03, 6.2 GB | 0:01:06, 5.7 GB | 0:01:05, 5.7 GB | 0.95 |
+| t720 | 0:09:17, 20.7 GB | 0:09:39, 20.4 GB | 0:09:41, 20.4 GB | 0.96 |
+| t810 | 0:05:19, 25.9 GB | 0:05:35, 26.2 GB | 0:05:33, 26.3 GB | 0.95 |
+| t910 | 0:00:49, 2.8 GB | 0:00:52, 2.8 GB | 0:00:50, 3.2 GB | 0.94 |
+| t2000 | 0:18:06, 76.3 GB | 0:17:38, 61.9 GB | 0:18:08, 67.3 GB | 1.03 |
+
+The t060 and t301 times of `cd3e83ec7` are those of its round, not of the rerun of the section above. Summed over the
+rows: 191.5 min against 191.9. t1640 and t1642 4 and 12 s. `PeakLiveLarge` 136 936 MB for t641.1 and 168 907 MB for
+t641.2, as in every round of 20.24.2 and 20.25.0. t2000 has 77 224 MB live against 63 098 in the round above.
+
+### t2000's live peak: an interleaved A/B
+
+#1313 keeps the factors of a combine in interest while the combine is, which could keep more data alive, and t2000
+uses `combine_data`. `scratch\perf_ovsrv05\ab_20250c_t2000.cmd` ran t2000 on `head_cd3e83ec7` (X) and
+`head_c56fe51a2` (Y), X, Y, X, Y, 2026-10-17 00:14 to 01:25, threshold 60, its source files read once beforehand:
+
+| run | seconds | Highest CommitCharge | `PeakLiveLarge` |
+|---|---|---|---|
+| X1 | 1082 | 73 727 MB | 74 678 MB |
+| Y1 | 1051 | 74 010 MB | 72 601 MB |
+| X2 | 1064 | 62 759 MB | 70 972 MB |
+| Y2 | 1068 | 78 336 MB | 74 271 MB |
+
+Every run gave the result of the round. The two builds are level in time and in live memory: the build without
+#1313 reaches the high level as well. t2000's live peak has two levels across the rounds of this machine, 61.7 to
+65.2 GB (20.23.0, 20.24.0, the three rounds of 20.24.2, `cd3e83ec7`) and 76.7 to 77.3 GB (20.22.1 at `1315b0357` and
+`15651313f`, 20.23.1.m, this round), with 69.6 GB for 20.22.0 and 71 to 75 GB in the runs above; a round's figure for
+t2000 says which level that run reached, not which build ran.
+
+### Reading
+
+- Correct: 27 of 27, with the results of `cd3e83ec7`, so the 20.25.0 references of GeoDMS-Test `6387c67` hold for the
+  final code.
+- No performance change: every experiment level or faster than the round above, within its drift, and t2000 level
+  with `cd3e83ec7` in an A/B, in time and in live memory. Not measured: the tst unit suite.
 
 # Known causes of differences between versions
 
