@@ -1,0 +1,75 @@
+// The read half of the tiled-holder case (issue #1315); stor_mmd_tiledholder_1_write.dms writes the
+// stores and carries the description. On its own this config fails, because the stores do not exist.
+//
+// Each holder is a unit that declares nothing but its storage; its rule, its tiling and its attribute
+// come from the dictionary. Before the fix every check on reg, one, irr and poly below failed or
+// crashed the process except the attribute sums, while def passed.
+container stor_mmd_tiledholder_2_read
+{
+	container geometries
+	{
+		unit<fpoint> plane;
+	}
+
+	unit<uint32> reg  : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_reg.mmd",  StorageReadOnly = "True";
+	unit<uint32> one  : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_one.mmd",  StorageReadOnly = "True";
+	unit<uint32> irr  : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_irr.mmd",  StorageReadOnly = "True";
+	unit<uint32> def  : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_def.mmd",  StorageReadOnly = "True";
+	unit<uint32> poly : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_poly.mmd", StorageReadOnly = "True";
+
+	// a holder may declare no items of its own, so what is derived from it stands beside it
+	unit<uint32> sub_reg := range(reg, 0, #reg);
+	unit<uint32> sub_one := range(one, 0, #one);
+	unit<uint32> sub_irr := range(irr, 0, #irr);
+
+	// the same polygons, calculated here, as the control of poly2allgrids
+	unit<uint32> polys := range(uint32, 0, 3);
+	unit<uint32> pts := range(uint32, 0, 15)
+	{
+		attribute<polys>   seq := id(.) / 5;
+		attribute<uint32>  ord := id(.) % 5;
+		attribute<uint32>  k   := ord == 4 ? 0 : ord;
+		attribute<float32> x0  := float32(seq) * 10f;
+		attribute<geometries/plane> p := point_xy(x0 + (k == 1 || k == 2 ? 8f : 1f), (k == 2 || k == 3 ? 8f : 1f), geometries/plane);
+	}
+	unit<uint32> ctrl := TiledUnit(2[polys])
+	{
+		attribute<geometries/plane> geom (polygon) := union_data(., points2polygon(pts/p, pts/seq, pts/ord));
+	}
+	unit<spoint> grid := range(gridset(geometries/plane, point_yx(1.0, 1.0), point_yx(0.0, 0.0), spoint), point_yx(0s, 0s), point_yx(10s, 30s));
+	unit<uint32> cells      := poly2allgrids(poly/geom, grid);
+	unit<uint32> cells_ctrl := poly2allgrids(ctrl/geom, grid);
+
+	container checks
+	{
+		// the attribute read, which worked before: content, so that a moved tile boundary shows
+		parameter<uint32> w_reg := sum(reg/waarde), IntegrityCheck = "w_reg == 550725";
+		parameter<uint32> w_one := sum(one/waarde), IntegrityCheck = "w_one == 550725";
+		parameter<uint32> w_irr := sum(irr/waarde), IntegrityCheck = "w_irr == 550725";
+		parameter<uint32> w_def := sum(def/waarde), IntegrityCheck = "w_def == 550725";
+		parameter<uint32> m_reg := reg/waarde[1049], IntegrityCheck = "m_reg == 1049";
+		parameter<uint32> m_irr := irr/waarde[700],  IntegrityCheck = "m_irr == 700";
+
+		// id() and const() take the tiling of their unit argument
+		parameter<uint32> id_reg := sum(id(reg)), IntegrityCheck = "id_reg == 550725";
+		parameter<uint32> id_one := sum(id(one)), IntegrityCheck = "id_one == 550725";
+		parameter<uint32> id_irr := sum(id(irr)), IntegrityCheck = "id_irr == 550725";
+		parameter<uint32> id_def := sum(id(def)), IntegrityCheck = "id_def == 550725";
+
+		parameter<uint32> c_reg := sum_uint32(const(true, reg)), IntegrityCheck = "c_reg == 1050";
+		parameter<uint32> c_one := sum_uint32(const(true, one)), IntegrityCheck = "c_one == 1050";
+		parameter<uint32> c_irr := sum_uint32(const(true, irr)), IntegrityCheck = "c_irr == 1050";
+		parameter<uint32> c_def := sum_uint32(const(true, def)), IntegrityCheck = "c_def == 1050";
+		parameter<uint32> k_reg := sum(const(2, reg)),          IntegrityCheck = "k_reg == 2100";
+
+		// range(holder, ...) and the tiling of its base
+		parameter<uint32> s_reg := sum(id(sub_reg)), IntegrityCheck = "s_reg == 550725";
+		parameter<uint32> s_one := sum(id(sub_one)), IntegrityCheck = "s_one == 550725";
+		parameter<uint32> s_irr := sum(id(sub_irr)), IntegrityCheck = "s_irr == 550725";
+
+		// poly2allgrids over the polygons of a tiled holder, against the same polygons calculated here
+		parameter<uint32> n_cells_ctrl := #cells_ctrl, IntegrityCheck = "n_cells_ctrl > 0";
+		parameter<uint32> n_cells      := #cells,      IntegrityCheck = "n_cells == n_cells_ctrl";
+		parameter<uint32> n_poly       := sum_uint32(const(true, poly)), IntegrityCheck = "n_poly == 3";
+	}
+}

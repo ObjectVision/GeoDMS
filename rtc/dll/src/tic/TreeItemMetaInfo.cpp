@@ -241,6 +241,37 @@ static void TreeItem_InstallStorageReadCalculator(const TreeItem* self, const Tr
 	TreeItem_MarkStorageReadMembers(self);
 }
 
+// #1315: a read holder of an MMD store gets its calculation rule from the dictionary of the store (since
+// #1267 the tiling of a tiled domain, = TiledUnit(...)), and gets it in UpdateTree, after its own meta
+// info: its DetermineState and UpdateMetaInfoImpl ran without the rule, so nothing made a calculator for
+// it. A reference to the holder, substituted right after this UpdateMetaInfo, then found no
+// DataController and took the holder's source description for its key; the operator received the
+// configured holder, whose range lives on the TiledUnit result it refers to, and id(), const(),
+// poly2allgrids() and range(holder, ...) found no tiling on it. Make the calculator and the DataController
+// here, as the read calculator above is made, so that the holder has the key of its rule like any unit
+// that has one. Only the holder needs this: MmdStorageManager::DoUpdateTree merges at the holder alone,
+// and the items that the merge creates below it carry their rules before their first UpdateMetaInfo,
+// which makes their calculators as for any configured item.
+static void TreeItem_MakeCalculatorForRuleFromStorage(const TreeItem* self, const TreeItem* storageParent)
+{
+	assert(IsMetaThread());
+	if (self != storageParent)
+		return;
+	if (self->mc_DC || self->GetCalculatorMember() || self->GetExprMember().empty())
+		return;
+
+	self->MakeCalculator();
+	if (!self->GetCalculatorMember())
+		return; // MakeCalculator failed, and reported it on the holder
+
+	// as for the read calculator: a check that the dictionary gave the holder was substituted without the rule
+	if (self->HasIntegrityChecker())
+		self->ResetIntegrityCheckerMember();
+
+	self->UpdateDC();
+	TreeItem_MergeReferredCacheRoot(self);
+}
+
 void TreeItem::UpdateMetaInfoImpl() const
 {
 	assert(!WasFailed(FailType::MetaInfo));
@@ -917,6 +948,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 			{
 				auto sm = storageParent->GetStorageManager();
 				sm->UpdateTree(storageParent.get(), const_cast<TreeItem*>(this));
+				TreeItem_MakeCalculatorForRuleFromStorage(this, storageParent.get()); // #1315
 				TreeItem_InstallStorageReadCalculator(this, storageParent.get(), sm); // #587
 			}
 			// validate units with refObject if it wasn't copied by the parent
