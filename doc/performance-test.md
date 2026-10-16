@@ -1,15 +1,17 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-15): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-16): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
 [`doc/archive/performance-test-20.20-20.21.md`](archive/performance-test-20.20-20.21.md); where a
 section below says "above" of one of them (round 3 of "20.21.1 without deferral", the OVSRV05 section
-of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. The latest rounds, 20.24.2 at
-806e7dd61 on OVSRV05 and the setup GeoDms20.24.2.m after it, give 27 of 27 `ok` with the results and the times
-of 20.24.0; the four tests that stopped in 20.24.1 on the relation check of `combine_data` (#1293) compute
-again. Section 8.1.x of
+of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. On OVSRV05 the release v20.24.2
+(0176bebdb) gives 27 of 27 `ok` in `.c` and `.m` and 19 of 21 in `.l`, with the results of 20.24.0; the latest
+round, 20.25.0 at cd3e83ec7, gives 23 of 27: the loose quadtree of #1292 makes `point_in_polygon` take another
+of overlapping polygons in t060, t301, t641.2 and t2000, whose references have yet to follow, and makes t060
+and t301 4 to 7 % faster. t300's two levels on this machine are the first read of its XML, not the build (see
+the known causes at the end). Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
 ## Results (OVSRV10), 20.22.0
@@ -907,6 +909,187 @@ shown between sittings of one build (t641.2 169.5 to 180.7 GB since 20.22.0).
 Reading: the setup computes what the local build computes, in the same time (every row within 9 %, the larger
 ones within 4 %, none slower than the drift), with the same live memory. No A/B was needed.
 
+## Results (OVSRV05), the release v20.24.2 (tag `0176bebdb`) in `.l`, `.c` and `.m`
+
+The tag `v20.24.2` points at `0176bebdb`, two commits past the `806e7dd61` of the rounds above: `d41ca60ff`
+(braces and default member initializers for the GCC 13 warnings) and `0176bebdb` (a `bit_reference` no longer
+reads and writes the three bytes after the lone 1-byte Bool accumulator of `any` and `all`). The `.m` setup of
+the release has other `.text` sizes than `806e7dd61` in five engine DLLs (`Clc`, `Geo`, `Rtc`, `Shv`, `Stg`), so
+it is not the build tested above and got a round of its own. The `distr` folder had only `.c` and `.m` setups
+of before the tag and no `.l`, so the assets of the GitHub pre-release were installed; their SHA256 match the
+release's digests and both Windows setups carry a valid signature. `.l` went into mtahi's WSL Ubuntu 26.04 as
+`/opt/ObjectVision/GeoDms20.24.2.l`, in place of 20.23.1.l; `.c` and `.m` into `C:\Program Files\ObjectVision`.
+The `20_24_2_m` column of the setup from `distr` moved to `_Archive\20_24_2_m_setup_distr_20261015` (its
+intermediates to `C:\LocalData\runs\_aside_20_24_2_m_setup_distr_20261015`) first.
+
+`scratch\launch_perf_20242_release.cmd` ran the three rounds one after another, threshold 60, put back to 95
+after them: `.l` 2026-10-15 17:36 to 18:38, `.c` 18:38 to 21:43, `.m` 21:43 to 2026-10-16 00:55. Each full.py
+exit 0, nothing on stderr, no reuse. The 20.23.1 releases, the references of `.l` and `.c`, ran on 2026-10-08
+in the order `.m` (16:37 to 19:54), `.c` (19:54 to 22:58), `.l` (23:00 to 23:58), also threshold 60.
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.l` | 0:55:12 | 19 of 21 `ok`: t405.2 and t405.3 stop with exit 15 after 6 minutes, as in 20.23.1.l; t641, t2000 and the GUI tests are not run on `.l` |
+| `.c` | 3:02:31 | 27 of 27 `ok` |
+| `.m` | 3:09:12 | 27 of 27 `ok` |
+
+`.l` runs with full.py's defaults for Linux: WSL has 31 GB here, so `RunAllLinuxTests` stays off and t641.x
+(which asks for a host of at least 192 GB), t2000 (96 GB) and the GUI tests are skipped; t405.2 and t405.3,
+which commit about 29 GB on Windows, do not fit either.
+
+Results: every `.json`, `.txt` and `.tif` result of the `.m` round is byte for byte the one of the local round
+of `806e7dd61`, so the two commits do not change a checked result. `.c` gives the results of `.m`. `.l` does too,
+except where 20.23.1.l already differed from `.m`: `t020_polygons.result.json` prints one metric with 17 instead
+of 15 significant digits (466169.37699179107), and `t710_2UP_indicator_results_zonder_CalCache.result.json`. In
+`.c` and `.l` t010's `operator_groups.txt` lists the operators of `.m` in another order.
+
+| test | `.m` release | `.m` local `806e7dd61` | `.c` release | `.c` 20.23.1 | `.l` release | `.l` 20.23.1 |
+|---|---|---|---|---|---|---|
+| t020 | 0:03:46, 1.9 GB | 0:04:02, 2.4 GB | 0:03:44, 2.0 GB | 0:03:38, 1.9 GB | 0:03:30, 6.4 GB | 0:03:31, 6.6 GB |
+| t060 | 0:01:50, 6.8 GB | 0:01:52, 8.2 GB | 0:01:51, 6.8 GB | 0:01:49, 6.8 GB | 0:02:56, 10.6 GB | 0:02:49, 9.6 GB |
+| t101 | 0:03:14, 1.6 GB | 0:03:24, 1.6 GB | 0:03:10, 1.6 GB | 0:03:11, 1.6 GB | 0:03:38, 1.7 GB | 0:03:14, 1.7 GB |
+| t200 | 0:00:36, 2.9 GB | 0:00:36, 2.8 GB | 0:00:30, 3.2 GB | 0:00:36, 2.7 GB | 0:01:00, 1.7 GB | 0:00:55, 2.1 GB |
+| t300 | 0:01:03, 9.6 GB | 0:01:53, 9.6 GB | 0:00:55, 10.5 GB | 0:01:04, 7.6 GB | 0:02:12, 7.1 GB | 0:01:16, 8.7 GB |
+| t301 | 0:02:32, 13.6 GB | 0:02:40, 15.9 GB | 0:02:35, 16.5 GB | 0:02:28, 13.0 GB | 0:01:37, 20.6 GB | 0:01:36, 19.5 GB |
+| t405.1 | 0:04:22, 10.0 GB | 0:04:21, 8.2 GB | 0:03:23, 10.0 GB | 0:04:18, 10.0 GB | 0:04:42, 10.4 GB | 0:04:22, 10.6 GB |
+| t405.2 | 0:17:37, 29.1 GB | 0:17:54, 27.9 GB | 0:17:32, 29.0 GB | 0:17:48, 29.2 GB | stopped | stopped |
+| t405.3 | 0:17:48, 29.0 GB | 0:17:55, 28.4 GB | 0:17:33, 29.0 GB | 0:18:04, 29.0 GB | stopped | stopped |
+| t410 | 0:04:04, 1.2 GB | 0:04:14, 1.1 GB | 0:03:47, 0.9 GB | 0:03:52, 1.1 GB | 0:04:15, 2.2 GB | 0:04:11, 2.3 GB |
+| t611 | 0:00:31, 3.9 GB | 0:00:32, 4.0 GB | 0:00:30, 4.0 GB | 0:00:31, 3.9 GB | 0:00:32, 4.5 GB | 0:00:32, 3.5 GB |
+| t641.1 | 0:49:31, 142.4 GB | 0:51:03, 137.9 GB | 0:49:41, 141.9 GB | 0:48:15, 138.7 GB | not run | not run |
+| t641.2 | 0:45:46, 165.8 GB | 0:44:42, 165.7 GB | 0:42:57, 166.2 GB | 0:42:10, 173.5 GB | not run | not run |
+| t710 | 0:01:05, 5.7 GB | 0:01:04, 6.7 GB | 0:01:04, 7.1 GB | 0:01:02, 6.5 GB | 0:01:06, 7.9 GB | 0:01:05, 8.2 GB |
+| t720 | 0:09:41, 20.4 GB | 0:09:41, 20.4 GB | 0:09:20, 19.4 GB | 0:09:16, 20.9 GB | 0:09:25, 20.3 GB | 0:09:18, 26.7 GB |
+| t810 | 0:05:33, 26.3 GB | 0:04:58, 26.6 GB | 0:05:03, 25.9 GB | 0:05:31, 25.9 GB | 0:06:48, 27.4 GB | 0:06:26, 26.9 GB |
+| t910 | 0:00:50, 3.2 GB | 0:00:51, 4.3 GB | 0:00:48, 3.1 GB | 0:00:49, 2.7 GB | 0:00:58, 3.5 GB | 0:00:55, 3.1 GB |
+| t2000 | 0:18:08, 67.3 GB | 0:17:53, 61.6 GB | 0:16:53, 60.8 GB | 0:17:52, 70.9 GB | not run | not run |
+
+Wall time and Highest CommitCharge as above (for `.l` what the Linux build logs under that name). Summed over the rows that
+ran: `.m` 188.8 min against 190.3 for the local round, `.c` 182.1 against 183.0 for 20.23.1.c. t1640 and t1642
+5 and 12 s in `.m` and `.c`.
+
+t300 is the one row far from its reference: 1:03 in `.m` and 0:55 in `.c` against 1:53 for the local round, but
+2:12 in `.l` against 1:16. That is not the build. On 2026-10-16 from 01:11 to 01:17, interleaved, with t300's XML
+read once beforehand, t300 took 58 and 59 s on `head_806e7dd61`, 59 and 58 s on the release `.m` and 58 and 58 s
+on `head_cd3e83ec7` (20.25.0), each with 8 of 8 spot checks equal. It is the first read of its 5.7 GB of XML; see
+"t300 and the first read of its XML on OVSRV05" under the known causes below.
+
+### Reading
+
+- Correct: `.m` and `.c` 27 of 27 with the results of the local round, `.l` 19 of 21 with the limits and the
+  known differences of 20.23.1.l. The two commits after `806e7dd61` change no checked result.
+- No performance regression in `.m` and `.c`: `.m` lies within the drift of the local round and the `distr`
+  setup (188.8 min against 190.3 and 186.3 for the same code), `.c` is level with 20.23.1.c.
+- `.l` is slower than 20.23.1.l: summed over the twelve rows that both ran to the end, t300 left out, 40.5 against
+  38.9 min (+4 %), with t101 +24 s (12 %), t810 +22 s, t405.1 +20 s and t200 +5 s. 20.23.1.l was the third round
+  of its sitting and 20.24.2.l the first, which accounts for t300 (+56 s) and perhaps for more of the text
+  inputs; no A/B of the two `.l` builds was run.
+
+## Results (OVSRV05), 20.25.0: the loose quadtree of #1292
+
+Run from 2026-10-16 01:17 to 04:31 on OVSRV05, threshold 60 (set by `scratch\launch_perf_20250.cmd` and put
+back to 95 after it), full.py exit 0, nothing on stderr; report header 3:12:21, 23 of 27 `ok`. Tree
+`C:\dev\GeoDMS` on `main` at `cd3e83ec7`: the release v20.24.2 (`0176bebdb`) with the release notes
+`fc6414fed`, the #1292 commit `7c4000cdc` (the spatial index keeps boxes, polygons and arcs in a loose
+quadtree), its continuations entry `674a76876` and the version bump `c2b0790cb`, merged with `905312173` of this
+file. In code it differs from the release only by `7c4000cdc` (`geo/dll/src/geom/SpatialIndex.h`,
+`NeighbourIter.h`) and the version number. GeoDMS-Test at `2cd9891`, as above. Built with the VS18 msbuild,
+00:59:02 to 01:09:58, exit 0, no error and no C warning, every engine DLL rebuilt (`Rtc.dll` 00:59:42 to
+`GeoDmsGuiQt.exe` 01:09:53); `testcases\run_testcases.bat` 519 cases, 0 bad, `geo_spatial_index_loose` among
+them. Kept as `C:\LocalData\GeoDMS_engine\head_cd3e83ec7`. No `20_25_0_m` folder existed; full.py ran 32
+experiments with no reuse. The t300 A/B of the section above ran right before it and read t300's XML, so this
+round's t300 is the fast one.
+
+Running on the machine, from 39 five-minute samples: the Chrome Remote Desktop host 1 761 s of CPU (about 15 % of
+a core), the Claude desktop app 576 s, nothing else above 70 s.
+
+### Four red rows: `point_in_polygon` takes another of overlapping polygons
+
+The four red rows are t060 (its file comparison, 99), t301, t641.2 and t2000; every other `.json`, `.txt` and
+`.tif` result of the round is byte for byte the one of the release `.m`. They are the four rows that the 20.22.1 section "Five red
+rows follow the new rule, four still follow the tree" above traced to the visiting order of the tree, and the
+commit message of `7c4000cdc` named the risk: the order in which the index yields objects changes, and
+`point_in_polygon` returns the first polygon found that contains the point.
+
+| test | release 20.24.2.m | 20.25.0.m |
+|---|---|---|
+| t301 panden that differ from the reference | 0 | 43 495 of 10 644 899 |
+| t060 vbo with another `pand_id_geom` | | 11 160 of 731 571; 5 863 panden with another `woningtype` |
+| t2000 hWP_asl StartJaar, R5_2025 | 49 997, 92 671 | 49 998, 92 855 |
+| t2000 eWP_asl R5_2025 | 1 442 096 | 1 438 874 |
+| t2000 gebiedsoptie_nieuw R4_2024, R5_2025 | 4 111, 8 725 | 4 316, 8 930 |
+| t641.2 2050 Woningen, Banen | 9 590 281, 9 893 214 | 9 590 344, 9 893 416 |
+
+t060 was traced on the geopackages of the two rounds (`C:\LocalData\runs\<label>\regression\BAG20`), with a
+point-in-polygon test of its own on their geometry (`scratch\perf_ovsrv05\pip_check.py`): of the 11 160
+verblijfsobjecten whose pand changed, 11 135 lie in both the old and the new pand, and the other 25 lie 1.1 to
+20.6 mm from the boundary of the pand that the test leaves out, within the float32 resolution of these RD
+coordinates (steps of 1.6 cm in x and 3.1 cm in y). 195 verblijfsobjecten have no pand in either round. No point lost or
+gained a pand; each took another of the panden it lies in. t301, t2000 and t641.2 were not traced to an item;
+t301 reads the same kind of BAG panden. The largest relative changes are in t2000: gebiedsoptie_nieuw +5.0 % in
+R4_2024, the heat-pump counts within 0.25 %.
+
+### Wall time and Highest CommitCharge
+
+| test | 20.25.0.m (16-10) | release 20.24.2.m (15-10) | local `806e7dd61` (14-10) | `distr` setup (15-10) | against the release |
+|---|---|---|---|---|---|
+| t020 | 0:04:07, 2.5 GB | 0:03:46, 1.9 GB | 0:04:02, 2.4 GB | 0:04:03, 1.9 GB | 1.09 |
+| t060 | 0:01:57, 6.9 GB | 0:01:50, 6.8 GB | 0:01:52, 8.2 GB | 0:01:53, 7.3 GB | 1.06 |
+| t101 | 0:03:29, 1.6 GB | 0:03:14, 1.6 GB | 0:03:24, 1.6 GB | 0:03:17, 1.6 GB | 1.08 |
+| t200 | 0:00:38, 2.9 GB | 0:00:36, 2.9 GB | 0:00:36, 2.8 GB | 0:00:37, 2.7 GB | 1.06 |
+| t300 | 0:00:59, 10.1 GB | 0:01:03, 9.6 GB | 0:01:53, 9.6 GB | 0:01:55, 9.6 GB | 0.94 |
+| t301 | 0:02:36, 18.2 GB | 0:02:32, 13.6 GB | 0:02:40, 15.9 GB | 0:02:41, 18.4 GB | 1.03 |
+| t405.1 | 0:04:34, 9.6 GB | 0:04:22, 10.0 GB | 0:04:21, 8.2 GB | 0:04:23, 10.0 GB | 1.05 |
+| t405.2 | 0:18:05, 29.1 GB | 0:17:37, 29.1 GB | 0:17:54, 27.9 GB | 0:17:33, 28.9 GB | 1.03 |
+| t405.3 | 0:18:32, 29.4 GB | 0:17:48, 29.0 GB | 0:17:55, 28.4 GB | 0:17:24, 29.0 GB | 1.04 |
+| t410 | 0:04:05, 1.2 GB | 0:04:04, 1.2 GB | 0:04:14, 1.1 GB | 0:03:50, 1.3 GB | 1.00 |
+| t611 | 0:00:32, 3.9 GB | 0:00:31, 3.9 GB | 0:00:32, 4.0 GB | 0:00:31, 4.0 GB | 1.03 |
+| t641.1 | 0:51:23, 137.6 GB | 0:49:31, 142.4 GB | 0:51:03, 137.9 GB | 0:50:20, 137.7 GB | 1.04 |
+| t641.2 | 0:45:20, 171.7 GB | 0:45:46, 165.8 GB | 0:44:42, 165.7 GB | 0:43:34, 172.7 GB | 0.99 |
+| t710 | 0:01:06, 5.7 GB | 0:01:05, 5.7 GB | 0:01:04, 6.7 GB | 0:01:03, 7.4 GB | 1.02 |
+| t720 | 0:09:39, 20.4 GB | 0:09:41, 20.4 GB | 0:09:41, 20.4 GB | 0:09:21, 23.6 GB | 1.00 |
+| t810 | 0:05:35, 26.2 GB | 0:05:33, 26.3 GB | 0:04:58, 26.6 GB | 0:05:02, 25.7 GB | 1.01 |
+| t910 | 0:00:52, 2.8 GB | 0:00:50, 3.2 GB | 0:00:51, 4.3 GB | 0:00:48, 2.6 GB | 1.04 |
+| t2000 | 0:17:38, 61.9 GB | 0:18:08, 67.3 GB | 0:17:53, 61.6 GB | 0:17:14, 67.0 GB | 0.97 |
+
+Summed over the rows: 191.9 min, against 188.8 for the release, 190.3 for the local round and 186.3 for the
+`distr` setup, the last three of the same code. t1640 and t1642 4 and 12 s. Peak live memory unchanged:
+`PeakLiveLarge` 136 936 MB for t641.1 and 168 907 MB for t641.2, as in the three rounds of 20.24.2; t2000 63 098
+MB, inside their 61 708 to 65 153.
+
+### Interleaved A/B: the release against 20.25.0
+
+`scratch\perf_ovsrv05\ab_20250.cmd`, 2026-10-16 04:41 to 06:04, threshold 60: X = the installed release
+20.24.2.m (kept as `C:\LocalData\GeoDMS_engine\release_0176bebdb_m`), Y = `head_cd3e83ec7`, in the order X, Y, X,
+Y, each pass the seven experiments below. Their source files were read once beforehand
+(`scratch\perf_ovsrv05\warm_inputs.py`, 13 912 files, 36.3 GiB, 109 s). Seconds per run:
+
+| test | X1 | Y1 | X2 | Y2 | Y / X |
+|---|---|---|---|---|---|
+| t020 | 239 | 242 | 238 | 240 | 1.01 |
+| t060 | 111 | 101 | 109 | 103 | 0.93 |
+| t101 | 205 | 203 | 209 | 205 | 0.99 |
+| t200 | 32 | 32 | 32 | 32 | 1.00 |
+| t301 | 162 | 157 | 160 | 152 | 0.96 |
+| t405.1 | 266 | 215 | 214 | 215 | 1.00, X1 left out |
+| t410 | 243 | 242 | 243 | 243 | 1.00 |
+
+Each run gave the results of its build's round, byte for byte. t405.1's 266 s in X1 is a first run: X2 takes
+214 s on the same build.
+
+### Reading
+
+- Correct as far as the round can tell: the four red rows are `point_in_polygon`'s unspecified choice among
+  overlapping polygons, for t060 checked point by point. Like 20.22.1, they need references that record the new
+  order: a 20.25.0 epoch in GeoDMS-Test for t2000 and t641.2, and stores for t301 and t060. Until then the round
+  gives 23 of 27.
+- #1292 makes the `point_in_polygon` experiments faster, t060 by 7 % and t301 by 4 %, and slows down nothing:
+  `connect` (t101, t410), the grid and polygon experiments and t405.1 are level. The +5 to +9 % of t020, t060,
+  t101, t200 and t405.1 between the rounds is the drift between sittings; in the A/B each is level or faster.
+- The cases where `7c4000cdc` measured its large gains, `box_connectivity` of dense unit squares (30 to 40 s to
+  2.5 s) and `point_in_ranked_polygon` (6.1 to 1.5 s), dominate no experiment of the round, so the round does not
+  show them.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
@@ -986,3 +1169,52 @@ parent instead would also measure the five months of other changes since.
 - `PeakLiveLarge` from 20.22.0 on includes the rounding of the containers named above. The gap between
   `Highest CommitCharge` and `PeakLiveLarge` is therefore smaller from 20.22.0 on, partly through
   bookkeeping.
+
+## t300 and the first read of its XML on OVSRV05
+
+Established on 2026-10-16 from the rounds of 2026-10-07 to 2026-10-16 and a read test; not a change in the code.
+
+t300 reads the 500 BAG XML files of `D:\SourceData\t300_XML`, 5.7 GB on an NVMe SSD, through the `strfiles`
+storage: five sets of 100 files, each file by one `fread` of its whole size (`StrStorageManager::ReadDataItem`),
+and `parse_xml` of one set overlapping the read of the next. Its wall time has two levels on this machine:
+
+| round | t300 | its place |
+|---|---|---|
+| 20.23.0.m (07-10), 20.24.0.m (10-10), 20.24.1.m (14-10), 20.24.2 local (14-10), `distr` setup (15-10) | 1:53 to 1:57 | the only round of the sitting |
+| 20.23.1.m (08-10) | 1:58 | first of three |
+| 20.23.1.c, 20.23.1.l (08-10) | 1:04 (`.c`), 1:16 (`.l`) | second and third |
+| release 20.24.2.l (15-10) | 2:12 (`.l`) | first of three |
+| release 20.24.2.c and `.m` (15-10) | 0:55, 1:03 | second and third |
+| 20.25.0.m (16-10) | 0:59 | after the A/B below, which read the same files |
+
+In a slow run the read is the bottleneck: the 100 files of a set (about 1.1 GB) take 21 s, and the parse is
+hidden behind them. In a fast run the read takes about 1 s and the parse about 10 s per set. The builds do not
+matter: in an interleaved A/B with the files read beforehand (2026-10-16, 01:11 to 01:17), `806e7dd61`, the
+release 20.24.2.m and `cd3e83ec7` each took 58 to 59 s.
+
+A read test on 2026-10-16 at 04:35, after the 20.25.0 round, with `scratch\perf_ovsrv05\scan_read_test.py` (one
+read per file, as `ReadDataItem` does):
+
+| read | rate |
+|---|---|
+| the first 50 XML files of t300 (571 MiB), first read | 106 MiB/s |
+| the same files, second read | 2 273 MiB/s |
+| a copy of those 50 files made with `cp` | 108 MB/s to write it |
+| that copy, first read | 3 055 MiB/s |
+| `t060_BAG20\snapshot_Utrecht_20210701_voor14.15.1.gpkg` (621 MiB, a reference no round reads), first read | 1 071 MiB/s |
+
+The disk delivers ten times what a first read of these XML files gets, and a binary file of the same size reads
+at disk speed the first time. What is slow is the first opening of a text file, and writing one: the pattern of
+an on-access scan, which Windows Defender's real-time protection on this machine performs (`Get-MpComputerStatus`:
+`RealTimeProtectionEnabled`, `OnAccessProtectionEnabled`); its exclusions cannot be read without
+administrator rights. At about 100 MB/s, 5.7 GB costs about 57 s, which is the difference between the two levels.
+When the scanner forgets a file again is not established: the first round of a sitting has always been slow, and
+a round that followed another within a few hours fast, but the read test found the files forgotten three hours
+after the 20.25.0 round had read them.
+
+**Reading a comparison of rounds:** a t300 of about 1:55 against about 1:00 says which round of its sitting it
+was, not which build ran. To compare builds, read the inputs once before the round or the A/B
+(`scratch\perf_ovsrv05\warm_inputs.py`, which reads every file it is given), or compare rounds that held the
+same place. The `copy /b D:\SourceData\t300_XML\*.xml NUL` before the A/B above took 0.9 s, so the files were
+still known then and it proves nothing as a warm-up. Other experiments that read text files
+(t405.1 reads 82 CSV and 68 shapefile reads) may carry the same first-read cost; that has not been measured.
