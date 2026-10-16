@@ -117,10 +117,15 @@ public:
 	// first, so a config unit answers for the cache unit its own combine made.
 	// GetCombineFactors may update meta info and is for the meta phase; GetCurrCombineFactors updates
 	// nothing and is for the calculation phase.
+	// #1313: while the unit is in interest, so are its factors (StartInterest, StopInterest).
 	using CombineFactors = std::vector<SharedUnit>;
 	TIC_CALL auto GetCombineFactors    () const -> std::shared_ptr<const CombineFactors>;
 	TIC_CALL auto GetCurrCombineFactors() const -> std::shared_ptr<const CombineFactors>;
 	TIC_CALL void SetCombineFactors(std::shared_ptr<const CombineFactors> factors);
+
+//	Override Actor
+	void StartInterest() const override;
+	garbage_can StopInterest () const noexcept override;
 
 	TIC_CALL SharedStr GetBackgroundReference() const;
 	TIC_CALL TokenID   GetSpatialReference    () const;

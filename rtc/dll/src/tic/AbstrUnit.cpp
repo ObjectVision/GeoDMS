@@ -146,6 +146,17 @@ AbstrUnit::~AbstrUnit()
 	// The spatial reference used to live in the s_SpatialReferenceAssoc global keyed on
 	// `this`, which had to be erased here. It is now the m_Crs member, released with the
 	// object -- no destructor coupling, and no global to keep in step.
+
+	// #1313: as in ~AbstrDataItem, release a residual interest here: destroyed while still of interest
+	// (consumer interest is non-owning), StopInterest never ran, and it has to dispatch to
+	// AbstrUnit::StopInterest, which releases the interest on the combine factors; ~TreeItem's vtable can
+	// no longer reach it. KeepData is dropped first, as ~TreeItem does, so that only the count is left.
+	SetKeepDataState(false);
+	if (GetInterestCount())
+	{
+		m_InterestCount = 0;
+		garbage_can interestGarbage = StopInterest();
+	}
 }
 
 inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
@@ -497,7 +508,65 @@ auto AbstrUnit::GetCurrCombineFactors() const -> std::shared_ptr<const CombineFa
 
 void AbstrUnit::SetCombineFactors(std::shared_ptr<const CombineFactors> factors)
 {
+	// UnitCombine_impl sets them on the unit it has just created, before anything has an interest in it;
+	// set while it is in interest, that interest moves from the old factors to the new ones
+	if (GetInterestCount())
+	{
+		assert(IsMetaThread()); // the only thread that may start an interest
+		std::vector<InterestPtr<const TreeItem*>> newHolders;
+		if (factors)
+			for (const auto& factor : *factors)
+				newHolders.emplace_back(factor.get());
+		garbage_can garbage;
+		if (m_CombineFactors)
+			for (const auto& factor : *m_CombineFactors)
+				garbage |= OptionalInterestDec(factor.get());
+		m_CombineFactors = std::move(factors);
+		for (auto& holder : newHolders)
+			holder.dismiss();
+		return;
+	}
 	m_CombineFactors = std::move(factors);
+}
+
+// #1313: a unit made by combine keeps its factors in interest for as long as it is in interest itself.
+// combine_data, combine_rel and first_rel .. sixteenth_rel take the factors from the record on the unit
+// that is their argument, and count them (GetCombineFactor in OperUnit.cpp); a range may be asked only of a
+// unit with interest (IsDataReady asserts it). The record kept the factors alive but gave them no interest,
+// so a factor that nothing else held, the cache unit of `unit<uint32> Year : nrofrows = 4` behind
+// TYS := combine_unit(Town, Year, Shift) in combine_data(TYS, ty_rel, shift_rel), stopped a Debug build. The
+// operator cannot start that interest itself: it runs on a worker thread, and an interest starts on the meta
+// thread, which is where this runs. As AbstrDataItem does for its domain and values units.
+void AbstrUnit::StartInterest() const
+{
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
+	assert(GetInterestCount() == 0);
+
+	std::vector<InterestPtr<const TreeItem*>> factorHolders;
+	if (m_CombineFactors)
+		for (const auto& factor : *m_CombineFactors)
+			factorHolders.emplace_back(factor.get());
+
+	TreeItem::StartInterest();
+
+	// nothrow from here: dismiss the holders without releasing the interest
+	for (auto& holder : factorHolders)
+		holder.dismiss();
+}
+
+garbage_can AbstrUnit::StopInterest() const noexcept
+{
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
+	assert(GetInterestCount() == 0);
+
+	garbage_can garbage;
+	// the record the interest was placed on: SetCombineFactors moves the interest along when it is replaced
+	if (m_CombineFactors)
+		for (const auto& factor : *m_CombineFactors)
+			garbage |= OptionalInterestDec(factor.get());
+
+	garbage |= TreeItem::StopInterest();
+	return garbage;
 }
 
 void AbstrUnit::SetSpatialReference(TokenID format)
