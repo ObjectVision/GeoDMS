@@ -1,0 +1,57 @@
+// MMD stores whose attributes get their result from somewhere else than their own production
+// (issues #1317 and #1318). Both used to end in a store that declares an attribute and has neither
+// its file nor its rule, while the write ended with exit 0:
+//
+//   #1317  a rule-only attribute (#1264) whose result was already produced, in the same session,
+//          for another computation with the same key: p/waarde := id(.) has the key of id(bron),
+//          which t/waarde computes as its argument and which the item map requests first.
+//          TreeItem::PrepareDataUsage took its CheckCalculatingOrReady short cut before the MMD arm
+//          that marks an item rule-only and opens the store, so the rule was never written; the
+//          store p.mmd, holding nothing but that item, got no folder and no dictionary at all.
+//          c holds the same pair below one container holder, over a range of its own, where the
+//          dictionary was written but declared c/plain/waarde without its rule or a file.
+//   #1318  an attribute whose result is a tile functor, which no DataWriteLock produces and so no
+//          write-through maps into the store: const(seven, .), and union_data(., id(bron)) over a
+//          holder with the same rule as bron. MaterializeSharedContent copied only when the
+//          shared cache item's back reference named another item, and took a back reference to
+//          the item itself as proof that its file had been written.
+//
+// This config only WRITES the stores; stor_mmd_shared_2_read.dms reads them back. The order of the
+// items on the command line matters for #1317 and is set in fnrun_itemmap.txt.
+container stor_mmd_shared_1_write
+{
+	parameter<uint32> seven := 7;
+	unit<uint32> bron   := range(uint32, 0, 1050);
+	unit<uint32> bron_c := range(uint32, 0, 1060); // c's own range, so that no item outside c shares the key of c/plain/waarde
+
+	container write
+	{
+		unit<uint32> t := TiledUnit(value(100, bron)), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_t.mmd"
+		{
+			attribute<uint32> waarde := union_data(., id(bron));
+		}
+		unit<uint32> p := range(uint32, 0, 1050), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_p.mmd"
+		{
+			attribute<uint32> waarde := id(.);
+		}
+		container c : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_c.mmd"
+		{
+			unit<uint32> tiled := TiledUnit(value(100, bron_c))
+			{
+				attribute<uint32> waarde := union_data(., id(bron_c));
+			}
+			unit<uint32> plain := range(uint32, 0, 1060)
+			{
+				attribute<uint32> waarde := id(.);
+			}
+		}
+		unit<uint32> u_const := range(uint32, 0, 1050), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_u_const.mmd"
+		{
+			attribute<uint32> waarde := const(seven, .);
+		}
+		unit<uint32> u_union := range(uint32, 0, 1050), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_u_union.mmd"
+		{
+			attribute<uint32> waarde := union_data(., id(bron));
+		}
+	}
+}

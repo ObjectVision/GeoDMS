@@ -66,6 +66,10 @@ public:
 	// #1318: DataWriteLock maps producedItem's array into the file of configItem in this store
 	void NoteWriteThrough(const TreeItem* configItem, const TreeItem* producedItem);
 
+	// #1317: open the write session for an item that produces nothing into it: a rule-only item
+	// (#1264) whose result TreeItem::PrepareDataUsage found ready, before its MMD arm could open it
+	void OpenForWriteFrom(const TreeItem* storageHolder, const TreeItem* item);
+
 	// #1275: gather the presentation properties of the store's items (see Mmd_PresentationTags)
 	// the first time an item under it is prepared, where a stored property may be read.
 	void GatherPresentationTagsOnce(const TreeItem* storageHolder);

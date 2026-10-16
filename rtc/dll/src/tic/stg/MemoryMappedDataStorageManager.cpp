@@ -669,6 +669,17 @@ void MmdStorageManager::NoteWriteThrough(const TreeItem* configItem, const TreeI
 	m_WrittenThrough[configItem] = produced;
 }
 
+void MmdStorageManager::OpenForWriteFrom(const TreeItem* storageHolder, const TreeItem* item)
+{
+	assert(IsMetaThread());
+	auto lock = lock_t(m_CriticalSection); // OpenForWrite asserts it held
+	if (!IsOpenForWrite())
+	{
+		auto smi = StorageMetaInfo(storageHolder, item);
+		OpenForWrite(smi);
+	}
+}
+
 // #1247: see the declaration for why a stored item can end up without a file of its own.
 void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi)
 {

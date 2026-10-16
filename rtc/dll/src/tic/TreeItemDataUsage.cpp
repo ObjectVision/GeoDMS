@@ -601,7 +601,25 @@ bool TreeItem::CommitDataChanges() const
 		}
 		if (IsDataItem(this))
 		{
+			// #1317: what the MMD arm of PrepareDataUsage does for an item before it is produced, its
+			// CheckCalculatingOrReady short cut skips when the result was already produced for another
+			// computation with the same key. So it is done here as well, under the same lock ceiling:
+			// - gather the presentation properties of the store (#1275), which every emission of the
+			//   dictionary needs, the one of the OpenForWriteFrom below included;
+			// - decide whether the dictionary carries this item's rule instead of its bytes (#1264):
+			//   without it the item got neither its rule nor a file. The answer is the one that arm
+			//   gives, as it depends on the configuration only;
+			// - open the write session (below, once the data is ready, as MaterializeSharedContent
+			//   does): a rule-only item has no copy that would open it, so a store of such items had no
+			//   folder and no dictionary at all.
+			mmd->GatherPresentationTagsOnce(storageHolder.get());
+			if (!IsMmdRuleOnly() && Mmd_QualifiesAsRuleOnly(storageHolder.get(), this))
+				SetTSF(TSF_MmdRuleOnly);
+
 			DataReadLock lock(AsDataItem(this)); // make sure data is calculated and stored
+
+			mmd->OpenForWriteFrom(storageHolder.get(), this);
+
 			// #1247: an item whose content another store item produced has no file of its own;
 			// give it one before the dictionary below declares it.
 			if (!IsMmdRuleOnly()) // #1264: not stored at all; the dictionary carries its rule instead

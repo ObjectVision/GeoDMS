@@ -84,6 +84,7 @@ stor_read_rw_no_writeback_2.dms /tab
 stor_read_for_each_second_column.dms /Fails/alpha /checks
 stor_mmd_tiling_1_write.dms /store
 stor_mmd_tiledholder_1_write.dms /write
+stor_mmd_shared_1_write.dms /write/t/waarde /write/p/waarde /write/c/tiled/waarde /write/c/plain/waarde /write/u_const/waarde /write/u_union/waarde
 run_statistics_ok.dms @statistics /ok
 run_statistics_own_neg.dms @statistics /r
 run_statistics_supplier_neg.dms @statistics /w
