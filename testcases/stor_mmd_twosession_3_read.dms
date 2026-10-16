@@ -1,0 +1,20 @@
+// The read half of the two-session case (issue #1316); stor_mmd_twosession_1_write.dms carries the
+// description. On its own this config fails, because the store does not exist.
+container stor_mmd_twosession_3_read
+{
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_twosession.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n_tiled  := #store/tiled,              IntegrityCheck = "n_tiled == 1050";
+		parameter<uint32> w_tiled  := sum(store/tiled/waarde),   IntegrityCheck = "w_tiled == 550725";
+		parameter<uint32> m_tiled  := store/tiled/waarde[1049],  IntegrityCheck = "m_tiled == 1049";
+		parameter<uint32> w_plain  := sum(store/plain/waarde),   IntegrityCheck = "w_plain == 550725";
+		parameter<uint32> w_dubbel := sum(store/plain/dubbel),   IntegrityCheck = "w_dubbel == 1101450";
+		parameter<uint32> w_other  := sum(store/other/waarde),   IntegrityCheck = "w_other == 45";
+	}
+}

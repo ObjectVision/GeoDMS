@@ -26,6 +26,11 @@ container stor_mmd_empty_1_write
 	// a sub-table that comes out empty; its result carries org_rel and s as sub-items
 	unit<uint32> None := select_with_attr_by_org_rel(obj, const(false, obj));
 
+	// n names this parameter, outside the store, so that it is stored as data: const(1, None) names
+	// only the unit None, which since #1318 counts like an outside domain, so n would be kept as a rule
+	// and the zero-length fixed-size file this case is about would not be written
+	parameter<uint32> one := 1;
+
 	unit<uint32> store := obj
 	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_empty.mmd"
 	{
@@ -34,7 +39,7 @@ container stor_mmd_empty_1_write
 		unit<uint32> sub := None
 		{
 			attribute<string> s := None/s;          // variable-length: a zero-length s and s.seq
-			attribute<uint32> n := const(1, None);  // fixed-length: a zero-length n
+			attribute<uint32> n := const(one, None);  // fixed-length: a zero-length n
 		}
 	}
 }

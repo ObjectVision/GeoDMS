@@ -453,6 +453,42 @@ namespace {
 		xmlOutStr->DumpSubTag(CDF_NAME,        tags.cdf       .c_str(), false);
 	}
 
+	// #1316: each write session replaces the dictionary as a whole, while the files of the earlier
+	// sessions stay in the store. A unit whose range this session does not calculate, and a rule-only
+	// attribute (#1264) it does not prepare, therefore keep the entry the dictionary last gave them,
+	// which is what describes those files; whatever this session does write records its own entry for
+	// the next emission. Keyed as Mmd_StoredEntry is, by the path below the dictionary root.
+	std::string Mmd_DictionaryRelName(const TreeItem* self)
+	{
+		return (self == t_MmdDictionaryRoot) ? std::string() : std::string(self->GetRelativeName(t_MmdDictionaryRoot).c_str());
+	}
+
+	void Mmd_NoteStoredEntry(const TreeItem* self, Mmd_StoredEntryKind kind, SharedStr text)
+	{
+		if (t_MmdDictionaryManager)
+			t_MmdDictionaryManager->NoteStoredEntry(Mmd_DictionaryRelName(self), kind, std::move(text));
+	}
+
+	void Mmd_DumpStoredEntry(const TreeItem* self, OutStreamBase* xmlOutStr, bool rulesOnly)
+	{
+		if (!t_MmdDictionaryManager)
+			return;
+		auto entry = t_MmdDictionaryManager->FindStoredEntry(Mmd_DictionaryRelName(self));
+		if (!entry)
+			return;
+		switch (entry->kind)
+		{
+		case Mmd_StoredEntryKind::rule:
+			xmlOutStr->DumpSubTag(CALCRULE_NAME, entry->text.c_str(), true);
+			break;
+		case Mmd_StoredEntryKind::range:
+		case Mmd_StoredEntryKind::cat_range:
+			if (!rulesOnly)
+				xmlOutStr->DumpSubTag(entry->kind == Mmd_StoredEntryKind::cat_range ? "cat_range" : "range", entry->text.c_str(), false);
+			break;
+		}
+	}
+
 } // anonymous namespace
 
 void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) const
@@ -512,7 +548,15 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	// a rule gets no storage_read_attr and is evaluated as an ordinary expression.
 	// CALCRULE_NAME, not calcRulePropDefPtr: the propDef overload of DumpSubTag is private.
 	if (!notWritingDictionary && IsMmdRuleOnly())
-		xmlOutStr->DumpSubTag(CALCRULE_NAME, calcRulePropDefPtr->GetRawValue(this).c_str(), true);
+	{
+		auto rule = calcRulePropDefPtr->GetRawValue(this);
+		xmlOutStr->DumpSubTag(CALCRULE_NAME, rule.c_str(), true);
+		Mmd_NoteStoredEntry(this, Mmd_StoredEntryKind::rule, rule);
+	}
+	// #1316: an attribute this session neither marked rule-only nor gave a file keeps its rule, if the
+	// dictionary had one; a file of this session is what the dictionary describes instead
+	else if (!notWritingDictionary && IsDataItem(this) && t_MmdDictionaryManager && !t_MmdDictionaryManager->HasProducedContent(this))
+		Mmd_DumpStoredEntry(this, xmlOutStr, true);
 
 	if (notWritingDictionary)
 		xmlOutStr->DumpSubTags(this);
@@ -568,7 +612,11 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 		// declared domain never has (#1154). Holding a TreeItemInterestPtr here instead (220ec739c) started an
 		// interest chain (StartSupplInterest -> UpdateSuppliers) from inside a dump that itself runs inside
 		// SuspendibleUpdate, on every unit with a variable range at every dump, entered or not.
-		auto rangeItem = au->HasVarRange() ? au->GetCurrRangeItem() : nullptr;
+		// #1316: and a unit that nothing in this session referred to has no meta info yet, which
+		// GetCurrRangeItem requires (a Debug write of such a store stopped there); its range is not
+		// calculated in this session either, so the entry an earlier session wrote is taken below.
+		bool hasMetaInfo = au->Was(ProgressState::MetaInfo) || au->IsPassor();
+		auto rangeItem = (au->HasVarRange() && hasMetaInfo) ? au->GetCurrRangeItem() : nullptr;
 		if (rangeItem && (IsCalculating(rangeItem.get()) || IsDataCurrStandby(rangeItem.get())))
 		{
 			// when the dictionary is written at OpenForWrite time, the range of this unit may not have been
@@ -587,14 +635,24 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 			// restate it. Everything else keeps the Range it always had.
 			auto tilingRule = au->GetTilingAsCalcRuleStr();
 			if (!tilingRule.empty())
+			{
 				xmlOutStr->DumpSubTag(CALCRULE_NAME, tilingRule.c_str(), true);
+				Mmd_NoteStoredEntry(this, Mmd_StoredEntryKind::rule, tilingRule);
+			}
 			else
+			{
 				// "range" or "cat_range": the property's registered names (RangeProp in UnitClassReg.h), whose
 				// SetValue assigns TSF_Categorical from the name, so a categorical unit (the result of unique,
 				// subset or union) must be written as cat_range to read back categorical (TIC-A34). A dump that
 				// wrote Range made every reader of it -- the MMD dictionary above all -- report a case mix-up.
-				xmlOutStr->DumpSubTag(au->GetTSF(TSF_Categorical) ? "cat_range" : "range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
+				bool isCategorical = au->GetTSF(TSF_Categorical);
+				auto rangeStr = au->GetRangeAsStr(FormattingFlags::None);
+				xmlOutStr->DumpSubTag(isCategorical ? "cat_range" : "range", rangeStr.c_str(), false);
+				Mmd_NoteStoredEntry(this, isCategorical ? Mmd_StoredEntryKind::cat_range : Mmd_StoredEntryKind::range, rangeStr);
+			}
 		}
+		else if (au->HasVarRange())
+			Mmd_DumpStoredEntry(this, xmlOutStr, false); // #1316: not calculated in this session; what an earlier one wrote
 	}
 
 	// check if any non endogenous subitems exist

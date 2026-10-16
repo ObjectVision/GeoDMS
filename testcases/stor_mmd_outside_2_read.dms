@@ -1,0 +1,35 @@
+// The read half of the outside-reference case (issue #1318); stor_mmd_outside_1_write.dms writes the
+// store and carries the description. On its own this config fails, because the store does not exist.
+//
+// The reader declares the unit outside the store that the dictionary names, sourcedata/pand, as it
+// must for an outside domain. It checks the values and how each attribute came out of the store:
+// an attribute kept as a rule carries that rule as its calculation rule, one read as data has none.
+container stor_mmd_outside_2_read
+{
+	container sourcedata
+	{
+		unit<uint32> pand := range(uint32, 0, 1000);
+	}
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_outside.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> s_nr    := sum(store/nr_verdiepingen),        IntegrityCheck = "s_nr == 7400";
+		parameter<uint32> n_hoog  := sum_uint32(store/is_hoogbouw),     IntegrityCheck = "n_hoog == 675";
+		parameter<uint32> s_lit   := sum(store/c_lit),                  IntegrityCheck = "s_lit == 7000";
+		parameter<uint32> s_id    := sum(uint32(store/i_pand)),         IntegrityCheck = "s_id == 499500";
+		parameter<uint32> s_c7    := sum(store/c_seven),                IntegrityCheck = "s_c7 == 7000";
+		parameter<uint32> s_c7in  := sum(store/c_seven_in),             IntegrityCheck = "s_c7in == 7000";
+
+		parameter<bool> data_nr   := PropValue(store/nr_verdiepingen, 'Expr') == '', IntegrityCheck = "data_nr == true";
+		parameter<bool> data_c7   := PropValue(store/c_seven,         'Expr') == '', IntegrityCheck = "data_c7 == true";
+		parameter<bool> rule_hoog := PropValue(store/is_hoogbouw,     'Expr') == 'nr_verdiepingen > 4',               IntegrityCheck = "rule_hoog == true";
+		parameter<bool> rule_lit  := PropValue(store/c_lit,           'Expr') == 'const(7, sourcedata/pand)',         IntegrityCheck = "rule_lit == true";
+		parameter<bool> rule_id   := PropValue(store/i_pand,          'Expr') == 'id(sourcedata/pand)',               IntegrityCheck = "rule_id == true";
+		parameter<bool> rule_c7in := PropValue(store/c_seven_in,      'Expr') == 'const(seven_in, sourcedata/pand)',  IntegrityCheck = "rule_c7in == true";
+	}
+}

@@ -12,6 +12,8 @@
 
 #include <map>
 #include <set>
+#include <string>
+#include <vector>
 
 #include "ser/FileMapHandle.h"
 
@@ -28,6 +30,13 @@ struct StorageClass;
 // its holder itself. An empty string is an absent property.
 struct Mmd_PresentationTags { SharedStr descr, label, dialogType, dialogData, cdf; };
 using Mmd_PresentationTagMap = std::map<const TreeItem*, Mmd_PresentationTags>;
+
+// #1316: what the dictionary says of an item that a later write session need not produce again:
+// the tiling rule or the range of a unit, the rule of a rule-only attribute (#1264). Keyed by the
+// path relative to the holder, the root itself by the empty string.
+enum class Mmd_StoredEntryKind { rule, range, cat_range };
+struct Mmd_StoredEntry { Mmd_StoredEntryKind kind; SharedStr text; };
+using Mmd_StoredEntryMap = std::map<std::string, Mmd_StoredEntry>;
 
 /*
  *	MmdStorageManager
@@ -59,11 +68,35 @@ public:
 	// file while the dictionary declared both, and the store promised data it did not have.
 	// Everything a store declares must be in it, so the other claimants get a copy here.
 	// Called from TreeItem::CommitDataChanges once the data is ready, before UpdateDictionary.
+	// #1318: and to every item whose current result was not written through into its own file,
+	// such as a tile functor (const(), id()) that no DataWriteLock produced; see NoteWriteThrough.
 	void MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi);
+
+	// #1318: DataWriteLock maps producedItem's array into the file of configItem in this store
+	void NoteWriteThrough(const TreeItem* configItem, const TreeItem* producedItem);
+
+	// #1317: open the write session for an item that produces nothing into it: a rule-only item
+	// (#1264) whose result TreeItem::PrepareDataUsage found ready, before its MMD arm could open it
+	void OpenForWriteFrom(const TreeItem* storageHolder, const TreeItem* item);
 
 	// #1275: gather the presentation properties of the store's items (see Mmd_PresentationTags)
 	// the first time an item under it is prepared, where a stored property may be read.
+	// #1316: and read what the dictionary of an earlier session says (see Mmd_StoredEntry), which is
+	// the moment before the first emission of this process replaces it.
 	void GatherPresentationTagsOnce(const TreeItem* storageHolder);
+
+	// #1316: for the dictionary dump, under m_CriticalSection like every emission. An item that this
+	// session does not produce keeps the entry the dictionary last gave it, a produced one records its own.
+	auto FindStoredEntry(const std::string& relName) const -> const Mmd_StoredEntry*;
+	void NoteStoredEntry(const std::string& relName, Mmd_StoredEntryKind kind, SharedStr text);
+	bool HasProducedContent(const TreeItem* item) const; // a file of this process: written through or copied
+
+	// #1318: the units outside the holder that the rule of a rule-only attribute names. The reader
+	// declares them, as it declares an outside domain, and the holder's range check covers them alike.
+	// Noted on the meta thread when the item is marked rule-only; read by the dump of the dictionary
+	// root, under m_CriticalSection.
+	void NoteRuleUnits(const TreeItem* item, const std::vector<const AbstrUnit*>& units);
+	auto GetRuleUnits(const TreeItem* item) const -> std::vector<std::shared_ptr<const TreeItem>>;
 
 	// #1298: the lock file 0Lock of the store (see StoreLock in ser/FileMapHandle.h). The first request for
 	// writing begins the write session: it creates the lock file, takes the lock that keeps other processes
@@ -101,16 +134,34 @@ protected:
 	// cache item, so a cache-keyed guard could only ever say "unknown" and would never skip at all.
 	mutable std::map<const TreeItem*, TimeStamp> m_MaterializedAt;
 
+	// #1318: per configured item, the cache item whose array DataWriteLock mapped into that item's
+	// file. Written on producing threads, so under a mutex of its own, a leaf: nothing is taken while
+	// it is held. Weak, and compared with the item's current ultimate item: a recommit produces a
+	// fresh cache item, so a record of an earlier production can never pass for the current one.
+	mutable std::mutex m_WriteThroughMutex;
+	std::map<const TreeItem*, std::weak_ptr<const TreeItem>> m_WrittenThrough;
+
 	// #1275: the presentation properties of the store's items, gathered by DoWriteTree on the meta
 	// thread at the first emission of the dictionary and read by every later one; both under
 	// m_CriticalSection (OpenForWrite asserts it held, UpdateDictionary takes it).
 	Mmd_PresentationTagMap m_PresentationTags;
 	bool m_PresentationTagsGathered = false;
 
+	// #1316: the entries of the dictionary as last written: read from the store with the presentation
+	// properties, before this process emits, and brought up to date by every emission. Each write
+	// session replaces the dictionary as a whole, and a unit it did not calculate, or a rule-only
+	// attribute it did not prepare, used to be written without its range, tiling rule or rule, while
+	// the files of the session that did were still in the store.
+	Mmd_StoredEntryMap m_StoredEntries;
+
+	// #1318: see NoteRuleUnits; per rule-only item, so that a decision taken again replaces the earlier one
+	std::map<const TreeItem*, std::vector<std::weak_ptr<const TreeItem>>> m_RuleUnits;
+
 	DECL_RTTI(, StorageClass)
 };
 
 extern thread_local const Mmd_PresentationTagMap* t_MmdPresentationTags; // #1275, see Mmd_PresentationTags
+extern thread_local MmdStorageManager* t_MmdDictionaryManager; // #1316: the manager whose DoWriteTree is dumping, see Mmd_StoredEntry
 
 using AppendTreeFromConfigurationFuncPtr = auto (*) (const char* fileName, TreeItem* treeItem)->TreeItem*;
 extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr;

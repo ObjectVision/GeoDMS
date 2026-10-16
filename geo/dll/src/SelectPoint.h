@@ -48,6 +48,8 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 		//	point_index sort on Row ASC
 		std::vector<UInt32> pointIndex;
 		make_index_skip_null(pointIndex, polySize, polyBegin);
+		if (pointIndex.empty()) // only null vertices, see issue #1314
+			return UNDEFINED_VALUE(ScalarType);
 		auto
 			currPointIndexPtr = pointIndex.begin(),
 			lastPointIndexPtr = pointIndex.end();
@@ -56,10 +58,9 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 		ScalarType prevWidth = 0, prevRow = polyBegin[*currPointIndexPtr].Row();
 
 		if (!measure)
-			return prevRow;		
+			return prevRow;
 
-		if (currPointIndexPtr != lastPointIndexPtr)
-			++currPointIndexPtr;
+		++currPointIndexPtr;
 
 		for (; currPointIndexPtr != lastPointIndexPtr; ++currPointIndexPtr)
 		{
@@ -154,6 +155,8 @@ template <typename ScalarType, typename DensityType, typename ConstPointIter>
 Point<ScalarType> AreaPercentile(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityType yMeasure, DensityType xMeasure, ScanPointCalcResource<ScalarType>& calcResource)
 {
 	DensityType area = Abs( Area<DensityType>(polyBegin, polyEnd) );
+	if (!IsDefined(area)) // a null vertex: no area to divide, and no point that divides it (issue #1314)
+		return UNDEFINED_VALUE(Point<ScalarType>);
 
 	if (area) {
 		int nrTries = 3;

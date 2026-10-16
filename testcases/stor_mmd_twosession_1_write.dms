@@ -1,0 +1,39 @@
+// An MMD store written in two sessions (issue #1316). Each write session replaces 0Dictionary.dms as
+// a whole, and the dictionary used to describe only what that session calculated: a unit it did not
+// calculate was written without its range or tiling rule, and a rule-only attribute (#1264) it did
+// not prepare without its rule, while the files of the earlier session stayed in the store. A reader
+// then failed on every attribute of those units:
+//
+//   FileTileArray Error: stored array '.../plain/waarde' holds 4200 bytes, but the domain it is read
+//   into requires exactly 0 bytes (4294967294 elements in 0 tile(s))
+//
+// and on the rule-only attribute with "has no data for ...". Since the fix an item that a session
+// does not produce keeps the entry the previous dictionary gave it.
+//
+// Three configs, run in this order because run_testcases.ps1 walks them sorted by file name:
+//   _1_write     writes tiled/waarde, plain/waarde and plain/dubbel (rule-only: it names plain only)
+//   _2_rewrite   the same store, the same configuration, writes other/waarde only
+//   _3_read      reads all of it back
+// The store part of _1_write and _2_rewrite must stay identical.
+container stor_mmd_twosession_1_write
+{
+	parameter<uint32> nul := 0;
+	unit<uint32> bron := range(uint32, 0, 1050);
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_twosession.mmd"
+	{
+		unit<uint32> tiled := TiledUnit(value(100, bron))
+		{
+			attribute<uint32> waarde := union_data(., id(bron) + nul);
+		}
+		unit<uint32> plain := range(uint32, 0, 1050)
+		{
+			attribute<uint32> waarde := id(.) + nul;
+			attribute<uint32> dubbel := waarde * 2;
+		}
+		unit<uint32> other := range(uint32, 0, 10)
+		{
+			attribute<uint32> waarde := id(.) + nul;
+		}
+	}
+}

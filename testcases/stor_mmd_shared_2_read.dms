@@ -1,0 +1,27 @@
+// The read half of the shared-result case (issues #1317 and #1318); stor_mmd_shared_1_write.dms
+// writes the stores and carries the description. On its own this config fails, because the stores
+// do not exist.
+container stor_mmd_shared_2_read
+{
+	// the units outside the store that the rules of t/waarde, c/tiled/waarde and u_union/waarde name:
+	// the reader declares them, as it would an outside domain (#1318)
+	unit<uint32> bron   := range(uint32, 0, 1050);
+	unit<uint32> bron_c := range(uint32, 0, 1060);
+
+	unit<uint32> t       : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_t.mmd",       StorageReadOnly = "True";
+	unit<uint32> p       : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_p.mmd",       StorageReadOnly = "True";
+	container    c       : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_c.mmd",       StorageReadOnly = "True";
+	unit<uint32> u_const : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_u_const.mmd", StorageReadOnly = "True";
+	unit<uint32> u_union : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_u_union.mmd", StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<uint32> w_t       := sum(t/waarde),       IntegrityCheck = "w_t == 550725";
+		parameter<uint32> w_p       := sum(p/waarde),       IntegrityCheck = "w_p == 550725";     // #1317
+		parameter<uint32> w_c_tiled := sum(c/tiled/waarde), IntegrityCheck = "w_c_tiled == 561270";
+		parameter<uint32> w_c_plain := sum(c/plain/waarde), IntegrityCheck = "w_c_plain == 561270"; // #1317
+		parameter<uint32> w_u_const := sum(u_const/waarde), IntegrityCheck = "w_u_const == 7350";  // #1318
+		parameter<uint32> w_u_union := sum(u_union/waarde), IntegrityCheck = "w_u_union == 550725"; // #1318
+		parameter<uint32> e_u_union := u_union/waarde[1049], IntegrityCheck = "e_u_union == 1049";
+	}
+}

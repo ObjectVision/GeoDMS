@@ -28,7 +28,8 @@
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
 
-bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item); // stg/MemoryMappedDataStorageManager.cpp, same module (#1264)
+// stg/MemoryMappedDataStorageManager.cpp, same module (#1264); outsideUnits receives the units outside the holder that the rule names (#1318)
+bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item, std::vector<const AbstrUnit*>* outsideUnits = nullptr);
 #include "act/UpdateMark.h"
 #include "act/Waiter.h"
 #include "dbg/debug.h"
@@ -322,8 +323,12 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 					// when it maps the produced array, and that production starts below, so the
 					// flag has to exist by now. Decided once per item: the walk it needs is meta
 					// work, and the answer cannot change while the configuration does not.
-					if (mustWrite && !IsMmdRuleOnly() && Mmd_QualifiesAsRuleOnly(sp.get(), this))
+					std::vector<const AbstrUnit*> ruleUnits;
+					if (mustWrite && !IsMmdRuleOnly() && Mmd_QualifiesAsRuleOnly(sp.get(), this, &ruleUnits))
+					{
 						SetTSF(TSF_MmdRuleOnly);
+						mmd->NoteRuleUnits(this, ruleUnits); // #1318: the holder's range check covers them as well
+					}
 					if (mustWrite && !mmd->IsOpenForWrite())
 						if (auto parent = GetStorageParent(true))
 						{
@@ -601,7 +606,29 @@ bool TreeItem::CommitDataChanges() const
 		}
 		if (IsDataItem(this))
 		{
+			// #1317: what the MMD arm of PrepareDataUsage does for an item before it is produced, its
+			// CheckCalculatingOrReady short cut skips when the result was already produced for another
+			// computation with the same key. So it is done here as well, under the same lock ceiling:
+			// - gather the presentation properties of the store (#1275), which every emission of the
+			//   dictionary needs, the one of the OpenForWriteFrom below included;
+			// - decide whether the dictionary carries this item's rule instead of its bytes (#1264):
+			//   without it the item got neither its rule nor a file. The answer is the one that arm
+			//   gives, as it depends on the configuration only;
+			// - open the write session (below, once the data is ready, as MaterializeSharedContent
+			//   does): a rule-only item has no copy that would open it, so a store of such items had no
+			//   folder and no dictionary at all.
+			mmd->GatherPresentationTagsOnce(storageHolder.get());
+			std::vector<const AbstrUnit*> ruleUnits;
+			if (!IsMmdRuleOnly() && Mmd_QualifiesAsRuleOnly(storageHolder.get(), this, &ruleUnits))
+			{
+				SetTSF(TSF_MmdRuleOnly);
+				mmd->NoteRuleUnits(this, ruleUnits); // #1318
+			}
+
 			DataReadLock lock(AsDataItem(this)); // make sure data is calculated and stored
+
+			mmd->OpenForWriteFrom(storageHolder.get(), this);
+
 			// #1247: an item whose content another store item produced has no file of its own;
 			// give it one before the dictionary below declares it.
 			if (!IsMmdRuleOnly()) // #1264: not stored at all; the dictionary carries its rule instead

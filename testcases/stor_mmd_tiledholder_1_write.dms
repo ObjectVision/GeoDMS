@@ -1,0 +1,81 @@
+// MMD stores whose HOLDER is a tiled unit (issue #1315). Since #1267 (GeoDMS 20.20.0) the dictionary
+// records a tiling that a reader cannot derive from the range as the unit's calculation rule,
+// `= TiledUnit(...)`. When the holder itself is that unit, the reader's holder gets the rule from the
+// dictionary only in the storage manager's UpdateTree, after its own meta info, and nothing made a
+// calculator for it: a reference to the holder took the holder's source description for its key, and
+// operators that read the tiling of their unit argument found none on the configured holder, whose
+// range lives on the TiledUnit result it refers to:
+//
+//   id(holder), const(x, holder)      `Check Failed Error: trd`
+//   range(holder, 0, #holder)         access violation (OperUnit.cpp)
+//   poly2allgrids(holder/geom, grid)  access violation (Poly2GridOper.cpp)
+//
+// Reading the attributes of such a holder worked throughout. A tiled unit BELOW a container holder
+// (stor_mmd_tiling_1_write.dms, and the snapshot store of BAG-Tools) was never affected: the items the
+// merge creates carry their rules before their first meta info.
+//
+// One holder per tiling, each its own store:
+//
+//   reg    TiledUnit(100[base]) over 1050 elements, 11 tiles, the last one short
+//   one    TiledUnit(1050[base]), exactly one tile
+//   irr    TiledUnit(tiles/lb, tiles/ub), 3 unequal tiles
+//   def    a plain range, which the dictionary records as a range -- control, worked before
+//
+// Every waarde names the parameter nul, outside the store, so that the store holds its bytes: a rule
+// naming only the holder and outside units, such as union_data(., id(base)), is kept as a rule
+// (#1264, #1318), and the files over the tilings are what this case is about.
+//   poly   three polygons in a TiledUnit of tiles of 2, for poly2allgrids; the coordinate unit is
+//          declared outside the store, so the holder also carries the #1154 external-unit check
+//
+// This config only WRITES the stores; stor_mmd_tiledholder_2_read.dms reads them back. The two run in
+// this order because run_testcases.ps1 walks the configs sorted by file name.
+container stor_mmd_tiledholder_1_write
+{
+	container geometries
+	{
+		unit<fpoint> plane;
+	}
+
+	parameter<uint32> nul := 0;
+	unit<uint32> base := range(uint32, 0, 1050);
+
+	unit<uint32> tiles : nrofrows = 3
+	{
+		attribute<base> lb : [  0, 100,  700];
+		attribute<base> ub : [100, 700, 1050];
+	}
+
+	unit<uint32> polys := range(uint32, 0, 3);
+	unit<uint32> pts := range(uint32, 0, 15)
+	{
+		attribute<polys>   seq := id(.) / 5;
+		attribute<uint32>  ord := id(.) % 5;
+		attribute<uint32>  k   := ord == 4 ? 0 : ord;
+		attribute<float32> x0  := float32(seq) * 10f;
+		attribute<geometries/plane> p := point_xy(x0 + (k == 1 || k == 2 ? 8f : 1f), (k == 2 || k == 3 ? 8f : 1f), geometries/plane);
+	}
+
+	container write
+	{
+		unit<uint32> reg := TiledUnit(100[base]), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_reg.mmd"
+		{
+			attribute<uint32> waarde := union_data(., id(base) + nul);
+		}
+		unit<uint32> one := TiledUnit(1050[base]), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_one.mmd"
+		{
+			attribute<uint32> waarde := union_data(., id(base) + nul);
+		}
+		unit<uint32> irr := TiledUnit(tiles/lb, tiles/ub), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_irr.mmd"
+		{
+			attribute<uint32> waarde := union_data(., id(base) + nul);
+		}
+		unit<uint32> def := range(uint32, 0, 1050), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_def.mmd"
+		{
+			attribute<uint32> waarde := id(.) + nul;
+		}
+		unit<uint32> poly := TiledUnit(2[polys]), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_poly.mmd"
+		{
+			attribute<geometries/plane> geom (polygon) := union_data(., points2polygon(pts/p, pts/seq, pts/ord));
+		}
+	}
+}

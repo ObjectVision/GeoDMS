@@ -25,6 +25,7 @@
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
+#include "utl/IncrementalLock.h" // #1316: StaticMtIncrementalLock
 #include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
@@ -46,6 +47,7 @@ TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr = n
 
 thread_local const TreeItem* t_MmdDictionaryRoot = nullptr;
 thread_local const Mmd_PresentationTagMap* t_MmdPresentationTags = nullptr; // #1275
+thread_local MmdStorageManager* t_MmdDictionaryManager = nullptr; // #1316
 
 //////////////////////////////////////////////////////////////////////
 // #1154: restrictions on units external to the dictionary
@@ -151,6 +153,36 @@ namespace {
 			: bounds;
 	}
 
+	// #1318: a unit outside the holder that the rule of a rule-only attribute names (see
+	// Mmd_QualifiesAsRuleOnly) gets the check an outside domain gets: the reader must declare it with
+	// the extent the writer had, or the rule computes over another one. Named by its full path, which
+	// is how the reader's holder reaches it. The rule names it from a sub-item of the holder and may
+	// have reached it up-scope; a reader that declares it at that path satisfies both. Asked without
+	// interest first: the dump may visit a unit that nothing in this session holds.
+	void Mmd_AddRuleUnitRestriction(SharedStr& expr, std::vector<const AbstrUnit*>& seen, const TreeItem* dictRoot, const AbstrUnit* u)
+	{
+		if (!u || u->IsDefaultUnit() || dictRoot->DoesContain(u))
+			return;
+		if (std::find(seen.begin(), seen.end(), u) != seen.end())
+			return;
+		seen.push_back(u);
+
+		auto name = u->GetFullName();
+		SharedStr bounds;
+		if (u->Was(ProgressState::MetaInfo) || u->IsPassor())
+			if (auto rangeItem = u->GetCurrRangeItem(); rangeItem && (IsCalculating(rangeItem.get()) || IsDataCurrStandby(rangeItem.get())))
+			{
+				InterestPtr<const TreeItem*> holder(rangeItem.get()); // what Mmd_UnitBoundsRestriction asks next requires it
+				bounds = Mmd_UnitBoundsRestriction(u, name, true);
+			}
+
+		if (!expr.empty())
+			expr += " && ";
+		expr += bounds.empty()
+			? mySSPrintF("PropValue({}, 'ValueType') == '{}'", name, u->GetValueType()->GetNameID())
+			: bounds;
+	}
+
 } // anonymous namespace
 
 auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr
@@ -171,6 +203,9 @@ auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedS
 		auto adi = AsDataItem(ti);
 		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi, true);
 		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi, false);
+		if (adi->IsMmdRuleOnly() && t_MmdDictionaryManager) // #1318: and the outside units its rule names
+			for (const auto& u : t_MmdDictionaryManager->GetRuleUnits(adi))
+				Mmd_AddRuleUnitRestriction(expr, seen, dictRoot, AsUnit(u.get()));
 	}
 	return expr;
 }
@@ -246,10 +281,12 @@ namespace {
 
 // Declared at its use in TreeItemDataUsage.cpp: this is private to the MMD write side and the
 // header reaches most of Clc.
-bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item)
+bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item, std::vector<const AbstrUnit*>* outsideUnits)
 {
 	assert(IsMetaThread());
 	assert(storageHolder && item);
+	if (outsideUnits)
+		outsideUnits->clear();
 
 	if (!IsDataItem(item))
 		return false; // a unit contributes its Range to the dictionary, which is metadata, not bytes
@@ -277,18 +314,34 @@ bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item
 	if (ruleText.empty() || Mmd_RuleHasAbsolutePath(ruleText))
 		return false;
 
-	// every identifier the rule names must be held by this store, so the reader can resolve it
+	// every identifier the rule names must be held by this store, so the reader can resolve it, or be a
+	// unit outside the holder. #1318: such a unit is what the domain or values unit of a stored
+	// attribute declared outside the holder already is, which the dictionary writes by its path and
+	// guards with a range check on the holder: the reader declares it. Named in the rule, as in
+	// const(7, sourcedata/pand) or id(sourcedata/pand), it transfers the same responsibility to the
+	// reader and is not a reason to store the values. A data item outside the store is: it is the
+	// source the store exists to do without (a parameter as well; define it inside the store and it
+	// is stored as one value, after which a rule naming it qualifies). An outside container is
+	// accepted only as a part of the path of such a unit, which the walk below also visits.
 	bool allInside = true;
+	std::vector<const AbstrUnit*> units;
+	std::vector<const TreeItem*> pathParts;
 	auto visitor = MakeDerivedBoolVisitor(
-		[storageHolder, &allInside](const Actor* a) -> ActorVisitState
+		[storageHolder, &allInside, &units, &pathParts](const Actor* a) -> ActorVisitState
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (!ti || !Mmd_StoreHolds(storageHolder, ti))
+			if (ti && Mmd_StoreHolds(storageHolder, ti))
+				return AVS_Ready;
+			if (ti && !storageHolder->DoesContain(ti) && !IsDataItem(ti))
 			{
-				allInside = false;
-				return AVS_SuspendedOrFailed; // stop the walk; one outsider settles it
+				if (IsUnit(ti))
+					units.push_back(AsUnit(ti));
+				else
+					pathParts.push_back(ti);
+				return AVS_Ready;
 			}
-			return AVS_Ready;
+			allInside = false;
+			return AVS_SuspendedOrFailed; // stop the walk; one outsider settles it
 		});
 	if (calc->VisitSuppliers(SupplierVisitFlag::NamedSuppliers, visitor) != AVS_Ready || !allInside)
 		return false;
@@ -300,7 +353,18 @@ bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item
 	// resolves to, and the parts of its path. A walk that does not finish has not seen everything,
 	// and disqualifies as well: materialising is always correct, merely larger.
 	auto substitutionWalk = SupplierVisitFlag(unsigned(SupplierVisitFlag::NamedSuppliers) | unsigned(SupplierVisitFlag::ImplSuppliers));
-	return calc->VisitSuppliers(substitutionWalk, visitor) == AVS_Ready && allInside;
+	if (calc->VisitSuppliers(substitutionWalk, visitor) != AVS_Ready || !allInside)
+		return false;
+
+	for (auto part : pathParts)
+		if (std::none_of(units.begin(), units.end(), [part](const AbstrUnit* u) { return part->DoesContain(u); }))
+			return false; // an outside container for its own sake, a function say, which the reader does not have
+
+	if (outsideUnits) // in the order the rule names them, which keeps the dictionary text deterministic
+		for (auto u : units)
+			if (std::find(outsideUnits->begin(), outsideUnits->end(), u) == outsideUnits->end())
+				outsideUnits->push_back(u);
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -542,6 +606,65 @@ namespace {
 		}
 	}
 
+	// #1316: what the dictionary that an earlier session left says of each unit and each rule-only
+	// attribute. Read the way a reader reads it: the dictionary is merged into an item of the class
+	// of the holder, here a detached one that nothing shows and that never gets its meta info, and
+	// what the merge set on each item is read back through the raw accessors, which read a member
+	// and nothing more. A dictionary this configuration cannot take, a unit holder over a container
+	// store say, fails the merge and describes nothing.
+	Mmd_StoredEntryMap Mmd_ReadStoredEntries(const TreeItem* storageHolder, const SharedStr& dictFileName)
+	{
+		assert(IsMetaThread());
+		Mmd_StoredEntryMap entries;
+		if (!s_AppendTreeFromConfigurationPtr || !IsFileOrDirAccessible(dictFileName))
+			return entries; // the first write session of this store
+
+		StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
+		auto root = TreeItem::CreateConfigRoot(GetTokenID_mt("MmdPreviousDictionary"));
+		// as at the release of a configuration root: what the merge made, the calculator of a data block
+		// among them, holds its suppliers, and those cycles are broken before the last owning reference
+		// goes, or the tree and the Lisp terms it holds outlive the process (a Debug teardown assertion)
+		auto breakCycles = make_scoped_exit([&root] { root->ResetSubTreeConfigData(); });
+		auto previous = TreeItem_CreateItem(root.get(), storageHolder->GetNameID(), storageHolder->GetDynamicClass());
+		s_AppendTreeFromConfigurationPtr(dictFileName.c_str(), previous.get());
+		if (previous->WasFailed(FailType::MetaInfo))
+			return entries;
+
+		static const TokenID rangeID = GetTokenID_mt("range"), catRangeID = GetTokenID_mt("cat_range"); // the names RangeProp registers
+		auto addEntry = [&](const TreeItem* ti)
+			{
+				auto relName = (ti == previous.get()) ? std::string() : std::string(ti->GetRelativeName(previous.get()).c_str());
+				if (!ti->GetExprMember().empty())
+				{
+					entries[relName] = Mmd_StoredEntry{ Mmd_StoredEntryKind::rule, ti->GetExprMember() };
+					return;
+				}
+				if (!IsUnit(ti))
+					return;
+				for (auto [kind, id] : { std::pair{ Mmd_StoredEntryKind::range, rangeID }, std::pair{ Mmd_StoredEntryKind::cat_range, catRangeID } })
+				{
+					auto pd = ti->GetDynamicClass()->FindPropDef(id);
+					if (pd && pd->HasNonDefaultValue(ti))
+					{
+						entries[relName] = Mmd_StoredEntry{ kind, pd->GetRawValueAsSharedStr(ti) };
+						return;
+					}
+				}
+			};
+		// the raw walk, as Mmd_GatherPresentationTags does: WalkConstSubTree updates the meta info of each
+		// item it passes, which made keys and DataControllers for this tree that outlived it
+		std::vector<const TreeItem*> stack{ previous.get() };
+		while (!stack.empty())
+		{
+			auto ti = stack.back();
+			stack.pop_back();
+			for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+				stack.push_back(sub);
+			addEntry(ti);
+		}
+		return entries;
+	}
+
 } // anonymous namespace
 
 void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
@@ -570,6 +693,10 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	assert(m_PresentationTagsGathered);
 	t_MmdPresentationTags = &m_PresentationTags;
 	auto resetTags = make_scoped_exit([] { t_MmdPresentationTags = nullptr; });
+
+	// #1316: what an earlier session wrote for the items this one does not produce, see m_StoredEntries
+	t_MmdDictionaryManager = this;
+	auto resetManager = make_scoped_exit([] { t_MmdDictionaryManager = nullptr; });
 
 	TreeItem_XML_DumpOrThrow(storageHolder, &out, false);
 
@@ -625,11 +752,56 @@ void MmdStorageManager::GatherPresentationTagsOnce(const TreeItem* storageHolder
 	if (m_PresentationTagsGathered)
 		return;
 	assert(IsMetaThread());
+
+	// #1316: parsed before the lock is taken; only the meta thread gets here, and the store is not
+	// opened for writing before this call returns (every OpenForWrite of an MMD store comes after it)
+	auto storedEntries = IsReadOnly() ? Mmd_StoredEntryMap() : Mmd_ReadStoredEntries(storageHolder, GetFullFileName("0Dictionary.dms"));
+
 	auto lock = lock_t(m_CriticalSection);
 	if (m_PresentationTagsGathered)
 		return;
 	Mmd_GatherPresentationTags(storageHolder, m_PresentationTags);
+	m_StoredEntries = std::move(storedEntries);
 	m_PresentationTagsGathered = true;
+}
+
+auto MmdStorageManager::FindStoredEntry(const std::string& relName) const -> const Mmd_StoredEntry*
+{
+	auto i = m_StoredEntries.find(relName);
+	return (i == m_StoredEntries.end()) ? nullptr : &i->second;
+}
+
+void MmdStorageManager::NoteStoredEntry(const std::string& relName, Mmd_StoredEntryKind kind, SharedStr text)
+{
+	m_StoredEntries[relName] = Mmd_StoredEntry{ kind, std::move(text) };
+}
+
+void MmdStorageManager::NoteRuleUnits(const TreeItem* item, const std::vector<const AbstrUnit*>& units)
+{
+	assert(IsMetaThread());
+	std::vector<std::weak_ptr<const TreeItem>> refs;
+	for (auto u : units)
+		refs.emplace_back(make_shared_tree(u, no_zombies{}));
+	auto lock = lock_t(m_CriticalSection);
+	m_RuleUnits[item] = std::move(refs);
+}
+
+auto MmdStorageManager::GetRuleUnits(const TreeItem* item) const -> std::vector<std::shared_ptr<const TreeItem>>
+{
+	std::vector<std::shared_ptr<const TreeItem>> result;
+	if (auto i = m_RuleUnits.find(item); i != m_RuleUnits.end())
+		for (const auto& ref : i->second)
+			if (auto u = ref.lock())
+				result.emplace_back(std::move(u));
+	return result;
+}
+
+bool MmdStorageManager::HasProducedContent(const TreeItem* item) const
+{
+	if (m_MaterializedAt.contains(item))
+		return true;
+	auto lock = std::lock_guard(m_WriteThroughMutex);
+	return m_WrittenThrough.contains(item);
 }
 
 void MmdStorageManager::UpdateDictionary(const TreeItem* storageHolder)
@@ -661,6 +833,25 @@ ReadCallSpec MmdStorageManager::DescribeReadCall(const TreeItem* storageHolder, 
 	return DescribeAttrRead(storageHolder, AsDataItem(item));
 }
 
+void MmdStorageManager::NoteWriteThrough(const TreeItem* configItem, const TreeItem* producedItem)
+{
+	assert(configItem && producedItem);
+	auto produced = make_shared_tree(producedItem, no_zombies{});
+	auto lock = std::lock_guard(m_WriteThroughMutex);
+	m_WrittenThrough[configItem] = produced;
+}
+
+void MmdStorageManager::OpenForWriteFrom(const TreeItem* storageHolder, const TreeItem* item)
+{
+	assert(IsMetaThread());
+	auto lock = lock_t(m_CriticalSection); // OpenForWrite asserts it held
+	if (!IsOpenForWrite())
+	{
+		auto smi = StorageMetaInfo(storageHolder, item);
+		OpenForWrite(smi);
+	}
+}
+
 // #1247: see the declaration for why a stored item can end up without a file of its own.
 void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, const AbstrDataItem* adi)
 {
@@ -674,9 +865,17 @@ void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, 
 	auto ultimate = adi->GetCurrUltimateItem();
 	if (!ultimate || !ultimate->IsCacheItem())
 		return; // nothing shared: this item produced its own array, write-through already wrote it
-	auto owner = ultimate->GetBackRef();
-	if (!owner || owner.get() == adi)
-		return; // this item IS the one the array was filed under
+
+	// #1318: and when the back reference is this item, that says nothing about whether an array was
+	// produced at all. A tile functor, the result of const() and id(), computes a tile when asked for
+	// and never passes a DataWriteLock, so the store got no file while the dictionary declared data,
+	// or kept the file an earlier session wrote. So skip only when the write-through mapped THIS
+	// result into this item's file.
+	{
+		auto lock = std::lock_guard(m_WriteThroughMutex);
+		if (auto i = m_WrittenThrough.find(adi); i != m_WrittenThrough.end() && i->second.lock() == ultimate)
+			return;
+	}
 
 	auto stamp = adi->GetLastChangeTS();
 

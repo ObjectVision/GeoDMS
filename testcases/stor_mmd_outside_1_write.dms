@@ -1,0 +1,43 @@
+// Which attributes of an MMD store are kept as a rule and which as data, when they refer to items
+// outside the store (issue #1318). An attribute is stored as data when its rule depends on data
+// outside the store, the source the store exists to do without; it is kept as a rule when the
+// rule names only items of the store and units. A unit outside the store, whether it is the domain
+// or values unit of an attribute or named in its rule, is the reader's to declare: the dictionary
+// names it by its path and the holder's IntegrityCheck checks its extent.
+//
+//   nr_verdiepingen   names sourcedata/pand/hoogte, an outside attribute      data
+//   is_hoogbouw       names nr_verdiepingen, in the store                     rule
+//   c_lit             names the outside unit sourcedata/pand                  rule (data before 20.25.0)
+//   i_pand            names the outside unit sourcedata/pand                  rule (data before 20.25.0)
+//   c_seven           names seven, a parameter outside the store             data
+//   c_seven_in        names seven_in, a parameter in the store (one value)   rule
+//
+// c_lit, i_pand and c_seven compute a tile functor, which no DataWriteLock produces; before 20.25.0
+// c_seven had no file at all, and c_lit and i_pand neither, while the dictionary declared them.
+//
+// This config only WRITES the store; stor_mmd_outside_2_read.dms reads it back, declaring
+// sourcedata/pand itself. The two run in this order because run_testcases.ps1 walks the configs
+// sorted by file name.
+container stor_mmd_outside_1_write
+{
+	container sourcedata
+	{
+		unit<uint32> pand := range(uint32, 0, 1000)
+		{
+			attribute<float32> hoogte := float32(id(.) % 40);
+		}
+	}
+	parameter<uint32> seven := 7;
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_outside.mmd"
+	{
+		parameter<uint32> seven_in := seven;
+
+		attribute<uint32>          nr_verdiepingen (sourcedata/pand) := uint32(sourcedata/pand/hoogte * 0.4f);
+		attribute<bool>            is_hoogbouw     (sourcedata/pand) := nr_verdiepingen > 4;
+		attribute<uint32>          c_lit           (sourcedata/pand) := const(7, sourcedata/pand);
+		attribute<sourcedata/pand> i_pand          (sourcedata/pand) := id(sourcedata/pand);
+		attribute<uint32>          c_seven         (sourcedata/pand) := const(seven, sourcedata/pand);
+		attribute<uint32>          c_seven_in      (sourcedata/pand) := const(seven_in, sourcedata/pand);
+	}
+}
