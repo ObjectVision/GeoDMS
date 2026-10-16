@@ -3,6 +3,11 @@
 // do not exist.
 container stor_mmd_shared_2_read
 {
+	// the units outside the store that the rules of t/waarde, c/tiled/waarde and u_union/waarde name:
+	// the reader declares them, as it would an outside domain (#1318)
+	unit<uint32> bron   := range(uint32, 0, 1050);
+	unit<uint32> bron_c := range(uint32, 0, 1060);
+
 	unit<uint32> t       : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_t.mmd",       StorageReadOnly = "True";
 	unit<uint32> p       : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_p.mmd",       StorageReadOnly = "True";
 	container    c       : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_shared_c.mmd",       StorageReadOnly = "True";

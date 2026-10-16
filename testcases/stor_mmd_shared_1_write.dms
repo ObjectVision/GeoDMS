@@ -11,10 +11,13 @@
 //          c holds the same pair below one container holder, over a range of its own, where the
 //          dictionary was written but declared c/plain/waarde without its rule or a file.
 //   #1318  an attribute whose result is a tile functor, which no DataWriteLock produces and so no
-//          write-through maps into the store: const(seven, .), and union_data(., id(bron)) over a
-//          holder with the same rule as bron. MaterializeSharedContent copied only when the
-//          shared cache item's back reference named another item, and took a back reference to
-//          the item itself as proof that its file had been written.
+//          write-through maps into the store: const(seven, .), with seven outside the store and so
+//          stored as data. MaterializeSharedContent copied only when the shared cache item's back
+//          reference named another item, and took a back reference to the item itself as proof
+//          that its file had been written. union_data(., id(bron)) over a holder with the same rule
+//          as bron went the same way; since #1318 a unit outside the store that a rule names counts
+//          like an outside domain, so that attribute, and t/waarde and c/tiled/waarde too, are kept
+//          as rules, and the reader declares bron and bron_c.
 //
 // This config only WRITES the stores; stor_mmd_shared_2_read.dms reads them back. The order of the
 // items on the command line matters for #1317 and is set in fnrun_itemmap.txt.

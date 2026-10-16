@@ -13,6 +13,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "ser/FileMapHandle.h"
 
@@ -90,6 +91,13 @@ public:
 	void NoteStoredEntry(const std::string& relName, Mmd_StoredEntryKind kind, SharedStr text);
 	bool HasProducedContent(const TreeItem* item) const; // a file of this process: written through or copied
 
+	// #1318: the units outside the holder that the rule of a rule-only attribute names. The reader
+	// declares them, as it declares an outside domain, and the holder's range check covers them alike.
+	// Noted on the meta thread when the item is marked rule-only; read by the dump of the dictionary
+	// root, under m_CriticalSection.
+	void NoteRuleUnits(const TreeItem* item, const std::vector<const AbstrUnit*>& units);
+	auto GetRuleUnits(const TreeItem* item) const -> std::vector<std::shared_ptr<const TreeItem>>;
+
 	// #1298: the lock file 0Lock of the store (see StoreLock in ser/FileMapHandle.h). The first request for
 	// writing begins the write session: it creates the lock file, takes the lock that keeps other processes
 	// from writing this store, and removes what an interrupted write of another process left. A reader gets
@@ -145,6 +153,9 @@ protected:
 	// attribute it did not prepare, used to be written without its range, tiling rule or rule, while
 	// the files of the session that did were still in the store.
 	Mmd_StoredEntryMap m_StoredEntries;
+
+	// #1318: see NoteRuleUnits; per rule-only item, so that a decision taken again replaces the earlier one
+	std::map<const TreeItem*, std::vector<std::weak_ptr<const TreeItem>>> m_RuleUnits;
 
 	DECL_RTTI(, StorageClass)
 };

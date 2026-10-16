@@ -19,8 +19,11 @@
 //   reg    TiledUnit(100[base]) over 1050 elements, 11 tiles, the last one short
 //   one    TiledUnit(1050[base]), exactly one tile
 //   irr    TiledUnit(tiles/lb, tiles/ub), 3 unequal tiles
-//   def    a plain range, which the dictionary records as a range -- control, worked before; its
-//          attribute names nul, outside the store, so that the store holds its bytes (#1264)
+//   def    a plain range, which the dictionary records as a range -- control, worked before
+//
+// Every waarde names the parameter nul, outside the store, so that the store holds its bytes: a rule
+// naming only the holder and outside units, such as union_data(., id(base)), is kept as a rule
+// (#1264, #1318), and the files over the tilings are what this case is about.
 //   poly   three polygons in a TiledUnit of tiles of 2, for poly2allgrids; the coordinate unit is
 //          declared outside the store, so the holder also carries the #1154 external-unit check
 //
@@ -56,15 +59,15 @@ container stor_mmd_tiledholder_1_write
 	{
 		unit<uint32> reg := TiledUnit(100[base]), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_reg.mmd"
 		{
-			attribute<uint32> waarde := union_data(., id(base));
+			attribute<uint32> waarde := union_data(., id(base) + nul);
 		}
 		unit<uint32> one := TiledUnit(1050[base]), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_one.mmd"
 		{
-			attribute<uint32> waarde := union_data(., id(base));
+			attribute<uint32> waarde := union_data(., id(base) + nul);
 		}
 		unit<uint32> irr := TiledUnit(tiles/lb, tiles/ub), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_irr.mmd"
 		{
-			attribute<uint32> waarde := union_data(., id(base));
+			attribute<uint32> waarde := union_data(., id(base) + nul);
 		}
 		unit<uint32> def := range(uint32, 0, 1050), StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_tiledholder_def.mmd"
 		{
