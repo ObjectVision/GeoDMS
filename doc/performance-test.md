@@ -8,9 +8,9 @@ measured the deferral of commits and IntegrityChecks of #1259 that was removed a
 section below says "above" of one of them (round 3 of "20.21.1 without deferral", the OVSRV05 section
 of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. On OVSRV05 the release v20.24.2
 (0176bebdb) gives 27 of 27 `ok` in `.c` and `.m` and 19 of 21 in `.l`, with the results of 20.24.0; the latest
-round, 20.25.0 at cd3e83ec7, gives 23 of 27: the loose quadtree of #1292 makes `point_in_polygon` take another
-of overlapping polygons in t060, t301, t641.2 and t2000, whose references have yet to follow, and makes t060
-and t301 4 to 7 % faster. t300's two levels on this machine are the first read of its XML, not the build (see
+round, 20.25.0 at cd3e83ec7, gave 23 of 27: the loose quadtree of #1292 makes `point_in_polygon` take another
+of overlapping polygons in t060, t301, t641.2 and t2000, whose references GeoDMS-Test 6387c67 moved (27 of 27
+since), and makes t060 and t301 4 to 7 % faster. t300's two levels on this machine are the first read of its XML, not the build (see
 the known causes at the end). Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
@@ -1080,9 +1080,14 @@ Each run gave the results of its build's round, byte for byte. t405.1's 266 s in
 ### Reading
 
 - Correct as far as the round can tell: the four red rows are `point_in_polygon`'s unspecified choice among
-  overlapping polygons, for t060 checked point by point. Like 20.22.1, they need references that record the new
-  order: a 20.25.0 epoch in GeoDMS-Test for t2000 and t641.2, and stores for t301 and t060. Until then the round
-  gives 23 of 27.
+  overlapping polygons, for t060 checked point by point. Like 20.22.1, they got references that record the new
+  order, by decision: GeoDMS-Test `6387c67` (not pushed) adds a 20.25.0 epoch in `references.json` for t2000 and
+  t641.2, and `TestReferenceFiles\t301\type_woonpand_rel_ok_v20250.fss` (recorded from `cd3e83ec7`) and
+  `TestReferenceFiles\t060\snapshot_Utrecht_20210701_v20250.gpkg` (the gpkg of the round), chosen from 20.25.0
+  on; the two stores exist on OVSRV05 only. t301 gives 0 differing panden on `cd3e83ec7` against the new store
+  and on the release 20.24.2.m against the `_v20221` one. t060 and t301 were then rerun inside the round
+  (`full.py -resume -tests`, 14:55 to 15:01 on 16-10), which regenerated the report: 27 of 27 `ok`. The t060 and
+  t301 logs of the column are now those of the rerun (1:47 and 2:43); the tables above give the round's own.
 - #1292 makes the `point_in_polygon` experiments faster, t060 by 7 % and t301 by 4 %, and slows down nothing:
   `connect` (t101, t410), the grid and polygon experiments and t405.1 are level. The +5 to +9 % of t020, t060,
   t101, t200 and t405.1 between the rounds is the drift between sittings; in the A/B each is level or faster.
