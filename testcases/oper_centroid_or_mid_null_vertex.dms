@@ -1,0 +1,55 @@
+// centroid_or_mid() and mid() on a dpoint polygon with null vertices (issue #1314).
+//
+// A float polygon with a null vertex has a null area, and AreaPercentile took that NaN for a
+// non-zero area: SelectRow then sorted the vertices that are not null and, when there were
+// none, read the first entry of the empty index. That was 0xC0000005 in a Release build and the
+// assertion measure >= 0 in a Debug one. Such polygons arise when a dpoint polygon with a
+// coordinate outside the int32 range is converted to an ipoint grid in millimetres and back;
+// the BAG has geometries 6000 km outside the country. A polygon with a null vertex has no
+// area and no centroid, and since the fix no mid either: the result is null.
+container oper_centroid_or_mid_null_vertex
+{
+	container geometries
+	{
+		unit<dpoint> rdc         : SpatialReference = "EPSG:28992";
+		unit<ipoint> rdc_mm      := gridset(rdc, point_yx(0.001d, 0.001d), point_yx(0d, 0d), ipoint);
+		unit<ipoint> rdc_mm_rond := gridset(rdc, point_yx(0.001d, 0.001d), point_yx(-0.0005d, -0.0005d), ipoint);
+	}
+
+	// 0: a 10 m square; 1: the reported polygon, every vertex outside the int32 range in mm;
+	// 2: a square with one such vertex, which is not the first
+	unit<uint32> pand : nrofrows = 3;
+	unit<uint32> pts : nrofrows = 15
+	{
+		attribute<float64> x : [120000.0, 120010.0, 120010.0, 120000.0, 120000.0,  -6365419.201, -6365409.031, -6365409.031, -6365419.201, -6365419.201,  130000.0,  130010.0, -6365409.031, 130000.0, 130000.0];
+		attribute<float64> y : [480000.0, 480000.0, 480010.0, 480010.0, 480000.0,   9491117.592,  9491117.592,  9491126.992,  9491126.992,  9491117.592,  490000.0,  490000.0,  9491126.992, 490010.0, 490000.0];
+		attribute<pand>    seq_rel : [0,0,0,0,0, 1,1,1,1,1, 2,2,2,2,2];
+		attribute<uint32>  ord     : [0,1,2,3,4, 0,1,2,3,4, 0,1,2,3,4];
+
+		attribute<geometries/rdc>         p    := point_xy(x, y, geometries/rdc);
+		attribute<geometries/rdc_mm_rond> rond := p[geometries/rdc_mm_rond]; // null where a coordinate is outside the int32 range
+		attribute<geometries/rdc_mm>      mm   := point_yx(pointrow(rond), pointcol(rond), geometries/rdc_mm);
+	}
+	attribute<geometries/rdc_mm> geometry_mm (pand, poly) := points2polygon_pso(pts/mm, pts/seq_rel, pts/ord);
+	attribute<geometries/rdc>    geometry    (pand, poly) := geometry_mm[geometries/rdc];
+
+	container checks
+	{
+		attribute<geometries/rdc> com  (pand) := centroid_or_mid(geometry);
+		attribute<geometries/rdc> m    (pand) := mid(geometry);
+		attribute<geometries/rdc> c    (pand) := centroid(geometry);
+		attribute<float64>        a    (pand) := area(geometry, float64);
+
+		attribute<bool> expect_defined (pand) : [true, false, false];
+
+		// the polygons with a null vertex give null, as area and centroid do
+		parameter<bool> com_null  := all(IsDefined(com) == expect_defined), IntegrityCheck = "com_null == true";
+		parameter<bool> mid_null  := all(IsDefined(m)   == expect_defined), IntegrityCheck = "mid_null == true";
+		parameter<bool> cent_null := all(IsDefined(c)   == expect_defined), IntegrityCheck = "cent_null == true";
+		parameter<bool> area_null := all(IsDefined(a)   == expect_defined), IntegrityCheck = "area_null == true";
+
+		// and the square keeps its centre
+		parameter<bool> com_square := abs(pointcol(com[0]) - 120005.0) < 0.001 && abs(pointrow(com[0]) - 480005.0) < 0.001, IntegrityCheck = "com_square == true";
+		parameter<bool> mid_square := abs(pointcol(m[0])   - 120005.0) < 0.001 && abs(pointrow(m[0])   - 480005.0) < 0.001, IntegrityCheck = "mid_square == true";
+	}
+}
