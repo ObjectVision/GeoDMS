@@ -1,0 +1,25 @@
+// The second write session of the two-session case (issue #1316); stor_mmd_twosession_1_write.dms
+// carries the description. The store part is identical to that of _1_write; this session writes
+// other/waarde only, so it calculates neither tiled nor plain and does not prepare plain/dubbel.
+container stor_mmd_twosession_2_rewrite
+{
+	parameter<uint32> nul := 0;
+	unit<uint32> bron := range(uint32, 0, 1050);
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_twosession.mmd"
+	{
+		unit<uint32> tiled := TiledUnit(value(100, bron))
+		{
+			attribute<uint32> waarde := union_data(., id(bron) + nul);
+		}
+		unit<uint32> plain := range(uint32, 0, 1050)
+		{
+			attribute<uint32> waarde := id(.) + nul;
+			attribute<uint32> dubbel := waarde * 2;
+		}
+		unit<uint32> other := range(uint32, 0, 10)
+		{
+			attribute<uint32> waarde := id(.) + nul;
+		}
+	}
+}

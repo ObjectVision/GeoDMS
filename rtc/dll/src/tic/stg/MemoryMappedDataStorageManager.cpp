@@ -25,6 +25,7 @@
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
+#include "utl/IncrementalLock.h" // #1316: StaticMtIncrementalLock
 #include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
@@ -46,6 +47,7 @@ TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr = n
 
 thread_local const TreeItem* t_MmdDictionaryRoot = nullptr;
 thread_local const Mmd_PresentationTagMap* t_MmdPresentationTags = nullptr; // #1275
+thread_local MmdStorageManager* t_MmdDictionaryManager = nullptr; // #1316
 
 //////////////////////////////////////////////////////////////////////
 // #1154: restrictions on units external to the dictionary
@@ -542,6 +544,65 @@ namespace {
 		}
 	}
 
+	// #1316: what the dictionary that an earlier session left says of each unit and each rule-only
+	// attribute. Read the way a reader reads it: the dictionary is merged into an item of the class
+	// of the holder, here a detached one that nothing shows and that never gets its meta info, and
+	// what the merge set on each item is read back through the raw accessors, which read a member
+	// and nothing more. A dictionary this configuration cannot take, a unit holder over a container
+	// store say, fails the merge and describes nothing.
+	Mmd_StoredEntryMap Mmd_ReadStoredEntries(const TreeItem* storageHolder, const SharedStr& dictFileName)
+	{
+		assert(IsMetaThread());
+		Mmd_StoredEntryMap entries;
+		if (!s_AppendTreeFromConfigurationPtr || !IsFileOrDirAccessible(dictFileName))
+			return entries; // the first write session of this store
+
+		StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
+		auto root = TreeItem::CreateConfigRoot(GetTokenID_mt("MmdPreviousDictionary"));
+		// as at the release of a configuration root: what the merge made, the calculator of a data block
+		// among them, holds its suppliers, and those cycles are broken before the last owning reference
+		// goes, or the tree and the Lisp terms it holds outlive the process (a Debug teardown assertion)
+		auto breakCycles = make_scoped_exit([&root] { root->ResetSubTreeConfigData(); });
+		auto previous = TreeItem_CreateItem(root.get(), storageHolder->GetNameID(), storageHolder->GetDynamicClass());
+		s_AppendTreeFromConfigurationPtr(dictFileName.c_str(), previous.get());
+		if (previous->WasFailed(FailType::MetaInfo))
+			return entries;
+
+		static const TokenID rangeID = GetTokenID_mt("range"), catRangeID = GetTokenID_mt("cat_range"); // the names RangeProp registers
+		auto addEntry = [&](const TreeItem* ti)
+			{
+				auto relName = (ti == previous.get()) ? std::string() : std::string(ti->GetRelativeName(previous.get()).c_str());
+				if (!ti->GetExprMember().empty())
+				{
+					entries[relName] = Mmd_StoredEntry{ Mmd_StoredEntryKind::rule, ti->GetExprMember() };
+					return;
+				}
+				if (!IsUnit(ti))
+					return;
+				for (auto [kind, id] : { std::pair{ Mmd_StoredEntryKind::range, rangeID }, std::pair{ Mmd_StoredEntryKind::cat_range, catRangeID } })
+				{
+					auto pd = ti->GetDynamicClass()->FindPropDef(id);
+					if (pd && pd->HasNonDefaultValue(ti))
+					{
+						entries[relName] = Mmd_StoredEntry{ kind, pd->GetRawValueAsSharedStr(ti) };
+						return;
+					}
+				}
+			};
+		// the raw walk, as Mmd_GatherPresentationTags does: WalkConstSubTree updates the meta info of each
+		// item it passes, which made keys and DataControllers for this tree that outlived it
+		std::vector<const TreeItem*> stack{ previous.get() };
+		while (!stack.empty())
+		{
+			auto ti = stack.back();
+			stack.pop_back();
+			for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+				stack.push_back(sub);
+			addEntry(ti);
+		}
+		return entries;
+	}
+
 } // anonymous namespace
 
 void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
@@ -570,6 +631,10 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	assert(m_PresentationTagsGathered);
 	t_MmdPresentationTags = &m_PresentationTags;
 	auto resetTags = make_scoped_exit([] { t_MmdPresentationTags = nullptr; });
+
+	// #1316: what an earlier session wrote for the items this one does not produce, see m_StoredEntries
+	t_MmdDictionaryManager = this;
+	auto resetManager = make_scoped_exit([] { t_MmdDictionaryManager = nullptr; });
 
 	TreeItem_XML_DumpOrThrow(storageHolder, &out, false);
 
@@ -625,11 +690,36 @@ void MmdStorageManager::GatherPresentationTagsOnce(const TreeItem* storageHolder
 	if (m_PresentationTagsGathered)
 		return;
 	assert(IsMetaThread());
+
+	// #1316: parsed before the lock is taken; only the meta thread gets here, and the store is not
+	// opened for writing before this call returns (every OpenForWrite of an MMD store comes after it)
+	auto storedEntries = IsReadOnly() ? Mmd_StoredEntryMap() : Mmd_ReadStoredEntries(storageHolder, GetFullFileName("0Dictionary.dms"));
+
 	auto lock = lock_t(m_CriticalSection);
 	if (m_PresentationTagsGathered)
 		return;
 	Mmd_GatherPresentationTags(storageHolder, m_PresentationTags);
+	m_StoredEntries = std::move(storedEntries);
 	m_PresentationTagsGathered = true;
+}
+
+auto MmdStorageManager::FindStoredEntry(const std::string& relName) const -> const Mmd_StoredEntry*
+{
+	auto i = m_StoredEntries.find(relName);
+	return (i == m_StoredEntries.end()) ? nullptr : &i->second;
+}
+
+void MmdStorageManager::NoteStoredEntry(const std::string& relName, Mmd_StoredEntryKind kind, SharedStr text)
+{
+	m_StoredEntries[relName] = Mmd_StoredEntry{ kind, std::move(text) };
+}
+
+bool MmdStorageManager::HasProducedContent(const TreeItem* item) const
+{
+	if (m_MaterializedAt.contains(item))
+		return true;
+	auto lock = std::lock_guard(m_WriteThroughMutex);
+	return m_WrittenThrough.contains(item);
 }
 
 void MmdStorageManager::UpdateDictionary(const TreeItem* storageHolder)

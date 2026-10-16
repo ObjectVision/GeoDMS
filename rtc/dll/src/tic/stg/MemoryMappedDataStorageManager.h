@@ -12,6 +12,7 @@
 
 #include <map>
 #include <set>
+#include <string>
 
 #include "ser/FileMapHandle.h"
 
@@ -28,6 +29,13 @@ struct StorageClass;
 // its holder itself. An empty string is an absent property.
 struct Mmd_PresentationTags { SharedStr descr, label, dialogType, dialogData, cdf; };
 using Mmd_PresentationTagMap = std::map<const TreeItem*, Mmd_PresentationTags>;
+
+// #1316: what the dictionary says of an item that a later write session need not produce again:
+// the tiling rule or the range of a unit, the rule of a rule-only attribute (#1264). Keyed by the
+// path relative to the holder, the root itself by the empty string.
+enum class Mmd_StoredEntryKind { rule, range, cat_range };
+struct Mmd_StoredEntry { Mmd_StoredEntryKind kind; SharedStr text; };
+using Mmd_StoredEntryMap = std::map<std::string, Mmd_StoredEntry>;
 
 /*
  *	MmdStorageManager
@@ -72,7 +80,15 @@ public:
 
 	// #1275: gather the presentation properties of the store's items (see Mmd_PresentationTags)
 	// the first time an item under it is prepared, where a stored property may be read.
+	// #1316: and read what the dictionary of an earlier session says (see Mmd_StoredEntry), which is
+	// the moment before the first emission of this process replaces it.
 	void GatherPresentationTagsOnce(const TreeItem* storageHolder);
+
+	// #1316: for the dictionary dump, under m_CriticalSection like every emission. An item that this
+	// session does not produce keeps the entry the dictionary last gave it, a produced one records its own.
+	auto FindStoredEntry(const std::string& relName) const -> const Mmd_StoredEntry*;
+	void NoteStoredEntry(const std::string& relName, Mmd_StoredEntryKind kind, SharedStr text);
+	bool HasProducedContent(const TreeItem* item) const; // a file of this process: written through or copied
 
 	// #1298: the lock file 0Lock of the store (see StoreLock in ser/FileMapHandle.h). The first request for
 	// writing begins the write session: it creates the lock file, takes the lock that keeps other processes
@@ -123,10 +139,18 @@ protected:
 	Mmd_PresentationTagMap m_PresentationTags;
 	bool m_PresentationTagsGathered = false;
 
+	// #1316: the entries of the dictionary as last written: read from the store with the presentation
+	// properties, before this process emits, and brought up to date by every emission. Each write
+	// session replaces the dictionary as a whole, and a unit it did not calculate, or a rule-only
+	// attribute it did not prepare, used to be written without its range, tiling rule or rule, while
+	// the files of the session that did were still in the store.
+	Mmd_StoredEntryMap m_StoredEntries;
+
 	DECL_RTTI(, StorageClass)
 };
 
 extern thread_local const Mmd_PresentationTagMap* t_MmdPresentationTags; // #1275, see Mmd_PresentationTags
+extern thread_local MmdStorageManager* t_MmdDictionaryManager; // #1316: the manager whose DoWriteTree is dumping, see Mmd_StoredEntry
 
 using AppendTreeFromConfigurationFuncPtr = auto (*) (const char* fileName, TreeItem* treeItem)->TreeItem*;
 extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr;

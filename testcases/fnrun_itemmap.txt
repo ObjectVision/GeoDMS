@@ -85,6 +85,8 @@ stor_read_for_each_second_column.dms /Fails/alpha /checks
 stor_mmd_tiling_1_write.dms /store
 stor_mmd_tiledholder_1_write.dms /write
 stor_mmd_shared_1_write.dms /write/t/waarde /write/p/waarde /write/c/tiled/waarde /write/c/plain/waarde /write/u_const/waarde /write/u_union/waarde
+stor_mmd_twosession_1_write.dms /store/tiled/waarde /store/plain/waarde /store/plain/dubbel
+stor_mmd_twosession_2_rewrite.dms /store/other/waarde
 run_statistics_ok.dms @statistics /ok
 run_statistics_own_neg.dms @statistics /r
 run_statistics_supplier_neg.dms @statistics /w
