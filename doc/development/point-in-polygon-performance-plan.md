@@ -1,6 +1,7 @@
 # Performance plan: the point-in-polygon operators and the other users of the spatial index
 
-*Status (2026-10-17): plan, no code changed yet; item 1 is #1319, item 2 is #1320. Written after #1292
+*Status (2026-10-17): plan, no code changed yet; item 1 is #1319, item 2 is #1320, item 5 (the text of a
+table, outside the spatial index) is #1321. Written after #1292
 (the loose quadtree, 7c4000cdc, 20.25.0) closed. The measurements below were taken on OVSRV10 with a kept copy of the Release build of
 c56fe51a2 (`C:\LocalData\GeoDMS_engine\20.25.0_c56fe51a2`), on an almost idle machine (2 to 7 % CPU
 load), from `scratch\perf_idx\probe_idx.dms`.*
@@ -121,6 +122,80 @@ each block keeping its pairs (already sorted per F1), concatenated in block orde
 and spread it. Since #1292, 2 million squares take about 2.5 s, so the gain is about 2 s at that size;
 it was dropped from #1292 for that reason. Do it only when a model has tens of millions of boxes.
 
+### 5. Text of a table: `+` chains and `asList` copy and run on one thread (#1321)
+
+Outside the spatial index, but found while looking at why OVSRV10 was a quarter busy during an
+NM_PBL output stage (2026-10-17, run `y2023r11m_fiets`): per departure moment about 8 s at 10 to 15
+cores and then about 7 s at about 2, ending when the main thread writes a CSV of 20 to 29 MB with 32
+columns. Not confirmed with a stack sample yet; the CSV output stage of `y2023r11a_auto` (2026-10-18,
+about 00:00 to 10:30) is the next chance.
+
+The pattern is the TableComposer of the wiki, which NM_PBL follows
+(`cfg/main/NetworkSetup/PublicTransport/PerDepartureMoment_T.dms:529-531`): a row per element from
+`OrgName + ';' + DestName + ';' + string(col) + ...`, generated with `asList(ExportColumns/name, ' +
+'';'' + ')`, then `asList(BodyLines, '\n')` and the `str` storage. What that costs, read from the code:
+
+- `+` on strings is `StrConcatOperator` (`clc/dll/src/OperAttrBin.cpp:28`), a binary operator, and
+  `add(a, b, c, ...)` is folded by the prelude into nested binary `add`s (`res/prelude.dms:208`). So a
+  row of n pieces makes n - 1 string columns, each holding the row text so far: a row of 32 columns
+  and 31 separators is copied about 30 times, of the order of 0.7 GB of copying and allocation for a
+  22 MB file, and every `string(col)` is one more column.
+- Each of them works per tile, so a domain of one tile runs on one thread.
+- `asList` writes all elements into one growing `OutStreamBuff` (`unary_ser_aslist`,
+  `clc/dll/include/AggrUniStructString.h`), tile after tile, on one thread.
+
+The pattern also loses rows. A probe on c56fe51a2 (`scratch\perf_idx\probe_null_rows.dms`): `string()`
+of a null number is a null string, so `'a;' + string(v) + ';z'` is null for that element, and `asList`
+leaves null elements out. Of the values 1.5, null and 3.25 the text is `a;1.5;z|a;3.25;z`: the row with
+the null is not in the file, and nothing says so. The prelude's `concat` (`res/prelude.dms:167`,
+`MakeDefined(head, '') + concat(rest)`, documented on the wiki page Variadic-parameters) gives
+`a;1.5;z|a;;z|a;3.25;z`: an empty field, the row kept.
+
+The syntax to use exists, then: `concat(arg1, arg2, ...)`, with the separators as literal arguments
+(`concat(OrgName, ';', DestName, ';', ...)`, generated as
+`='concat(OrgName, '';'', DestName, '';'', ' + asList(ExportColumns/name, ', '';'', ') + ')'`). What it
+lacks is speed: the prelude folds it into a `MakeDefined` column per piece and a binary `+` per step,
+with the same copies as a `+` chain. Change, in three parts:
+
+1. `concat` as an operator: any number of arguments, with a void domain (literals and parameters, such
+   as the separators, repeated for every element) or one shared domain; a null piece is an empty string,
+   as in the prelude function, so its results stay the same. Arguments of any scalar value type that
+   `string` converts are formatted as `string(x)` formats them, so a row needs no `string()` per column:
+   `concat(OrgName, ';', DestName, ';', Traveltime, ';', Price, ...)`. A tile is made per block of
+   elements: each block formats its elements into a buffer of its own, in parallel, and the tile's
+   sequence array is allocated once at the total size and filled with one copy per block. No column per
+   piece and no copy of a partial row.
+2. A chain of string `+` whose intermediate results are not items of their own is evaluated by the same
+   kernel with the rule of `+` (a null piece gives a null result), so a model that already writes rows
+   with `+` gets the speed unchanged, its results included, rows that a null drops included.
+   `string(x)` stays its own column there.
+3. `asList` in two passes: the length of each tile's (or block's) part with its separators, one
+   allocation of the total, and the parts filled in parallel at their offsets; the result is the same
+   string.
+
+The wiki's TableComposer example then uses `concat`, and the pages Concatenation, AsList and
+TableComposer say that a null field drops a row from a `+` row and not from a `concat` row. Changing
+the prelude function into an operator changes the key of every `concat` expression; check before part 1
+what depends on those keys (the comment above the prelude folds says their keys were kept equal to those
+of the rewrite rules they replaced).
+
+Expected: the 7 s tail per departure moment of the NM_PBL CSV output to well under a second (an
+estimate), and the same gain for every CSV written this way. NM_PBL itself has written Parquet through
+`gdalwrite.vect` for its 2024 and 2025 runs since 2026-10-16 (its commit 429186b) and keeps CSV for 2023,
+validation runs and older data, so its Parquet run `y2024o_lopen` (after 2026-10-18) gives a
+before/after of the tail without this change.
+
+Tests: a battery case that compares the `concat` operator with the prelude fold it replaces (kept in the
+case as a function of its own) and with `MakeDefined(string(x), '')` per piece, element for element,
+over a tiled and an untiled domain, with nulls, empty strings, every scalar value type and void arguments
+in front, between and behind; the `+` chain against its result before the change, null rows included;
+`asList` against its result before the change. Probe: 200 000 rows of 32 columns through `+` + `asList` +
+`str`, before and after, and the same rows through `concat`.
+
+A fourth step, not planned: a storage that writes the columns of a unit as CSV in parallel blocks
+straight to the file, with no string of the whole text at all. Only if the three parts above leave the
+write itself as the bottleneck.
+
 ## Not worth doing now
 
 - Building the index in parallel or in bulk: 0.03 s per million polygons.
@@ -144,6 +219,9 @@ with `run_exp.py` (`.claude\skills\geodms-perf`) and interleaved against the kep
 3. Item 2: the edge index with its battery case, the probe, and the real items above; the wiki pages.
    One issue, probably two commits (the index, then its use by the three operators).
 4. Items 3 and 4 only on evidence from a model.
+5. Item 5 independently of the others: first the stack samples of an NM_PBL CSV output stage, then
+   `concat` with its battery case, the rewrite of `+` chains, and the two-pass `asList`; the wiki pages
+   Concatenation, AsList, String-functions and TableComposer.
 
 Items 1 and 2 have their issues, #1319 and #1320, with the probes of this page; items 3 and 4 get one
 when a model gives the evidence.
