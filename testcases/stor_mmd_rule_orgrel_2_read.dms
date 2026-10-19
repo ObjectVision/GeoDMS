@@ -35,6 +35,7 @@ container stor_mmd_rule_orgrel_2_read
 		parameter<string> cond_v     := asList(string(store/by_cond/v), ' '),      IntegrityCheck = "cond_v == '7 27 47'";
 		parameter<uint32> cond_sel   := sum(uint32(store/by_cond/sel)),           IntegrityCheck = "cond_sel == 3";
 		parameter<string> tab_x      := asList(string(store/lookups/tab/x), ' '),  IntegrityCheck = "tab_x == '100 101 102'";
+		parameter<string> dom_rel_out := asList(string(store/lookups/dom/rel_out), ' '), IntegrityCheck = "dom_rel_out == '0 1 2 3'";
 		parameter<string> dom_w_out  := asList(string(store/lookups/dom/w_out), ' '), IntegrityCheck = "dom_w_out == '7 17 27 37'";
 		parameter<string> dom_w_in   := asList(string(store/lookups/dom/w_in), ' '),  IntegrityCheck = "dom_w_in == '100 101 102 100'";
 		parameter<string> dom_twice  := asList(string(store/lookups/dom/twice), ' '), IntegrityCheck = "dom_twice == '200 202 204 200'";
@@ -46,10 +47,11 @@ container stor_mmd_rule_orgrel_2_read
 		parameter<bool> file_orgrel_i    := HasFile(root + 'stor_mmd_rule_orgrel_only.mmd/i'),              IntegrityCheck = "file_orgrel_i == true";
 		parameter<bool> file_copied_v    := HasFile(root + 'stor_mmd_rule_orgrel_copied.mmd/v'),            IntegrityCheck = "file_copied_v == true";
 		parameter<bool> file_cond_v      := HasFile(root + 'stor_mmd_rule_orgrel_cond.mmd/v'),              IntegrityCheck = "file_cond_v == true";
-		parameter<bool> file_dom_rel_out := HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/rel_out'), IntegrityCheck = "file_dom_rel_out == true";
 		parameter<bool> file_dom_w_out   := HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/w_out'),   IntegrityCheck = "file_dom_w_out == true";
 
-		// kept as a rule (#1264): no data file
+		// kept as a rule (#1264): no data file. dom/rel_out names Src, a unit outside the store, which
+		// since GeoDMS 20.25.0 (#1318) keeps it a rule; this reader declares Src, so the rule resolves.
+		parameter<bool> file_dom_rel_out := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/rel_out')), IntegrityCheck = "file_dom_rel_out == true";
 		parameter<bool> file_tab_x       := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/tab/x')),      IntegrityCheck = "file_tab_x == true";
 		parameter<bool> file_dom_rel_in  := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/rel_in')), IntegrityCheck = "file_dom_rel_in == true";
 		parameter<bool> file_dom_w_in    := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/w_in')),   IntegrityCheck = "file_dom_w_in == true";

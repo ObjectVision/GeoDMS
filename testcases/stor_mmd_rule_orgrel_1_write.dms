@@ -13,6 +13,8 @@
 //
 // Since GeoDMS 20.22.1 all of these are materialised. The rules that name only what the store holds
 // stay rules: tab/x, dom/rel_in, dom/w_in (an arrow into a values unit inside the store) and dom/twice.
+// Since GeoDMS 20.25.0 (#1318) a rule that names a unit outside the store, as dom/rel_out names Src,
+// is kept as a rule as well: the reader declares that unit, as it declares an outside domain.
 // stor_mmd_rule_orgrel_2_read.dms reads the stores back with a Src that has no v and no sel, so a
 // rule that still named Src/v fails there, and checks which attributes have a data file.
 //
@@ -54,7 +56,7 @@ container stor_mmd_rule_orgrel_1_write
 			}
 			unit<uint32> dom : nrofrows = 4
 			{
-				attribute<Src>    rel_out := id(.)[Src];       // names Src: materialised
+				attribute<Src>    rel_out := id(.)[Src];       // names Src, a unit outside: rule (#1318)
 				attribute<tab>    rel_in  := (id(.) % 3)[tab]; // names tab only: rule
 				attribute<uint64> w_out   := rel_out -> v;     // v is Src/v: materialised
 				attribute<uint64> w_in    := rel_in -> x;      // x is tab/x, inside: rule
