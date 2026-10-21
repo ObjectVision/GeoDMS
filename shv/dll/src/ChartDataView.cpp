@@ -163,6 +163,7 @@ void ChartDataView::AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind)
 	auto theme = Theme::Create(AN_SymbolColor, adi, aspectContext, this, true);
 	MG_CHECK(theme);
 	layer->SetThemeAndActivate(theme.get(), adi);
+	layer->TakeDomainXAttr(); // the X axis that the domain names, if any; else the row number
 	layer->ConnectSelectionsTheme(this);
 
 	ls->InsertEntry(layer.get());
