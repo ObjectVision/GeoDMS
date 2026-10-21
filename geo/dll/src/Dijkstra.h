@@ -352,8 +352,23 @@ inline bool Imp2Improves(ImpType x, ImpType minAccepted, Float64 eps)
 //   reads as +infinity, keeping ResetImpedances O(1) per origin. Both cutoffs
 //   are fixed per origin (no limit() in this mode), so a label admitted at push
 //   time stays admissible.
+//
+//   TraceLabels (#1325, od:LinkSet with pareto): the scalar traceback keeps one
+//   parent link per NODE, but here a node has several accepted labels, each
+//   with its own route. With TraceLabels every label also carries the label it
+//   extends and the link it came by, and AcceptLabel appends an accepted label
+//   to a per-origin pool of (parent label, via link): the routes of the
+//   accepted labels form a forest over that pool, and a row's links are its
+//   label's chain of parents. The pool is append-only and is never read by
+//   the search, and the extra fields take no part in the heap order, which
+//   compares the (imp, imp2) pair only: the same pushes and pops happen with
+//   and without it, so the od rows are the same, and the counting pass, which
+//   never traces, stays the replay of the filling pass. Without TraceLabels
+//   the heap element keeps its size.
 // *****************************************************************************
-template <typename NodeType, typename ZoneType, typename ImpType>
+using LabelIdx = UInt32; // index of an accepted label in the label pool of an origin (#1325)
+
+template <typename NodeType, typename ZoneType, typename ImpType, typename LinkType = UInt32, bool TraceLabels = false>
 struct BiCriteriaDijkstraHeap
 {
 	using ImpPairType = std::pair<ImpType, ImpType>; // (imp, imp2), compared lexicographically
@@ -362,10 +377,16 @@ struct BiCriteriaDijkstraHeap
 	// StartPoint_rel is an attribute of the ROUTE, and a node's accepted labels may descend
 	// from different start points, so the scalar heap's per-node provenance array cannot serve
 	// here -- provenance travels in the label. For 8-byte-aligned ImpTypes the extra field
-	// rides the element's existing padding for free.
-	struct LabelRef { NodeType node; ZoneType startPoint; };
+	// rides the element's existing padding for free. With TraceLabels the label also carries
+	// the accepted label it extends and the link it came by; both are undefined for a seed.
+	struct UntracedLabelRef { NodeType node; ZoneType startPoint; };
+	struct TracedLabelRef   { NodeType node; ZoneType startPoint; LabelIdx parent; LinkType via; };
+	using LabelRef = std::conditional_t<TraceLabels, TracedLabelRef, UntracedLabelRef>;
 	using HeapElemType = heapElemType<ImpPairType, LabelRef>;
 	using HeapType = std::vector<HeapElemType>;
+
+	// An accepted label in the pool: the route to it is via, preceded by the route to parent.
+	struct PooledLabel { LabelIdx parent; LinkType via; };
 
 	void Init(NodeType nrV, bool useSrcZoneStamps)
 	{
@@ -390,6 +411,7 @@ struct BiCriteriaDijkstraHeap
 		++m_CurrSrcZoneTick;
 		if (!m_SrcZoneStamp)
 			fast_fill(m_MinImp2.begin(), m_MinImp2.begin() + m_NrV, MaxValue<ImpType>());
+		m_LabelPool.clear(); // keeps its capacity for the next origin of this worker
 	}
 
 	bool IsStale(NodeType v) const
@@ -435,8 +457,10 @@ struct BiCriteriaDijkstraHeap
 	}
 
 	// Attempt to push label (d, d2) for node v; prunes on both cutoffs and on dominance.
-	// startPoint is the origin-side provenance of the route the label extends.
-	void InsertLabel(NodeType v, ImpType d, ImpType d2, ZoneType startPoint)
+	// startPoint is the origin-side provenance of the route the label extends; parent and via,
+	// kept only with TraceLabels, are the accepted label it extends and the link it takes.
+	void InsertLabel(NodeType v, ImpType d, ImpType d2, ZoneType startPoint
+	,	LabelIdx parent = UNDEFINED_VALUE(LabelIdx), LinkType via = UNDEFINED_VALUE(LinkType))
 	{
 		if (d >= m_MaxImp || d2 >= m_MaxImp2)
 			return;
@@ -445,22 +469,46 @@ struct BiCriteriaDijkstraHeap
 		assert(d2 >= 0);
 		if (!IsUndominated(v, d2))
 			return;
-		m_LabelHeap.push_back(HeapElemType(LabelRef{ v, startPoint }, ImpPairType(d, d2)));
+		if constexpr (TraceLabels)
+			m_LabelHeap.push_back(HeapElemType(LabelRef{ v, startPoint, parent, via }, ImpPairType(d, d2)));
+		else
+			m_LabelHeap.push_back(HeapElemType(LabelRef{ v, startPoint }, ImpPairType(d, d2)));
 		std::push_heap(m_LabelHeap.begin(), m_LabelHeap.end());
 	}
 
 	// Pop-time acceptance: re-test dominance (a cheaper-imp2 label for v may have been
-	// accepted after this label was pushed) and record the new per-node minimum.
-	bool AcceptLabel(NodeType v, ImpType d2)
+	// accepted after this label was pushed) and record the new per-node minimum. With
+	// TraceLabels an accepted label joins the pool, as LastAcceptedLabel(); nothing here
+	// reads the pool, so it cannot change which labels are accepted.
+	bool AcceptLabel(const LabelRef& label, ImpType d2)
 	{
+		NodeType v = label.node;
 		assert(v < m_NrV);
 		if (!IsUndominated(v, d2))
 			return false;
 		m_MinImp2[v] = d2;
 		if (m_SrcZoneStamp)
 			m_SrcZoneStamp[v] = m_CurrSrcZoneTick;
+		if constexpr (TraceLabels)
+			m_LabelPool.push_back(PooledLabel{ label.parent, label.via });
 		return true;
 	}
+
+	// The pool index of the label that AcceptLabel accepted last, the parent of the labels that
+	// extend it; undefined without TraceLabels. The driver keeps the pool below
+	// UNDEFINED_VALUE(LabelIdx) entries (see ProcessBiDijkstra).
+	LabelIdx LastAcceptedLabel() const
+	{
+		if constexpr (TraceLabels)
+		{
+			assert(!m_LabelPool.empty());
+			return LabelIdx(m_LabelPool.size() - 1);
+		}
+		else
+			return UNDEFINED_VALUE(LabelIdx);
+	}
+	SizeT LabelPoolSize() const { return m_LabelPool.size(); }
+	const PooledLabel& PooledLabelAt(LabelIdx i) const { assert(i < m_LabelPool.size()); return m_LabelPool[i]; }
 
 	void PopLabel()
 	{
@@ -482,6 +530,7 @@ protected:
 	ZoneType m_CurrSrcZoneTick = UNDEFINED_VALUE(ZoneType);
 	HeapType m_LabelHeap;
 	OwningPtrSizedArray<ZoneType> m_SrcZoneStamp; // optional per-node stamp buffer (lazy reset)
+	std::vector<PooledLabel> m_LabelPool;         // accepted labels of the current origin, in acceptance order; empty without TraceLabels (#1325)
 };
 
 #endif //!defined(__GEO_DIJKSTRA_H)

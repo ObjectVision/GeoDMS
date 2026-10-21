@@ -1,0 +1,285 @@
+container fn_test_od_pareto_linkset
+{
+	// pareto with od:LinkSet (#1325): each row of the front gets the links of its own route, which
+	// the per-node traceback of the scalar engine cannot give, as a node has several accepted
+	// labels. The links come from the destination to the origin, as in the scalar engine. The
+	// label pool behind it must not change any pruning decision, so every od below is compared
+	// with the same search without LinkSet: the same rows, in the same order. Per row, the links
+	// sum to the row's impedance and alt_imp (plus the end point offset where there is one).
+
+	// The net of ParetoEpsilonProbe in NetworkModel_PBL: two routes from node 0 to node 1, directly
+	// by L0 (t 1, c 10) or via node 2 by L1 and L2 (t 2, c 9.95). The exact front has both: row 0
+	// is [0], row 1 is [2, 1]. Bidirectional, from node 1 to node 0, the same routes reversed: row 1
+	// is [1, 2].
+	container two_routes
+	{
+		unit<uint32> Node : nrofrows = 3;
+		unit<uint32> Link : nrofrows = 3
+		{
+			attribute<Node>    F1 : [0, 0, 2];
+			attribute<Node>    F2 : [1, 2, 1];
+			attribute<float64> t  : [1.0, 1.0, 1.0];
+			attribute<float64> c  : [10.0, 5.0, 4.95];
+		}
+		unit<uint32> Zone : nrofrows = 1;
+		unit<uint32> StartSet : nrofrows = 1
+		{
+			attribute<Node> node_rel : [0];
+			attribute<Zone> zone_rel : [0];
+		}
+		unit<uint32> EndSet : nrofrows = 1
+		{
+			attribute<Node> node_rel : [1];
+			attribute<Zone> zone_rel : [0];
+		}
+
+		unit<uint32> od := impedance_matrix(
+			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto;od:impedance,LinkSet'
+			, Link/t, Link/F1, Link/F2, StartSet/node_rel, StartSet/zone_rel, EndSet/node_rel, EndSet/zone_rel, const(100.0, Zone), Link/c)
+		{
+			attribute<float64> exp_imp := union_data(., 1.0, 2.0);
+			attribute<float64> exp_alt := union_data(., 10.0, 9.95);
+		}
+		unit<uint32> od_plain := impedance_matrix(
+			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto;od:impedance'
+			, Link/t, Link/F1, Link/F2, StartSet/node_rel, StartSet/zone_rel, EndSet/node_rel, EndSet/zone_rel, const(100.0, Zone), Link/c)
+		{
+			attribute<float64> exp_imp := union_data(., 1.0, 2.0);
+			attribute<float64> exp_alt := union_data(., 10.0, 9.95);
+		}
+		unit<uint32> step := sequence2points(od/LinkSet)
+		{
+			attribute<float64> t := Link/t[point];
+			attribute<float64> c := Link/c[point];
+		}
+		attribute<float64> sum_t (od) := sum(step/t, step/sequence_rel);
+		attribute<float64> sum_c (od) := sum(step/c, step/sequence_rel);
+
+		unit<uint32> od_bidir := impedance_matrix(
+			  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto;od:impedance,LinkSet'
+			, Link/t, Link/F1, Link/F2, EndSet/node_rel, EndSet/zone_rel, StartSet/node_rel, StartSet/zone_rel, const(100.0, Zone), Link/c);
+		unit<uint32> step_bidir := sequence2points(od_bidir/LinkSet);
+	}
+
+	// The net of fn_test_od_pareto: three origin zones, one of them with two start points, two
+	// destination zones, a two-point front, a dominated route that must not appear, and with end
+	// point offsets the parked end points, whose rows carry their label through the parking heap.
+	//   org 0: (2,10) by L0 L2 = [2, 0]; (6,1) by L1 L3 = [3, 1]; (7,2) by L1 L5 = [5, 1]
+	//   org 1: (2,1) by L6 L3 = [3, 6]; (3,2) by L6 L5 = [5, 6]
+	//   org 2: (1,5) by L7 = [7], from start point 2; (3,1) by L8 = [8], from start point 3
+	container fronts
+	{
+		unit<uint32> Node : nrofrows = 8;
+		unit<uint32> Link : nrofrows = 9
+		{
+			attribute<Node>    N1_rel : [0, 0, 1, 2, 1, 2, 5, 6, 7];
+			attribute<Node>    N2_rel : [1, 2, 3, 3, 4, 4, 2, 4, 4];
+			attribute<float64> t  : [1.0, 5.0, 1.0, 1.0, 10.0, 2.0, 1.0, 1.0, 3.0];
+			attribute<float64> c  : [10.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 5.0, 1.0];
+		}
+		unit<uint32> OrgZone : nrofrows = 3;
+		unit<uint32> DstZone : nrofrows = 2;
+		unit<uint32> StartSet : nrofrows = 4
+		{
+			attribute<Node>    node_rel : [0, 5, 6, 7];
+			attribute<OrgZone> zone_rel : [0, 1, 2, 2];
+		}
+		unit<uint32> EndSet : nrofrows = 2
+		{
+			attribute<Node>    node_rel : [3, 4];
+			attribute<float64> imp      : [1.0, 0.0];
+			attribute<DstZone> zone_rel : [0, 1];
+		}
+
+		unit<uint32> od := impedance_matrix(
+			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto'
+			  ';od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel,LinkSet'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, StartSet/zone_rel
+			, EndSet/node_rel,   EndSet/zone_rel
+			, const(100.0, OrgZone)
+			, Link/c
+			)
+		{
+			attribute<float64> exp_imp := union_data(., 2.0, 6.0, 7.0, 2.0, 3.0, 1.0, 3.0);
+			attribute<float64> exp_alt := union_data(., 10.0, 1.0, 2.0, 1.0, 2.0, 5.0, 1.0);
+			attribute<uint32>  exp_org := union_data(., 0, 0, 0, 1, 1, 2, 2);
+			attribute<uint32>  exp_dst := union_data(., 0, 0, 1, 0, 1, 1, 1);
+			attribute<uint32>  exp_sp  := union_data(., 0, 0, 0, 1, 1, 2, 3);
+			attribute<uint32>  exp_n   := union_data(., 2, 2, 2, 2, 2, 1, 1);
+		}
+		unit<uint32> od_plain := impedance_matrix(
+			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto'
+			  ';od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, StartSet/zone_rel
+			, EndSet/node_rel,   EndSet/zone_rel
+			, const(100.0, OrgZone)
+			, Link/c
+			)
+		{
+			attribute<float64> exp_imp := union_data(., 2.0, 6.0, 7.0, 2.0, 3.0, 1.0, 3.0);
+			attribute<float64> exp_alt := union_data(., 10.0, 1.0, 2.0, 1.0, 2.0, 5.0, 1.0);
+			attribute<uint32>  exp_org := union_data(., 0, 0, 0, 1, 1, 2, 2);
+			attribute<uint32>  exp_dst := union_data(., 0, 0, 1, 0, 1, 1, 1);
+			attribute<uint32>  exp_sp  := union_data(., 0, 0, 0, 1, 1, 2, 3);
+		}
+		unit<uint32> step := sequence2points(od/LinkSet)
+		{
+			attribute<float64> t := Link/t[point];
+			attribute<float64> c := Link/c[point];
+			// the expected links, row after row, each from the destination back to the origin
+			attribute<uint32>  exp_link := union_data(., 2, 0, 3, 1, 5, 1, 3, 6, 5, 6, 7, 8);
+		}
+		attribute<float64> sum_t (od) := sum(step/t, step/sequence_rel);
+		attribute<float64> sum_c (od) := sum(step/c, step/sequence_rel);
+		attribute<uint32>  nr_links (od) := sequence_element_count(od/LinkSet);
+
+		// end point offsets on the first criterion: dst 0 rows gain 1.0; org 0's rows are then
+		// (3,10), (7,1) into dst 0 and (7,2) into dst 1, released from the parking heap
+		unit<uint32> od_endimp := impedance_matrix(
+			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,impedance,DstZone_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto'
+			  ';od:impedance,OrgZone_rel,DstZone_rel,EndPoint_rel,LinkSet'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, StartSet/zone_rel
+			, EndSet/node_rel,   EndSet/imp, EndSet/zone_rel
+			, const(100.0, OrgZone)
+			, Link/c
+			)
+		{
+			attribute<float64> exp_imp := union_data(., 3.0, 7.0, 7.0, 3.0, 3.0, 1.0, 3.0);
+			attribute<float64> exp_alt := union_data(., 10.0, 1.0, 2.0, 1.0, 2.0, 5.0, 1.0);
+		}
+		unit<uint32> od_endimp_plain := impedance_matrix(
+			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,impedance,DstZone_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto'
+			  ';od:impedance,OrgZone_rel,DstZone_rel,EndPoint_rel'
+			, Link/t, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, StartSet/zone_rel
+			, EndSet/node_rel,   EndSet/imp, EndSet/zone_rel
+			, const(100.0, OrgZone)
+			, Link/c
+			)
+		{
+			attribute<float64> exp_imp := union_data(., 3.0, 7.0, 7.0, 3.0, 3.0, 1.0, 3.0);
+			attribute<float64> exp_alt := union_data(., 10.0, 1.0, 2.0, 1.0, 2.0, 5.0, 1.0);
+		}
+		unit<uint32> step_endimp := sequence2points(od_endimp/LinkSet)
+		{
+			attribute<float64> t := Link/t[point];
+			attribute<float64> c := Link/c[point];
+		}
+		attribute<float64> endimp_sum_t (od_endimp) := sum(step_endimp/t, step_endimp/sequence_rel) + EndSet/imp[od_endimp/EndPoint_rel];
+		attribute<float64> endimp_sum_c (od_endimp) := sum(step_endimp/c, step_endimp/sequence_rel);
+	}
+
+	// timedependent_alt: the net of fn_test_od_timedep/route, searched on distance first, with the
+	// travel time as the time-dependent second criterion. Route A is L0 L1, 10 long, B is L2 L3,
+	// 16 long. Leaving at 0 or 30 A is also faster, one row; leaving at 5 A takes 35 by the slow
+	// slots of L0 and B, 25, joins the front. Rows: A, A (10, 35), B (16, 25), A; their LinkSets
+	// [1, 0], [1, 0], [3, 2], [1, 0]. The distances sum to the impedance; the travel times of the
+	// links at free flow sum to alt_imp only where the profile does not slow them down.
+	container timedep
+	{
+		unit<uint32> Profile : nrofrows = 2;
+		unit<uint32> Slot    : nrofrows = 4;
+		unit<uint32> ProfileSlot := combine(Profile, Slot)
+		{
+			// profile 0 flat, profile 1 jam: two slow slots from 10 to 30
+			attribute<float64> factor := union_data(.
+				, 1.0, 1.0,  1.0,  1.0
+				, 1.0, 0.25, 0.25, 1.0);
+		}
+		unit<float64> s := BaseUnit('s', float64);
+
+		unit<uint32> Node : nrofrows = 4;
+		unit<uint32> Link : nrofrows = 4
+		{
+			attribute<Node>    N1_rel  : [0, 1, 0, 2];
+			attribute<Node>    N2_rel  : [1, 3, 2, 3];
+			attribute<s>       t       : [10, 10, 15, 10];
+			attribute<float64> dist    : [5, 5, 8, 8];
+			attribute<Profile> profile_rel : [1, null, null, null];
+		}
+		unit<uint32> StartSet : nrofrows = 3
+		{
+			attribute<Node> node_rel  := const(0, ., Node);
+			attribute<s>    departure : [0, 5, 30];
+		}
+		unit<uint32> EndSet : nrofrows = 1 { attribute<Node> node_rel : [3]; }
+		parameter<s> SlotDuration := 10[s];
+
+		unit<uint32> od := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto'
+			  ';timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel,LinkSet'
+			, Link/dist, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, const(100.0, StartSet)
+			, Link/t
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure
+			)
+		{
+			attribute<float64> exp_imp := union_data(., 10.0, 10.0, 16.0, 10.0);
+			attribute<s>       exp_alt := union_data(., 20[s], 35[s], 25[s], 20[s]);
+			attribute<uint32>  exp_org := union_data(., 0, 1, 1, 2);
+		}
+		unit<uint32> od_plain := impedance_matrix(
+			  'directed;startPoint(Node_rel);endPoint(Node_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+			  ';pareto'
+			  ';timedependent_alt(link_profile_rel,profile_slot_factor,slot_duration,departure_time)'
+			  ';od:impedance,OrgZone_rel'
+			, Link/dist, Link/N1_rel, Link/N2_rel
+			, StartSet/node_rel, EndSet/node_rel
+			, const(100.0, StartSet)
+			, Link/t
+			, Link/profile_rel, ProfileSlot/factor, SlotDuration, StartSet/departure
+			)
+		{
+			attribute<float64> exp_imp := union_data(., 10.0, 10.0, 16.0, 10.0);
+			attribute<s>       exp_alt := union_data(., 20[s], 35[s], 25[s], 20[s]);
+			attribute<uint32>  exp_org := union_data(., 0, 1, 1, 2);
+		}
+		unit<uint32> step := sequence2points(od/LinkSet)
+		{
+			attribute<float64> dist := Link/dist[point];
+			attribute<uint32>  exp_link := union_data(., 1, 0, 1, 0, 3, 2, 1, 0);
+		}
+		attribute<float64> sum_dist (od) := sum(step/dist, step/sequence_rel);
+	}
+
+	container checks
+	{
+		parameter<bool> tr_rows  := #two_routes/od == 2 && #two_routes/od_plain == 2, IntegrityCheck = "tr_rows == true";
+		parameter<bool> tr_same  := all(two_routes/od/impedance == two_routes/od/exp_imp) && all(two_routes/od/alt_imp == two_routes/od/exp_alt)
+		                         && all(two_routes/od_plain/impedance == two_routes/od_plain/exp_imp) && all(two_routes/od_plain/alt_imp == two_routes/od_plain/exp_alt), IntegrityCheck = "tr_same == true";
+		parameter<bool> tr_links := #two_routes/step == 3 && uint32(two_routes/step/point[0]) == 0 && uint32(two_routes/step/point[1]) == 2 && uint32(two_routes/step/point[2]) == 1, IntegrityCheck = "tr_links == true";
+		parameter<bool> tr_sums  := all(two_routes/sum_t == two_routes/od/impedance) && all(abs(two_routes/sum_c - two_routes/od/alt_imp) < 1e-9), IntegrityCheck = "tr_sums == true";
+		parameter<bool> tr_bidir := #two_routes/od_bidir == 2 && #two_routes/step_bidir == 3 && uint32(two_routes/step_bidir/point[0]) == 0 && uint32(two_routes/step_bidir/point[1]) == 1 && uint32(two_routes/step_bidir/point[2]) == 2, IntegrityCheck = "tr_bidir == true";
+
+		parameter<bool> fr_rows  := #fronts/od == 7 && #fronts/od_plain == 7, IntegrityCheck = "fr_rows == true";
+		parameter<bool> fr_same  := all(fronts/od/impedance == fronts/od/exp_imp) && all(fronts/od/alt_imp == fronts/od/exp_alt)
+		                         && all(uint32(fronts/od/OrgZone_rel) == fronts/od/exp_org) && all(uint32(fronts/od/DstZone_rel) == fronts/od/exp_dst) && all(uint32(fronts/od/StartPoint_rel) == fronts/od/exp_sp), IntegrityCheck = "fr_same == true";
+		parameter<bool> fr_plain := all(fronts/od_plain/impedance == fronts/od_plain/exp_imp) && all(fronts/od_plain/alt_imp == fronts/od_plain/exp_alt)
+		                         && all(uint32(fronts/od_plain/OrgZone_rel) == fronts/od_plain/exp_org) && all(uint32(fronts/od_plain/DstZone_rel) == fronts/od_plain/exp_dst) && all(uint32(fronts/od_plain/StartPoint_rel) == fronts/od_plain/exp_sp), IntegrityCheck = "fr_plain == true";
+		parameter<bool> fr_links := #fronts/step == 12 && all(uint32(fronts/step/point) == fronts/step/exp_link) && all(fronts/nr_links == fronts/od/exp_n), IntegrityCheck = "fr_links == true";
+		parameter<bool> fr_sums  := all(fronts/sum_t == fronts/od/impedance) && all(fronts/sum_c == fronts/od/alt_imp), IntegrityCheck = "fr_sums == true";
+
+		parameter<bool> fe_rows  := #fronts/od_endimp == 7 && #fronts/od_endimp_plain == 7, IntegrityCheck = "fe_rows == true";
+		parameter<bool> fe_same  := all(fronts/od_endimp/impedance == fronts/od_endimp/exp_imp) && all(fronts/od_endimp/alt_imp == fronts/od_endimp/exp_alt)
+		                         && all(fronts/od_endimp_plain/impedance == fronts/od_endimp_plain/exp_imp) && all(fronts/od_endimp_plain/alt_imp == fronts/od_endimp_plain/exp_alt), IntegrityCheck = "fe_same == true";
+		parameter<bool> fe_sums  := all(fronts/endimp_sum_t == fronts/od_endimp/impedance) && all(fronts/endimp_sum_c == fronts/od_endimp/alt_imp), IntegrityCheck = "fe_sums == true";
+
+		parameter<bool> td_rows  := #timedep/od == 4 && #timedep/od_plain == 4, IntegrityCheck = "td_rows == true";
+		parameter<bool> td_same  := all(timedep/od/impedance == timedep/od/exp_imp) && all(timedep/od/alt_imp == timedep/od/exp_alt) && all(uint32(timedep/od/OrgZone_rel) == timedep/od/exp_org)
+		                         && all(timedep/od_plain/impedance == timedep/od_plain/exp_imp) && all(timedep/od_plain/alt_imp == timedep/od_plain/exp_alt) && all(uint32(timedep/od_plain/OrgZone_rel) == timedep/od_plain/exp_org), IntegrityCheck = "td_same == true";
+		parameter<bool> td_links := #timedep/step == 8 && all(uint32(timedep/step/point) == timedep/step/exp_link), IntegrityCheck = "td_links == true";
+		parameter<bool> td_sums  := all(timedep/sum_dist == timedep/od/impedance), IntegrityCheck = "td_sums == true";
+	}
+}
