@@ -841,22 +841,23 @@ void Unit<V>::SetIrregularTileRange(std::vector<range_t> optionalTileRanges) req
 {
 	static_assert(!has_simple_range_v<value_t>);
 	std::unique_ptr< TiledRangeData<value_t> > newRangeData;
-	SharedPtr<const TiledRangeData<value_t> >  oldRangeData;
 	if (optionalTileRanges.empty())
 		newRangeData.reset(new DefaultTileRangeData<value_t>(UNDEFINED_VALUE(range_t)));
 	else
 		newRangeData.reset(new IrregularTileRangeData<value_t>(std::move(optionalTileRanges)));
 
+	decltype(this->m_RangeDataPtr) oldRangeDataPtr, newRangeDataPtr;
 	{
 		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		oldRangeData = std::move(this->m_RangeDataPtr);
+		oldRangeDataPtr = std::move(this->m_RangeDataPtr);
 		this->m_RangeDataPtr.reset(newRangeData.release());
+		newRangeDataPtr = this->m_RangeDataPtr;
 	}
 
-	if (oldRangeData)
+	if (oldRangeDataPtr)
 	{
 		MG_CHECK(IsMetaThread());
-		NotifyRangeDataChange(this, oldRangeData.get_ptr(), newRangeData.get());
+		NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), newRangeDataPtr.get_ptr());
 	}
 
 	MarkUnitChange(this);
