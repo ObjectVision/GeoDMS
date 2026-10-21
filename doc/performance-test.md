@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-17): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-21): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -11,7 +11,8 @@ of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. On OVS
 round, 20.25.0 at cd3e83ec7, gave 23 of 27: the loose quadtree of #1292 makes `point_in_polygon` take another
 of overlapping polygons in t060, t301, t641.2 and t2000, whose references GeoDMS-Test 6387c67 moved (27 of 27
 since), and makes t060 and t301 4 to 7 % faster; the final engine code of 20.25.0, c56fe51a2, gives 27 of 27 with
-the same results and times. t300's two levels on this machine are the first read of its XML, not the build (see
+the same results and times, and so does the release v20.25.0 (fec6efe90) in `.m` and `.c` (27 of 27) and `.l` (19 of
+21). t300's two levels on this machine are the first read of its XML, not the build (see
 the known causes at the end). Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
@@ -1174,6 +1175,94 @@ t2000 says which level that run reached, not which build ran.
   final code.
 - No performance change: every experiment level or faster than the round above, within its drift, and t2000 level
   with `cd3e83ec7` in an A/B, in time and in live memory. Not measured: the tst unit suite.
+
+## Results (OVSRV05), the release v20.25.0 (tag `fec6efe90`) in `.l`, `.c` and `.m`
+
+The GitHub pre-release `v20.25.0` (published 2026-10-20 13:42 UTC) is tagged at `fec6efe90`, whose engine code is
+that of `c56fe51a2` above; the five commits after it are the release notes, plan documents and a testcase. The
+`.m`, `.c` and `.l` assets were downloaded with `gh` into `C:\LocalData\GeoDMS_releases\v20.25.0`; their SHA256
+match the release's digests and both Windows setups carry a valid signature of Object Vision B.V. `.m` and `.c` were
+installed silently into `C:\Program Files\ObjectVision` (exit 0), and `testcases\run_testcases.bat` with each
+installed `GeoDmsRun.exe` gives 529 cases, 0 bad; `.l` replaced 20.24.2.l in mtahi's WSL Ubuntu 26.04
+(`dpkg -i`, its dependencies and `libodbc2` already present) and passed a smoke test. The 84 executables of the
+`.m` setup have the `.text` sizes of `head_c56fe51a2`. The column of the local `c56fe51a2` round went to
+`_Archive\20_25_0_m_local_c56fe51a2_20261016` with its report, its intermediates to
+`C:\LocalData\runs\_aside_20_25_0_m_local_c56fe51a2_20261016`; no `20_25_0_c` or `20_25_0_l` existed.
+
+`scratch\launch_perf_20250_release.cmd` first read t300's XML (500 files, 5.6 GiB in 59 s, the first-read rate of the
+known cause below), then ran the three rounds one after another, threshold 60, put back to 95 after them: `.l`
+2026-10-20 21:08 to 22:10, `.c` 22:10 to 2026-10-21 01:21, `.m` 01:21 to 04:29. Each full.py exit 0, nothing on
+stderr, no reuse. Running on the machine: from 22:14 to 23:09, during `.c`'s t101 to t405.3, the Chrome Remote Desktop
+host at 140 to 160 s of CPU per five minutes (a connected session) and the Claude desktop app at about 110 s,
+Explorer and OneDrive at 22:49; otherwise the Claude app alone.
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.l` | 0:54:38 | 19 of 21 `ok`: t405.2 and t405.3 stop with exit 15 after 6 minutes, as in 20.24.2.l and 20.23.1.l |
+| `.c` | 3:08:46 | 27 of 27 `ok` |
+| `.m` | 3:05:09 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result of `.m` is byte for byte the one of the local `c56fe51a2` round.
+`.c` gives the results of `.m`, apart from the order of t010's `operator_groups.txt`. `.l` gives the results of
+20.24.2.l except t301, which now has the 20.25.0 value of `.m`, and its t060 gpkg passes against the `_v20250`
+reference: the loose quadtree visits the overlapping panden in the same order on Linux. Its known differences from
+`.m` (t020's printed digits, t710, t010's order) are unchanged.
+
+| test | `.m` release | `.m` local `c56fe51a2` | `.c` release | `.c` 20.24.2 | `.l` release | `.l` 20.24.2 |
+|---|---|---|---|---|---|---|
+| t020 | 0:03:52, 2.3 GB | 0:04:00, 2.5 GB | 0:03:53, 1.8 GB | 0:03:44, 2.0 GB | 0:03:57, 6.3 GB | 0:03:30, 6.4 GB |
+| t060 | 0:01:44, 6.9 GB | 0:01:41, 7.4 GB | 0:01:48, 6.9 GB | 0:01:51, 6.8 GB | 0:02:59, 10.5 GB | 0:02:56, 10.6 GB |
+| t101 | 0:03:12, 1.6 GB | 0:03:11, 1.6 GB | 0:03:48, 1.6 GB | 0:03:10, 1.6 GB | 0:03:42, 1.7 GB | 0:03:38, 1.7 GB |
+| t200 | 0:00:37, 2.7 GB | 0:00:37, 2.7 GB | 0:00:39, 2.8 GB | 0:00:30, 3.2 GB | 0:00:58, 2.2 GB | 0:01:00, 1.7 GB |
+| t300 | 0:01:04, 8.6 GB | 0:00:58, 10.4 GB | 0:01:03, 8.6 GB | 0:00:55, 10.5 GB | 0:01:17, 8.4 GB | 0:02:12, 7.1 GB |
+| t301 | 0:02:40, 19.5 GB | 0:02:44, 17.8 GB | 0:03:04, 21.1 GB | 0:02:35, 16.5 GB | 0:01:36, 20.4 GB | 0:01:37, 20.6 GB |
+| t405.1 | 0:04:26, 8.9 GB | 0:04:26, 8.2 GB | 0:03:33, 9.6 GB | 0:03:23, 10.0 GB | 0:04:35, 10.5 GB | 0:04:42, 10.4 GB |
+| t405.2 | 0:17:38, 29.2 GB | 0:18:18, 36.2 GB | 0:19:20, 46.6 GB | 0:17:32, 29.0 GB | stopped | stopped |
+| t405.3 | 0:17:28, 29.1 GB | 0:18:17, 29.2 GB | 0:19:10, 46.6 GB | 0:17:33, 29.0 GB | stopped | stopped |
+| t410 | 0:03:50, 1.2 GB | 0:03:55, 1.3 GB | 0:03:51, 0.9 GB | 0:03:47, 0.9 GB | 0:04:14, 2.2 GB | 0:04:15, 2.2 GB |
+| t611 | 0:00:30, 3.7 GB | 0:00:31, 4.1 GB | 0:00:31, 4.0 GB | 0:00:30, 4.0 GB | 0:00:33, 4.3 GB | 0:00:32, 4.5 GB |
+| t641.1 | 0:49:13, 137.0 GB | 0:51:22, 139.4 GB | 0:50:38, 137.1 GB | 0:49:41, 141.9 GB | not run | not run |
+| t641.2 | 0:44:13, 166.0 GB | 0:46:06, 171.4 GB | 0:43:00, 175.2 GB | 0:42:57, 166.2 GB | not run | not run |
+| t710 | 0:01:02, 7.4 GB | 0:01:03, 6.2 GB | 0:01:01, 6.1 GB | 0:01:04, 7.1 GB | 0:01:10, 8.5 GB | 0:01:06, 7.9 GB |
+| t720 | 0:09:22, 23.3 GB | 0:09:17, 20.7 GB | 0:09:20, 20.8 GB | 0:09:20, 19.4 GB | 0:09:35, 23.1 GB | 0:09:25, 20.3 GB |
+| t810 | 0:05:29, 26.2 GB | 0:05:19, 25.9 GB | 0:05:23, 26.0 GB | 0:05:03, 25.9 GB | 0:06:28, 27.2 GB | 0:06:48, 27.4 GB |
+| t910 | 0:00:49, 4.1 GB | 0:00:49, 2.8 GB | 0:00:48, 3.9 GB | 0:00:48, 3.1 GB | 0:00:58, 3.3 GB | 0:00:58, 3.5 GB |
+| t2000 | 0:16:50, 64.5 GB | 0:18:06, 76.3 GB | 0:16:44, 62.8 GB | 0:16:53, 60.8 GB | not run | not run |
+
+Summed over the rows that ran: `.m` 184.8 min against 191.5 for the local round and 188.8 for 20.24.2.m, `.c` 188.4
+against 182.1 for 20.24.2.c, `.l` 54.4 against 54.8 for 20.24.2.l. `.l`'s t300 is 1:17 with its XML read beforehand,
+against 2:12 for 20.24.2.l, the first round of its sitting, and 1:16 for 20.23.1.l, the third of its.
+
+### Interleaved A/B of the rows that moved
+
+`.c` was 9 to 30 % slower than 20.24.2.c on t101, t200, t301, t405.2 and t405.3, in the hour that it shared the
+machine with the Remote Desktop session, and `.l` 13 % on t020. `scratch\perf_ovsrv05\ab_20250r.cmd` reran them
+on 2026-10-21 from 04:30 to 06:40, X, Y, X, Y, threshold 60, the inputs read once beforehand (36.3 GiB):
+X = the release 20.24.2 (`.c` kept as `C:\LocalData\GeoDMS_engine\release_0176bebdb_c`, `.l` unpacked from its
+`.deb` beside 20.25.0.l in `/opt/ObjectVision`), Y = the release 20.25.0 (`release_fec6efe90_c`, the installed
+20.25.0.l). t405.1 runs before t405.2 in each pass, which reads the intermediates it prepares. Seconds:
+
+| flavour, test | X1 | Y1 | X2 | Y2 | Y / X |
+|---|---|---|---|---|---|
+| `.c` t101 | 195 | 191 | 190 | 190 | 0.99 |
+| `.c` t200 | 31 | 31 | 31 | 30 | 0.98 |
+| `.c` t301 | 148 | 148 | 146 | 152 | 1.02 |
+| `.c` t405.1 | 204 | 207 | 203 | 208 | 1.02 |
+| `.c` t405.2 | 1036 | 1082 | 1053 | 1079 | 1.03 |
+| `.l` t020 | 211 | 204 | 206 | 203 | 0.98 |
+| `.l` t710 | 68 | 67 | 66 | 67 | 1.00 |
+
+Each run gave the results of its build's round. t405.2 is the one row where both 20.25.0 runs are slower than both
+20.24.2 runs, by 26 to 46 s; two pairs do not settle 3 %, and the `.m` rounds show nothing of it (17:38 for the
+release against 17:37 for 20.24.2.m).
+
+### Reading
+
+- Correct: `.m` and `.c` 27 of 27 and `.l` 19 of 21, with the results of the local `c56fe51a2` round and the
+  20.25.0 references; on `.l` the order-dependent t301 and t060 give the values of `.m`.
+- No performance regression: `.m` takes 184.8 min over the rows, the lowest of the 20.24.2 and 20.25.0 rounds. The rows of `.c` and
+  `.l` that moved in their rounds are level with 20.24.2 in the A/B, except perhaps t405.2 on `.c` (+3 %, not
+  settled). The setups compute what the local build computes, in the same time.
 
 # Known causes of differences between versions
 
