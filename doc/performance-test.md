@@ -13,8 +13,10 @@ of overlapping polygons in t060, t301, t641.2 and t2000, whose references GeoDMS
 since), and makes t060 and t301 4 to 7 % faster; the final engine code of 20.25.0, c56fe51a2, gives 27 of 27 with
 the same results and times, and so does the release v20.25.0 (fec6efe90) in `.m` and `.c` (27 of 27) and `.l` (19 of
 21); the release v20.26.0 (f3c45bc70) gives the same verdicts and results, and an A/B shows no performance change
-against 20.25.0. t300's two levels on this machine are the first read of its XML, not the build (see
-the known causes at the end). Section 8.1.x of
+against 20.25.0. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
+of the account that ran them, which had no `.wslconfig` and so half the RAM, not the engine: with 48 GB for that VM
+(2026-10-22) 20.26.0.l passes both, 21 of 21. t300's two levels on this machine are the first read of its XML, not
+the build (see the known causes at the end). Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
 ## Results (OVSRV10), 20.22.0
@@ -1291,7 +1293,7 @@ The machine had restarted on 2026-10-21 at 11:46 for the October 2026 cumulative
 
 | flavour | report header | verdict |
 |---|---|---|
-| `.l` | 0:57:35 | 19 of 21 `ok`: t405.2 and t405.3 stop with exit 15, as in every `.l` round of this machine |
+| `.l` | 0:57:35 | 19 of 21 `ok`: t405.2 and t405.3 stop with exit 15, as in every `.l` round of this account since 20.23.1; 21 of 21 in the rerun with 48 GB for WSL below |
 | `.c` | 3:17:45 | 27 of 27 `ok` |
 | `.m` | 3:12:32 | 27 of 27 `ok` |
 
@@ -1355,10 +1357,45 @@ host 867 s and `dllhost` 359 s of CPU). The session alone can account for it: th
 in the hour that it shared with such a session, before the update, against 190 s the morning after without one.
 Which of the two it is has not been separated; the session was still connected at the end of the A/B.
 
+### t405.2 and t405.3 on `.l`, rerun with 48 GB for WSL
+
+On 2026-10-22 the account mtahi, which runs the rounds here, got a `C:\Users\mtahi\.wslconfig`, written from a
+scheduled task (`scratch\set_wslconfig_mtahi.cmd`), since a write into the profile from the agent's shell does not
+reach the real one:
+
+```
+[wsl2]
+memory=48GB
+swap=128GB
+swapFile=D:\\WSL\\swap_mtahi.vhdx
+```
+
+The swap file is the account's own: two VMs cannot share one, and the other account's VM uses `D:\WSL\swap.vhdx`.
+After `wsl --shutdown` the VM reports 47 GB of memory and 128 GB of swap (`free -g`), against about 33.6 and 8 GB
+before; see "t405.2 and t405.3 on `.l` on OVSRV05: the WSL VM of the account" under the known causes. GeoDMS-Test's
+`batch\run_detached.ps1 -Version 20.26.0.l -Tests t405` then ran from `scratch\launch_t405_20260_l.cmd`, 2026-10-22
+16:30 to 17:31, full.py exit 0, nothing on stderr, no other round on the machine. `-tests` reruns t405.1 too, which
+prepares the data of the other two. The round's t405 files of 2026-10-21 are kept in
+`_Archive\20_26_0_l_t405_wsl33GB_timeout_20261021`; the `20_26_0_l` column now holds the rerun.
+
+Duration and peak rss / vms of the harness's sampler:
+
+| test | rerun, 48 GB | round of 2026-10-21, 33.6 GB | 20.19.3.l, Cicada |
+|---|---|---|---|
+| t405.1 | 0:05:26, 12.1 / 15.6 GB | 0:04:55, 12.1 / 15.5 GB | 0:10:17, 12.0 / 15.6 GB |
+| t405.2 | 0:26:11, 49.1 / 56.0 GB | stopped at 0:06:40, 32.8 / 41.6 GB | 0:24:28, 49.1 / 56.4 GB |
+| t405.3 | 0:26:29, 49.1 / 55.8 GB | stopped at 0:06:47, 32.8 / 48.9 GB | 0:24:00, 49.1 / 56.6 GB |
+
+Both ran to the end, their indicator steps too, and the `result.json` of t405.2 and of t405.3 is byte for byte the
+one of 20.26.0.m. The report gives the `.l` column 21 `ok`, t641.x, t2000 and the GUI tests not run, header
+1:37:20. The rerun is 7 to 10 % slower than 20.19.3.l, which ran in the Cicada account's distro before the Windows
+update of 2026-10-21, after which this machine runs the same binary 9 to 12 % slower (above): no build comparison.
+
 ### Reading
 
 - Correct: `.m` and `.c` 27 of 27 and `.l` 19 of 21, each with the results of 20.25.0; #1325 and #1324 change no
-  checked result, and the network experiments compute the same matrices.
+  checked result, and the network experiments compute the same matrices. With 48 GB for WSL `.l` gives 21 of 21:
+  its t405.2 and t405.3 were the account's VM, not a regression.
 - No performance regression: every row that moved in the rounds is level with 20.25.0 in an A/B on the same
   machine in the same sitting. The 4 to 5 % of the rounds is the sitting: the same 20.25.0 binary is 9 to 12 %
   slower in it than the day before, under a Remote Desktop session and after the Windows update of 2026-10-21.
@@ -1492,3 +1529,34 @@ was, not which build ran. To compare builds, read the inputs once before the rou
 same place. The `copy /b D:\SourceData\t300_XML\*.xml NUL` before the A/B above took 0.9 s, so the files were
 still known then and it proves nothing as a warm-up. Other experiments that read text files
 (t405.1 reads 82 CSV and 68 shapefile reads) may carry the same first-read cost; that has not been measured.
+
+## t405.2 and t405.3 on `.l` on OVSRV05: the WSL VM of the account
+
+Established on 2026-10-22 from the `.l` columns of this machine and a rerun of 20.26.0.l; not a change in the code.
+
+WSL settings and distros belong to a Windows account: each account that runs a `.l` round has its own VM, sized by
+its own `%USERPROFILE%\.wslconfig`. Without that file the VM gets half the host's RAM, here about 33.6 GB inside
+the VM, and a swap of a quarter of that, about 8 GB on C:. On Linux t405.2 and t405.3 reach about 49 GB of rss,
+and in such a VM they are stopped when they reach its ceiling: exit 15 after about six minutes, shown as a
+`timeout` pill. Duration and peak rss / vms of the harness's sampler, both tests together, from the `.l` columns
+kept in the results tree:
+
+| rounds | account (load lines of the logs) | duration | rss | vms |
+|---|---|---|---|---|
+| 20.3.0, 20.7.0, 20.8.0 (2026-06-22 to 07-12) | Cicada | 0:24:16 to 0:25:54 | 49.1 to 49.4 GB | 65.3 to 67.0 GB |
+| 20.12.0 to 20.19.3 (2026-08-09 to 09-05) | Cicada | 0:23:42 to 0:24:46 | 48.9 to 49.2 GB | 56.4 to 56.8 GB |
+| 20.20.0 (2026-09-11) | Jip Claassens | 0:30:55 and 0:37:25 | 49.5 GB | 116.0 and 121.5 GB |
+| 20.23.1, 20.24.2, 20.25.0, 20.26.0 (2026-10-08 to 10-21) | mtahi, no `.wslconfig` | stopped at 0:05:53 to 0:06:47 | 32.4 to 32.9 GB | 41.5 to 48.9 GB |
+| 20.26.0 rerun (2026-10-22) | mtahi, 48 GB and 128 GB swap | 0:26:11 and 0:26:29 | 49.1 GB | 55.8 and 56.0 GB |
+
+The other two accounts' VMs held those 49 GB without stopping them, so they had more than the default; their
+`.wslconfig` files cannot be read from this account. On Windows the report gives t405.2 and t405.3 51 to 53 GB of
+peak commit in every version from 16.0.5 to 20.26.0, `.m` and `.c` alike, at 27 to 48 GB physical, except 20.20.0
+(92 to 98 GB, high in `.l` too): the engine asks no more of these tests than it did.
+
+**Reading a `.l` column:** a `timeout` on t405.2 or t405.3 after about six minutes says which VM ran it, not which
+build. Before a `.l` round, check `wsl -d Ubuntu -- free -g` in the account that runs it (47 GB and 128 GB of swap
+for mtahi since 2026-10-22). After a Windows restart run `wsl --shutdown` and boot the VM once, so that its swap on
+D: is active again (the note in GeoDMS-Test's `batch\run_detached.ps1`). Two VMs of 48 GB together exceed the
+host's 64 GB: never run `.l` rounds under two accounts at once, and shut down a VM that is not in use. t641.x and
+t2000 stay skipped on `.l` regardless: full.py decides that on the host's RAM (`_HEAVY_L_MIN_HOST_GB`), not the VM's.
