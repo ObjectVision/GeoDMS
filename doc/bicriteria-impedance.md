@@ -1,22 +1,24 @@
 # Bi-criteria (2D) impedance: assessment and proposal for issue #856
 
-*Status (2026-10-06): v1 IMPLEMENTED (2026-08-25, 7856fcef7, with StartPoint_rel in pareto mode in
+*Status (2026-10-21): v1 IMPLEMENTED (2026-08-25, 7856fcef7, with StartPoint_rel in pareto mode in
 69c61c956) as designed below; sections 1-4 are the assessment that led there. #856 was closed on
 2026-08-25. Since then the pareto option gained `pareto(imp2_epsilon)` and the table operator
 `pareto_optimal_eps` (#1282, c2f64650d; relative since edadab56d and c1d0aacbb), and `pareto_optimal`
-came beside it (#1281, 9347cd552). The CMake/Linux and full.py gate of the summary below is overtaken: the
+came beside it (#1281, 9347cd552). v2 item 1 of 5.6, LinkSet per od row through a pool of accepted
+labels, is IMPLEMENTED (2026-10-21, #1325, for 20.26.0; see 5.1 and 5.6). The CMake/Linux and full.py gate of the summary below is overtaken: the
 release rounds in `doc/performance-test.md` ran full.py on these builds, the 20.22.0 round on OVSRV10 with
 `.m` and `.l`. Open: the last origin's count is never compared (5.4, invariant 2; audit GEO-A29 part (c));
-the shrink-if-huge policy of invariant 4 is not implemented; v2 items 1, 3 and 4 of 5.6 and landmark
-pruning. Section 7 is resolved (987730a64, #1210).*
+the shrink-if-huge policy of invariant 4 is not implemented, and with LinkSet it covers the label pool
+too; v2 items 3 and 4 of 5.6 and landmark pruning. Section 7 is resolved (987730a64, #1210).*
 Issue: https://github.com/ObjectVision/GeoDMS/issues/856 (jipclaassens, 2025-01-21, assigned MaartenHilferink)
 Motivating use case: https://github.com/ObjectVision/NetworkModel_PBL/issues/19
 
 Implementation summary (v1):
 - Spec syntax: new ordered section `pareto`, optionally `pareto(OrgZone_max_imp2)` for the cutoff on the
   second criterion; the second per-link criterion rides `alternative(link_imp)`, the per-row cost output is
-  its `alt_imp` production. Example:
-  `'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto;od:impedance,alt_imp,OrgZone_rel,DstZone_rel,EndPoint_rel'`
+  its `alt_imp` production (named in the alternative section, not in the od list, which rejects it as a
+  syntax error). Example:
+  `'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto;od:impedance,OrgZone_rel,DstZone_rel,EndPoint_rel'`
 - Code: `BiCriteriaDijkstraHeap` in geo/dll/src/Dijkstra.h (beside the scalar heap), `BiNodeZoneConnector` +
   `ProcessBiDijkstra` in geo/dll/src/Dijkstra.cpp (sibling of the untouched scalar driver, sharing
   NetworkInfo/GraphInfo/inversions/ResultInfo and the sparse two-pass Counting/fill protocol),
@@ -208,6 +210,16 @@ while forking the spec-string dialect, wiki documentation and test surface.
   the queue element is ~20-24 bytes and per-label storage is zero. A `useTraceBack`-style switch reserves the
   pool (t, c, node, parentLabelIdx, viaLink) for v2 — and its presence must never alter prune decisions
   (required anyway for two-pass consistency, since the counting pass runs without outputs).
+  *(2026-10-21, #1325: built as the template switch `TraceLabels` of `BiCriteriaDijkstraHeap` and
+  `ProcessBiDijkstra`, on only in the filling pass of a request with `od:...,LinkSet`. The label carries
+  its parent's pool index and its via link; `AcceptLabel` appends (parent, via) to a per-origin pool of
+  8 bytes per accepted label; t, c and node are not stored, as the LinkSet does not need them. A commit
+  records its label, also through the parked end points, and `WriteParetoLinkSets` walks the parents per
+  row, from the destination to the origin as `WriteLinkSets` does, under the same `WriteBlock` lock once
+  per origin. Prune decisions are unchanged because the heap compares only the (t, c) pair and nothing
+  reads the pool; `testcases/fn_test_od_pareto_linkset.dms` checks the same rows with and without
+  LinkSet. Without LinkSet the heap element keeps its size: for Float32 impedances it would grow from 16
+  to 24 bytes.)*
 
 While here: fix the stale Dijkstra.h comment claiming `m_AltLinkWeight` / `m_LinkAttr` are unused ("potential
 future use") — Dijkstra.cpp:693-694, :714-722, :976-982 and :1159 use them as per-node accumulators for
@@ -266,7 +278,8 @@ network with full fronts, and the motivating query always has a max time.
 
 pareto forbids in v1: interaction/trip-distribution (all Interaction* / Prod{Org,Dst}* aggregates),
 `Link_flow`, `LinkSet`, `link_attr` accumulation, `SumImp`/`SumLinkAttr`, `TraceBack`, `limit(...)`,
-`precalculated_NrDstZones` (counts zones, not labels), and the impedance_table form. Note the tree-walking
+`precalculated_NrDstZones` (counts zones, not labels), and the impedance_table form. *(`LinkSet` is
+admitted since 2026-10-21, #1325, through the label pool of 5.1; the rest stands.)* Note the tree-walking
 products are structurally impossible as written, not merely ill-defined: TreeRelations/UpdateALW/link-flow
 walk a per-NODE parent forest via `m_TraceBackDataPtr[node]`, whereas accepted bicriteria labels form a forest
 over LABELS. `limit()`'s cumulative-mass semantics has no canonical front generalization (count zone mass at
@@ -340,6 +353,7 @@ engine is ready for them).
 ### 5.6 v2 candidates, in order
 
 1. LinkSet per od-row via label parent chains (turns on the label pool; memory class changes).
+   *Done 2026-10-21, #1325: see 5.1.*
 2. Per-label StartPoint_rel (requires per-label origin tracking).
 3. Cost offsets at start/end points (engine-ready; argument plumbing only).
 4. limit() semantics for fronts (needs a semantic decision first).

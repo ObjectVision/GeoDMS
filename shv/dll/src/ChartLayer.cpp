@@ -26,6 +26,7 @@
 #include "AbstrUnit.h"
 #include "DataArray.h"
 #include "DataLocks.h"
+#include "PropFuncs.h"
 
 #include "AbstrController.h"
 #include "DataView.h"
@@ -102,6 +103,37 @@ void ChartLayer::SetXAttr(const AbstrDataItem* xAttr)
 	m_ZoomPending = true; // the world extent changes with X; re-fit once the new geometry is ready
 	InvalidateView(); // geometry depends on X
 	InvalidateDraw();
+}
+
+static StaticLateTokenID s_XAxisDialogTypeID("XAxis");
+
+// A domain names the X axis of its charts with an attribute whose DialogType is "XAxis", the way it
+// names the tick labels of a row-number axis with its Label attribute (AbstrUnit::GetLabelAttr) and
+// an attribute claims an aspect such as BrushColor with its DialogType. As for Label, a unit that
+// refers to another one (unit<uint32> D := E) also finds the attribute of that one. Only a new layer
+// takes it (ChartDataView::AddSeriesLayer): a layer restored from a view context keeps the X attribute
+// stored there, or the row number, and "Use as X axis ..." changes it as before.
+void ChartLayer::TakeDomainXAttr()
+{
+	auto theme = GetActiveTheme();
+	const AbstrDataItem* yAttr = theme ? theme->GetThemeAttr() : nullptr;
+	if (!yAttr || m_XAttr)
+		return;
+	try {
+		const AbstrUnit* domain = yAttr->GetAbstrDomainUnit();
+		for (const TreeItem* unit = domain; unit; unit = unit->GetSourceItem())
+			for (auto subItem = unit->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+			{
+				auto candidate = AsDynamicDataItem(subItem);
+				if (candidate && candidate != yAttr && TreeItem_GetDialogType(candidate) == s_XAxisDialogTypeID
+					&& domain->UnifyDomain(candidate->GetAbstrDomainUnit()))
+				{
+					m_XAttr = candidate; // not SetXAttr: a new layer is fitted at its first update anyway, and a forced re-fit would also move the other layers of the chart
+					return;
+				}
+			}
+	}
+	catch (...) {} // a broken X attribute costs the default axis, not the chart
 }
 
 ActorVisitState ChartLayer::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const

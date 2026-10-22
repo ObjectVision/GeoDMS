@@ -39,8 +39,9 @@
 //                           and OrgZone_rel / DstZone_rel / StartPoint_rel / EndPoint_rel are
 //                           attributes of that route: which zones it connects and which start
 //                           and end point it used.
-//   per-OD extras         : alternative impedance, StartPoint_rel / EndPoint_rel, and -- scalar
-//                           engine only -- link attribute and LinkSet.
+//   per-OD extras         : alternative impedance, StartPoint_rel / EndPoint_rel, LinkSet (in pareto
+//                           mode the route of the row's label, #1325), and -- scalar engine only --
+//                           link attribute.
 //   org/dst aggregates    : spatial-interaction potentials D_i / M_ix / C_j / M_xj, SumImp,
 //                           SumLinkAttr, NrDstZones, MaxImp (scalar engine only).
 //   network aggregate     : Link_flow -- the interaction demand assigned back onto the links
@@ -85,6 +86,8 @@
 //      minimum accepted imp2 -- exact bi-criteria dominance -- and both cutoffs hold
 //   3. commit accepted labels' endpoints per destination zone under the same dominance rule;
 //      the commit list, in order, is the origin's od rows (or, in the Counting pass, its count)
+//   4. with od:LinkSet, walk each row's label back through the pool of accepted labels
+//      (WriteParetoLinkSets, #1325)
 //
 // Concurrency
 //   Origin zones are independent, so per-OD and per-origin outputs need no locking: each task
@@ -93,7 +96,7 @@
 //   worker and summed afterwards, and the sequence-allocating LinkSet writes, which take the lock
 //   in WriteBlock once per origin. The destination totals took a global lock per od pair until
 //   GEO-A39, and the link sets one per od row. The pareto engine produces per-OD outputs only and
-//   therefore needs no locks at all. All per-worker scratch (heap, tree, connector, potentials) lives in
+//   takes no lock but that of the LinkSet writes, once per origin. All per-worker scratch (heap, tree, connector, potentials) lives in
 //   dms_combinables and is allocated once per worker rather than once per origin.
 //
 // Endpoint impedances
@@ -111,7 +114,8 @@
 //   keeps the search exact. With timedependent_alt(...), pareto only, the same holds for the
 //   alternative impedance, the second criterion, so that a search on distance first gets
 //   time-dependent travel times. Everything downstream (the traceback forest, alt_imp, link_attr, the
-//   interaction stages, LinkSet, Link_flow) reads the accepted tree and needs no change.
+//   interaction stages, LinkSet, Link_flow) reads the accepted tree and needs no change; so does the
+//   pareto LinkSet, which reads the pool of accepted labels.
 
 #include "Dijkstra.h"
 
@@ -188,10 +192,11 @@ void CheckFlags(DijkstraFlag df)
 
 	// pareto (bi-criteria) mode -- issue #856. The v1 envelope: od rows over the sparse two-pass
 	// machinery, with the search bounded on the first criterion. Products that walk the per-NODE
-	// traceback forest (LinkSet, link_attr, interaction aggregates, link flow, StartPoint_rel) are
-	// structurally single-label -- accepted pareto labels form a forest over LABELS -- and stay
-	// excluded until a per-label traceback exists; limit()'s cumulative-mass semantics has no
-	// canonical generalization to fronts and is excluded rather than guessed.
+	// traceback forest (link_attr, interaction aggregates, link flow) are structurally single-label
+	// -- accepted pareto labels form a forest over LABELS -- and stay excluded; LinkSet walks that
+	// label forest instead (#1325, the label pool of BiCriteriaDijkstraHeap), and StartPoint_rel
+	// rides in the label. limit()'s cumulative-mass semantics has no canonical generalization to
+	// fronts and is excluded rather than guessed.
 	if (flags(df & DijkstraFlag::BiCriteria))
 	{
 		MG_USERCHECK2(flags(df & DijkstraFlag::OD),
@@ -206,8 +211,8 @@ void CheckFlags(DijkstraFlag df)
 			"pareto does not (yet) support interaction, trip distribution, Link_flow, max_imp or NrDstZones productions");
 		MG_USERCHECK2(!flags(df & (DijkstraFlag::DistDecay | DijkstraFlag::DistLogit | DijkstraFlag::InteractionVi | DijkstraFlag::InteractionWj | DijkstraFlag::InteractionAlpha | DijkstraFlag::OrgMinImp | DijkstraFlag::DstMinImp)),
 			"pareto does not (yet) support the interaction() section");
-		MG_USERCHECK2(!flags(df & (DijkstraFlag::UseLinkAttr | DijkstraFlag::ProdOdLinkSet)),
-			"pareto does not (yet) support link_attr or LinkSet productions: they need per-label traceback");
+		MG_USERCHECK2(!flags(df & DijkstraFlag::UseLinkAttr),
+			"pareto does not (yet) support link_attr: it accumulates over the per-node traceback, which a front does not have");
 		MG_USERCHECK2(!flags(df & DijkstraFlag::PrecalculatedNrDstZones),
 			"pareto cannot use precalculated_NrDstZones: it counts destination zones, not Pareto-optimal routes");
 		MG_USERCHECK2(!flags(df & DijkstraFlag::VerboseLogging),
@@ -761,8 +766,9 @@ struct BiNodeZoneConnector
 	using network_info = NetworkInfo<NodeType, ZoneType, ImpType>;
 
 	// One accepted od-row: the reached end point, its zone, the start point whose route was
-	// accepted (StartPoint_rel and EndPoint_rel are attributes of the route), and both criteria.
-	struct CommitType { ZoneType y; ZoneType startPoint; ZoneType dstZone; ImpType imp, imp2; };
+	// accepted (StartPoint_rel and EndPoint_rel are attributes of the route), both criteria, and
+	// the pooled label whose chain of parents is the row's LinkSet (undefined when not traced, #1325).
+	struct CommitType { ZoneType y; ZoneType startPoint; ZoneType dstZone; ImpType imp, imp2; LabelIdx label; };
 
 	void Init(const network_info& networkInfo, sqr_dist_t euclidSqrDist)
 	{
@@ -786,7 +792,8 @@ struct BiNodeZoneConnector
 
 	// Attempt to commit end point y with label (imp, imp2) whose route was seeded by startPoint;
 	// see the struct comment for why the per-zone dominance test reduces to the imp2 comparison.
-	bool CommitY(ZoneType y, ZoneType startPoint, ImpType imp, ImpType imp2)
+	// label only rides along to the row; it takes no part in the test.
+	bool CommitY(ZoneType y, ZoneType startPoint, ImpType imp, ImpType imp2, LabelIdx label)
 	{
 		dms_assert(IsDefined(m_CurrSrcZoneTick));
 		dms_assert(y < m_NetworkInfoPtr->nrY);
@@ -813,7 +820,7 @@ struct BiNodeZoneConnector
 			m_LastCommittedSrcZone[dstZone] = m_CurrSrcZoneTick;
 
 		m_MinImp2PerDstZone[dstZone] = imp2;
-		m_Commits.push_back(CommitType{ y, startPoint, dstZone, imp, imp2 });
+		m_Commits.push_back(CommitType{ y, startPoint, dstZone, imp, imp2, label });
 		return true;
 	}
 
@@ -1787,7 +1794,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 //   and its preconditions live with BiCriteriaDijkstraHeap in Dijkstra.h.
 //
 //   Emits one od-row per accepted commit -- impedance, alt_imp (= imp2),
-//   OrgZone_rel, DstZone_rel, StartPoint_rel, EndPoint_rel -- through the same
+//   OrgZone_rel, DstZone_rel, StartPoint_rel, EndPoint_rel, LinkSet -- through the same
 //   sparse two-pass Counting/fill protocol as the scalar engine; the count and
 //   fill pass MUST replay identical searches, which holds because no output
 //   structure influences pruning. StartPoint_rel and EndPoint_rel are
@@ -1805,12 +1812,62 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 //   beyond the cutoff: the heap orders lexicographically, so a candidate
 //   failing the imp2 cutoff may be followed by one that passes.
 //
-//   CheckFlags keeps interaction/trip-distribution/link-flow/LinkSet/limit()
-//   away from this engine (per-label traceback and front-mass semantics are
-//   follow-up work), which is what keeps this driver small; both cutoffs are
-//   therefore fixed per origin.
+//   CheckFlags keeps interaction/trip-distribution/link-flow/link_attr/limit()
+//   away from this engine (front-mass semantics are follow-up work), which is
+//   what keeps this driver small; both cutoffs are therefore fixed per origin.
+//
+//   od:LinkSet (#1325) is the one tree product: the filling pass runs with
+//   TraceLabels when it is requested, the heap pools the accepted labels with
+//   their parent and via link, each commit records its label, and
+//   WriteParetoLinkSets walks the parents per row. The counting pass never
+//   traces; see BiCriteriaDijkstraHeap for why both passes still accept the
+//   same labels.
+// *****************************************************************************
+
+// *****************************************************************************
+// WriteParetoLinkSets:
+//   The pareto counterpart of WriteLinkSets (#1325). The route of an od row is
+//   the chain of parents of its committed label in the label pool, walked from
+//   the arrival back to the seed, so the links come in the order of
+//   WriteLinkSets: from the destination to the origin. The walks of all rows of
+//   an origin go into one buffer outside the lock; the lock guards only the
+//   allocation in the shared sequence array.
 // *****************************************************************************
 template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType, typename MassType>
+void WriteParetoLinkSets(const BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType, LinkType, true>& dh
+,	const BiNodeZoneConnector<NodeType, ZoneType, ImpType>& nzc
+,	SizeT resultCountBase
+,	WriteBlock& writeBlocks
+,	const ResultInfo<ZoneType, ImpType, MassType>& res)
+{
+	SizeT nrRows = nzc.CommitCount();
+	std::vector<LinkType> links;
+	std::vector<SizeT> rowEnds(nrRows);
+	for (SizeT r = 0; r != nrRows; ++r)
+	{
+		LabelIdx label = nzc.Commit(r).label;
+		while (true)
+		{
+			const auto& pooled = dh.PooledLabelAt(label);
+			if (!IsDefined(pooled.via))
+				break; // a seed: the route starts at its start point
+			links.push_back(pooled.via);
+			label = pooled.parent;
+		}
+		rowEnds[r] = links.size();
+	}
+
+	leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
+	SizeT rowBegin = 0;
+	for (SizeT r = 0; r != nrRows; rowBegin = rowEnds[r++])
+	{
+		auto resLinkSetRef = res.od_LS[resultCountBase + r];
+		resLinkSetRef.resize_uninitialized(rowEnds[r] - rowBegin MG_DEBUG_ALLOCATOR_SRC("Dijkstra.LinkSet"));
+		std::copy(links.begin() + rowBegin, links.begin() + rowEnds[r], resLinkSetRef.begin());
+	}
+}
+
+template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType, typename MassType, bool TraceLabels>
 SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 ,	const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 ,	const ImpType* orgMaxImpedances, bool orgMaxImpedancesHasVoidDomain
@@ -1837,16 +1894,21 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 
 	assert(orgMaxImpedances); // CheckFlags: pareto requires cut(OrgZone_max_imp)
 	assert(linkImp2Data);     // CheckFlags: pareto requires alternative(link_imp)
+	assert(TraceLabels == bool(res.od_LS)); // the call site instantiates the tracing driver for od:LinkSet only
+
+	using HeapType = BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType, LinkType, TraceLabels>;
+
+	WriteBlock writeBlocks;
 
 	// Thread-local combinables (one copy per worker thread)
 	dms_combinable<BiNodeZoneConnector<NodeType, ZoneType, ImpType>> nzcC;
-	dms_combinable<BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType>> dhC;
+	dms_combinable<HeapType> dhC;
 
 	auto orgZoneTask =
 		[=,
 		&resultHolder,
 		&ni, &graph, &node_endPoint_inv, &zoneCount, &resultCount, &processTimer,
-		&nzcC, &dhC,
+		&nzcC, &dhC, &writeBlocks,
 		&res
 		](ZoneType orgZone)
 		{
@@ -1903,17 +1965,28 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				dh.InsertLabel(startNode, ni.startPoints.Impedances ? ni.startPoints.Impedances[startPointIndex] : ImpType(0), ImpType(0), startPointIndex);
 			}
 
-			using ImpPairType = typename BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType>::ImpPairType;
-			struct EndPointRef { ZoneType y; ZoneType startPoint; };
+			using ImpPairType = typename HeapType::ImpPairType;
+			// a parked candidate carries the pooled label of its route when tracing (#1325)
+			struct UntracedEndPointRef { ZoneType y; ZoneType startPoint; };
+			struct TracedEndPointRef   { ZoneType y; ZoneType startPoint; LabelIdx label; };
+			using EndPointRef = std::conditional_t<TraceLabels, TracedEndPointRef, UntracedEndPointRef>;
 			using EndPointHeapElemType = heapElemType<ImpPairType, EndPointRef>;
 			my_vec_t<EndPointHeapElemType> endPointHeap;
+			auto parkedLabel = [](const EndPointRef& ref) -> LabelIdx
+			{
+				if constexpr (TraceLabels)
+					return ref.label;
+				else
+					return UNDEFINED_VALUE(LabelIdx);
+			};
 
 			// Main label-setting loop
 			SizeT popCount = 0;
 			while (!dh.Empty())
 			{
-				NodeType currNode = dh.Front().Value().node; dms_assert(currNode < ni.nrV);
-				ZoneType currStartPoint = dh.Front().Value().startPoint;
+				const typename HeapType::LabelRef currRef = dh.Front().Value();
+				NodeType currNode = currRef.node; dms_assert(currNode < ni.nrV);
+				ZoneType currStartPoint = currRef.startPoint;
 				ImpPairType currLabel = dh.Front().Imp();
 				dh.PopLabel();
 
@@ -1922,8 +1995,16 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				if (!(++popCount & 0x3FFF) && CancelableFrame::CurrActiveCanceled())
 					return;
 
-				if (!dh.AcceptLabel(currNode, currLabel.second))
+				if (!dh.AcceptLabel(currRef, currLabel.second))
 					continue;
+
+				// with od:LinkSet the accepted label joined the pool; its index is the parent of
+				// the labels relaxed from it below and rides along to the rows it commits
+				const LabelIdx currLabelIdx = dh.LastAcceptedLabel();
+				if constexpr (TraceLabels)
+					if (dh.LabelPoolSize() >= UNDEFINED_VALUE(LabelIdx))
+						throwErrorF("dijkstra", "pareto with LinkSet: more than {} accepted labels for origin zone {}; bound the search more tightly or use pareto(imp2_epsilon)"
+							, UNDEFINED_VALUE(LabelIdx) - 1, orgZone);
 
 				ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
 				if (ni.endPoints.Impedances)
@@ -1931,7 +2012,12 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 					// Each endpoint offset considered as a separate candidate, keyed on the full pair
 					while (IsDefined(y))
 					{
-						endPointHeap.push_back(EndPointHeapElemType(EndPointRef{ y, currStartPoint }, ImpPairType(currLabel.first + ni.endPoints.Impedances[y], currLabel.second)));
+						EndPointRef parked;
+						if constexpr (TraceLabels)
+							parked = EndPointRef{ y, currStartPoint, currLabelIdx };
+						else
+							parked = EndPointRef{ y, currStartPoint };
+						endPointHeap.push_back(EndPointHeapElemType(parked, ImpPairType(currLabel.first + ni.endPoints.Impedances[y], currLabel.second)));
 						std::push_heap(endPointHeap.begin(), endPointHeap.end());
 						y = node_endPoint_inv.NextOrNone(y);
 					}
@@ -1940,7 +2026,8 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 					// lexicographic order and CommitY's dominance test stays exact.
 					while (!endPointHeap.empty() && !(currLabel < endPointHeap.front().Imp()))
 					{
-						nzc.CommitY(endPointHeap.front().Value().y, endPointHeap.front().Value().startPoint, endPointHeap.front().Imp().first, endPointHeap.front().Imp().second);
+						const auto& released = endPointHeap.front();
+						nzc.CommitY(released.Value().y, released.Value().startPoint, released.Imp().first, released.Imp().second, parkedLabel(released.Value()));
 						std::pop_heap(endPointHeap.begin(), endPointHeap.end());
 						endPointHeap.pop_back();
 					}
@@ -1949,13 +2036,14 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				{
 					while (IsDefined(y))
 					{
-						nzc.CommitY(y, currStartPoint, currLabel.first, currLabel.second);
+						nzc.CommitY(y, currStartPoint, currLabel.first, currLabel.second, currLabelIdx);
 						y = node_endPoint_inv.NextOrNone(y);
 					}
 				}
 
 				// Relax the outgoing links on both criteria; InsertLabel applies the cutoffs and
-				// the dominance pre-prune, and the extended labels inherit this route's start point.
+				// the dominance pre-prune, and the extended labels inherit this route's start point
+				// (and, when tracing, get this label as parent and the link as via).
 				// With timedependent() the first criterion of a link depends on when the route enters
 				// it, with timedependent_alt() the second; the time of entering counts from the
 				// departure by that criterion. The early-outs on the link alone change nothing, as
@@ -1974,7 +2062,8 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 						dh.InsertLabel(otherNode
 						,	currLabel.first + deltaCost
 						,	currLabel.second + deltaCost2
-						,	currStartPoint);
+						,	currStartPoint
+						,	currLabelIdx, currLink);
 					currLink = graph.node_link1_inv.Next(currLink);
 				}
 				if (!flags(df & (DijkstraFlag::Bidirectional | DijkstraFlag::BidirFlag)))
@@ -1990,7 +2079,8 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 						dh.InsertLabel(otherNode
 						,	currLabel.first + deltaCost
 						,	currLabel.second + deltaCost2
-						,	currStartPoint);
+						,	currStartPoint
+						,	currLabelIdx, currLink);
 					currLink = graph.node_link2_inv.Next(currLink);
 				}
 			}
@@ -2002,7 +2092,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 			{
 				const auto& parked = endPointHeap.front().Imp();
 				if (parked.first < dh.m_MaxImp && parked.second < dh.m_MaxImp2)
-					nzc.CommitY(endPointHeap.front().Value().y, endPointHeap.front().Value().startPoint, parked.first, parked.second);
+					nzc.CommitY(endPointHeap.front().Value().y, endPointHeap.front().Value().startPoint, parked.first, parked.second, parkedLabel(endPointHeap.front().Value()));
 				std::pop_heap(endPointHeap.begin(), endPointHeap.end());
 				endPointHeap.pop_back();
 			}
@@ -2031,6 +2121,8 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 					if (res.od_StartPointIds)  res.od_StartPointIds [resultCountBase + r] = commit.startPoint;
 					if (res.od_EndPointIds)    res.od_EndPointIds   [resultCountBase + r] = commit.y;
 				}
+				if constexpr (TraceLabels)
+					WriteParetoLinkSets(dh, nzc, resultCountBase, writeBlocks, res);
 			}
 			resultCount += zonalResultCount;
 
@@ -3093,7 +3185,7 @@ public:
 					if (!flags(df & DijkstraFlag::PrecalculatedNrDstZones))
 					{
 						if (flags(df & DijkstraFlag::BiCriteria))
-							nrRes = ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType>(resultHolder, networkInfo
+							nrRes = ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, /*TraceLabels*/ false>(resultHolder, networkInfo
 								, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
 								, orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
 								, imp2EpsilonData.empty() ? nullptr : imp2EpsilonData.data(), HasVoidDomainGuarantee(adiImp2Epsilon)
@@ -3200,20 +3292,28 @@ public:
 			auto runEngine = [&](ResultInfo<ZoneType, ImpType, MassType>&& res) -> SizeT
 			{
 				if (flags(df & DijkstraFlag::BiCriteria))
-					return ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType>(resultHolder, networkInfo
-					,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
-					,	orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
-					,	imp2EpsilonData.empty() ? nullptr : imp2EpsilonData.data(), HasVoidDomainGuarantee(adiImp2Epsilon)
-					,	euclidicSqrDist
-					,	graph
-					,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
-					,	imp2Profiles
-					,	node_endPoint_inv
-					,	df
-					,	resCount.begin(), nrRes, nullptr
-					,	std::move(res)
-					,	"Filling"
-					);
+				{
+					// od:LinkSet takes the driver that pools the accepted labels (#1325); without it the
+					// heap element and the search stay as they were
+					auto runBi = [&](auto traceLabels) -> SizeT
+					{
+						return ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, decltype(traceLabels)::value>(resultHolder, networkInfo
+						,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
+						,	orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
+						,	imp2EpsilonData.empty() ? nullptr : imp2EpsilonData.data(), HasVoidDomainGuarantee(adiImp2Epsilon)
+						,	euclidicSqrDist
+						,	graph
+						,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
+						,	imp2Profiles
+						,	node_endPoint_inv
+						,	df
+						,	resCount.begin(), nrRes, nullptr
+						,	std::move(res)
+						,	"Filling"
+						);
+					};
+					return res.od_LS ? runBi(std::true_type()) : runBi(std::false_type());
+				}
 				return ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
 				,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
 				,	orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)

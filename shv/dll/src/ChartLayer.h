@@ -23,7 +23,8 @@ class AbstrThemeValueGetter;
 // world coordinates. It takes the X and Y axes as separate attributes:
 //   - Y = the active theme's thematic attribute (the value shown on the vertical axis);
 //   - X = a settable attribute over E (horizontal axis); when null, the element's row
-//         number (id of E) is used.
+//         number (id of E) is used. A new layer starts with the attribute of E whose
+//         DialogType is "XAxis", if E has one (TakeDomainXAttr).
 // A draw mode selects markers (scatter), a connecting polyline (line), or both, so
 // switching between scatter and line is a cheap toggle rather than a different layer.
 // Like HistogramLayer the drawing domain is E, so selection writes the shared
@@ -45,6 +46,9 @@ public:
 	// attribute's domain E); pass nullptr to use the row number (id of E).
 	void SetXAttr(const AbstrDataItem* xAttr);
 	const AbstrDataItem* GetXAttr() const { return m_XAttr.get_ptr(); }
+	// The X axis of a new layer: the attribute that the domain of Y names for its charts with
+	// DialogType "XAxis"; the row number when there is none.
+	void TakeDomainXAttr();
 
 	// X tick labels (position -> label) for the horizontal AxisControl; empty for a numeric X
 	// axis. Filled for a categorical X attribute, and for the row-number X axis when the domain
