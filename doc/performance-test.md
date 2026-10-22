@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-21): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-22): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -12,7 +12,8 @@ round, 20.25.0 at cd3e83ec7, gave 23 of 27: the loose quadtree of #1292 makes `p
 of overlapping polygons in t060, t301, t641.2 and t2000, whose references GeoDMS-Test 6387c67 moved (27 of 27
 since), and makes t060 and t301 4 to 7 % faster; the final engine code of 20.25.0, c56fe51a2, gives 27 of 27 with
 the same results and times, and so does the release v20.25.0 (fec6efe90) in `.m` and `.c` (27 of 27) and `.l` (19 of
-21). t300's two levels on this machine are the first read of its XML, not the build (see
+21); the release v20.26.0 (f3c45bc70) gives the same verdicts and results, and an A/B shows no performance change
+against 20.25.0. t300's two levels on this machine are the first read of its XML, not the build (see
 the known causes at the end). Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
@@ -1263,6 +1264,105 @@ release against 17:37 for 20.24.2.m).
 - No performance regression: `.m` takes 184.8 min over the rows, the lowest of the 20.24.2 and 20.25.0 rounds. The rows of `.c` and
   `.l` that moved in their rounds are level with 20.24.2 in the A/B, except perhaps t405.2 on `.c` (+3 %, not
   settled). The setups compute what the local build computes, in the same time.
+
+## Results (OVSRV05), the release v20.26.0 (tag `f3c45bc70`) in `.l`, `.c` and `.m`
+
+The GitHub pre-release `v20.26.0` (published 2026-10-21 15:29 UTC) is tagged at `f3c45bc70`. Its engine differs
+from 20.25.0 (`fec6efe90`) in `geo/dll/src/Dijkstra.{h,cpp}` (#1325, `3ddefdb69`: `impedance_matrix` with a LinkSet
+per od row and pareto, through a pool of accepted labels), `rtc/dll/src/tic/Unit.cpp` (#1324, `88e796c31`:
+`SetIrregularTileRange` reports the range it installed), the charts' X axis (`602c72590`) and the version number.
+GeoDMS-Test at `5fb7780` (Jip Claassens' report changes `30962b2` and `5fb7780` on top of `6387c67`), pulled again
+before the rounds. The `.m`, `.c` and `.l` assets were downloaded with `gh` into `C:\LocalData\GeoDMS_releases\v20.26.0`;
+their SHA256 match the release's digests and both Windows setups carry a valid signature of Object Vision B.V.; `.m`
+and `.c` were installed silently (exit 0), `.l` replaced 20.25.0.l in WSL and passed a smoke test.
+
+`testcases\run_testcases.bat` with each installed `GeoDmsRun.exe` first gave 528 of 529: `stor_mmd_rule_orgrel_2_read`
+failed its check `file_dom_rel_out == true`, which since `fec6efe90` expects `dom/rel_out` of the lookups store to be
+kept as a rule, without a data file. The file it found was written on 2026-10-16 01:10, by a battery run of the
+testcase before `fec6efe90`: the battery keeps `<OutDir>\LocalData` between runs, and the write half of the pair
+does not remove a file that it no longer writes. With a fresh `-OutDir` both builds give 529 cases, 0 bad.
+
+`scratch\launch_perf_20260_release.cmd` read t300's XML first (5.6 GiB in 58 s), then ran `.l` 2026-10-21 17:41 to
+18:46, `.c` 18:46 to 22:06 and `.m` 22:06 to 2026-10-22 01:21, threshold 60, put back to 95. Each full.py exit 0,
+nothing on stderr, no reuse. Running on the machine: a Remote Desktop session through `.c` and `.m` (the host
+1 399 and 1 144 s of CPU, about a tenth of a core), the Claude desktop app at about a third of a core through `.l`.
+The machine had restarted on 2026-10-21 at 11:46 for the October 2026 cumulative update of Windows 10 22H2
+(KB5127308, KB5126657, KB5127689) and the .NET and Visual Studio updates of that morning.
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.l` | 0:57:35 | 19 of 21 `ok`: t405.2 and t405.3 stop with exit 15, as in every `.l` round of this machine |
+| `.c` | 3:17:45 | 27 of 27 `ok` |
+| `.m` | 3:12:32 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result of each flavour is byte for byte the one of 20.25.0 in that
+flavour, t101, t102, t405.x, t410 and t910, the network experiments that go through Dijkstra, included.
+
+| test | `.m` 20.26.0 | `.m` 20.25.0 | `.c` 20.26.0 | `.c` 20.25.0 | `.l` 20.26.0 | `.l` 20.25.0 |
+|---|---|---|---|---|---|---|
+| t020 | 0:04:07 | 0:03:52 | 0:04:20 | 0:03:53 | 0:03:45 | 0:03:57 |
+| t060 | 0:01:45 | 0:01:44 | 0:01:50 | 0:01:48 | 0:02:56 | 0:02:59 |
+| t101 | 0:03:35 | 0:03:12 | 0:03:39 | 0:03:48 | 0:03:48 | 0:03:42 |
+| t200 | 0:00:38 | 0:00:37 | 0:00:38 | 0:00:39 | 0:01:00 | 0:00:58 |
+| t300 | 0:01:03 | 0:01:04 | 0:01:06 | 0:01:03 | 0:01:18 | 0:01:17 |
+| t301 | 0:02:44 | 0:02:40 | 0:02:39 | 0:03:04 | 0:01:35 | 0:01:36 |
+| t405.1 | 0:04:38 | 0:04:26 | 0:04:26 | 0:03:33 | 0:04:55 | 0:04:35 |
+| t405.2 | 0:18:18 | 0:17:38 | 0:18:31 | 0:19:20 | stopped | stopped |
+| t405.3 | 0:18:12 | 0:17:28 | 0:18:23 | 0:19:10 | stopped | stopped |
+| t410 | 0:03:58 | 0:03:50 | 0:03:54 | 0:03:51 | 0:04:35 | 0:04:14 |
+| t611 | 0:00:31 | 0:00:30 | 0:00:31 | 0:00:31 | 0:00:36 | 0:00:33 |
+| t641.1 | 0:51:38 | 0:49:13 | 0:52:31 | 0:50:38 | not run | not run |
+| t641.2 | 0:45:05 | 0:44:13 | 0:47:32 | 0:43:00 | not run | not run |
+| t710 | 0:01:04 | 0:01:02 | 0:01:05 | 0:01:01 | 0:01:14 | 0:01:10 |
+| t720 | 0:09:47 | 0:09:22 | 0:09:42 | 0:09:20 | 0:10:06 | 0:09:35 |
+| t810 | 0:05:08 | 0:05:29 | 0:05:41 | 0:05:23 | 0:07:03 | 0:06:28 |
+| t910 | 0:00:51 | 0:00:49 | 0:00:51 | 0:00:48 | 0:01:03 | 0:00:58 |
+| t2000 | 0:18:16 | 0:16:50 | 0:19:15 | 0:16:44 | not run | not run |
+
+Summed over the rows that ran: `.m` 192.1 min against 184.8, `.c` 197.3 against 188.4, `.l` 57.4 against 54.4, each
+4 to 5 % above 20.25.0, with t101 on `.m` (+12 %), the experiment that the Dijkstra change touches most, and t405.1
+on `.c` (+25 %, back at `.m`'s level) the largest rows. Peak memory as before; t2000's live peak 64 822 MB on `.m`
+and 78 831 MB on `.c`, its two known levels.
+
+### Interleaved A/B: the release 20.25.0 against the release 20.26.0
+
+`scratch\perf_ovsrv05\ab_20260r.cmd`, 2026-10-22 01:23 to 04:21, X, Y, X, Y per flavour, threshold 60, the inputs read
+once beforehand (50.1 GiB): X = 20.25.0 (`release_fec6efe90_m`, `release_fec6efe90_c`, 20.25.0.l unpacked from its
+`.deb` beside 20.26.0.l), Y = 20.26.0 (`release_f3c45bc70_m`, `release_f3c45bc70_c`, the installed 20.26.0.l). Seconds:
+
+| flavour, test | X1 | Y1 | X2 | Y2 | Y / X |
+|---|---|---|---|---|---|
+| `.m` t101 | 215 | 213 | 216 | 214 | 0.99 |
+| `.m` t102 | 4 | 4 | 4 | 4 | 1.00 |
+| `.m` t405.1 | 220 | 218 | 220 | 225 | 1.01 |
+| `.m` t410 | 238 | 245 | 242 | 237 | 1.00 |
+| `.m` t020 | 244 | 245 | 236 | 243 | 1.02 |
+| `.c` t101 | 214 | 217 | 213 | 217 | 1.02 |
+| `.c` t020 | 227 | 230 | 234 | 234 | 1.01 |
+| `.c` t405.1 | 220 | 218 | 227 | 224 | 0.99 |
+| `.l` t405.1 | 283 | 275 | 278 | 277 | 0.98 |
+| `.l` t410 | 259 | 261 | 260 | 257 | 1.00 |
+| `.l` t810 | 387 | 401 | 399 | 396 | 1.01 |
+| `.l` t910 | 68 | 64 | 65 | 65 | 0.97 |
+| `.l` t611 | 34 | 34 | 35 | 35 | 1.00 |
+
+All 36 result files of the A/B are byte for byte those of their build's round. The two releases are level on every
+row, t101 included. The sitting itself is slower than the ones before it: the
+same binary, `release_fec6efe90_c`, took 195, 191, 190 and 190 s for t101 and 204 and 203 s for t405.1 in the A/B of
+the section above (2026-10-21 04:33 to 06:22, no other load), and 214 and 213 s and 220 and 227 s here, 9 to 12 %
+more. Between the two lie the Windows update with its restart and, during this A/B, a Remote Desktop session (its
+host 867 s and `dllhost` 359 s of CPU). The session alone can account for it: the 20.25.0.c round took 3:48 for t101
+in the hour that it shared with such a session, before the update, against 190 s the morning after without one.
+Which of the two it is has not been separated; the session was still connected at the end of the A/B.
+
+### Reading
+
+- Correct: `.m` and `.c` 27 of 27 and `.l` 19 of 21, each with the results of 20.25.0; #1325 and #1324 change no
+  checked result, and the network experiments compute the same matrices.
+- No performance regression: every row that moved in the rounds is level with 20.25.0 in an A/B on the same
+  machine in the same sitting. The 4 to 5 % of the rounds is the sitting: the same 20.25.0 binary is 9 to 12 %
+  slower in it than the day before, under a Remote Desktop session and after the Windows update of 2026-10-21.
+  Rounds from that day on compare with each other, and with earlier ones only through an A/B.
 
 # Known causes of differences between versions
 
