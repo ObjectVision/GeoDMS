@@ -11,6 +11,13 @@
 
 #include "TileLock.h"
 
+#include "mem/tiledata.h"
+#include "ptr/OwningPtrSizedArray.h"
+#include "vt/ElemTraits.h"
+
+#include <mutex>
+#include <vector>
+
 //----------------------------------------------------------------------
 // struct  : tile_read_channel
 //----------------------------------------------------------------------
@@ -388,6 +395,277 @@ struct locked_tile_write_channel : DataWriteLock, tile_write_channel<T>
 	{}
 };
 
+//----------------------------------------------------------------------
+// #1327: a tiled result whose count is known only at the end, produced in parallel in a fixed order
+//
+// tile_appender writes the elements of one attribute in order, by one writer at a time: into the tiles of an array
+// whose domain already has its count, or into a chain of tiles of its own. A chain has the tile size that a domain of
+// a numeric value type gets from SetCount (default_tile_size, 2^16), so after the last element FinishChain cuts the
+// last tile to its elements, the domain gets the count, and AdoptInto hands the tiles to the array of the attribute.
+//
+// row_queue and ordered_turn let parallel producers deliver their rows in the order of their item numbers (origin
+// zones, say) without counting them first. The producer whose item is next writes it straight into the appenders. One
+// that is ahead appends its rows to a queue of its own and goes on with its next item. Whoever has the turn then
+// writes the finished successors from their queues, up to the first item that is not finished. A producer that gets
+// its items in increasing order, as parallel_for hands them out, empties its queue in the order it filled it.
+//----------------------------------------------------------------------
+
+template <typename V>
+struct tile_appender
+{
+	using locked_seq_t = typename TileFunctor<V>::locked_seq_t;
+	static constexpr SizeT chain_tile_size = SizeT(1) << log2_default_segment_size;
+
+	// into the tiles of target, whose domain has its count; a null target leaves the appender inactive
+	void InitDirect(TileFunctor<V>* target)
+	{
+		assert(!m_IsActive);
+		if (!target)
+			return;
+		m_Target = target;
+		m_IsActive = true;
+		m_MaxCount = target->GetTiledRangeData()->GetElemCount();
+		// rows of a sequence attribute that are not written keep the empty sequence they were allocated with
+		m_TileRwMode = has_fixed_elem_size_v<V> ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero;
+	}
+	// into a chain of tiles of its own; maxCount is the highest count that the domain can take
+	void InitChain(SizeT maxCount)
+	{
+		assert(!m_IsActive);
+		m_IsActive = true;
+		m_MaxCount = maxCount;
+	}
+
+	bool  IsActive()   const { return m_IsActive; }
+	SizeT Count()      const { return m_Count; }
+	bool  IsComplete() const { return m_Count == m_MaxCount; } // into a target: all its elements are written
+
+	// elements of a fixed size
+	void Append(const V* first, SizeT n)
+	{
+		AddCount(n);
+		while (n)
+		{
+			if (m_Pos == m_TileSize)
+				NextTile();
+			SizeT m = std::min<SizeT>(n, m_TileSize - m_Pos);
+			fast_copy(first, first + m, m_Curr.begin() + m_Pos);
+			first += m; n -= m; m_Pos += m;
+		}
+	}
+
+	// one row of a sequence attribute, V being the container of E
+	template <typename E>
+	void AppendSeq(const E* first, SizeT n)
+	{
+		AddCount(1);
+		if (m_Pos == m_TileSize)
+			NextTile();
+		auto row = m_Curr[m_Pos++];
+		row.resize_uninitialized(n MG_DEBUG_ALLOCATOR_SRC("tile_appender"));
+		std::copy(first, first + n, row.begin());
+	}
+	// rows of a sequence attribute that keep their empty sequence
+	void AppendEmptySeqs(SizeT n)
+	{
+		AddCount(n);
+		while (n)
+		{
+			if (m_Pos == m_TileSize)
+				NextTile();
+			SizeT m = std::min<SizeT>(n, m_TileSize - m_Pos);
+			n -= m; m_Pos += m;
+		}
+	}
+
+	// releases the tile being written, which a FileTileArray needs before its write ends
+	void Close() { m_Curr = locked_seq_t(); m_TileSize = 0; }
+
+	// chain: cuts the last tile to its elements and returns the count, which the domain gets next
+	SizeT FinishChain()
+	{
+		assert(!m_Target);
+		Close();
+		if (!m_Tiles.empty() && m_Pos < chain_tile_size)
+			m_Tiles.back()->reallocSO(m_Pos, false MG_DEBUG_ALLOCATOR_SRC("tile_appender"));
+		return m_Count;
+	}
+	// chain: hands the tiles to the array of the attribute, after its domain got the count of FinishChain
+	void AdoptInto(TileFunctor<V>* tf)
+	{
+		assert(!m_Target);
+		auto trd = tf->GetTiledRangeData();
+		MG_CHECK(trd->GetElemCount() == m_Count);
+		MG_CHECK(trd->GetNrTiles() == m_Tiles.size());
+		for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+			tf->AdoptTile(t, std::move(m_Tiles[t]));
+		m_Tiles.clear();
+	}
+
+private:
+	void AddCount(SizeT n)
+	{
+		if (n > m_MaxCount - m_Count)
+			throwErrorF("tile_appender", "the result has more than the {} elements that its domain can hold", m_MaxCount);
+		m_Count += n;
+	}
+	void NextTile()
+	{
+		if (m_Target)
+		{
+			MG_CHECK(m_NextTile < m_Target->GetTiledRangeData()->GetNrTiles());
+			m_Curr = m_Target->GetWritableTile(m_NextTile++, m_TileRwMode);
+		}
+		else
+		{
+			auto newTile = std::make_shared<tile<V>>();
+			newTile->reallocSO(chain_tile_size, false MG_DEBUG_ALLOCATOR_SRC("tile_appender"));
+			m_Curr = locked_seq_t(std::static_pointer_cast<void>(newTile), GetSeq(*newTile));
+			m_Tiles.emplace_back(std::move(newTile));
+		}
+		m_TileSize = m_Curr.size();
+		m_Pos = 0;
+	}
+
+	TileFunctor<V>* m_Target = nullptr;
+	dms_rw_mode     m_TileRwMode = dms_rw_mode::write_only_all;
+	tile_id         m_NextTile = 0;
+	std::vector<std::shared_ptr<tile<V>>> m_Tiles; // the chain
+	locked_seq_t    m_Curr;
+	SizeT           m_TileSize = 0; // of m_Curr, kept here because an empty sequence_array_ref has no array to ask
+	SizeT           m_Pos = 0; // in m_Curr
+	SizeT           m_Count = 0, m_MaxCount = 0;
+	bool            m_IsActive = false;
+};
+
+// A queue of elements in blocks of a tile's size from the allocation stock. One owner appends at the back, and the one
+// who has the turn reads from the front, possibly in the block that the owner is still writing: that is allowed for
+// elements of a fixed size, as the two use different parts of it. A block goes back to the stock once the owner has
+// filled it and all its elements are read, so a block holds the rows of as many items as fit in it.
+template <typename T>
+struct row_queue
+{
+	static_assert(has_fixed_elem_size_v<T>);
+	static constexpr SizeT block_size = SizeT(1) << log2_default_segment_size;
+
+	// the owner
+	void Push(const T* first, SizeT n)
+	{
+		while (n)
+		{
+			if (m_WritePos == block_size)
+				AddBlock();
+			SizeT m = std::min<SizeT>(n, block_size - m_WritePos);
+			fast_copy(first, first + m, m_WriteData + m_WritePos);
+			first += m; n -= m; m_WritePos += m;
+		}
+	}
+
+	// the one who has the turn: hands the next n elements to consume(const T* first, SizeT n), in one or more parts
+	template <typename Consumer>
+	void Pop(SizeT n, Consumer&& consume)
+	{
+		while (n)
+		{
+			const T* data;
+			{
+				auto lock = std::lock_guard(m_BlocksMutex);
+				MG_CHECK(m_Head < m_Blocks.size());
+				data = m_Blocks[m_Head].begin();
+			}
+			SizeT m = std::min<SizeT>(n, block_size - m_ReadPos);
+			consume(data + m_ReadPos, m);
+			n -= m; m_ReadPos += m;
+			if (m_ReadPos == block_size)
+				DropFrontBlock();
+		}
+	}
+
+private:
+	void AddBlock()
+	{
+		OwningPtrSizedArray<T> block(block_size, dont_initialize MG_DEBUG_ALLOCATOR_SRC("row_queue"));
+		m_WriteData = block.begin();
+		m_WritePos = 0;
+		auto lock = std::lock_guard(m_BlocksMutex);
+		m_Blocks.emplace_back(std::move(block));
+	}
+	void DropFrontBlock()
+	{
+		OwningPtrSizedArray<T> dropped; // freed after the lock is released
+		{
+			auto lock = std::lock_guard(m_BlocksMutex);
+			dropped.swap(m_Blocks[m_Head++]);
+			if (2 * m_Head >= m_Blocks.size())
+			{
+				m_Blocks.erase(m_Blocks.begin(), m_Blocks.begin() + m_Head);
+				m_Head = 0;
+			}
+		}
+		m_ReadPos = 0;
+	}
+
+	std::mutex m_BlocksMutex; // guards m_Blocks and m_Head, not the elements
+	std::vector<OwningPtrSizedArray<T>> m_Blocks;
+	SizeT m_Head = 0;
+	T*    m_WriteData = nullptr;
+	SizeT m_WritePos = block_size; // in the last block; block_size means that the next Push needs a new block
+	SizeT m_ReadPos = 0; // in m_Blocks[m_Head]
+};
+
+// Who writes next. Deliver(k, ...) is called once for each item k in [0, nrItems), by its producer, from any thread.
+// writeDirect() writes item k into the appenders, enqueue() puts it in the producer's queue and returns what drain(record)
+// needs to write it from there later. Only the one who has the turn writes into the appenders, so they need no lock.
+template <typename Record>
+struct ordered_turn
+{
+	explicit ordered_turn(SizeT nrItems)
+		: m_Records(nrItems)
+		, m_IsQueued(nrItems, false)
+	{}
+
+	template <typename WriteDirect, typename Enqueue, typename Drain>
+	void Deliver(SizeT k, WriteDirect&& writeDirect, Enqueue&& enqueue, Drain&& drain)
+	{
+		assert(k < m_IsQueued.size());
+		auto lock = std::unique_lock(m_Mutex);
+		if (k == m_Next)
+		{
+			lock.unlock();
+			writeDirect();
+			lock.lock();
+			m_Next = k + 1;
+		}
+		else
+		{
+			lock.unlock();
+			Record record = enqueue();
+			lock.lock();
+			m_Records[k] = std::move(record);
+			m_IsQueued[k] = true;
+			if (k != m_Next)
+				return; // whoever writes item k-1 will find it
+		}
+		// the turn is ours: write the finished successors
+		while (m_Next < m_IsQueued.size() && m_IsQueued[m_Next])
+		{
+			SizeT j = m_Next;
+			m_IsQueued[j] = false;
+			lock.unlock();
+			drain(m_Records[j]);
+			lock.lock();
+			m_Next = j + 1;
+		}
+	}
+
+	SizeT NrWritten() const { return m_Next; }
+
+private:
+	std::mutex          m_Mutex; // guards m_Next and m_IsQueued
+	SizeT               m_Next = 0; // the first item that is not written yet
+	std::vector<Record> m_Records;
+	std::vector<bool>   m_IsQueued;
+};
 
 #endif //!defined(__TIC_TILECHANNEL_H)
 

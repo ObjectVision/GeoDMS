@@ -1,0 +1,147 @@
+container oper_impedance_tiles
+{
+	// impedance_matrix over results of more than one tile of 65536 rows (#1327). Since 20.27.0 a sparse result is
+	// made in one pass: the rows of each origin are delivered in the order of the origin zones, into a chain of tiles
+	// that the od attributes adopt once the domain has its count; a dense result and one with precalculated_NrDstZones
+	// write straight into the tiles of their attributes. The other impedance cases are smaller than a tile, so here
+	// the tile boundaries, the cut last tile and the turn between workers are what is tested.
+	//
+	// A grid of 20 x 20 nodes with undirected links of integer times t and costs c, so that every sum is exact. Every
+	// node is a zone. The dense result has 400 x 400 rows; the cutoff of the sparse ones is chosen to make more than
+	// one tile as well. Each sparse result is checked against the dense one: the same rows, in the order of the origin
+	// zones, with the same impedance, and a LinkSet whose times add up to that impedance.
+	unit<uint32> Node : nrofrows = 400;
+	unit<uint32> LinkH : nrofrows = 380 // 19 per row of the grid
+	{
+		attribute<Node>    F1 := value((id(LinkH) / 19) * 20 + id(LinkH) % 19, Node);
+		attribute<Node>    F2 := value(uint32(F1) + 1, Node);
+		attribute<float64> t  := float64(1 + id(LinkH) % 7);
+		attribute<float64> c  := float64(1 + (id(LinkH) * 5) % 3);
+	}
+	unit<uint32> LinkV : nrofrows = 380 // 19 per column of the grid
+	{
+		attribute<Node>    F1 := value(id(LinkV), Node);
+		attribute<Node>    F2 := value(id(LinkV) + 20, Node);
+		attribute<float64> t  := float64(1 + (id(LinkV) * 3) % 5);
+		attribute<float64> c  := float64(1 + id(LinkV) % 4);
+	}
+	unit<uint32> Link := union_unit(LinkH, LinkV)
+	{
+		attribute<Node>    F1 := union_data(., LinkH/F1, LinkV/F1);
+		attribute<Node>    F2 := union_data(., LinkH/F2, LinkV/F2);
+		attribute<float64> t  := union_data(., LinkH/t, LinkV/t);
+		attribute<float64> c  := union_data(., LinkH/c, LinkV/c);
+	}
+	unit<uint32> Zone : nrofrows = 400
+	{
+		attribute<Node> node_rel := value(id(Zone), Node);
+		attribute<Zone> zone_rel := id(Zone);
+	}
+
+	parameter<float64> max_imp := 60.0;
+	parameter<float64> max_imp_pareto := 25.0;
+
+	unit<uint32> od_dense := impedance_matrix(
+		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,LinkSet'
+		, Link/t, Link/F1, Link/F2
+		, Zone/node_rel, Zone/zone_rel
+		, Zone/node_rel, Zone/zone_rel
+		);
+
+	unit<uint32> od_sparse := impedance_matrix(
+		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel,EndPoint_rel,LinkSet'
+		, Link/t, Link/F1, Link/F2
+		, Zone/node_rel, Zone/zone_rel
+		, Zone/node_rel, Zone/zone_rel
+		, const(max_imp, Zone)
+		, Link/c
+		)
+	{
+		attribute<od_dense> dense_rel := value(uint32(OrgZone_rel) * 400 + uint32(DstZone_rel), od_dense);
+		attribute<od_sparse> prev_rel := value(max_elem(uint32(id(od_sparse)), 1) - 1, od_sparse);
+	}
+	unit<uint32> sparse_step := sequence2points(od_sparse/LinkSet)
+	{
+		attribute<float64> t := Link/t[point];
+		attribute<float64> c := Link/c[point];
+	}
+	attribute<float64> sparse_sum_t (od_sparse) := MakeDefined(sum(sparse_step/t, sparse_step/sequence_rel), 0.0);
+	attribute<float64> sparse_sum_c (od_sparse) := MakeDefined(sum(sparse_step/c, sparse_step/sequence_rel), 0.0);
+
+	// one row more per origin zone than it reaches, which stays undefined
+	attribute<uint32> nr_given (Zone) := pcount(od_sparse/OrgZone_rel) + 1;
+	unit<uint32> od_precalc := impedance_matrix(
+		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp)'
+		  ';od(precalculated_NrDstZones):impedance,OrgZone_rel,DstZone_rel,LinkSet'
+		, Link/t, Link/F1, Link/F2
+		, Zone/node_rel, Zone/zone_rel
+		, Zone/node_rel, Zone/zone_rel
+		, const(max_imp, Zone)
+		, nr_given
+		)
+	{
+		attribute<od_precalc> prev_rel := value(max_elem(uint32(id(od_precalc)), 1) - 1, od_precalc);
+	}
+
+	unit<uint32> od_pareto := impedance_matrix(
+		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,LinkSet'
+		, Link/t, Link/F1, Link/F2
+		, Zone/node_rel, Zone/zone_rel
+		, Zone/node_rel, Zone/zone_rel
+		, const(max_imp_pareto, Zone)
+		, Link/c
+		)
+	{
+		attribute<od_pareto> prev_rel := value(max_elem(uint32(id(od_pareto)), 1) - 1, od_pareto);
+	}
+	unit<uint32> pareto_step := sequence2points(od_pareto/LinkSet)
+	{
+		attribute<float64> t := Link/t[point];
+		attribute<float64> c := Link/c[point];
+	}
+	attribute<float64> pareto_sum_t (od_pareto) := MakeDefined(sum(pareto_step/t, pareto_step/sequence_rel), 0.0);
+	attribute<float64> pareto_sum_c (od_pareto) := MakeDefined(sum(pareto_step/c, pareto_step/sequence_rel), 0.0);
+
+	container checks
+	{
+		// dense: every pair, in the order of origin and destination zone
+		parameter<bool> dense_rows    := #od_dense == 160000, IntegrityCheck = "dense_rows == true";
+		parameter<bool> dense_order   := all(uint32(od_dense/OrgZone_rel) * 400 + uint32(od_dense/DstZone_rel) == uint32(id(od_dense))), IntegrityCheck = "dense_order == true";
+
+		// sparse: the rows of the dense result below the cutoff, in the order of the origin zones
+		parameter<uint64> nr_reached  := sum_uint64(od_dense/impedance < max_imp);
+		parameter<bool> sparse_tiles  := #od_sparse > 65536, IntegrityCheck = "sparse_tiles == true";
+		parameter<bool> sparse_rows   := uint64(#od_sparse) == nr_reached, IntegrityCheck = "sparse_rows == true";
+		parameter<bool> sparse_order  := all(od_sparse/OrgZone_rel >= od_sparse/OrgZone_rel[od_sparse/prev_rel]), IntegrityCheck = "sparse_order == true";
+		parameter<bool> sparse_pairs  := all(od_dense/OrgZone_rel[od_sparse/dense_rel] == od_sparse/OrgZone_rel && od_dense/DstZone_rel[od_sparse/dense_rel] == od_sparse/DstZone_rel), IntegrityCheck = "sparse_pairs == true";
+		parameter<bool> sparse_imp    := all(od_dense/impedance[od_sparse/dense_rel] == od_sparse/impedance), IntegrityCheck = "sparse_imp == true";
+		parameter<bool> sparse_points := all(uint32(od_sparse/StartPoint_rel) == uint32(od_sparse/OrgZone_rel) && uint32(od_sparse/EndPoint_rel) == uint32(od_sparse/DstZone_rel)), IntegrityCheck = "sparse_points == true";
+		parameter<bool> sparse_links  := all(sparse_sum_t == od_sparse/impedance), IntegrityCheck = "sparse_links == true";
+		parameter<bool> sparse_alt    := all(sparse_sum_c == od_sparse/alt_imp), IntegrityCheck = "sparse_alt == true";
+
+		// precalculated: the sparse rows per origin zone and one undefined row after them
+		parameter<bool> precalc_rows  := uint64(#od_precalc) == uint64(#od_sparse) + uint64(400), IntegrityCheck = "precalc_rows == true";
+		parameter<bool> precalc_nulls := sum_uint64(IsNull(od_precalc/impedance)) == uint64(400) && sum_uint64(IsNull(od_precalc/OrgZone_rel)) == uint64(400), IntegrityCheck = "precalc_nulls == true";
+		parameter<bool> precalc_imp   := sum(MakeDefined(od_precalc/impedance, 0.0)) == sum(od_sparse/impedance), IntegrityCheck = "precalc_imp == true";
+		parameter<bool> precalc_empty := all(IsDefined(od_precalc/impedance) || sequence_element_count(od_precalc/LinkSet) == 0), IntegrityCheck = "precalc_empty == true";
+
+		// pareto: more than one tile of routes, in the order of the origin zones, each with its own links
+		parameter<bool> pareto_tiles  := #od_pareto > 65536, IntegrityCheck = "pareto_tiles == true";
+		parameter<bool> pareto_order  := all(od_pareto/OrgZone_rel >= od_pareto/OrgZone_rel[od_pareto/prev_rel]), IntegrityCheck = "pareto_order == true";
+		parameter<bool> pareto_links  := all(pareto_sum_t == od_pareto/impedance && pareto_sum_c == od_pareto/alt_imp), IntegrityCheck = "pareto_links == true";
+	}
+
+	// Numbers that depend on the order of the rows and the links, to compare this result between two builds
+	container fingerprint
+	{
+		parameter<uint64> dense  := sum_uint64(uint64(id(od_dense)) * uint64(od_dense/impedance));
+		parameter<uint64> sparse := sum_uint64(uint64(id(od_sparse)) * (uint64(od_sparse/DstZone_rel) + uint64(od_sparse/impedance)));
+		parameter<uint64> sparse_links := sum_uint64(uint64(id(sparse_step)) * (uint64(sparse_step/point) + uint64(1)));
+		parameter<uint64> precalc := sum_uint64(uint64(id(od_precalc)) * MakeDefined(uint64(od_precalc/impedance), uint64(7)));
+		parameter<uint64> pareto := sum_uint64(uint64(id(od_pareto)) * (uint64(od_pareto/DstZone_rel) + uint64(od_pareto/impedance) + uint64(od_pareto/alt_imp)));
+		parameter<uint64> pareto_links := sum_uint64(uint64(id(pareto_step)) * (uint64(pareto_step/point) + uint64(1)));
+	}
+}

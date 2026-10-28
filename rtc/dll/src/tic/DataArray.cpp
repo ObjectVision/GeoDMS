@@ -614,6 +614,18 @@ auto DataArrayBase<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 }
 
 template <class V>
+void DataArrayBase<V>::AdoptTile(tile_id t, std::shared_ptr<tile<V>> srcTile)
+{
+	MG_CHECK(srcTile);
+	auto src = GetConstSeq(*srcTile);
+	auto dst = GetWritableTile(t, dms_rw_mode::write_only_all);
+	MG_CHECK(dst.size() == src.size());
+	if constexpr (!has_fixed_elem_size_v<V>)
+		dst.get_sa().data_reserve(srcTile->actual_data_size() MG_DEBUG_ALLOCATOR_SRC("AdoptTile")); // one pool of the right size, no growth by doubling
+	fast_copy(src.begin(), src.end(), dst.begin());
+}
+
+template <class V>
 bool DataArrayBase<V>::AsCharArray(SizeT index, char* sink, streamsize_t bufLen, GuiReadLock& lockHolder, FormattingFlags ff) const
 {
 	auto ii = GetIndexedIterator(index, lockHolder);

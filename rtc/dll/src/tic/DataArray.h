@@ -40,6 +40,8 @@
 #include "TiledRangeData.h"
 #include "TileLock.h"
 
+template <typename V> struct tile; // mem/tiledata.h
+
 template <typename V>
 using value_range_data = std::conditional_t<
 	has_range_v<field_of_t<V>>
@@ -152,6 +154,11 @@ struct DataArrayBase : AbstrDataObject
 
 	TICTOC_CALL virtual auto GetTile(tile_id t) const ->locked_cseq_t = 0;
 	TICTOC_CALL virtual auto GetWritableTile(tile_id t, dms_rw_mode rwMode = dms_rw_mode::write_only_all) ->locked_seq_t;
+
+	// #1327: gives tile t the contents of a tile that was filled before this array existed, by an operator that learns
+	// the count of its domain only at the end (tile_appender in TileChannel.h). srcTile must hold GetTileSize(t)
+	// elements. This default copies it into GetWritableTile(t); a HeapTileArray takes the tile itself.
+	TICTOC_CALL virtual void AdoptTile(tile_id t, std::shared_ptr<tile<V>> srcTile);
 
 	struct future_tile : abstr_future_tile
 	{

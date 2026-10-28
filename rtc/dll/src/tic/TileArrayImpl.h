@@ -37,6 +37,7 @@ struct HeapTileArray : GeneratedTileFunctor<V>
 
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode) ->locked_seq_t override;
 	auto GetTile(tile_id t) const ->locked_cseq_t override;
+	void AdoptTile(tile_id t, std::shared_ptr<tile<V>> srcTile) override;
 	mutable tiles_t m_Seqs;
 	mutable std::unique_ptr<std::once_flag[]> m_TileInitFlags; // one per tile, see InitTile
 };
@@ -202,6 +203,24 @@ auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	InitTile(m_TileInitFlags[t], tilePtr, this->GetTiledRangeData().get(), t, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
 	return locked_cseq_t(std::static_pointer_cast<const void>(tilePtr), GetConstSeq(*tilePtr));
+}
+
+// #1327: the tile takes the place of the one InitTile would allocate, through the same once_flag, so that a later
+// access finds it allocated. A slot that was already accessed has its own tile and cannot take another.
+template <typename V>
+void HeapTileArray<V>::AdoptTile(tile_id t, std::shared_ptr<tile<V>> srcTile)
+{
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
+	MG_CHECK(srcTile && srcTile->size() == this->GetTiledRangeData()->GetTileSize(t));
+
+	bool isAdopted = false;
+	std::call_once(m_TileInitFlags[t], [&]
+		{
+			m_Seqs[t] = std::move(srcTile);
+			isAdopted = true;
+		}
+	);
+	MG_CHECK(isAdopted);
 }
 
 //----------------------------------------------------------------------

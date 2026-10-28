@@ -58,6 +58,8 @@
 //   BiNodeZoneConnector  its pareto sibling: the per-zone Pareto front, whose commit list in
 //                        commit order IS this origin's stretch of od rows.
 //   ResultInfo           the raw output pointers, bundled so the drivers keep one parameter.
+//   OdRowSink            the way of the od rows from the row buffers of a worker into the od
+//                        attributes, in the order of the origin zones and without a counting pass.
 //   UpdateALW            tree accumulation of a per-link quantity (alt impedance / link attr).
 //   per-origin stages    InteractionParams + WriteZonalResults / AccumulateInteraction /
 //                        WriteLinkSets: the scalar driver's od-row emission, interaction &
@@ -68,36 +70,39 @@
 //                        per-node dominance state; the algorithm and its preconditions live with
 //                        BiCriteriaDijkstraHeap (Dijkstra.h), the design and its rationale in
 //                        doc/bicriteria-impedance.md.
-//   DijkstraMatrOperator argument extraction, unit unification, result creation, two-pass run,
-//                        and the engine dispatch on DijkstraFlag::BiCriteria.
+//   DijkstraMatrOperator argument extraction, unit unification, result creation, the run, and
+//                        the engine dispatch on DijkstraFlag::BiCriteria.
 //
 // Per-origin work, scalar engine (all of it inside the parallel_for task)
 //   1. seed every start point of the origin zone, each with its own impedance offset if given
 //   2. run the extract-min loop; when a node is finalized, commit the endpoints attached to it
 //   3. shrink the cutoff dh.m_MaxImp once the cumulative destination mass reaches limit()'s budget
-//   4. write this origin's OD rows (WriteZonalResults), then the alt-impedance / link-attribute
-//      accumulations (UpdateALW)
+//   4. write this origin's OD rows into the row buffers of the worker (WriteZonalResults), then
+//      the alt-impedance / link-attribute accumulations (UpdateALW)
 //   5. compute the interaction potentials and, from those, the link flows (AccumulateInteraction)
 //   6. reconstruct the per-OD LinkSets (WriteLinkSets)
+//   7. hand the rows over to the OdRowSink
 //
 // Per-origin work, pareto engine
 //   1. seed one label per start point, carrying the start point as route provenance
 //   2. pop labels in lexicographic (imp, imp2) order; accept iff imp2 improves on the node's
 //      minimum accepted imp2 -- exact bi-criteria dominance -- and both cutoffs hold
 //   3. commit accepted labels' endpoints per destination zone under the same dominance rule;
-//      the commit list, in order, is the origin's od rows (or, in the Counting pass, its count)
+//      the commit list, in order, is the origin's od rows
 //   4. with od:LinkSet, walk each row's label back through the pool of accepted labels
 //      (WriteParetoLinkSets, #1325)
 //
 // Concurrency
-//   Origin zones are independent, so per-OD and per-origin outputs need no locking: each task
-//   writes only its own slice. What IS shared in the scalar engine are the outputs indexed by
+//   Origin zones are independent, so per-origin outputs need no locking: each task writes only
+//   its own slice. The od rows of an origin go into row buffers of its worker first and are then
+//   delivered in the order of the origin zones (OdRowSink, #1327): one writer at a time, the one
+//   who has the turn, appends them to the od attributes, and a worker that is ahead queues its
+//   rows instead of waiting. What IS shared in the scalar engine are the outputs indexed by
 //   DESTINATION zone (dstZone_Factor, dstZone_Supply) and link flow, which are accumulated per
-//   worker and summed afterwards, and the sequence-allocating LinkSet writes, which take the lock
-//   in WriteBlock once per origin. The destination totals took a global lock per od pair until
-//   GEO-A39, and the link sets one per od row. The pareto engine produces per-OD outputs only and
-//   takes no lock but that of the LinkSet writes, once per origin. All per-worker scratch (heap, tree, connector, potentials) lives in
-//   dms_combinables and is allocated once per worker rather than once per origin.
+//   worker and summed afterwards. The destination totals took a global lock per od pair until
+//   GEO-A39, and the link sets a lock per od row until GEO-A39 and per origin until #1327. All
+//   per-worker scratch (heap, tree, connector, potentials, row buffers) lives in dms_combinables
+//   and is allocated once per worker rather than once per origin.
 //
 // Endpoint impedances
 //   An endpoint that carries its own impedance offset is not final when its node is: a cheaper
@@ -128,7 +133,6 @@
 
 #include <cmath>
 
-#include "LockLevels.h"
 #include "mem/MyContainers.h"
 
 #include "CheckedDomain.h"
@@ -137,11 +141,11 @@
 #include "OperationContext.h"
 #include "OperSignature.h"
 #include "ParallelTiles.h"
+#include "TileChannel.h" // tile_appender, row_queue, ordered_turn (#1327)
 #include "SessionData.h" // CancelIfOutOfInterest
 #include "UnitClass.h"
 
 #include "Metric.h" // IsEmpty(const UnitMetric*), for the dimensionless imp2_epsilon
-#include "makeCumulative.h"
 
 #include "TreeBuilder.h"
 #include "DijkstraFlags.h"
@@ -844,19 +848,21 @@ struct BiNodeZoneConnector
 // *****************************************************************************
 // ResultInfo:
 //   Bundles raw target pointers for output arrays to avoid repetitive
-//   argument lists in ProcessDijkstra. Populated at call site.
+//   argument lists in ProcessDijkstra. Populated at call site, except the od_
+//   pointers: those point into the row buffers of the origin at hand (OdRowBuffers),
+//   so the per-origin stages write its rows from index 0, and they are null in the
+//   ResultInfo that the call site passes. od_LinkSet says whether LinkSet is made.
 // *****************************************************************************
 template <typename ZoneType, typename ImpType, typename MassType>
 struct ResultInfo {
 	using ImpTypeArray = ImpType*;
 	using ZoneTypeArray = ZoneType*;
 	using MassTypeArray = MassType*;
-	using LinkSeqArray = typename sequence_traits<std::vector<LinkType>>::seq_t::iterator;
 
 	ImpTypeArray  od_ImpData = nullptr, od_AltLinkImp = nullptr, od_LinkAttr = nullptr;
 	ZoneTypeArray od_SrcZoneIds = nullptr, od_DstZoneIds = nullptr;
 	ZoneTypeArray od_StartPointIds = nullptr, od_EndPointIds = nullptr;
-	LinkSeqArray od_LS = {};
+	bool          od_LinkSet = false;
 	LinkType* node_TB = nullptr;
 
 	ZoneTypeArray orgZone_NrDstZones = nullptr;
@@ -871,15 +877,194 @@ struct ResultInfo {
 };
 
 // *****************************************************************************
-// WriteBlock: Fine-grained lock group
-//   Locks only when writing shared aggregated arrays that can be updated
-//   concurrently across origins (e.g., destination supply).
+// OdRowBuffers, OdRowQueues, OdRowSink (#1327):
+//   The od rows of an origin are first written into the row buffers of its
+//   worker (OdRowBuffers), which are reused for every origin of that worker and
+//   only grow. OdRowSink then delivers them in the order of the origin zones,
+//   without a counting pass: straight into the od attributes when all earlier
+//   origins are written, and otherwise into the queues of the worker
+//   (OdRowQueues), from which whoever has the turn writes them later
+//   (ordered_turn in TileChannel.h). The od attributes are written through a
+//   tile_appender each: a chain of tiles when the number of rows is known only
+//   at the end (a sparse result without precalculated_NrDstZones), which the
+//   attributes adopt once their domain has that count, and the tiles of the
+//   attributes themselves otherwise. Each origin delivers the same number of
+//   rows to every od attribute.
 // *****************************************************************************
-struct WriteBlock {
-	WriteBlock()
-		: od_LS(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.LS")
+template <typename T>
+T* RowBuffer(my_vec_t<T>& buffer, SizeT nrRows)
+{
+	if (buffer.size() < nrRows)
+		buffer.resize(nrRows);
+	return buffer.data();
+}
+
+template <typename ZoneType, typename ImpType, typename LinkType>
+struct OdRowBuffers
+{
+	my_vec_t<ImpType>  imp, altImp, linkAttr;
+	my_vec_t<ZoneType> srcZone, dstZone, startPoint, endPoint;
+	my_vec_t<LinkType> links;      // LinkSet: the links of all rows, one row after the other
+	my_vec_t<SizeT>    linkCounts; // LinkSet: the number of links of each row
+};
+
+template <typename ZoneType, typename ImpType, typename LinkType>
+struct OdRowQueues
+{
+	row_queue<ImpType>  imp, altImp, linkAttr;
+	row_queue<ZoneType> srcZone, dstZone, startPoint, endPoint;
+	row_queue<LinkType> links;
+	row_queue<SizeT>    linkCounts;
+};
+
+template <typename ZoneType, typename ImpType, typename LinkType>
+struct OdRowSink
+{
+	using EdgeSeq = typename sequence_traits<LinkType>::container_type;
+	using Buffers = OdRowBuffers<ZoneType, ImpType, LinkType>;
+	using Queues  = OdRowQueues <ZoneType, ImpType, LinkType>;
+	struct Record { Queues* queues = nullptr; SizeT nrRows = 0, nrLinks = 0; };
+
+	explicit OdRowSink(SizeT nrOrgZones)
+		: m_Turn(nrOrgZones)
 	{}
-	leveled_critical_section od_LS;
+
+	tile_appender<ImpType>  imp, altImp, linkAttr;
+	tile_appender<ZoneType> srcZone, dstZone, startPoint, endPoint;
+	tile_appender<EdgeSeq>  linkSet;
+
+	// points the od_ members of res into buf, sized for nrRows rows, for the attributes that are made
+	template <typename MassType>
+	void PointInto(Buffers& buf, SizeT nrRows, ResultInfo<ZoneType, ImpType, MassType>& res) const
+	{
+		res.od_ImpData       = imp       .IsActive() ? RowBuffer(buf.imp       , nrRows) : nullptr;
+		res.od_AltLinkImp    = altImp    .IsActive() ? RowBuffer(buf.altImp    , nrRows) : nullptr;
+		res.od_LinkAttr      = linkAttr  .IsActive() ? RowBuffer(buf.linkAttr  , nrRows) : nullptr;
+		res.od_SrcZoneIds    = srcZone   .IsActive() ? RowBuffer(buf.srcZone   , nrRows) : nullptr;
+		res.od_DstZoneIds    = dstZone   .IsActive() ? RowBuffer(buf.dstZone   , nrRows) : nullptr;
+		res.od_StartPointIds = startPoint.IsActive() ? RowBuffer(buf.startPoint, nrRows) : nullptr;
+		res.od_EndPointIds   = endPoint  .IsActive() ? RowBuffer(buf.endPoint  , nrRows) : nullptr;
+	}
+
+	// once per origin zone, by its worker, after all its stages; nrLinks is the total of buf.linkCounts
+	void Deliver(SizeT orgZone, Buffers& buf, SizeT nrRows, SizeT nrLinks)
+	{
+		m_Turn.Deliver(orgZone
+		,	[&] { WriteRows(buf, nrRows); }
+		,	[&] { Queues& queues = m_QueuesC.local(); EnqueueRows(queues, buf, nrRows, nrLinks); return Record{ &queues, nrRows, nrLinks }; }
+		,	[this](const Record& record) { DrainRows(*record.queues, record.nrRows, record.nrLinks); }
+		);
+	}
+
+	// after the run, without precalculated count: cuts the chains and returns the number of rows
+	SizeT FinishChains()
+	{
+		SizeT nrRows = UNDEFINED_VALUE(SizeT);
+		ForEach([&nrRows](auto& appender)
+			{
+				SizeT n = appender.FinishChain();
+				MG_CHECK(!IsDefined(nrRows) || n == nrRows);
+				nrRows = n;
+			}
+		);
+		return nrRows;
+	}
+	// after the run, with the count known beforehand: every row of every attribute must be written
+	void CloseDirect()
+	{
+		ForEach([](auto& appender)
+			{
+				appender.Close();
+				MG_CHECK(appender.IsComplete());
+			}
+		);
+	}
+
+private:
+	template <typename Func>
+	void ForEach(Func&& func)
+	{
+		if (imp       .IsActive()) func(imp);
+		if (altImp    .IsActive()) func(altImp);
+		if (linkAttr  .IsActive()) func(linkAttr);
+		if (srcZone   .IsActive()) func(srcZone);
+		if (dstZone   .IsActive()) func(dstZone);
+		if (startPoint.IsActive()) func(startPoint);
+		if (endPoint  .IsActive()) func(endPoint);
+		if (linkSet   .IsActive()) func(linkSet);
+	}
+
+	void WriteRows(Buffers& buf, SizeT nrRows)
+	{
+		if (imp       .IsActive()) imp       .Append(buf.imp       .data(), nrRows);
+		if (altImp    .IsActive()) altImp    .Append(buf.altImp    .data(), nrRows);
+		if (linkAttr  .IsActive()) linkAttr  .Append(buf.linkAttr  .data(), nrRows);
+		if (srcZone   .IsActive()) srcZone   .Append(buf.srcZone   .data(), nrRows);
+		if (dstZone   .IsActive()) dstZone   .Append(buf.dstZone   .data(), nrRows);
+		if (startPoint.IsActive()) startPoint.Append(buf.startPoint.data(), nrRows);
+		if (endPoint  .IsActive()) endPoint  .Append(buf.endPoint  .data(), nrRows);
+		if (linkSet   .IsActive()) WriteLinkSetRows(buf.links.data(), buf.linkCounts.data(), nrRows);
+	}
+	void WriteLinkSetRows(const LinkType* links, const SizeT* linkCounts, SizeT nrRows)
+	{
+		for (SizeT r = 0; r != nrRows; ++r)
+		{
+			linkSet.AppendSeq(links, linkCounts[r]);
+			links += linkCounts[r];
+		}
+	}
+
+	void EnqueueRows(Queues& queues, Buffers& buf, SizeT nrRows, SizeT nrLinks)
+	{
+		if (imp       .IsActive()) queues.imp       .Push(buf.imp       .data(), nrRows);
+		if (altImp    .IsActive()) queues.altImp    .Push(buf.altImp    .data(), nrRows);
+		if (linkAttr  .IsActive()) queues.linkAttr  .Push(buf.linkAttr  .data(), nrRows);
+		if (srcZone   .IsActive()) queues.srcZone   .Push(buf.srcZone   .data(), nrRows);
+		if (dstZone   .IsActive()) queues.dstZone   .Push(buf.dstZone   .data(), nrRows);
+		if (startPoint.IsActive()) queues.startPoint.Push(buf.startPoint.data(), nrRows);
+		if (endPoint  .IsActive()) queues.endPoint  .Push(buf.endPoint  .data(), nrRows);
+		if (linkSet   .IsActive())
+		{
+			queues.linkCounts.Push(buf.linkCounts.data(), nrRows);
+			queues.links     .Push(buf.links     .data(), nrLinks);
+		}
+	}
+
+	template <typename V>
+	static void Drain(row_queue<V>& queue, tile_appender<V>& appender, SizeT nrRows)
+	{
+		queue.Pop(nrRows, [&appender](const V* first, SizeT n) { appender.Append(first, n); });
+	}
+	template <typename V>
+	static V* PopInto(row_queue<V>& queue, my_vec_t<V>& buffer, SizeT n)
+	{
+		V* result = RowBuffer(buffer, n);
+		V* curr = result;
+		queue.Pop(n, [&curr](const V* first, SizeT m) { curr = std::copy(first, first + m, curr); });
+		return result;
+	}
+	void DrainRows(Queues& queues, SizeT nrRows, SizeT nrLinks)
+	{
+		if (imp       .IsActive()) Drain(queues.imp       , imp       , nrRows);
+		if (altImp    .IsActive()) Drain(queues.altImp    , altImp    , nrRows);
+		if (linkAttr  .IsActive()) Drain(queues.linkAttr  , linkAttr  , nrRows);
+		if (srcZone   .IsActive()) Drain(queues.srcZone   , srcZone   , nrRows);
+		if (dstZone   .IsActive()) Drain(queues.dstZone   , dstZone   , nrRows);
+		if (startPoint.IsActive()) Drain(queues.startPoint, startPoint, nrRows);
+		if (endPoint  .IsActive()) Drain(queues.endPoint  , endPoint  , nrRows);
+		if (linkSet   .IsActive())
+		{
+			// the links of a row can lie in two blocks of the queue, so they are gathered first
+			const SizeT*    linkCounts = PopInto(queues.linkCounts, m_DrainLinkCounts, nrRows);
+			const LinkType* links      = PopInto(queues.links     , m_DrainLinks     , nrLinks);
+			WriteLinkSetRows(links, linkCounts, nrRows);
+		}
+	}
+
+	ordered_turn<Record>   m_Turn;
+	dms_combinable<Queues> m_QueuesC;
+	my_vec_t<SizeT>        m_DrainLinkCounts; // used by whoever has the turn, one at a time
+	my_vec_t<LinkType>     m_DrainLinks;
 };
 
 // *****************************************************************************
@@ -958,41 +1143,27 @@ struct InteractionParams
 
 // *****************************************************************************
 // WriteZonalResults:
-//   Per-origin emission of the od-indexed arrays (dense or sparse regime) and
-//   the per-origin count bookkeeping; in Counting mode only resCount is written.
-//   Returns this origin's base offset into the od result arrays, needed again by
-//   the interaction and link-set stages.
+//   Per-origin emission of the od-indexed arrays (dense or sparse regime) into
+//   the row buffers of the origin, from row 0. nrRows is the number of rows the
+//   origin delivers: zonalResultCount, or with precalculated_NrDstZones the count
+//   given for it, whose rows beyond the zones reached are written undefined.
 // *****************************************************************************
 template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType, typename MassType>
-SizeT WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
+void WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 ,	const NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>& nzc
 ,	const OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>& dh
-,	DijkstraFlag df, ZoneType orgZone, ZoneType zonalResultCount
-,	const SizeT* resCumulCount, SizeT nrRes, SizeT* resCount
+,	DijkstraFlag df, ZoneType orgZone, ZoneType zonalResultCount, SizeT nrRows
 ,	const ResultInfo<ZoneType, ImpType, MassType>& res)
 {
-	// Determine per-origin result base
-	SizeT resultCountBase = 0;
+	const SizeT resultCountBase = 0;
 	SizeT nrUndefinedRows = 0; // rows that a precalculated count reserved for this origin beyond the zones it reached
-	if (nzc.IsDense())
-		resultCountBase = SizeT(ni.nrDstZones) * SizeT(orgZone);
-	else if (resCumulCount)
+	if (zonalResultCount != nrRows)
 	{
-		// The rows of this origin end where those of the next one begin, and for the last origin at the
-		// end of the result. The last origin was not compared (GEO-A29), so a precalculated count that
-		// was too small for it wrote past the count of the result.
-		resultCountBase = resCumulCount[orgZone];
-		SizeT nextBase = (orgZone + 1 < ni.nrOrgZones) ? resCumulCount[orgZone + 1] : nrRes;
-		MG_CHECK(resultCountBase <= nextBase && nextBase <= nrRes);
-		SizeT givenZonalResultCount = nextBase - resultCountBase;
-		if (zonalResultCount != givenZonalResultCount)
-		{
-			MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
-			if (zonalResultCount > givenZonalResultCount)
-				throwDmsErrF("precalculated_NrDstZones: origin zone {} reaches {} destination zones, more than the {} given for it"
-				,	orgZone, zonalResultCount, givenZonalResultCount);
-			nrUndefinedRows = givenZonalResultCount - zonalResultCount;
-		}
+		MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
+		if (zonalResultCount > nrRows)
+			throwDmsErrF("precalculated_NrDstZones: origin zone {} reaches {} destination zones, more than the {} given for it"
+			,	orgZone, zonalResultCount, nrRows);
+		nrUndefinedRows = nrRows - zonalResultCount;
 	}
 
 	dms_assert(orgZone < ni.nrOrgZones);
@@ -1034,37 +1205,29 @@ SizeT WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 	}
 	else
 	{
-		if (flags(df & DijkstraFlag::Counting))
+		if (res.od_ImpData)
 		{
-			if (resCount)
-				resCount[orgZone] = zonalResultCount;
+			auto currPtr = res.od_ImpData + resultCountBase;
+			for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+				*currPtr++ = nzc.Res2Imp(resIndex);
 		}
-		else
-		{
-			if (res.od_ImpData)
-			{
-				auto currPtr = res.od_ImpData + resultCountBase;
-				for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
-					*currPtr++ = nzc.Res2Imp(resIndex);
-			}
-			if (res.od_DstZoneIds) {
-				auto currPtr = res.od_DstZoneIds + resultCountBase;
-				for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
-					*currPtr++ = nzc.Res2DstZone(resIndex);
-			}
-			if (res.od_EndPointIds) {
-				auto currPtr = res.od_EndPointIds + resultCountBase;
-				for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
-					*currPtr++ = nzc.Res2EndPoint(resIndex);
-			}
-			// See the dense counterpart above: the origin of the accepted route is read
-			// from the arrival node. Every sparse row is a reached zone, so the end node
-			// is defined here.
-			if (res.od_StartPointIds) {
-				auto currPtr = res.od_StartPointIds + resultCountBase;
-				for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
-					*currPtr++ = dh.StartPointOf(nzc.Res2EndNode(resIndex));
-			}
+		if (res.od_DstZoneIds) {
+			auto currPtr = res.od_DstZoneIds + resultCountBase;
+			for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+				*currPtr++ = nzc.Res2DstZone(resIndex);
+		}
+		if (res.od_EndPointIds) {
+			auto currPtr = res.od_EndPointIds + resultCountBase;
+			for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+				*currPtr++ = nzc.Res2EndPoint(resIndex);
+		}
+		// See the dense counterpart above: the origin of the accepted route is read
+		// from the arrival node. Every sparse row is a reached zone, so the end node
+		// is defined here.
+		if (res.od_StartPointIds) {
+			auto currPtr = res.od_StartPointIds + resultCountBase;
+			for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+				*currPtr++ = dh.StartPointOf(nzc.Res2EndNode(resIndex));
 		}
 	}
 	if (res.od_SrcZoneIds)
@@ -1095,16 +1258,14 @@ SizeT WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 
 	if (res.orgZone_NrDstZones)
 		res.orgZone_NrDstZones[orgZone] = nzc.NrReachedZones();
-
-	return resultCountBase;
 }
 
 // *****************************************************************************
 // AccumulateInteraction:
 //   Per-origin interaction / trip-distribution stage: derives the deterrence
 //   potential per reached destination, the origin aggregates (D_i, M_ix, SumImp,
-//   SumLinkAttr, MaxImp), the shared destination aggregates (C_j, M_xj, guarded
-//   by WriteBlock locks), and back-propagates the interaction demand onto the
+//   SumLinkAttr, MaxImp), the shared destination aggregates (C_j, M_xj,
+//   accumulated per worker), and back-propagates the interaction demand onto the
 //   links of the accepted tree (link flow, accumulated per worker).
 //   dImpIsAltBased tells whether d_vj holds tree-accumulated alternative
 //   impedances (then endpoint offsets are NOT re-added) or plain node distances.
@@ -1352,25 +1513,28 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 // WriteLinkSets:
 //   Per-origin reconstruction of the route (as a link sequence) for every od
 //   result row, by walking the per-node traceback from the arrival node to the
-//   root. The sequence allocation shares one lock across origins.
+//   root, into the row buffers of the origin: the links of all rows one after
+//   another, and the number per row. An unreached row, and a row that a
+//   precalculated count reserved beyond the zones reached, gets no links, so
+//   its sequence stays empty. Returns the number of links. The buffers belong
+//   to the worker, so no lock is taken; the sequences were allocated under a
+//   shared lock until #1327, and before GEO-A39 per od row.
 // *****************************************************************************
-template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType, typename MassType>
-void WriteLinkSets(const GraphInfo<NodeType, LinkType, ImpType>& graph
+template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType>
+SizeT WriteLinkSets(const GraphInfo<NodeType, LinkType, ImpType>& graph
 ,	const NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>& nzc
 ,	const OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>& dh
-,	ZoneType zonalResultCount, SizeT resultCountBase
-,	WriteBlock& writeBlocks
-,	const ResultInfo<ZoneType, ImpType, MassType>& res)
+,	ZoneType zonalResultCount, SizeT nrRows
+,	my_vec_t<LinkType>& links, my_vec_t<SizeT>& linkCountBuffer)
 {
 	assert(dh.m_TraceBackDataPtr);
+	assert(zonalResultCount <= nrRows);
 
-	// The routes of all rows of this origin are walked outside the lock, one after another into one buffer, and
-	// written under it in one go: the lock guards only the allocation in the shared sequence array. It was taken per
-	// od row, around a second walk of the traceback (GEO-A39).
-	std::vector<LinkType> links;
-	std::vector<SizeT> rowEnds(zonalResultCount);
+	links.clear();
+	SizeT* linkCounts = RowBuffer(linkCountBuffer, nrRows);
 	for (ZoneType j = 0; j != zonalResultCount; ++j)
 	{
+		SizeT rowBegin = links.size();
 		NodeType walk = nzc.Res2EndNode(j);
 		if (IsDefined(walk))
 			while (true)
@@ -1384,19 +1548,10 @@ void WriteLinkSets(const GraphInfo<NodeType, LinkType, ImpType>& graph
 					walk = graph.linkF2Data[currLink];
 				links.push_back(currLink);
 			}
-		rowEnds[j] = links.size();
+		linkCounts[j] = links.size() - rowBegin;
 	}
-
-	leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
-	SizeT rowBegin = 0;
-	for (ZoneType j = 0; j != zonalResultCount; rowBegin = rowEnds[j++])
-	{
-		if (!IsDefined(nzc.Res2EndNode(j)))
-			continue; // an unreached row keeps its empty sequence, as before
-		auto resLinkSetRef = res.od_LS[resultCountBase + j];
-		resLinkSetRef.resize_uninitialized(rowEnds[j] - rowBegin MG_DEBUG_ALLOCATOR_SRC("Dijkstra.LinkSet"));
-		std::copy(links.begin() + rowBegin, links.begin() + rowEnds[j], resLinkSetRef.begin());
-	}
+	std::fill(linkCounts + zonalResultCount, linkCounts + nrRows, SizeT(0));
+	return links.size();
 }
 
 // *****************************************************************************
@@ -1442,11 +1597,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 ,	const ParamType tgBetaLogit
 ,	const ParamType tgGammaLogit
 ,   const ParamType* tgOrgAlpha, bool tgOrgAlphaHasVoidDomain
-,	const SizeT*   resCumulCount, SizeT nrRes
-
-,	SizeT* resCount
+,	const ZoneType* precalculatedNrDstZones // the rows per origin given by precalculated_NrDstZones, or null
+,	OdRowSink<ZoneType, ImpType, LinkType>* sink // where the od rows go, or null when no od attribute is made
 ,	ResultInfo<ZoneType, ImpType, MassType>&& res
-,   tile_id nrResultTiles
 ,	CharPtr   actionMsg
 )
 {
@@ -1457,24 +1610,24 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	auto itemRefStr = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 	CharPtr itemRef = itemRefStr.c_str();
 
-	assert(altLinkWeights || !res.od_AltLinkImp);
+	assert(altLinkWeights || !(sink && sink->altImp.IsActive()));
+	assert(res.od_LinkSet == (sink && sink->linkSet.IsActive()));
 
 	bool tgBetaDecayIsZero = (tgBetaDecay == 0.0);
 	bool tgBetaDecayIsOne  = (tgBetaDecay == 1.0);
 	bool tgBetaDecayIsZeroOrOne = tgBetaDecayIsZero || tgBetaDecayIsOne;
 	bool useSrcZoneStamps = flags(df & DijkstraFlag::SparseResult) && flags(df & DijkstraFlag::OD);
-	bool useTraceBack = (altLinkWeights || linkAttr || res.od_LS || res.LinkFlow || (flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB));
+	bool useTraceBack = (altLinkWeights || linkAttr || res.od_LinkSet || res.LinkFlow || (flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB));
 	// od:StartPoint_rel is the only consumer of origin-side provenance, so the per-node array is
-	// allocated only when that member is actually produced (never in the Counting pass).
-	bool useStartPointProvenance = (res.od_StartPointIds != nullptr);
-
-	WriteBlock writeBlocks;
+	// allocated only when that member is actually produced.
+	bool useStartPointProvenance = sink && sink->startPoint.IsActive();
 
 	// Thread-local combinables (one copy per worker thread)
 	dms_combinable<NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>> nzcC;
 	dms_combinable<OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>> dhC;
 	dms_combinable<TreeRelations> trC;
 	dms_combinable< my_vec_t<ImpType>> pot_ijC;
+	dms_combinable<OdRowBuffers<ZoneType, ImpType, LinkType>> rowBufC;
 
 	dms_combinable<my_vec_t<MassType> >  resLinkFlowC;
 	dms_combinable<my_vec_t<MassType> >  resDstFactorC, resDstSupplyC;
@@ -1505,9 +1658,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	auto orgZoneTask =
 		[=,
 		&resultHolder,
-		&writeBlocks,
 		&ni, &graph, &node_endPoint_inv, &zoneCount, &resultCount, &processTimer,
-		&nzcC, &dhC, &trC, &pot_ijC, &resLinkFlowC, &resDstFactorC, &resDstSupplyC,
+		&nzcC, &dhC, &trC, &pot_ijC, &rowBufC, &resLinkFlowC, &resDstFactorC, &resDstSupplyC,
 		&res
 		](ZoneType orgZone)
 		{
@@ -1713,9 +1865,14 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				}
 			}
 
-			// Emit this origin's od rows / counts; the base offset is needed again below
+			// Emit this origin's od rows into the row buffers of this worker, from row 0
 			ZoneType zonalResultCount = nzc.ZonalResCount();
-			SizeT resultCountBase = WriteZonalResults(ni, nzc, dh, df, orgZone, zonalResultCount, resCumulCount, nrRes, resCount, res);
+			SizeT nrRows = precalculatedNrDstZones ? SizeT(precalculatedNrDstZones[orgZone]) : SizeT(zonalResultCount);
+			auto& rowBuf = rowBufC.local();
+			auto rowRes = res;
+			if (sink)
+				sink->PointInto(rowBuf, nrRows, rowRes);
+			WriteZonalResults(ni, nzc, dh, df, orgZone, zonalResultCount, nrRows, rowRes);
 			resultCount += zonalResultCount;
 
 			const ImpType* d_vj = dh.m_ResultDataPtr;
@@ -1725,12 +1882,12 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 			if (altLinkWeights)
 			{
 				d_vj = dh.m_AltLinkWeight.begin();
-				UpdateALW(ni, dh, tr, nzc, altLinkWeights, altLinkWeightsHasVoidDomain, orgZone, zonalResultCount, resultCountBase, dh.m_AltLinkWeight.begin(), res.od_AltLinkImp);
+				UpdateALW(ni, dh, tr, nzc, altLinkWeights, altLinkWeightsHasVoidDomain, orgZone, zonalResultCount, 0, dh.m_AltLinkWeight.begin(), rowRes.od_AltLinkImp);
 			}
 			if (linkAttr)
 			{
 				la_vj = dh.m_LinkAttr.begin();
-				UpdateALW(ni, dh, tr, nzc, linkAttr, linkAttrHasVoidDomain, orgZone, zonalResultCount, resultCountBase, dh.m_LinkAttr.begin(), res.od_LinkAttr);
+				UpdateALW(ni, dh, tr, nzc, linkAttr, linkAttrHasVoidDomain, orgZone, zonalResultCount, 0, dh.m_LinkAttr.begin(), rowRes.od_LinkAttr);
 			}
 
 			// Interaction & aggregate metrics
@@ -1739,8 +1896,13 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					, d_vj, la_vj, altLinkWeights != nullptr, pot_ijC.local(), resLinkFlow, resDstFactor, resDstSupply, res);
 
 			// Reconstruct per-OD link sets if requested
-			if (res.od_LS)
-				WriteLinkSets(graph, nzc, dh, zonalResultCount, resultCountBase, writeBlocks, res);
+			SizeT nrLinks = 0;
+			if (res.od_LinkSet)
+				nrLinks = WriteLinkSets(graph, nzc, dh, zonalResultCount, nrRows, rowBuf.links, rowBuf.linkCounts);
+
+			// Hand the rows over, in the order of the origin zones
+			if (sink)
+				sink->Deliver(orgZone, rowBuf, nrRows, nrLinks);
 
 			zoneCount++;
 			if (processTimer.PassedSecs())
@@ -1794,10 +1956,10 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 //   and its preconditions live with BiCriteriaDijkstraHeap in Dijkstra.h.
 //
 //   Emits one od-row per accepted commit -- impedance, alt_imp (= imp2),
-//   OrgZone_rel, DstZone_rel, StartPoint_rel, EndPoint_rel, LinkSet -- through the same
-//   sparse two-pass Counting/fill protocol as the scalar engine; the count and
-//   fill pass MUST replay identical searches, which holds because no output
-//   structure influences pruning. StartPoint_rel and EndPoint_rel are
+//   OrgZone_rel, DstZone_rel, StartPoint_rel, EndPoint_rel, LinkSet -- in one
+//   pass, through the same OdRowSink as the scalar engine (#1327). Until then a
+//   counting pass ran first, which had to replay exactly the searches of the
+//   filling pass. StartPoint_rel and EndPoint_rel are
 //   attributes of the accepted ROUTE: the labels carry their seeding start
 //   point as provenance (see BiCriteriaDijkstraHeap::LabelRef), and the commit
 //   records the end point that produced the row. The first commit per
@@ -1816,12 +1978,10 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 //   away from this engine (front-mass semantics are follow-up work), which is
 //   what keeps this driver small; both cutoffs are therefore fixed per origin.
 //
-//   od:LinkSet (#1325) is the one tree product: the filling pass runs with
+//   od:LinkSet (#1325) is the one tree product: the search runs with
 //   TraceLabels when it is requested, the heap pools the accepted labels with
 //   their parent and via link, each commit records its label, and
-//   WriteParetoLinkSets walks the parents per row. The counting pass never
-//   traces; see BiCriteriaDijkstraHeap for why both passes still accept the
-//   same labels.
+//   WriteParetoLinkSets walks the parents per row.
 // *****************************************************************************
 
 // *****************************************************************************
@@ -1829,22 +1989,20 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 //   The pareto counterpart of WriteLinkSets (#1325). The route of an od row is
 //   the chain of parents of its committed label in the label pool, walked from
 //   the arrival back to the seed, so the links come in the order of
-//   WriteLinkSets: from the destination to the origin. The walks of all rows of
-//   an origin go into one buffer outside the lock; the lock guards only the
-//   allocation in the shared sequence array.
+//   WriteLinkSets: from the destination to the origin. Like WriteLinkSets, the
+//   walks go into the row buffers of the origin; returns the number of links.
 // *****************************************************************************
-template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType, typename MassType>
-void WriteParetoLinkSets(const BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType, LinkType, true>& dh
+template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType>
+SizeT WriteParetoLinkSets(const BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType, LinkType, true>& dh
 ,	const BiNodeZoneConnector<NodeType, ZoneType, ImpType>& nzc
-,	SizeT resultCountBase
-,	WriteBlock& writeBlocks
-,	const ResultInfo<ZoneType, ImpType, MassType>& res)
+,	my_vec_t<LinkType>& links, my_vec_t<SizeT>& linkCountBuffer)
 {
 	SizeT nrRows = nzc.CommitCount();
-	std::vector<LinkType> links;
-	std::vector<SizeT> rowEnds(nrRows);
+	links.clear();
+	SizeT* linkCounts = RowBuffer(linkCountBuffer, nrRows);
 	for (SizeT r = 0; r != nrRows; ++r)
 	{
+		SizeT rowBegin = links.size();
 		LabelIdx label = nzc.Commit(r).label;
 		while (true)
 		{
@@ -1854,17 +2012,9 @@ void WriteParetoLinkSets(const BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpTyp
 			links.push_back(pooled.via);
 			label = pooled.parent;
 		}
-		rowEnds[r] = links.size();
+		linkCounts[r] = links.size() - rowBegin;
 	}
-
-	leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
-	SizeT rowBegin = 0;
-	for (SizeT r = 0; r != nrRows; rowBegin = rowEnds[r++])
-	{
-		auto resLinkSetRef = res.od_LS[resultCountBase + r];
-		resLinkSetRef.resize_uninitialized(rowEnds[r] - rowBegin MG_DEBUG_ALLOCATOR_SRC("Dijkstra.LinkSet"));
-		std::copy(links.begin() + rowBegin, links.begin() + rowEnds[r], resLinkSetRef.begin());
-	}
+	return links.size();
 }
 
 template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType, typename MassType, bool TraceLabels>
@@ -1879,8 +2029,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 ,	const LinkProfiles<ImpType>& imp2Profiles // timedependent_alt(): the profiles of the second criterion; empty otherwise
 ,	const Inverted_rel<ZoneType>& node_endPoint_inv
 ,	DijkstraFlag df
-,	const SizeT* resCumulCount, SizeT nrRes
-,	SizeT* resCount
+,	OdRowSink<ZoneType, ImpType, LinkType>* sink // where the od rows go, or null when no od attribute is made
 ,	ResultInfo<ZoneType, ImpType, MassType>&& res
 ,	CharPtr actionMsg
 )
@@ -1894,21 +2043,21 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 
 	assert(orgMaxImpedances); // CheckFlags: pareto requires cut(OrgZone_max_imp)
 	assert(linkImp2Data);     // CheckFlags: pareto requires alternative(link_imp)
-	assert(TraceLabels == bool(res.od_LS)); // the call site instantiates the tracing driver for od:LinkSet only
+	assert(TraceLabels == res.od_LinkSet); // the call site instantiates the tracing driver for od:LinkSet only
+	assert(res.od_LinkSet == (sink && sink->linkSet.IsActive()));
 
 	using HeapType = BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType, LinkType, TraceLabels>;
-
-	WriteBlock writeBlocks;
 
 	// Thread-local combinables (one copy per worker thread)
 	dms_combinable<BiNodeZoneConnector<NodeType, ZoneType, ImpType>> nzcC;
 	dms_combinable<HeapType> dhC;
+	dms_combinable<OdRowBuffers<ZoneType, ImpType, LinkType>> rowBufC;
 
 	auto orgZoneTask =
 		[=,
 		&resultHolder,
 		&ni, &graph, &node_endPoint_inv, &zoneCount, &resultCount, &processTimer,
-		&nzcC, &dhC, &writeBlocks,
+		&nzcC, &dhC, &rowBufC,
 		&res
 		](ZoneType orgZone)
 		{
@@ -2097,32 +2246,27 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				endPointHeap.pop_back();
 			}
 
-			// Emit rows (or counts) in commit order
+			// Emit rows in commit order into the row buffers of this worker, and hand them over in the order of the origin zones
 			SizeT zonalResultCount = nzc.CommitCount();
-			if (flags(df & DijkstraFlag::Counting))
+			if (sink)
 			{
-				if (resCount)
-					resCount[orgZone] = zonalResultCount;
-			}
-			else if (resCumulCount)
-			{
-				// count and fill pass must replay identical searches; the last origin is bounded by the total
-				// (GEO-A29: it was not compared, and a larger replay wrote past the count of the result)
-				SizeT resultCountBase = resCumulCount[orgZone];
-				SizeT nextBase = (orgZone + 1 < ni.nrOrgZones) ? resCumulCount[orgZone + 1] : nrRes;
-				MG_CHECK(resultCountBase <= nextBase && nextBase <= nrRes && zonalResultCount == nextBase - resultCountBase);
+				auto& rowBuf = rowBufC.local();
+				auto rowRes = res;
+				sink->PointInto(rowBuf, zonalResultCount, rowRes);
 				for (SizeT r = 0; r != zonalResultCount; ++r)
 				{
 					const auto& commit = nzc.Commit(r);
-					if (res.od_ImpData)        res.od_ImpData       [resultCountBase + r] = commit.imp;
-					if (res.od_AltLinkImp)     res.od_AltLinkImp    [resultCountBase + r] = commit.imp2;
-					if (res.od_SrcZoneIds)     res.od_SrcZoneIds    [resultCountBase + r] = orgZone;
-					if (res.od_DstZoneIds)     res.od_DstZoneIds    [resultCountBase + r] = commit.dstZone;
-					if (res.od_StartPointIds)  res.od_StartPointIds [resultCountBase + r] = commit.startPoint;
-					if (res.od_EndPointIds)    res.od_EndPointIds   [resultCountBase + r] = commit.y;
+					if (rowRes.od_ImpData)        rowRes.od_ImpData       [r] = commit.imp;
+					if (rowRes.od_AltLinkImp)     rowRes.od_AltLinkImp    [r] = commit.imp2;
+					if (rowRes.od_SrcZoneIds)     rowRes.od_SrcZoneIds    [r] = orgZone;
+					if (rowRes.od_DstZoneIds)     rowRes.od_DstZoneIds    [r] = commit.dstZone;
+					if (rowRes.od_StartPointIds)  rowRes.od_StartPointIds [r] = commit.startPoint;
+					if (rowRes.od_EndPointIds)    rowRes.od_EndPointIds   [r] = commit.y;
 				}
+				SizeT nrLinks = 0;
 				if constexpr (TraceLabels)
-					WriteParetoLinkSets(dh, nzc, resultCountBase, writeBlocks, res);
+					nrLinks = WriteParetoLinkSets(dh, nzc, rowBuf.links, rowBuf.linkCounts);
+				sink->Deliver(orgZone, rowBuf, zonalResultCount, nrLinks);
 			}
 			resultCount += zonalResultCount;
 
@@ -3175,69 +3319,29 @@ public:
 			if (argEndPointNode)
 				node_endPoint_inv.Init(endPoint_Node_rel_Data.begin(), networkInfo.nrY, networkInfo.nrV);
 
-			SizeT nrRes = -1;
-			OwningPtrSizedArray<SizeT> resCount;
-			if (mutableResultUnit && flags(df & DijkstraFlag::OD_Data))
+			// The od rows (#1327). impedance_matrix makes them over a domain of its own. Their number is known
+			// beforehand for a dense result (nrOrgZones x nrDstZones) and with precalculated_NrDstZones: then that
+			// domain gets its count now and the rows go straight into the od attributes. For any other sparse
+			// result the number is known only at the end: the rows go into a chain of tiles per attribute, and the
+			// domain gets its count after the run. Either way each search runs once; until #1327 a sparse result
+			// without precalculated_NrDstZones first ran every search in a counting pass. impedance_table writes its
+			// row per destination zone straight into an attribute of the destination zones.
+			bool isOdData = mutableResultUnit && flags(df & DijkstraFlag::OD_Data);
+			bool isCountKnownAtEnd = isOdData && flags(df & DijkstraFlag::SparseResult) && !flags(df & DijkstraFlag::PrecalculatedNrDstZones);
+			OwningPtrSizedArray<ZoneType> precalculatedNrDstZones;
+			if (isOdData && !isCountKnownAtEnd)
 			{
+				SizeT nrRes;
 				if (flags(df & DijkstraFlag::SparseResult))
 				{
-					resCount = OwningPtrSizedArray<SizeT>(networkInfo.nrOrgZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: resCount"));
-					if (!flags(df & DijkstraFlag::PrecalculatedNrDstZones))
-					{
-						if (flags(df & DijkstraFlag::BiCriteria))
-							nrRes = ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, /*TraceLabels*/ false>(resultHolder, networkInfo
-								, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
-								, orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
-								, imp2EpsilonData.empty() ? nullptr : imp2EpsilonData.data(), HasVoidDomainGuarantee(adiImp2Epsilon)
-								, euclidicSqrDist
-								, graph
-								, altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
-								, imp2Profiles
-								, node_endPoint_inv
-								, DijkstraFlag(df | DijkstraFlag::Counting)
-								, nullptr, 0
-								, resCount.begin()
-								, ResultInfo<ZoneType, ImpType, MassType>()
-								, "Counting"
-								);
-						else
-							nrRes = ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
-								, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
-								, orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)
-								, dstMassLimit.begin(), HasVoidDomainGuarantee(adiDstMassLimit)
-								, euclidicSqrDist
-								, graph
-								, node_endPoint_inv
-								, (df & ~DijkstraFlag::InteractionOrMaxImp & ~DijkstraFlag::UseLinkAttr) | DijkstraFlag::Counting
-								, nullptr, HasVoidDomainGuarantee(adiLinkAltImp)
-								, nullptr, HasVoidDomainGuarantee(adiLinkAttr)
-								, nullptr, HasVoidDomainGuarantee(adiOrgMinImp)
-								, nullptr, HasVoidDomainGuarantee(adiDstMinImp)
-								, nullptr, HasVoidDomainGuarantee(adiOrgMass)
-								, nullptr, HasVoidDomainGuarantee(adiDstMass)
-								, ParamType()
-								, ParamType(), ParamType(), ParamType()
-								, nullptr, HasVoidDomainGuarantee(adiOrgAlpha)
-								, nullptr, 0
-								, resCount.begin()
-								, ResultInfo<ZoneType, ImpType, MassType>()
-							, no_tile
-								, "Counting"
-								);
-						if (!IsDefined(nrRes))
-							return false;
-					}
-					else
-					{
-						MG_CHECK(argPrecalculatedNrDstZones);
-						auto precalculatedNrDstZoneData = argPrecalculatedNrDstZones->GetLockedDataRead();
-						auto firstNull = std::find_if(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), [](ZoneType c) { return !IsDefined(c); });
-						if (firstNull != precalculatedNrDstZoneData.end())
-							throwErrorF("dijkstra", "precalculated_NrDstZones has a null count for origin zone {}", firstNull - precalculatedNrDstZoneData.begin());
-						std::copy(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), resCount.begin());
-						nrRes = std::accumulate(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), SizeT(0));
-					}
-					make_cumulative_base(resCount.begin(), resCount.begin() + networkInfo.nrOrgZones);
+					MG_CHECK(argPrecalculatedNrDstZones);
+					auto precalculatedNrDstZoneData = argPrecalculatedNrDstZones->GetLockedDataRead();
+					auto firstNull = std::find_if(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), [](ZoneType c) { return !IsDefined(c); });
+					if (firstNull != precalculatedNrDstZoneData.end())
+						throwErrorF("dijkstra", "precalculated_NrDstZones has a null count for origin zone {}", firstNull - precalculatedNrDstZoneData.begin());
+					precalculatedNrDstZones = OwningPtrSizedArray<ZoneType>(networkInfo.nrOrgZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: precalculatedNrDstZones"));
+					std::copy(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), precalculatedNrDstZones.begin());
+					nrRes = std::accumulate(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), SizeT(0));
 				}
 				else
 				{
@@ -3247,17 +3351,20 @@ public:
 				mutableResultUnit->SetCount(nrRes);
 			}
 
-			// Output data locking & final pass
-			DataWriteLock resDistLock   (resDist);
-			DataWriteLock resSrcZoneLock(resSrcZone);
-			DataWriteLock resDstZoneLock(resDstZone);
-			DataWriteLock resStartPointLock(resStartPoint);
-			DataWriteLock resEndPointLock(resEndPoint);
+			// Output data locking. An od attribute is locked once its domain has its count: here, or after the run.
+			DataWriteLock resDistLock, resSrcZoneLock, resDstZoneLock, resStartPointLock, resEndPointLock, resLinkSetLock, resALWLock, resLinkAttrLock;
+			auto lockOdAttributes = [&]()
+				{
+					resDistLock       = DataWriteLock(resDist);
+					resSrcZoneLock    = DataWriteLock(resSrcZone);
+					resDstZoneLock    = DataWriteLock(resDstZone);
+					resStartPointLock = DataWriteLock(resStartPoint);
+					resEndPointLock   = DataWriteLock(resEndPoint);
+					resLinkSetLock    = DataWriteLock(resLS, dms_rw_mode::write_only_mustzero);
+					resALWLock        = DataWriteLock(resAltLinkImp);
+					resLinkAttrLock   = DataWriteLock(resLinkAttr);
+				};
 			DataWriteLock resTraceBackLock(resTB);
-			DataWriteLock resLinkSetLock(resLS,      dms_rw_mode::write_only_mustzero);
-
-			DataWriteLock resALWLock(resAltLinkImp);
-			DataWriteLock resLinkAttrLock (resLinkAttr);
 			DataWriteLock resOrgNrDstZonesLock(resOrgNrDstZones);
 			// The five org-zone aggregates below are ACCUMULATED into (sums, and a max), and their
 			// GetDataWrite() calls request write_only_mustzero -- so the zero must be arranged HERE.
@@ -3274,7 +3381,40 @@ public:
 			DataWriteLock resDSLock(resDstSupply,      dms_rw_mode::write_only_mustzero);
 			DataWriteLock resLinkFlowLock(resLinkFlow, dms_rw_mode::write_only_mustzero);
 
-			// The engines receive BORROWED raw pointers to the result buffers: ResultInfo
+			// The od rows go through the sink, in the order of the origin zones: into a chain of tiles per attribute,
+			// or straight into the attributes when their domain has its count (OdRowSink).
+			std::unique_ptr<OdRowSink<ZoneType, ImpType, LinkType>> sink;
+			if (resDist || resAltLinkImp || resLinkAttr || resSrcZone || resDstZone || resStartPoint || resEndPoint || resLS)
+			{
+				sink = std::make_unique<OdRowSink<ZoneType, ImpType, LinkType>>(networkInfo.nrOrgZones);
+				if (isCountKnownAtEnd)
+				{
+					SizeT maxNrRes = flags(df & DijkstraFlag::UInt64_Od) ? SizeT(MAX_VALUE(UInt64)) : SizeT(MAX_VALUE(UInt32));
+					if (resDist      ) sink->imp       .InitChain(maxNrRes);
+					if (resAltLinkImp) sink->altImp    .InitChain(maxNrRes);
+					if (resLinkAttr  ) sink->linkAttr  .InitChain(maxNrRes);
+					if (resSrcZone   ) sink->srcZone   .InitChain(maxNrRes);
+					if (resDstZone   ) sink->dstZone   .InitChain(maxNrRes);
+					if (resStartPoint) sink->startPoint.InitChain(maxNrRes);
+					if (resEndPoint  ) sink->endPoint  .InitChain(maxNrRes);
+					if (resLS        ) sink->linkSet   .InitChain(maxNrRes);
+				}
+				else
+				{
+					lockOdAttributes();
+					if (resDist      ) sink->imp       .InitDirect(mutable_array_cast<ImpType >(resDistLock      ));
+					if (resAltLinkImp) sink->altImp    .InitDirect(mutable_array_cast<ImpType >(resALWLock       ));
+					if (resLinkAttr  ) sink->linkAttr  .InitDirect(mutable_array_cast<ImpType >(resLinkAttrLock  ));
+					if (resSrcZone   ) sink->srcZone   .InitDirect(mutable_array_cast<ZoneType>(resSrcZoneLock   ));
+					if (resDstZone   ) sink->dstZone   .InitDirect(mutable_array_cast<ZoneType>(resDstZoneLock   ));
+					if (resStartPoint) sink->startPoint.InitDirect(mutable_array_cast<ZoneType>(resStartPointLock));
+					if (resEndPoint  ) sink->endPoint  .InitDirect(mutable_array_cast<ZoneType>(resEndPointLock  ));
+					if (resLS        ) sink->linkSet   .InitDirect(mutable_array_cast<EdgeSeq >(resLinkSetLock   ));
+				}
+			}
+			auto sinkPtr = sink.get();
+
+			// The engines receive BORROWED raw pointers to the buffers of the other results: ResultInfo
 			// only communicates them to the worker threads; ownership stays with the
 			// DataWriteLocks in THIS scope (never copy those into a worker lambda -- that
 			// would turn mutable ownership into something shared). The write views that
@@ -3307,12 +3447,12 @@ public:
 						,	imp2Profiles
 						,	node_endPoint_inv
 						,	df
-						,	resCount.begin(), nrRes, nullptr
+						,	sinkPtr
 						,	std::move(res)
 						,	"Filling"
 						);
 					};
-					return res.od_LS ? runBi(std::true_type()) : runBi(std::false_type());
+					return res.od_LinkSet ? runBi(std::true_type()) : runBi(std::false_type());
 				}
 				return ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
 				,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
@@ -3332,23 +3472,15 @@ public:
 				,	argDistLogitBetaParam? tgDistLogitB[0] : ParamType()
 				,	argDistLogitGammaParam? tgDistLogitC[0] : ParamType()
 				,	tgOrgAlpha.begin(), HasVoidDomainGuarantee(adiOrgAlpha)
-				,	resCount.begin(), nrRes
-				,	nullptr
+				,	precalculatedNrDstZones.begin()
+				,	sinkPtr
 				,	std::move(res)
-				,	(flags(df & DijkstraFlag::OD_Data) || !mutableResultUnit) ? resultUnit->GetNrTiles() : no_tile
 				,	"Filling"
 				);
 			};
 
 			SizeT nrRes2 = runEngine(ResultInfo<ZoneType, ImpType, MassType>{
-				  .od_ImpData          = resDist          ? mutable_array_cast<ImpType >(resDistLock          )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, .od_AltLinkImp       = resAltLinkImp    ? mutable_array_cast<ImpType >(resALWLock           )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, .od_LinkAttr         = resLinkAttr      ? mutable_array_cast<ImpType >(resLinkAttrLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, .od_SrcZoneIds       = resSrcZone       ? mutable_array_cast<ZoneType>(resSrcZoneLock       )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, .od_DstZoneIds       = resDstZone       ? mutable_array_cast<ZoneType>(resDstZoneLock       )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, .od_StartPointIds    = resStartPoint    ? mutable_array_cast<ZoneType>(resStartPointLock    )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, .od_EndPointIds      = resEndPoint      ? mutable_array_cast<ZoneType>(resEndPointLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, .od_LS               = resLS            ? mutable_array_cast<EdgeSeq >(resLinkSetLock       )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : DataArray<EdgeSeq>::iterator()
+				  .od_LinkSet          = (resLS != nullptr)
 				, .node_TB             = resTB            ? mutable_array_cast<LinkType>(resTraceBackLock     )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, .orgZone_NrDstZones  = resOrgNrDstZones ? mutable_array_cast<ZoneType>(resOrgNrDstZonesLock )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, .orgZone_Factor      = resOrgFactor     ? mutable_array_cast<MassType>(resOrgFactorLock     )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
@@ -3361,17 +3493,32 @@ public:
 				, .LinkFlow            = resLinkFlow      ? mutable_array_cast<MassType>(resLinkFlowLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				});
 
-
 			if (!IsDefined(nrRes2))
 				return false;
 
-			if (mutableResultUnit)
+			if (sink)
 			{
-				if (!flags(df & DijkstraFlag::OD_Data))
-				{ 
-					mutableResultUnit->SetCount(nrRes2);
+				if (isCountKnownAtEnd)
+				{
+					SizeT nrRes = sink->FinishChains();
+					MG_CHECK(nrRes == nrRes2);
+					mutableResultUnit->SetCount(nrRes);
+					lockOdAttributes();
+					if (resDist      ) sink->imp       .AdoptInto(mutable_array_cast<ImpType >(resDistLock      ));
+					if (resAltLinkImp) sink->altImp    .AdoptInto(mutable_array_cast<ImpType >(resALWLock       ));
+					if (resLinkAttr  ) sink->linkAttr  .AdoptInto(mutable_array_cast<ImpType >(resLinkAttrLock  ));
+					if (resSrcZone   ) sink->srcZone   .AdoptInto(mutable_array_cast<ZoneType>(resSrcZoneLock   ));
+					if (resDstZone   ) sink->dstZone   .AdoptInto(mutable_array_cast<ZoneType>(resDstZoneLock   ));
+					if (resStartPoint) sink->startPoint.AdoptInto(mutable_array_cast<ZoneType>(resStartPointLock));
+					if (resEndPoint  ) sink->endPoint  .AdoptInto(mutable_array_cast<ZoneType>(resEndPointLock  ));
+					if (resLS        ) sink->linkSet   .AdoptInto(mutable_array_cast<EdgeSeq >(resLinkSetLock   ));
 				}
+				else
+					sink->CloseDirect();
 			}
+			if (mutableResultUnit && !flags(df & DijkstraFlag::OD_Data))
+				mutableResultUnit->SetCount(nrRes2);
+
 			if (resDist) resDistLock.Commit();
 			if (resSrcZone) resSrcZoneLock.Commit();
 			if (resDstZone) resDstZoneLock.Commit();

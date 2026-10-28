@@ -1,0 +1,55 @@
+// A sparse impedance_matrix of more than one tile, stored in an MMD the way a model stores such a result: a store
+// unit over the od domain whose attributes copy the od attributes (#1327). Since 20.27.0 the rows go into a chain of
+// tiles that the od attributes adopt once the domain has its count; this pair checks that what is then copied into
+// the store, the LinkSet sequences included, reads back as the same result. The network is the grid of
+// oper_impedance_tiles.dms. The operator writes its own od attributes to the heap; a StorageName on the od unit
+// itself does not make them write through to an MMD, with or without #1327.
+//
+// This config only WRITES the store; oper_impedance_tiles_mmd_2_read.dms reads it back and compares it with the
+// same result made in memory. THE TWO BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs
+// sorted by file name.
+container oper_impedance_tiles_mmd_1_write
+{
+	unit<uint32> Node : nrofrows = 400;
+	unit<uint32> LinkH : nrofrows = 380
+	{
+		attribute<Node>    F1 := value((id(LinkH) / 19) * 20 + id(LinkH) % 19, Node);
+		attribute<Node>    F2 := value(uint32(F1) + 1, Node);
+		attribute<float64> t  := float64(1 + id(LinkH) % 7);
+	}
+	unit<uint32> LinkV : nrofrows = 380
+	{
+		attribute<Node>    F1 := value(id(LinkV), Node);
+		attribute<Node>    F2 := value(id(LinkV) + 20, Node);
+		attribute<float64> t  := float64(1 + (id(LinkV) * 3) % 5);
+	}
+	unit<uint32> Link := union_unit(LinkH, LinkV)
+	{
+		attribute<Node>    F1 := union_data(., LinkH/F1, LinkV/F1);
+		attribute<Node>    F2 := union_data(., LinkH/F2, LinkV/F2);
+		attribute<float64> t  := union_data(., LinkH/t, LinkV/t);
+	}
+	unit<uint32> Zone : nrofrows = 400
+	{
+		attribute<Node> node_rel := value(id(Zone), Node);
+		attribute<Zone> zone_rel := id(Zone);
+	}
+
+	unit<uint32> od := impedance_matrix(
+		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,LinkSet'
+		, Link/t, Link/F1, Link/F2
+		, Zone/node_rel, Zone/zone_rel
+		, Zone/node_rel, Zone/zone_rel
+		, const(60.0, Zone)
+		);
+
+	unit<uint32> store := od
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/oper_impedance_tiles.mmd"
+	{
+		attribute<float64> impedance   := od/impedance;
+		attribute<Zone>    OrgZone_rel := od/OrgZone_rel;
+		attribute<Zone>    DstZone_rel := od/DstZone_rel;
+		attribute<Link>    LinkSet (arc) := od/LinkSet;
+	}
+}

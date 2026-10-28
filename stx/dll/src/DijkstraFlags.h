@@ -124,7 +124,7 @@ enum class DijkstraFlag : UInt64
 	ProdOrgSqrtDist    = 0x200'0000'0000, // Planned: sqrt(distance) statistic (reserved).
 	ProdOrgDist        = 0x400'0000'0000, // Planned: distance statistic (reserved).
 
-	Counting           = 0x800'0000'0000, // Enable counting-only mode (for performance / diagnostics).
+	// 0x800'0000'0000 was Counting, the counting pass of a sparse impedance_matrix, which #1327 made unnecessary.
 
 	// OD geometric relative outputs
 	ProdOdStartPoint_rel = 0x1000'0000'0000, // Output: geometry ref for OD start (relative).
