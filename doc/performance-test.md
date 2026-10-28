@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-22): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-28): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -13,7 +13,9 @@ of overlapping polygons in t060, t301, t641.2 and t2000, whose references GeoDMS
 since), and makes t060 and t301 4 to 7 % faster; the final engine code of 20.25.0, c56fe51a2, gives 27 of 27 with
 the same results and times, and so does the release v20.25.0 (fec6efe90) in `.m` and `.c` (27 of 27) and `.l` (19 of
 21); the release v20.26.0 (f3c45bc70) gives the same verdicts and results, and an A/B shows no performance change
-against 20.25.0. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
+against 20.25.0; the pre-release v20.27.0 (02f9fc329) gives 27 of 27 in `.m` with the results of 20.26.0, and in an
+A/B its one-pass sparse `impedance_matrix` (#1327) makes t910 14 % faster and leaves the other network experiments and
+every peak commit level. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
 of the account that ran them, which had no `.wslconfig` and so half the RAM, not the engine: with 48 GB for that VM
 (2026-10-22) 20.26.0.l passes both, 21 of 21. t300's two levels on this machine are the first read of its XML, not
 the build (see the known causes at the end). Section 8.1.x of
@@ -1456,6 +1458,100 @@ around 100 s.
   low, 87 to 95 GB high, results equal). The level follows the moment at which nine materialized 986 MB `sum`s of
   R2_2022's `GeschikteOptieBerekening` run, relative to the block's other large steps; a t2000 cell of the report
   says which level its run reached, and its memory verdict compares two draws.
+
+## Results (OVSRV05), the pre-release v20.27.0 (tag `02f9fc329`) in `.m`: #1327
+
+The GitHub pre-release `v20.27.0` (published 2026-10-28 09:04 UTC) is tagged at `02f9fc329` and has one asset, the
+`.m` setup. Its engine differs from 20.26.0 (`f3c45bc70`) in #1327 (`02f9fc329`: a sparse `impedance_matrix` runs its
+search once instead of a counting pass and a filling pass, and hands its rows over in the order of the origin zones
+through `ordered_turn` in `rtc/dll/src/tic/TileChannel.h` into a chain of heap tiles, which the od attributes take
+over with `DataArrayBase::AdoptTile`; `geo/dll/src/Dijkstra.cpp`, `rtc/dll/src/tic/{DataArray.{h,cpp},
+TileArrayImpl.h,TileChannel.h}`, `stx/dll/src/DijkstraFlags.h`), in chart lines in the colour of their series
+(`d158619a3`, ObjectVision/NetworkModel_PBL#129, `shv/dll/src/ChartLayer.{h,cpp}`) and in the version number
+(`685085065`). The setup was downloaded with `gh` into `C:\LocalData\GeoDMS_releases\v20.27.0`; its SHA256 matches the
+release's digest, it carries a valid signature of Object Vision B.V., and it was installed silently (exit 0) and kept
+as `C:\LocalData\GeoDMS_engine\release_02f9fc329_m`. GeoDMS-Test at `5fb7780`, as for 20.26.0.
+
+`scratch\launch_perf_20270_m.cmd` read t300's XML first (5.6 GiB in 59 s), then ran `.m` 2026-10-28 10:27 to 13:44,
+threshold 60, put back to 95; full.py exit 0, nothing on stderr, no reuse. Running on the machine: a Chrome Remote
+Desktop session (`remoting_host` 2 146 s of CPU over the round, about a fifth of a core) and the Claude desktop app.
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.m` | 3:14:24 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result is byte for byte the one of 20.26.0.m. In the logs of 20.27.0 no
+`impedance_matrix Counting` line is left; in 20.26.0.m t405.2 and t405.3 had 37 each, t910 6, t810 2, t102 1, t010
+16, and t101 and t410 none.
+
+Wall time and Highest CommitCharge, `.m`:
+
+| test | 20.27.0 | 20.26.0 | 20.27.0 / 20.26.0 |
+|---|---|---|---|
+| t020 | 0:04:08, 1.8 GB | 0:04:07, 2.0 GB | 1.00 |
+| t060 | 0:01:54, 6.9 GB | 0:01:45, 7.4 GB | 1.09 |
+| t101 | 0:03:30, 1.6 GB | 0:03:35, 1.6 GB | 0.98 |
+| t200 | 0:00:38, 3.4 GB | 0:00:38, 3.4 GB | 1.00 |
+| t300 | 0:00:58, 10.3 GB | 0:01:03, 9.6 GB | 0.92 |
+| t301 | 0:03:01, 12.9 GB | 0:02:44, 19.5 GB | 1.10 |
+| t405.1 | 0:04:33, 8.9 GB | 0:04:38, 9.6 GB | 0.98 |
+| t405.2 | 0:18:07, 28.0 GB | 0:18:18, 29.4 GB | 0.99 |
+| t405.3 | 0:17:57, 29.0 GB | 0:18:12, 29.0 GB | 0.99 |
+| t410 | 0:04:03, 1.2 GB | 0:03:58, 1.2 GB | 1.02 |
+| t611 | 0:00:31, 4.1 GB | 0:00:31, 3.8 GB | 1.00 |
+| t641.1 | 0:53:04, 138.4 GB | 0:51:38, 137.9 GB | 1.03 |
+| t641.2 | 0:45:05, 171.8 GB | 0:45:05, 174.0 GB | 1.00 |
+| t710 | 0:01:03, 7.4 GB | 0:01:04, 7.4 GB | 0.98 |
+| t720 | 0:09:56, 19.8 GB | 0:09:47, 22.6 GB | 1.02 |
+| t810 | 0:05:12, 25.8 GB | 0:05:08, 26.2 GB | 1.01 |
+| t910 | 0:00:45, 4.4 GB | 0:00:51, 4.1 GB | 0.88 |
+| t2000 | 0:18:44, 68.5 GB | 0:18:16, 63.4 GB | 1.03 |
+
+Summed over these rows and t1630: 194.0 min against 192.1 (+1 %). t060 and t301, which do not call `impedance_matrix`,
+are 9 and 10 % slower, t910 12 % faster.
+
+### Interleaved A/B: the release 20.26.0 against the release 20.27.0
+
+`scratch\perf_ovsrv05\ab_20270.cmd`, 2026-10-28 13:46 to 16:47, X, Y, X, Y, threshold 60, the inputs of the six
+experiments read once beforehand (35.1 GiB, the list made from their logs by `scratch\perf_ovsrv05\log_inputs.py`):
+X = 20.26.0 (`release_f3c45bc70_m`), Y = 20.27.0 (`release_02f9fc329_m`), through `scratch\t2000_c\run_exp_peak.py`,
+which also reads each process's own `PeakPagefileUsage`. t405.1 prepares the data of t405.2 and t405.3 and makes no
+sparse `impedance_matrix`; it is the control. The Remote Desktop session was still connected (`remoting_host` 838 s of
+CPU). Seconds, and `PeakPagefileUsage` in 10^9 bytes:
+
+| test | X1 | Y1 | X2 | Y2 | Y / X | peak commit X1, Y1, X2, Y2 |
+|---|---|---|---|---|---|---|
+| t910 | 49 | 42 | 47 | 41 | 0.86 | 6.38, 6.65, 7.36, 6.79 |
+| t810 | 283 | 286 | 281 | 277 | 1.00 | 29.18, 29.12, 29.12, 29.08 |
+| t102 | 5 | 5 | 5 | 5 | 1.00 | 2.47, 2.56, 2.55, 2.56 |
+| t405.1 | 217 | 216 | 214 | 212 | 0.99 | 11.50, 11.50, 11.50, 11.50 |
+| t405.2 | 1060 | 1090 | 1068 | 1062 | 1.01 | 52.20, 52.21, 52.21, 52.20 |
+| t405.3 | 1080 | 1080 | 1074 | 1061 | 0.99 | 52.16, 52.22, 52.15, 52.21 |
+
+All 24 result files of the A/B are byte for byte those of their build's round. t910 is 6.5 s faster, and the part of
+its log between its first and its last `impedance_matrix` line, where its four sparse matrices are made, takes 19 and
+17 s on X against 14 and 13 s on Y. t910's two `Allocation_Matrix` calls over 1 210 sources (616 296 and 303 997
+od-pairs) were the largest counting passes of the round, and their filling pass ended 12 and 15 s after their counting
+pass in 20.26.0.m. The other rows are level within 1.5 %. In t405.2 and t405.3 the 37 counting passes per run went
+over networks that yield 1 to 860 od-pairs per call; the seconds that lie between such a counting and its filling line
+in 20.26.0.m (44 and 50 s summed, 7 s at most) are those of other work running at the same time, not of the search.
+t810's two calls with a counting pass make 49.5 and 49.6 million od-pairs, and their filling pass ended 2 s after their
+counting pass.
+
+Peak commit does not move: `PeakPagefileUsage` is level on every row, and GeoDMS's own Highest CommitCharge of
+t405.2 (30 092 MB on X1, 29 786 on Y1) is the same. The 52.2 GB of t405.2 and t405.3 against GeoDMS's 30 GB is short:
+the per-second commit of `run_exp_peak.py` stays above 35 GB for 34 and 41 seconds of the 1 060 and 1 090 s of X1 and
+Y1, spread from 148 s to the end, on both builds.
+
+### Reading
+
+- Correct: 27 of 27 with the results of 20.26.0; the sparse matrices of one pass are those of two.
+- #1327 makes t910 14 % faster (6.5 s of 48), the experiment whose sparse matrices are the largest relative to its
+  run. Elsewhere the saving is below the noise of an A/B: t405.2 and t405.3 make many sparse matrices of a few
+  od-pairs, t810 two large ones whose counting pass cost about 2 s each, t102 one of 7.8 million od-pairs in 5 s.
+- Peak memory level: the shadow blocks that #1327 removes do not fall on the peak of any of these experiments.
+- The round's 1 % over 20.26.0.m and its 9 and 10 % on t060 and t301 are the sitting, as in the rounds since
+  2026-10-21: those rows do not reach `impedance_matrix`.
 
 # Known causes of differences between versions
 
