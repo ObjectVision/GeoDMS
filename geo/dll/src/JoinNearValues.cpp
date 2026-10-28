@@ -22,7 +22,9 @@
 #include "geom/SpatialSearchBox.h"
 #include "mem/MyContainers.h"
 
+#include "IndexAssigner.h"
 #include "ParallelTiles.h"
+#include "TileChannel.h" // ordered_row_sink (#1327)
 
 // *****************************************************************************
 //                         IndexedSearchOperator
@@ -101,98 +103,89 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		auto dist = GetTheCurrValue<DistType>(distRef);
 		auto sqrDist = CheckedMul<DistType>(dist, dist, false);
 		AbstrUnit* AB = AsUnit(resultHolder.GetNew());
-		const AbstrUnit* axDomain = axRef->GetAbstrDomainUnit();
 
-		using CoordType = scalar_of_t<ArgValuesElement>;
-		using SpatialIndexType = SpatialIndex<CoordType, const ArgValuesElement*>;
 		SpatialIndexType spIndex(bxRefData.begin(), bxRefData.end(), 0);
 
-		using tile_results_type = my_vec_t<std::pair<SizeT, SizeT > >;
+		// the row numbers in UInt32 when both domains allow it, so that relations to domains of UInt32 take their tiles as they are
+		if (nr_A < MAX_VALUE(UInt32) && nr_B < MAX_VALUE(UInt32))
+			Join<UInt32>(AB, args, axRef, spIndex, bxRefData.begin(), dist, sqrDist);
+		else
+			Join<SizeT>(AB, args, axRef, spIndex, bxRefData.begin(), dist, sqrDist);
+		return true;
+	}
 
-		auto atn = A->GetNrTiles();
-		std::vector<tile_results_type> resultArrays(atn);
-		parallel_tileloop(atn, [&resultArrays, axDomain, axRef, &spIndex, &bxRefData, dist, sqrDist](tile_id at)
+private:
+	using CoordType = scalar_of_t<ArgValuesElement>;
+	using SpatialIndexType = SpatialIndex<CoordType, const ArgValuesElement*>;
+
+	// #1327: the pairs go in one pass, in the order of A, into chains of tiles that first_rel and second_rel adopt once AB
+	// has its count. Each tile of A is cut into items of ordered_item_size points, so that a worker holds the pairs of one
+	// item at a time; before, every tile kept its pairs until all tiles were done, and they were then copied into the result.
+	template <typename I>
+	void Join(AbstrUnit* AB, const ArgRefs& args, const AbstrDataItem* axRef, const SpatialIndexType& spIndex, const ArgValuesElement* bxBegin, DistType dist, DistType sqrDist) const
+	{
+		const AbstrUnit* A = axRef->GetAbstrDomainUnit();
+		const AbstrUnit* B = AsDataItem(args[1])->GetAbstrDomainUnit();
+		tile_id atn = A->GetNrTiles();
+		auto itemBases = ordered_item_bases(atn, [A](tile_id t) { return A->GetTileSize(t); });
+
+		ordered_row_sink<I, I> sink(itemBases[atn], MAX_VALUE(ResultElement));
+		parallel_tileloop(atn, [&](tile_id at)
 		{
+			auto producer = sink.Producer();
 			auto axRefData = const_array_cast<ArgValuesElement>(axRef)->GetTile(at);
-			auto tileFirstIndex = axDomain->GetTileFirstIndex(at);
-			tile_results_type tileResults;
-			my_vec_t<SizeT> second_rels;
-			for (const auto& ap : axRefData)
+			SizeT tileFirstIndex = A->GetTileFirstIndex(at);
+			SizeT tileSize = axRefData.size();
+
+			my_vec_t<I> firstRels, secondRels, candidates;
+			SizeT k = itemBases[at];
+			for (SizeT itemBegin = 0; itemBegin < tileSize; itemBegin += ordered_item_size, ++k)
 			{
-				if (!IsDefined(ap))
-					continue;
-				SizeT aRow = (&ap - axRefData.begin()) + tileFirstIndex;
-				// Inflated outward by at least one unit: the index tests a point leaf half-open, so a point at exactly ap + dist on an
-				// axis was never visited, and ArgValuesElement(dist, dist) truncated 1.5 to 1 for integer points (GEO-A12, as #1228 for connect).
-				// The exact test below keeps only the points within dist.
-				auto searchBox = InflatedSearchBox<CoordType>(Range<ArgValuesElement>(ap, ap), dist);
-				second_rels.clear();
-				for (auto bxIter = spIndex.begin(searchBox); bxIter; ++bxIter)
+				SizeT itemEnd = std::min<SizeT>(itemBegin + ordered_item_size, tileSize);
+				firstRels.clear();
+				secondRels.clear();
+				for (SizeT i = itemBegin; i != itemEnd; ++i)
 				{
-					const ArgValuesElement* bxPointPtr = (*bxIter)->get_ptr();
-					if (SqrDist<DistType>(*bxPointPtr, ap) <= sqrDist)
+					const ArgValuesElement& ap = axRefData[i];
+					if (!IsDefined(ap))
+						continue;
+					// Inflated outward by at least one unit: the index tests a point leaf half-open, so a point at exactly ap + dist on an
+					// axis was never visited, and ArgValuesElement(dist, dist) truncated 1.5 to 1 for integer points (GEO-A12, as #1228 for connect).
+					// The exact test below keeps only the points within dist.
+					auto searchBox = InflatedSearchBox<CoordType>(Range<ArgValuesElement>(ap, ap), dist);
+					candidates.clear();
+					for (auto bxIter = spIndex.begin(searchBox); bxIter; ++bxIter)
 					{
-						auto second_rel = bxPointPtr - bxRefData.begin();
-						second_rels.emplace_back(second_rel);
+						const ArgValuesElement* bxPointPtr = (*bxIter)->get_ptr();
+						if (SqrDist<DistType>(*bxPointPtr, ap) <= sqrDist)
+							candidates.emplace_back(I(bxPointPtr - bxBegin));
+					}
+					std::sort(candidates.begin(), candidates.end());
+					for (auto second_rel : candidates)
+					{
+						firstRels.emplace_back(I(tileFirstIndex + i));
+						secondRels.emplace_back(second_rel);
 					}
 				}
-				std::sort(second_rels.begin(), second_rels.end());
-				for (auto second_rel : second_rels)
-					tileResults.emplace_back(aRow, second_rel);
+				sink.Deliver(k, producer, firstRels.size(), firstRels.data(), secondRels.data());
 			}
-			resultArrays[at] = std::move(tileResults);
+			assert(k == itemBases[at + 1]);
 		});
-		SizeT n = 0;
-		for (auto& resultArray : resultArrays)
-			n += resultArray.size();
-		tile_results_type results;
-		for (auto& resultArray : resultArrays)
-		{
-			if (resultArray.empty())
-				continue;
-			if (resultArray.size() == n) // the one tile with results: take its buffer as it is
-			{
-				results = std::move(resultArray);
-				break;
-			}
-			if (results.empty())
-				results.reserve(n); // several tiles with results: one allocation for all of them
-			results.insert(results.end(), resultArray.begin(), resultArray.end());
-			resultArray = tile_results_type();
-		}
 
-		AB->SetCount(results.size());
+		AB->SetCount(sink.Finish());
 
-		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit()).get(); // owned by AB
-		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit()).get(); // owned by AB
+		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, A).get(); // owned by AB
+		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, B).get(); // owned by AB
 
 		DataWriteLock resSubALock(resSubA);
-
-		visit<typelists::domain_elements>(A, 
-			[&] <typename a_type> (const Unit<a_type>* unitA) 
-			{
-				auto aRange = unitA->GetRange();
-				auto subAData = mutable_array_cast<a_type>(resSubALock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-				for (SizeT i = 0, n = results.size(); i != n; ++i)
-					subAData[i] = Range_GetValue_naked(aRange, results[i].first);
-			}
-		);
+		auto firstTiles = sink.template Column<0>().TakeTiles();
+		A->InviteUnitProcessor(IndexTileAssigner<I>(resSubALock.get(), firstTiles));
 		resSubALock.Commit();
 
 		DataWriteLock resSubBLock(resSubB);
-
-		visit<typelists::domain_elements>(B, 
-			[&] <typename b_type> (const Unit<b_type>* unitB) 
-			{
-				auto bRange = unitB->GetRange();
-				auto subBData = mutable_array_cast<b_type>(resSubBLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-				for (SizeT i = 0, n = results.size(); i != n; ++i)
-					subBData[i] = Range_GetValue_naked(bRange, results[i].second);
-			}
-		);
+		auto secondTiles = sink.template Column<1>().TakeTiles();
+		B->InviteUnitProcessor(IndexTileAssigner<I>(resSubBLock.get(), secondTiles));
 		resSubBLock.Commit();
-
-		return true;
 	}
 };
 

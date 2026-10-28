@@ -1,0 +1,145 @@
+container oper_near_tiles
+{
+	// join_near_values, connect_matrix and dist_matrix over inputs and results of more than one tile of 65536 rows
+	// (#1327). They write their rows in one pass into chains of tiles that the result attributes adopt once the result
+	// domain has its count; each tile of the input is cut into items of 1024 elements that the workers deliver in order.
+	// The last tile of a chain is cut to its rows, which must keep them for a Bool attribute as well (InArc, InSegm).
+	// Each result is checked against what the grid implies: the number of rows, their order, and a distance, a relation
+	// or a flag per row.
+	//
+	// A grid of 300 x 300 points at whole coordinates; point i lies in row i / 300 and column i % 300.
+	unit<dpoint> Coord;
+	parameter<uint32> W := 300;
+	unit<uint32> Pnt : nrofrows = 90000
+	{
+		attribute<uint32> r     := id(.) / W;
+		attribute<uint32> c     := id(.) % W;
+		attribute<Coord>  point := point_yx(float64(r), float64(c), Coord);
+
+		// the rows and columns within 1.5 of the point, and those rows that the first 200 rows (Low) have
+		attribute<uint32> rowSpan := 1 + uint32(r > 0) + uint32(r < W - 1);
+		attribute<uint32> colSpan := 1 + uint32(c > 0) + uint32(c < W - 1);
+		attribute<uint32> lowRows := uint32(r >= 1 && r <= 200) + uint32(r <= 199) + uint32(r <= 198);
+	}
+	// the first 200 rows, in a domain of uint16: second_rel then gets uint16 values made from the row numbers, where a
+	// relation to a domain of uint32 takes the tiles of row numbers as they are
+	unit<uint16> Low : nrofrows = 60000
+	{
+		attribute<Coord> point := Pnt/point[value(uint32(id(.)), Pnt)];
+	}
+
+	unit<uint32> jAA := join_near_values(Pnt/point, Pnt/point, 1.5)
+	{
+		attribute<jAA> prev_rel := value(max_elem(uint32(id(jAA)), 1) - 1, jAA);
+		attribute<float64> dr := pointrow(Pnt/point[first_rel]) - pointrow(Pnt/point[second_rel]);
+		attribute<float64> dc := pointcol(Pnt/point[first_rel]) - pointcol(Pnt/point[second_rel]);
+	}
+	unit<uint64> jAA64 := join_near_values_uint64(Pnt/point, Pnt/point, 1.5);
+	attribute<jAA64> jAA64_rel (jAA) := value(uint64(id(jAA)), jAA64);
+
+	// no pairs at all: an empty chain, while the empty domain has a tile of no elements
+	unit<uint32> Far : nrofrows = 1
+	{
+		attribute<Coord> point := const(point_yx(1000.0, 1000.0, Coord), .);
+	}
+	unit<uint32> jNone := join_near_values(Pnt/point, Far/point, 1.5);
+
+	unit<uint32> jAL := join_near_values(Pnt/point, Low/point, 1.5)
+	{
+		attribute<float64> dr := pointrow(Pnt/point[first_rel]) - pointrow(Low/point[second_rel]);
+		attribute<float64> dc := pointcol(Pnt/point[first_rel]) - pointcol(Low/point[second_rel]);
+	}
+
+	// one segment per point, of length 1 along its row with the point in its middle; within 1.1 of segment i lie point i
+	// (0) and the points above and below it (1), whose cut point is the middle of the segment, and the points before and
+	// after it in its row (0.5), whose cut point is an end, as far as the grid has them. A cut point in the middle has
+	// InArc and InSegm, one at an end has neither, so both values occur in every tile of the result.
+	unit<uint32> FeatPoint : nrofrows = 180000
+	{
+		attribute<Pnt>    pnt_rel := value(id(.) / 2, Pnt);
+		attribute<Feat>   seq_rel := value(id(.) / 2, Feat);
+		attribute<uint32> ordinal := id(.) % 2;
+		attribute<Coord>  point   := point_yx(float64(Pnt/r[pnt_rel]), float64(Pnt/c[pnt_rel]) - 0.5 + float64(ordinal), Coord);
+	}
+	unit<uint32> Feat : nrofrows = 90000
+	{
+		attribute<Coord>   geometry (arc) := points2sequence(FeatPoint/point, FeatPoint/seq_rel, FeatPoint/ordinal);
+		attribute<float64> maxSqrDist     := const(1.21, .);
+		attribute<uint32>  r              := id(.) / W;
+		attribute<uint32>  c              := id(.) % W;
+		attribute<uint32>  nrMatches      := 1 + uint32(c < W - 1) + uint32(r > 0) + uint32(r < W - 1) + uint32(c > 0);
+		attribute<float64> sumDist        := 0.5 * float64(uint32(c < W - 1) + uint32(c > 0)) + float64(uint32(r > 0) + uint32(r < W - 1));
+	}
+
+	parameter<float64> wide := 1000000.0;
+	parameter<uint32>  two  := 2;
+	unit<uint32> cm := connect_matrix(Pnt/point, wide, Feat/geometry, Feat/maxSqrDist)
+	{
+		attribute<cm>      prev_rel := value(max_elem(uint32(id(cm)), 1) - 1, cm);
+		attribute<float64> dr       := pointrow(Pnt/point[point_rel]) - pointrow(CutPoint);
+		attribute<float64> dc       := pointcol(Pnt/point[point_rel]) - pointcol(CutPoint);
+	}
+	unit<uint32> dm  := dist_matrix(Pnt/point, wide, Feat/geometry, Feat/maxSqrDist);
+	unit<uint32> cm2 := connect_matrix(Pnt/point, wide, Feat/geometry, Feat/maxSqrDist, two);
+	parameter<float64> none := -1.0; // a negative cutoff admits no point
+	unit<uint32> cmNone := connect_matrix(Pnt/point, wide, Feat/geometry, none);
+	attribute<cm> dm_rel (dm) := value(uint32(id(dm)), cm);
+
+	container checks
+	{
+		// join_near_values: every pair within 1.5, in the order of first_rel and then second_rel
+		parameter<bool> jAA_tiles := #jAA > 65536, IntegrityCheck = "jAA_tiles == true";
+		parameter<bool> jAA_rows  := uint64(#jAA) == sum_uint64(Pnt/rowSpan * Pnt/colSpan), IntegrityCheck = "jAA_rows == true";
+		parameter<bool> jAA_near  := all(jAA/dr * jAA/dr + jAA/dc * jAA/dc <= 2.25), IntegrityCheck = "jAA_near == true";
+		parameter<bool> jAA_order := all(uint32(id(jAA)) == 0
+		                              || uint32(jAA/first_rel) > uint32(jAA/first_rel[jAA/prev_rel])
+		                              || uint32(jAA/first_rel) == uint32(jAA/first_rel[jAA/prev_rel]) && uint32(jAA/second_rel) > uint32(jAA/second_rel[jAA/prev_rel]))
+		                         , IntegrityCheck = "jAA_order == true";
+		parameter<bool> jAA_u64   := uint64(#jAA64) == uint64(#jAA)
+		                          && all(jAA64/first_rel[jAA64_rel] == jAA/first_rel && jAA64/second_rel[jAA64_rel] == jAA/second_rel)
+		                         , IntegrityCheck = "jAA_u64 == true";
+		parameter<bool> jAL_tiles := #jAL > 65536, IntegrityCheck = "jAL_tiles == true";
+		parameter<bool> jAL_rows  := uint64(#jAL) == sum_uint64(Pnt/lowRows * Pnt/colSpan), IntegrityCheck = "jAL_rows == true";
+		parameter<bool> jAL_near  := all(jAL/dr * jAL/dr + jAL/dc * jAL/dc <= 2.25), IntegrityCheck = "jAL_near == true";
+
+		// connect_matrix: the matches of each segment, grouped by segment, nearest first and ties by point
+		parameter<bool> cm_tiles := #cm > 65536, IntegrityCheck = "cm_tiles == true";
+		parameter<bool> cm_rows  := uint64(#cm) == sum_uint64(Feat/nrMatches), IntegrityCheck = "cm_rows == true";
+		parameter<bool> cm_dist  := sum(cm/dist) == sum(Feat/sumDist), IntegrityCheck = "cm_dist == true";
+		parameter<bool> cm_order := all(uint32(id(cm)) == 0
+		                             || uint32(cm/arc_rel) > uint32(cm/arc_rel[cm/prev_rel])
+		                             || uint32(cm/arc_rel) == uint32(cm/arc_rel[cm/prev_rel])
+		                                && (cm/dist > cm/dist[cm/prev_rel] || cm/dist == cm/dist[cm/prev_rel] && uint32(cm/point_rel) > uint32(cm/point_rel[cm/prev_rel])))
+		                        , IntegrityCheck = "cm_order == true";
+		parameter<bool> cm_cut   := all(abs(sqrt(cm/dr * cm/dr + cm/dc * cm/dc) - cm/dist) < 0.000001), IntegrityCheck = "cm_cut == true";
+		parameter<bool> cm_segm  := sum_uint64(uint64(cm/SegmID)) == uint64(0), IntegrityCheck = "cm_segm == true";
+		parameter<bool> cm_in    := all(cm/InArc == (pointcol(cm/CutPoint) == float64(Feat/c[cm/arc_rel])) && cm/InSegm == cm/InArc)
+		                         && sum_uint64(cm/InArc) == sum_uint64(Pnt/rowSpan)
+		                        , IntegrityCheck = "cm_in == true";
+
+		// dist_matrix: the same rows as connect_matrix
+		parameter<bool> dm_rows  := #dm == #cm
+		                         && all(dm/dist == cm/dist[dm_rel] && uint32(dm/point_rel) == uint32(cm/point_rel[dm_rel]) && uint32(dm/arc_rel) == uint32(cm/arc_rel[dm_rel]))
+		                        , IntegrityCheck = "dm_rows == true";
+
+		// max_nr_matches 2: the two nearest of each segment, its own point and a neighbour in its row
+		parameter<bool> cm2_rows := #cm2 == 2 * #Feat, IntegrityCheck = "cm2_rows == true";
+		parameter<bool> cm2_dist := sum(cm2/dist) == 0.5 * float64(#Feat), IntegrityCheck = "cm2_dist == true";
+
+		// empty results, with their relations read
+		parameter<bool> j_none  := #jNone == 0 && sum_uint64(uint64(jNone/first_rel)) == uint64(0), IntegrityCheck = "j_none == true";
+		parameter<bool> cm_none := #cmNone == 0 && sum(cmNone/dist) == 0.0 && sum_uint64(uint64(cmNone/arc_rel)) == uint64(0), IntegrityCheck = "cm_none == true";
+	}
+
+	// Numbers that depend on the order of the rows, to compare these results between two builds
+	container fingerprint
+	{
+		// named apart from the results: within this container a bare jAA would name the parameter itself
+		parameter<uint64> fp_jAA := sum_uint64(uint64(id(jAA)) * (uint64(jAA/first_rel) * uint64(7) + uint64(jAA/second_rel)));
+		parameter<uint64> fp_jAL := sum_uint64(uint64(id(jAL)) * (uint64(jAL/first_rel) * uint64(7) + uint64(jAL/second_rel)));
+		parameter<uint64> fp_cm  := sum_uint64(uint64(id(cm)) * (uint64(cm/point_rel) + uint64(cm/arc_rel) * uint64(3) + uint64(cm/dist * 2.0)
+		                             + uint64((pointcol(cm/CutPoint) + 1.0) * 2.0) * uint64(5) + uint64(cm/InArc) * uint64(11) + uint64(cm/InSegm) * uint64(13)));
+		parameter<uint64> fp_dm  := sum_uint64(uint64(id(dm)) * (uint64(dm/point_rel) + uint64(dm/arc_rel) * uint64(3) + uint64(dm/dist * 2.0)));
+		parameter<uint64> fp_cm2 := sum_uint64(uint64(id(cm2)) * (uint64(cm2/point_rel) + uint64(cm2/arc_rel) * uint64(3)));
+	}
+}

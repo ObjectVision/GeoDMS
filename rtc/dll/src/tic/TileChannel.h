@@ -15,7 +15,11 @@
 #include "ptr/OwningPtrSizedArray.h"
 #include "vt/ElemTraits.h"
 
+#include "parallel/dms_combinable.h"
+
+#include <memory>
 #include <mutex>
+#include <tuple>
 #include <vector>
 
 //----------------------------------------------------------------------
@@ -407,7 +411,9 @@ struct locked_tile_write_channel : DataWriteLock, tile_write_channel<T>
 // zones, say) without counting them first. The producer whose item is next writes it straight into the appenders. One
 // that is ahead appends its rows to a queue of its own and goes on with its next item. Whoever has the turn then
 // writes the finished successors from their queues, up to the first item that is not finished. A producer that gets
-// its items in increasing order, as parallel_for hands them out, empties its queue in the order it filled it.
+// its items in increasing order, as parallel_for and parallel_tileloop hand them out, empties its queue in the order it
+// filled it; producer_queues gives an item that a waiting thread runs inside another item a queue of its own.
+// ordered_row_sink puts these together for the attributes of one result (join_near_values, connect_matrix).
 //----------------------------------------------------------------------
 
 template <typename V>
@@ -440,8 +446,9 @@ struct tile_appender
 	SizeT Count()      const { return m_Count; }
 	bool  IsComplete() const { return m_Count == m_MaxCount; } // into a target: all its elements are written
 
-	// elements of a fixed size
-	void Append(const V* first, SizeT n)
+	// elements of a fixed size, given as V or as a type that converts to it (UInt8 for Bool, see ordered_row_elem_t)
+	template <typename S>
+	void Append(const S* first, SizeT n)
 	{
 		AddCount(n);
 		while (n)
@@ -449,7 +456,14 @@ struct tile_appender
 			if (m_Pos == m_TileSize)
 				NextTile();
 			SizeT m = std::min<SizeT>(n, m_TileSize - m_Pos);
-			fast_copy(first, first + m, m_Curr.begin() + m_Pos);
+			if constexpr (std::is_same_v<S, V>)
+				fast_copy(first, first + m, m_Curr.begin() + m_Pos);
+			else
+			{
+				auto out = m_Curr.begin() + m_Pos;
+				for (SizeT i = 0; i != m; ++i, ++out)
+					*out = V(first[i]);
+			}
 			first += m; n -= m; m_Pos += m;
 		}
 	}
@@ -486,8 +500,9 @@ struct tile_appender
 	{
 		assert(!m_Target);
 		Close();
+		// resizeSO keeps the elements; reallocSO need not, and a BitVector (Bool) empties its blocks before it reallocates
 		if (!m_Tiles.empty() && m_Pos < chain_tile_size)
-			m_Tiles.back()->reallocSO(m_Pos, false MG_DEBUG_ALLOCATOR_SRC("tile_appender"));
+			m_Tiles.back()->resizeSO(m_Pos, false MG_DEBUG_ALLOCATOR_SRC("tile_appender"));
 		return m_Count;
 	}
 	// chain: hands the tiles to the array of the attribute, after its domain got the count of FinishChain
@@ -496,10 +511,18 @@ struct tile_appender
 		assert(!m_Target);
 		auto trd = tf->GetTiledRangeData();
 		MG_CHECK(trd->GetElemCount() == m_Count);
+		if (!m_Count)
+			return; // an empty chain has no tiles, where an empty domain can have one tile of no elements
 		MG_CHECK(trd->GetNrTiles() == m_Tiles.size());
 		for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 			tf->AdoptTile(t, std::move(m_Tiles[t]));
 		m_Tiles.clear();
+	}
+	// chain: hands the tiles over, for an attribute whose values are made from them tile by tile (IndexTileAssigner)
+	auto TakeTiles() -> std::vector<std::shared_ptr<tile<V>>>
+	{
+		assert(!m_Target);
+		return std::move(m_Tiles);
 	}
 
 private:
@@ -659,12 +682,148 @@ struct ordered_turn
 	}
 
 	SizeT NrWritten() const { return m_Next; }
+	SizeT NrItems()   const { return m_IsQueued.size(); }
 
 private:
 	std::mutex          m_Mutex; // guards m_Next and m_IsQueued
 	SizeT               m_Next = 0; // the first item that is not written yet
 	std::vector<Record> m_Records;
 	std::vector<bool>   m_IsQueued;
+};
+
+// The queues of the producers: one set per thread and per level of nesting. A thread that waits inside an item (for a
+// tile that another thread computes: OperationContext::Join, DoWorkWhileWaiting) can steal a later item of the same
+// loop and run it there. That item gets the set of the next level, so that each set receives its items in increasing
+// order and its queues stay first in, first out. A scope lasts as long as the work of one item.
+template <typename Queues>
+struct producer_queues
+{
+private:
+	struct state
+	{
+		SizeT depth = 0;
+		std::vector<std::unique_ptr<Queues>> queues; // a Record of ordered_turn points to a set, which therefore stays where it is
+	};
+	dms_combinable<state> m_States;
+
+public:
+	struct scope
+	{
+		explicit scope(producer_queues& owner)
+			: m_State(owner.m_States.local())
+			, m_Level(m_State.depth++)
+		{
+			if (m_State.queues.size() == m_Level)
+				m_State.queues.emplace_back(std::make_unique<Queues>());
+		}
+		~scope() { --m_State.depth; }
+		scope(const scope&) = delete;
+		scope& operator=(const scope&) = delete;
+
+		Queues& queues() const { return *m_State.queues[m_Level]; }
+
+	private:
+		state& m_State;
+		SizeT  m_Level;
+	};
+};
+
+// How many elements of an input tile (points, features) an operator gives to an ordered_row_sink as one item. A producer
+// holds the rows of one item in buffers of its own before it delivers them, so this bounds those buffers to the rows of
+// so many elements; the turn is taken once per item.
+constexpr SizeT ordered_item_size = 1024;
+
+// The first item number of each tile, when each tile is cut into items of ordered_item_size elements: tile t has the
+// items [result[t], result[t+1]). tileSize(t) gives the number of elements of tile t.
+template <typename TileSize>
+auto ordered_item_bases(tile_id nrTiles, TileSize&& tileSize) -> std::vector<SizeT>
+{
+	std::vector<SizeT> result(nrTiles + 1, 0);
+	for (tile_id t = 0; t != nrTiles; ++t)
+		result[t + 1] = result[t] + (SizeT(tileSize(t)) + ordered_item_size - 1) / ordered_item_size;
+	return result;
+}
+
+// the type in which a producer gives the rows of an attribute of type T: a Bool as a byte, 0 or 1, as a packed bit cannot
+// be pointed to and std::vector<bool> has no data()
+template <typename T>
+using ordered_row_elem_t = std::conditional_t<std::is_same_v<T, Bool>, UInt8, T>;
+
+// The attributes of a result whose count is known only at the end, made by parallel producers in the order of their item
+// numbers, each attribute in a chain of tiles of its own (tile_appender, row_queue and ordered_turn above). A producer
+// opens a Producer() scope around all the work of one item and delivers the rows of the item once, one array per
+// attribute in ordered_row_elem_t. After the run, Finish() returns the count for the domain, and each
+// attribute takes its tiles with Column<i>().AdoptInto, or a relation with IndexTileAssigner (IndexAssigner.h).
+template <typename... Ts>
+struct ordered_row_sink
+{
+	static_assert(((has_fixed_elem_size_v<Ts> && (!is_bitvalue_v<Ts> || std::is_same_v<Ts, Bool>)) && ...));
+	using queues_t = std::tuple<row_queue<ordered_row_elem_t<Ts>>...>;
+	using producer = typename producer_queues<queues_t>::scope;
+
+	// maxCount is the highest count that the domain of the result can take
+	ordered_row_sink(SizeT nrItems, SizeT maxCount)
+		: m_Turn(nrItems)
+	{
+		std::apply([maxCount](auto&... appender) { (appender.InitChain(maxCount), ...); }, m_Appenders);
+	}
+
+	producer Producer() { return producer(m_Queues); }
+
+	// once for each item k in [0, nrItems), by the producer of the item: nrRows rows, one array per attribute
+	void Deliver(SizeT k, producer& p, SizeT nrRows, const ordered_row_elem_t<Ts>*... columns)
+	{
+		m_Turn.Deliver(k
+		,	[&] { Write(std::index_sequence_for<Ts...>(), nrRows, columns...); }
+		,	[&] { queues_t& queues = p.queues(); Enqueue(std::index_sequence_for<Ts...>(), queues, nrRows, columns...); return Record{ &queues, nrRows }; }
+		,	[this](const Record& record) { Drain(std::index_sequence_for<Ts...>(), *record.queues, record.nrRows); }
+		);
+	}
+
+	// after the run: cuts the chains and returns the number of rows
+	SizeT Finish()
+	{
+		MG_CHECK(m_Turn.NrWritten() == m_Turn.NrItems());
+		SizeT nrRows = UNDEFINED_VALUE(SizeT);
+		std::apply([&nrRows](auto&... appender)
+			{
+				auto finish = [&nrRows](auto& a)
+				{
+					SizeT n = a.FinishChain();
+					MG_CHECK(!IsDefined(nrRows) || n == nrRows);
+					nrRows = n;
+				};
+				(finish(appender), ...);
+			}
+		, m_Appenders);
+		return nrRows;
+	}
+
+	template <std::size_t I>
+	auto& Column() { return std::get<I>(m_Appenders); }
+
+private:
+	struct Record { queues_t* queues = nullptr; SizeT nrRows = 0; };
+
+	template <std::size_t... I>
+	void Write(std::index_sequence<I...>, SizeT nrRows, const ordered_row_elem_t<Ts>*... columns)
+	{
+		(std::get<I>(m_Appenders).Append(columns, nrRows), ...);
+	}
+	template <std::size_t... I>
+	static void Enqueue(std::index_sequence<I...>, queues_t& queues, SizeT nrRows, const ordered_row_elem_t<Ts>*... columns)
+	{
+		(std::get<I>(queues).Push(columns, nrRows), ...);
+	}
+	template <std::size_t... I>
+	void Drain(std::index_sequence<I...>, queues_t& queues, SizeT nrRows)
+	{
+		(std::get<I>(queues).Pop(nrRows, [this](const auto* first, SizeT n) { std::get<I>(m_Appenders).Append(first, n); }), ...);
+	}
+
+	std::tuple<tile_appender<Ts>...> m_Appenders;
+	ordered_turn<Record>             m_Turn;
+	producer_queues<queues_t>        m_Queues;
 };
 
 #endif //!defined(__TIC_TILECHANNEL_H)

@@ -85,6 +85,16 @@ container oper_impedance_tiles
 		attribute<od_precalc> prev_rel := value(max_elem(uint32(id(od_precalc)), 1) - 1, od_precalc);
 	}
 
+	// no rows at all: an empty chain, while the empty od domain has a tile of no elements
+	unit<uint32> od_none := impedance_matrix(
+		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,LinkSet'
+		, Link/t, Link/F1, Link/F2
+		, Zone/node_rel, Zone/zone_rel
+		, Zone/node_rel, Zone/zone_rel
+		, const(-1.0, Zone)
+		);
+
 	unit<uint32> od_pareto := impedance_matrix(
 		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto'
 		  ';od:impedance,OrgZone_rel,DstZone_rel,LinkSet'
@@ -132,6 +142,10 @@ container oper_impedance_tiles
 		parameter<bool> pareto_tiles  := #od_pareto > 65536, IntegrityCheck = "pareto_tiles == true";
 		parameter<bool> pareto_order  := all(od_pareto/OrgZone_rel >= od_pareto/OrgZone_rel[od_pareto/prev_rel]), IntegrityCheck = "pareto_order == true";
 		parameter<bool> pareto_links  := all(pareto_sum_t == od_pareto/impedance && pareto_sum_c == od_pareto/alt_imp), IntegrityCheck = "pareto_links == true";
+
+		// empty: the attributes exist and are read
+		parameter<bool> none_rows     := #od_none == 0 && sum(od_none/impedance) == 0.0 && sum_uint64(uint64(od_none/OrgZone_rel)) == uint64(0)
+		                              && sum_uint64(sequence_element_count(od_none/LinkSet)) == uint64(0), IntegrityCheck = "none_rows == true";
 	}
 
 	// Numbers that depend on the order of the rows and the links, to compare this result between two builds

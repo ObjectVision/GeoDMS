@@ -14,6 +14,7 @@
 #include "RtcBase.h"
 
 #include "UnitProcessor.h"
+#include "mem/tiledata.h"
 #include "vt/CheckedCalc.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
@@ -78,6 +79,58 @@ struct IndexAssignerBase : UnitProcessor
 
 using IndexAssigner32    = tl::fold_t<typelists::domain_elements, IndexAssignerBase<UInt32>, UnitVisitorImpl>;
 using IndexAssignerSizeT = tl::fold_t<typelists::domain_elements, IndexAssignerBase<SizeT>, UnitVisitorImpl>;
+
+/******************************************************************************/
+
+// #1327: gives a relation the values of a chain of index tiles (tile_appender::TakeTiles in TileChannel.h), after its
+// domain got the count of the chain. A relation whose values have the index type and start at zero takes the tiles
+// themselves; any other one gets the value of each index in its range, tile by tile, and each index tile is freed as
+// soon as it is converted. Invite it on the values unit of the relation.
+template<typename IndexType>
+struct IndexTileAssignerBase : UnitProcessor
+{
+	using tiles_t = std::vector<std::shared_ptr<tile<IndexType>>>;
+
+	IndexTileAssignerBase(AbstrDataObject* res, tiles_t& tiles)
+		:	m_Res(res)
+		,	m_Tiles(tiles)
+	{}
+
+	template <typename E>
+	void VisitImpl(const Unit<E>* inviter) const
+	{
+		auto resArray = mutable_array_cast<E>(m_Res);
+		if (m_Tiles.empty())
+		{
+			MG_CHECK(resArray->GetTiledRangeData()->GetElemCount() == 0); // an empty domain can have one tile of no elements
+			return;
+		}
+		tile_id tn = resArray->GetTiledRangeData()->GetNrTiles();
+		MG_CHECK(tn == m_Tiles.size());
+		if constexpr (std::is_same_v<E, IndexType>)
+			if (m_Res->IsFirstValueZero())
+			{
+				for (tile_id t = 0; t != tn; ++t)
+					resArray->AdoptTile(t, std::move(m_Tiles[t]));
+				return;
+			}
+		auto range = inviter->GetRange();
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			auto indices = GetConstSeq(*m_Tiles[t]);
+			auto resData = resArray->GetWritableTile(t, dms_rw_mode::write_only_all);
+			MG_CHECK(resData.size() == indices.size());
+			Range_Index2Value_checked(range, indices.begin(), indices.end(), resData.begin());
+			m_Tiles[t].reset();
+		}
+	}
+
+	AbstrDataObject* m_Res;
+	tiles_t&         m_Tiles;
+};
+
+template<typename IndexType>
+using IndexTileAssigner = tl::fold_t<typelists::domain_elements, IndexTileAssignerBase<IndexType>, UnitVisitorImpl>;
 
 /******************************************************************************/
 
