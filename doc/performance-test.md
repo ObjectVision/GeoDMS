@@ -1391,6 +1391,57 @@ one of 20.26.0.m. The report gives the `.l` column 21 `ok`, t641.x, t2000 and th
 1:37:20. The rerun is 7 to 10 % slower than 20.19.3.l, which ran in the Cicada account's distro before the Windows
 update of 2026-10-21, after which this machine runs the same binary 9 to 12 % slower (above): no build comparison.
 
+### t2000 on `.c`: 93 to 96 GB of commit is the level of the run, not of the flavour
+
+The report gives t2000 on `.c` a `cmt` (the sampler's highest `vms`, on Windows the commit charge, in 10^9 bytes) of
+96.0 GB in the round and 93.2 GB in a rerun of 2026-10-22 10:32 (GeoDMS-Test `run_detached.ps1 -Version 20.26.0.c
+-Tests t2000`, outside the round's wrapper and so at threshold 95; the column's t2000 cell now holds it), against
+82.7 GB on `.m` and 80.8 to 83.6 GB on both flavours of 20.24.2 and 20.25.0. Both `.c` runs are at the high level of
+t2000's live peak (see "t2000's live peak: an interleaved A/B" under 20.25.0 at `c56fe51a2`): `PeakLiveLarge` 78 831
+and 77 054 MB at 80 893 and 80 899 MB `Reserved in Blocks`, against 64 822 MB at 71 683 MB on `.m`. The two `.c` runs
+agree although one ran at threshold 60 and the other at 95, and 20.26.0 changes no build file against 20.25.0.
+
+`scratch\t2000_c\ab_t2000_c_vs_m.cmd` ran t2000 on the kept copies of the two release builds, `release_f3c45bc70_c`
+(C) and `release_f3c45bc70_m` (M), interleaved, 2026-10-22 17:32 to 20:00, threshold 60, the inputs read once
+beforehand, WSL shut down, beside the Claude desktop app and a Remote Desktop session (its host 50 to 90 s of CPU per
+5 minutes). `scratch\t2000_c\run_exp_peak.py` is `run_exp.py` with two additions: it reads the process's own
+`PeakPagefileUsage`, the exact peak of its commit charge, which the sampler and GeoDMS's status line see only when a
+sample falls on it, and writes the commit charge per second; and it can add a switch, here `/SP` in CP and MP, which
+logs a line per operation. Seconds, peak commit in 10^9 bytes, GeoDMS's own figures in MB, and the seconds in which
+the commit charge stood above 80 GB:
+
+| run | `/SP` | seconds | `PeakPagefileUsage` | Highest CommitCharge | `PeakLiveLarge` | Reserved in Blocks | s above 80 GB |
+|---|---|---|---|---|---|---|---|
+| C1 | | 1158 | 83.7 GB | 67 347 | 65 703 | 70 657 | 2 |
+| M1 | | 1229 | 86.9 GB | 78 859 | 73 278 | 80 899 | 29 |
+| C2 | | 1143 | 83.2 GB | 65 111 | 64 594 | 70 657 | 2 |
+| M2 | | 1083 | 83.6 GB | 64 903 | 65 644 | 70 657 | 3 |
+| CP | yes | 1075 | 94.5 GB | 72 099 | 78 071 | 80 899 | 44 |
+| MP | yes | 1053 | 84.2 GB | 70 428 | 67 611 | 74 749 | 3 |
+| C3 | | 1082 | 94.6 GB | 77 632 | 79 536 | 82 945 | 52 |
+| M3 | | 1056 | 80.8 GB | 64 683 | 63 883 | 70 657 | 2 |
+
+Every run gave the result of the round. Each build reaches both levels: `.c` was low in C1 and C2 and high in CP and
+C3, `.m` high in M1 and low in M2, MP and M3. On the low level the commit charge passes 80 GB for 2 or 3 seconds and
+peaks at 81 to 84 GB; on the high level it stays above 80 GB for 29 to 52 seconds and peaks at 87 to 95 GB. The
+duration does not follow the level.
+
+Where the peak is: in CP and MP it falls in R2_2022's
+`BebouwingsComponenten/Woning/ActieveWoning/GeschikteOptieBerekening`, at the moment nine `sum`s with a result of
+129 282 492 float64 values run together. They are materialized at once (`!regime=eager predicted=deferred`, 986 MB
+each, 8.7 GiB together, about the distance between the two levels of `Reserved in Blocks`). In CP they ran from 404 to
+422 s, 15 to 18 s each, and the commit charge stood above 80 GB from 404 to 448 s, with its peak of 94.5 GB at 413 s;
+in MP they started at 430 s, eight of them took 7 to 9 s and the ninth 18 s, and the commit charge passed 80 GB for
+3 s, at 434 s. The block's other 986 MB steps fell at other moments: its `merge` (arguments 5.9 GB) at 364 s in CP and
+at 417 s in MP, and the `max_elem` that follows the sums (arguments 2.9 GB) at 423 to 435 s in CP and at 440 to 447 s
+in MP; before the sums CP ran 22 `max_elem`s of 164 MB between 365 and 388 s, MP 7 between 389 and 409 s and a 986 MB
+`lookup` of 21 s (384 to 405 s). A likely reading is
+that in a high run the nine results come on top of more of the block's other 986 MB arrays than in a low run, but the
+lines do not show which data is alive: most of them come from deferred operations, which report the construction of
+their tile functors, and none of the 112 655 lines of CP carries `gross=` or `peak=`. The order is the order in which
+the workers reach these steps, and runs already differ earlier: M1's commit charge lagged C1's and C2's by about 15 s
+around 100 s.
+
 ### Reading
 
 - Correct: `.m` and `.c` 27 of 27 and `.l` 19 of 21, each with the results of 20.25.0; #1325 and #1324 change no
@@ -1400,6 +1451,11 @@ update of 2026-10-21, after which this machine runs the same binary 9 to 12 % sl
   machine in the same sitting. The 4 to 5 % of the rounds is the sitting: the same 20.25.0 binary is 9 to 12 %
   slower in it than the day before, under a Remote Desktop session and after the Windows update of 2026-10-21.
   Rounds from that day on compare with each other, and with earlier ones only through an A/B.
+- No `.c` regression in t2000: its 96.0 and 93.2 GB of commit on `.c` against 82.7 GB on `.m` are the two levels of
+  that experiment, which the same `.c` binary and the same `.m` binary each reach in an interleaved A/B (81 to 84 GB
+  low, 87 to 95 GB high, results equal). The level follows the moment at which nine materialized 986 MB `sum`s of
+  R2_2022's `GeschikteOptieBerekening` run, relative to the block's other large steps; a t2000 cell of the report
+  says which level its run reached, and its memory verdict compares two draws.
 
 # Known causes of differences between versions
 
