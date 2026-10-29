@@ -262,6 +262,9 @@
     <ClInclude Include="src\mem\AllocData.h">
       <Filter>Memory</Filter>
     </ClInclude>
+    <ClInclude Include="src\mem\BlockVector.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
     <ClInclude Include="src\mem\HeapSequenceProvider.h">
       <Filter>Memory</Filter>
     </ClInclude>

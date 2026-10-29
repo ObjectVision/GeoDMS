@@ -14,6 +14,7 @@
 
 #include "ClcBase.h"
 
+#include "mem/BlockVector.h"
 #include "vt/Pair.h"
 
 #include "AggrFuncNum.h"
@@ -44,7 +45,10 @@ concept count_type = requires(C a, C b)
 using CountType = SizeT;
 
 template<ordered_value_type V, count_type C = CountType> using ValueCountPair = std::pair<V, C>;
-template<ordered_value_type V, count_type C = CountType> using ValueCountPairContainerT = my_vector< ValueCountPair<V, C> >;
+
+// in blocks, so that the merges that count the values free what they have read and no single allocation exceeds what the
+// allocation stock serves (see block_vector)
+template<ordered_value_type V, count_type C = CountType> using ValueCountPairContainerT = block_vector< ValueCountPair<V, C> >;
 template<ordered_value_type V, count_type C = CountType> using PartionedValueCountPairContainerT = ValueCountPairContainerT<Pair<SizeT, V>, C>;
 
 // template<count_type C> using CountArray = my_vector< C >;

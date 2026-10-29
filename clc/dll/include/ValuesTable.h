@@ -307,51 +307,58 @@ void WeedOutOddPairs(ValueCountPairContainerT<V, C>& vcpc, SizeT maxPairCount)
 	vcpc.erase(donePair, lastPair);
 }
 
+// Merges the pairs of right and left, each sorted with every value once, into one sorted container and adds up the
+// counts of equal values, keeping the value of right, which comes first. It reads both block by block and frees each
+// block once read, so that it holds the pairs about once, not the inputs and the result together.
 template <ordered_value_type V, count_type C>
-auto MergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPairContainerT<V, C>& right, ValueCountKeyCompare<V> keyComp) -> ValueCountPairContainerT<V, C>
+auto MergeToLeft(ValueCountPairContainerT<V, C>&& left, ValueCountPairContainerT<V, C>&& right, ValueCountKeyCompare<V> keyComp) -> ValueCountPairContainerT<V, C>
 {
+	if (left.empty())
+		return std::move(right);
+	if (right.empty())
+		return std::move(left);
+
 	ValueCountPairContainerT<V, C> result;
-	result.resize(left.size() + right.size() MG_DEBUG_ALLOCATOR_SRC("MergeToLeft"));
+	result.reserve(left.size() + right.size() MG_DEBUG_ALLOCATOR_SRC("MergeToLeft"));
 
-	if (!result.empty())
+	block_vector_reader<ValueCountPair<V, C>> leftReader(std::move(left)), rightReader(std::move(right));
+
+	// the pair in hand, which is written once a larger value comes
+	V currValue = V();
+	C currCount = C();
+	bool hasCurr = false;
+	auto take = [&](block_vector_reader<ValueCountPair<V, C>>& reader)
 	{
-		auto pairComp = [keyComp](const ValueCountPair<V, C>& lhs, const ValueCountPair<V, C>& rhs) { return keyComp(lhs.first, rhs.first); };
-		std::merge(right.begin(), right.end(), left.begin(), left.end(), result.begin(), pairComp);
-
-		auto
-			currPair = result.begin(),
-			lastPair = result.end(),
-			index = currPair + 1;
-
-		while (index != lastPair && keyComp(currPair->first, index->first))
+		if (hasCurr && !keyComp(currValue, reader->first))
+			SafeAccumulate(currCount, reader->second);
+		else
 		{
-			currPair = index;
-			++index;
+			if (hasCurr)
+				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("MergeToLeft") std::move(currValue), currCount);
+			currValue = std::move(reader->first);
+			currCount = reader->second;
+			hasCurr = true;
 		}
+		++reader;
+	};
 
-		V currValue = currPair->first;
-		C currCount = currPair->second;
-		for (; index != lastPair; ++index)
-		{
-			if (keyComp(currValue, index->first))
-			{
-				*currPair++ = ValueCountPair<V, C>(currValue, currCount);
-				currValue = index->first;
-				currCount = index->second;
-			}
-			else
-				SafeAccumulate(currCount, index->second);
-		}
-		*currPair++ = ValueCountPair(currValue, currCount);
-		result.erase(currPair, lastPair);
-	}
+	while (!leftReader.AtEnd() && !rightReader.AtEnd())
+		take(keyComp(leftReader->first, rightReader->first) ? leftReader : rightReader);
+
+	// the rest of the other one follows the pair in hand, whose value only its first pair can have
+	auto& rest = leftReader.AtEnd() ? rightReader : leftReader;
+	if (!rest.AtEnd())
+		take(rest);
+	assert(hasCurr);
+	result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("MergeToLeft") std::move(currValue), currCount);
+	rest.MoveRestTo(result);
 	return result;
 }
 
 template <ordered_value_type V, count_type C>
-auto WeededMergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPairContainerT<V, C>& right, SizeT maxPairCount, ValueCountKeyCompare<V> keyComp) -> ValueCountPairContainerT<V, C>
+auto WeededMergeToLeft(ValueCountPairContainerT<V, C>&& left, ValueCountPairContainerT<V, C>&& right, SizeT maxPairCount, ValueCountKeyCompare<V> keyComp) -> ValueCountPairContainerT<V, C>
 {
-	auto result = MergeToLeft(left, right, keyComp);
+	auto result = MergeToLeft(std::move(left), std::move(right), keyComp);
 	WeedOutOddPairs(result, maxPairCount); // only weeds when values are known to be defined, see GetWeededCountsOfV
 	return result;
 }
@@ -366,7 +373,7 @@ auto GetTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT 
 
 	auto firstHalf = GetTileCounts<V, C>(data, index, m, valueMustBeDefined);
 	auto secondHalf = GetTileCounts<V, C>(data, index + m, size - m, valueMustBeDefined);
-	return MergeToLeft(firstHalf, secondHalf, ValueCountKeyCompare<V>(valueMustBeDefined));
+	return MergeToLeft(std::move(firstHalf), std::move(secondHalf), ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
@@ -380,7 +387,7 @@ auto GetPartitionedTileCounts(typename sequence_traits<V>::cseq_t data, const In
 	auto firstHalf  = GetPartitionedTileCounts<V, C>(data, indexGetter, index    ,        m, pCount, valueMustBeDefined);
 	auto secondHalf = GetPartitionedTileCounts<V, C>(data, indexGetter, index + m, size - m, pCount, valueMustBeDefined);
 
-	return MergeToLeft(firstHalf, secondHalf, ValueCountKeyCompare<Pair<SizeT, V> >(valueMustBeDefined));
+	return MergeToLeft(std::move(firstHalf), std::move(secondHalf), ValueCountKeyCompare<Pair<SizeT, V> >(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
@@ -393,7 +400,7 @@ auto GetWeededTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, 
 
 	auto firstHalf = GetWeededTileCounts<V, C>(data, index, m, maxPairCount, valueMustBeDefined);
 	auto secondHalf = GetWeededTileCounts<V, C>(data, index + m, size - m, maxPairCount, valueMustBeDefined);
-	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+	return WeededMergeToLeft(std::move(firstHalf), std::move(secondHalf), maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
@@ -411,7 +418,7 @@ auto GetWeededWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id
 	auto firstHalf  = GetWeededWallCounts_ST<V, C>(values_fta, t, m, maxPairCount, valueMustBeDefined);
 	auto secondHalf = GetWeededWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, valueMustBeDefined);
 
-	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+	return WeededMergeToLeft(std::move(firstHalf), std::move(secondHalf), maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
@@ -436,7 +443,7 @@ auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id
 
 	auto secondHalf = GetWeededWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt, valueMustBeDefined);
 
-	return WeededMergeToLeft(firstHalf->get(), secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+	return WeededMergeToLeft(firstHalf->get(), std::move(secondHalf), maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 //----------------------------------------------------------------------
@@ -683,7 +690,7 @@ struct WallCounts
 	{
 		if (bins.IsEmpty())
 			return;
-		pairs = pairs.empty() ? bins.ToPairs() : WeededMergeToLeft(bins.ToPairs(), pairs, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+		pairs = pairs.empty() ? bins.ToPairs() : WeededMergeToLeft(bins.ToPairs(), std::move(pairs), maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 		bins = {};
 	}
 };
@@ -703,7 +710,7 @@ auto GetBinnedWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id
 	auto firstHalf  = GetBinnedWallCounts_ST<V, C>(values_fta, t, m, maxPairCount, valueMustBeDefined, bins);
 	auto secondHalf = GetBinnedWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, valueMustBeDefined, bins);
 
-	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+	return WeededMergeToLeft(std::move(firstHalf), std::move(secondHalf), maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
@@ -738,7 +745,7 @@ auto GetBinnedWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id
 
 	result.TurnToPairs(maxPairCount, valueMustBeDefined);
 	secondHalf.TurnToPairs(maxPairCount, valueMustBeDefined);
-	result.pairs = WeededMergeToLeft(result.pairs, secondHalf.pairs, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
+	result.pairs = WeededMergeToLeft(std::move(result.pairs), std::move(secondHalf.pairs), maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 	return result;
 }
 
@@ -766,7 +773,7 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 
 	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount, valueMustBeDefined);
 
-	return MergeToLeft(firstHalf->get(), secondHalf, ValueCountKeyCompare<Pair<SizeT, V> >(valueMustBeDefined));
+	return MergeToLeft(firstHalf->get(), std::move(secondHalf), ValueCountKeyCompare<Pair<SizeT, V> >(valueMustBeDefined));
 }
 
 inline auto GetDomain(const AbstrDataItem* adi)  { return adi->GetAbstrDomainUnit(); }
@@ -907,8 +914,8 @@ auto GetWeededCountsOfV(const DataArray<V>* valuesTF, SizeT maxPairCount) -> Val
 	{
 		ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size() MG_DEBUG_ALLOCATOR_SRC("GetWeededCountsOfV"));
 		CountablePointConverter<V> conv(valuesTF->m_ValueRangeDataPtr);
-		for (const auto& vcp : vcxxx)
-			result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededCountsOfV") conv.template GetScalar<R>(vcp.first), vcp.second);
+		for (block_vector_reader<ValueCountPair<V, C>> vcp(std::move(vcxxx)); !vcp.AtEnd(); ++vcp) // frees what it has converted
+			result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededCountsOfV") conv.template GetScalar<R>(vcp->first), vcp->second);
 		return result;
 	}
 }
