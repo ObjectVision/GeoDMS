@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-28): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-10-29): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -15,7 +15,9 @@ the same results and times, and so does the release v20.25.0 (fec6efe90) in `.m`
 21); the release v20.26.0 (f3c45bc70) gives the same verdicts and results, and an A/B shows no performance change
 against 20.25.0; the pre-release v20.27.0 (02f9fc329) gives 27 of 27 in `.m` with the results of 20.26.0, and in an
 A/B its one-pass sparse `impedance_matrix` (#1327) makes t910 14 % faster and leaves the other network experiments and
-every peak commit level. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
+every peak commit level; the local build of 20.28.0 (db151676e) gives 27 of 27 with the same results, and in an
+A/B the counting in blocks of #1327 (55b161945) makes t720 24 % faster and t405.2 5 %, while the peak commit of t301
+rises by 2.8 GB. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
 of the account that ran them, which had no `.wslconfig` and so half the RAM, not the engine: with 48 GB for that VM
 (2026-10-22) 20.26.0.l passes both, 21 of 21. t300's two levels on this machine are the first read of its XML, not
 the build (see the known causes at the end). Section 8.1.x of
@@ -1552,6 +1554,116 @@ Y1, spread from 148 s to the end, on both builds.
 - Peak memory level: the shadow blocks that #1327 removes do not fall on the peak of any of these experiments.
 - The round's 1 % over 20.26.0.m and its 9 and 10 % on t060 and t301 are the sitting, as in the rounds since
   2026-10-21: those rows do not reach `impedance_matrix`.
+
+## Results (OVSRV05), 20.28.0 at `db151676e`: #1327 in join_near_values and in counting
+
+A local msbuild Release x64 of `db151676e` (2026-10-29), kept as `C:\LocalData\GeoDMS_engine\head_db151676e`. Its engine
+differs from the pre-release 20.27.0 (`02f9fc329`) in three commits and the version number:
+
+- `2aca01715` (#1327): `join_near_values`, `connect_matrix` and `dist_matrix` write their rows in one pass, through
+  `ordered_row_sink` in `rtc/dll/src/tic/TileChannel.h` and `clc/dll/include/IndexAssigner.h`.
+- `55b161945` (#1327): the (value, count) pairs of `modus`, the classifications and `weeded_counts`, and the values that
+  `unique` sorts, are kept in `block_vector` (`rtc/dll/src/mem/BlockVector.h`), in blocks of a tile's worth of elements
+  and at most 1 MB, and a merge frees each block once it has read it. `unique` adopts whole blocks as tiles of its result.
+- `795f75b37`: `Min`, `Max` and `MakeRange` are constexpr.
+
+GeoDMS-Test at `5fb7780`, as for 20.26.0 and 20.27.0.
+
+`scratch\launch_perf_20280.cmd` read t300's XML first (5.6 GiB in 46 s), then ran `.m` 2026-10-29 12:14 to 15:23,
+threshold 60, put back to 95; full.py exit 0, nothing on stderr, no reuse. The Chrome Remote Desktop session was
+connected (`remoting_host` 1 408 s of CPU over the round).
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.m` | 3:06:48 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result is byte for byte the one of 20.27.0.m.
+
+Wall time and Highest CommitCharge, `.m`:
+
+| test | 20.28.0 | 20.27.0 | 20.28.0 / 20.27.0 |
+|---|---|---|---|
+| t020 | 0:04:10, 2.0 GB | 0:04:08, 1.8 GB | 1.01 |
+| t060 | 0:01:54, 7.1 GB | 0:01:54, 6.9 GB | 1.00 |
+| t101 | 0:03:32, 1.6 GB | 0:03:30, 1.6 GB | 1.01 |
+| t200 | 0:00:38, 2.7 GB | 0:00:38, 3.4 GB | 1.00 |
+| t300 | 0:00:57, 10.4 GB | 0:00:58, 10.3 GB | 0.98 |
+| t301 | 0:02:35, 17.3 GB | 0:03:01, 12.9 GB | 0.86 |
+| t405.1 | 0:04:29, 10.2 GB | 0:04:33, 8.9 GB | 0.99 |
+| t405.2 | 0:17:22, 29.4 GB | 0:18:07, 28.0 GB | 0.96 |
+| t405.3 | 0:17:34, 27.8 GB | 0:17:57, 29.0 GB | 0.98 |
+| t410 | 0:04:14, 1.2 GB | 0:04:03, 1.2 GB | 1.05 |
+| t611 | 0:00:35, 4.0 GB | 0:00:31, 4.1 GB | 1.13 |
+| t641.1 | 0:50:57, 137.6 GB | 0:53:04, 138.4 GB | 0.96 |
+| t641.2 | 0:43:35, 173.6 GB | 0:45:05, 171.8 GB | 0.97 |
+| t710 | 0:01:05, 6.9 GB | 0:01:03, 7.4 GB | 1.03 |
+| t720 | 0:07:25, 20.0 GB | 0:09:56, 19.8 GB | 0.75 |
+| t810 | 0:05:16, 25.7 GB | 0:05:12, 25.8 GB | 1.01 |
+| t910 | 0:00:44, 4.5 GB | 0:00:45, 4.4 GB | 0.98 |
+| t2000 | 0:18:33, 77.3 GB | 0:18:44, 68.5 GB | 0.99 |
+
+Summed over these rows and t1630: 186.4 min against 194.0 (-4 %). t720's 445 s is new: every kept round of this machine,
+from 17.4.6 (2025-06) to 20.27.0, ran it in 552 to 612 s, except 20.22.0, where it stopped on #1285. t2000's 77.3 GB is
+the higher of its two known levels (see "t2000's live peak" above).
+
+### Interleaved A/B: the release 20.27.0 against 20.28.0
+
+`scratch\perf_ovsrv05\ab_20280.cmd`, 2026-10-29 15:27 to 18:07, X, Y, X, Y, threshold 60, the inputs of the eight
+experiments read once beforehand (33.3 GiB, list `ab_20280_inputs.txt` from their logs by `log_inputs.py`):
+X = 20.27.0 (`release_02f9fc329_m`), Y = 20.28.0 (`head_db151676e`), through `scratch\t2000_c\run_exp_peak.py`. Chosen:
+the rows that moved in the round (t720, t611, t410, t301) and those that call `unique`, `modus` or `join_near_values`
+often (t710 2UP, t060 with the `join_near_values` of `Regression/cfg/stam/MakeSnapshot.dms:332`, t405.1 and t405.2 of
+NetworkModel_PBL). `remoting_host` took 1 506 s of CPU. Seconds, and `PeakPagefileUsage` in 10^9 bytes:
+
+| test | X1 | Y1 | X2 | Y2 | Y / X | peak commit X1, Y1, X2, Y2 |
+|---|---|---|---|---|---|---|
+| t720 | 589 | 438 | 575 | 444 | 0.76 | 23.99, 26.68, 25.76, 26.49 |
+| t611 | 31 | 32 | 31 | 31 | 1.02 | 4.81, 4.78, 4.84, 5.02 |
+| t710 | 64 | 65 | 65 | 64 | 1.00 | 8.05, 8.04, 8.04, 8.03 |
+| t060 | 100 | 100 | 100 | 100 | 1.00 | 9.59, 9.59, 9.59, 9.59 |
+| t301 | 158 | 155 | 159 | 155 | 0.98 | 19.51, 23.11, 20.38, 22.46 |
+| t410 | 245 | 241 | 253 | 240 | 0.97 | 1.41, 1.49, 1.41, 1.50 |
+| t405.1 | 218 | 217 | 220 | 217 | 0.99 | 11.50, 11.75, 11.50, 11.75 |
+| t405.2 | 1072 | 1032 | 1099 | 1029 | 0.95 | 52.17, 52.38, 52.19, 52.43 |
+
+All 20 `.json`, `.txt` and `.tif` result files of the A/B are byte for byte those of the round; the 16 `.result.xml`
+files differ from it in their version and time fields only. Summed, Y takes 4 560 s against 4 979 on X (-8 %), of which
+t720 282 s and t405.2 110 s.
+
+t720 (2BURP) is 141 s faster per run, and the time falls in the stretch where its log is silent before the result is
+written (518 s in the round of 20.27.0, 380 s in that of 20.28.0). The likely place is the smoothing loop of
+`Preprocessing/DegreeOfUrbanisation.dms`: up to 20 iterations of `modus(PrevState/Urban_Cluster[Cdomain_x_pot1k_3x3/
+third_rel], Cdomain_x_pot1k_3x3/first_rel)` over the 3x3 neighbourhood of every land cell. Its values (cluster numbers)
+have a range far larger than the values per partition, so it counts in sets (`ModusPartBySet`,
+`GetPartitionedWallCounts` in `clc/dll/include/ValuesTable.h`), whose partial counts are merged in the code that
+`55b161945` changed. That one operator carries the gain is not measured.
+
+Peak commit rises on t301 and t720:
+
+- t301 by 2.8 GB (19.5 and 20.4 on X, 23.1 and 22.5 on Y). The per-second commit lies above 18 GB for 13 and 18 s on X
+  and for 34 and 32 s on Y, from 40 to 90 s into the run, while the 84 rectangles of the BAG snapshot run
+  `polygon_connectivity` and the `unique(neighbours/coded_pair)` of `Regression/cfg/stam/MakeSnapshot/afleidingen.dms:121`
+  on its upoint pairs, many at a time. GeoDMS's own Highest CommitCharge, which samples, says the opposite (16.7 and 17.1
+  GB on X, 14.5 and 15.5 on Y).
+- t720 by 1.7 GB, at the start (the sample at 9 s: 21.2 and 22.8 GB on X, 26.2 and 25.7 on Y), while the source grids are
+  read; afterwards its commit is level (median 12.8 to 13.3 GB).
+- t405.1 and t405.2 by 0.25 GB, t410 by 0.08; t060, t710 and t611 level.
+
+A possible cause, not measured: the blocks of `block_vector` are at most 1 MB and so come from the free stacks of the
+allocation stock, which keep a freed block committed (see "FixedAlloc's free stacks" below), where the containers of
+20.27.0 above 1 MB went to the CRT heap and back when freed. With many `unique` calls at once, the free stacks could keep
+more committed than the containers did.
+
+### Reading
+
+- Correct: 27 of 27 with the results of 20.27.0, and the A/B results are those of the round.
+- 20.28.0 makes t720 24 % faster (141 of 582 s), most likely through the counting in blocks of `55b161945`, and
+  t405.2 5 % and t410 3 %; which operators carry those two is not measured. The other rows are level within 2 %. The
+  one-pass `join_near_values` of `2aca01715` leaves t060 at 100 s.
+- t611's 13 % in the round is the sitting: 31 s on both builds in the A/B.
+- Peak commit: t301 2.8 GB and t720 1.7 GB higher in the process counter, both in a phase where many counting or `unique`
+  calls run side by side; the memory halving of a single large `modus` or `unique` in the commit message does not show
+  in these experiments.
 
 # Known causes of differences between versions
 
