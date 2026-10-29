@@ -684,7 +684,7 @@ struct JenksFisher
 	}
 
 	SizeT                   m_M, m_K, m_BufSize;
-	ValueCountPairContainer m_CumulValues;
+	my_vector<ValueCountPair<Float64>> m_CumulValues; // contiguous: GetW and GetWV index it in the inner loop
 
 	std::unique_ptr<ClassBreakValueType[]> m_PrevSSM;
 	std::unique_ptr<ClassBreakValueType[]> m_CurrSSM;

@@ -1,0 +1,68 @@
+// The read half of oper_impedance_tiles_mmd_1_write.dms (#1327): the stored copy of a sparse od result of more than
+// one tile, whose od attributes adopted a chain of tiles, reads back with the rows, the zones and the links of the same
+// result made in memory, and each attribute is a data file. On its own this config fails because the store does not
+// exist.
+container oper_impedance_tiles_mmd_2_read
+{
+	function HasFile(parameter<string> path) -> parameter<bool>
+		:= ExistingFile(path + '.absent_a', path) == ExistingFile(path + '.absent_b', path);
+
+	unit<uint32> Node : nrofrows = 400;
+	unit<uint32> LinkH : nrofrows = 380
+	{
+		attribute<Node>    F1 := value((id(LinkH) / 19) * 20 + id(LinkH) % 19, Node);
+		attribute<Node>    F2 := value(uint32(F1) + 1, Node);
+		attribute<float64> t  := float64(1 + id(LinkH) % 7);
+	}
+	unit<uint32> LinkV : nrofrows = 380
+	{
+		attribute<Node>    F1 := value(id(LinkV), Node);
+		attribute<Node>    F2 := value(id(LinkV) + 20, Node);
+		attribute<float64> t  := float64(1 + (id(LinkV) * 3) % 5);
+	}
+	unit<uint32> Link := union_unit(LinkH, LinkV)
+	{
+		attribute<Node>    F1 := union_data(., LinkH/F1, LinkV/F1);
+		attribute<Node>    F2 := union_data(., LinkH/F2, LinkV/F2);
+		attribute<float64> t  := union_data(., LinkH/t, LinkV/t);
+	}
+	unit<uint32> Zone : nrofrows = 400
+	{
+		attribute<Node> node_rel := value(id(Zone), Node);
+		attribute<Zone> zone_rel := id(Zone);
+	}
+
+	unit<uint32> store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/oper_impedance_tiles.mmd"
+	,	StorageReadOnly = "True";
+
+	unit<uint32> od := impedance_matrix(
+		  'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel);cut(OrgZone_max_imp)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,LinkSet'
+		, Link/t, Link/F1, Link/F2
+		, Zone/node_rel, Zone/zone_rel
+		, Zone/node_rel, Zone/zone_rel
+		, const(60.0, Zone)
+		);
+
+	unit<uint32> store_step := sequence2points(store/LinkSet);
+	unit<uint32> od_step    := sequence2points(od/LinkSet);
+
+	// the store has a domain of its own, so its rows are compared with those of od by row number
+	attribute<od>      od_rel      (store)      := value(uint32(id(store)), od);
+	attribute<od_step> od_step_rel (store_step) := value(uint32(id(store_step)), od_step);
+
+	container checks
+	{
+		parameter<bool> rows  := #store == #od && #store > 65536, IntegrityCheck = "rows == true";
+		parameter<bool> imp   := all(store/impedance == od/impedance[od_rel]), IntegrityCheck = "imp == true";
+		parameter<bool> zones := all(uint32(store/OrgZone_rel) == uint32(od/OrgZone_rel[od_rel]) && uint32(store/DstZone_rel) == uint32(od/DstZone_rel[od_rel])), IntegrityCheck = "zones == true";
+		parameter<bool> links := #store_step == #od_step
+		                      && all(uint32(store_step/point) == uint32(od_step/point[od_step_rel]))
+		                      && all(uint32(store_step/sequence_rel) == uint32(od_step/sequence_rel[od_step_rel])), IntegrityCheck = "links == true";
+
+		parameter<string> root := '%LocalDataDir%/GeoDmsTestcases/oper_impedance_tiles.mmd/';
+		parameter<bool> files := HasFile(root + 'impedance') && HasFile(root + 'OrgZone_rel') && HasFile(root + 'DstZone_rel')
+		                      && HasFile(root + 'LinkSet') && HasFile(root + 'LinkSet.seq'), IntegrityCheck = "files == true";
+	}
+}

@@ -31,8 +31,12 @@
 
 template <typename V> const UInt32 UNIQUE_BUFFER_SIZE = 4096 / sizeof(V);
 
+// The unique values of a part of the elements, sorted. Bit values all fit in a table of their 2^N values; other values are
+// sorted and merged in blocks, see block_vector, so that a merge frees what it has read.
+template <typename V> using unique_values_t = std::conditional_t<is_bitvalue_v<V>, my_elem_vec_t<V>, block_vector<V>>;
+
 template <typename V>
-my_elem_vec_t<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size, bool mustBeDefined)
+block_vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size, bool mustBeDefined)
 {
 	// PRECONDITIONS
 	assert(size <= UNIQUE_BUFFER_SIZE<V>);
@@ -66,7 +70,7 @@ my_elem_vec_t<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq,
 				// use the ordering that handles null well
 				std::sort(buffer, bufferCursor, cmp);
 				bufferCursor = std::unique(buffer, bufferCursor, areEqual);
-				return my_elem_vec_t<V>(buffer, bufferCursor);
+				return block_vector<V>(buffer, bufferCursor);
 			}
 		}
 		else
@@ -79,7 +83,7 @@ my_elem_vec_t<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq,
 				// use the ordering that handles null well
 				std::sort(buffer, bufferCursor, cmp); // sort with nulll on top
 				bufferCursor = std::unique(buffer, bufferCursor); // use the normal equality compare operator
-				return my_elem_vec_t<V>(buffer, bufferCursor);
+				return block_vector<V>(buffer, bufferCursor);
 			}
 		}
 	}
@@ -101,61 +105,59 @@ my_elem_vec_t<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq,
 	// use the simpler ordering as null has been filtered  out or is irrelevant
 	std::sort(buffer, bufferCursor); // sort
 	bufferCursor = std::unique(buffer, bufferCursor); // use the normal equality compare operator
-	return my_elem_vec_t<V>(buffer, bufferCursor);
+	return block_vector<V>(buffer, bufferCursor);
 }
 
-template <typename Iter, typename Pred>
-auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter dest, Pred pred) -> Iter
+// The union of the sorted values of first and second, sorted, taking first's value of two equal ones. It reads both block
+// by block and frees each block once read, so that it holds the values about once, not the inputs and the result together.
+template <typename V, typename Pred>
+block_vector<V> set_union_by_move(block_vector<V>&& first, block_vector<V>&& second, Pred pred)
 {
-	for (; first1 != last1 && first2 != last2; ++dest) {
+	if (first.empty())
+		return std::move(second);
+	if (second.empty())
+		return std::move(first);
+
+	block_vector<V> result;
+	result.reserve(first.size() + second.size());
+
+	block_vector_reader<V> first1(std::move(first)), first2(std::move(second));
+	while (!first1.AtEnd() && !first2.AtEnd())
+	{
 		if (pred(*first1, *first2)) { // copy first
-			*dest = std::move(*first1);
+			result.push_back(std::move(*first1));
 			++first1;
 		}
 		else if (pred(*first2, *first1)) { // copy second
-			*dest = std::move(*first2);
+			result.push_back(std::move(*first2));
 			++first2;
 		}
 		else { // advance both
-			*dest = std::move(*first1);
+			result.push_back(std::move(*first1));
 			++first1;
 			++first2;
 		}
 	}
-
-	dest = fast_move(first1, last1, dest);
-	dest = fast_move(first2, last2, dest);
-	return dest;
-}
-
-template <typename V>
-my_elem_vec_t<V> MergeToLeft(my_elem_vec_t<V> left, my_elem_vec_t<V> right, bool mustBeDefined)
-{
-	my_elem_vec_t<V> result;
-	result.resize(left.size() + right.size());
-
-	if (!result.empty())
-	{
-		if constexpr (compare_must_check_undefines_v<V>)
-			if (!mustBeDefined)
-			{
-				auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), DataLessThanCompareImpl<V, true>());
-				result.erase(actualEnd, result.end());
-				return result;
-			}
-		auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), std::less<void>());
-		result.erase(actualEnd, result.end());
-	}
+	first1.MoveRestTo(result);
+	first2.MoveRestTo(result);
 	return result;
 }
 
 template <typename V>
-my_elem_vec_t<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size, bool mustBeDefined)
+block_vector<V> MergeToLeft(block_vector<V>&& left, block_vector<V>&& right, bool mustBeDefined)
+{
+	if constexpr (compare_must_check_undefines_v<V>)
+		if (!mustBeDefined)
+			return set_union_by_move(std::move(right), std::move(left), DataLessThanCompareImpl<V, true>());
+	return set_union_by_move(std::move(right), std::move(left), std::less<void>());
+}
+
+template <typename V>
+block_vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size, bool mustBeDefined)
 {
 	if (size <= UNIQUE_BUFFER_SIZE<V>)
 		return GetUniqueValuesDirect<V>(tileData, index, size, mustBeDefined);
 
-	my_elem_vec_t<V> result;
 	tile_offset m = size / 2;
 
 	auto firstHalf = throttled_async([&tileData, index, m, mustBeDefined]() {
@@ -169,7 +171,7 @@ my_elem_vec_t<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileDa
 }
 
 template <typename V>
-my_elem_vec_t<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined)
+block_vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined)
 {
 	dms_assert(nrTiles >= 1); // PRECONDITION
 	if (nrTiles == 1)
@@ -201,14 +203,14 @@ template <typename V>
 struct BinnedUniqueValues
 {
 	BinCounts<V, SizeT> bins;
-	my_elem_vec_t<V>    values; // of the tiles that did not fit in the bins, sorted
+	block_vector<V>     values; // of the tiles that did not fit in the bins, sorted
 };
 
 template <typename V>
-my_elem_vec_t<V> BinnedValues(const BinCounts<V, SizeT>& bins)
+block_vector<V> BinnedValues(const BinCounts<V, SizeT>& bins)
 {
 	auto counts = bins.ToPairs(); // null first, when counted, as MergeToLeft orders it
-	my_elem_vec_t<V> result;
+	block_vector<V> result;
 	result.reserve(counts.size());
 	for (const auto& valueCount : counts)
 		result.push_back(valueCount.first);
@@ -216,7 +218,7 @@ my_elem_vec_t<V> BinnedValues(const BinCounts<V, SizeT>& bins)
 }
 
 template <typename V>
-my_elem_vec_t<V> GetBinnedUniqueWallValues_ST(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined, BinCounts<V, SizeT>& bins)
+block_vector<V> GetBinnedUniqueWallValues_ST(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined, BinCounts<V, SizeT>& bins)
 {
 	if (nrTiles == 1)
 	{
@@ -265,7 +267,7 @@ auto GetBinnedUniqueWallValues_MT(const DataArray<V>* ado, tile_id t, tile_id nr
 }
 
 template <typename V>
-my_elem_vec_t<V> GetBinnedUniqueWallValues(const DataArray<V>* ado, tile_id nrTiles, bool mustBeDefined)
+unique_values_t<V> GetBinnedUniqueWallValues(const DataArray<V>* ado, tile_id nrTiles, bool mustBeDefined)
 {
 	if constexpr (is_bitvalue_v<V>)
 	{
@@ -288,13 +290,46 @@ my_elem_vec_t<V> GetBinnedUniqueWallValues(const DataArray<V>* ado, tile_id nrTi
 }
 
 
+// Gives resSub, whose domain has the count of values, the values as its tiles. A block that holds exactly the elements of
+// a tile becomes that tile; anything else is copied, and each block is freed once it is read. A domain sized by SetCount
+// has tiles of 2^16 elements, as many as a block of values has, so that the values are neither copied nor held twice.
+template <typename V>
+void WriteBlocksAsTiles(AbstrDataItem* resSub, block_vector<V>&& values)
+{
+	DataWriteLock resLock(resSub);
+	auto resArray = mutable_array_cast<V>(resLock);
+	auto trd = resArray->GetTiledRangeData();
+	block_vector_reader<V> reader(std::move(values));
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+	{
+		SizeT tileSize = trd->GetTileSize(t);
+		auto resTile = std::make_shared<tile<V>>(); // before the block is taken, so that it always has an owner
+		if (V* block = reader.TakeBlockIfWhole(tileSize))
+		{
+			resTile->reset(block, tileSize);
+			resArray->AdoptTile(t, std::move(resTile));
+			continue;
+		}
+		auto resData = resArray->GetWritableTile(t, dms_rw_mode::write_only_all);
+		for (auto out = resData.begin(); out != resData.end(); )
+		{
+			MG_CHECK(!reader.AtEnd());
+			SizeT n = Min<SizeT>(resData.end() - out, reader.BlockEnd() - reader.Curr());
+			out = fast_copy(reader.Curr(), reader.Curr() + n, out);
+			reader.Consume(n);
+		}
+	}
+	assert(reader.AtEnd());
+	resLock.Commit();
+}
+
 template<fixed_elem V>
 void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi, bool mustBeDefined)
 {
 	dms_assert(adi && adi->GetInterestCount());
 
 	const DataArray<V>* ado = const_array_cast<V>(adi);
-	my_elem_vec_t<V> values;
+	unique_values_t<V> values;
 	SizeT count = ado->GetTiledRangeData()->GetElemCount();
 	if (count)
 	{
@@ -332,10 +367,15 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 
 	res->SetCount(values.size());
 
-	locked_tile_write_channel<V> resWriter(resSub);
-	resWriter.Write(values.begin(), values.end());
-	dms_assert(resWriter.IsEndOfChannel());
-	resWriter.Commit();
+	if constexpr (is_bitvalue_v<V>)
+	{
+		locked_tile_write_channel<V> resWriter(resSub);
+		resWriter.Write(values.begin(), values.end());
+		dms_assert(resWriter.IsEndOfChannel());
+		resWriter.Commit();
+	}
+	else
+		WriteBlocksAsTiles<V>(resSub, std::move(values));
 }
 
 template <typename Iter, typename Pred>

@@ -102,6 +102,7 @@ private:
 	// per-element state, (re)computed by DoUpdateView in world coords (X=col, Y=row)
 	mutable std::vector<CrdPoint> m_Points;
 	mutable std::vector<DmsColor> m_PointColors;
+	mutable bool                  m_HasPointColors = false; // m_PointColors come from the classification of the series, and colour its line too
 	mutable std::vector<bool>     m_Selected;
 	mutable CrdType               m_BarSlotHalf = 0.4; // world half-width of a per-element bar slot (shared by sibling bar layers)
 	// tick labels at their X positions (empty => numeric X axis)

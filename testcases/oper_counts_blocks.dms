@@ -1,0 +1,66 @@
+// Counts and unique values of more distinct values than one block of the containers that hold them while they are
+// merged (block_vector in rtc/dll/src/mem/BlockVector.h): 300000 values in 15 tiles, all different but three and not
+// sorted, so that the merges read and free several blocks of (value, count) pairs, of partitioned pairs, of values and of
+// points. None of them fits in bins: float64 is never binned and the uint32 values lie too far apart. Three elements of
+// partition 0 share the value 12345.5, which no other element has, and every other value occurs once, so that the modus
+// of any other partition is its smallest value and the ten classes of equal count each get N / 10 elements.
+// Expected: exit 0 on /checks.
+container oper_counts_blocks
+{
+	parameter<uint32> N := 300000;
+	unit<uint8>  P   : nrofrows = 7;
+	unit<uint8>  Cls : nrofrows = 10;
+	unit<dpoint> Coord;
+
+	unit<uint32> D := TiledUnit(value(20000, range(uint32, 0, N))) // 15 tiles
+	{
+		// a permutation of 0 .. N-1, as 7919 is prime and does not divide N
+		attribute<uint32>  perm     := uint32(uint64(id(.)) * uint64(7919) % uint64(N));
+		attribute<bool>    dup      := id(.) % 7000 == 77 && id(.) < 21000; // 77, 7077 and 14077, all in partition 0
+		attribute<float64> vf       := iif(dup, 12345.5, float64(perm));
+		attribute<uint32>  v32      := iif(dup, uint32(37036), perm * 3); // 37036 is no multiple of 3
+		attribute<float64> vfn      := iif(id(.) % 50000 == 3, null_d, vf); // 6 nulls, none of them on a dup
+		attribute<P>       part_rel := value(id(.) % 7, P);
+		attribute<Coord>   point    := point_yx(vf, float64(id(.) % 7), Coord);
+	}
+
+	unit<uint32> U   := unique(D/vf)  { attribute<U>   prev := value(max_elem(id(.), 1) - 1, .); }
+	unit<uint32> U32 := unique(D/v32) { attribute<U32> prev := value(max_elem(id(.), 1) - 1, .); }
+	unit<uint32> UN  := unique_with_null(D/vfn);
+	unit<uint32> UNd := unique(D/vfn);
+	unit<uint32> UP  := unique(D/point);
+	unit<uint32> W   := weeded_counts(D/vf);
+
+	attribute<float64> modusPart (P)   := modus(D/vf, D/part_rel);
+	attribute<float64> breaks    (Cls) := ClassifyEqualCount(D/vf, Cls);
+
+	container checks
+	{
+		parameter<float64> modusF    := modus(D/vf),               IntegrityCheck = "modusF == 12345.5";
+		parameter<uint32>  modusU    := modus(D/v32),              IntegrityCheck = "modusU == 37036";
+		parameter<uint32>  modusCnt  := modus_count_uint32(D/vf),  IntegrityCheck = "modusCnt == 3";
+		parameter<uint32>  uniqueCnt := unique_count_uint32(D/vf), IntegrityCheck = "uniqueCnt == N - 2";
+
+		// partition 0 has 12345.5 three times; any other has its values once, so that its modus is its smallest value
+		parameter<bool> modusPartOk  := modusPart[value(0, P)] == 12345.5 && all(uint32(id(P)) == 0 || modusPart == min(D/vf, D/part_rel))
+		                              , IntegrityCheck = "modusPartOk == true";
+		parameter<bool> uniquePartOk := all(unique_count_uint32(D/vf, D/part_rel) == pcount(D/part_rel) - 2 * uint32(uint32(id(P)) == 0))
+		                              , IntegrityCheck = "uniquePartOk == true";
+
+		// unique: sorted, each value once, and nothing lost
+		parameter<bool> uniqueF      := #U == N - 2 && all(id(U) == 0 || U/Values > U/Values[U/prev]) && sum(U/Values) == sum(D/vf) - 2.0 * 12345.5
+		                              , IntegrityCheck = "uniqueF == true";
+		parameter<bool> uniqueU32    := #U32 == N - 2 && all(id(U32) == 0 || U32/Values > U32/Values[U32/prev]) && sum_uint64(U32/Values) == sum_uint64(D/v32) - uint64(74072)
+		                              , IntegrityCheck = "uniqueU32 == true";
+		parameter<bool> uniqueNull   := #UNd == N - 8 && #UN == #UNd + 1 && !IsDefined(UN/Values[value(0, UN)])
+		                              , IntegrityCheck = "uniqueNull == true";
+		parameter<bool> uniquePoints := #UP == N - 2, IntegrityCheck = "uniquePoints == true";
+
+		// weeded to at most 4096 pairs, every element still counted
+		parameter<bool> weeded       := #W <= 4096 && sum_uint64(W/count) == uint64(N), IntegrityCheck = "weeded == true";
+
+		// the first class starts at the smallest value and each class has N / 10 elements: the merges lost no count
+		parameter<bool> breaksOk     := breaks[value(0, Cls)] == 0.0 && all(pcount(classify(D/vf, breaks)) == N / 10)
+		                              , IntegrityCheck = "breaksOk == true";
+	}
+}

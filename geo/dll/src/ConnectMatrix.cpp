@@ -33,6 +33,7 @@
 #include "IndexAssigner.h"
 #include "OperSignature.h"
 #include "ParallelTiles.h"
+#include "TileChannel.h" // ordered_row_sink (#1327)
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -57,9 +58,9 @@ static StaticLateTokenID sm_InArc("InArc");
 static StaticLateTokenID sm_InSegm("InSegm");
 static StaticLateTokenID sm_SegmID("SegmID");
 
-// One accepted (feature, point) pair. The whole working set of the discovery
-// phase is a vector of these per tile, which the max_nr_matches bound caps at
-// k per feature -- census-visible through my_vec_t.
+// One accepted (feature, point) pair. A worker keeps these for one feature at a
+// time, in a heap that the max_nr_matches bound caps at k, and then adds them to
+// the rows of its item (#1327).
 template <typename PointType, typename SqrDistType, typename R>
 struct MatchRec
 {
@@ -105,6 +106,48 @@ class ConnectMatrixOperator : public VariadicOperator
 
 	using PointIndexType = SpatialIndex<CoordType, typename PointsArrayType::const_iterator>;
 	using MatchType = MatchRec<PointType, SqrDistType, R>;
+
+	// point_rel, arc_rel and dist, and for connect_matrix also CutPoint, InArc, InSegm and SegmID (#1327)
+	using sink_type = std::conditional_t<OnlyDistResult
+		, ordered_row_sink<UInt32, UInt32, SqrtDistType>
+		, ordered_row_sink<UInt32, UInt32, SqrtDistType, PointType, Bool, Bool, UInt32>
+		>;
+
+	// the rows of one item, one buffer per attribute of the result
+	struct RowBuffers
+	{
+		my_vec_t<UInt32>       pointRels, arcRels;
+		my_vec_t<SqrtDistType> dists;
+		my_vec_t<PointType>    cutPoints;
+		my_vec_t<UInt8>        inArcs, inSegms;
+		my_vec_t<UInt32>       segmIDs;
+
+		void Add(const MatchType& m)
+		{
+			pointRels.push_back(m.pointIndex);
+			arcRels.push_back(m.featureIndex);
+			dists.push_back(Convert<SqrtDistType>(sqrt(m.sqrDist)));
+			if constexpr (!OnlyDistResult)
+			{
+				cutPoints.push_back(m.cutPoint);
+				inArcs.push_back(m.inArc);
+				inSegms.push_back(m.inSegm);
+				segmIDs.push_back(m.segmIndex);
+			}
+		}
+		void Clear()
+		{
+			pointRels.clear(); arcRels.clear(); dists.clear();
+			cutPoints.clear(); inArcs.clear(); inSegms.clear(); segmIDs.clear();
+		}
+		void DeliverTo(sink_type& sink, SizeT k, typename sink_type::producer& p) const
+		{
+			if constexpr (OnlyDistResult)
+				sink.Deliver(k, p, pointRels.size(), pointRels.data(), arcRels.data(), dists.data());
+			else
+				sink.Deliver(k, p, pointRels.size(), pointRels.data(), arcRels.data(), dists.data(), cutPoints.data(), inArcs.data(), inSegms.data(), segmIDs.data());
+		}
+	};
 
 	static AbstrOperGroup* MatrixGroup()
 	{
@@ -279,16 +322,23 @@ public:
 		else if (dpData.size() && IsDefined(dpPtr[0]))
 			globalMaxDp = dpPtr[0];
 
+		// #1327: the matches go in one pass, in the order of the features, into chains of tiles that the attributes adopt
+		// once the result domain has its count. Each tile of features is cut into items of ordered_item_size features, so
+		// that a worker holds the matches of one item at a time; before, every tile kept its matches, as MatchRec of about
+		// 40 bytes each, until all tiles were done, and they were then copied into the result.
 		tile_id nrFeatTiles = featEntity->GetNrTiles();
-		std::vector<my_vec_t<MatchType>> perTileMatches(nrFeatTiles);
 		std::vector<SizeT> tileOffsets(nrFeatTiles + 1, 0);
 		for (tile_id t = 0; t != nrFeatTiles; ++t)
 			tileOffsets[t + 1] = tileOffsets[t] + featEntity->GetTileSize(t);
+		auto itemBases = ordered_item_bases(nrFeatTiles, [featEntity](tile_id t) { return featEntity->GetTileSize(t); });
+
+		sink_type sink(itemBases[nrFeatTiles], MAX_VALUE(R));
 
 		std::atomic<SizeT> nrProcessedFeatures = 0;
 
 		parallel_tileloop(nrFeatTiles, [&, isPossiblyMultiPolygon, this](tile_id t)
 		{
+			auto producer = sink.Producer();
 			auto featData = const_array_cast<PolygonType>(argFeats)->GetLockedDataRead(t);
 			auto tileSize = featData.size();
 			if (!tileSize)
@@ -303,10 +353,11 @@ public:
 			typename DataArray<E>::locked_cseq_t featKeys;
 			if (argFeatKey) { featKeys = const_array_cast<E>(argFeatKey)->GetLockedDataRead(t); featKeyPtr = featKeys.begin(); }
 
-			my_vec_t<MatchType>& tileMatches = perTileMatches[t];
+			RowBuffers rows;
 			my_vec_t<MatchType> heap; // the k best of ONE feature
 			R globalOffset = tileOffsets[t];
 			MatchWorseThan<MatchType> worseThan;
+			SizeT k = itemBases[t];
 
 			SizeT nrUnreported = 0;
 			for (SizeT i = 0; i != tileSize; ++i)
@@ -383,7 +434,12 @@ public:
 
 				std::sort(heap.begin(), heap.end(), worseThan); // nearest first within the feature
 				for (const auto& m : heap)
-					tileMatches.push_back(m);
+					rows.Add(m);
+				if ((i + 1) % ordered_item_size == 0 || i + 1 == tileSize)
+				{
+					rows.DeliverTo(sink, k++, producer);
+					rows.Clear();
+				}
 
 				++nrUnreported;
 				if (processTimer.PassedSecs())
@@ -397,13 +453,10 @@ public:
 				}
 			}
 			nrProcessedFeatures += nrUnreported;
+			assert(k == itemBases[t + 1]);
 		});
 
-		SizeT nrMatches = 0;
-		for (tile_id t = 0; t != nrFeatTiles; ++t)
-			nrMatches += perTileMatches[t].size();
-
-		resDomain->SetCount(nrMatches);
+		resDomain->SetCount(sink.Finish());
 
 		DataWriteLock pointRelLock(resPointRel);
 		DataWriteLock arcRelLock(resArcRel);
@@ -413,51 +466,20 @@ public:
 		DataWriteLock inSegmLock(resInSegm);
 		DataWriteLock segmIDLock(resSegmID);
 
-		OwningPtrSizedArray<UInt32> pointRelData(nrMatches, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ConnectMatrix: point_rel"));
-		OwningPtrSizedArray<UInt32> arcRelData(nrMatches, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ConnectMatrix: arc_rel"));
-
-		// write_only_all, consistently with the locks above: the loop below writes every one of the
-		// nrMatches elements of every member (w == nrMatches is asserted), so nothing needs zeroing.
-		// Asking write_only_mustzero here after a write_only_all lock was the #1169 contradiction that
-		// the Debug guard in HeapSingleArray::GetWritableTile flags; for an untiled result the lock
-		// has already allocated, so the later request could not have zeroed anything anyway.
-		auto distData = mutable_array_cast<SqrtDistType>(distLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-		auto d = distData.begin();
-
-		typename DataArray<PointType>::locked_seq_t cutPointData; typename DataArray<PointType>::iterator cp;
-		typename DataArray<Bool>::locked_seq_t inArcData; typename DataArray<Bool>::iterator ia;
-		typename DataArray<Bool>::locked_seq_t inSegmData; typename DataArray<Bool>::iterator is;
-		typename DataArray<UInt32>::locked_seq_t segmIDData; typename DataArray<UInt32>::iterator sg;
+		// the relations are typed by their target domain, so their tiles of row numbers go in through the index assigner,
+		// which adopts them when that domain has UInt32 values from zero
+		auto pointRelTiles = sink.template Column<0>().TakeTiles();
+		pointEntity->InviteUnitProcessor(IndexTileAssigner<UInt32>(pointRelLock.get(), pointRelTiles));
+		auto arcRelTiles = sink.template Column<1>().TakeTiles();
+		featEntity->InviteUnitProcessor(IndexTileAssigner<UInt32>(arcRelLock.get(), arcRelTiles));
+		sink.template Column<2>().AdoptInto(mutable_array_cast<SqrtDistType>(distLock));
 		if constexpr (!OnlyDistResult)
 		{
-			cutPointData = mutable_array_cast<PointType>(cutPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); cp = cutPointData.begin();
-			inArcData = mutable_array_cast<Bool>(inArcLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); ia = inArcData.begin();
-			inSegmData = mutable_array_cast<Bool>(inSegmLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); is = inSegmData.begin();
-			segmIDData = mutable_array_cast<UInt32>(segmIDLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all); sg = segmIDData.begin();
+			sink.template Column<3>().AdoptInto(mutable_array_cast<PointType>(cutPointLock));
+			sink.template Column<4>().AdoptInto(mutable_array_cast<Bool>(inArcLock));
+			sink.template Column<5>().AdoptInto(mutable_array_cast<Bool>(inSegmLock));
+			sink.template Column<6>().AdoptInto(mutable_array_cast<UInt32>(segmIDLock));
 		}
-
-		SizeT w = 0;
-		for (tile_id t = 0; t != nrFeatTiles; ++t)
-			for (const auto& m : perTileMatches[t])
-			{
-				pointRelData[w] = m.pointIndex;
-				arcRelData[w] = m.featureIndex;
-				*d++ = Convert<SqrtDistType>(sqrt(m.sqrDist));
-				if constexpr (!OnlyDistResult)
-				{
-					*cp++ = m.cutPoint;
-					*ia++ = m.inArc;
-					*is++ = m.inSegm;
-					*sg++ = m.segmIndex;
-				}
-				++w;
-			}
-		assert(w == nrMatches);
-
-		// the relations are typed by their target domain, so they go in through the
-		// index assigner rather than a per-element SetValueAsSizeT
-		pointEntity->InviteUnitProcessor(IndexAssigner32(resPointRel, pointRelLock.get(), no_tile, 0, nrMatches, pointRelData.begin()));
-		featEntity->InviteUnitProcessor(IndexAssigner32(resArcRel, arcRelLock.get(), no_tile, 0, nrMatches, arcRelData.begin()));
 
 		pointRelLock.Commit();
 		arcRelLock.Commit();

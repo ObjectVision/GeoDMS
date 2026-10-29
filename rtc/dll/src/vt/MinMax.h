@@ -25,18 +25,18 @@
 //----------------------------------------------------------------------
 
 template <class T>
-inline T Min(T a, T b) { return (a<b) ? a : b; }
+constexpr T Min(T a, T b) { return (a<b) ? a : b; }
 
 template <class T>
-inline T Max(T a, T b) { return (a<b) ? b : a; }
+constexpr T Max(T a, T b) { return (a<b) ? b : a; }
 
 template <class T>
-inline bool MakeMin(T& a, std::type_identity_t<T> b) { if (!(b<a)) return false; a=b; return true; }
+constexpr bool MakeMin(T& a, std::type_identity_t<T> b) { if (!(b<a)) return false; a=b; return true; }
 
 template <class T>
-inline bool MakeMax(T& a, std::type_identity_t<T> b) { if (!(a<b)) return false; a=b; return true; }
+constexpr bool MakeMax(T& a, std::type_identity_t<T> b) { if (!(a<b)) return false; a=b; return true; }
 
 template <class T> 
-inline void MakeRange(T& a, T& b) { if (b<a) omni::swap(a, b); }
+constexpr void MakeRange(T& a, T& b) { if (b<a) omni::swap(a, b); }
 
 #endif // !defined(__VT_MINMAX_H)

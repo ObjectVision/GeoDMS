@@ -302,6 +302,7 @@
     <ClInclude Include="src\xml\XmlParser.h" />
     <ClInclude Include="src\mem\AbstrSequenceProvider.h" />
     <ClInclude Include="src\mem\AllocData.h" />
+    <ClInclude Include="src\mem\BlockVector.h" />
     <ClInclude Include="src\mem\HeapSequenceProvider.h" />
     <ClInclude Include="src\mem\LockedSequenceObj.h" />
     <ClInclude Include="src\mem\ManagedAllocData.h" />

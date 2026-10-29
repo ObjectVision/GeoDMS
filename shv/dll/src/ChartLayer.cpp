@@ -302,6 +302,7 @@ void ChartLayer::DoUpdateView()
 
 	m_Points.resize(n);
 	m_PointColors.assign(n, s_DefaultPointColor);
+	m_HasPointColors = vg && paletteGetter;
 	m_Selected.assign(n, false);
 	m_XAxisLabels.clear();
 
@@ -468,14 +469,26 @@ bool ChartLayer::Draw(GraphDrawer& d) const
 		return false;
 	}
 
-	// connecting polyline (in element/row order)
+	// connecting polyline (in element/row order). A series coloured by its classification draws each segment in the
+	// colour of the point it starts from, so a series of one class has the line colour of its points and several series
+	// in one chart can be told apart by their lines (NetworkModel_PBL#129); without a classification in s_LineColor.
 	if ((m_DrawMode == ChartDrawMode::Line || m_DrawMode == ChartDrawMode::PointsAndLine) && m_Points.size() >= 2)
 	{
-		std::vector<GPoint> dev;
-		dev.reserve(m_Points.size());
-		for (const auto& wp : m_Points)
-			dev.push_back(toDev(wp));
-		dc->DrawPolyline(dev.data(), int(dev.size()), s_LineColor, 1);
+		auto segmentColor = [this](SizeT e) { return m_HasPointColors ? m_PointColors[e] : s_LineColor; };
+		std::vector<GPoint> run; // the points of consecutive segments of one colour
+		run.reserve(m_Points.size());
+		run.push_back(toDev(m_Points[0]));
+		DmsColor runColor = segmentColor(0);
+		for (SizeT e = 1, n = m_Points.size(); e != n; ++e)
+		{
+			run.push_back(toDev(m_Points[e]));
+			if (e + 1 == n || segmentColor(e) != runColor)
+			{
+				dc->DrawPolyline(run.data(), int(run.size()), runColor, 1);
+				run.erase(run.begin(), run.end() - 1); // the last point starts the next run
+				runColor = segmentColor(e);
+			}
+		}
 	}
 
 	// per-element markers
