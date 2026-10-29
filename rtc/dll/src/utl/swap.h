@@ -30,7 +30,7 @@ namespace omni {
 	}	//	namespace impl
 
 	template <class T>
-	void swap(T& t1, T& t2) noexcept
+	constexpr void swap(T& t1, T& t2) noexcept
 	{
 		if constexpr (impl::has_member_swap<T>::value)
 			t1.swap(t2);
