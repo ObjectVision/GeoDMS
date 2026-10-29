@@ -162,7 +162,7 @@ class vector_multimap
 	void swap(vector_multimap& rhs)
 	{
 		m_Data.swap(rhs.m_Data);
-		omni::swap(m_Compare, rhs.m_Compare);
+		std::swap(m_Compare, rhs.m_Compare);
 	}
 
 protected:

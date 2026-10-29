@@ -18,7 +18,7 @@
 #include "mem/resize.h"
 #include "ptr/IterCast.h"
 #include "set/rangefuncs.h"
-#include "utl/swap.h"
+#include <utility>
 
 #include <bit>     // std::bit_ceil, for the power-of-2 growth in enable_nr_blocks
 #include <utility> // std::forward, for the emplace_back conformance overload below
@@ -88,8 +88,8 @@ struct bit_sequence_base : bit_info<N, Block>
 
 	void swap(bit_sequence_base<N, Block>& oth)
 	{
-		omni::swap(m_BlockData, oth.m_BlockData);
-		omni::swap(m_NrElems,   oth.m_NrElems  );
+		std::swap(m_BlockData, oth.m_BlockData);
+		std::swap(m_NrElems,   oth.m_NrElems  );
 	}
 
 	Block*    m_BlockData;

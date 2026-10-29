@@ -446,7 +446,7 @@ extern "C" RTC_CALL void DMS_CONV DMS_SetGlobalSeTranslator(TCppExceptionTransla
 
 TCppExceptionTranslator SetCppTranslator(TCppExceptionTranslator trFunc)
 {
-	omni::swap(trFunc, s_cppTrFunc);
+	std::swap(trFunc, s_cppTrFunc);
 	return trFunc;
 }
 

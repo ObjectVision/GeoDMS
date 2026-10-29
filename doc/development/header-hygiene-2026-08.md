@@ -8,7 +8,8 @@ inline converters) and the lower-priority renames of Finding 6 (among them `shv/
 `ClipRegion.h`, `cpc/transform.h`, `mci/register.h` and `act/any.h`; `color.h`, `StringBounds.h`
 and `mpf.h` moved to `vt/` with the geo split but kept their names). `mci/SingleLinkedTree.h` and
 `.inc` are dead after all (Finding 2). Until 2026-10-06 the paragraph below said that
-implementation was deferred. `mci/SingleLinkedTree.h/.inc` and `shv/dll/src/Win32ViewHost` were deleted on 2026-10-06 (92e3a541e, c0737bfe8).*
+implementation was deferred. `mci/SingleLinkedTree.h/.inc` and `shv/dll/src/Win32ViewHost` were deleted on 2026-10-06 (92e3a541e, c0737bfe8).
+The merge of `utl/swap.h` into `swapper.h` in Finding 6 is moot: `utl/swap.h` was removed on 2026-10-29.*
 
 *2026-08-16, branch `lookahead-scheduling`, HEAD `39c0b5f`. Follow-up to
 [compile-time-refactor-analysis-2026-07.md](../archive/compile-time-refactor-analysis-2026-07.md),
@@ -287,7 +288,9 @@ Directory-level:
 - Lower priority: `shv/Region.h` → `ClipRegion.h` (it wraps `QRegion` clip/dirty rects, not
   a spatial region; sibling `GdiRegionUtil.h` → `RegionUtil.h`), `geo/color.h` →
   `vt/Color.h`, `geo/StringBounds.h` → `utl/StrLen.h`, `geo/mpf.h` → `mth/BitMetaFunc.h`,
-  `mem/MyAllocator.h`/`MyContainers.h` → `Dms*`, merge `utl/swap.h`+`swapper.h`, dbf/odbc
+  `mem/MyAllocator.h`/`MyContainers.h` → `Dms*`, merge `utl/swap.h`+`swapper.h` (moot since
+  2026-10-29: `utl/swap.h` is removed, as `omni::swap` did what `std::swap` does for every type it
+  was called with, and `swapper.h` lost its unused `mt_swap` and `mt_swapper`), dbf/odbc
   `Imp` vs `Impl` naming, `buildstamp.h` → `RtcGeneratedBuildStamp.h`, `pCount.h` casing,
   and `StxBase.h` defining `SYNTAX_CALL` where the other five modules follow `<MOD>_CALL`.
 

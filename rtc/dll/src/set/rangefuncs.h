@@ -12,8 +12,8 @@
 #include "dbg/DebugCast.h"
 #include "vt/ElemTraits.h"
 #include "vt/IterTraits.h"
-#include "utl/swap.h"
 
+#include <algorithm>
 #include <cstring> // memcpy / memmove / memset used below: self-sufficient include (MSVC provides these transitively, GCC/libstdc++ does not)
 
 #define MG_DEBUG_RANGEFUNCS
@@ -121,7 +121,7 @@ template <typename Iter1, typename Iter2>
 Iter2 swap_range(Iter1 first, Iter1 last, Iter2 otherRange)
 {
 	for (; first != last; ++first, ++otherRange)
-		omni::swap(*otherRange, *first);
+		std::swap(*otherRange, *first);
 	return otherRange;
 }
 
@@ -129,7 +129,7 @@ template <typename Iter1, typename Iter2>
 Iter2 swap_range_backward(Iter1 first, Iter1 last, Iter2 otherRange)
 {
 	while (first != last)
-		omni::swap(*--last, *--otherRange);
+		std::swap(*--last, *--otherRange);
 	return otherRange;
 }
 

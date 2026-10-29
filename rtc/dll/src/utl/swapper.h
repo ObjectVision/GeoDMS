@@ -15,43 +15,11 @@
 //----------------------------------------------------------------------
 
 #include "utl/NonCopyable.h"
-#include "utl/swap.h"
 #include "vt/ElemTraits.h"
 
 //----------------------------------------------------------------------
-// mt_swap(per) helps to do thread safe resource swapping/locking
+// tmp_swapper gives a variable another value for the lifetime of the swapper
 //----------------------------------------------------------------------
-
-template <class T>
-void mt_swap(T& a, T& b)
-{
-//	using namespace std::swap;
-//	NYI: Mutex (mutally exclusion around swap function
-	omni::swap(a, b);
-//	T tmp = a; a=b; b=tmp;
-}
-
-template <class T>
-struct mt_swapper : private geodms::rtc::noncopyable
-{
-	 mt_swapper(T& resourceHandle, const T& blockValue)
-		: m_ResourceHandleRef(resourceHandle)
-		, m_ResourceHandleCopy(blockValue) 
-	 { 
-		 mt_swap(m_ResourceHandleRef, m_ResourceHandleCopy); 
-	 }
-	~mt_swapper()
-	 { 
-		 mt_swap(m_ResourceHandleRef, m_ResourceHandleCopy); 
-	 }
-
-	 bool     WasBlocked() const { return m_ResourceHandleRef == m_ResourceHandleCopy; }
-	 const T& GetValue  () const { return m_ResourceHandleCopy; }
-
-protected:
-	T& m_ResourceHandleRef;
-	T  m_ResourceHandleCopy;
-};
 
 template <class T>
 struct tmp_swapper  : private geodms::rtc::noncopyable

@@ -252,7 +252,7 @@ void GraphicContainer<ElemType>::SaveOrder()
 			{
 				TreeItemPtrArray::iterator oj = std::find(oi+1, oe, subItemContext);
 				dms_assert(oj != oe); // must be found
-				omni::swap(*oi, *oj);
+				std::swap(*oi, *oj);
 			}
 			dms_assert(*oi == subItemContext);
 		}

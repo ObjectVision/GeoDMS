@@ -15,7 +15,6 @@
 #include "ser/AsString.h"
 #include "ser/RangeStream.h"
 #include "set/VectorFunc.h"
-#include "utl/swap.h"
 
 #include "ParallelTiles.h"
 #include "Projection.h"
@@ -107,7 +106,7 @@ public:
 		}
 		if (colFirst != dms_order_tag::col_first)
 		{
-			omni::swap(arg1A, arg2A);
+			std::swap(arg1A, arg2A);
 		}
 
 		DataReadLock arg1Lock(arg1A);

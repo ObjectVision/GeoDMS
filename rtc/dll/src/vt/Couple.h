@@ -21,7 +21,8 @@
 #include "dbg/Diagnostics.h"
 #include "vt/ElemTraits.h"
 #include "vt/Undefined.h"
-#include "utl/swap.h"
+
+#include <utility>
 
 //----------------------------------------------------------------------
 // class  : Couple<T>
@@ -46,8 +47,8 @@ struct Couple
 	}
 	constexpr void swap(Couple& oth)
 	{
-		omni::swap(first,  oth.first );
-		omni::swap(second, oth.second);
+		std::swap(first,  oth.first );
+		std::swap(second, oth.second);
 	}
 
 	T first, second;

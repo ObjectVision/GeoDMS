@@ -13,7 +13,6 @@
 #include "dbg/DebugCast.h"
 #include "geom/PointOrder.h"
 #include "mci/Class.h"
-#include "utl/swap.h"
 
 #include "TreeItem.h"
 #include "TreeItemClass.h"

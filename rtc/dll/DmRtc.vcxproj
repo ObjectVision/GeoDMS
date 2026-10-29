@@ -200,7 +200,6 @@
     <ClInclude Include="src\utl\splitPath.h" />
     <ClInclude Include="src\utl\StackProtector.h" />
     <ClInclude Include="src\utl\StringFunc.h" />
-    <ClInclude Include="src\utl\swap.h" />
     <ClInclude Include="src\utl\swapper.h" />
     <ClInclude Include="src\utl\TypeListOper.h" />
     <ClInclude Include="src\ptr\AutoDeletePtr.h" />
