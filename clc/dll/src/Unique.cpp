@@ -378,67 +378,165 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 		WriteBlocksAsTiles<V>(resSub, std::move(values));
 }
 
-template <typename Iter, typename Pred>
-Iter make_strict_monotonous(Iter first, Iter last, Pred pred)
-{
-	if (first == last)
-		return last;
-	Iter result = first;
-	while (++first != last && pred(*result, *first))
-		++result;
-	if (first == last)
-		return last;
-	assert(result != first);
-	while (++first != last)
-		if (pred(*result, *first))
-			*++result = std::move(*first);
+// *****************************************************************************
+//                         Unique strings and other sequences
+// *****************************************************************************
 
-	return ++result;
+// A sequence is referred to by an element that has it: its tile and its position there. The references of each part of a
+// tile are sorted by the sequences they refer to, those of the parts are merged as the values above, and only the sorted
+// references of the distinct sequences are kept, in blocks that the merges free as they read. The sequences stay in the
+// tiles of the argument, which remain locked until the result is written, so that neither they nor an index of all
+// elements are copied. Of equal sequences the one that comes first in the argument is kept, as the sort of all elements in
+// their order did.
+
+struct elem_ref
+{
+	tile_id     t;
+	tile_offset i;
+};
+
+template <typename V>
+struct SequenceTiles
+{
+	using locked_cseq_t  = typename DataArray<V>::locked_cseq_t;
+	using const_iterator = typename DataArrayBase<V>::const_iterator;
+	using value_type     = typename std::iterator_traits<const_iterator>::value_type;
+
+	SequenceTiles(const DataArray<V>* ado, bool mustBeDefined)
+		: m_Data(ado)
+		, m_Tiles(ado->GetTiledRangeData()->GetNrTiles())
+		, m_TileBegins(m_Tiles.size())
+		, m_MustBeDefined(mustBeDefined)
+	{}
+
+	// locks tile t, by the one task that sorts it, and returns its size
+	tile_offset Lock(tile_id t)
+	{
+		m_Tiles[t] = m_Data->GetTile(t);
+		m_TileBegins[t] = m_Tiles[t].begin();
+		SizeT n = m_Tiles[t].size();
+		MG_CHECK(n == tile_offset(n));
+		return n;
+	}
+	auto Elem(elem_ref r) const { return m_TileBegins[r.t][r.i]; }
+
+	const DataArray<V>*         m_Data;
+	std::vector<locked_cseq_t>  m_Tiles;
+	std::vector<const_iterator> m_TileBegins;
+	bool                        m_MustBeDefined;
+};
+
+// the sorted references of the distinct sequences of positions index .. index+size-1 of tile t
+template <typename V, typename Comp>
+block_vector<elem_ref> GetUniqueSequencesDirect(const SequenceTiles<V>& tiles, tile_id t, tile_offset index, tile_offset size, Comp comp)
+{
+	assert(size <= UNIQUE_BUFFER_SIZE<tile_offset>);
+	tile_offset buffer[UNIQUE_BUFFER_SIZE<tile_offset>];
+	auto data = tiles.m_TileBegins[t];
+	tile_offset* bufferEnd = buffer;
+	for (tile_offset i = index, e = index + size; i != e; ++i)
+		if (!tiles.m_MustBeDefined || IsDefined(data[i]))
+			*bufferEnd++ = i;
+
+	std::stable_sort(buffer, bufferEnd, [&](tile_offset a, tile_offset b) { return comp(data[a], data[b]); });
+	bufferEnd = std::unique(buffer, bufferEnd, [&](tile_offset a, tile_offset b) { return !comp(data[a], data[b]); }); // keeps the first
+
+	block_vector<elem_ref> result;
+	result.reserve(bufferEnd - buffer);
+	for (tile_offset* i = buffer; i != bufferEnd; ++i)
+		result.push_back(elem_ref{ t, *i });
+	return result;
+}
+
+// The union of left and right, sorted references that each refer to distinct sequences, with left coming first in the
+// argument: of two that refer to equal sequences, the one of left. It frees both inputs block by block as it reads them.
+template <typename V, typename Comp>
+block_vector<elem_ref> MergeUniqueSequences(block_vector<elem_ref>&& left, block_vector<elem_ref>&& right, const SequenceTiles<V>& tiles, Comp comp)
+{
+	if (left.empty())
+		return std::move(right);
+	if (right.empty())
+		return std::move(left);
+
+	auto less = [&](elem_ref a, elem_ref b) { return comp(tiles.Elem(a), tiles.Elem(b)); };
+	block_vector<elem_ref> result;
+	result.reserve(left.size() + right.size());
+	block_vector_reader<elem_ref> leftReader(std::move(left)), rightReader(std::move(right));
+	while (!leftReader.AtEnd() && !rightReader.AtEnd())
+	{
+		if (less(*rightReader, *leftReader))
+		{
+			result.push_back(*rightReader);
+			++rightReader;
+			continue;
+		}
+		if (!less(*leftReader, *rightReader)) // equal
+			++rightReader;
+		result.push_back(*leftReader);
+		++leftReader;
+	}
+	leftReader.MoveRestTo(result);
+	rightReader.MoveRestTo(result);
+	return result;
+}
+
+template <typename V, typename Comp>
+block_vector<elem_ref> GetTileUniqueSequences(const SequenceTiles<V>& tiles, tile_id t, tile_offset index, tile_offset size, Comp comp)
+{
+	if (size <= UNIQUE_BUFFER_SIZE<tile_offset>)
+		return GetUniqueSequencesDirect<V>(tiles, t, index, size, comp);
+
+	tile_offset m = size / 2;
+
+	auto firstHalf = throttled_async([&tiles, t, index, m, comp]() {
+		return GetTileUniqueSequences<V>(tiles, t, index, m, comp);
+		}
+	);
+
+	auto secondHalf = GetTileUniqueSequences<V>(tiles, t, index + m, size - m, comp);
+
+	return MergeUniqueSequences<V>(firstHalf->get(), std::move(secondHalf), tiles, comp);
+}
+
+template <typename V, typename Comp>
+block_vector<elem_ref> GetUniqueSequenceRefs(SequenceTiles<V>& tiles, tile_id t, tile_id nrTiles, Comp comp)
+{
+	assert(nrTiles >= 1);
+	if (nrTiles == 1)
+		return GetTileUniqueSequences<V>(tiles, t, 0, tiles.Lock(t), comp);
+
+	tile_id m = nrTiles / 2;
+
+	auto firstHalf = throttled_async([&tiles, t, m, comp]() {
+		return GetUniqueSequenceRefs<V>(tiles, t, m, comp);
+		});
+
+	auto secondHalf = GetUniqueSequenceRefs<V>(tiles, t + m, nrTiles - m, comp);
+
+	return MergeUniqueSequences<V>(firstHalf->get(), std::move(secondHalf), tiles, comp);
 }
 
 template<sequence_or_string V>
 void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi, bool mustBeDefined)
 {
-	auto allValues = const_array_cast<V>(adi)->GetDataRead();
-
-	using ConstDataIter = DataArrayBase<V>::const_iterator;
-	visit<typelists::domain_elements>(adi->GetAbstrDomainUnit(), [res, resSub, allValues, mustBeDefined]<typename E>(const Unit<E>*arg2Domain)
+	SequenceTiles<V> tiles(const_array_cast<V>(adi), mustBeDefined);
+	block_vector<elem_ref> refs;
+	if (tile_id tn = tile_id(tiles.m_Tiles.size()))
 	{
-		using index_type = typename cardinality_type<E>::type;
-		my_vec_t<index_type> index;
+		// as the sort of all elements did: operator< where nulls are left out, an order that puts null first otherwise
 		if (mustBeDefined)
-			make_index_skip_null(index, allValues.size(), allValues.begin());
+			refs = GetUniqueSequenceRefs<V>(tiles, 0, tn, std::less<void>());
 		else
-			make_index_all_values(index, allValues.size(), allValues.begin());
+			refs = GetUniqueSequenceRefs<V>(tiles, 0, tn, DataLessThanCompare<typename SequenceTiles<V>::value_type>());
+	}
 
-		auto indexEnd = make_strict_monotonous(index.begin(), index.end(), IndexCompareOper<ConstDataIter, index_type>(allValues.begin()));
-		index.erase(indexEnd, index.end());
+	res->SetCount(refs.size());
 
-		SizeT nrUndefined = 0;
-		if (mustBeDefined)
-		{
-			for (auto i : index)
-				if (!IsDefined(allValues[i]))
-					++nrUndefined;
-		}
-
-		res->SetCount(index.size() - nrUndefined);
-
-		locked_tile_write_channel<V> resWriter(resSub);
-
-		if (mustBeDefined)
-		{
-			for (auto i : index)
-				if (IsDefined(allValues[i]))
-					resWriter.Write(allValues[i]);
-		}
-		else
-			for (auto i : index)
-				resWriter.Write(allValues[i]);
-
-		assert(resWriter.IsEndOfChannel());
-		resWriter.Commit();
-	});
+	locked_tile_write_channel<V> resWriter(resSub);
+	for (block_vector_reader<elem_ref> ref(std::move(refs)); !ref.AtEnd(); ++ref) // frees the references once written
+		resWriter.Write(tiles.Elem(*ref));
+	assert(resWriter.IsEndOfChannel());
+	resWriter.Commit();
 }
 
 
