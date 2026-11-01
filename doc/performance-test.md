@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-29): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-11-01): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -17,7 +17,9 @@ against 20.25.0; the pre-release v20.27.0 (02f9fc329) gives 27 of 27 in `.m` wit
 A/B its one-pass sparse `impedance_matrix` (#1327) makes t910 14 % faster and leaves the other network experiments and
 every peak commit level; the local build of 20.28.0 (db151676e) gives 27 of 27 with the same results, and in an
 A/B the counting in blocks of #1327 (55b161945) makes t720 24 % faster and t405.2 5 %, while the peak commit of t301
-rises by 2.8 GB. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
+and t720 rises by about 1 GB (the 2.8 GB of that A/B was the high end of the spread); the pre-release v20.28.0
+(01feccd21) gives 21 of 21 in `.l` and 27 of 27 in `.c` and `.m` with the same results, and is as fast as
+db151676e in an A/B. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
 of the account that ran them, which had no `.wslconfig` and so half the RAM, not the engine: with 48 GB for that VM
 (2026-10-22) 20.26.0.l passes both, 21 of 21. t300's two levels on this machine are the first read of its XML, not
 the build (see the known causes at the end). Section 8.1.x of
@@ -1664,6 +1666,170 @@ more committed than the containers did.
 - Peak commit: t301 2.8 GB and t720 1.7 GB higher in the process counter, both in a phase where many counting or `unique`
   calls run side by side; the memory halving of a single large `modus` or `unique` in the commit message does not show
   in these experiments.
+  The A/Bs of the release 20.28.0 below put the rise at about 1 GB on average, with 2.8 GB the high end of the
+  spread between runs.
+
+## Results (OVSRV05), the pre-release v20.28.0 (tag `01feccd21`) in `.l`, `.c` and `.m`: #1327 in `unique` on strings and in `pareto_optimal`
+
+The GitHub pre-release `v20.28.0` (published 2026-10-31 14:32 UTC) is tagged at `01feccd21`. Its engine differs from the
+local build of `db151676e` measured above in three commits:
+
+- `9fb4d4d8f` (#1327): `unique` of strings and other sequences sorts references to the elements per part of a tile and
+  merges them in `block_vector`s, as `unique` on values does since `55b161945`, instead of one index over all elements.
+- `01feccd21` (#1327): `pareto_optimal` and `pareto_optimal_eps` read their criteria from their tiles, with pairs of two
+  `UInt32` where they fit. No configuration of GeoDMS-Test calls either, so full.py does not measure this one.
+- `1a5f06822`: `omni::swap` removed in favour of `std::swap`.
+
+The setups were built on OVSRV10 by the release scripts; `db151676e` was a local msbuild on OVSRV05. GeoDMS-Test at
+`5fb7780`, unchanged upstream. The `.m`, `.c` and `.l` assets were downloaded with `gh` into
+`C:\LocalData\GeoDMS_releases\v20.28.0`; their SHA256 match the release's digests and both Windows setups carry a valid
+signature of Object Vision B.V.; `.m` and `.c` were installed silently (exit 0) and kept as
+`C:\LocalData\GeoDMS_engine\release_01feccd21_{m,c}`; `.l` replaced 20.26.0.l in WSL, which was unpacked again beside it
+from its `.deb`. Each passed a smoke test on `testcases\fn_test_pareto_optimal.dms`. The column of `db151676e` moved to
+`_Archive\20_28_0_m_local_db151676e_20261029` (with its report and `runs` folder) before the `.m` round.
+
+`scratch\launch_perf_20280_release.cmd` read t300's XML first (5.6 GiB in 46 s), then ran `.l` 2026-10-31 15:38 to 17:08,
+`.c` 17:08 to 20:11 and `.m` 20:11 to 23:14, threshold 60, put back to 95. Each full.py exit 0, nothing on stderr, no
+reuse. No Remote Desktop session was connected this time (it was through both earlier `.m` rounds of 20.27.0 and
+20.28.0); the Claude desktop app took about a fifth of a core through `.l` and `.c` (1 796 and 2 292 s of CPU) and next to
+nothing through `.m` (130 s).
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.l` | 1:22:44 | 21 of 21 `ok` |
+| `.c` | 3:00:59 | 27 of 27 `ok` |
+| `.m` | 3:00:21 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result of `.m` is byte for byte the one of 20.27.0.m and of `db151676e`, and
+those of `.c` and `.l` the ones of 20.26.0 in that flavour (20.27.0 had a `.m` asset only).
+
+Wall time per experiment, `.m`, from the report:
+
+| test | release 20.28.0 | `db151676e` | 20.27.0 | release / `db151676e` | release / 20.27.0 |
+|---|---|---|---|---|---|
+| t020 | 0:03:49 | 0:04:10 | 0:04:08 | 0.92 | 0.92 |
+| t060 | 0:01:50 | 0:01:54 | 0:01:54 | 0.96 | 0.96 |
+| t101 | 0:03:19 | 0:03:32 | 0:03:30 | 0.94 | 0.95 |
+| t200 | 0:00:35 | 0:00:38 | 0:00:38 | 0.92 | 0.92 |
+| t300 | 0:01:39 | 0:00:57 | 0:00:58 | 1.74 | 1.71 |
+| t301 | 0:02:37 | 0:02:35 | 0:03:01 | 1.01 | 0.87 |
+| t405.1 | 0:04:29 | 0:04:29 | 0:04:33 | 1.00 | 0.99 |
+| t405.2 | 0:16:49 | 0:17:22 | 0:18:07 | 0.97 | 0.93 |
+| t405.3 | 0:16:32 | 0:17:34 | 0:17:57 | 0.94 | 0.92 |
+| t410 | 0:03:51 | 0:04:14 | 0:04:03 | 0.91 | 0.95 |
+| t611 | 0:00:30 | 0:00:35 | 0:00:31 | 0.86 | 0.97 |
+| t641.1 | 0:49:18 | 0:50:57 | 0:53:04 | 0.97 | 0.93 |
+| t641.2 | 0:43:10 | 0:43:35 | 0:45:05 | 0.99 | 0.96 |
+| t710 | 0:01:02 | 0:01:05 | 0:01:03 | 0.95 | 0.98 |
+| t720 | 0:07:02 | 0:07:25 | 0:09:56 | 0.95 | 0.71 |
+| t810 | 0:04:53 | 0:05:16 | 0:05:12 | 0.93 | 0.94 |
+| t910 | 0:00:42 | 0:00:44 | 0:00:45 | 0.95 | 0.93 |
+| t2000 | 0:17:13 | 0:18:33 | 0:18:44 | 0.93 | 0.92 |
+
+Over all experiment logs (`durations.py`): 180.7 min against 187.2 for `db151676e` and 194.7 for 20.27.0. Against
+`db151676e` nearly every row is 3 to 9 % faster, also those that none of the three commits touches (t020, t101, t200,
+t810): the sitting, which the A/B below confirms. t300's 1:39 is its first read of the XML (18 s per file set against
+11 s in the `.c` round of that afternoon), see "t300 and the first read of its XML on OVSRV05" below.
+
+`.c` and `.l` against 20.26.0 (`durations.py`, minutes; no A/B of these, so they include 20.27.0, 20.28.0 and the
+sitting):
+
+| test | `.c` 20.28.0 | `.c` 20.26.0 | `.l` 20.28.0 | `.l` 20.26.0 |
+|---|---|---|---|---|
+| t301 | 3.4 | 2.6 | 1.6 | 1.6 |
+| t405.1 | 4.4 | 4.4 | 4.3 | 5.4 |
+| t405.2 | 17.0 | 18.5 | 23.0 | 26.1 |
+| t405.3 | 17.4 | 18.4 | 22.3 | 26.4 |
+| t641.1 | 49.3 | 52.5 | not run | not run |
+| t641.2 | 42.5 | 47.5 | not run | not run |
+| t720 | 7.1 | 9.7 | 6.6 | 10.1 |
+| t810 | 5.4 | 5.7 | 6.2 | 7.0 |
+| t910 | 0.7 | 0.8 | 0.8 | 1.1 |
+| t2000 | 16.6 | 18.8 | not run | not run |
+| total | 181.4 | 197.6 | 82.8 | 97.4 |
+
+t720's gain of `55b161945` shows in every flavour (`.l` 6.6 against 10.1 min). t301 on `.c` is the one row above its
+predecessor: its five `.c` rounds since 20.23.1 gave 2.5, 2.6, 3.1, 2.6 and 3.4 min, and the extra time lies in the waits
+between the insert and extract phases of `polygon_connectivity` in a few rectangles (54 and 43 s, against a longest of
+46 s in the round of 20.26.0.c); see the `.c` A/B below.
+
+### Interleaved A/B: 20.27.0, `db151676e` and the release 20.28.0, `.m`
+
+In the same wrapper, 2026-10-31 23:15 to 2026-11-01 03:02, X Y Z Z Y X, threshold 60, the inputs read once beforehand
+(list `ab_20280_inputs.txt`), the experiments of the A/B of 2026-10-29 through `scratch\t2000_c\run_exp_peak.py`:
+X = 20.27.0 (`release_02f9fc329_m`), Y = `db151676e` (`head_db151676e`), Z = the release 20.28.0 (`release_01feccd21_m`).
+Nothing else ran (the Claude desktop app 168 s of CPU). Seconds:
+
+| test | X1 | Y1 | Z1 | Z2 | Y2 | X2 | Y / X | Z / Y |
+|---|---|---|---|---|---|---|---|---|
+| t720 | 565 | 423 | 423 | 425 | 425 | 551 | 0.76 | 1.00 |
+| t611 | 30 | 30 | 31 | 30 | 30 | 30 | 1.00 | 1.02 |
+| t710 | 61 | 61 | 61 | 61 | 61 | 61 | 1.00 | 1.00 |
+| t060 | 97 | 96 | 96 | 94 | 95 | 94 | 1.00 | 0.99 |
+| t301 | 151 | 146 | 158 | 151 | 152 | 149 | 0.99 | 1.04 |
+| t410 | 227 | 229 | 234 | 229 | 226 | 228 | 1.00 | 1.02 |
+| t405.1 | 212 | 209 | 209 | 209 | 210 | 212 | 0.99 | 1.00 |
+| t405.2 | 1041 | 1004 | 998 | 998 | 1004 | 1048 | 0.96 | 0.99 |
+
+Summed: X 4 757 s, Y 4 401, Z 4 407. All 30 `.json`, `.txt` and `.tif` result files of the six runs are byte for byte
+those of the `.m` round. `PeakPagefileUsage`, in 10^9 bytes:
+
+| test | X1, X2 | Y1, Y2 | Z1, Z2 |
+|---|---|---|---|
+| t720 | 24.09, 25.06 | 24.21, 26.59 | 24.73, 24.42 |
+| t611 | 4.77, 4.95 | 4.94, 4.89 | 4.98, 4.85 |
+| t710 | 8.03, 8.06 | 8.05, 8.05 | 8.02, 8.03 |
+| t060 | 9.59, 9.58 | 9.58, 9.58 | 9.59, 9.58 |
+| t301 | 22.01, 20.69 | 20.34, 21.68 | 21.90, 21.79 |
+| t410 | 1.41, 1.41 | 1.47, 1.47 | 1.42, 1.51 |
+| t405.1 | 11.50, 11.50 | 11.75, 11.75 | 11.75, 11.75 |
+| t405.2 | 52.19, 52.19 | 52.45, 52.47 | 52.44, 52.44 |
+
+- The release and `db151676e` are level: Z / Y lies between 0.99 and 1.04 on every experiment, and where it moves (t301
+  151 to 158 against 146 to 152, t410) the two Z runs and the two Y runs overlap or come within 2 %. `unique` on strings
+  and the build machine change none of these experiments measurably.
+- 20.27.0 to `db151676e` repeats the A/B of 2026-10-29: t720 0.76 (558 to 424 s), t405.2 0.96. t410's 0.97 of then is
+  1.00 now.
+- Peak commit: the A/B of 2026-10-29 gave `db151676e` +2.8 GB on t301 and +1.7 GB on t720. In this sitting the
+  difference is smaller and mixed: t301 X 22.01 and 20.69, Y 20.34 and 21.68 (the per-second commit above 18 GB for 31
+  and 23 s on X, 37 and 24 s on Y, 25 and 25 s on Z), t720 X 24.09 and 25.06, Y 24.21 and 26.59. The release lies with
+  `db151676e`. What repeats exactly in every run of both sittings is +0.25 GB on t405.1 and t405.2 and +0.06 GB on
+  t410, in Y and Z alike; for t301 and t720 see the `.c` A/B below.
+
+### Interleaved A/B: t301 on `.c`
+
+`scratch\perf_ovsrv05\ab_20280c_t301.cmd`, 2026-11-01 03:03 to 03:25, X Y Y X X Y Y X, threshold 60, right after the
+`.m` A/B (inputs warm): X = the release 20.26.0.c (`release_f3c45bc70_c`; 20.27.0 had no `.c`, and its change does not
+reach t301), Y = the release 20.28.0.c (`release_01feccd21_c`). All eight result sets are byte for byte those of the
+`.c` round.
+
+| run | X1 | Y1 | Y2 | X2 | X3 | Y3 | Y4 | X4 |
+|---|---|---|---|---|---|---|---|---|
+| seconds | 157 | 160 | 153 | 159 | 148 | 160 | 172 | 175 |
+| `PeakPagefileUsage` | 20.10 | 22.52 | 22.08 | 22.02 | 22.98 | 24.40 | 25.93 | 24.81 |
+
+Time is level (X 639 s in four runs, Y 645, 1.01), and every run took 148 to 175 s: the 3.4 min of the `.c` round is
+the sitting. The peak commit rises through the sitting for both builds (X 20.1 to 24.8 GB, Y 22.5 to 25.9), and Y is
+above its neighbouring X in all four pairs (+2.42, +0.06, +1.42, +1.12 GB). Taking the neighbouring runs of the three
+A/Bs together, a build with `55b161945` is above one without in 11 of 12 pairs on t301 and t720 (−1.67 to +3.60 GB),
+by 1.25 GB on average on t301 and 1.27 GB on t720, against a spread of 2 to 5 GB between runs of one build. So a rise of
+about 1 GB on these two experiments is likely; the 2.8 GB of 2026-10-29 was the high end of that spread. Its cause is
+still not measured.
+
+### Reading
+
+- Correct: 21 of 21 in `.l`, 27 of 27 in `.c` and `.m`, each with the results of the previous version in that flavour.
+- The release 20.28.0 is as fast as the local build of `db151676e` on every experiment of the A/B; the 3 to 9 % that the
+  `.m` round shows on most rows is the sitting. The commits since, `unique` on strings per tile (`9fb4d4d8f`) and
+  `pareto_optimal` from its tiles (`01feccd21`), have no measurable effect on full.py: no experiment calls
+  `pareto_optimal`, and the A/B shows no difference that `unique` on strings could account for (which experiments call
+  it on strings, and for how long, is not established).
+- Against 20.27.0, 20.28.0 stays 24 % faster on t720 and 4 % on t405.2 (A/B), and the `.l` and `.c` rounds show the t720
+  gain too.
+- t301 on `.c` is level with 20.26.0.c in an A/B (1.01); its 3.4 min in the round is the sitting.
+- Peak commit: the rise of t301 and t720 since `55b161945` is about 1 GB on average (11 of 12 neighbouring pairs, -1.7 to
+  +3.6 GB), not the 2.8 and 1.7 GB of the A/B of 2026-10-29, which were the high end of a spread of 2 to 5 GB between
+  runs of one build. t405.1 and t405.2 are 0.25 GB higher in every run.
 
 # Known causes of differences between versions
 
