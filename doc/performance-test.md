@@ -16,8 +16,9 @@ the same results and times, and so does the release v20.25.0 (fec6efe90) in `.m`
 against 20.25.0; the pre-release v20.27.0 (02f9fc329) gives 27 of 27 in `.m` with the results of 20.26.0, and in an
 A/B its one-pass sparse `impedance_matrix` (#1327) makes t910 14 % faster and leaves the other network experiments and
 every peak commit level; the local build of 20.28.0 (db151676e) gives 27 of 27 with the same results, and in an
-A/B the counting in blocks of #1327 (55b161945) makes t720 24 % faster and t405.2 5 %, while the peak commit of t301
-and t720 rises by about 1 GB (the 2.8 GB of that A/B was the high end of the spread); the pre-release v20.28.0
+A/B the counting in blocks of #1327 (55b161945) makes t720 24 % faster and t405.2 5 % and raises the peak commit of
+t720 by about 0.6 GB, in the free stacks, while the rise of t301 that pairs of runs suggested was chance (split by kind
+of memory, 2026-11-01); the pre-release v20.28.0
 (01feccd21) gives 21 of 21 in `.l` and 27 of 27 in `.c` and `.m` with the same results, and is as fast as
 db151676e in an A/B. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
 of the account that ran them, which had no `.wslconfig` and so half the RAM, not the engine: with 48 GB for that VM
@@ -1666,8 +1667,8 @@ more committed than the containers did.
 - Peak commit: t301 2.8 GB and t720 1.7 GB higher in the process counter, both in a phase where many counting or `unique`
   calls run side by side; the memory halving of a single large `modus` or `unique` in the commit message does not show
   in these experiments.
-  The A/Bs of the release 20.28.0 below put the rise at about 1 GB on average, with 2.8 GB the high end of the
-  spread between runs.
+  Split by kind of memory (the section after that of the pre-release 20.28.0), the rise of t301 is chance and
+  that of t720 about 0.6 GB, in the free stacks.
 
 ## Results (OVSRV05), the pre-release v20.28.0 (tag `01feccd21`) in `.l`, `.c` and `.m`: #1327 in `unique` on strings and in `pareto_optimal`
 
@@ -1813,8 +1814,8 @@ the sitting. The peak commit rises through the sitting for both builds (X 20.1 t
 above its neighbouring X in all four pairs (+2.42, +0.06, +1.42, +1.12 GB). Taking the neighbouring runs of the three
 A/Bs together, a build with `55b161945` is above one without in 11 of 12 pairs on t301 and t720 (−1.67 to +3.60 GB),
 by 1.25 GB on average on t301 and 1.27 GB on t720, against a spread of 2 to 5 GB between runs of one build. So a rise of
-about 1 GB on these two experiments is likely; the 2.8 GB of 2026-10-29 was the high end of that spread. Its cause is
-still not measured.
+about 1 GB on these two experiments looked likely; split by kind of memory (next section) it is chance on t301 and about
+0.6 GB on t720.
 
 ### Reading
 
@@ -1827,9 +1828,87 @@ still not measured.
 - Against 20.27.0, 20.28.0 stays 24 % faster on t720 and 4 % on t405.2 (A/B), and the `.l` and `.c` rounds show the t720
   gain too.
 - t301 on `.c` is level with 20.26.0.c in an A/B (1.01); its 3.4 min in the round is the sitting.
-- Peak commit: the rise of t301 and t720 since `55b161945` is about 1 GB on average (11 of 12 neighbouring pairs, -1.7 to
-  +3.6 GB), not the 2.8 and 1.7 GB of the A/B of 2026-10-29, which were the high end of a spread of 2 to 5 GB between
-  runs of one build. t405.1 and t405.2 are 0.25 GB higher in every run.
+- Peak commit: the neighbouring pairs (11 of 12 higher with `55b161945`, -1.7 to +3.6 GB) suggested about 1 GB on t301
+  and t720; the next section splits it by kind of memory and finds no rise on t301 and about 0.6 GB on t720. t405.1 and
+  t405.2 are 0.25 GB higher in every run.
+
+## Results (OVSRV05), the peak commit of t301 and t720 split by kind of memory: 20.27.0, `db151676e` and the release 20.28.0
+
+The rise of about 1 GB that the two sections above read from neighbouring pairs of `PeakPagefileUsage` was measured
+again on 2026-11-01, with `scratch\perf_ovsrv05\vmsample.py` beside every run. It waits for the next GeoDmsRun, walks
+its address space with `VirtualQueryEx` at a fixed interval and adds up the committed private pages per allocation
+base, by kind: NT heap segments (signature 0xFFEEFFEE at +0x10; the CRT's `malloc` and `operator new`), free-stack
+chunks of the allocation stock (reservations of a power of 2 of at least 1 MB), big blocks (any other reservation of at
+least 1 MB that is at least 90 % committed: the blocks the NT heap takes with a `VirtualAlloc` of their own, such as a
+stock request above 1 MB) and thread stacks. A walk takes 0.2 to 0.7 s and up to 3 s at a peak, so the highest sample
+lies somewhat below the process counter. Figures in 10^9 bytes, as `PeakPagefileUsage`.
+
+### t301
+
+`scratch\perf_ovsrv05\t301mem_ab.cmd` and `t301mem_abz.cmd`, 2026-11-01 12:44 to 13:30, X Y Y X X Y Y X and then
+X Z Z X X Z Z X, threshold 60, inputs warm, a sample every second: X = the release 20.27.0.m, Y = the local build of
+`db151676e`, Z = the release 20.28.0.m. All sixteen result sets are byte for byte those of the round, and every run took
+148 to 177 s.
+
+| build | `PeakPagefileUsage` per run | mean |
+|---|---|---|
+| X | 22.80, 21.82, 23.29, 22.04, 24.85, 21.31, 20.59, 21.10 | 22.22 |
+| Y | 23.38, 21.80, 22.42, 21.90 | 22.38 |
+| Z | 22.53, 23.33, 21.82, 22.66 | 22.58 |
+
+- The peak falls at 60 to 72 s (once at 46 s), when up to 24 of the 84 rectangles of the BAG snapshot run
+  `polygon_connectivity` at once. It is then 10.2 to 13.1 GB NT heap and 8.6 to 10.2 GB big blocks, while the free-stack
+  chunks stay at 1.3 to 1.6 GB in every run of every build. Over the sixteen runs the peak correlates 0.96 with the
+  largest heap of the run. `polygon_connectivity` holds its whole sweep in `std::allocator` containers (the comment at
+  `geo/dll/src/BoostPolygon.cpp:2462`), and `geos_buffer_multi_polygon` of the rectangles that are not that far yet
+  allocates through GEOS, so neither reaches the stock. The spread within one build comes from which large rectangles
+  happen to be in `polygon_connectivity` together.
+- The only code of `55b161945` that t301 reaches is `unique(neighbour_pair/coded_pair)` of
+  `Regression/cfg/stam/MakeSnapshot/afleidingen.dms:163`, which runs once all 84 rectangles are done, in the last 3 s of
+  the run; the per-rectangle `unique` of line 121 that the section of `db151676e` names is not demanded. Allocator,
+  scheduler, `polygon_connectivity` and GEOS are the same in 20.27.0 and `db151676e`.
+- In the windows of the peak (60 to 80 s) the means of the builds lie within 0.63 GB of each other, with alternating
+  sign. Before 30 s, which includes the `unique` on strings of 20.28.0, heap, chunks and big blocks are equal.
+
+### t720
+
+`scratch\perf_ovsrv05\t720mem_ab.cmd`, 2026-11-01 14:42 to 15:15, X Z Z X three times, threshold 60, inputs warm, a
+sample every 0.25 s. The sampler ended every run after 150 s: in the six full runs of 2026-10-31 the peak lies in the first
+25 s, while the world grids are read, and the commit stays below 17 GB afterwards. These runs therefore have no
+results; the full runs of both builds gave the same results.
+
+| build | `PeakPagefileUsage` per run | mean |
+|---|---|---|
+| X | 24.63, 23.29, 23.32, 23.98, 23.91, 23.84 | 23.83 |
+| Z | 24.30, 24.41, 24.80, 24.15, 24.64, 24.48 | 24.46 |
+
+Z is above its neighbouring X in 5 of 6 pairs.
+
+- Around 12 s the commit is about 21 GB of big blocks, the tiles of the grid reads, and 2 to 3 GB of heap. This first
+  hump is level: the highest sample between 8 and 16 s is 22.77 to 23.59 GB on X and 22.48 to 24.08 GB on Z.
+- Between 16 and 20 s the free-stack chunks grow from 0.2 to 4.7 GB while the big blocks are still at 17 to 19 GB. On Z
+  that happens earlier: 3.51 against 1.91 GB on average from 16 to 18 s, 4.73 against 3.07 GB from 18 to 20 s. The highest
+  sample between 16 and 25 s is 22.14 to 23.94 GB on Z against 19.50 to 22.98 GB on X, and in three of the six runs of Z
+  it is the highest of the run (19 s); on X that is always at 12 or 13 s.
+- After 30 s the chunks are higher in every run, 5.23 to 5.28 GB on X against 5.61 to 5.66 GB on Z; heap and big blocks
+  are level.
+- The allocator's own statistics at the end of the full runs of the A/B of 2026-10-31 agree: Highest Reserved in Blocks
+  is 5619 MB in both runs of 20.27.0, 5875 and 5843 MB on `db151676e` and 5843 and 5875 MB on the release. The difference
+  came with `db151676e`, not with `9fb4d4d8f` or `01feccd21`.
+
+2BURP calls none of `join_near_values`, `connect_matrix` and `dist_matrix`, so of the two #1327 commits in `db151676e`
+only `55b161945` reaches it. That fits the possible cause named in its section: the blocks of `block_vector` come from
+the free stacks, which keep them committed when freed. Which operator it is, is not established; 2BURP has `modus` in
+`Preprocessing/DegreeOfUrbanisation.dms:209` and `unique` on points in `SourceData/Physical/coast.dms:48`, and whether
+either runs in those seconds is not checked.
+
+### Reading
+
+- t301: no rise. Its peak is the `malloc` memory of up to 24 concurrent `polygon_connectivity` operators, with GEOS
+  beside them, and the 11 of 12 neighbouring pairs above were chance in a spread of 2 to 5 GB.
+- t720: about 0.6 GB higher since `db151676e`, in the free-stack chunks, most likely through `55b161945`.
+- On experiments whose peak spreads by gigabytes, a difference in `PeakPagefileUsage` is a finding only once it is split
+  by kind and the commit's code is shown to run before the peak.
 
 # Known causes of differences between versions
 
