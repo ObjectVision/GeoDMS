@@ -12,8 +12,10 @@ collision that the G flavour exists to avoid.
 
 Keep common vcpkg dependencies identical in both manifests. Run
 `tools/verify-vcpkg-manifests.ps1` after changing either manifest; both G build
-scripts run this check automatically. Only the three root spatial entries
-(`gdal`, `geos`, and `sqlite3`) are omitted from the G manifest.
+scripts run this check automatically. Only the four root spatial entries
+(`gdal`, `geos`, `sqlite3`, and `tiff`) are omitted from the G manifest.
+The root manifest names `tiff` only to add its `zstd` feature (#1332); the
+conda libtiff of the G flavour already has that codec.
 
 Build with MSBuild using `/p:GeoDmsGlobio=true`. This selects:
 
