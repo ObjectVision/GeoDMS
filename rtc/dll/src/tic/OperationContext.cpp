@@ -2976,15 +2976,19 @@ task_status OperationContext::Join()
 		{
 			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of the low-RAM brake
 
-			// Still scheduled after the StartOperationContexts above: the low-RAM brake parked it. That
-			// brake counts the context this worker is running, which waits here for this one, so it
-			// held back exactly the context that would let it go on; the worker then polled until the
-			// machine's RAM use dropped, which may never happen while this process holds the memory.
-			// Activate it for this thread, which runs it inline in the next iteration: that adds no
-			// concurrency, since the thread was going to wait anyway. The meta thread does not run
-			// tasks inline, and the brake's floor of one covers it. Only within the phase being
-			// activated, as collectOperationContexts would do.
-			if (!IsMetaThread() && m_PhaseNumber == s_CurrActivePhaseNumber && collectTaskImpl(joinGarbage))
+			// Still scheduled after the StartOperationContexts above, so nothing is going to activate it:
+			// the low-RAM brake parked it, or collectOperationContexts dropped it from its queue while its
+			// result had no interest (collectTaskImpl refuses such a context and the pass erases it all
+			// the same). The brake counts the context this thread is running, which waits here for this
+			// one, so it held back exactly the context that would let it go on; the thread then polled
+			// until the machine's RAM use dropped, which may never happen while this process holds the
+			// memory. Activate it for this thread, which runs it inline in the next iteration: that adds
+			// no concurrency, since the thread was going to wait anyway. A thread runs tasks inline in
+			// this loop when IsBlocked(), the condition of the inline run at its top: every worker, and
+			// the meta thread under a SuspendTrigger blocker, as when an IntegrityCheck or a read lock
+			// waits for data. GeoDmsRun 20.27.0 hung there on the meta thread while this was for workers
+			// only (#1329). Only within the phase being activated, as collectOperationContexts would do.
+			if (SuspendTrigger::BlockerBase::IsBlocked() && m_PhaseNumber == s_CurrActivePhaseNumber && collectTaskImpl(joinGarbage))
 				continue;
 		}
 		if (m_Status == task_status::waiting_for_suppliers)
