@@ -118,7 +118,7 @@ if not exist "%INSTALLER%" goto :setup_missing
 REM No question before signing: the token asks for its PIN itself, and through Tee-Object the text
 REM of a CHOICE prompt does not show, as choice writes it without a line end, so the run seemed to hang.
 set "SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
-"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "%INSTALLER%"
+"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r45standard /td SHA256 "%INSTALLER%"
 if errorlevel 1 goto :build_failed
 
 call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
