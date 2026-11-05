@@ -1,7 +1,7 @@
 # Performance plan: the point-in-polygon operators and the other users of the spatial index
 
-*Status (2026-10-17): plan, no code changed yet; item 1 is #1319, item 2 is #1320, item 5 (the text of a
-table, outside the spatial index) is #1321. Written after #1292
+*Status (2026-11-05): item 2 (#1320) is done, see "As built" under it; items 1 (#1319) and 5 (the text of a
+table, outside the spatial index, #1321) are still plans, items 3 and 4 wait for evidence from a model. Written after #1292
 (the loose quadtree, 7c4000cdc, 20.25.0) closed. The measurements below were taken on OVSRV10 with a kept copy of the Release build of
 c56fe51a2 (`C:\LocalData\GeoDMS_engine\20.25.0_c56fe51a2`), on an almost idle machine (2 to 7 % CPU
 load), from `scratch\perf_idx\probe_idx.dms`.*
@@ -101,6 +101,27 @@ and islands, in `dpoint` and `ipoint`. The existing `oper_point_in_polygon_tilin
 
 Wiki: the performance sections of `Point_in_polygon`, `Point_in_ranked_polygon` and
 `Point_in_all_polygons` (O(n log p + n k) today).
+
+As built (2026-11-05, #1320): `geo/dll/src/geom/PolygonEdgeIndex.h`, built beside the spatial index by the
+`PolygonIndex` of `OperPolygon.cpp` and used by the three operators; the battery case is
+`testcases/oper_point_in_polygon_edge_index.dms`. Where it differs from the plan above:
+
+- Two conditions decide whether polygons get an edge index at all, so that it never costs more than it saves:
+  only a polygon whose bounding box touches the bounding box of all points is indexed (the addresses of one
+  village tested against all neighbourhoods of the country index only the neighbourhoods around it), and
+  only when there are at least 4 points per such polygon.
+- The vertex threshold is 32, measured with 10 M points over 400 squares on OVSRV10, the difference per
+  interleaved round: with 9 vertices none, with 17 the index saved 0.004 to 0.011 s of about 0.11 s, with 33
+  0.014 to 0.020 s, with 65 0.03 to 0.05 s of about 0.14 s.
+- Building the index of one polygon costs 6 to 7 walks over its vertices (one polygon of 16.8 M vertices on one
+  thread: 0.08 to 0.09 s against 0.013 s per walk), so 4 points per polygon rests on a point having more than
+  one candidate and on the polygons being indexed in parallel; for that one polygon 4 points took 0.017 to
+  0.030 s longer with the index than without, and 16 points 0.13 to 0.17 s less.
+- The number of slabs has no cap; the slab offsets are at most an eighth of the edges.
+- A horizontal edge is listed in no slab: it never counts, and it is half of the edges of a rectangle or of a
+  polygon made from grid cells.
+- A signed integer polygon with a vertex whose y is null is not indexed, as its difference with the point's y
+  can overflow; a floating point or unsigned one lists such edges in a list tested for every point.
 
 ### 3. The order of the points
 

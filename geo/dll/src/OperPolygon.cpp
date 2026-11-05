@@ -1383,14 +1383,43 @@ public:
 
 #include "UnitProcessor.h"
 #include "geom/SpatialIndex.h"
+#include "geom/PolygonEdgeIndex.h"
 
-template <typename E, typename ResSequence, typename PointArray, typename PolyArray, typename SpatialIndexType>
+// The two indices over the polygons of a point-in-polygon operator: the spatial index, which yields the polygons whose
+// bounding box holds a point, and the edge index of those among them with many vertices, which tests such a polygon with the
+// edges that can meet the point's row (#1320). Built once, then only read by the threads that query them.
+template <typename SpatialIndexType, typename PointType>
+struct PolygonIndex
+{
+	template <typename PolyIter>
+	PolygonIndex(PolyIter first, PolyIter last, const Range<PointType>& pointBox, SizeT nrPoints)
+		: m_SpatialIndex(first, last, 0)
+		, m_EdgeIndex(m_SpatialIndex, first, last, pointBox, nrPoints)
+	{}
+
+	SpatialIndexType            m_SpatialIndex;
+	PolygonEdgeIndex<PointType> m_EdgeIndex;
+};
+
+// The bounding box of all points, from the boxes per point tile that CreatePointHandle keeps; none without point tiles
+template <typename PointType>
+Range<PointType> UnionOfPointTileBoxes(const ResourceHandle& pointBoxDataHandle)
+{
+	Range<PointType> result;
+	if (pointBoxDataHandle)
+		for (const auto& box : GetAs<std::vector<Range<PointType>>>(pointBoxDataHandle))
+			result |= box;
+	return result;
+}
+
+template <typename E, typename ResSequence, typename PointArray, typename PolyArray, typename SpatialIndexType, typename EdgeIndexType>
 void point_in_polygon(
 		      ResSequence resData,
-		const PointArray& pointData, 
+		const PointArray& pointData,
 		const PolyArray&  polyData,
 		const Range<E>&   polyDomain,
 		SpatialIndexType* spIndexPtr,
+		const EdgeIndexType& edgeIndex,
 		bool  isFirstPolyTile)
 {
 	typename PolyArray::const_iterator
@@ -1424,13 +1453,15 @@ void point_in_polygon(
 		if (IsDefined(*pi) && IsIntersecting(spIndexPtr->GetBoundingBox(), *pi))
 		{
 			for (iter = spIndexPtr->begin(*pi); iter; ++iter)
-				if (IsInside(*((*iter)->get_ptr()), *pi))
+			{
+				SizeT c = (*iter)->get_ptr() - polyb;
+				if (edgeIndex.IsInside(c, *((*iter)->get_ptr()), *pi))
 				{
-					SizeT c = (*iter)->get_ptr() - polyb;
 					dms_assert(c < Cardinality(polyDomain));
 					*ri = Range_GetValue_naked(polyDomain, c);
 					goto nextI;
 				}
+			}
 		}
 		if (isFirstPolyTile) // don't overwrite earlier found polygon-ids
 			*ri = UNDEFINED_OR_ZERO(ResValueType);
@@ -1521,7 +1552,7 @@ protected:
 
 				auto u = no_tile;
 				ResourceHandle spIndexHandle, polyTileHandle;
-				CreatePolyHandle(arg2A, u, spIndexHandle, polyTileHandle);
+				CreatePolyHandle(arg2A, u, pointBoxDataHandle, domainUnit->GetCount(), spIndexHandle, polyTileHandle);
 
 				// each point tile
 				parallel_tileloop(te, [this, resObj = resLock.get(), res, arg1A, arg2A, u, &pointBoxDataHandle, &polyTileCounters, &spIndexHandle, &polyTileHandle](tile_id t)->void
@@ -1543,7 +1574,7 @@ protected:
 		}
 		return true;
 	}
-	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const =0;
+	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, const ResourceHandle& pointBoxDataHandle, SizeT nrPoints, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const =0;
 	virtual void CreatePointHandle(const AbstrDataItem* pointDataA, tile_id t, ResourceHandle& pointBoxDataHandle) const =0;
 	virtual bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const=0;
 	virtual void Calculate(AbstrDataObject* res, const AbstrUnit* resVU, const AbstrDataItem* pointDataA, const AbstrDataItem* polyDataA, tile_id t, tile_id u, 
@@ -1564,8 +1595,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 
 	typedef scalar_of_t<PointType>  ScalarType;
 	using SpatialIndexType = SpatialIndex<ScalarType, typename Arg2Type::const_iterator>;
-
-	using ResourceType = std::pair<SpatialIndexType, typename Arg2Type::locked_cseq_t>;
+	using PolygonIndexType = PolygonIndex<SpatialIndexType, PointType>;
 
 	struct DispatcherData
 	{
@@ -1574,14 +1604,15 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 			const Arg1Type* pointData,
 			const Arg2Type* polyData,
 			tile_id t, tile_id u, bool isFirstPolyTile,
-			const SpatialIndexType* spIndexPtr,
+			const PolygonIndexType* polyIndexPtr,
 			const typename Arg2Type::locked_cseq_t& polyTileData
 		)	:	m_ResObj(resObj)
 			,	m_PointData(pointData->GetDataRead(t))
 			,	m_PolyData(polyTileData)
 			,	m_PointTileID(t)
 			,	m_PolyTileID(u)
-			,	m_SpIndexPtr(spIndexPtr)
+			,	m_SpIndexPtr(&polyIndexPtr->m_SpatialIndex)
+			,	m_EdgeIndexPtr(&polyIndexPtr->m_EdgeIndex)
 			,	m_IsFirstPolyTile(isFirstPolyTile)
 		{}
 		AbstrDataObject*          m_ResObj;
@@ -1590,6 +1621,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 		tile_id                   m_PointTileID, m_PolyTileID;
 		bool                      m_IsFirstPolyTile;
 		const SpatialIndexType*   m_SpIndexPtr;
+		const PolygonEdgeIndex<PointType>* m_EdgeIndexPtr;
 	};
 
 
@@ -1623,6 +1655,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 					m_Data->m_PolyData,
 					resValueRange,
 					m_Data->m_SpIndexPtr,
+					*m_Data->m_EdgeIndexPtr,
 					true
 				);
 			}
@@ -1634,6 +1667,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 					m_Data->m_PolyData,
 					(m_Data->m_PolyTileID == no_tile) ? inviter->GetRange() : inviter->GetTileRange(m_Data->m_PolyTileID),
 					m_Data->m_SpIndexPtr,
+					*m_Data->m_EdgeIndexPtr,
 					m_Data->m_IsFirstPolyTile
 				);
 			}
@@ -1650,14 +1684,14 @@ public:
 	{}
 
 	// Override Operator
-	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const override
+	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, const ResourceHandle& pointBoxDataHandle, SizeT nrPoints, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const override
 	{
 		const Arg2Type* polyData  = const_array_cast<PolygonType>(polyDataA);
-		dms_assert(polyData); 
+		dms_assert(polyData);
 
 		auto polyTile = polyData->GetDataRead(u);
 
-		spIndexHandle  = makeResource<SpatialIndexType>(polyTile.begin(), polyTile.end(), 0);
+		spIndexHandle  = makeResource<PolygonIndexType>(polyTile.begin(), polyTile.end(), UnionOfPointTileBoxes<PointType>(pointBoxDataHandle), nrPoints);
 		polyTileHandle = makeResource<typename Arg2Type::locked_cseq_t>(std::move(polyTile));
 	}
 
@@ -1678,23 +1712,22 @@ public:
 	bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& spIndexHandle) const override
 	{
 		BoxArrayType&     boxArray = GetAs<BoxArrayType>(pointBoxDataHandle);
-		SpatialIndexType& spIndex  = GetAs<SpatialIndexType>(spIndexHandle);
+		const SpatialIndexType& spIndex = GetAs<PolygonIndexType>(spIndexHandle).m_SpatialIndex;
 
 		return ::IsIntersecting(spIndex.GetBoundingBox(), boxArray[t]);
 	}
 
-	void Calculate(AbstrDataObject* res, const AbstrUnit* resVU, const AbstrDataItem* pointDataA, const AbstrDataItem* polyDataA, tile_id t, tile_id u, 
+	void Calculate(AbstrDataObject* res, const AbstrUnit* resVU, const AbstrDataItem* pointDataA, const AbstrDataItem* polyDataA, tile_id t, tile_id u,
 		bool mustInitPointTile, const ResourceHandle& pointBoxDataHandle, const ResourceHandle& spIndexHandle, const ResourceHandle& polyTileHandle) const override
 	{
 		const Arg1Type* pointData = const_array_cast<PointType  >(pointDataA);
 		const Arg2Type* polyData  = const_array_cast<PolygonType>(polyDataA);
-		dms_assert(pointData); 
-		dms_assert(polyData); 
+		dms_assert(pointData);
+		dms_assert(polyData);
 
-		const BoxArrayType    & boxArray    = GetAs<BoxArrayType>(pointBoxDataHandle);
-		const SpatialIndexType* spIndexPtr  = GetOptional<SpatialIndexType>(spIndexHandle);
+		const PolygonIndexType& polyIndex = GetAs<PolygonIndexType>(spIndexHandle);
 
-		DispatcherData data(res, pointData, polyData, t, u, mustInitPointTile, spIndexPtr, GetAs<typename Arg2Type::locked_cseq_t>(polyTileHandle));
+		DispatcherData data(res, pointData, polyData, t, u, mustInitPointTile, &polyIndex, GetAs<typename Arg2Type::locked_cseq_t>(polyTileHandle));
 		
 		Dispatcher disp; disp.m_Data = &data;
 		resVU->InviteUnitProcessor(disp);
@@ -1706,13 +1739,14 @@ public:
 //	point_in_ranked_polygon
 // *****************************************************************************
 
-template <typename E, typename ResSequence, typename PointArray, typename PolyArray, typename RankArray, typename SpatialIndexType>
+template <typename E, typename ResSequence, typename PointArray, typename PolyArray, typename RankArray, typename SpatialIndexType, typename EdgeIndexType>
 void point_in_ranked_polygon(
 	ResSequence resData,
 	const PointArray& pointData,
 	const PolyArray& polyData,
 	const Range<E>& polyDomain,
 	SpatialIndexType* spIndexPtr,
+	const EdgeIndexType& edgeIndex,
 	const RankArray& rankData,
 	bool  isFirstPolyTile
 
@@ -1762,7 +1796,7 @@ void point_in_ranked_polygon(
 					continue;
 				if (found != notFound && !(thisRank > foundRank || (thisRank == foundRank && c < found)))
 					continue;
-				if (IsInside(*((*iter)->get_ptr()), *pi))
+				if (edgeIndex.IsInside(c, *((*iter)->get_ptr()), *pi))
 				{
 					found = c;
 					foundRank = thisRank;
@@ -1842,7 +1876,7 @@ protected:
 
 			auto u = no_tile;
 			ResourceHandle spIndexHandle, polyTileHandle;
-			CreatePolyHandle(arg2A, u, spIndexHandle, polyTileHandle);
+			CreatePolyHandle(arg2A, u, pointBoxDataHandle, domainUnit->GetCount(), spIndexHandle, polyTileHandle);
 
 			// each point tile
 			parallel_tileloop(te, [this, resObj = resLock.get(), res, arg1A, arg2A, arg3A, u, &pointBoxDataHandle, &polyTileCounters, &spIndexHandle, &polyTileHandle](tile_id t)->void
@@ -1864,7 +1898,7 @@ protected:
 		}
 		return true;
 	}
-	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const = 0;
+	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, const ResourceHandle& pointBoxDataHandle, SizeT nrPoints, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const = 0;
 	virtual void CreatePointHandle(const AbstrDataItem* pointDataA, tile_id t, ResourceHandle& pointBoxDataHandle) const = 0;
 	virtual bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const = 0;
 	virtual void Calculate(AbstrDataObject* res, const AbstrUnit* resVU, const AbstrDataItem* pointDataA, const AbstrDataItem* polyDataA, const AbstrDataItem* rankDataA, tile_id t, tile_id u,
@@ -1887,8 +1921,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 
 	typedef scalar_of_t<PointType>  ScalarType;
 	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
-
-	using ResourceType = std::pair<SpatialIndexType, typename Arg2Type::locked_cseq_t>;
+	using PolygonIndexType = PolygonIndex<SpatialIndexType, PointType>;
 
 	struct DispatcherData
 	{
@@ -1897,7 +1930,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 			const Arg1Type* pointData,
 			const Arg2Type* polyData,
 			tile_id t, tile_id u, bool isFirstPolyTile,
-			const SpatialIndexType* spIndexPtr,
+			const PolygonIndexType* polyIndexPtr,
 			const typename Arg2Type::locked_cseq_t& polyTileData,
 			const typename Arg3Type::locked_cseq_t& rankTileData
 		) : m_ResObj(resObj)
@@ -1906,7 +1939,8 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 			, m_RankTileData(rankTileData)
 			, m_PointTileID(t)
 			, m_PolyTileID(u)
-			, m_SpIndexPtr(spIndexPtr)
+			, m_SpIndexPtr(&polyIndexPtr->m_SpatialIndex)
+			, m_EdgeIndexPtr(&polyIndexPtr->m_EdgeIndex)
 			, m_IsFirstPolyTile(isFirstPolyTile)
 		{}
 		AbstrDataObject* m_ResObj;
@@ -1916,6 +1950,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 		tile_id                   m_PointTileID, m_PolyTileID;
 		bool                      m_IsFirstPolyTile;
 		const SpatialIndexType* m_SpIndexPtr;
+		const PolygonEdgeIndex<PointType>* m_EdgeIndexPtr;
 	};
 
 
@@ -1931,6 +1966,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 				m_Data->m_PolyTileData,
 				(m_Data->m_PolyTileID == no_tile) ? inviter->GetRange() : inviter->GetTileRange(m_Data->m_PolyTileID),
 				m_Data->m_SpIndexPtr,
+				*m_Data->m_EdgeIndexPtr,
 				m_Data->m_RankTileData,
 				m_Data->m_IsFirstPolyTile
 			);
@@ -1947,14 +1983,14 @@ public:
 	{}
 
 	// Override Operator
-	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const override
+	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, const ResourceHandle& pointBoxDataHandle, SizeT nrPoints, ResourceHandle& spIndexHandle, ResourceHandle& polyTileHandle) const override
 	{
 		const Arg2Type* polyData = const_array_cast<PolygonType>(polyDataA);
 		dms_assert(polyData);
 
 		auto polyTile = polyData->GetDataRead(u);
 
-		spIndexHandle = makeResource<SpatialIndexType>(polyTile.begin(), polyTile.end(), 0);
+		spIndexHandle = makeResource<PolygonIndexType>(polyTile.begin(), polyTile.end(), UnionOfPointTileBoxes<PointType>(pointBoxDataHandle), nrPoints);
 		polyTileHandle = makeResource<typename Arg2Type::locked_cseq_t>(std::move(polyTile));
 	}
 
@@ -1975,7 +2011,7 @@ public:
 	bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& spIndexHandle) const override
 	{
 		BoxArrayType& boxArray = GetAs<BoxArrayType>(pointBoxDataHandle);
-		SpatialIndexType& spIndex = GetAs<SpatialIndexType>(spIndexHandle);
+		const SpatialIndexType& spIndex = GetAs<PolygonIndexType>(spIndexHandle).m_SpatialIndex;
 
 		return ::IsIntersecting(spIndex.GetBoundingBox(), boxArray[t]);
 	}
@@ -1989,10 +2025,9 @@ public:
 		dms_assert(pointData);
 		dms_assert(polyData);
 
-		const BoxArrayType& boxArray = GetAs<BoxArrayType>(pointBoxDataHandle);
-		const SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(spIndexHandle);
+		const PolygonIndexType& polyIndex = GetAs<PolygonIndexType>(spIndexHandle);
 
-		DispatcherData data(res, pointData, polyData, t, u, mustInitPointTile, spIndexPtr, GetAs<typename Arg2Type::locked_cseq_t>(polyTileHandle), rankData->GetDataRead(u));
+		DispatcherData data(res, pointData, polyData, t, u, mustInitPointTile, &polyIndex, GetAs<typename Arg2Type::locked_cseq_t>(polyTileHandle), rankData->GetDataRead(u));
 
 		Dispatcher disp; disp.m_Data = &data;
 		resVU->InviteUnitProcessor(disp);
@@ -2068,7 +2103,7 @@ protected:
 			{
 				ReadableTileLock readPolyLock(arg2A->GetCurrRefObj().get(), u);
 				ResourceHandle polyInfoHandle;
-				CreatePolyHandle(arg2A, u, polyInfoHandle);
+				CreatePolyHandle(arg2A, u, pointBoxDataHandle, domain1Unit->GetCount(), polyInfoHandle);
 
 				leveled_critical_section resInsertSection(item_level_type(0), ord_level_type::SpecificOperatorGroup, "PointInAllPolygons.InsertSection");
 
@@ -2098,7 +2133,7 @@ protected:
 		}
 		return true;
 	}
-	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& polyInfoHandle) const = 0;
+	virtual void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, const ResourceHandle& pointBoxDataHandle, SizeT nrPoints, ResourceHandle& polyInfoHandle) const = 0;
 	virtual void CreatePointHandle(const AbstrDataItem* pointDataA, tile_id t, ResourceHandle& pointBoxDataHandle) const = 0;
 	virtual bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const = 0;
 	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const = 0;
@@ -2124,7 +2159,7 @@ class PointInAllPolygonsOperator : public AbstrPointInAllPolygonsOperator
 
 	typedef scalar_of_t<PointType>  ScalarType;
 	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
-	typedef std::vector<SpatialIndexType> SpatialIndexArrayType;
+	using PolygonIndexType = PolygonIndex<SpatialIndexType, PointType>;
 
 public:
 	PointInAllPolygonsOperator()
@@ -2132,13 +2167,13 @@ public:
 	{}
 
 	// Override Operator
-	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& polyInfoHandle) const override
+	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, const ResourceHandle& pointBoxDataHandle, SizeT nrPoints, ResourceHandle& polyInfoHandle) const override
 	{
 		const Arg2Type* polyData = const_array_cast<PolygonType>(polyDataA);
 		dms_assert(polyData);
 
 		auto polyArray = polyData->GetTile(u);
-		polyInfoHandle = makeResource<SpatialIndexType>(polyArray.begin(), polyArray.end(), 0);
+		polyInfoHandle = makeResource<PolygonIndexType>(polyArray.begin(), polyArray.end(), UnionOfPointTileBoxes<PointType>(pointBoxDataHandle), nrPoints);
 	}
 
 	void CreatePointHandle(const AbstrDataItem* pointDataA, tile_id t, ResourceHandle& pointBoxDataHandle) const override
@@ -2158,9 +2193,9 @@ public:
 	bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const override
 	{
 		BoxArrayType& boxArray = GetAs<BoxArrayType>(pointBoxDataHandle);
-		SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(polyInfoHandle);
+		const SpatialIndexType& spIndex = GetAs<PolygonIndexType>(polyInfoHandle).m_SpatialIndex;
 
-		return ::IsIntersecting(spIndexPtr->GetBoundingBox(), boxArray[t]);
+		return ::IsIntersecting(spIndex.GetBoundingBox(), boxArray[t]);
 	}
 
 	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* pointDataA, const AbstrDataItem* polyDataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const override
@@ -2174,7 +2209,9 @@ public:
 		auto pointArray = pointData->GetTile(t);
 		auto polyArray = polyData->GetTile(u);
 
-		const SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(polyInfoHandle);
+		const PolygonIndexType& polyIndex = GetAs<PolygonIndexType>(polyInfoHandle);
+		const SpatialIndexType* spIndexPtr = &polyIndex.m_SpatialIndex;
+		const PolygonEdgeIndex<PointType>& edgeIndex = polyIndex.m_EdgeIndex;
 
 		using box_iter_type   = typename SpatialIndexType::template iterator<BoxType> ;
 		using coordinate_type = scalar_of_t<P> ;
@@ -2195,7 +2232,7 @@ public:
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
 		parallel_for(tile_offset(pointArray.size()),
-			[&pointArray, &polyArray, spIndexPtr, resTileData, &resLocalAdditionSection]
+			[&pointArray, &polyArray, spIndexPtr, &edgeIndex, resTileData, &resLocalAdditionSection]
 			(tile_offset pointTileOffset)->void
 			{
 				auto pointPtr = pointArray.begin() + pointTileOffset;
@@ -2204,10 +2241,11 @@ public:
 
 				for (auto iter = spIndexPtr->begin(*pointPtr); iter; ++iter)
 				{
-					if (IsInside(*((*iter)->get_ptr()), *pointPtr))
+					SizeT c = (*iter)->get_ptr() - polyArray.begin();
+					if (edgeIndex.IsInside(c, *((*iter)->get_ptr()), *pointPtr))
 					{
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-						resTileData->emplace_back(pointTileOffset, (*iter)->get_ptr() - polyArray.begin());
+						resTileData->emplace_back(pointTileOffset, tile_offset(c));
 					}
 				}
 			}

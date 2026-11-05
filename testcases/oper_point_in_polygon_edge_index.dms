@@ -1,0 +1,208 @@
+// point_in_polygon, point_in_ranked_polygon and point_in_all_polygons test a polygon of many vertices with an edge index: per
+// horizontal slab the edges whose y-range meets it, so that a point reads the edges that can meet its row, not all of them
+// (#1320). The index must give exactly the answer of the walk over all vertices. Two comparisons:
+//   A: shapes whose sides are cut into 40 collinear pieces at exactly representable coordinates, so that each covers exactly
+//      the region of the same shape with its corners only, which has too few vertices for an index. Every point of a grid of
+//      step 0.25 over them, and 20 000 points in between, get the same answer from both, in dpoint and in ipoint (the
+//      coordinates times 4, where the grid holds every integer point): points on vertices, on horizontal, vertical and
+//      diagonal edges, in the overlap of two shapes, in a hole and in an island. The complex shapes are not closed, so the
+//      edge from the last vertex to the first is a real edge, and the connecting edges of the hole and the island are cut too.
+//   B: shapes with arbitrary coordinates, a star of pseudo-random radii, a comb whose teeth meet many slabs each, so that the
+//      index gets fewer slabs, and a ring with a null vertex and a vertex whose y is null, tested against Copies copies of the
+//      same shapes. The 400 points are fewer than 4 per copy, so the copies get no edge index
+//      (PolygonEdgeIndexParams::MinPointsPerPolygon in geo/dll/src/geom/PolygonEdgeIndex.h) and the walk over all vertices
+//      decides for them, while the 3 shapes themselves do get one. Per point every copy of a shape contains it or none does,
+//      and the shapes must agree with that, in dpoint, ipoint (times 64) and upoint (times 64), whose subtraction wraps.
+// Expected: exit 0 on /checks.
+container oper_point_in_polygon_edge_index
+{
+	unit<dpoint> crd;
+	unit<ipoint> icrd;
+	unit<upoint> ucrd;
+
+	parameter<uint32> NrPieces := 40; // per side of a shape of A
+	parameter<uint32> Copies   := 40; // per shape of B
+
+	// A: 0 a square, 1 a diamond that overlaps it, 2 a square with a square hole, 3 a square with a square island
+	unit<uint32> Shape: nrofrows = 4
+	{
+		attribute<float32> rank: [1, 2, 1, 1];
+		attribute<uint32>  pow2: [1, 2, 4, 8];
+		attribute<uint32>  first := min(Corner/i, Corner/s);
+		attribute<uint32>  n     := pcount(Corner/s);
+		attribute<crd>     simple   (polygon) := points2polygon(Corner/pt, Corner/s, Corner/o);
+		attribute<crd>     complex  (polygon) := points2polygon(Piece/pt, Piece/s, Piece/o);
+		attribute<icrd>    isimple  (polygon) := points2polygon(Corner/ipt, Corner/s, Corner/o);
+		attribute<icrd>    icomplex (polygon) := points2polygon(Piece/ipt, Piece/s, Piece/o);
+	}
+	unit<uint32> Corner: nrofrows = 28
+	{
+		attribute<Shape>   s: [0,0,0,0, 1,1,1,1, 2,2,2,2,2,2,2,2,2,2, 3,3,3,3,3,3,3,3,3,3];
+		attribute<float64> x: [0,0,40,40, 20,40,20,0, 60,60,100,100,60,70,90,90,70,70, 120,120,140,140,120,150,150,160,160,150];
+		attribute<float64> y: [0,40,40,0, 0,20,40,20, 0,40,40,0,0,10,10,30,30,10, 0,20,20,0,0,30,40,40,30,30];
+		attribute<uint32>  i  := uint32(id(.));
+		attribute<uint32>  o  := i - Shape/first[s];
+		attribute<Corner>  nx := value(o + 1 == Shape/n[s] ? Shape/first[s] : i + 1, Corner);
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<icrd>    ipt := point_xy(int32(x * 4.0), int32(y * 4.0), icrd);
+	}
+	// each side from a corner to the next in NrPieces pieces; the side deltas are multiples of 10, so every vertex is exact
+	unit<uint32> Piece := range(uint32, 0, #Corner * NrPieces)
+	{
+		attribute<Corner>  c := value(id(.) / NrPieces, Corner);
+		attribute<uint32>  j := id(.) % NrPieces;
+		attribute<Shape>   s := Corner/s[c];
+		attribute<uint32>  o := Corner/o[c] * NrPieces + j;
+		attribute<float64> x := Corner/x[c] + (Corner/x[Corner/nx[c]] - Corner/x[c]) * float64(j) / float64(NrPieces);
+		attribute<float64> y := Corner/y[c] + (Corner/y[Corner/nx[c]] - Corner/y[c]) * float64(j) / float64(NrPieces);
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<icrd>    ipt := point_xy(int32(x * 4.0), int32(y * 4.0), icrd);
+	}
+	parameter<uint32> NrGridX := 649; // x from -1 to 161 by 0.25
+	parameter<uint32> NrGridY := 169; // y from -1 to 41 by 0.25
+	unit<uint32> G := range(uint32, 0, NrGridX * NrGridY + 20000)
+	{
+		attribute<uint32>  i      := uint32(id(.));
+		attribute<bool>    isGrid := i < NrGridX * NrGridY;
+		attribute<uint64>  r      := uint64(i);
+		attribute<float64> x := isGrid ? float64(i % NrGridX) * 0.25 - 1.0 : float64((r * 7919u64) % 1000003u64) / 1000003.0 * 162.0 - 1.0;
+		attribute<float64> y := isGrid ? float64(i / NrGridX) * 0.25 - 1.0 : float64((r * 104729u64) % 999983u64) / 999983.0 * 42.0 - 1.0;
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<icrd>    ipt := point_xy(int32(x * 4.0), int32(y * 4.0), icrd);
+	}
+
+	container A_d
+	{
+		unit<uint32> AllS := point_in_all_polygons(G/pt, Shape/simple);
+		unit<uint32> AllC := point_in_all_polygons(G/pt, Shape/complex);
+		attribute<uint32> maskS   (G) := sum(Shape/pow2[AllS/second_rel], AllS/first_rel);
+		attribute<uint32> maskC   (G) := sum(Shape/pow2[AllC/second_rel], AllC/first_rel);
+		attribute<Shape>  pipC    (G) := point_in_polygon(G/pt, Shape/complex);
+		attribute<bool>   pipC_ok (G) := IsNull(pipC) ? maskS == 0 : (maskS / Shape/pow2[pipC]) % 2 == 1;
+		attribute<Shape>  rankedS (G) := point_in_ranked_polygon(G/pt, Shape/simple, Shape/rank);
+		attribute<Shape>  rankedC (G) := point_in_ranked_polygon(G/pt, Shape/complex, Shape/rank);
+		parameter<uint32> nrInside := sum(uint32(maskS > 0));
+	}
+	container A_i
+	{
+		unit<uint32> AllS := point_in_all_polygons(G/ipt, Shape/isimple);
+		unit<uint32> AllC := point_in_all_polygons(G/ipt, Shape/icomplex);
+		attribute<uint32> maskS   (G) := sum(Shape/pow2[AllS/second_rel], AllS/first_rel);
+		attribute<uint32> maskC   (G) := sum(Shape/pow2[AllC/second_rel], AllC/first_rel);
+		attribute<Shape>  pipC    (G) := point_in_polygon(G/ipt, Shape/icomplex);
+		attribute<bool>   pipC_ok (G) := IsNull(pipC) ? maskS == 0 : (maskS / Shape/pow2[pipC]) % 2 == 1;
+		attribute<Shape>  rankedS (G) := point_in_ranked_polygon(G/ipt, Shape/isimple, Shape/rank);
+		attribute<Shape>  rankedC (G) := point_in_ranked_polygon(G/ipt, Shape/icomplex, Shape/rank);
+		parameter<uint32> nrInside := sum(uint32(maskS > 0));
+	}
+
+	// B: 0 a star of 300 vertices, 1 a comb of 40 teeth (162 vertices), 2 a ring of 200 vertices, of which vertex 50 is null
+	// and vertex 120 has a null y; the three lie apart, so a point lies in one of them at most
+	unit<uint32> BShape: nrofrows = 3
+	{
+		attribute<float32> rank: [1, 2, 3];
+		attribute<uint32>  pow2: [1, 2, 4];
+		attribute<crd>     geometry  (polygon) := points2polygon(BV/pt, BV/s, BV/o);
+		attribute<icrd>    igeometry (polygon) := points2polygon(BV/ipt, BV/s, BV/o);
+		attribute<ucrd>    ugeometry (polygon) := points2polygon(BV/upt, BV/s, BV/o);
+	}
+	unit<uint32> BV := range(uint32, 0, 300 + 162 + 200)
+	{
+		attribute<uint32>  i := uint32(id(.));
+		attribute<BShape>  s := value(i < 300 ? 0 : i < 462 ? 1 : 2, BShape);
+		attribute<uint32>  o := i - (i < 300 ? 0 : i < 462 ? 300 : 462);
+		attribute<float64> a := 2.0 * pi() * float64(o) / (s == 0[BShape] ? 300.0 : 200.0);
+
+		attribute<float64> starR := 8.0 + float64((o * 7919) % 1009) / 1009.0 * 10.0;
+		attribute<uint32>  tooth := ((o >= 2 ? o : 2) - 2) / 4;
+		attribute<uint32>  q     := ((o >= 2 ? o : 2) - 2) % 4;
+		attribute<float64> combX := o == 0 ? 50.0 : o == 1 ? 90.0 : 90.0 - float64(tooth) - (q == 0 ? 0.0 : q == 3 ? 1.0 : 0.5);
+		attribute<float64> combY := o < 2 ? 0.0 : q < 2 ? 2.0 + float64((tooth * 7) % 37) : 1.0;
+
+		attribute<float64> x := s == 0[BShape] ? 20.0 + starR * cos(a) : s == 1[BShape] ? combX : (o == 50 ? null_d : 120.0 + 15.0 * cos(a));
+		attribute<float64> y := s == 0[BShape] ? 20.0 + starR * sin(a) : s == 1[BShape] ? combY : (o == 50 || o == 120 ? null_d : 20.0 + 15.0 * sin(a));
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<icrd>    ipt := point_xy(int32(x * 64.0), int32(y * 64.0), icrd);
+		attribute<ucrd>    upt := point_xy(uint32(x * 64.0), uint32(y * 64.0), ucrd);
+	}
+	unit<uint32> Rep := range(uint32, 0, #BShape * Copies)
+	{
+		attribute<BShape>  shape := value(id(.) / Copies, BShape);
+		attribute<float32> rank  := BShape/rank[shape];
+		attribute<crd>     geometry  (polygon) := BShape/geometry[shape];
+		attribute<icrd>    igeometry (polygon) := BShape/igeometry[shape];
+		attribute<ucrd>    ugeometry (polygon) := BShape/ugeometry[shape];
+	}
+	// 300 pseudo-random points and 100 vertices of the shapes
+	unit<uint32> Q := range(uint32, 0, 400)
+	{
+		attribute<uint32>  i := uint32(id(.));
+		attribute<BV>      v := value(((i >= 300 ? i : 300) - 300) * 6 + 1, BV);
+		attribute<float64> x := i < 300 ? float64((i * 7919) % 10007) / 10007.0 * 140.0 : BV/x[v];
+		attribute<float64> y := i < 300 ? float64((i * 104729) % 10009) / 10009.0 * 40.0 : BV/y[v];
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<icrd>    ipt := point_xy(int32(x * 64.0), int32(y * 64.0), icrd);
+		attribute<ucrd>    upt := point_xy(uint32(x * 64.0), uint32(y * 64.0), ucrd);
+	}
+
+	container B_d
+	{
+		unit<uint32> AllIdx := point_in_all_polygons(Q/pt, BShape/geometry);
+		unit<uint32> AllRef := point_in_all_polygons(Q/pt, Rep/geometry);
+		attribute<uint32> maskIdx   (Q) := sum(BShape/pow2[AllIdx/second_rel], AllIdx/first_rel);
+		attribute<uint32> maskRef   (Q) := sum(BShape/pow2[Rep/shape[AllRef/second_rel]], AllRef/first_rel);
+		attribute<BShape> pipIdx    (Q) := point_in_polygon(Q/pt, BShape/geometry);
+		attribute<BShape> pipRef    (Q) := Rep/shape[point_in_polygon(Q/pt, Rep/geometry)];
+		attribute<BShape> rankedIdx (Q) := point_in_ranked_polygon(Q/pt, BShape/geometry, BShape/rank);
+		attribute<BShape> rankedRef (Q) := Rep/shape[point_in_ranked_polygon(Q/pt, Rep/geometry, Rep/rank)];
+		parameter<uint32> nrInside := sum(uint32(maskIdx > 0));
+	}
+	container B_i
+	{
+		unit<uint32> AllIdx := point_in_all_polygons(Q/ipt, BShape/igeometry);
+		unit<uint32> AllRef := point_in_all_polygons(Q/ipt, Rep/igeometry);
+		attribute<uint32> maskIdx   (Q) := sum(BShape/pow2[AllIdx/second_rel], AllIdx/first_rel);
+		attribute<uint32> maskRef   (Q) := sum(BShape/pow2[Rep/shape[AllRef/second_rel]], AllRef/first_rel);
+		attribute<BShape> pipIdx    (Q) := point_in_polygon(Q/ipt, BShape/igeometry);
+		attribute<BShape> pipRef    (Q) := Rep/shape[point_in_polygon(Q/ipt, Rep/igeometry)];
+		attribute<BShape> rankedIdx (Q) := point_in_ranked_polygon(Q/ipt, BShape/igeometry, BShape/rank);
+		attribute<BShape> rankedRef (Q) := Rep/shape[point_in_ranked_polygon(Q/ipt, Rep/igeometry, Rep/rank)];
+		parameter<uint32> nrInside := sum(uint32(maskIdx > 0));
+	}
+	container B_u
+	{
+		unit<uint32> AllIdx := point_in_all_polygons(Q/upt, BShape/ugeometry);
+		unit<uint32> AllRef := point_in_all_polygons(Q/upt, Rep/ugeometry);
+		attribute<uint32> maskIdx   (Q) := sum(BShape/pow2[AllIdx/second_rel], AllIdx/first_rel);
+		attribute<uint32> maskRef   (Q) := sum(BShape/pow2[Rep/shape[AllRef/second_rel]], AllRef/first_rel);
+		attribute<BShape> pipIdx    (Q) := point_in_polygon(Q/upt, BShape/ugeometry);
+		attribute<BShape> pipRef    (Q) := Rep/shape[point_in_polygon(Q/upt, Rep/ugeometry)];
+		attribute<BShape> rankedIdx (Q) := point_in_ranked_polygon(Q/upt, BShape/ugeometry, BShape/rank);
+		attribute<BShape> rankedRef (Q) := Rep/shape[point_in_ranked_polygon(Q/upt, Rep/ugeometry, Rep/rank)];
+		parameter<uint32> nrInside := sum(uint32(maskIdx > 0));
+	}
+
+	container checks
+	{
+		parameter<bool> a_d_all    := all(A_d/maskS == A_d/maskC) && #A_d/AllS == #A_d/AllC, IntegrityCheck = "a_d_all == true";
+		parameter<bool> a_d_pip    := all(A_d/pipC_ok), IntegrityCheck = "a_d_pip == true";
+		parameter<bool> a_d_ranked := all(eq_or_both_null(A_d/rankedS, A_d/rankedC)), IntegrityCheck = "a_d_ranked == true";
+		parameter<bool> a_d_inside := A_d/nrInside > 50000, IntegrityCheck = "a_d_inside == true";
+		parameter<bool> a_i_all    := all(A_i/maskS == A_i/maskC) && #A_i/AllS == #A_i/AllC, IntegrityCheck = "a_i_all == true";
+		parameter<bool> a_i_pip    := all(A_i/pipC_ok), IntegrityCheck = "a_i_pip == true";
+		parameter<bool> a_i_ranked := all(eq_or_both_null(A_i/rankedS, A_i/rankedC)), IntegrityCheck = "a_i_ranked == true";
+		parameter<bool> a_i_inside := A_i/nrInside > 50000, IntegrityCheck = "a_i_inside == true";
+
+		parameter<bool> b_d_all    := all(B_d/maskRef == B_d/maskIdx * Copies), IntegrityCheck = "b_d_all == true";
+		parameter<bool> b_d_pip    := all(eq_or_both_null(B_d/pipIdx, B_d/pipRef)), IntegrityCheck = "b_d_pip == true";
+		parameter<bool> b_d_ranked := all(eq_or_both_null(B_d/rankedIdx, B_d/rankedRef)), IntegrityCheck = "b_d_ranked == true";
+		parameter<bool> b_d_inside := B_d/nrInside > 50, IntegrityCheck = "b_d_inside == true";
+		parameter<bool> b_i_all    := all(B_i/maskRef == B_i/maskIdx * Copies), IntegrityCheck = "b_i_all == true";
+		parameter<bool> b_i_pip    := all(eq_or_both_null(B_i/pipIdx, B_i/pipRef)), IntegrityCheck = "b_i_pip == true";
+		parameter<bool> b_i_ranked := all(eq_or_both_null(B_i/rankedIdx, B_i/rankedRef)), IntegrityCheck = "b_i_ranked == true";
+		parameter<bool> b_i_inside := B_i/nrInside > 50, IntegrityCheck = "b_i_inside == true";
+		parameter<bool> b_u_all    := all(B_u/maskRef == B_u/maskIdx * Copies), IntegrityCheck = "b_u_all == true";
+		parameter<bool> b_u_pip    := all(eq_or_both_null(B_u/pipIdx, B_u/pipRef)), IntegrityCheck = "b_u_pip == true";
+		parameter<bool> b_u_ranked := all(eq_or_both_null(B_u/rankedIdx, B_u/rankedRef)), IntegrityCheck = "b_u_ranked == true";
+	}
+}
