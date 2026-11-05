@@ -1670,6 +1670,8 @@ bool TreeItem::IsStorable() const
 	auto storageParent = GetStorageParent(true);
 	if (!storageParent || !storageParent->GetStorageManager()->IsWritable())
 		return false;
+	if (storageParent->GetStorageManager()->IsOptionItem(storageParent.get(), this)) // #1333: it configures the storage, it is not stored in it
+		return false;
 	// see if any of the ancestors up to the storageParent has the storageReadOnly property
 	const TreeItem* self = this;
 	while (true) 
@@ -1689,6 +1691,8 @@ bool TreeItem::IsCurrStorable() const
 		return false;
 	const TreeItem* storageParent = GetCurrStorageParent(true).get();
 	if (!storageParent || !storageParent->GetStorageManager()->IsWritable())
+		return false;
+	if (storageParent->GetStorageManager()->IsOptionItem(storageParent, this)) // #1333
 		return false;
 	// see if any of the ancestors up to the storageParent has the storageReadOnly property
 	const TreeItem* self = this;

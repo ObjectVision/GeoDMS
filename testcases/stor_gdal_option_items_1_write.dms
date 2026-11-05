@@ -1,0 +1,49 @@
+// #1333: write half of a round trip with GDAL option items inside the storage; stor_gdal_option_items_2_read.dms
+// reads it back. GdalMetaInfo reads GDAL_ConfigurationOptions and GDAL_LayerCreationOptions from the sub-items of
+// the storage holder, but the write took every data item below the storage for a column: the option
+// parameter, with a void domain, became a layer of its own, and the write ended with "Domain mismatch between
+// Domain of attribute (.../squares : uint32) and layerDomain ( : void)". In a layer unit that is itself the
+// storage, a second error followed and the geopackage had no geometries. Two geopackages: one written from a
+// container with a calculated and a literal option, one from a layer unit. Run items: /export/in_container and
+// /export/in_unit (fnrun_itemmap.txt).
+container stor_gdal_option_items_1_write
+{
+	unit<fpoint> point_rd := BaseUnit('m', fpoint);
+
+	unit<uint32> shapes : nrofrows = 2;
+
+	unit<uint32> coords : nrofrows = 8
+	{
+		attribute<float32>  px        : [ 0, 10, 10,  0, 20, 30, 30, 20];
+		attribute<float32>  py        : [ 0,  0, 10, 10,  0,  0, 10, 10];
+		attribute<shapes>   shape_rel : [ 0,  0,  0,  0,  1,  1,  1,  1];
+		attribute<uint32>   ordinal   : [ 0,  1,  2,  3,  0,  1,  2,  3];
+		attribute<point_rd> point     := point_yx(py, px, point_rd);
+	}
+
+	container export
+	{
+		container in_container
+		:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_gdal_option_items_container.gpkg"
+		,	StorageType = "gdalwrite.vect"
+		{
+			parameter<string> GDAL_ConfigurationOptions := 'OGR_SQLITE_JOURNAL=OFF';
+			parameter<string> GDAL_LayerCreationOptions : ['SPATIAL_INDEX=NO'];
+
+			unit<uint32> squares := shapes
+			{
+				attribute<point_rd> geometry (polygon) := points2polygon(coords/point, coords/shape_rel, coords/ordinal);
+				attribute<string>   name              : ['left', 'right'];
+			}
+		}
+
+		unit<uint32> in_unit := shapes
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_gdal_option_items_unit.gpkg"
+		,	StorageType = "gdalwrite.vect"
+		{
+			parameter<string>   GDAL_ConfigurationOptions := 'OGR_SQLITE_JOURNAL=OFF';
+			attribute<point_rd> geometry (polygon) := points2polygon(coords/point, coords/shape_rel, coords/ordinal);
+			attribute<string>   name              : ['left', 'right'];
+		}
+	}
+}

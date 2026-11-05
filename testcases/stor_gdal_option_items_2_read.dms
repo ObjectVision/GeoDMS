@@ -1,0 +1,44 @@
+// #1333: read half of the round trip written by stor_gdal_option_items_1_write.dms. Each geopackage must hold the
+// two squares with their names in the layer named after the unit that was written: with the option items taken
+// for columns, the geopackage written from the container held more than one layer, and the one written from a
+// layer unit had no geometries.
+container stor_gdal_option_items_2_read
+{
+	unit<fpoint>  point_rd := BaseUnit('m', fpoint);
+	unit<float32> m        := BaseUnit('m', float32);
+	unit<float32> m2       := m * m;
+
+	container from_container
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_gdal_option_items_container.gpkg"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		unit<uint32> squares
+		{
+			attribute<point_rd> geometry (polygon);
+			attribute<string>   name;
+		}
+	}
+
+	container from_unit
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_gdal_option_items_unit.gpkg"
+	,	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	{
+		unit<uint32> in_unit
+		{
+			attribute<point_rd> geometry (polygon);
+			attribute<string>   name;
+		}
+	}
+
+	container checks
+	{
+		parameter<uint32>  c_n    := #from_container/squares,                                 IntegrityCheck = "c_n == 2";
+		parameter<float32> c_area := sum(float32(area(from_container/squares/geometry, m2))), IntegrityCheck = "abs(c_area) == 200f";
+		parameter<string>  c_name := asList(from_container/squares/name, ','),                IntegrityCheck = "c_name == 'left,right'";
+		parameter<uint32>  u_n    := #from_unit/in_unit,                                      IntegrityCheck = "u_n == 2";
+		parameter<float32> u_area := sum(float32(area(from_unit/in_unit/geometry, m2))),      IntegrityCheck = "abs(u_area) == 200f";
+		parameter<string>  u_name := asList(from_unit/in_unit/name, ','),                     IntegrityCheck = "u_name == 'left,right'";
+	}
+}

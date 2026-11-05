@@ -302,6 +302,11 @@ public:
 	TIC_CALL virtual SharedStr DescribeStorageType(const TreeItem* storageHolder) const;
 	TIC_CALL virtual LispRef   WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr) const;
 
+	// #1333: whether item, below storageHolder, configures this storage instead of being part of its
+	// contents, as the GDAL option items do. TreeItem::IsStorable leaves such an item out, so it is never
+	// written to the storage.
+	TIC_CALL virtual bool IsOptionItem(const TreeItem* storageHolder, const TreeItem* item) const;
+
 protected:
 	// #587: the generic descriptions, for DescribeReadCall overrides to pick from
 	TIC_CALL ReadCallSpec DescribeTableRead(const TreeItem* storageHolder, const AbstrUnit* table, bool withMembers = true) const; // a unit and (withMembers) its stored attributes: storage_read_table
@@ -507,11 +512,13 @@ struct StorageWriteHandle : StorageCloseHandle
 // *****************************************************************************
 
 // #587 S4: the key of an item a read depends on, as an argument of do(item, expr); and the wrapping
-// and storage type element the GDAL managers use (GdalMetaInfo resolves the same items and properties)
+// and storage type element the GDAL managers use (GdalMetaInfo resolves the same items and properties),
+// and which of their sub-items are option items (#1333)
 TIC_CALL LispRef   StorageRead_SupplierKey(const TreeItem* supplier);
 TIC_CALL LispRef   StorageRead_AppendArg(LispRef args, LispRef arg); // args with arg appended: an extra argument of a read (strfiles: its FileName; a grid: the storage's grid domain)
 TIC_CALL LispRef   GdalMetaInfo_WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr);
 TIC_CALL SharedStr GdalMetaInfo_DescribeStorageType(const TreeItem* storageHolder, SharedStr className);
+TIC_CALL bool      GdalMetaInfo_IsOptionItem(const TreeItem* storageHolder, const TreeItem* item);
 
 SharedStr GetConfigIniFileName();
 SharedStr GetCaseDir(const TreeItem* configStore);

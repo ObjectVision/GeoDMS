@@ -987,6 +987,11 @@ LispRef AbstrStorageManager::WrapStorageName(const TreeItem* storageHolder, Lisp
 	return nameExpr;
 }
 
+bool AbstrStorageManager::IsOptionItem(const TreeItem* storageHolder, const TreeItem* item) const
+{
+	return false;
+}
+
 LispRef StorageRead_SupplierKey(const TreeItem* supplier)
 {
 	return SupplierKey(supplier);
@@ -1007,6 +1012,23 @@ LispRef GdalMetaInfo_WrapStorageName(const TreeItem* storageHolder, LispRef name
 		if (auto optionItem = storageHolder->ResolveItemPath(optionItemName))
 			nameExpr = ExprList(token::do_, SupplierKey(optionItem.get()), nameExpr);
 	return nameExpr;
+}
+
+// #1333: the option items configure a GDAL storage and are no columns or bands of it; a write took them
+// for columns, and a parameter among them became a layer with a void domain. GdalMetaInfo resolves each
+// from the storage holder, which finds a sub-item of the holder before anything above it, and an item
+// above the holder is not below the storage, so the sub-items of the holder are the ones to leave out.
+static StaticTokenID t_GDAL_Options("GDAL_Options");
+static StaticTokenID t_GDAL_Driver("GDAL_Driver");
+static StaticTokenID t_GDAL_LayerCreationOptions("GDAL_LayerCreationOptions");
+static StaticTokenID t_GDAL_ConfigurationOptions("GDAL_ConfigurationOptions");
+
+bool GdalMetaInfo_IsOptionItem(const TreeItem* storageHolder, const TreeItem* item)
+{
+	TokenID nameID = item->GetNameID();
+	if (nameID != t_GDAL_Options && nameID != t_GDAL_Driver && nameID != t_GDAL_LayerCreationOptions && nameID != t_GDAL_ConfigurationOptions)
+		return false;
+	return item->GetTreeParent().get() == storageHolder;
 }
 
 // the StorageDriver and StorageOptions properties of the holder extend the storage type element
