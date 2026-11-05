@@ -487,9 +487,6 @@
     <ClInclude Include="src\utl\StringFunc.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\utl\swap.h">
-      <Filter>Utility Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\utl\swapper.h">
       <Filter>Utility Files</Filter>
     </ClInclude>

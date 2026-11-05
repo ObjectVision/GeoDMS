@@ -1,0 +1,14 @@
+// #1332: a float32 image compressed with ZSTD after Predictor 2 (data/tif_f32_zstd.tif) read through tif. It holds the
+// values of data/tif_f32_nosf.tif, 0, 0.5, .. 15.5, uncompressed, which is read as the reference. A libtiff built
+// without its ZSTD codec fails the read with "Cannot open TIFF file due to missing codec ZSTD".
+container stor_tif_f32_zstd
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<float32> img (dom): StorageName = "%currDir%/data/tif_f32_zstd.tif", StorageType = "tif";
+	attribute<float32> ref (dom): StorageName = "%currDir%/data/tif_f32_nosf.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<bool>    same := all(img == ref), IntegrityCheck = "same == true";
+		parameter<float32> s    := sum(img),        IntegrityCheck = "s == 248f";
+	}
+}

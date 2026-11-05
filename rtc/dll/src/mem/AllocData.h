@@ -46,7 +46,7 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 	void swap(alloc_data<V>& oth) noexcept
 	{
 		base_type::swap(oth);
-		omni::swap(m_Capacity, oth.m_Capacity);
+		std::swap(m_Capacity, oth.m_Capacity);
 	}
 
 	size_type m_Capacity = 0;

@@ -1744,6 +1744,20 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	GDAL_ErrorFrame gdal_error_frame; // catches errors and properly throws
 	GDAL_ConfigurationOptionsFrame config_frame(configuration_option_array);
 
+	// #1328: when a geometry column carries the geoarrow.wkb extension type but not the Parquet
+	// GEOMETRY logical type, as pyarrow and geopandas write it, the Parquet driver of GDAL 3.12 reads
+	// every geometry of the layer on open to determine the layer's geometry type, and ignores the
+	// geometry_types of the GeoParquet metadata. GeoDMS opens a dataset once per phase of a read, so
+	// the scan would double the read time of such a file. GeoDMS can do without the layer type: CreateGeometryDataItemFromGdal takes the type of an undeclared geometry
+	// from the first feature when GDAL reports it as unknown. A read-only vector open therefore
+	// switches the scan off by default. Only the Parquet driver reads this option, so it is not tied
+	// to the driver, which GDAL may also pick itself (a directory of parquet files, another
+	// extension). The check runs inside config_frame, which also undoes the setting, so a value from
+	// GDAL_ConfigurationOptions, a GDAL config option or the environment wins.
+	constexpr CharPtr parquetComputeGeometryTypeOption = "OGR_PARQUET_COMPUTE_GEOMETRY_TYPE";
+	if (rwMode == dms_rw_mode::read_only && !(gdalOpenFlags & GDAL_OF_RASTER) && !CPLGetConfigOption(parquetComputeGeometryTypeOption, nullptr))
+		CPLSetThreadLocalConfigOption(parquetComputeGeometryTypeOption, "NO");
+
 	auto valuesTypeID = ValueClassID::VT_Unknown;
 	auto value_composition = ValueComposition::Unknown;
 	if (IsDataItem(smi.CurrRI()))

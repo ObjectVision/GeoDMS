@@ -841,7 +841,7 @@ void LayerControlSet::DoUpdateView()
 			{
 				if (lcArrayCurr != lcArrayPtr)
 				{
-					omni::swap(*lcArrayCurr, *lcArrayPtr);
+					std::swap(*lcArrayCurr, *lcArrayPtr);
 					ProcessCollectionChange();
 				}
 				break;

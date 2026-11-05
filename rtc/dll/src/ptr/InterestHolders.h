@@ -17,7 +17,7 @@
 #include "LockLevels.h"
 #include "act/garbage_can.h"
 #include "ptr/SharedTreePtr.h" // make_shared_tree + construction tags for the TreeItem-family (std::shared_ptr) overloads
-#include "utl/swap.h"
+#include <utility>
 
 // discriminates the TreeItem-family CPtr case: std::shared_ptr must recover the EXISTING control
 // block via make_shared_tree (a raw-pointer std::shared_ptr ctor would create a rogue second one).
@@ -172,14 +172,14 @@ struct InterestPtr
 	InterestPtr& operator =(InterestPtr&& rhs) noexcept
 	{
 		InterestPtr rhsMoved(std::move(rhs));      // rhs is null afterwards
-		omni::swap(m_Item, rhsMoved.m_Item);       // this line shouldn't throw
+		std::swap(m_Item, rhsMoved.m_Item);        // this line shouldn't throw
 		return *this;                              // rhsMoved decrements the old m_Item
 	}
 
 	InterestPtr& operator =(const InterestPtr& rhs) noexcept
 	{
 		InterestPtr rhsCopy(rhs);
-		omni::swap(m_Item, rhsCopy.m_Item);        // this line shouldn't throw
+		std::swap(m_Item, rhsCopy.m_Item);         // this line shouldn't throw
 		return *this;                              // rhsCopy decrements the old m_Item
 	}
 
@@ -187,7 +187,7 @@ struct InterestPtr
 	InterestPtr& operator =(SrcPtr&& rhs)
 	{
 		InterestPtr rhsCopy(std::forward<SrcPtr>(rhs));
-		omni::swap(m_Item, rhsCopy.m_Item);        // this line shouldn't throw
+		std::swap(m_Item, rhsCopy.m_Item);         // this line shouldn't throw
 		return *this;                              // rhsCopy decrements the old m_Item
 	}
 	void dismiss() noexcept { m_Item = CPtr(); } // drop the responsibility to decrement; the interest stays incremented (not unique_ptr::release)
@@ -214,7 +214,7 @@ struct InterestPtr
 	bool is_null() const { return get_ptr() == nullptr; }
 
 	IPtr get_ptr() const { return pointer_traits<CPtr>::get_ptr(m_Item); }
-	void swap(InterestPtr& rhs) { omni::swap(m_Item, rhs.m_Item); }
+	void swap(InterestPtr& rhs) { std::swap(m_Item, rhs.m_Item); }
 
 private:
 	// For a weak CPtr the target must stay owned ACROSS the count mutation: get_ptr()'s momentary

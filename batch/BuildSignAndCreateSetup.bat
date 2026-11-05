@@ -227,7 +227,7 @@ if %INSTALLER_SIZE% LSS 60000000 (
 REM Sign, then verify the signature; a failure of either stops the script and removes the
 REM unsigned installer, so it cannot be published by mistake. Run the script again to retry.
 set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe
-"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "%INSTALLER%"
+"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r45standard /td SHA256 "%INSTALLER%"
 if errorlevel 1 goto :sign_failed
 "%SIGNTOOL%" verify /pa /q "%INSTALLER%"
 if errorlevel 1 (

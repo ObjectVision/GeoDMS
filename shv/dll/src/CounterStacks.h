@@ -16,7 +16,6 @@
 #include "geom/Geometry.h"
 #include "vt/BaseBounds.h"
 #include "utl/NonCopyable.h"
-#include "utl/swap.h"
 
 
 #include "Region.h"

@@ -80,7 +80,7 @@ template <> struct reorder_functor<true>
 	template <typename F>
 	void inplace(Point<F>& p)
 	{
-		omni::swap(p.first, p.second);
+		std::swap(p.first, p.second);
 	}
 };
 

@@ -4,6 +4,8 @@
 // points. None of them fits in bins: float64 is never binned and the uint32 values lie too far apart. Three elements of
 // partition 0 share the value 12345.5, which no other element has, and every other value occurs once, so that the modus
 // of any other partition is its smallest value and the ten classes of equal count each get N / 10 elements.
+// Unique of strings and of point sequences sorts references to the elements per part of a tile and merges them in such
+// blocks too: the same values as strings, and 60000 arcs in 12 tiles of which arc k and arc k + 50000 are equal.
 // Expected: exit 0 on /checks.
 container oper_counts_blocks
 {
@@ -22,6 +24,21 @@ container oper_counts_blocks
 		attribute<float64> vfn      := iif(id(.) % 50000 == 3, null_d, vf); // 6 nulls, none of them on a dup
 		attribute<P>       part_rel := value(id(.) % 7, P);
 		attribute<Coord>   point    := point_yx(vf, float64(id(.) % 7), Coord);
+		attribute<string>  vs       := iif(dup, '12345.5', string(perm));
+		attribute<string>  vsn      := iif(id(.) % 50000 == 3, null_str, vs); // 6 nulls, none of them on a dup
+	}
+
+	unit<uint32> A := TiledUnit(value(5000, range(uint32, 0, 60000))) // 12 tiles
+	{
+		attribute<Coord> geometry (arc) := points2sequence(AP/point, AP/arc_rel, AP/ord);
+	}
+	unit<uint32> AP := TiledUnit(value(10000, range(uint32, 0, 120000)))
+	{
+		// arc k runs from row (k % 50000) * 7919 % 50000, column 0, to column 1: arc k and arc k + 50000 are equal
+		attribute<uint32> k       := (id(.) / 2) % 50000;
+		attribute<A>      arc_rel := value(id(.) / 2, A);
+		attribute<uint32> ord     := id(.) % 2;
+		attribute<Coord>  point   := point_yx(float64(k * 7919 % 50000), float64(ord), Coord);
 	}
 
 	unit<uint32> U   := unique(D/vf)  { attribute<U>   prev := value(max_elem(id(.), 1) - 1, .); }
@@ -29,6 +46,10 @@ container oper_counts_blocks
 	unit<uint32> UN  := unique_with_null(D/vfn);
 	unit<uint32> UNd := unique(D/vfn);
 	unit<uint32> UP  := unique(D/point);
+	unit<uint32> US  := unique(D/vs)  { attribute<US> prev := value(max_elem(id(.), 1) - 1, .); }
+	unit<uint32> USN := unique_with_null(D/vsn);
+	unit<uint32> USD := unique(D/vsn);
+	unit<uint32> UA  := unique(A/geometry);
 	unit<uint32> W   := weeded_counts(D/vf);
 
 	attribute<float64> modusPart (P)   := modus(D/vf, D/part_rel);
@@ -55,6 +76,17 @@ container oper_counts_blocks
 		parameter<bool> uniqueNull   := #UNd == N - 8 && #UN == #UNd + 1 && !IsDefined(UN/Values[value(0, UN)])
 		                              , IntegrityCheck = "uniqueNull == true";
 		parameter<bool> uniquePoints := #UP == N - 2, IntegrityCheck = "uniquePoints == true";
+
+		// unique of strings: sorted, each once, nothing lost, and null first when it is counted
+		parameter<bool> uniqueStr    := #US == N - 2 && all(id(US) == 0 || US/Values > US/Values[US/prev])
+		                             && sum_uint64(strlen(US/Values)) == sum_uint64(strlen(D/vs)) - uint64(14) // '12345.5' twice less
+		                              , IntegrityCheck = "uniqueStr == true";
+		parameter<bool> uniqueStrNull := #USD == N - 8 && #USN == #USD + 1 && !IsDefined(USN/Values[value(0, USN)])
+		                              , IntegrityCheck = "uniqueStrNull == true";
+
+		// unique of arcs: each of the 50000 once, as the sum of their first rows shows, which is that of 0 .. 49999
+		parameter<bool> uniqueArcs   := #UA == 50000 && sum(pointrow(first_point(UA/Values))) == 1249975000.0
+		                              , IntegrityCheck = "uniqueArcs == true";
 
 		// weeded to at most 4096 pairs, every element still counted
 		parameter<bool> weeded       := #W <= 4096 && sum_uint64(W/count) == uint64(N), IntegrityCheck = "weeded == true";

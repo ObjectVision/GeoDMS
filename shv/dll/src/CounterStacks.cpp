@@ -14,7 +14,6 @@
 #include "dbg/debug.h"
 #include "ser/AsString.h"
 #include "ser/RangeStream.h"
-#include "utl/swap.h"
 
 //----------------------------------------------------------------------
 // class  : CounterStacks

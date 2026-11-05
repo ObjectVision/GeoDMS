@@ -402,12 +402,12 @@ void LayerSet::ShuffleEntry(ScalableObject* focalEntry, ElemShuffleCmd esc)
 		case ElemShuffleCmd::Backward:
 			if (pos == 0)
 				return;
-			omni::swap(m_Array[pos-1],  m_Array[pos]); 
+			std::swap(m_Array[pos-1],  m_Array[pos]);
 			break;
 		case ElemShuffleCmd::Forward:
 			if (pos >= m_Array.size()-1)
 				return;
-			omni::swap(m_Array[pos+1],  m_Array[pos]); 
+			std::swap(m_Array[pos+1],  m_Array[pos]);
 			break;
 		default:
 			return;

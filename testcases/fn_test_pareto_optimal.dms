@@ -258,8 +258,43 @@ container fn_test_pareto_optimal
 		attribute<bool>    poeb  := pareto_optimal_eps(pa, c1a, c2ea, 0.07, c3a != 0);
 	}
 
+	// ---- #1327: pairs of two UInt32, as the spread of these partitions allows, on a domain of tiles of 70,001
+	// rows, where the sweep reads the criteria of each row from its tile; some rows have no partition or a null
+	// criterion, and pa is ascending, so it is not sorted. The same table on one tile gives the same result.
+	unit<uint32> T8 : nrofrows = 600000
+	{
+		attribute<uint32>  i   := id(.);
+		attribute<uint32>  p   := i % 1013 == 0 ? null_u : uint32(uint64(i) * 7919u64 % 30011u64);
+		attribute<uint32>  pa  := i / 20;
+		attribute<uint16>  c1  := uint16(uint64(i) * 104729u64 % 50u64);
+		attribute<float32> c2  := i % 997 == 0 ? null_f : float32(uint64(i) * 1299709u64 % 101u64);
+		attribute<bool>    b   := uint64(i) * 8887u64 % 7u64 < 3u64;
+		attribute<bool>    po  := pareto_optimal(p, c1, c2, b);
+		attribute<bool>    poe := pareto_optimal_eps(p, c1, c2, 0.05, b);
+		attribute<bool>    poa := pareto_optimal_eps(pa, c1, c2, 0.05, b);
+	}
+	unit<uint32> T8t := TiledUnit(value(70001, range(uint32, 0, 600000)))
+	{
+		attribute<uint32>  i   := id(.);
+		attribute<T8>      rel := value(i, T8);
+		attribute<uint32>  p   := i % 1013 == 0 ? null_u : uint32(uint64(i) * 7919u64 % 30011u64);
+		attribute<uint32>  pa  := i / 20;
+		attribute<uint16>  c1  := uint16(uint64(i) * 104729u64 % 50u64);
+		attribute<float32> c2  := i % 997 == 0 ? null_f : float32(uint64(i) * 1299709u64 % 101u64);
+		attribute<bool>    b   := uint64(i) * 8887u64 % 7u64 < 3u64;
+		attribute<bool>    po  := pareto_optimal(p, c1, c2, b);
+		attribute<bool>    poe := pareto_optimal_eps(p, c1, c2, 0.05, b);
+		attribute<bool>    poa := pareto_optimal_eps(pa, c1, c2, 0.05, b);
+	}
+
 	container checks
 	{
+		parameter<uint32> c_t8_po   := sum(uint32(T8t/po  != T8/po[T8t/rel])),  IntegrityCheck = "c_t8_po == 0";
+		parameter<uint32> c_t8_poe  := sum(uint32(T8t/poe != T8/poe[T8t/rel])), IntegrityCheck = "c_t8_poe == 0";
+		parameter<uint32> c_t8_poa  := sum(uint32(T8t/poa != T8/poa[T8t/rel])), IntegrityCheck = "c_t8_poa == 0";
+		parameter<uint32> c_t8_some := sum(uint32(T8/po)),                      IntegrityCheck = "c_t8_some > 20000 && c_t8_some < 600000";
+		parameter<uint32> c_t8_null := sum(uint32(T8/po && (IsNull(T8/p) || IsNull(T8/c2)))), IntegrityCheck = "c_t8_null == 0";
+
 		parameter<uint32> c_t7      := sum(uint32(T7/po != T7/exp) + uint32(T7/poe != T7/exp) + uint32(T7/poe_bf != T7/exp)), IntegrityCheck = "c_t7 == 0";
 		parameter<uint32> c_t7_eps  := sum(uint32(T7/poe5 != T7/exp5)),                                                     IntegrityCheck = "c_t7_eps == 0";
 		parameter<uint32> c_t7_not  := sum(uint32(T7/po_not != T7/exp_not)),                                                IntegrityCheck = "c_t7_not == 0";

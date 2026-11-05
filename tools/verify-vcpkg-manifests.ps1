@@ -19,7 +19,7 @@ function Get-DependencyMap($manifest) {
 
 $regularMap = Get-DependencyMap $regular
 $globioMap = Get-DependencyMap $globio
-$spatial = @('gdal', 'geos', 'sqlite3')
+$spatial = @('gdal', 'geos', 'sqlite3', 'tiff')
 $expectedGlobioNames = @($regularMap.Keys | Where-Object { $_ -notin $spatial } | Sort-Object)
 $actualGlobioNames = @($globioMap.Keys | Sort-Object)
 $nameDiff = Compare-Object $expectedGlobioNames $actualGlobioNames

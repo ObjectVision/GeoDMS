@@ -265,7 +265,7 @@ void SA_Reference<T>::swap(SA_Reference<T>& rhs)
 	assert(!    is_null() );
 	assert(!rhs.is_null() );
 	if (m_Container == rhs.m_Container)
-		omni::swap(*m_SeqPtr, *rhs.m_SeqPtr);
+		std::swap(*m_SeqPtr, *rhs.m_SeqPtr);
 	else
 	{
 		SizeT n1 = size();

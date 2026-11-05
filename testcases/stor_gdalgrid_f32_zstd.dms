@@ -1,0 +1,13 @@
+// #1332: the ZSTD image of stor_tif_f32_zstd read through gdal.grid. The reference is read through tif, because GDAL
+// takes data/tif_f32_nosf.tif, which has no SampleFormat, for uint32.
+container stor_gdalgrid_f32_zstd
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	attribute<float32> img (dom): StorageName = "%currDir%/data/tif_f32_zstd.tif", StorageType = "gdal.grid";
+	attribute<float32> ref (dom): StorageName = "%currDir%/data/tif_f32_nosf.tif", StorageType = "tif";
+	container checks
+	{
+		parameter<bool>    same := all(img == ref), IntegrityCheck = "same == true";
+		parameter<float32> s    := sum(img),        IntegrityCheck = "s == 248f";
+	}
+}

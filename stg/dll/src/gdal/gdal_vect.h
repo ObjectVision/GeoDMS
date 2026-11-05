@@ -62,6 +62,7 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	bool SupportsReadOperator() const override { return true; } // #587: a table is read as storage_read_table(...), its attributes as members of it
 	SharedStr DescribeStorageType(const TreeItem* storageHolder) const override { return GdalMetaInfo_DescribeStorageType(storageHolder, NonmappableStorageManager::DescribeStorageType(storageHolder)); }
 	LispRef   WrapStorageName(const TreeItem* storageHolder, LispRef nameExpr) const override { return GdalMetaInfo_WrapStorageName(storageHolder, nameExpr); }
+	bool      IsOptionItem(const TreeItem* storageHolder, const TreeItem* item) const override { return GdalMetaInfo_IsOptionItem(storageHolder, item); } // #1333
 
     // Implement AbstrStorageManager interface
 	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override;

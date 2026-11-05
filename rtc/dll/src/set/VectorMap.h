@@ -174,7 +174,7 @@ class vector_map
 	void swap(vector_map& rhs)
 	{
 		m_Data.swap(rhs.m_Data);
-		omni::swap(m_Compare, rhs.m_Compare);
+		std::swap(m_Compare, rhs.m_Compare);
 	}
 	void reserve(size_type c) { m_Data.reserve(c); }
 	size_type capacity() const { return m_Data.capacity(); }

@@ -12,8 +12,8 @@ SHORT, LONG, DOUBLE = 3, 4, 12
 SIZES = {SHORT: 2, LONG: 4, DOUBLE: 8}
 FMTS = {SHORT: 'H', LONG: 'I', DOUBLE: 'd'}
 
-def tiff(name, width, height, bps, data, sample_format=None, rows_per_strip='auto', extra=(), truncate=None, photometric=1, spp=1):
-    entries = [(256, LONG, [width]), (257, LONG, [height]), (259, SHORT, [1]), (262, SHORT, [photometric]),
+def tiff(name, width, height, bps, data, sample_format=None, rows_per_strip='auto', extra=(), truncate=None, photometric=1, spp=1, compression=1):
+    entries = [(256, LONG, [width]), (257, LONG, [height]), (259, SHORT, [compression]), (262, SHORT, [photometric]),
                (273, LONG, [0]), (277, SHORT, [spp]), (279, LONG, [len(data)])]
     if bps is not None:
         entries.append((258, SHORT, [bps] * spp))
@@ -86,6 +86,20 @@ tiff('tif_u8_mask.tif', 5, 3, 8, mask)
 full = open(os.path.join(OUT, 'tif_u8_truncated.tif'), 'rb').read()
 open(os.path.join(OUT, 'tif_u8_truncated.tif'), 'wb').write(full[:len(full) - 12])
 print('tif_u8_truncated.tif', len(full) - 12, 'bytes (12 short)')
+# #1332: the values of tif_f32_nosf.tif as float32 (SampleFormat 3), compressed with ZSTD (Compression 50000) after
+# horizontal differencing (Predictor 2), as in the water depth maps of the Klimaateffectatlas. The strip is one zstd
+# frame (RFC 8878) holding one raw block: a valid stream, which libtiff reads only when it was built with its ZSTD
+# codec, written without a zstd library.
+def zstd_frame(data):
+    # magic, a header with Single_Segment and a 4-byte Frame_Content_Size, then the last block, of type Raw
+    return struct.pack('<IBI', 0xFD2FB528, 0xA0, len(data)) + struct.pack('<I', len(data) << 3 | 1)[:3] + data
+
+def hdiff32(words, width):
+    # Predictor 2 on 32-bit samples: each one minus its left neighbour in the row, modulo 2^32
+    return [(w - (words[i - 1] if i % width else 0)) & 0xFFFFFFFF for i, w in enumerate(words)]
+
+f32diff = struct.pack('<32I', *hdiff32(struct.unpack('<32I', f32), W))
+tiff('tif_f32_zstd.tif', W, H, 32, zstd_frame(f32diff), sample_format=3, compression=50000, extra=[(317, SHORT, [2])])
 
 # ---------------------------------------------------------------- shapefiles (points and polylines) with a stale .shx
 def shp_header(shape_type, file_len_bytes, bbox):

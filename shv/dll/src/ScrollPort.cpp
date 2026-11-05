@@ -135,7 +135,7 @@ void ScrollPort::CalcNettSize()
 			CrdPoint2GPoint(ScaleCrdPoint(GetCurrClientAbsLogicalPos() + m_NettSize, sf))
 		);
 
-	omni::swap(m_NettSize, newNettSize);
+	std::swap(m_NettSize, newNettSize);
 
 	bool hasScroll = m_HorScroll && m_VerScroll;
 	SetScrollX(horScroll);

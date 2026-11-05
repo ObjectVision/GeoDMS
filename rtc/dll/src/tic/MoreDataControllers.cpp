@@ -23,7 +23,6 @@
 #include "vt/StringArray.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/StrFormat.h"
-#include "utl/swap.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"

@@ -15,7 +15,7 @@
 
 #include "dbg/Diagnostics.h"
 #include "ptr/PtrBase.h"
-#include "utl/swap.h"
+#include <utility>
 
 /*
  *	WeakPtr: pointer with object semantics, one can derive from it and access is checked
@@ -37,7 +37,7 @@ struct WeakPtr : ptr_base<T, copyable>
 	void operator =(pointer ptr) { reset(ptr); }
 	void operator =(const WeakPtr& rhs) { reset(rhs.m_Ptr); }
 
-	void swap(WeakPtr& oth) { omni::swap(this->m_Ptr, oth.m_Ptr); }
+	void swap(WeakPtr& oth) { std::swap(this->m_Ptr, oth.m_Ptr); }
 
 	operator bool() const noexcept { return this->m_Ptr != nullptr; }
 };

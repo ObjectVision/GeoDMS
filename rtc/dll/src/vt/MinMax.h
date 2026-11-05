@@ -15,7 +15,8 @@
 #define __VT_MINMAX_H
 
 #include "vt/ElemTraits.h"
-#include "utl/swap.h"
+
+#include <utility>
 
 //----------------------------------------------------------------------
 // Section      : lexicographical ordering: MakeMin, MakeMax, etc.
@@ -36,7 +37,7 @@ constexpr bool MakeMin(T& a, std::type_identity_t<T> b) { if (!(b<a)) return fal
 template <class T>
 constexpr bool MakeMax(T& a, std::type_identity_t<T> b) { if (!(a<b)) return false; a=b; return true; }
 
-template <class T> 
-constexpr void MakeRange(T& a, T& b) { if (b<a) omni::swap(a, b); }
+template <class T>
+constexpr void MakeRange(T& a, T& b) { if (b<a) std::swap(a, b); }
 
 #endif // !defined(__VT_MINMAX_H)

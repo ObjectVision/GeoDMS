@@ -113,9 +113,11 @@ were split in 821d19459); the function and file names they accompany are the rel
    (a7127224f). The floor of one is no progress guarantee on its own: a worker that
    joins a still-scheduled supplier fills that slot with its own running context, so
    the brake parked exactly the supplier it waited for (audit 2026-09-27, TIC-A02).
-   `Join` now runs such a supplier inline on the joining worker when it is in the
-   active phase. Together these are the germ of the "never starve the task that
-   unblocks memory release" rule in §5.1.
+   `Join` now runs such a supplier inline on the joining thread when it is in the
+   active phase: on a worker, and since #1329 also on the meta thread when that runs
+   tasks inline under a SuspendTrigger blocker, as it does for an IntegrityCheck; a
+   GeoDmsRun of 20.27.0 hung there. Together these are the germ of the "never
+   starve the task that unblocks memory release" rule in §5.1.
 2. **`throttled_async`** — `ParallelTiles.h:138-161`: helper fan-outs degrade to
    inline execution when `!IsMultiThreaded1() || IsLowOnFreeRAM()`.
 3. **Per-storage-manager serialization** — `stg/AbstrStorageManager.h:301-312`

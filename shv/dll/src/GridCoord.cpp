@@ -424,9 +424,9 @@ GRect GridCoord::GetClippedRelDeviceRect(const IRect& selRect) const
 		FirstViewCol(selRect.second.Col() ),
 		FirstViewRow(selRect.second.Row() )
 	);
-	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top );
+	if (IsBottomTop(m_Orientation)) std::swap(result.bottom, result.top );
 	assert(result.top <= result.bottom);
-	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left);
+	if (IsRightLeft(m_Orientation)) std::swap(result.right,  result.left);
 	assert(result.left<= result.right );
 	
 	result += m_ClippedRelDeviceRect.LeftTop();
