@@ -1,0 +1,183 @@
+// connect, connect_info and dist_info find the nearest segment of a long candidate arc by a walk that passes over runs of
+// segments whose bounding box lies too far away (#1334, ArcRunBoxes in rtc/dll/src/geom/GeoDist.h). The result must be
+// exactly that of the walk over all segments, the tie rule included. The 3 arcs and the polygon below get run boxes, as there
+// are at least as many points as long arcs (ArcRunIndexParams::MinPointsPerArc in geo/dll/src/geom/ArcRunIndex.h); the same
+// shapes copied Copies times do not, as there are fewer points than copies, so for them the walk reads every segment. Per
+// point the nearest of the copies is the first copy of the nearest shape, as a tie between arcs goes to the lowest index, so
+// every result of the shapes must equal that of the copies.
+//   BShape 0: a wavy line of 2 000 vertices with pseudo-random noise;
+//   BShape 1: two linestrings in one arc, a circular arc of 600 vertices and a wavy line of 400, separated by a null point;
+//   BShape 2: a closed square ring of 161 vertices at whole coordinates, with 40 points on its diagonal, each as near to two
+//             sides, where the walk keeps the last of the equally near segments;
+//   PShape:   a square polygon with a square hole, rings of 161 and 81 vertices, tested as a polygon. Each ring starts in the
+//             middle of a side: at the start vertex of a ring its first and last segment are equally near, and which of the
+//             two a walk keeps depends on whether an earlier ring had a candidate within the distance bound it got, which
+//             differs between a shape and its copies, also in a walk over all segments.
+// Points: 200 pseudo-random, 60 on vertices of the arcs, 40 on the diagonal of the ring. In dpoint, in dpoint with a float32
+// maximum distance (so the distances are float32), in ipoint (times 64) and in fpoint; connect in dpoint, its connection edges
+// and its number of vertices.
+// Expected: exit 0 on /checks.
+container oper_connect_arc_runs
+{
+	unit<dpoint> crd;
+	unit<ipoint> icrd;
+	unit<fpoint> fcrd;
+
+	parameter<uint32>  Copies  := 320;
+	parameter<float32> MaxSqr32 := 1e8f;
+
+	unit<uint32> BShape: nrofrows = 3
+	{
+		attribute<uint32> start: [0, 2000, 3001];
+		attribute<crd>    geometry  (arc) := points2sequence(BV/pt,  BV/s, BV/o);
+		attribute<icrd>   igeometry (arc) := points2sequence(BV/ipt, BV/s, BV/o);
+		attribute<fcrd>   fgeometry (arc) := points2sequence(BV/fpt, BV/s, BV/o);
+	}
+	unit<uint32> BV := range(uint32, 0, 2000 + 1001 + 161)
+	{
+		attribute<uint32>  i := uint32(id(.));
+		attribute<BShape>  s := value(i < 2000 ? 0 : i < 3001 ? 1 : 2, BShape);
+		attribute<uint32>  o := i - BShape/start[s];
+
+		attribute<float64> x0 := 0.05 * float64(o);
+		attribute<float64> y0 := 20.0 + 6.0 * sin(0.21 * x0) + float64((o * 7919) % 101) / 101.0 * 0.4;
+
+		attribute<float64> a1 := float64(o) / 600.0 * 1.6 * pi();
+		attribute<float64> b1 := float64((o >= 601 ? o : 601) - 601);
+		attribute<float64> x1 := o < 600 ? 130.0 + 12.0 * cos(a1) : 110.0 + 0.1 * b1;
+		attribute<float64> y1 := o < 600 ?  20.0 + 12.0 * sin(a1) :   2.0 + sin(0.05 * b1);
+
+		attribute<uint32>  j2   := o % 160;
+		attribute<uint32>  side := j2 / 40;
+		attribute<float64> off  := float64(j2 % 40);
+		attribute<float64> x2 := 150.0 + (side == 0 ? off : side == 1 ? 40.0 : side == 2 ? 40.0 - off : 0.0);
+		attribute<float64> y2 :=          side == 0 ? 0.0 : side == 1 ? off  : side == 2 ? 40.0       : 40.0 - off;
+
+		attribute<bool>    isNull := s == 1[BShape] && o == 600;
+		attribute<float64> x := isNull ? null_d : s == 0[BShape] ? x0 : s == 1[BShape] ? x1 : x2;
+		attribute<float64> y := isNull ? null_d : s == 0[BShape] ? y0 : s == 1[BShape] ? y1 : y2;
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<icrd>    ipt := point_xy(int32(x * 64.0), int32(y * 64.0), icrd);
+		attribute<fcrd>    fpt := point_xy(float32(x), float32(y), fcrd);
+	}
+	unit<uint32> Rep := range(uint32, 0, #BShape * Copies)
+	{
+		attribute<BShape> shape := value(id(.) / Copies, BShape);
+		attribute<crd>    geometry  (arc) := BShape/geometry[shape];
+		attribute<icrd>   igeometry (arc) := BShape/igeometry[shape];
+		attribute<fcrd>   fgeometry (arc) := BShape/fgeometry[shape];
+	}
+
+	// the outer ring [200, 240] x [0, 40] from (220, 0), the hole [210, 230] x [10, 30] from (220, 10), back to (220, 0)
+	unit<uint32> PShape: nrofrows = 1
+	{
+		attribute<crd> geometry (polygon) := points2polygon(PV/pt, PV/s, PV/o);
+	}
+	unit<uint32> PV := range(uint32, 0, 161 + 81 + 1)
+	{
+		attribute<PShape>  s := const(0[PShape], .);
+		attribute<uint32>  o := uint32(id(.));
+		attribute<bool>    isHole := o >= 161 && o < 242;
+		attribute<uint32>  h    := (o >= 161 ? o : 161) - 161;
+		attribute<uint32>  j    := isHole ? (h + 10) % 80 : (o + 20) % 160;
+		attribute<uint32>  n    := isHole ? 20 : 40;
+		attribute<uint32>  side := j / n;
+		attribute<float64> off  := float64(j % n);
+		attribute<float64> len  := float64(n);
+		attribute<float64> x0   := isHole ? 210.0 : 200.0;
+		attribute<float64> y0   := isHole ?  10.0 :   0.0;
+		attribute<float64> x := o == 242 ? 220.0 : x0 + (side == 0 ? off : side == 1 ? len : side == 2 ? len - off : 0.0);
+		attribute<float64> y := o == 242 ?   0.0 : y0 + (side == 0 ? 0.0 : side == 1 ? off : side == 2 ? len       : len - off);
+		attribute<crd>     pt := point_xy(x, y, crd);
+	}
+	unit<uint32> PRep := range(uint32, 0, Copies)
+	{
+		attribute<crd> geometry (polygon) := PShape/geometry[const(0[PShape], .)];
+	}
+
+	unit<uint32> Q := range(uint32, 0, 300)
+	{
+		attribute<uint32>  i := uint32(id(.));
+		attribute<BV>      v := value(((i >= 200 ? i : 200) - 200) * 52 + 3, BV);
+		attribute<float64> d := float64((i >= 260 ? i : 260) - 260) + 0.5;
+		attribute<float64> x := i < 200 ? float64((i * 7919) % 10007) / 10007.0 * 245.0 : i < 260 ? BV/x[v] : 150.0 + d;
+		attribute<float64> y := i < 200 ? float64((i * 104729) % 10009) / 10009.0 * 44.0 - 2.0 : i < 260 ? BV/y[v] : d;
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<icrd>    ipt := point_xy(int32(x * 64.0), int32(y * 64.0), icrd);
+		attribute<fcrd>    fpt := point_xy(float32(x), float32(y), fcrd);
+	}
+
+	container ci_d
+	{
+		container idx := connect_info(BShape/geometry, Q/pt);
+		container ref := connect_info(Rep/geometry, Q/pt);
+		attribute<bool> same (Q) := idx/dist == ref/dist && idx/arc_rel == Rep/shape[ref/arc_rel] && idx/CutPoint == ref/CutPoint
+			&& idx/InArc == ref/InArc && idx/InSegm == ref/InSegm && idx/SegmID == ref/SegmID;
+		attribute<float64> distIdx (Q) := dist_info(BShape/geometry, Q/pt);
+		attribute<float64> distRef (Q) := dist_info(Rep/geometry, Q/pt);
+		parameter<uint32> nrInArc := sum(uint32(idx/InArc));
+	}
+	container ci_d32
+	{
+		container idx := connect_info(BShape/geometry, Q/pt, MaxSqr32);
+		container ref := connect_info(Rep/geometry, Q/pt, MaxSqr32);
+		attribute<bool> same (Q) := idx/dist == ref/dist && idx/arc_rel == Rep/shape[ref/arc_rel] && idx/CutPoint == ref/CutPoint
+			&& idx/InArc == ref/InArc && idx/InSegm == ref/InSegm && idx/SegmID == ref/SegmID;
+	}
+	container ci_i
+	{
+		container idx := connect_info(BShape/igeometry, Q/ipt);
+		container ref := connect_info(Rep/igeometry, Q/ipt);
+		attribute<bool> same (Q) := idx/dist == ref/dist && idx/arc_rel == Rep/shape[ref/arc_rel] && idx/CutPoint == ref/CutPoint
+			&& idx/InArc == ref/InArc && idx/InSegm == ref/InSegm && idx/SegmID == ref/SegmID;
+	}
+	container ci_f
+	{
+		container idx := connect_info(BShape/fgeometry, Q/fpt);
+		container ref := connect_info(Rep/fgeometry, Q/fpt);
+		attribute<bool> same (Q) := idx/dist == ref/dist && idx/arc_rel == Rep/shape[ref/arc_rel] && idx/CutPoint == ref/CutPoint
+			&& idx/InArc == ref/InArc && idx/InSegm == ref/InSegm && idx/SegmID == ref/SegmID;
+	}
+	container ci_poly
+	{
+		container idx := connect_info(PShape/geometry, Q/pt);
+		container ref := connect_info(PRep/geometry, Q/pt);
+		attribute<bool> same (Q) := idx/dist == ref/dist && IsDefined(idx/arc_rel) && IsDefined(ref/arc_rel) && idx/CutPoint == ref/CutPoint
+			&& idx/InArc == ref/InArc && idx/InSegm == ref/InSegm && idx/SegmID == ref/SegmID;
+	}
+	container cn_d
+	{
+		unit<uint32> idx := connect(BShape/geometry, Q/pt);
+		unit<uint32> ref := connect(Rep/geometry, Q/pt);
+		unit<uint32> idxPts := sequence2points(idx/geometry);
+		unit<uint32> refPts := sequence2points(ref/geometry);
+		unit<uint32> shapePts := sequence2points(BShape/geometry);
+		// the end of each connection edge, the cut point, in the order of the points
+		unit<uint32> idxCut := select_with_org_rel(IsNull(idx/arc_rel[idxPts/sequence_rel]) && idxPts/ordinal == 1)
+		{
+			attribute<crd> pt := org_rel->point;
+		}
+		unit<uint32> refCut := select_with_org_rel(IsNull(ref/arc_rel[refPts/sequence_rel]) && refPts/ordinal == 1)
+		{
+			attribute<crd> pt := org_rel->point;
+		}
+		unit<uint32> Cut := range(uint32, 0, #idxCut)
+		{
+			attribute<bool> same := idxCut/pt[value(id(.), idxCut)] == refCut/pt[value(id(.), refCut)];
+		}
+	}
+
+	container checks
+	{
+		parameter<bool> ci_d_same    := all(ci_d/same), IntegrityCheck = "ci_d_same == true";
+		parameter<bool> ci_d_dist    := all(ci_d/distIdx == ci_d/distRef) && all(ci_d/distIdx == ci_d/idx/dist), IntegrityCheck = "ci_d_dist == true";
+		parameter<bool> ci_d_inarc   := ci_d/nrInArc > 100, IntegrityCheck = "ci_d_inarc == true";
+		parameter<bool> ci_d32_same  := all(ci_d32/same), IntegrityCheck = "ci_d32_same == true";
+		parameter<bool> ci_i_same    := all(ci_i/same), IntegrityCheck = "ci_i_same == true";
+		parameter<bool> ci_f_same    := all(ci_f/same), IntegrityCheck = "ci_f_same == true";
+		parameter<bool> ci_poly_same := all(ci_poly/same), IntegrityCheck = "ci_poly_same == true";
+		parameter<bool> cn_d_count   := #cn_d/idxCut == #Q && #cn_d/refCut == #Q, IntegrityCheck = "cn_d_count == true";
+		parameter<bool> cn_d_cuts    := all(cn_d/Cut/same), IntegrityCheck = "cn_d_cuts == true";
+		parameter<bool> cn_d_size    := #cn_d/refPts - #cn_d/idxPts == (Copies - 1) * #cn_d/shapePts, IntegrityCheck = "cn_d_size == true";
+	}
+}

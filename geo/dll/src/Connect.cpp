@@ -19,6 +19,7 @@
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
+#include "geom/ArcRunIndex.h"
 #include "geom/GeoDist.h"
 #include "geom/SpatialIndex.h"
 #include "geom/SpatialSearchBox.h"
@@ -514,8 +515,9 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 template <typename R, typename T, typename ResObjectPtr>
 struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 {
+	// runIndex: the run boxes of the long arcs among those of spIndex, which begin at arcsBegin (#1334)
 	template <typename SpatialIndexType, typename Filter>
-	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
+	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex, const ArcRunIndex<T>& runIndex, ResObjectPtr arcsBegin, const Filter& filter, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
 	{
 		const Range<Point<T>> pointBox(p, p);
 		UInt32 maxDepth = 0xFFFFFFFF;
@@ -530,7 +532,7 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 				if (!filter(streetPtr))
 					continue;
 				ArcProjectionHandle<R, T> arcAph(p, aph.m_FoundAny ? aph.m_MinSqrDist : sqrBound, isPossiblyMultiPolygon);
-				if (!arcAph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
+				if (!arcAph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr), runIndex.Get(streetPtr - arcsBegin)))
 					continue;
 				if (aph.m_FoundAny && !(arcAph.m_MinSqrDist < aph.m_MinSqrDist || (arcAph.m_MinSqrDist == aph.m_MinSqrDist && streetPtr < this->m_ArcPtr)))
 					continue;
@@ -976,6 +978,7 @@ public:
 			auto arg1Data = arg1->GetLockedDataRead();
 			assert(arg1Count == arg1Data.size());
 			SpatialIndexType spIndex(arg1Data.begin(), arg1Data.end(), 0);
+			ArcRunIndex<CoordType> runIndex(arg1Data.begin(), arg1Data.end(), arg2Count, isPossiblyMultiPolygon);
 
 			const E* polyIDsPtr = nullptr;
 			typename DataArray<E>::locked_cseq_t polyIDs;  if (arg1_ID) { polyIDs = const_array_cast<E>(arg1_ID)->GetLockedDataRead(); polyIDsPtr = polyIDs.begin(); }
@@ -1065,7 +1068,7 @@ public:
 							auto point = *pointPtr;
 							if (IsDefined(point))
 							{
-								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr, isPossiblyMultiPolygon);
+								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, runIndex, streetBegin, filter, maxSqrDistPtr, isPossiblyMultiPolygon);
 								if (arcHnd.m_FoundAny)
 								{
 									if (!maxSqrDistPtr || *maxSqrDistPtr > arcHnd.m_MinSqrDist)
@@ -1540,6 +1543,7 @@ public:
 			{
 			using OriginalSpatialIndexType = SpatialIndex<CoordType, typename Arg1Type::const_iterator>;
 			OriginalSpatialIndexType spIndexOriginal(arg1Data.begin(), arg1Data.end(), 0);
+			ArcRunIndex<CoordType> runIndex(arg1Data.begin(), arg1Data.end(), SizeT(arg2Count), isPossiblyMultiPolygon);
 
 			tile_id nrTiles = arg2A->GetAbstrDomainUnit()->GetNrTiles();
 
@@ -1606,7 +1610,7 @@ public:
 
 						const SqrDistType* currMaxDistPtr = hasNonVoidMaxDist ? (maxSqrDistPtr + i) : maxSqrDistPtr;
 						IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(
-							point, spIndexOriginal, filter, currMaxDistPtr, isPossiblyMultiPolygon);
+							point, spIndexOriginal, runIndex, streetBegin, filter, currMaxDistPtr, isPossiblyMultiPolygon);
 
 						if (arcHnd.m_FoundAny)
 						{
