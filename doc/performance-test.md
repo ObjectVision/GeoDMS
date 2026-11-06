@@ -1997,6 +1997,114 @@ nearly all of them receive no point. The candidates are also collected on one th
 - t405.1, t405.2, t611, t710, t720 and t910 are level, so t405.2's +47 s in the round is the sitting. t405.3, t641.1
   (+3:06) and t810 (+18 s) had no A/B.
 
+## Results (OVSRV05), 20.29.0 at `98974d5fa`: run boxes for long arcs in `connect`, `connect_info` and `dist_info` (#1334)
+
+A local msbuild (Release x64, `all22.sln`) of `027e6f50a`, whose engine code is that of `98974d5fa`. Against the previous
+round (`e5944a676`, above) it adds only #1334: an arc or polygon of at least 32 vertices gets the bounding boxes of runs of
+its segments, built when there are at least as many points as long arcs, and `connect`, `connect_info` and `dist_info`
+(with their `_eq` and `_ne` forms) pass over a run that lies farther than the nearest distance found so far. GeoDMS-Test at
+`5fb7780`. The round ran 2026-11-06 06:32 to 09:35, threshold 60, put back to 95, no reuse. Report header 3:00:05
+against 3:04:25 for `e5944a676`; 27 of 27 `ok`. Rows that move by more than 3 % and 3 s, wall time of the logs
+(`walltimes.py`):
+
+| test | `e5944a676` | `98974d5fa` |
+|---|---|---|
+| t060 | 0:01:32 | 0:01:16 |
+| t300 | 0:01:07 | 0:00:56 |
+| t405.1 | 0:04:30 | 0:03:30 |
+| t405.2 | 0:17:35 | 0:16:49 |
+| t641.1 | 0:52:20 | 0:50:27 |
+| t810 | 0:05:11 | 0:04:47 |
+
+Over all experiment logs 180.4 min against 184.8. Aligned per message (`loggap.py` in the session scratchpad: digits
+masked, difflib), none of these lies in a `connect` except possibly t810: t405.1's 60 s are the cold read of the OSM
+shapefiles before its `connect` on 2026-11-05, t060's lie in writing the geopackage, t300's in reading its XML, and
+t405.2's and t641.1's are spread over the run. t2000, where #1334 does act, is 0:16:23 and 0:16:22.
+
+### Interleaved A/B: `e5944a676` against `98974d5fa`, `.m`
+
+2026-11-06 09:40 to 13:28, X Y Y X, threshold 60, the inputs read once beforehand (`ab_1334_inputs.txt`, 66 GiB, more
+than the RAM), through `scratch\t2000_c\run_exp_peak.py` (`scratch\perf_ovsrv05\ab_1334.cmd`): X = `head_e5944a676`,
+Y = `head_98974d5fa`; t2000 in an X Y Y X of its own right after. Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| t060 | 77 | 82 | 80 | 81 |
+| t410 | 240 | 229 | 230 | 225 |
+| t405.1 | 273 | 216 | 215 | 212 |
+| t405.2 | 1000 | 1009 | 1016 | 1007 |
+| t720 | 441 | 428 | 424 | 427 |
+| t710 | 64 | 62 | 62 | 62 |
+| t611 | 31 | 32 | 32 | 32 |
+| t910 | 44 | 43 | 44 | 42 |
+| t810 | 309 | 260 | 258 | 297 |
+| t2000 | 998 | 986 | 973 | 1010 |
+
+The metrics of the `.json` results of t410, t611, t710, t720, t910 and t2000 are equal in all four runs. X1 of t405.1
+and t720 is slower than the three runs after it while X2 is level with Y: the first run after the warm-up.
+
+### Per item: where #1334 acts
+
+The candidates of the issue are not computed by the round: 2BURP reads its distances from `Location2*_km.tif`, and t710
+does not demand 2UP's `connect_info`. The `connect_info` of hestia is computed by t2000.
+Per item, X Y Y X with `@statistics`, a cheap supplier first so the operator's inputs are ready, seconds of the
+`Updating` line (`ab_1334_items.cmd`, `ab_1334_more.cmd`, `ab_1334_inland.cmd`); the statistics are equal in every run:
+
+| item | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| hestia `m100/connect/ArcID` (139 084 points to the CBS 2020 buurten) | 7.25 | 0.49 | 0.54 | 7.00 |
+| hestia `m25/connect/ArcID` (2 257 282 points) | 39.41 | 2.37 | 2.31 | 39.74 |
+| 2BURP `Lakes/Location2Lake_distInfo` (12 808 470 points, fss read included) | 2.76 | 2.58 | 2.67 | 2.81 |
+| 2BURP `Rivers/Location2River_distInfo` (same points) | 4.60 | 4.64 | 4.53 | 4.41 |
+| 2BURP `AllWater/Location2LargeInland_distInfo` (372 162 waters over 0.5 km2) | 1263.98 | 17.25 | 17.15 | 1296.67 |
+| 2BURP `AllWater/Location2AllInland_distInfo` (all of `InlandWater.shp`, 2.9 GB) | 1223.12 | 27.64 | 27.43 | 1254.88 |
+
+- hestia (`model/Geography.dms:41` and `:58`, `connect_info` of grid cells near a buurt to the buurt polygons) is 14 to
+  17 times faster. In t2000 that gives 12 to 37 s of wall time against 44 s for the two items alone; presumably because
+  the `connect_info` runs there beside other work, not checked.
+- 2BURP's inland water (`SourceData/Physical.dms:163` and `:167`, the first candidate of the issue) is 45 to 76 times
+  faster. On X 12.46 M of the points are done after 2 minutes and the last 348 921 take 18 more; on Y the item is about
+  10 s of converting the polygons to `SphericalMercator` and 5 to 6 s of `dist_info`. The lakes (`glwd_3`) and rivers do
+  not move; why not was not investigated.
+- 2UP's `connect_info` (`stam/Input/CreateIsUrbanCD.dms:56`, `stam/GDP/CreateIsCountry.dms:32`) connects 5 and 4 points
+  in the regression's extent, too few for run boxes, and the configuration does not compute it on the current engine:
+  `split_polygon` (`Input/administrative/Country.dms:90`, `GDP.dms:59`) is an unknown operator, and with
+  `bp_split_polygon` and `polygon_rel` in a copy (`scratch\p1334`) `Geometry_mdegrees_clean` then fails in
+  `boost::polygon::insert`.
+- t405.1's `road_segments_with_extra_nodes := connect(road_segments/geometry, ExtraVerbindingen/nodes/geometry)` connects
+  616 nodes to roads cut by `arc2segm` into arcs of two points, which get no run boxes: 78 s in both rounds from its first
+  progress line to writing the network, 592 points done after 11 s and the last 14 taking 47 s. That is the cut-up case
+  of the issue and its option 2.
+
+### t810: the build of `e5944a676`, not #1334
+
+t810's `connect` (`Accessibility.dms:201`) is done within 29 s in all four runs. The difference lies in the two
+`proximity` items with a 201 x 201 kernel (`JrcFactorDataTempl.dms:785` and `:786`). Alone, with the release 20.28.0.m
+(`release_01feccd21_m`) as Z, X1 Y1 Z1 Z2 Y2 X2, seconds, statistics equal in all six runs:
+
+| item | X1 | Y1 | Z1 | Z2 | Y2 | X2 |
+|---|---|---|---|---|---|---|
+| `TA_attr` | 9.88 | 9.88 | 28.30 | 28.37 | 9.94 | 9.95 |
+| `TA_attr_km10` | 42.47 | 30.83 | 29.96 | 31.75 | 30.17 | 44.88 |
+| `TA_rest_km10` | 43.48 | 29.93 | 30.26 | 30.63 | 30.30 | 43.58 |
+
+The `proximity` of `e5944a676` is 11 to 15 s slower per item than that of both 20.28.0 and `98974d5fa`, while
+`OperPot.cpp`, `Potential.cpp` and `Potential.h` are unchanged from `01feccd21` to `98974d5fa`; the two kept builds differ
+only in `Geo.dll`, `Shv.dll`, the exes and the Python modules. So it is that build's binary, presumably its code layout,
+not investigated further. `TA_attr` is 18 s faster since #1320 (its selection is `point_in_polygon`,
+`DataPreparation/ShapeData.dms:57`). Together these presumably explain t810's +18 s in the round of `e5944a676` against
+20.28.0 as well as its -24 s now.
+
+### Reading
+
+- Correct: 27 of 27, and every result of the A/Bs equal between the builds.
+- #1334 makes hestia's `connect_info` to the buurten 14 to 17 times faster, worth 12 to 37 s in t2000.
+  2BURP's inland-water `dist_info`, which the round does not compute, goes from 21 min to 17 and 27 s.
+- The lakes and rivers of 2BURP do not move; 2UP's candidates are too small in the regression and not computed.
+- t405.1, t405.2, t060, t410, t611, t710, t720 and t910 are level; t810's gain is the slow `proximity` of the
+  `e5944a676` build. t405.3 and t641.1 had no A/B; t641.1 has a `connect` and a `connect_eq` in
+  `main/BaseData/Afleiding_Winkelcentra.dms:45` and `:172`, not measured.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
