@@ -1910,6 +1910,93 @@ either runs in those seconds is not checked.
 - On experiments whose peak spreads by gigabytes, a difference in `PeakPagefileUsage` is a finding only once it is split
   by kind and the commit's code is shown to run before the peak.
 
+## Results (OVSRV05), 20.29.0 at `e5944a676`: the edge index of `point_in_polygon` (#1320)
+
+A local msbuild (Release x64, `all22.sln`) of `cf4a48e43`, whose engine code is that of `e5944a676` (the merge adds only
+this document). Against the release 20.28.0 (`01feccd21`) it adds #1320 (`point_in_polygon`, `point_in_ranked_polygon`
+and `point_in_all_polygons` give a polygon of at least 32 vertices an edge index per slab of its height), #1332 (libtiff
+with ZSTD, for which vcpkg rebuilt the third-party libraries), #1328 (GeoParquet without GDAL's scan of the geometries),
+#1329 (`Join` activates a parked supplier on the meta thread too) and #1333 (GDAL option items in a write storage).
+GeoDMS-Test at `5fb7780`.
+
+`scratch\launch_perf_20290.cmd` read t300's XML first, then ran the round 2026-11-05 15:54 to 19:01, threshold 60, put
+back to 95; full.py exit 0, nothing on stderr, no reuse, no Remote Desktop session. Report header 3:04:25 against
+3:00:21 for the release 20.28.0; 27 of 27 `ok`. Rows of the report that move by more than 3 % and 3 s:
+
+| test | release 20.28.0 | `e5944a676` |
+|---|---|---|
+| t060 | 0:01:50 | 0:01:32 |
+| t300 | 0:01:39 | 0:01:07 |
+| t301 | 0:02:37 | 0:02:29 |
+| t405.2 | 0:16:49 | 0:17:36 |
+| t405.3 | 0:16:32 | 0:17:27 |
+| t641.1 | 0:49:18 | 0:52:24 |
+| t810 | 0:04:53 | 0:05:11 |
+| t2000 | 0:17:13 | 0:16:25 |
+
+Over all experiment logs (`durations.py`): 184.8 min against 180.7. t300's 1:39 in 20.28.0 was its first read of the
+XML. In `durations.py` the `Highest CommitCharge` of t720 is 18 GB against 24 and that of t405.2 47 GB against 30;
+neither repeats in the A/B below (t720 24 to 25 GB in all four runs), and t405.2's is the known bimodal peak.
+
+### Interleaved A/B: the release 20.28.0 against `e5944a676`, `.m`
+
+2026-11-05 evening, X Y Y X, threshold 60, the inputs read once beforehand (`ab_20290_inputs.txt`), through
+`scratch\t2000_c\run_exp_peak.py`: X = the release 20.28.0 (`release_01feccd21_m`), Y = `e5944a676`
+(`head_e5944a676`); t2000 in an X Y Y X of its own right after. Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| t060 | 95 | 78 | 76 | 95 |
+| t410 | 236 | 231 | 226 | 234 |
+| t405.1 | 210 | 211 | 209 | 210 |
+| t405.2 | 1009 | 1012 | 1006 | 1012 |
+| t720 | 432 | 430 | 428 | 429 |
+| t710 | 63 | 64 | 62 | 62 |
+| t611 | 31 | 33 | 32 | 32 |
+| t910 | 40 | 41 | 39 | 40 |
+| t2000 | 1038 | 999 | 1035 | 1038 |
+
+The `.json` results of t410, t611, t710, t720, t910 and t2000 are byte for byte equal in all four runs. A second X Y Y X
+of t060 with the CPU use sampled every 0.5 s (`cpusample.py`) gave 96 and 98 s against 77 and 77: from 4 to 18 s after
+the start X keeps all 24 logical processors busy (317 core-seconds in that stretch against 80 for Y, 670 against 265 over
+the run). A hybrid H, the engine DLLs of the release 20.28.0 with the third-party DLLs of `e5944a676`, took 96 and 95 s
+(H Y H, Y 77 s), so the rebuilt libraries of #1332 contribute nothing.
+
+### Where t060's gain lies: `geo_selectie`
+
+Stacks of all threads at 6, 10 and 14 s (`stack_sample.ps1`, a noninvasive cdb attach) show X with 23 to 24 workers in
+`Geo.dll` under `tile_task_group` (the release has no pdbs, so not which function), and Y with no worker busy at 6 s and
+8 to 10 in GEOS under `geos_buffer_multi_polygon` at 10 and 14 s. In that stretch t060 selects the panden and
+verblijfsobjecten of the whole country with `point_in_polygon` against `/geo_selectie/geometry`, `utrecht.shp`, one polygon
+of 20 142 vertices: five points per pand (the corners of its box and its centroid, `BAG20_MakeSnaphot.dms:300`) and one per
+vbo (`MakeSnapshot_gpkg.dms:391`). Both items alone, X Y Y X, `@statistics`, seconds of their `Updating` line, inputs
+included:
+
+| item | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| `pand/src/geo_selectie/result` (19 793 103 records) | 17.20 | 2.61 | 2.60 | 17.32 |
+| `vbo/src/geo_selectie` (19 443 548 records) | 3.40 | 0.32 | 0.32 | 3.50 |
+
+The statistics are equal in all four runs (1 412 389 and 1 568 802 in the selection). Together 17.4 s: all of t060's gain.
+
+### Pand_rel in t2000: 0.64 s slower
+
+`/Invoer/RuimtelijkeData/EigendomStaat/EigendomStaat_data/Pand_rel` (`EigendomStaat.dms:45`, 2 951 056 points in the
+12.2 M pand polygons) alone, X Y Y X: X 11.89 and 11.89 s, Y 12.53 and 12.54 s, equal statistics. Not split; the likely
+cost is the edge index. Its threshold of 4 points per polygon applies to the average over the candidates
+(`geo/dll/src/geom/PolygonEdgeIndex.h:253`), and here every pand of at least 32 vertices is a candidate, since the box of
+the points touches all of them; with 2.95 M points they get an index when there are fewer than about 738 000, while
+nearly all of them receive no point. The candidates are also collected on one thread.
+
+### Reading
+
+- Correct: 27 of 27, and every result of the A/B equal between the builds.
+- t060 is 17 to 19 s faster through #1320, in `geo_selectie` (6.6 times faster for the panden, 11 times for the vbo's).
+- t410 is 1 to 4 % faster in both pairs, not split by item; its configuration calls `point_in_polygon`.
+- t2000 moves 3 to 39 s, too unevenly to read as an effect; Pand_rel in it is 0.64 s slower.
+- t405.1, t405.2, t611, t710, t720 and t910 are level, so t405.2's +47 s in the round is the sitting. t405.3, t641.1
+  (+3:06) and t810 (+18 s) had no A/B.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
