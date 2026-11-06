@@ -76,6 +76,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
     <ClInclude Include="src\AbstrBoundingBoxCache.h" />
+    <ClInclude Include="src\geom\ArcRunIndex.h" />
     <ClInclude Include="src\geom\BoostPolygon.h" />
     <ClInclude Include="src\geom\NeighbourIter.h" />
     <ClInclude Include="src\geom\PolygonEdgeIndex.h" />
