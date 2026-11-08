@@ -20,6 +20,8 @@
 #include "vt/MinMax.h"
 
 #include <cmath>
+#include <limits>
+#include <type_traits>
 
 // The search box for a query against a spatial index: `box` grown by `dist`. The
 // growing is done in Float64 and clamped to the coordinate type BEFORE the cast
@@ -58,6 +60,25 @@ Range<Point<T>> InflatedSearchBox(const Range<Point<T>>& box, R dist)
 		,	Point<T>(hi(Float64(box.second.first ) + d), hi(Float64(box.second.second) + d))
 		);
 	}
+}
+
+// How much farther than the nearest arc found so far a node or the bounding box of an arc must lie for a best-first search from p
+// (SpatialIndex::VisitNearestFirst) to leave it out. The distance to a segment, computed in R, and the distance to a box, in
+// Float64, differ from the exact ones by a few units of rounding times the size of the coordinates involved, which this covers
+// many times over, as ArcRunParams::MarginUlps does for the run boxes of an arc (#1334).
+template <typename R, typename T>
+Float64 NearestSearchMargin(const Range<Point<T>>& indexBox, const Point<T>& p)
+{
+	static_assert(std::is_floating_point_v<R>);
+	if (indexBox.inverted())
+		return 0; // an empty index: the search visits nothing
+	Float64 eps = std::numeric_limits<R>::epsilon();
+	if constexpr (std::is_floating_point_v<T>)
+		MakeMax(eps, Float64(std::numeric_limits<T>::epsilon()));
+	auto absMax = [](T a, T b) { return Max<Float64>(std::abs(Float64(a)), std::abs(Float64(b))); };
+	Float64 maxAbs  = Max<Float64>(absMax(indexBox.first.first, indexBox.second.first), absMax(indexBox.first.second, indexBox.second.second));
+	Float64 maxSide = Max<Float64>(Float64(indexBox.second.first) - Float64(indexBox.first.first), Float64(indexBox.second.second) - Float64(indexBox.first.second));
+	return Float64(ArcRunParams::MarginUlps) * eps * (maxAbs + maxSide + absMax(p.first, p.second));
 }
 
 // sqrt of a squared distance, rounded generously (SafeBet) so that the box built

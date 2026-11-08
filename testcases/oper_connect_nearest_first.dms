@@ -1,0 +1,142 @@
+// connect_info and dist_info take the candidate arcs of a point nearest first from the spatial index (SpatialIndex::
+// VisitNearestFirst, #1334), by the distance to their bounding box, and end the search at the first node or arc whose box lies
+// farther than the nearest arc so far. Before, a point went through the post-order of the quadtree in a box around it, and among
+// many short arcs it measured most of them before the box had narrowed.
+//
+// Part 1, the nearest arc among many short ones: 25 square rings of 40 x 40 that tile [0, 200)^2, each of 401 vertices, and the
+// same rings cut into 10 000 arcs of two points (arc2segm), also in reverse order. Points: 20 000 pseudo-random in
+// [-100, 300)^2, so also around the centres of the rings and up to 100 outside them. The distance over the cut arcs equals that
+// over the reversed cut arcs exactly, and that over the rings up to rounding (a vertex and a segment are measured in other
+// orders there). The same holds with a maximum distance, where a point beyond it has no arc, and with the _eq filter, which
+// refuses every arc but those of one ring, so that the search has to go on past the nearest arcs.
+//
+// Part 2, a tie within one arc: polygon P is the square [0, 100]^2 with the hole [40, 60]^2, whose ring starts at (40, 40),
+// and Q the small square [30, 32]^2. A point near (40, 40) and outside the hole is as near to the first vertex of the hole as
+// to the end of its last segment. Which of the two a walk over P keeps depends on whether the outer ring of P, which is farther,
+// lay within the bound the walk started with: a ring that gives a segment takes away from the rings after it what is only as
+// near. That bound was the nearest arc measured before P, so in the order (P, Q) and in the order (Q, P) the point got another
+// SegmID and InArc (20.29.0: the order (P, Q) measured Q first). P is now measured again, bounded by its own distance, when more
+// than one of its rings gave a segment, so both orders give the same.
+// Expected: exit 0 on /checks.
+container oper_connect_nearest_first
+{
+	unit<dpoint> crd;
+
+	unit<uint32> Ring := range(uint32, 0, 25)
+	{
+		attribute<float64> x0  := float64(id(.) % 5) * 40.0;
+		attribute<float64> y0  := float64(id(.) / 5) * 40.0;
+		attribute<uint32>  key := id(.);
+		attribute<crd>     geometry (arc) := points2sequence(RV/pt, RV/ring_rel, RV/o);
+	}
+	unit<uint32> RV := range(uint32, 0, 401 * #Ring)
+	{
+		attribute<Ring>    ring_rel := value(id(.) / 401, Ring);
+		attribute<uint32>  o    := id(.) % 401;
+		attribute<uint32>  j    := o % 400;
+		attribute<uint32>  side := j / 100;
+		attribute<float64> off  := float64(j % 100) * 0.4;
+		attribute<float64> dx   := side == 0 ? off : side == 1 ? 40.0 : side == 2 ? 40.0 - off : 0.0;
+		attribute<float64> dy   := side == 0 ? 0.0 : side == 1 ? off : side == 2 ? 40.0 : 40.0 - off;
+		attribute<crd>     pt   := point_xy(Ring/x0[ring_rel] + dx, Ring/y0[ring_rel] + dy, crd);
+	}
+	unit<uint32> Seg := arc2segm(Ring/geometry);
+	unit<uint32> SV := range(uint32, 0, 2 * #Seg)
+	{
+		attribute<Seg>    seg_rel := value(id(.) / 2, Seg);
+		attribute<uint32> o       := id(.) % 2;
+		attribute<crd>    pt      := o == 0 ? Seg/point[seg_rel] : Seg/nextpoint[seg_rel];
+	}
+	container Cut
+	{
+		attribute<crd>    geometry (Seg, arc) := points2sequence(SV/pt, SV/seg_rel, SV/o);
+		attribute<uint32> key (Seg) := uint32(Seg/sequence_rel);
+	}
+	unit<uint32> SegRev := range(uint32, 0, #Seg)
+	{
+		attribute<Seg> org_rel := value(#Seg - 1 - id(.), Seg);
+		attribute<crd> geometry (arc) := Cut/geometry[org_rel];
+	}
+
+	unit<uint32> Q := range(uint32, 0, 20000)
+	{
+		attribute<uint32>  i   := id(.);
+		attribute<float64> x   := float64((i * 7919) % 20011) / 20011.0 * 400.0 - 100.0;
+		attribute<float64> y   := float64((i * 104729) % 20021) / 20021.0 * 400.0 - 100.0;
+		attribute<crd>     pt  := point_xy(x, y, crd);
+		attribute<uint32>  key := (i * 13) % 25;
+	}
+
+	container near
+	{
+		attribute<float64> dCut  (Q) := dist_info(Cut/geometry, Q/pt);
+		attribute<float64> dRev  (Q) := dist_info(SegRev/geometry, Q/pt);
+		attribute<float64> dRing (Q) := dist_info(Ring/geometry, Q/pt);
+		parameter<float64> dMax := max(dCut);
+
+		container ciCut  := connect_info(Cut/geometry, Q/pt);
+		container ciRing := connect_info(Ring/geometry, Q/pt);
+		// not the same ring: a point near the side that two rings share is about as near to both, and which is nearer can
+		// differ by rounding between the two forms
+		attribute<bool> same (Q) := ciCut/dist == dCut && abs(ciCut/dist - ciRing/dist) < 1e-9;
+
+		container maxCut  := connect_info(Cut/geometry, Q/pt, 25.0);
+		container maxRing := connect_info(Ring/geometry, Q/pt, 25.0);
+		attribute<bool> sameMax (Q) := IsDefined(maxCut/arc_rel) == IsDefined(maxRing/arc_rel)
+			&& (IsNull(maxCut/arc_rel) || abs(maxCut/dist - maxRing/dist) < 1e-9);
+		parameter<uint32> nrBeyondMax := sum(uint32(IsNull(maxCut/arc_rel)));
+
+		container eqCut  := connect_info_eq(Cut/geometry, Cut/key, Q/pt, Q/key);
+		container eqRing := connect_info_eq(Ring/geometry, Ring/key, Q/pt, Q/key);
+		attribute<bool> sameEq (Q) := abs(eqCut/dist - eqRing/dist) < 1e-9 && Seg/sequence_rel[eqCut/arc_rel] == eqRing/arc_rel
+			&& eqRing/arc_rel == value(Q/key, Ring);
+	}
+
+	// part 2: P and Q in both orders
+	unit<uint32> PQ: nrofrows = 2
+	{
+		attribute<uint32> start: [0, 11];
+		attribute<crd>    geometry (polygon) := points2polygon(PV/pt, PV/s, PV/o);
+	}
+	unit<uint32> QP := range(uint32, 0, 2)
+	{
+		attribute<PQ>  org_rel := value(1 - id(.), PQ);
+		attribute<crd> geometry (polygon) := PQ/geometry[org_rel];
+	}
+	// P: the outer ring from (0, 0), the hole from (40, 40), back to (0, 0); Q: [30, 32]^2
+	unit<uint32> PV: nrofrows = 16
+	{
+		attribute<float64> x: [0, 100, 100, 0, 0,  40, 60, 60, 40, 40,  0,  30, 30, 32, 32, 30];
+		attribute<float64> y: [0, 0, 100, 100, 0,  40, 40, 60, 60, 40,  0,  30, 32, 32, 30, 30];
+		attribute<PQ>      s := value(id(.) < 11 ? 0 : 1, PQ);
+		attribute<uint32>  o := id(.) - PQ/start[s];
+		attribute<crd>     pt := point_xy(x, y, crd);
+	}
+	unit<uint32> T: nrofrows = 3
+	{
+		attribute<float64> x: [39, 39.5, 38];
+		attribute<float64> y: [39, 38, 39.5];
+		attribute<crd>     pt := point_xy(x, y, crd);
+	}
+	container tie
+	{
+		container ciPQ := connect_info(PQ/geometry, T/pt);
+		container ciQP := connect_info(QP/geometry, T/pt);
+		attribute<bool> same (T) := ciPQ/dist == ciQP/dist && ciPQ/arc_rel == QP/org_rel[ciQP/arc_rel]
+			&& ciPQ/SegmID == ciQP/SegmID && ciPQ/InArc == ciQP/InArc && ciPQ/InSegm == ciQP/InSegm && ciPQ/CutPoint == ciQP/CutPoint;
+		attribute<bool> onP (T) := ciPQ/arc_rel == 0[PQ] && ciPQ/CutPoint == point_xy(40.0, 40.0, crd);
+	}
+
+	container checks
+	{
+		parameter<bool> near_far     := near/dMax > 50.0, IntegrityCheck = "near_far == true";
+		parameter<bool> near_rev     := all(near/dCut == near/dRev), IntegrityCheck = "near_rev == true";
+		parameter<bool> near_ring    := all(abs(near/dCut - near/dRing) < 1e-9), IntegrityCheck = "near_ring == true";
+		parameter<bool> near_ci      := all(near/same), IntegrityCheck = "near_ci == true";
+		parameter<bool> near_max     := all(near/sameMax), IntegrityCheck = "near_max == true";
+		parameter<bool> near_max_cut := near/nrBeyondMax > 1000 && near/nrBeyondMax < 19000, IntegrityCheck = "near_max_cut == true";
+		parameter<bool> near_eq      := all(near/sameEq), IntegrityCheck = "near_eq == true";
+		parameter<bool> tie_onP      := all(tie/onP), IntegrityCheck = "tie_onP == true";
+		parameter<bool> tie_same     := all(tie/same), IntegrityCheck = "tie_same == true";
+	}
+}

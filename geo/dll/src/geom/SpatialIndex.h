@@ -23,6 +23,9 @@
 #include "set/VectorFunc.h" // RangeFromSequence_SkipUndefined
 #include "utl/IncrementalLock.h"
 
+#include <algorithm>
+#include <vector>
+
 template <typename SpatialIndexType> struct neighbour_iter;
 
 namespace SpatialIndexImpl {
@@ -622,12 +625,95 @@ struct SpatialIndex
 	iterator<PointType> begin(const PointType& searchPnt) const { return iterator<PointType>(searchPnt, &*m_Nodes.begin()); }
 	iterator<RangeType, true> begin_touching(const RangeType& searchBox) const { return iterator<RangeType, true>(searchBox, &*m_Nodes.begin()); }
 
+	// An entry of the heap of VisitNearestFirst: a node, by the square of the distance from the point to the box that holds the
+	// objects of its subtree (QueryBox), or a leaf, by that to its extents.
+	struct NearestRec
+	{
+		Float64 m_SqrDist;
+		UInt32  m_Index;  // in m_Nodes, or in m_Leafs
+		bool    m_IsLeaf;
+	};
+	using NearestHeap = std::vector<NearestRec>;
+
+	// A best-first search from p (#1334): visit(leaf) for each leaf whose extents lie within limit() of p, the nearest first. The
+	// heap holds nodes and leaves by their distance from p, and its nearest entry is taken until that lies beyond limit(), which
+	// visit may lower; an entry that lies beyond it when it would be added is left out. The order among equally near entries is
+	// that of the heap, so a caller that needs a rule for ties applies it to the leaves it is given. limit() and the distances
+	// are squares, in Float64. heap is the caller's, so that its capacity is kept from one search to the next.
+	template <typename Limit, typename Visit>
+	void VisitNearestFirst(const PointType& p, NearestHeap& heap, Limit&& limit, Visit&& visit) const
+	{
+		dms_assert(m_Nodes.size());
+		auto nearerOnTop = [](const NearestRec& a, const NearestRec& b) { return a.m_SqrDist > b.m_SqrDist; };
+		auto push = [&heap, &nearerOnTop](Float64 sqrDist, SizeT index, bool isLeaf)
+			{
+				heap.push_back(NearestRec{ sqrDist, UInt32(index), isLeaf });
+				std::push_heap(heap.begin(), heap.end(), nearerOnTop);
+			};
+
+		heap.clear();
+		const Node*     nodesBegin = &*m_Nodes.begin();
+		const LeafType* leafsBegin = m_Leafs.empty() ? nullptr : &*m_Leafs.begin();
+		if (nodesBegin->IsNonEmpty())
+			push(SqrDistTo(p, QueryBox(*nodesBegin)), 0, false);
+
+		while (!heap.empty())
+		{
+			NearestRec rec = heap.front();
+			Float64 sqrLimit = limit();
+			if (rec.m_SqrDist > sqrLimit)
+				break;
+			std::pop_heap(heap.begin(), heap.end(), nearerOnTop);
+			heap.pop_back();
+
+			if (rec.m_IsLeaf)
+			{
+				visit(leafsBegin[rec.m_Index]);
+				continue;
+			}
+			const Node* nodePtr = nodesBegin + rec.m_Index;
+			if (nodePtr->IsSplit())
+				for (SizeT childIndex = rec.m_Index + nodePtr->m_OffsetToFirstQuadrant, childEnd = childIndex + 4; childIndex != childEnd; ++childIndex)
+				{
+					const Node& child = nodesBegin[childIndex];
+					if (!child.IsNonEmpty())
+						continue;
+					Float64 sqrDist = SqrDistTo(p, QueryBox(child));
+					if (!(sqrDist > sqrLimit))
+						push(sqrDist, childIndex, false);
+				}
+			for (const LeafType* lf = nodePtr->m_FirstLeaf; lf; lf = lf->GetNext())
+			{
+				Float64 sqrDist = SqrDistTo(p, lf->GetExtents());
+				if (!(sqrDist > sqrLimit))
+					push(sqrDist, lf - leafsBegin, true);
+			}
+		}
+	}
+
 	ObjectPtr first_leaf() const { dms_assert(m_Leafs.size()); return m_Leafs.begin()->get_ptr(); }
 private:
 	SpatialIndex(const SpatialIndex&) {}
 
 	// the box that holds the objects of the subtree of node; see LooseBox
 	RangeType QueryBox(const Node& node) const { return LooseBox(node.m_BoundingBox, GetBoundingBox()); }
+
+	// the square of the distance from p to the nearest point of a box, or to a point, in Float64, so that the differences of
+	// an integer coordinate type neither wrap nor overflow
+	static Float64 SqrDistTo(const PointType& p, const RangeType& box)
+	{
+		Float64 d1 = 0, d2 = 0;
+		if (p.first < box.first.first)         d1 = Float64(box.first.first) - Float64(p.first);
+		else if (box.second.first < p.first)   d1 = Float64(p.first) - Float64(box.second.first);
+		if (p.second < box.first.second)       d2 = Float64(box.first.second) - Float64(p.second);
+		else if (box.second.second < p.second) d2 = Float64(p.second) - Float64(box.second.second);
+		return d1 * d1 + d2 * d2;
+	}
+	static Float64 SqrDistTo(const PointType& p, const PointType& q)
+	{
+		Float64 d1 = Float64(p.first) - Float64(q.first), d2 = Float64(p.second) - Float64(q.second);
+		return d1 * d1 + d2 * d2;
+	}
 
 	void _Add(LeafType* obj)
 	{
