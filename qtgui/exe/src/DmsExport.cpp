@@ -17,6 +17,7 @@
 #include "TicInterface.h"
 #include "ShvDllInterface.h"
 
+#include <algorithm>
 #include <filesystem>
 
 #include "AbstrDataItem.h"
@@ -197,6 +198,19 @@ void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
     fout->Close(); // RTC-A05: an export that was not written, or only in part, is reported
 }
 
+// The file of one table of a database container, in a format that holds one table per file
+// (driver_characteristics::tableset_is_folder): <folder>/<name of the export>/<name of the
+// table>.<ext>, the names that the "Resulting filename(s)" box lists for such an export.
+static SharedStr TableFileName(CharPtr exportFileName, const TreeItem* tableItem)
+{
+    auto folderName = getFileNameBase(exportFileName);
+    CharPtr extension = getFileNameExtension(exportFileName);
+    auto tableFileName = *extension
+        ? tableItem->GetName() + "." + extension
+        : tableItem->GetName();
+    return DelimitedConcat(folderName.c_str(), tableFileName.c_str());
+}
+
 void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr fullFileName)
 {
     if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
@@ -207,20 +221,12 @@ void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr
     if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
         return;
 
-    // Each table goes to <folder>/<name of the export>/<name of the table>.csv. The loop used to
-    // discard its increment and so exported the first table forever, and wrote the tables into a
-    // folder named after the whole file name, extension included, as files without an extension.
-    auto folderName = getFileNameBase(fullFileName.c_str());
-    CharPtr extension = getFileNameExtension(fullFileName.c_str());
+    // Each table goes to its TableFileName. The loop used to discard its increment and so
+    // exported the first table forever, and wrote the tables into a folder named after the
+    // whole file name, extension included, as files without an extension.
     for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem = tableItem->GetNextItem())
         if (CurrentItemCanBeExportedAsTable(tableItem))
-        {
-            auto tableFileName = *extension
-                ? tableItem->GetName() + "." + extension
-                : tableItem->GetName();
-            auto subFileName = DelimitedConcat(folderName.c_str(), tableFileName.c_str());
-            DoExportTableToCSV(tableItem, subFileName);
-        }
+            DoExportTableToCSV(tableItem, TableFileName(fullFileName.c_str(), tableItem));
 }
 
 void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
@@ -325,10 +331,10 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
 
 static TokenID exportTableID = GetTokenID("ExportTable");
 static TokenID exportDbID = GetTokenID("ExportDatabase");
-static TokenID dbTableID = GetTokenID("DbTable");
 static TokenID rasterID = GetTokenID("Raster");
 
-auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFlagged, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
+// tablePerFile: the format holds one table per file (driver_characteristics::tableset_is_folder)
+auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFlagged, bool tablePerFile, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
 {
     // When the native driver is used, storageTypeName is the GeoDMS storage type
     // (driver.nativeName, "shp"), never the GDAL driver name "ESRI Shapefile" that this
@@ -338,32 +344,45 @@ auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFla
     // value attribute, leaving the shapefile without its .dbf (#973).
     bool nativeShapeFile = nativeFlagged && !stricmp(storageTypeName, "shp");
     auto avd = GetExportsContainer(GetDefaultDesktopContainer(tableOrDatabaseItem));
-    TreeItem* vdc = nullptr;
 
     if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
     {
-        vdc = avd->CreateItem(UniqueName(avd, exportTableID)).get(); // owned by avd (parent)
+        auto vdc = avd->CreateItem(UniqueName(avd, exportTableID)).get(); // owned by avd (parent)
         DoExportTable(tableOrDatabaseItem, nativeShapeFile ? fn : SharedStr(), vdc);
-    }
-    else
-    {
-        if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
-            return nullptr;
-
-        vdc = avd->CreateItem(UniqueName(avd, exportDbID)).get(); // owned by avd (parent)
-        for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem = tableItem->GetNextItem())
-            if (CurrentItemCanBeExportedAsTable(tableItem))
-            {
-                SharedStr subFileName;
-                if (nativeShapeFile)
-                    subFileName = DelimitedConcat(fn.c_str(), tableItem->GetName().c_str());
-                auto subContainer = vdc->CreateItem(UniqueName(vdc, dbTableID)).get(); // owned by vdc (parent)
-
-                DoExportTable(tableItem, subFileName, subContainer);
-            }
+        if (!nativeShapeFile)
+            vdc->SetStorageManager(fn.c_str(), storageTypeName, StorageReadOnlySetting::Default, driverName, options);
+        return vdc;
     }
 
-    if (!nativeShapeFile)
+    if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
+        return nullptr;
+
+    // #1330: a format that holds one table per file gets a storage per table, on its
+    // TableFileName. One storage on the whole container, which every format but the native
+    // shapefile got, writes each table as a layer of one file. That suits GeoPackage and GML,
+    // but GeoParquet and GeoJSON then failed on the second table (CreateLayer() not
+    // supported), the GDAL shapefile writer could not reopen its .shp, GDAL's CSV writer wrote
+    // the columns of all tables into a single file, and the native DBF writer refused the
+    // container ("Storage expected an unabiguous domain").
+    tablePerFile = tablePerFile || nativeShapeFile;
+    auto vdc = avd->CreateItem(UniqueName(avd, exportDbID)).get(); // owned by avd (parent)
+    for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem = tableItem->GetNextItem())
+        if (CurrentItemCanBeExportedAsTable(tableItem))
+        {
+            // Named after the table, since a format with layers names each layer after the
+            // container that holds its attributes (GetLayerHolderFromDataItem): these were all
+            // called DbTable, so the layers of a GeoPackage were DbTable, DbTable1, ...
+            auto tableContainer = vdc->CreateItem(UniqueName(vdc, tableItem->GetNameID())).get(); // owned by vdc (parent)
+            SharedStr tableFileName;
+            if (tablePerFile)
+                tableFileName = TableFileName(fn.c_str(), tableItem);
+
+            DoExportTable(tableItem, nativeShapeFile ? tableFileName : SharedStr(), tableContainer);
+            if (tablePerFile && !nativeShapeFile)
+                tableContainer->SetStorageManager(tableFileName.c_str(), storageTypeName, StorageReadOnlySetting::Default, driverName, options);
+        }
+
+    if (!tablePerFile)
         vdc->SetStorageManager(fn.c_str(), storageTypeName, StorageReadOnlySetting::Default, driverName, options);
 
     return vdc;
@@ -543,15 +562,25 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
     return CanBeRasterDomain(adu);
 }
 
+// The vector formats in the order of the Format box (#1330): CSV, the default for a table
+// without geometry, then GeoParquet, the default for an item with geometry, then GeoPackage and
+// ESRI Shapefile ahead of the rest. ExportTab::showEvent selects the default by short name, so
+// the order can change without shifting it.
+//
+// tableset_is_folder marks a format that holds one table per file: a database container is then
+// written as a folder with a file per table (TableFileName). GeoParquet and GeoJSON hold one
+// layer per file, as do the shapefile and CSV writers of GDAL, which use the same entries as the
+// native ones when "Use native driver" is unticked.
 auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
     available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", std::vector<CharPtr>{".csv"}, driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf", ".prj"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("Parquet", "GeoParquet (*.parquet)", nullptr, std::vector<CharPtr>{".parquet"}, driver_characteristics::tableset_is_folder); // also holds a table without geometry
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"}, driver_characteristics::disable_with_no_geometry);
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf", ".prj"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"}, driver_characteristics::disable_with_no_geometry);
     available_drivers.emplace_back("GML", "XML (*.xml)", nullptr, std::vector<CharPtr>{".xml", ".xsd"}, driver_characteristics::none);
-    available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"}, driver_characteristics::disable_with_no_geometry);
+    available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("ESRI Shapefile", "DBF", "DBF", std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder | driver_characteristics::disable_with_geometry);
     available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif", ".tfw"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     //available_drivers.emplace_back("BMP", "Microsoft Windows Device Independent Bitmap", nullptr, std::vector<CharPtr>{".bmp"}, driver_characteristics::is_raster);
@@ -593,6 +622,16 @@ void ExportTab::setNativeDriverCheckbox()
 
     m_native_driver_checkbox->setChecked(checked);
     m_native_driver_checkbox->setEnabled(driver_has_native_version && !force_native);
+}
+
+// The entry of the Format box with this GDAL short name, the first one if several share it;
+// the first entry if there is none.
+int ExportTab::driverIndex(CharPtr shortname) const
+{
+    for (int i = 0; i != int(m_available_drivers.size()); ++i)
+        if (!stricmp(m_available_drivers[i].shortname, shortname))
+            return i;
+    return 0;
 }
 
 void ExportTab::rememberNativeDriverChoice(bool checked)
@@ -643,6 +682,14 @@ auto ExportTab::createFinalFileNameText() -> QString
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
     QString final_filename_text = "";
     auto new_filename = m_foldername_entry->text() + "/" + m_filename_entry->text();
+    // a database container in a format that holds one table per file: the TableFileName of each table (#1330)
+    if (!m_table_names.empty() && (driver.m_driver_characteristics & driver_characteristics::tableset_is_folder))
+    {
+        for (const auto& table_name : m_table_names)
+            for (auto ext : driver.exts)
+                final_filename_text = final_filename_text + new_filename + "/" + table_name + ext + "\n\n";
+        return final_filename_text;
+    }
     for (auto ext : driver.exts)
     {
         final_filename_text = final_filename_text + new_filename + ext + "\n\n";
@@ -743,6 +790,17 @@ void ExportTab::showEvent(QShowEvent* event)
         if (!current_item)
             return;
 
+        // the tables of a database container, which a format that holds one table per file
+        // writes to a file each; before the entries are filled, which list the file names
+        std::vector<const TreeItem*> table_items;
+        if (!m_is_raster && !CurrentItemCanBeExportedAsTable(current_item))
+            for (auto table_item = current_item->GetFirstSubItem(); table_item; table_item = table_item->GetNextItem())
+                if (CurrentItemCanBeExportedAsTable(table_item))
+                    table_items.emplace_back(table_item);
+        m_table_names.clear();
+        for (auto table_item : table_items)
+            m_table_names.emplace_back(QString::fromUtf8(table_item->GetName().c_str()));
+
         auto full_foldername_base = GetFullFolderNameBase(current_item);
         auto current_item_folder_name_extension = convertFullNameToFoldernameExtension(current_item);
         m_foldername_entry->setText((QString(full_foldername_base.c_str())+current_item_folder_name_extension));// +current_item_folder_name_extention));
@@ -760,12 +818,15 @@ void ExportTab::showEvent(QShowEvent* event)
         if (!model)
             return;
 
-        auto is_mappable = isItemOrItsSubItemsMappable(current_item);
+        // A database container has geometry when one of its tables has. The tables are its
+        // sub-items and their geometry is one level deeper, so the container alone was never
+        // taken as mappable: it got CSV, with every format that requires geometry disabled (#1330).
+        auto is_mappable = isItemOrItsSubItemsMappable(current_item)
+            || std::any_of(table_items.begin(), table_items.end(), isItemOrItsSubItemsMappable);
 
-        if (!m_is_raster && is_mappable)
-            m_driver_selection->setCurrentIndex(1); // ESRI Shapefile
-        else
-            m_driver_selection->setCurrentIndex(0); // CSV
+        // #1330: by short name, so that the order of getAvailableDrivers cannot shift the default.
+        // This used to select the second entry, ESRI Shapefile, for an item with geometry.
+        m_driver_selection->setCurrentIndex(driverIndex(m_is_raster ? "GTiff" : is_mappable ? "Parquet" : "CSV"));
 
         for (int i=0; i<model->rowCount(); i++)
         {
@@ -782,6 +843,7 @@ void ExportTab::showEvent(QShowEvent* event)
         // after the driver index is settled, so the box does not depend on whether
         // setCurrentIndex above happened to change it (#973)
         setNativeDriverCheckbox();
+        onFilenameEntryTextChanged(QString()); // for the same reason: the file names of the settled driver and tables
     }
     catch (...) {
         catchAndReportException();
@@ -837,13 +899,21 @@ bool DmsExportWindow::exportImpl()
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
     auto filename = SharedStr((active_tab->m_foldername_entry->text() + "/" + active_tab->m_filename_entry->text() + driver.exts.at(0)).toStdString().c_str());
+    bool is_raster = driver.m_driver_characteristics & driver_characteristics::is_raster;
+
+    // a database container in a format that holds one table per file goes to a folder named
+    // after the export, with a file per table (TableFileName, #1330)
+    bool table_per_file = !is_raster
+        && (driver.m_driver_characteristics & driver_characteristics::tableset_is_folder)
+        && !CurrentItemCanBeExportedAsTable(current_export_item);
 
     // Where an export went is otherwise only visible in the dialog that is about to close.
-    reportF(SeverityTypeID::ST_MajorTrace, "Export {} to {} with driver {}{}"
+    reportF(SeverityTypeID::ST_MajorTrace, "Export {} to {} with driver {}{}{}"
         , current_export_item->GetFullName().c_str()
-        , filename.c_str()
+        , table_per_file ? getFileNameBase(filename.c_str()).c_str() : filename.c_str()
         , driver.Caption()
-        , (use_native_driver && driver.HasNativeVersion()) ? ", native" : "");
+        , (use_native_driver && driver.HasNativeVersion()) ? ", native" : ""
+        , table_per_file ? ", one file per table" : "");
 
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;
@@ -860,17 +930,19 @@ bool DmsExportWindow::exportImpl()
     else
     {
         driverName = driver.shortname;
-        if (driver.m_driver_characteristics & driver_characteristics::is_raster)
+        if (is_raster)
             storageTypeName = "gdalwrite.grid";
         else
             storageTypeName = "gdalwrite.vect";
     }
 
     const TreeItem* exportConfig = nullptr;
-    if (driver.m_driver_characteristics & driver_characteristics::is_raster)
+    if (is_raster)
         exportConfig = DoExportRasterOrMatrixData(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");
     else
-        exportConfig = DoExportTableOrDatabase(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");
+        exportConfig = DoExportTableOrDatabase(current_export_item, use_native_driver
+            , driver.m_driver_characteristics & driver_characteristics::tableset_is_folder
+            , filename, storageTypeName, driverName, "");
 
     if (!exportConfig)
     {
