@@ -82,8 +82,13 @@ protected:
 private:
     auto createFinalFileNameText() -> QString;
     void repopulateDriverSelection();
+    int driverIndex(CharPtr shortname) const;
 
     DmsExportWindow* m_export_window = nullptr;
+
+    // the tables of the export item when it is a database container, set by showEvent; empty
+    // for a single table. A format that holds one table per file writes a file for each (#1330).
+    std::vector<QString> m_table_names;
 
     // "Use native driver" as the user last set it, per driver, for this GUI session (#973)
     std::map<std::string, bool> m_native_driver_choice;

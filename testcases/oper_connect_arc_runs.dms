@@ -12,7 +12,9 @@
 //   PShape:   a square polygon with a square hole, rings of 161 and 81 vertices, tested as a polygon. Each ring starts in the
 //             middle of a side: at the start vertex of a ring its first and last segment are equally near, and which of the
 //             two a walk keeps depends on whether an earlier ring had a candidate within the distance bound it got, which
-//             differs between a shape and its copies, also in a walk over all segments.
+//             differs between a shape and its copies, also in a walk over all segments. Since the nearest-first search
+//             (#1334, oper_connect_nearest_first.dms) the arc that is kept is measured again, bounded by its own distance,
+//             when more than one of its rings gave a segment, so a shape and its copies give the same.
 // Points: 200 pseudo-random, 60 on vertices of the arcs, 40 on the diagonal of the ring. In dpoint, in dpoint with a float32
 // maximum distance (so the distances are float32), in ipoint (times 64) and in fpoint; connect in dpoint, its connection edges
 // and its number of vertices.

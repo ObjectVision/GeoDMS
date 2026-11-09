@@ -254,7 +254,12 @@ struct ArcProjectionHandle
 	bool         m_FoundAny = false, m_InArc = false, m_InSegm = false, m_IsPossiblyMultiPolygon = false;
 	seq_elem_index_type m_SegmIndex = UNDEFINED_VALUE(seq_elem_index_type);
 	PointType    m_CutPoint;
-	
+
+	// The number of linestrings or rings in which Project2Arc took a segment. Once a part has given a segment, a later part
+	// must be strictly nearer, so with more than one such part, which of equally near segments is kept depends on the bound
+	// the handle started with: whether an earlier part lay within it. IndexedArcProjectionHandle measures such an arc again.
+	UInt32       m_NrFoundParts = 0;
+
 	ArcProjectionHandle() {}
 
 	ArcProjectionHandle(PointType p, sqrdist_type minSqrDist, bool isPossiblyMultiPolygon)
@@ -296,6 +301,7 @@ struct ArcProjectionHandle
 				{
 					m_SegmIndex += part.first;
 					foundAny = true;
+					++m_NrFoundParts;
 				}
 			return foundAny;
 		}
@@ -420,6 +426,7 @@ bool ArcProjectionHandle<R, T>::Project2MultiLinestring(ConstPointPtr arcBegin, 
 		{
 			m_SegmIndex += arcCursor - arcBegin;
 			foundAny = true;
+			++m_NrFoundParts;
 		}
 		if (nextCursor == arcEnd)
 			break;
@@ -446,6 +453,7 @@ bool ArcProjectionHandle<R, T>::Project2MultiPolygon(ConstPointPtr arcBegin, Con
 		{
 			m_SegmIndex += ring.begin() - arcBegin;
 			foundAny = true;
+			++m_NrFoundParts;
 		}
 		++ringIter;
 	}

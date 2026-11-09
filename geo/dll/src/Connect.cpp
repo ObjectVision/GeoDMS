@@ -507,51 +507,72 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 
 // For ONE point, the nearest of the indexed arcs that pass the filter, and of equally near ones the one with the lowest
 // index: the spatial index yields its candidates in an order that follows from how it was built (#1289), so neither a
-// tie nor the search box may depend on which arc came first. Each arc is measured by a handle of its own, bounded by the
+// tie nor the search may depend on which arc came first. Each arc is measured by a handle of its own, bounded by the
 // best distance so far, which accepts an arc at exactly that distance, as IndexedPointProjectionHandle does for points;
-// a handle shared by the arcs accepted only a strictly nearer one once it had found any. The search box is grown by
-// InflatedSearchBox from SqrtBet of the bound, so that it still holds an arc at exactly that distance; Inflate by the
-// plain distance, truncated for integer coordinates, could leave out a nearer arc than the one found first.
+// a handle shared by the arcs accepted only a strictly nearer one once it had found any.
+//
+// The index gives the arcs nearest first, by the distance to their bounding box (SpatialIndex::VisitNearestFirst), and the
+// search ends at the first node or arc whose box lies farther than the nearest arc so far, allowing for rounding
+// (NearestSearchMargin). An arc that is nearer than or as near as that has a box that is no farther, so it is measured
+// whatever order the index gives (#1334). The search went through the post-order of the quadtree within a box around the
+// point, which the nearest arc so far narrowed: a point among many short arcs, such as roads cut into segments, measured
+// most of the arcs in that box before it had narrowed. A filter that refuses the nearest arcs, or a maximum distance, now
+// asks for no widening rounds either: the search goes on to farther arcs until one passes or the maximum is reached.
+//
+// Of equally near segments within one arc, which a walk keeps depends on the bound it started with when more than one of
+// the arc's linestrings or rings gives a segment (ArcProjectionHandle::m_NrFoundParts), and that bound depends on the
+// order in which the arcs were measured. So the arc that is kept is then measured again, bounded by its own distance: its
+// segment, cut point and flags are those of the first part that holds a nearest segment, whatever came before it.
 template <typename R, typename T, typename ResObjectPtr>
 struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 {
-	// runIndex: the run boxes of the long arcs among those of spIndex, which begin at arcsBegin (#1334)
+	// runIndex: the run boxes of the long arcs among those of spIndex, which begin at arcsBegin (#1334);
+	// heap: the caller's, kept from one point to the next
 	template <typename SpatialIndexType, typename Filter>
-	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex, const ArcRunIndex<T>& runIndex, ResObjectPtr arcsBegin, const Filter& filter, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
+	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex, typename SpatialIndexType::NearestHeap& heap, const ArcRunIndex<T>& runIndex, ResObjectPtr arcsBegin, const Filter& filter, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
 	{
-		const Range<Point<T>> pointBox(p, p);
-		UInt32 maxDepth = 0xFFFFFFFF;
-		while (true) {
+		R sqrBound = MaxValue<R>();
+		if (optionalMaxSqrDistPtr)
+			MakeMin(sqrBound, *optionalMaxSqrDistPtr); // a null maximum leaves the search unbounded, as it did
 
-			R sqrBound = spIndex.template GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr);
-			ArcProjectionHandleWithDist<R, T> aph(p, sqrBound, isPossiblyMultiPolygon);
-			assert(!aph.m_FoundAny);
-			for (auto iter = spIndex.begin(InflatedSearchBox<T>(pointBox, SqrtBet(sqrBound))); iter; ++iter)
+		const Float64 margin = NearestSearchMargin<R>(spIndex.GetBoundingBox(), p);
+		auto sqrLimitOf = [margin](R sqrDist) -> Float64
 			{
-				ResObjectPtr streetPtr = (*iter)->get_ptr();
+				if (!(sqrDist < MaxValue<R>()))
+					return std::numeric_limits<Float64>::infinity();
+				Float64 dist = std::sqrt(Float64(sqrDist)) + margin;
+				return dist * dist;
+			};
+
+		ArcProjectionHandle<R, T> best(p, sqrBound, isPossiblyMultiPolygon); // its m_MinSqrDist is the bound until it has found an arc
+		Float64 sqrLimit = sqrLimitOf(sqrBound);
+		spIndex.VisitNearestFirst(p, heap, [&sqrLimit]() { return sqrLimit; }, [&](const auto& leaf)
+			{
+				ResObjectPtr streetPtr = leaf.get_ptr();
 				if (!filter(streetPtr))
-					continue;
-				ArcProjectionHandle<R, T> arcAph(p, aph.m_FoundAny ? aph.m_MinSqrDist : sqrBound, isPossiblyMultiPolygon);
+					return;
+				ArcProjectionHandle<R, T> arcAph(p, best.m_MinSqrDist, isPossiblyMultiPolygon);
 				if (!arcAph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr), runIndex.Get(streetPtr - arcsBegin)))
-					continue;
-				if (aph.m_FoundAny && !(arcAph.m_MinSqrDist < aph.m_MinSqrDist || (arcAph.m_MinSqrDist == aph.m_MinSqrDist && streetPtr < this->m_ArcPtr)))
-					continue;
-				static_cast<ArcProjectionHandle<R, T>&>(aph) = arcAph;
-				aph.m_Dist = sqrt(aph.m_MinSqrDist); // as ArcProjectionHandleWithDist::Project2Arc sets it
+					return;
+				if (best.m_FoundAny && !(arcAph.m_MinSqrDist < best.m_MinSqrDist || (arcAph.m_MinSqrDist == best.m_MinSqrDist && streetPtr < this->m_ArcPtr)))
+					return;
+				best = arcAph;
 				this->m_ArcPtr = streetPtr;
-				iter.RefineSearch(InflatedSearchBox<T>(pointBox, SqrtBet(aph.m_MinSqrDist)));
-			}
-			if (aph.m_FoundAny || !maxDepth)
-			{
-				// the !maxDepth exit is the one taken because nothing was found: no arc passed
-				// the filter within the (maxSqrDist-clamped) radius. Callers read that off
-				// m_FoundAny, so a null m_ArcPtr is a legitimate outcome here.
-				assert(!this->m_ArcPtr.is_null() || !aph.m_FoundAny);
-				ArcProjectionHandleWithDist<R, T>::operator =(aph);
-				break;
-			}
-			assert(!this->m_ArcPtr.is_null() || !this->m_FoundAny);
+				sqrLimit = sqrLimitOf(best.m_MinSqrDist);
+			});
+
+		if (best.m_FoundAny && best.m_NrFoundParts > 1)
+		{
+			ArcProjectionHandle<R, T> again(p, best.m_MinSqrDist, isPossiblyMultiPolygon);
+			[[maybe_unused]] bool foundAgain = again.Project2Arc(begin_ptr(*this->m_ArcPtr), end_ptr(*this->m_ArcPtr), runIndex.Get(this->m_ArcPtr - arcsBegin));
+			assert(foundAgain && again.m_MinSqrDist == best.m_MinSqrDist);
+			best = again;
 		}
+		// Callers read m_FoundAny: when no arc passed the filter within the maximum distance, m_ArcPtr stays null.
+		assert(!this->m_ArcPtr.is_null() || !best.m_FoundAny);
+		static_cast<ArcProjectionHandle<R, T>&>(*this) = best;
+		if (best.m_FoundAny)
+			this->m_Dist = sqrt(best.m_MinSqrDist); // as ArcProjectionHandleWithDist::Project2Arc sets it
 	}
 
 	ResObjectPtr m_ArcPtr;
@@ -1062,13 +1083,14 @@ public:
 						};
 
 						SizeT nrUnreportedPoints = 0;
+						typename SpatialIndexType::NearestHeap nearestHeap; // kept from one point to the next
 						SizeT currRow = 0;
 						for (; pointPtr != pointEnd; ++r1, ++pointPtr)
 						{
 							auto point = *pointPtr;
 							if (IsDefined(point))
 							{
-								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, runIndex, streetBegin, filter, maxSqrDistPtr, isPossiblyMultiPolygon);
+								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, nearestHeap, runIndex, streetBegin, filter, maxSqrDistPtr, isPossiblyMultiPolygon);
 								if (arcHnd.m_FoundAny)
 								{
 									if (!maxSqrDistPtr || *maxSqrDistPtr > arcHnd.m_MinSqrDist)
@@ -1583,6 +1605,7 @@ public:
 				my_vec_t<CutInfoType>& tileCutInfos = perTileCutInfos[t];
 				tileCutInfos.reserve(tileSize);
 
+				typename OriginalSpatialIndexType::NearestHeap nearestHeap; // kept from one point to the next
 				for (SizeT i = 0; i < tileSize; ++i)
 				{
 					auto point = arg2Data[i];
@@ -1610,7 +1633,7 @@ public:
 
 						const SqrDistType* currMaxDistPtr = hasNonVoidMaxDist ? (maxSqrDistPtr + i) : maxSqrDistPtr;
 						IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(
-							point, spIndexOriginal, runIndex, streetBegin, filter, currMaxDistPtr, isPossiblyMultiPolygon);
+							point, spIndexOriginal, nearestHeap, runIndex, streetBegin, filter, currMaxDistPtr, isPossiblyMultiPolygon);
 
 						if (arcHnd.m_FoundAny)
 						{
