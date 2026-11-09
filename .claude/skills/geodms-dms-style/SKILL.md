@@ -54,7 +54,7 @@ Constraints of 20.28.0, found on NetworkModel_PBL#165 (`cfg/main/Templates/Shape
   its parameter of the same name: a parameter `Links` found the `Links` of the enclosing
   container, and the definition failed with "the body pins unit variable 'Links' to a
   specific unit". Define functions in a plain container, such as a library container at the
-  top of the configuration; there the parameter wins.
+  top of the configuration; there the parameter wins (ObjectVision/GeoDMS#1341).
 
 ## Conversions only where the value types differ
 
