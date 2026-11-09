@@ -219,6 +219,22 @@ struct TableColumnSpec
 	mutable Float64 m_ColumnTotal = 0.0;
 };
 
+// Writes the columns as text separated by ';': a header line, then one line per row, either every
+// row of their common domain or the rows that recNos lists. It takes a read lock on every column
+// before it writes anything, so a column that fails throws before the first byte is written.
+//
+// The declaration has C++ linkage on purpose. It throws whenever a column fails, and with /EHsc
+// a caller that sees an extern "C" declaration may assume that no exception leaves the call.
+// While it was declared in the extern "C" block of TicInterface.h, an export of a table with a
+// failing attribute ended in std::terminate, and a table copy skipped the destructors of its
+// column specs, so their interest kept the session from closing (#1340).
+TIC_CALL void Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd);
+
+// Table_Dump to the file fileName, which is created only once every column has been read. A column
+// that fails therefore leaves an existing file as it was, instead of truncating it to nothing
+// (#1340). Throws when the file cannot be opened or not be written completely.
+TIC_CALL void Table_DumpToFile(WeakStr fileName, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd);
+
 //----------------------------------------------------------------------
 // PropDefPtrs
 //----------------------------------------------------------------------

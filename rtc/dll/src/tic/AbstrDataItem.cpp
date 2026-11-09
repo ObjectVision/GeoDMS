@@ -11,6 +11,7 @@
 // AbstrDataItem: the abstract attribute item -- domain/values unit
 // resolution, data-object administration, checks and interest handling.
 
+#include <optional>
 #include <semaphore>
 
 #include "AbstrDataItem.h"
@@ -26,6 +27,7 @@
 #include "mci/ValueClass.h"
 #include "mci/PropDef.h"
 #include "ser/FileCreationMode.h"
+#include "ser/FileStreamBuff.h"
 #include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "xml/XMLOut.h"
@@ -1232,7 +1234,10 @@ TIC_CALL UInt32 DMS_CONV DMS_AbstrDataItem_GetNrFeatures(const AbstrDataItem* se
 	return 0;
 }
 
-TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
+// The body of Table_Dump and Table_DumpToFile. openOut is called once, after every column has been
+// read, and returns the stream to write to.
+template <typename OpenOut>
+static void Table_DumpImpl(OpenOut&& openOut, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
 {
 	SizeT nrDataItems = columnSpecEnd - columnSpecPtr;
 	if (!nrDataItems)
@@ -1253,6 +1258,7 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 	for (const auto& drl : readLocks)
 		tileLocks.emplace_back(drl.GetRefObj()->CreateReadableTileData(no_tile));
 
+	OutStreamBuff* out = openOut();
 	FormattedOutStream fout(out, FormattingFlags::None);
 	if (nrDataItems > 1 || !recNos || recNoEnd - recNos != 1)
 	{
@@ -1298,6 +1304,22 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 		}
 		out->WriteByte('\n');
 	}
+}
+
+TIC_CALL void Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
+{
+	Table_DumpImpl([out] { return out; }, columnSpecPtr, columnSpecEnd, recNos, recNoEnd);
+}
+
+TIC_CALL void Table_DumpToFile(WeakStr fileName, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
+{
+	std::optional<FileOutStreamBuff> file;
+	auto openFile = [&file, &fileName]() -> OutStreamBuff* { return &file.emplace(fileName, true); };
+
+	Table_DumpImpl(openFile, columnSpecPtr, columnSpecEnd, recNos, recNoEnd);
+	if (!file)
+		openFile(); // no columns: an empty file, as before
+	file->Close(); // RTC-A05: an export that was not written, or only in part, is reported
 }
 
 TIC_CALL void DMS_CONV DMS_Table_Dump(OutStreamBuff* out, UInt32 nrDataItems, const ConstAbstrDataItemPtr* dataItemArray)

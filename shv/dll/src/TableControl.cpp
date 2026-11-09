@@ -1033,11 +1033,17 @@ void TableControl::GoToFirstSelected()
 	}
 }
 
-void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, SizeT n1, SizeT n2, SizeT k1, SizeT k2)
+// The columns and the rows of a copy or an export of a table view.
+struct TableDumpSpec
 {
-	SizeT pk = k2 - 1;
+	std::vector<TableColumnSpec> m_Columns;
+	std::vector<SizeT>           m_RecNos;
+};
 
-	std::vector<TableColumnSpec> itemArray; itemArray.reserve(k2 - k1);
+static TableDumpSpec TableControl_GetDumpSpec(const TableControl* self, SizeT n1, SizeT n2, SizeT k1, SizeT k2)
+{
+	TableDumpSpec result;
+	auto& itemArray = result.m_Columns; itemArray.reserve(k2 - k1);
 	for (SizeT j = k1; j != k2; ++j)
 	{
 		const DataItemColumn* dic = self->GetConstColumn(j);
@@ -1051,14 +1057,12 @@ void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, SizeT
 		currSpec.m_RelativeDisplay = dic->m_State.Get(DIC_RelativeDisplay);
 	}
 	// SHV-A08, SHV-A09: one wait for the sort index, and no undefined record number, which read before a tile
-	std::vector<SizeT> recNos;
-	MG_USERCHECK2(self->CollectRecNos(n1, n2, recNos, "Copy or export the table")
+	MG_USERCHECK2(self->CollectRecNos(n1, n2, result.m_RecNos, "Copy or export the table")
 		, "Copy or export the table: the rows of the table are still being computed; try again in a moment");
-
-	Table_Dump(buffPtr, begin_ptr(itemArray), end_ptr(itemArray), begin_ptr(recNos), end_ptr(recNos));
+	return result;
 }
 
-void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, TableCopyMode tcm)
+static TableDumpSpec TableControl_GetDumpSpec(const TableControl* self, TableCopyMode tcm)
 {
 	SizeT k1, k2;
 	SizeT n1, n2;
@@ -1078,14 +1082,14 @@ void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, Table
 		n1 = self->SelRows().m_Begin;
 		n2 = self->SelRows().m_End + 1;
 	}
-	TableControl_SaveTo(self, buffPtr, n1, n2, k1, k2);
+	return TableControl_GetDumpSpec(self, n1, n2, k1, k2);
 }
 
 void TableControl_TableCopy(const TableControl* self, TableCopyMode tcm)
 {
+	auto spec = TableControl_GetDumpSpec(self, tcm);
 	VectorOutStreamBuff buff;
-
-	TableControl_SaveTo(self, &buff, tcm);
+	Table_Dump(&buff, begin_ptr(spec.m_Columns), end_ptr(spec.m_Columns), begin_ptr(spec.m_RecNos), end_ptr(spec.m_RecNos));
 
 	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 	clipBoard.SetText(buff.GetData(), buff.GetDataEnd());
@@ -1136,9 +1140,10 @@ void TableControl::Export() const
 	
 	SharedStr fileName = mySSPrintF("{}.csv", info.m_FullFileNameBase.c_str());
 
-	FileOutStreamBuff buff(fileName, true);
-	TableControl_SaveTo(this, &buff, TableCopyMode::WholeTable);
-	buff.Close(); // RTC-A05: an export that was not written, or only in part, is reported
+	// The file is created only after every column has been read: a failing column used to leave
+	// it empty (#1340).
+	auto spec = TableControl_GetDumpSpec(this, TableCopyMode::WholeTable);
+	Table_DumpToFile(fileName, begin_ptr(spec.m_Columns), end_ptr(spec.m_Columns), begin_ptr(spec.m_RecNos), end_ptr(spec.m_RecNos));
 }
 
 // issue #411: build a config table under Desktops/Default/ViewData whose attributes
