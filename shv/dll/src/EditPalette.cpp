@@ -316,7 +316,7 @@ void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Interval"),         make_MembFuncCmd(&EditPaletteControl::ClassifyEqualInterval), this, (m>1 && k>1)?0:MFS_GRAYED) );
 		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher non-zero"),   make_MembFuncCmd(&EditPaletteControl::ClassifyNZJenksFisher), this, (m > k && k > 1 && hasZeroIssue) ? 0 : MFS_GRAYED));
 		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher"),            make_MembFuncCmd(&EditPaletteControl::ClassifyCRJenksFisher), this, (m>k && k>1)?0:MFS_GRAYED) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("Logarithminc Intervals"), make_MembFuncCmd(&EditPaletteControl::ClassifyLogInterval  ), this, (m>1 && k>1 && m_SortedUniqueValueCache.first[0].first >= 0)?0:MFS_GRAYED) );
+		med.m_MenuData.push_back( MenuItem(SharedStr("Logarithmic Intervals"), make_MembFuncCmd(&EditPaletteControl::ClassifyLogInterval  ), this, (m>1 && k>1 && m_SortedUniqueValueCache.first[0].first >= 0)?0:MFS_GRAYED) );
 	}
 	auto dic = med.m_MenuData.m_DIC.lock();
 	if (dic)
