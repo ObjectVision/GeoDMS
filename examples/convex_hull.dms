@@ -66,10 +66,13 @@ container convex_hull_example
 	container lib
 	{
 		// One step: the points of the rings in seq, without the points where a ring turns left.
-		// seq holds the points of each ring in order, the first point of a ring once.
+		// seq holds the points of each ring in order, the first point of a ring once; crd is the
+		// unit of their coordinates and domain the unit of the rings. The functions read only
+		// their arguments, so they work for any coordinate unit.
 		function DropReflexCorners(
+			unit<fpoint> crd;
 			unit<uint32> domain;
-			unit<uint32> seq { attribute<geometries/rdc> point; attribute<domain> sequence_rel; }
+			unit<uint32> seq { attribute<crd> point; attribute<domain> sequence_rel; }
 		)
 		-> unit<uint32> := hull_points
 		{
@@ -80,31 +83,32 @@ container convex_hull_example
 			attribute<uint32> prev_id (seq) := id(seq) == first_id[seq/sequence_rel] ? last_id[seq/sequence_rel]  : sub_or_null(id(seq), 1);
 			attribute<uint32> next_id (seq) := id(seq) == last_id[seq/sequence_rel]  ? first_id[seq/sequence_rel] : id(seq) + 1;
 
-			attribute<geometries/rdc> p (seq) := seq/point - seq/point[prev_id];
-			attribute<geometries/rdc> q (seq) := seq/point[next_id] - seq/point;
+			attribute<crd> p (seq) := seq/point - seq/point[prev_id];
+			attribute<crd> q (seq) := seq/point[next_id] - seq/point;
 			attribute<float32>        det (seq) := pointcol(p) * pointrow(q) - pointrow(p) * pointcol(q);
 
 			// keep the right turns and the straight parts, and drop a point that repeats its predecessor
 			unit<uint32> hull_points := select_with_org_rel(det <= 0f && seq/point != seq/point[prev_id])
 			{
-				attribute<geometries/rdc> point        := seq/point[hull_points/org_rel];
+				attribute<crd> point        := seq/point[hull_points/org_rel];
 				attribute<domain>         sequence_rel := seq/sequence_rel[hull_points/org_rel];
 			}
 		}
 
 		// The rings of the points in pts, each closed by repeating its first point.
 		function ClosedRings(
+			unit<fpoint> crd;
 			unit<uint32> domain;
-			unit<uint32> pts { attribute<geometries/rdc> point; attribute<domain> sequence_rel; }
+			unit<uint32> pts { attribute<crd> point; attribute<domain> sequence_rel; }
 		)
-		-> attribute<geometries/rdc> (domain, poly) := rings
+		-> attribute<crd> (domain, poly) := rings
 		{
 			unit<uint32> with_endpoints := union_unit(pts, domain)
 			{
-				attribute<geometries/rdc> point        := union_data(with_endpoints, pts/point, first(pts/point, pts/sequence_rel));
+				attribute<crd> point        := union_data(with_endpoints, pts/point, first(pts/point, pts/sequence_rel));
 				attribute<domain>         sequence_rel := union_data(with_endpoints, pts/sequence_rel, id(domain));
 			}
-			attribute<geometries/rdc> rings (domain, poly) := points2polygon(with_endpoints/point, with_endpoints/sequence_rel);
+			attribute<crd> rings (domain, poly) := points2polygon(with_endpoints/point, with_endpoints/sequence_rel);
 		}
 	}
 
@@ -123,10 +127,10 @@ container convex_hull_example
 
 		unit<uint32> StartingState := sequence2points(Shapes/geometry_rd);
 
-		container Iters    := for_each_ne(iter/name, 'instantiate lib/DropReflexCorners(Shapes, ' + iter/PrevName + ')');
+		container Iters    := for_each_ne(iter/name, 'instantiate lib/DropReflexCorners(geometries/rdc, Shapes, ' + iter/PrevName + ')');
 		container LastIter := = 'Iters/' + last(iter/name);
 
-		attribute<geometries/rdc> convex_hull (Shapes, poly) := lib/ClosedRings(Shapes, LastIter/hull_points);
+		attribute<geometries/rdc> convex_hull (Shapes, poly) := lib/ClosedRings(geometries/rdc, Shapes, LastIter/hull_points);
 	}
 
 	// ----------------------------------------------------------------- checks
