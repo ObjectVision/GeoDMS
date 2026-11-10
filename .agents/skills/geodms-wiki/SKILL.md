@@ -1,6 +1,6 @@
 ---
 name: geodms-wiki
-description: Documenting a GeoDMS behaviour change on the GitHub wiki at C:\dev\GeoDMS.wiki, which is published to geodms.nl. When a page is due (any change a modeller can notice), pull before edit, the "Since GeoDMS x.y.z" convention, what breaks on upgrade, topic page not changelog, the page-name and menu mechanics of the site converter, operator spelling, and what belongs in the issue instead. Use when a change alters observable behaviour, when asked to update or write a wiki page, or when a page is found to disagree with the engine.
+description: Documenting a GeoDMS behaviour change on the GitHub wiki at C:\dev\GeoDMS.wiki, which is published to geodms.nl. When a page is due (any change a modeller can notice), pull before edit, reference and not a log (the present tense, no "Since GeoDMS x.y.z" paragraphs, a version only in the since-version section), topic page not changelog, the page-name and menu mechanics of the site converter, operator spelling, and what belongs in the issue and the release notes instead. Use when a change alters observable behaviour, when asked to update or write a wiki page, or when a page is found to disagree with the engine.
 ---
 
 # The GeoDMS wiki
@@ -25,24 +25,33 @@ operator or notation, a property that now warns or errors, a check that fires wh
 not, a rule about what a storage records or a reader may declare, a changed command-line
 option, a GUI behaviour. Verifying tells you it works; the wiki makes it usable.
 
-## How the existing pages do it
+## How a page is written
 
-- Date it: "**Since GeoDMS 20.19.2** ..." at the paragraph that changed, so a reader on an
-  older build knows why their build disagrees. When the old behaviour was wrong rather than
-  different, say what it was; people debug configurations written years ago against these
-  pages.
-- Say what breaks. A check that never fired can surface on the first run after upgrading; an
-  area that was read wrong changes on upgrade and the old number was the wrong one. Name it,
-  it is the whole point of the change and still a surprise.
+- Reference, not a log. A page says how GeoDMS works now, in the present tense, as if it had
+  always worked that way. It does not say when something changed ("Since GeoDMS 20.19.2 ...",
+  "before 20.14 ...", "no longer ..."), what the old behaviour was, what was wrong with it or
+  how it was found. A change rewrites the paragraph it affects instead of adding a dated
+  paragraph beside it. The history is in the issue and the release notes; a page that reads
+  as a log is hard to use, and every dated paragraph is one more that goes stale.
+- A version appears in one place: the `## since version` section of an operator or property
+  page, which names the release in which the operator, or a form of it, first appears
+  ("15.6.0; the partitioned form since 20.24.0"). That is what a reader on an older build
+  needs to know why their build refuses it. Cite the version in
+  `rtc\dll\src\RtcVersionNumbers.h` after the bump, the release the change ships in, not the
+  last published one.
+- When a change makes a configuration fail that used to run, the page states the rule it now
+  breaks, in words that the reader of that configuration recognises ("an IntegrityCheck that
+  fails stops the calculation of the item"); the release notes say that the rule is new.
 - Put it on the topic page (`IntegrityCheck.md`, `gdalwrite.vect`, `Command-line-options.md`,
   `Gui-scripting.md`), not in a changelog. Link with `[[Page-Name]]` or
   `[[label|Page-Name]]`, and add the reverse link on the pages that should point back.
 - Operator names, value types and keywords in the spelling the engine registers (lower
-  case, since #1161); the editor language files are generated from the same registry.
-- The version to cite is the one in `rtc\dll\src\RtcVersionNumbers.h` after the bump, the
-  version the change will ship in, not the last published release.
-- The wiki records what a modeller must now do differently. The diagnosis, the measurements
-  and the ruled-out hypotheses stay in the issue (geodms-issues).
+  case, #1161); the editor language files are generated from the same registry.
+- The wiki records what a modeller needs to know. The diagnosis, the measurements and the
+  ruled-out hypotheses stay in the issue (geodms-issues).
+- English at C1 level: full sentences, plain words and the terms as GeoDMS spells them. No
+  bold inside running text, also not as a label at the start of a list item, and no em or en
+  dashes as punctuation.
 
 ## Site mechanics that are not markdown
 

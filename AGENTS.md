@@ -327,19 +327,22 @@ or erroring, a check that now fires where it did not, a rule about what a storag
 a reader may declare — belongs on the wiki in the same session, next to the code and the issue
 debrief. Verifying a change tells you it works; the wiki is what makes it usable.
 
-Conventions that the existing pages follow, worth matching:
+Conventions for the pages (the `geodms-wiki` skill has the details):
 
-- **Date the change**: "**Since GeoDMS 20.14.0** …", so a reader on an older build knows why the
-  page and their build disagree. When the old behaviour was wrong rather than merely different,
-  say what it was — the pages are read by people debugging configurations written years ago.
-- **Say what breaks.** Where a change makes a previously silent configuration fail, name that:
-  the IntegrityCheck page states that a check which never fired before can surface on the first
-  run after upgrading, which is the whole point of the change but still a surprise.
+- **Reference, not a log.** A page describes how GeoDMS works now, in the present tense, as if
+  it had always worked that way: no "Since GeoDMS 20.14.0" paragraphs, no account of the old
+  behaviour, of what was wrong with it or of how it was found. A change rewrites the paragraph
+  it affects. The history belongs in the issue and the release notes.
+- **A version only in the `## since version` section** of an operator or property page, which
+  names the release in which the operator, or a form of it, first appears. When a change makes
+  a configuration fail that used to run, the page states the rule it now breaks and the release
+  notes say that the rule is new.
 - **Put it on the topic page**, not in a changelog: `IntegrityCheck.md`, `MMD.md`, `XY-order.md`,
   `Indirect-expression.md`, … Link between them with the wiki's own `[[Page-name]]` /
   `[[label|Page-name]]` syntax, and add the reverse link on the pages that should point back.
 - **Keep the issue debrief and the wiki distinct**: the issue records what was wrong, how it was
-  diagnosed and what was measured; the wiki records only what a modeller must now do differently.
+  diagnosed and what was measured; the wiki records how GeoDMS works and what a modeller needs
+  to know to use it.
 
 ## Plan documents: the status line moves with the status
 

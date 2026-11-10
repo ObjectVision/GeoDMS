@@ -1,6 +1,6 @@
 ---
 name: geodms-dms-style
-description: Writing and reviewing GeoDMS configuration code (.dms), in testcases, probes and models. Which value-type conversions are needed and which are noise (#U is uint32 or uint64, sum_uint64 counts a bool directly, arithmetic never widens), filling a small table with one value per element by union_data instead of a switch on id, counting per class, a key from two relations by combine_unit and combine_data instead of index arithmetic, unique combinations with any, unions over parts generated with asList, requesting a summary of fenced results in the same request as the work, writing a small text file, and proving a rewrite on a probe with the same container paths. Use when writing, rewriting or reviewing .dms code.
+description: Writing and reviewing GeoDMS configuration code (.dms), in testcases, probes and models. A typed function rather than a Template for reusable logic, and the constraints of a function body. Which value-type conversions are needed and which are noise (#U is uint32 or uint64, sum_uint64 counts a bool directly, arithmetic never widens), filling a small table with one value per element by union_data instead of a switch on id, counting per class, a key from two relations by combine_unit and combine_data instead of index arithmetic, unique combinations with any, unions over parts generated with asList, requesting a summary of fenced results in the same request as the work, writing a small text file, and proving a rewrite on a probe with the same container paths. Use when writing, rewriting or reviewing .dms code.
 ---
 
 # Writing .dms code
@@ -10,6 +10,51 @@ string trick earns its place only when the engine needs it. The rules below come
 rewriting the output counts of NetworkModel_PBL in October 2026 (its commits ec53e1d,
 bee7f55 and 6de63ec, and the GeoDMS Academy page *Deepening III, Python and GeoDMS side by
 side*); every claim was checked on GeoDMS 20.22.1 with a probe.
+
+## A function, not a template
+
+Write reusable logic as a typed user-defined function (GeoDMS 20.12.0 and later), not as a
+`Template` instantiated with `container X := T(...)`:
+
+```
+function ShapeSection(
+	unit<uint32>      Links;
+	attribute<uint32> FromDist (Links);
+	attribute<rdc>    Line     (Links, arc);
+	unit<uint32>      Shapes { attribute<uint32> shape_id; attribute<rdc> geometry; }
+)
+-> attribute<rdc> (Links, arc) := geometry
+{
+	unit<uint32>   Cut := select_with_org_rel(IsDefined(FromDist));
+	...
+	attribute<rdc> geometry (Links, arc) := points2sequence(LinePoints/Point, LinePoints/Link_rel, LinePoints/Ordinal);
+}
+
+attribute<rdc> geometry (arc) := /Templates/ShapeSection(R/Rows, FromDist, Line, /SourceData/Infrastructure/GTFS/LoadFeeds/Shapes);
+```
+
+- GeoDMS checks the signature and the body when the function is defined, not when a run
+  first reaches it.
+- The body sees its parameters, its local items, its `using` imports and its definition
+  scope, never the call site. Pass in what it reads instead of absolute paths; then a probe
+  can test it with its own data (see "Proving a rewrite").
+- A call yields the result value; `instantiate F(...)` gives all intermediate items to browse.
+- Syntax and examples: `examples/function.dms` and the `fn_test_*.dms` testcases. A table
+  parameter is `unit<uint32> T { attribute<uint32> x; }` and accepts any table with those
+  members; an arc parameter is `attribute<fpoint> a (D, arc)`.
+- This holds for new code; converting an existing template is a task of its own.
+
+Constraints of 20.28.0, found on NetworkModel_PBL#165 (`cfg/main/Templates/ShapeSection.dms`):
+
+- No `.` and no absolute path in the body: name the unit itself, `union_data(LinePoints, ...)`,
+  `const(1, Inner, uint32)`.
+- No bare `first_rel`, `second_rel` or `org_rel` that an operator adds: write `Pairs/first_rel`,
+  `Inner/org_rel`.
+- A function defined inside a template instance finds a name of its definition scope before
+  its parameter of the same name: a parameter `Links` found the `Links` of the enclosing
+  container, and the definition failed with "the body pins unit variable 'Links' to a
+  specific unit". Define functions in a plain container, such as a library container at the
+  top of the configuration; there the parameter wins (ObjectVision/GeoDMS#1341).
 
 ## Conversions only where the value types differ
 
