@@ -2,7 +2,8 @@
 // attributes. For spoint and ipoint they apply bp_intersect, bp_union, bp_difference and bp_xor,
 // for fpoint and dpoint geos_intersect, geos_union, geos_difference and geos_xor. Every form is
 // checked against the absolute area of its result and, by the area of the symmetric difference,
-// against the named operator it applies.
+// against the named operator it applies. The result of every form, and of the named operators,
+// has the composition polygon, read as PropValue(item, 'ValueComposition') (#1348).
 //
 // The shapes are the square [0,100]^2 and an L of 2000, each against its own copy shifted by
 // (50, 50). The squares overlap in [50,100]^2 and the two L's do not meet, so the totals are:
@@ -30,8 +31,91 @@ container oper_polygon_infix
 	attribute<dpoint> a_d (G, polygon) := points2polygon(point_xy(float64(gx), float64(gy), dpoint), gseq, gord);
 	attribute<dpoint> b_d (G, polygon) := points2polygon(point_xy(float64(sx), float64(sy), dpoint), gseq, gord);
 
+	// every form and every named operator, declared as polygon; an item whose calculation
+	// result has another composition takes that composition, with a deprecation warning
+	container composition
+	{
+		attribute<spoint> mul_s (G, polygon) := a_s * b_s;
+		attribute<spoint> add_s (G, polygon) := a_s + b_s;
+		attribute<spoint> sub_s (G, polygon) := a_s - b_s;
+		attribute<spoint> pow_s (G, polygon) := a_s ^ b_s;
+		attribute<spoint> and_s (G, polygon) := bitand(a_s, b_s);
+		attribute<spoint> or_s  (G, polygon) := bitor (a_s, b_s);
+		attribute<spoint> xor_s (G, polygon) := bitxor(a_s, b_s);
+		attribute<spoint> int_s (G, polygon) := bp_intersect (a_s, b_s);
+		attribute<spoint> uni_s (G, polygon) := bp_union     (a_s, b_s);
+		attribute<spoint> dif_s (G, polygon) := bp_difference(a_s, b_s);
+		attribute<spoint> sym_s (G, polygon) := bp_xor       (a_s, b_s);
+
+		attribute<ipoint> mul_i (G, polygon) := a_i * b_i;
+		attribute<ipoint> add_i (G, polygon) := a_i + b_i;
+		attribute<ipoint> sub_i (G, polygon) := a_i - b_i;
+		attribute<ipoint> pow_i (G, polygon) := a_i ^ b_i;
+		attribute<ipoint> and_i (G, polygon) := bitand(a_i, b_i);
+		attribute<ipoint> or_i  (G, polygon) := bitor (a_i, b_i);
+		attribute<ipoint> xor_i (G, polygon) := bitxor(a_i, b_i);
+		attribute<ipoint> int_i (G, polygon) := bp_intersect (a_i, b_i);
+		attribute<ipoint> uni_i (G, polygon) := bp_union     (a_i, b_i);
+		attribute<ipoint> dif_i (G, polygon) := bp_difference(a_i, b_i);
+		attribute<ipoint> sym_i (G, polygon) := bp_xor       (a_i, b_i);
+
+		attribute<fpoint> mul_f (G, polygon) := a_f * b_f;
+		attribute<fpoint> add_f (G, polygon) := a_f + b_f;
+		attribute<fpoint> sub_f (G, polygon) := a_f - b_f;
+		attribute<fpoint> pow_f (G, polygon) := a_f ^ b_f;
+		attribute<fpoint> and_f (G, polygon) := bitand(a_f, b_f);
+		attribute<fpoint> or_f  (G, polygon) := bitor (a_f, b_f);
+		attribute<fpoint> xor_f (G, polygon) := bitxor(a_f, b_f);
+		attribute<fpoint> int_f (G, polygon) := geos_intersect (a_f, b_f);
+		attribute<fpoint> uni_f (G, polygon) := geos_union     (a_f, b_f);
+		attribute<fpoint> dif_f (G, polygon) := geos_difference(a_f, b_f);
+		attribute<fpoint> sym_f (G, polygon) := geos_xor       (a_f, b_f);
+
+		attribute<dpoint> mul_d (G, polygon) := a_d * b_d;
+		attribute<dpoint> add_d (G, polygon) := a_d + b_d;
+		attribute<dpoint> sub_d (G, polygon) := a_d - b_d;
+		attribute<dpoint> pow_d (G, polygon) := a_d ^ b_d;
+		attribute<dpoint> and_d (G, polygon) := bitand(a_d, b_d);
+		attribute<dpoint> or_d  (G, polygon) := bitor (a_d, b_d);
+		attribute<dpoint> xor_d (G, polygon) := bitxor(a_d, b_d);
+		attribute<dpoint> int_d (G, polygon) := geos_intersect (a_d, b_d);
+		attribute<dpoint> uni_d (G, polygon) := geos_union     (a_d, b_d);
+		attribute<dpoint> dif_d (G, polygon) := geos_difference(a_d, b_d);
+		attribute<dpoint> sym_d (G, polygon) := geos_xor       (a_d, b_d);
+	}
+
 	container checks
 	{
+		// the composition of every result is polygon
+		parameter<bool> composition_s_ok :=
+			   PropValue(composition/mul_s, 'ValueComposition') == 'poly' && PropValue(composition/add_s, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sub_s, 'ValueComposition') == 'poly' && PropValue(composition/pow_s, 'ValueComposition') == 'poly'
+			&& PropValue(composition/and_s, 'ValueComposition') == 'poly' && PropValue(composition/or_s,  'ValueComposition') == 'poly'
+			&& PropValue(composition/xor_s, 'ValueComposition') == 'poly' && PropValue(composition/int_s, 'ValueComposition') == 'poly'
+			&& PropValue(composition/uni_s, 'ValueComposition') == 'poly' && PropValue(composition/dif_s, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sym_s, 'ValueComposition') == 'poly', IntegrityCheck = "composition_s_ok == true";
+		parameter<bool> composition_i_ok :=
+			   PropValue(composition/mul_i, 'ValueComposition') == 'poly' && PropValue(composition/add_i, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sub_i, 'ValueComposition') == 'poly' && PropValue(composition/pow_i, 'ValueComposition') == 'poly'
+			&& PropValue(composition/and_i, 'ValueComposition') == 'poly' && PropValue(composition/or_i,  'ValueComposition') == 'poly'
+			&& PropValue(composition/xor_i, 'ValueComposition') == 'poly' && PropValue(composition/int_i, 'ValueComposition') == 'poly'
+			&& PropValue(composition/uni_i, 'ValueComposition') == 'poly' && PropValue(composition/dif_i, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sym_i, 'ValueComposition') == 'poly', IntegrityCheck = "composition_i_ok == true";
+		parameter<bool> composition_f_ok :=
+			   PropValue(composition/mul_f, 'ValueComposition') == 'poly' && PropValue(composition/add_f, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sub_f, 'ValueComposition') == 'poly' && PropValue(composition/pow_f, 'ValueComposition') == 'poly'
+			&& PropValue(composition/and_f, 'ValueComposition') == 'poly' && PropValue(composition/or_f,  'ValueComposition') == 'poly'
+			&& PropValue(composition/xor_f, 'ValueComposition') == 'poly' && PropValue(composition/int_f, 'ValueComposition') == 'poly'
+			&& PropValue(composition/uni_f, 'ValueComposition') == 'poly' && PropValue(composition/dif_f, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sym_f, 'ValueComposition') == 'poly', IntegrityCheck = "composition_f_ok == true";
+		parameter<bool> composition_d_ok :=
+			   PropValue(composition/mul_d, 'ValueComposition') == 'poly' && PropValue(composition/add_d, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sub_d, 'ValueComposition') == 'poly' && PropValue(composition/pow_d, 'ValueComposition') == 'poly'
+			&& PropValue(composition/and_d, 'ValueComposition') == 'poly' && PropValue(composition/or_d,  'ValueComposition') == 'poly'
+			&& PropValue(composition/xor_d, 'ValueComposition') == 'poly' && PropValue(composition/int_d, 'ValueComposition') == 'poly'
+			&& PropValue(composition/uni_d, 'ValueComposition') == 'poly' && PropValue(composition/dif_d, 'ValueComposition') == 'poly'
+			&& PropValue(composition/sym_d, 'ValueComposition') == 'poly', IntegrityCheck = "composition_d_ok == true";
+
 		// spoint, through bp_
 		parameter<bool> mul_s_ok    := sum(float64(area(a_s * b_s))) == 2500.0 && sum(float64(area(bp_xor(a_s * b_s, bp_intersect(a_s, b_s))))) == 0.0, IntegrityCheck = "mul_s_ok == true";
 		parameter<bool> add_s_ok    := sum(float64(area(a_s + b_s))) == 21500.0 && sum(float64(area(bp_xor(a_s + b_s, bp_union(a_s, b_s))))) == 0.0, IntegrityCheck = "add_s_ok == true";
