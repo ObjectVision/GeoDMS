@@ -2,18 +2,22 @@
 // Convex hull of polygons with one ring each, found by repeatedly dropping
 // the corners where a ring turns inward.
 //
-// The template Simplify below is the script of the wiki page
+// The functions below are the script of the wiki page
 //   https://github.com/ObjectVision/GeoDMS/wiki/convex-hull-example-script
-// Each iteration takes the points of every ring and computes, from a point's
-// predecessor and successor, the sign of the cross product det: negative
-// where the ring turns right, zero where it goes straight on, positive where
-// it turns left. In a clockwise ring, the GeoDMS order for an exterior ring,
-// a left turn is a reflex corner, a dent in the shape, and the iteration
-// drops those points, which fills the dent. Dropping points can turn a
+// One step, DropReflexCorners, takes the points of every ring and computes,
+// from a point's predecessor and successor, the sign of the cross product
+// det: negative where the ring turns right, zero where it goes straight on,
+// positive where it turns left. In a clockwise ring, the GeoDMS order for an
+// exterior ring, a left turn is a reflex corner, a dent in the shape, and the
+// step drops those points, which fills the dent. Dropping points can turn a
 // neighbour into a reflex corner, as the bump in the third shape below
-// shows, so the step is repeated: Simplify(Shapes, 50) runs 50 iterations,
+// shows, so the step is repeated: container Simplified applies it 50 times,
 // many more than these shapes need. The points that remain form the convex
 // hull, including points that lie on a straight part of it.
+//
+// The repetition is configured where the hull is needed, with for_each_ne
+// and instantiate: a function body cannot contain for_each or an indirect
+// expression, so a function cannot repeat a step a given number of times.
 //
 // Limits: one ring per polygon, no holes, clockwise order; a counter-
 // clockwise ring would lose its convex corners instead. Dropping a corner
@@ -23,7 +27,7 @@
 // Run headless with:
 //   GeoDmsRun.exe C:\...\examples\convex_hull.dms /checks
 // or open it in the GeoDMS GUI and view Shapes/geometry_rd and
-// Simplified/MakeFinal/convex_hull in one map view.
+// Simplified/convex_hull in one map view.
 //////////////////////////////////////////////////////////////////////////////
 
 container convex_hull_example
@@ -57,95 +61,72 @@ container convex_hull_example
 		attribute<geometries/rdc> point := point_xy(x, y, geometries/rdc);
 	}
 
+	// ------------------------------------------------------------- functions
+
+	container lib
+	{
+		// One step: the points of the rings in seq, without the points where a ring turns left.
+		// seq holds the points of each ring in order, the first point of a ring once.
+		function DropReflexCorners(
+			unit<uint32> domain;
+			unit<uint32> seq { attribute<geometries/rdc> point; attribute<domain> sequence_rel; }
+		)
+		-> unit<uint32> := hull_points
+		{
+			attribute<uint32> first_id (domain) := min_index(id(seq), seq/sequence_rel);
+			attribute<uint32> last_id  (domain) := max_index(id(seq), seq/sequence_rel);
+
+			// the predecessor and the successor of each point within its ring, which is closed
+			attribute<uint32> prev_id (seq) := id(seq) == first_id[seq/sequence_rel] ? last_id[seq/sequence_rel]  : sub_or_null(id(seq), 1);
+			attribute<uint32> next_id (seq) := id(seq) == last_id[seq/sequence_rel]  ? first_id[seq/sequence_rel] : id(seq) + 1;
+
+			attribute<geometries/rdc> p (seq) := seq/point - seq/point[prev_id];
+			attribute<geometries/rdc> q (seq) := seq/point[next_id] - seq/point;
+			attribute<float32>        det (seq) := pointcol(p) * pointrow(q) - pointrow(p) * pointcol(q);
+
+			// keep the right turns and the straight parts, and drop a point that repeats its predecessor
+			unit<uint32> hull_points := select_with_org_rel(det <= 0f && seq/point != seq/point[prev_id])
+			{
+				attribute<geometries/rdc> point        := seq/point[hull_points/org_rel];
+				attribute<domain>         sequence_rel := seq/sequence_rel[hull_points/org_rel];
+			}
+		}
+
+		// The rings of the points in pts, each closed by repeating its first point.
+		function ClosedRings(
+			unit<uint32> domain;
+			unit<uint32> pts { attribute<geometries/rdc> point; attribute<domain> sequence_rel; }
+		)
+		-> attribute<geometries/rdc> (domain, poly) := rings
+		{
+			unit<uint32> with_endpoints := union_unit(pts, domain)
+			{
+				attribute<geometries/rdc> point        := union_data(with_endpoints, pts/point, first(pts/point, pts/sequence_rel));
+				attribute<domain>         sequence_rel := union_data(with_endpoints, pts/sequence_rel, id(domain));
+			}
+			attribute<geometries/rdc> rings (domain, poly) := points2polygon(with_endpoints/point, with_endpoints/sequence_rel);
+		}
+	}
+
 	// -------------------------------------------------------------- the hull
 
-	container Simplified := Simplify(Shapes, 50);  // domain and number of iterations
-
-	template Simplify
+	container Simplified
 	{
-	   // begin case parameters
-	   unit<uint32> iter_domain;
-	   parameter<uint32> nrIterations;
-	   // end case parameters
+		parameter<uint32> nrIterations := 50;
 
-	   unit<uint32> iter := range(uint32, 0, nrIterations)
-	   {
-	      attribute<string> name     := 'I' + string(id(.));
-	      attribute<string> PrevName := MakeDefined(name[sub_or_null(id(.), 1)], 'StartingState');
-	   }
+		// iteration i starts from the points that iteration i - 1 kept, the first one from the rings themselves
+		unit<uint32> iter := range(uint32, 0, nrIterations)
+		{
+			attribute<string> name     := 'I' + string(id(.));
+			attribute<string> PrevName := MakeDefined('Iters/' + name[sub_or_null(id(.), 1)] + '/hull_points', 'StartingState');
+		}
 
-	   container StartingState
-	   {
-	      unit<uint32> NextValue := sequence2points(iter_domain/geometry_rd);
-	   }
+		unit<uint32> StartingState := sequence2points(Shapes/geometry_rd);
 
-	   container Iters     := for_each_ne(iter/name, 'IterT('+iter/PrevName+', iter_domain)');
-	   container LastIter  := =last('Iters/'+iter/name);
+		container Iters    := for_each_ne(iter/name, 'instantiate lib/DropReflexCorners(Shapes, ' + iter/PrevName + ')');
+		container LastIter := = 'Iters/' + last(iter/name);
 
-	  template IterT
-	  {
-	       //  begin case parameters
-	       container PrevIterator;
-	       unit<uint32> domain;
-	       //  end case parameters
-
-	       unit<uint32>  PrevValue   := PrevIterator/NextValue;
-	       container     ConvexHullT := MakeConvexHullT(domain, PrevValue);
-	       unit<uint32>  NextValue   := ConvexHullT/sequence/Convex_hull_points;
-	  }
-
-	  container MakeFinal
-	   {
-	      unit <uint32> domain_with_endpoints := union_unit(LastIter/NextValue, iter_domain)
-	      {
-	         attribute<geometries/rdc> point :=
-	           union_data(., LastIter/NextValue/point, first(LastIter/NextValue/point, LastIter/NextValue/sequence_rel));
-	         attribute<uint32>         sequence_rel := union_data(., LastIter/NextValue/sequence_rel, id(iter_domain));
-	      }
-	      attribute<geometries/rdc> convex_hull (iter_domain, poly) :=
-	         points2polygon(domain_with_endpoints/point, domain_with_endpoints/sequence_rel);
-	    }
-
-	  template MakeConvexHullT
-	   {
-	       //  begin case parameters
-	        unit<uint32> domain;
-	        unit<uint32> seq;
-	       //  end case parameters
-
-	        unit<uint32> sequence := seq
-	        {
-	           attribute<geometries/rdc>  point              := seq/point;
-	           attribute<uint32>          sequence_rel       := seq/sequence_rel;
-
-	           attribute<uint32>          min_index (domain) := min_index(id(.), sequence_rel);
-	           attribute<uint32>          max_index (domain) := max_index(id(.), sequence_rel);
-
-	           attribute<bool>            IsFirst  := id(.) == min_index[sequence_rel];
-	           attribute<bool>            IsLast   := id(.) == max_index[sequence_rel];
-	           attribute<uint32>          prev_id  := IsFirst ? rjoin(sequence_rel, id(domain), max_index) : sub_or_null(id(.), 1);
-	           attribute<uint32>          next_id  := IsLast  ? rjoin(sequence_rel, id(domain), min_index) : id(.)+1;
-	           attribute<geometries/rdc>  A        := point[prev_id];
-	           attribute<geometries/rdc>  B        := point;
-	           attribute<geometries/rdc>  C        := point[next_id];
-	           attribute<geometries/rdc>  p        := B - A;
-	           attribute<geometries/rdc>  q        := C - B;
-
-	           attribute<float32>         Px       := pointcol(p);
-	           attribute<float32>         Py       := pointrow(p);
-	           attribute<float32>         Qx       := pointcol(q);
-	           attribute<float32>         Qy       := pointrow(q);
-
-	           attribute<float32>         det      := Px*Qy - Py*Qx;
-
-	           unit<uint32> Convex_hull_points :=
-	              select_with_org_rel(det <= 0f && (point != rjoin(prev_id, id(.), point)))
-	           {
-	              attribute<geometries/rdc> point        := ../point[org_rel];
-	              attribute<uint32>         sequence_rel := ../sequence_rel[org_rel];
-	           }
-	      }
-	   }
+		attribute<geometries/rdc> convex_hull (Shapes, poly) := lib/ClosedRings(Shapes, LastIter/hull_points);
 	}
 
 	// ----------------------------------------------------------------- checks
@@ -156,11 +137,11 @@ container convex_hull_example
 
 	container checks
 	{
-		unit<uint32> HullPoints := sequence2points(Simplified/MakeFinal/convex_hull);
+		unit<uint32> HullPoints := sequence2points(Simplified/convex_hull);
 
 		attribute<uint32>  nr_hull_points (Shapes) := pcount(HullPoints/sequence_rel);
 		attribute<float32> shape_area     (Shapes) := area(Shapes/geometry_rd, float32);
-		attribute<float32> hull_area      (Shapes) := area(Simplified/MakeFinal/convex_hull, float32);
+		attribute<float32> hull_area      (Shapes) := area(Simplified/convex_hull, float32);
 
 		attribute<uint32>  expected_nr_hull_points (Shapes) : [  5,   6,   7];
 		attribute<float32> expected_shape_area     (Shapes) : [ 80, 300,  89];
