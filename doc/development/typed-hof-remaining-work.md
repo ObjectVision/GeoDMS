@@ -11,7 +11,8 @@ data expression (section 1). The HOF code left `AbstrCalculator.cpp` in 821d1945
 `HofApplication.cpp`, `HofTypeChecker.cpp`, `HofClosure.cpp`, `HofOperSignatureInfer.cpp` and
 `MetaFuncApply.cpp` in `rtc/dll/src/tic`, and the typed-HOF part of `ConfigProd.cpp` went to
 `ConfigProd_functions.cpp` in 77ca72653; the code citations below name those files. The line numbers
-cited in the design documents were not re-checked.*
+cited in the design documents were not re-checked. On 2026-11-10 (#1342, #1343) the self-join collapse
+and six other rewrite rules that change the result for some data were removed; section 6 is updated.*
 
 De-duplicated across the three source dimensions (design docs, code markers, documented limits). "Done" work (the operator-signature interface / all shipped batches, typed `map`, partial application, anonymous functions, def-time typed walker, composite-result sweep, function-decl serializer) is excluded; the P4 "WP4.1 remainder not implemented" note in the design-doc intro is **stale** and dropped.
 
@@ -252,9 +253,9 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 Listed so the "remaining" set above isn't mistaken for exhaustive; none of these are planned work.
 
 - **Recursion is rejected** by the cycle guard; only bounded combinators / iteration are available (variadic folds with strictly-decreasing arity ARE allowed). *Design §11; `HofApplication.cpp` ("recursive function application is not supported").*
-- **`RewriteExpr.lsp` end-state is NOT an empty file (2026-07-18 ruling).** Residual normalizers legitimately stay: `Value→convert`, `min_elem`/`max_elem(_fast)` unary collapses, `pow _X 2..6` integer-literal fast paths, NlLater `BaseUnit`/`convert` fixups, `MakeDefined` idempotence, and the boolean/constant simplification algebra. *Design §8.4 (1617-1639), §5.15 (1810-1812).*
+- **`RewriteExpr.lsp` end-state is NOT an empty file (2026-07-18 ruling).** Residual normalizers legitimately stay: `Value→convert`, `min_elem`/`max_elem(_fast)` unary collapses, `pow _X 2..6` fast paths (they match a float literal exponent such as `2.0` only), NlLater `BaseUnit`/`convert` fixups, `MakeDefined` idempotence, and the boolean/constant simplification algebra. *Design §8.4 (1617-1639), §5.15 (1810-1812).*
 - **Pattern-destructuring definitional rules stay permanently** — `order` / `isOverlapping` / `median`-on-`interval` destructure syntactic nodes a function application would hide. *Design §8.4 (1570-1575, 1613-1621); `RewriteExpr.lsp:129-154`.*
-- **`rjoin` self-join collapse stays permanently** — `lookup(rlookup a a) c → c` fires only post-substitution; a prelude `rjoin` would break key identity (documented negative finding). *Design §8.4 (1644-1655).*
+- **The `rjoin` self-join collapse was removed (2026-11-10, #1342).** `lookup(rlookup a a) c → c` holds only for keys without duplicates and nulls. With it gone, the negative finding no longer applies: a prelude `rjoin` would key the same as the `rjoin` rule, which stays until someone retires it. The same commit removed `sum _X (id _E)`, `mul _X (div 1 _Y)` and the `uint32(x / x)` chain (#1343), which also change the result for some data. *Design §8.4 (1644-1655).*
 - **Walker symbols are `TokenID`, not `SharedStr` (2026-08-28 ruling, #1161).** `SignatureRecord::varRoles`,
   `ResultMember::path`, `ResultMemberSet::prefix`, `canon()`'s role vectors and the `DefType::members` maps all
   hold tokens; `MemberPathLess` is deleted -- token equality IS the tree's ASCII case fold, so the maps get their

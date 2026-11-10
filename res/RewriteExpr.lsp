@@ -277,6 +277,7 @@
 // don't aggregate over an id relation; assume that domain is compatible
 [(mean  _X (id _E)) _X]
 [(modus _X (id _E)) _X]
-[(sum   _X (id _E)) _X]
+/* sum(X, id(E)) is not X: sum adds the non-null values, so a group whose only value is null
+   gets 0, where mean and modus give null. */
 
 )

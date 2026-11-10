@@ -33,13 +33,16 @@ container rewrite_rules_sound
 	{
 		attribute<uint32> X: [10, 7, null, 0];
 		attribute<uint32> Y: [3, 2, 5, 0];
-		attribute<D>      Rel := id(.);
+		// a relation that equals id(.), spelled so that no rule reduces it to id(.): the rules see
+		// through item references, so Rel := id(.) would be rewritten as well
+		attribute<D>      Rel := value(uint32(id(.)) * 1, .);
 	}
 	attribute<uint32> DivSelf      (D) := uint32(div(D/X, D/X));
 	attribute<uint32> DivSelfPlusX (D) := uint32(div(D/X, D/X)) + D/X;
 
-	// sum, mean and modus over id(E) are replaced by X itself. That keeps the values: each group
-	// has one element, and a group whose only value is null gets null from all three.
+	// mean and modus over id(E) are replaced by X itself. That keeps the values: each group has one
+	// element, and a group whose only value is null gets null from both. sum(X, id(E)) became X too,
+	// but sum adds the non-null values, so such a group gets 0.
 	attribute<uint32> SumId    (D) := sum  (D/X, id(D));
 	attribute<uint32> SumRel   (D) := sum  (D/X, D/Rel);
 	attribute<uint32> MeanId   (D) := mean (D/X, id(D));
@@ -64,8 +67,8 @@ container rewrite_rules_sound
 		parameter<string> div_self        := asList(MakeDefined(string(DivSelf),      'null'), ' '), IntegrityCheck = "div_self == '1 1 null null'";
 		parameter<string> div_self_plus_x := asList(MakeDefined(string(DivSelfPlusX), 'null'), ' '), IntegrityCheck = "div_self_plus_x == '11 8 null null'";
 
-		parameter<string> sum_id    := asList(MakeDefined(string(SumId),    'null'), ' '), IntegrityCheck = "sum_id == '10 7 null 0'";
-		parameter<string> sum_rel   := asList(MakeDefined(string(SumRel),   'null'), ' '), IntegrityCheck = "sum_rel == '10 7 null 0'";
+		parameter<string> sum_id    := asList(MakeDefined(string(SumId),    'null'), ' '), IntegrityCheck = "sum_id == '10 7 0 0'";
+		parameter<string> sum_rel   := asList(MakeDefined(string(SumRel),   'null'), ' '), IntegrityCheck = "sum_rel == '10 7 0 0'";
 		parameter<string> mean_id   := asList(MakeDefined(string(MeanId),   'null'), ' '), IntegrityCheck = "mean_id == '10 7 null 0'";
 		parameter<string> mean_rel  := asList(MakeDefined(string(MeanRel),  'null'), ' '), IntegrityCheck = "mean_rel == '10 7 null 0'";
 		parameter<string> modus_id  := asList(MakeDefined(string(ModusId),  'null'), ' '), IntegrityCheck = "modus_id == '10 7 null 0'";

@@ -6,7 +6,9 @@ which the block below lists as not yet implemented, shipped in all its batches o
 2026-07-20 (c836a0310 to 4fb998d25; see `operator-signature-interface.md`). Since 07eaa3b61 (#1252)
 `f: function` and `-> function` are rejected: a function-valued parameter or result names a signature
 alias (`f: nuf<V, D>`), so the examples below that use them (sections 5.5 and 5.10) no longer parse.
-What is still open is listed in `typed-hof-remaining-work.md`. The file:line references predate the
+What is still open is listed in `typed-hof-remaining-work.md`. On 2026-11-10 (#1342, #1343) seven
+simplification rules of category D left `RewriteExpr.lsp` because they change the result for some
+data; §8.2 and §8.4 name them. The file:line references predate the
 split of `AbstrCalculator.cpp` and `TreeItem.cpp` by functional role (821d19459) and of the typed-HOF
 part of `ConfigProd.cpp` (77ca72653) and are not re-anchored. Until 2026-10-06 the next paragraph was
 the whole status. On 2026-10-06 the dead-code deletion (continuations B7) removed the evaluator behind `MG_USE_LISPFUNCS` and `MakeVarsOfUnderscores` (92e3a541e): where this document points at them as reference for WP3.2, read them in the parent of that commit. `sym/Prolog.cpp` and `Prolog.h`, deleted in the same commit, were restored the same day for further work on them. Since #1293 (2026-10-14) `combine_data` is no longer a prelude function but an operator in `clc/dll/src/OperUnit.cpp`, which checks its relations against the factors of the combined unit; where this document lists it among the prelude functions (sections 5.14 and 8), that is history.*
@@ -1552,7 +1554,7 @@ exact powers (comment at lines 55-59). The phase-out below generalizes that patt
 | **A. Definitional sugar** — fixed-arity algebraic/predicate/model definitions | `sqr`, `log₂`, `plogp`, `abs`, `pow _X 2..6` (46-54); `order`, `isOverlapping`, `median`, `*_or_*_null` family (123-161); `rescale`, `normalize`, `distribute`, `scalesum` (169-199); `llpart`, `ll1` (239-240); `rjoin`, `sort_str`, `reverse`, `reversed_id`, `combine_data` (244-259); `claim_*` (230-235); `replace_value` base, `MakeDefined` binary (219-222) | ~45 | **typed `inline` functions in a standard prelude** (§8.3); `claim_*` move out of the engine into model configs |
 | **B. Variadic normalization** — unary collapse + fold-left chains | `(add _a1)→_a1` etc. (62-70); n-ary `add/mul/or/and/MakeDefined/union` folds (72-77); `concat` (79-81); `replace_value`/`replace`/`combine_data`/`index`/`subindex` chains (223-259) | ~20 | **variadic operator registration** (`VariadicOperator` exists, `tic/Operator.h:316-329`) or parser-level canonicalization; with P3, expressible as `fold` |
 | **C. Control-flow sugar** | `switch`/`case` unrolling to `iif` chains incl. constant short-circuits (85-91) | 4 | **real variadic `switch` operator** with typed checking (all case values unify; conditions bool over one domain) |
-| **D. Simplification/optimization** — not definitions | boolean/constant algebra (95-113); `add _X 0`, `mul _X (div 1 _Y)` (203-205); `MakeDefined` idempotence (219); self-join elimination `lookup(rlookup a a)` (245); pseudo-aggregation eliminations incl. the type-unsafe `mean/sum/modus _X (id _E)` (266-277) | ~25 | **compiled-in typed simplifier pass** owned by the engine (not a user-editable data file); each rule fires only after its typing precondition (e.g. `UnifyDomain`) verifies — fixing the unsafe ones |
+| **D. Simplification/optimization** — not definitions | boolean/constant algebra (95-113); `add _X 0`, `mul _X (div 1 _Y)` (203-205); `MakeDefined` idempotence (219); self-join elimination `lookup(rlookup a a)` (245); pseudo-aggregation eliminations incl. the type-unsafe `mean/sum/modus _X (id _E)` (266-277). Removed on 2026-11-10 because they change the result for some data, which no typing precondition can check: the self-join elimination (#1342), `uint32 (div _V _V)` with the three rules that only matched its `(uint32 1)` (#1343), `mul _X (div 1 _Y)` and `sum _X (id _E)` | ~25 | **compiled-in typed simplifier pass** owned by the engine (not a user-editable data file); each rule fires only after its typing precondition (e.g. `UnifyDomain`) verifies — fixing the unsafe ones |
 | **E. Argument completion / bridging** | `Value→convert` (24); `const` reorder (25); `ReadValue→ReadArray` default (165); `collect_by_cond` per-`select_*` arg injection (29-42); ~~property accessors `name/Descr/…→PropValue`~~ (retired 2026-07-17 via §5.13 `item` parameters); `BaseUnit` fixups (116-119) | ~15 | **optional/default arguments** (`m_NrOptionalArgs` exists) + **typed overloads** (§5.7) — `collect_by_cond` dispatching on the select flavor is precisely overload resolution on a Σ-result type |
 
 ### 8.3 The key-identity hazard, and `inline` functions
@@ -1635,14 +1637,20 @@ rules/operators — need arity-aware head dispatch or optional args), `concat`/
 KEEPS simplifying rewrites (boolean shortcuts, the pseudo-aggregations over `id(x)`
 as partitioning, symbolic-constant removals, the MakeDefined collapse, the pow
 integer fast paths) and pseudo-functions (`switch`/`case`, `interval` with its
-`order`/`isOverlapping`/`median` destructurers).** Also staying, each with a
+`order`/`isOverlapping`/`median` destructurers).** A simplifying rewrite stays only if it gives the
+same result for every valid argument: on 2026-11-10 (#1342, #1343) the self-join
+collapse, `sum` over `id(x)`, `mul _X (div 1 _Y)` and the `uint32(x / x)` chain were
+removed for that reason, which leaves `mean` and `modus` over `id(x)` and the `add`/`sub`
+of 0. The pow fast paths match a float literal exponent only (`2.0`), because an
+integer literal is parsed as `(uint32 2)`; the note at the top of the rule file says how
+numbers in a pattern match. Also staying, each with a
 structural reason: the `collect_by_cond`/`select` injections (they destructure the
 select argument; the eventual replacement is overload resolution on the select
 result type — an operator-signature matter), `Value→convert` (a coercion alias the
 retained-rule technique itself leans on), the `min_elem`/`max_elem`(`_fast`) unary
 collapses (allow_extra_args groups — dispatch cannot fire), the NlLater
 `BaseUnit`/`convert` fixups (data compat), and `rjoin` (self-join collapse rule,
-below). `claim_divF32`/`claim_corrF32` are RuimteScanner model logic whose resolvent
+below, since removed). `claim_divF32`/`claim_corrF32` are RuimteScanner model logic whose resolvent
 bakes in the absolute path `/Classifications/OperatorType` — a prelude function
 cannot reference it (strict scope); the right home is a user `function` in the
 RuimteScanner configuration itself (needs coordination with that model's owners). Retired meanwhile: the six property accessors via
@@ -1669,7 +1677,10 @@ function — the boundary of the technique. The second is RESOLVED (§5.13):**
   c) → c` fires only when the two `rlookup` args are structurally identical, which
   only becomes true *after* substitution (`a` and `b` both bind the same key). A
   prelude `rjoin` would therefore key `rjoin(x, x, c)` as `lookup(rlookup(x,x), c)`
-  instead of the old `c` — a key-identity break. Stays.
+  instead of the old `c` — a key-identity break. Stays. Since #1342 (2026-11-10) the
+  self-join collapse is gone, because it held only for keys without duplicates and
+  nulls, so a prelude `rjoin` would now key the same as the rule and this reason no
+  longer holds.
 
 - **The property accessors need a *meta-reference* argument, which plain parameters
   don't pass** *(RESOLVED 2026-07-17 by §5.13's `item` parameter kind)*. `PropValue`
