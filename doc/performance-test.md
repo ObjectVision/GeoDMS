@@ -2089,11 +2089,11 @@ t810's `connect` (`Accessibility.dms:201`) is done within 29 s in all four runs.
 | `TA_rest_km10` | 43.48 | 29.93 | 30.26 | 30.63 | 30.30 | 43.58 |
 
 The `proximity` of `e5944a676` is 11 to 15 s slower per item than that of both 20.28.0 and `98974d5fa`, while
-`OperPot.cpp`, `Potential.cpp` and `Potential.h` are unchanged from `01feccd21` to `98974d5fa`; the two kept builds differ
-only in `Geo.dll`, `Shv.dll`, the exes and the Python modules. So it is that build's binary, presumably its code layout,
-not investigated further. `TA_attr` is 18 s faster since #1320 (its selection is `point_in_polygon`,
-`DataPreparation/ShapeData.dms:57`). Together these presumably explain t810's +18 s in the round of `e5944a676` against
-20.28.0 as well as its -24 s now.
+`OperPot.cpp`, `Potential.cpp` and `Potential.h` are unchanged from `01feccd21` to `98974d5fa`; the two kept builds
+differ only in `Geo.dll`, `Shv.dll`, the exes and the Python modules. So it is that build's binary: the place of
+`proximity`'s inner loop in `Geo.dll` (see the known cause below, 2026-11-10). `TA_attr` is 18 s faster since #1320 (its
+selection is `point_in_polygon`, `DataPreparation/ShapeData.dms:57`). Together these presumably explain t810's +18 s in
+the round of `e5944a676` against 20.28.0 as well as its -24 s now.
 
 ### Reading
 
@@ -2105,10 +2105,156 @@ not investigated further. `TA_attr` is 18 s faster since #1320 (its selection is
   `e5944a676` build. t405.3 and t641.1 had no A/B; t641.1 has a `connect` and a `connect_eq` in
   `main/BaseData/Afleiding_Winkelcentra.dms:45` and `:172`, not measured.
 
+## Results (OVSRV05), 20.29.0 at `6019e78bd`: `connect`, `connect_info` and `dist_info` take the candidate arcs nearest first (#1334, #1337)
+
+A local msbuild (Release x64, `all22.sln`) of `79909e365`, whose engine code is that of `6019e78bd`; the other two
+commits since `98974d5fa` touch only the export dialog and a skill. Against the previous round (`98974d5fa`, above) it adds
+only the nearest-first search of #1334: `SpatialIndex::VisitNearestFirst`, a best-first search over a heap of nodes and
+leaves, from which `IndexedArcProjectionHandle` takes the arcs of a point until the next one lies farther than the nearest
+so far. GeoDMS-Test at `5fb7780`. The round ran 2026-11-09 21:56 to 2026-11-10 00:52, threshold 60, put back to 95, no
+reuse. Report header 2:53:32 against 3:00:05 for `98974d5fa`; 27 of 27 `ok`, so the ties that may now give another
+SegmID, CutPoint, InArc or InSegm moved no regression result. Rows that move by more than 3 % and 3 s, wall time of the
+logs (`walltimes.py`):
+
+| test | `98974d5fa` | `6019e78bd` |
+|---|---|---|
+| t060 | 0:01:16 | 0:01:33 |
+| t405.2 | 0:16:49 | 0:14:03 |
+| t405.3 | 0:17:01 | 0:13:59 |
+| t410 | 0:03:52 | 0:02:23 |
+| t810 | 0:04:47 | 0:05:13 |
+
+Over all experiment logs 173.8 min against 180.4. t405.1 is 3:30 and 3:33: its `connect` went from 83 to 25 s (first
+progress line to writing the network), and the cold read of the OSM shapefiles, last read on 2026-11-06, took the gain.
+t060 is level in the A/B below. t641.1 and t641.2 are 50:27 and 50:36, 44:29 and 44:09.
+
+### Interleaved A/B: `98974d5fa` against `6019e78bd`, `.m`
+
+2026-11-10 00:55 to 04:41, X Y Y X, threshold 60, the inputs read once beforehand (`ab_1334_inputs.txt`), through
+`scratch\t2000_c\run_exp_peak.py` (`scratch\perf_ovsrv05\ab_1334nf.cmd`): X = `head_98974d5fa`, Y = `head_6019e78bd`;
+t2000 in an X Y Y X of its own right after. Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| t611 | 31 | 33 | 32 | 33 |
+| t710 | 64 | 62 | 62 | 62 |
+| t910 | 43 | 42 | 44 | 42 |
+| t060 | 78 | 80 | 79 | 79 |
+| t410 | 238 | 142 | 142 | 228 |
+| t720 | 432 | 427 | 426 | 426 |
+| t810 | 285 | 290 | 298 | 262 |
+| t405.1 | 253 | 153 | 153 | 215 |
+| t405.2 | 1018 | 816 | 822 | 1015 |
+| t2000 | 1024 | 981 | 1001 | 982 |
+
+The metrics of the `.json` results of t410, t611, t710, t720, t910 and t2000 are equal in all four runs, and so are the
+two tifs that t810 writes, byte for byte.
+
+- t410, 38 to 40 % faster, is the `connect_ne` of the 337 497 points in
+  `NetworkSetup/Base_Analysis/NetwerkSpec/CreateInitialWorkingNetwork/LinkSet`: four progress lines over 70 s in the round
+  of `98974d5fa`, none in this one.
+- t405.1: `road_segments_with_extra_nodes`, 616 nodes to roads cut by `arc2segm` into arcs of two points, the case the
+  run boxes could not help: 79 and 80 s on X, 20 and 21 s on Y from the first progress line to writing the network. X1 is
+  also 33 s slower before the `connect`, the first run after the warm-up.
+- t405.2, 20 % faster: the `connect` to `RoadNets_Org2Stop_W` of each region had a second progress line after 10 s on X
+  and ends within the first on Y, about 14 s per region over twelve regions. t405.3 has the same structure and gained 3:02
+  in the round; it had no A/B.
+- t2000 is level, one pair 43 s faster and the other 19 s slower.
+- t810 is slower on Y in both pairs: `proximity`, see below.
+
+t641.1 needs no A/B: the `connect` and `connect_eq` that #1337 named (`main/BaseData/Afleiding_Winkelcentra.dms:45` and
+`:172`) both lie in a block comment (lines 13 to 211 of that file), and the RSopen configuration has no other `connect`,
+`connect_info` or `dist_info`, includes counted.
+
+### Per item
+
+The items of the #1334 section, X Y Y X after a check run Y0, a cheap supplier first, seconds of the `Updating` line
+(`ab_1334nf.cmd`, `ab_1334nf_cc.cmd`); the statistics are equal in every run. The 2BURP items now ran in one process, so
+the first of them holds the reading of the inputs they share.
+
+| item | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| hestia `m100/connect/ArcID` | 0.50 | 0.20 | 0.20 | 0.51 |
+| hestia `m25/connect/ArcID` | 2.30 | 1.63 | 1.70 | 2.46 |
+| 2BURP `Lakes/Location2Lake_distInfo` | 2.70 | 2.01 | 2.00 | 2.62 |
+| 2BURP `Rivers/Location2River_distInfo` | 4.10 | 2.52 | 2.53 | 4.11 |
+| 2BURP `AllWater/Location2LargeInland_distInfo` | 13.7 | 11.1 | 11.2 | 13.4 |
+| 2BURP `AllWater/Location2AllInland_distInfo` | 26.8 | 23.6 | 23.6 | 26.6 |
+| t810 `DistToTown/ConnectedCurrentRoads/arc_rel` (`Accessibility.dms:201`) | 22.9 | 21.0 | 17.9 | 22.1 |
+
+On top of the run boxes, the nearest-first search gains a factor of 1.3 to 2.5 on hestia, the lakes and the rivers. The
+inland-water items hold about 10 s of converting the polygons to `SphericalMercator`, so their `dist_info` gains 2 to 3 s.
+
+### `connect_info_eq` on rings of 5 vertices (#1337, point 2)
+
+The probe of #1334 with rings of 5 vertices, a key in `Pt` (`i % 7`) and `Big` (`id % 7`), and beside `dist_info` and
+`connect_info` the forms `dist_info_eq(geom, Big/key, Pt/pt, Pt/key)` and `connect_info_eq(geom, Big/key, Pt/pt, Pt/key)`,
+which refuse six of the seven rings (`scratch\p1337\probe_connect5*.dms`, `ab_1337_eq*.cmd`). With 1 million points every
+item takes 0.34 s or less on OVSRV05, `connect_info` and `connect_info_eq` 0.31 to 0.34 s on both builds. With 10 million
+points, a check run Y0 and three pairs X Y Y X, twice (without and with `dist_info_eq`), seconds, lowest and highest per
+build; the statistics are equal in every run:
+
+| item | X | Y |
+|---|---|---|
+| `dist_info` | 0.69 to 0.72 | 0.46 to 0.47 |
+| `dist_info_eq` | 0.54 to 0.56 | 0.71 to 0.72 |
+| `connect_info` | 3.36 to 3.41 | 3.37 to 3.41 |
+| `connect_info_eq` | 3.34 to 3.40 | 3.39 to 3.46 |
+
+`dist_info_eq` is 30 % slower on Y in all three pairs, where `dist_info` is 34 % faster: with a filter that refuses the
+nearest arcs, each refused arc costs Y a step on the heap of `VisitNearestFirst`, the guess of #1337, not profiled.
+`connect_info_eq` is slower on Y in all six pairs, by 0.03 to 0.10 s, about 2 %; most of the 3.4 s of `connect_info` lies
+outside the search, since it does not move where `dist_info` gains 0.24 s.
+
+### t810: `proximity`, not #1334
+
+The two `proximity` items with a 201 x 201 kernel (`JrcFactorDataTempl.dms:785` and `:786`) take 42.8 to 45.6 s on Y and
+29.4 to 29.8 s on X (`ab_1334nf_ta.cmd`). It is the same effect as in the build of `e5944a676`, and its cause is the place
+of `proximity`'s inner loop in `Geo.dll`; see the known cause below.
+
+### Reading
+
+- Correct: 27 of 27, and every result of the A/Bs and the probe equal between the builds.
+- The nearest-first search makes t410 38 to 40 % faster, t405.2 20 %, t405.3 18 % in the round, and t405.1's `connect` to
+  the cut-up roads four times faster; the items of hestia and 2BURP gain another factor of 1.3 to 2.5. t2000 is level.
+- `dist_info_eq` with a filter that refuses most nearby arcs is 30 % slower on short arcs than with `98974d5fa`; no
+  regression experiment shows it.
+- t810's +26 s in the round is `proximity`'s loop in this link of `Geo.dll`, not #1334.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
 that a round is not bisected for a cause that is already known.
+
+## `proximity`: where the link of `Geo.dll` puts its inner loop
+
+Established on 2026-11-10 on OVSRV05 with eight kept builds; the mechanism is not measured.
+
+`proximity` goes to `CalculateClassic` (`geo/dll/src/Potential.cpp:669`), not to FFTW. Its inner loop,
+`MakeMax(*outputPtr, *dataPtr++ * *weightPtr++)` (`:725`), is 35 bytes of machine code in the Float32 form, with a
+compare and a branch that depend on the data and a store to `*outputPtr` on every raise. `OperPot.obj` and
+`Potential.obj` were last compiled on 2026-11-05 15:43, so the local builds of `e5944a676`, `98974d5fa` and `6019e78bd`
+link the same object code, and only the place of the loop in `Geo.dll` differs between them. The loop found by its bytes
+(`scratch\perf_ovsrv05\findloop.py`) and the two 201 x 201 items of t810, `TA_attr_km10` and `TA_rest_km10`, run twice
+per build in an interleaved order, seconds:
+
+| build | loop address mod 64 | `TA_attr_km10` | `TA_rest_km10` |
+|---|---|---|---|
+| 20.24.2 `0176bebdb` | 32 | 43.9, 42.5 | 42.9, 42.4 |
+| 20.25.0 `fec6efe90` | 48 | 43.0, 41.7 | 42.0, 41.9 |
+| 20.26.0 `f3c45bc70` | 16 | 29.7, 30.2 | 29.9, 29.6 |
+| 20.27.0 `02f9fc329` | 0 | 29.5, 29.5 | 30.2, 30.4 |
+| 20.28.0 `01feccd21` | 16 | 30.0, 31.8 | 30.3, 30.6 |
+| `e5944a676` | 32 | 42.5, 44.9 | 43.5, 43.6 |
+| `98974d5fa` | 0 | 29.4, 29.8 | 29.4, 29.7 |
+| `6019e78bd` | 32 | 42.8, 45.6 | 43.0, 45.6 |
+
+The four releases were predicted from their offsets before they were run (`scratch\perf_ovsrv05\ab_prox_layout.cmd`);
+the rows of 20.28.0 and `e5944a676` come from the A/B of 2026-11-06, the rest from 2026-11-10. A loop that starts at 32
+or 48 crosses a 64-byte boundary and an item takes 41.7 to 45.6 s; one that starts at 0 or 16 fits within it and an item
+takes 29.4 to 31.8 s. The statistics are equal in every run. So a t810 difference of 25 to 50 s between two builds can be
+nothing but this, whatever else changed, and any edit that moves code in `Geo.dll` can flip it. A loop that keeps the
+maximum in a local and stores it once per kernel row would presumably not depend on its place; not tried.
 
 ## FixedAlloc's free stacks: which sizes they keep, and since when
 
