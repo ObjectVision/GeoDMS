@@ -106,7 +106,7 @@ namespace {
 
 	BinaryPolyOperInstantiation<typelists::sint_points, poly_and>  sAndPoly(&cog_bitand), sMulPoly(&cog_mul), sIntersectPoly(&cogBpIntersect);
 	BinaryPolyOperInstantiation<typelists::sint_points, poly_or >  sOrPoly(&cog_bitor), sAddPoly(&cog_add), sUnionPoly(&cogBpUnion);
-	BinaryPolyOperInstantiation<typelists::sint_points, poly_xor>  sXOrPoly(&cog_pow), sBpSymmetricDifference(&cogBpSymmetricDifference);
+	BinaryPolyOperInstantiation<typelists::sint_points, poly_xor>  sBitXOrPoly(&cog_bitxor), sXOrPoly(&cog_pow), sBpSymmetricDifference(&cogBpSymmetricDifference); // cog_pow is the infix ^
 	BinaryPolyOperInstantiation<typelists::sint_points, poly_sub>  sSubPoly(&cog_sub), sBpDifference(&cogBpDifference);
 //	BinaryPolyOperInstantiation<typelists::sint_points, poly_eq>   sEqPoly (&cog_eq);
 //	BinaryPolyOperInstantiation<typelists::sint_points, poly_ne>   sEqPoly (&cog_ne);

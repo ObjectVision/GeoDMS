@@ -1,0 +1,71 @@
+// The infix operators *, +, - and ^ and the functions bitand, bitor and bitxor on two polygon
+// attributes. For spoint and ipoint they apply bp_intersect, bp_union, bp_difference and bp_xor,
+// for fpoint and dpoint geos_intersect, geos_union, geos_difference and geos_xor. Every form is
+// checked against the absolute area of its result and, by the area of the symmetric difference,
+// against the named operator it applies.
+//
+// The shapes are the square [0,100]^2 and an L of 2000, each against its own copy shifted by
+// (50, 50). The squares overlap in [50,100]^2 and the two L's do not meet, so the totals are:
+// intersection 2500, union 17500 + 4000 = 21500, difference 7500 + 2000 = 9500 and symmetric
+// difference 15000 + 4000 = 19000.
+container oper_polygon_infix
+{
+	unit<uint32> G   : nrofrows = 2;
+	unit<uint32> GPt : nrofrows = 12;
+
+	// two closed rings, both clockwise
+	attribute<int32>  gx   (GPt) : [ 0,   0, 100, 100, 0,   0,  0, 20, 20, 60, 60, 0 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100,   0, 0,   0, 60, 60, 20, 20,  0, 0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0, 0,   1, 1, 1, 1, 1, 1, 1 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3, 4,   0, 1, 2, 3, 4, 5, 6 ];
+	attribute<int32>  sx   (GPt) := gx + int32(50);
+	attribute<int32>  sy   (GPt) := gy + int32(50);
+
+	attribute<spoint> a_s (G, polygon) := points2polygon(point_xy(int16(gx), int16(gy), spoint), gseq, gord);
+	attribute<spoint> b_s (G, polygon) := points2polygon(point_xy(int16(sx), int16(sy), spoint), gseq, gord);
+	attribute<ipoint> a_i (G, polygon) := points2polygon(point_xy(gx, gy, ipoint), gseq, gord);
+	attribute<ipoint> b_i (G, polygon) := points2polygon(point_xy(sx, sy, ipoint), gseq, gord);
+	attribute<fpoint> a_f (G, polygon) := points2polygon(point_xy(float32(gx), float32(gy), fpoint), gseq, gord);
+	attribute<fpoint> b_f (G, polygon) := points2polygon(point_xy(float32(sx), float32(sy), fpoint), gseq, gord);
+	attribute<dpoint> a_d (G, polygon) := points2polygon(point_xy(float64(gx), float64(gy), dpoint), gseq, gord);
+	attribute<dpoint> b_d (G, polygon) := points2polygon(point_xy(float64(sx), float64(sy), dpoint), gseq, gord);
+
+	container checks
+	{
+		// spoint, through bp_
+		parameter<bool> mul_s_ok    := sum(float64(area(a_s * b_s))) == 2500.0 && sum(float64(area(bp_xor(a_s * b_s, bp_intersect(a_s, b_s))))) == 0.0, IntegrityCheck = "mul_s_ok == true";
+		parameter<bool> add_s_ok    := sum(float64(area(a_s + b_s))) == 21500.0 && sum(float64(area(bp_xor(a_s + b_s, bp_union(a_s, b_s))))) == 0.0, IntegrityCheck = "add_s_ok == true";
+		parameter<bool> sub_s_ok    := sum(float64(area(a_s - b_s))) == 9500.0 && sum(float64(area(bp_xor(a_s - b_s, bp_difference(a_s, b_s))))) == 0.0, IntegrityCheck = "sub_s_ok == true";
+		parameter<bool> pow_s_ok    := sum(float64(area(a_s ^ b_s))) == 19000.0 && sum(float64(area(bp_xor(a_s ^ b_s, bp_xor(a_s, b_s))))) == 0.0, IntegrityCheck = "pow_s_ok == true";
+		parameter<bool> bitand_s_ok := sum(float64(area(bitand(a_s, b_s)))) == 2500.0, IntegrityCheck = "bitand_s_ok == true";
+		parameter<bool> bitor_s_ok  := sum(float64(area(bitor (a_s, b_s)))) == 21500.0, IntegrityCheck = "bitor_s_ok == true";
+		parameter<bool> bitxor_s_ok := sum(float64(area(bitxor(a_s, b_s)))) == 19000.0, IntegrityCheck = "bitxor_s_ok == true";
+
+		// ipoint, through bp_
+		parameter<bool> mul_i_ok    := sum(float64(area(a_i * b_i))) == 2500.0 && sum(float64(area(bp_xor(a_i * b_i, bp_intersect(a_i, b_i))))) == 0.0, IntegrityCheck = "mul_i_ok == true";
+		parameter<bool> add_i_ok    := sum(float64(area(a_i + b_i))) == 21500.0 && sum(float64(area(bp_xor(a_i + b_i, bp_union(a_i, b_i))))) == 0.0, IntegrityCheck = "add_i_ok == true";
+		parameter<bool> sub_i_ok    := sum(float64(area(a_i - b_i))) == 9500.0 && sum(float64(area(bp_xor(a_i - b_i, bp_difference(a_i, b_i))))) == 0.0, IntegrityCheck = "sub_i_ok == true";
+		parameter<bool> pow_i_ok    := sum(float64(area(a_i ^ b_i))) == 19000.0 && sum(float64(area(bp_xor(a_i ^ b_i, bp_xor(a_i, b_i))))) == 0.0, IntegrityCheck = "pow_i_ok == true";
+		parameter<bool> bitand_i_ok := sum(float64(area(bitand(a_i, b_i)))) == 2500.0, IntegrityCheck = "bitand_i_ok == true";
+		parameter<bool> bitor_i_ok  := sum(float64(area(bitor (a_i, b_i)))) == 21500.0, IntegrityCheck = "bitor_i_ok == true";
+		parameter<bool> bitxor_i_ok := sum(float64(area(bitxor(a_i, b_i)))) == 19000.0, IntegrityCheck = "bitxor_i_ok == true";
+
+		// fpoint, through geos_
+		parameter<bool> mul_f_ok    := sum(float64(area(a_f * b_f))) == 2500.0 && sum(float64(area(geos_xor(a_f * b_f, geos_intersect(a_f, b_f))))) == 0.0, IntegrityCheck = "mul_f_ok == true";
+		parameter<bool> add_f_ok    := sum(float64(area(a_f + b_f))) == 21500.0 && sum(float64(area(geos_xor(a_f + b_f, geos_union(a_f, b_f))))) == 0.0, IntegrityCheck = "add_f_ok == true";
+		parameter<bool> sub_f_ok    := sum(float64(area(a_f - b_f))) == 9500.0 && sum(float64(area(geos_xor(a_f - b_f, geos_difference(a_f, b_f))))) == 0.0, IntegrityCheck = "sub_f_ok == true";
+		parameter<bool> pow_f_ok    := sum(float64(area(a_f ^ b_f))) == 19000.0 && sum(float64(area(geos_xor(a_f ^ b_f, geos_xor(a_f, b_f))))) == 0.0, IntegrityCheck = "pow_f_ok == true";
+		parameter<bool> bitand_f_ok := sum(float64(area(bitand(a_f, b_f)))) == 2500.0, IntegrityCheck = "bitand_f_ok == true";
+		parameter<bool> bitor_f_ok  := sum(float64(area(bitor (a_f, b_f)))) == 21500.0, IntegrityCheck = "bitor_f_ok == true";
+		parameter<bool> bitxor_f_ok := sum(float64(area(bitxor(a_f, b_f)))) == 19000.0, IntegrityCheck = "bitxor_f_ok == true";
+
+		// dpoint, through geos_
+		parameter<bool> mul_d_ok    := sum(area(a_d * b_d)) == 2500.0 && sum(area(geos_xor(a_d * b_d, geos_intersect(a_d, b_d)))) == 0.0, IntegrityCheck = "mul_d_ok == true";
+		parameter<bool> add_d_ok    := sum(area(a_d + b_d)) == 21500.0 && sum(area(geos_xor(a_d + b_d, geos_union(a_d, b_d)))) == 0.0, IntegrityCheck = "add_d_ok == true";
+		parameter<bool> sub_d_ok    := sum(area(a_d - b_d)) == 9500.0 && sum(area(geos_xor(a_d - b_d, geos_difference(a_d, b_d)))) == 0.0, IntegrityCheck = "sub_d_ok == true";
+		parameter<bool> pow_d_ok    := sum(area(a_d ^ b_d)) == 19000.0 && sum(area(geos_xor(a_d ^ b_d, geos_xor(a_d, b_d)))) == 0.0, IntegrityCheck = "pow_d_ok == true";
+		parameter<bool> bitand_d_ok := sum(area(bitand(a_d, b_d))) == 2500.0, IntegrityCheck = "bitand_d_ok == true";
+		parameter<bool> bitor_d_ok  := sum(area(bitor (a_d, b_d))) == 21500.0, IntegrityCheck = "bitor_d_ok == true";
+		parameter<bool> bitxor_d_ok := sum(area(bitxor(a_d, b_d))) == 19000.0, IntegrityCheck = "bitxor_d_ok == true";
+	}
+}
