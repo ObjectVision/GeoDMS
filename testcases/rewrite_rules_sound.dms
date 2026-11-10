@@ -1,0 +1,74 @@
+// res/RewriteExpr.lsp held rules that replaced an expression by a cheaper one that gives other
+// values for some inputs (#1342, #1343). Each check below compares an expression that such a
+// rule matched, or that a remaining rule matches, with the values the operators give: a rule
+// that changes the result of the expression it replaces fails its check.
+container rewrite_rules_sound
+{
+	// lookup(rlookup(a, a), c) gave c itself (#1342). rlookup(a, a) gives the first row with an
+	// equal value, and null for a null value, so a lookup through it gives c of that first row.
+	unit<uint32> T: nrofrows = 5
+	{
+		attribute<uint32> K: [7, 8, 7, 9, 8];
+		attribute<uint32> V: [10, 20, 30, 40, 50];
+	}
+	attribute<T>      FirstRow (T) := rlookup(T/K, T/K);
+	attribute<uint32> ByIndex  (T) := T/V[FirstRow];
+	attribute<uint32> ByLookup (T) := lookup(FirstRow, T/V);
+	attribute<uint32> ByRjoin  (T) := rjoin(T/K, T/K, T/V);
+
+	unit<uint32> N: nrofrows = 3
+	{
+		attribute<uint32> K: [7, null, 9];
+		attribute<uint32> V: [10, 20, 30];
+	}
+	attribute<uint32> NullByIndex (N) := N/V[rlookup(N/K, N/K)];
+
+	// uint32(x / x) gave the parameter uint32(1) (#1343). A division by 0 gives null, so does a
+	// division of null by null, and x / x of an attribute is an attribute.
+	parameter<uint32> Hundred := 100;
+	parameter<uint32> Zero    := 0;
+	parameter<uint32> Null    := null_u;
+
+	unit<uint32> D: nrofrows = 4
+	{
+		attribute<uint32> X: [10, 7, null, 0];
+		attribute<uint32> Y: [3, 2, 5, 0];
+		attribute<D>      Rel := id(.);
+	}
+	attribute<uint32> DivSelf      (D) := uint32(div(D/X, D/X));
+	attribute<uint32> DivSelfPlusX (D) := uint32(div(D/X, D/X)) + D/X;
+
+	// sum, mean and modus over id(E) are replaced by X itself. That keeps the values: each group
+	// has one element, and a group whose only value is null gets null from all three.
+	attribute<uint32> SumId    (D) := sum  (D/X, id(D));
+	attribute<uint32> SumRel   (D) := sum  (D/X, D/Rel);
+	attribute<uint32> MeanId   (D) := mean (D/X, id(D));
+	attribute<uint32> MeanRel  (D) := mean (D/X, D/Rel);
+	attribute<uint32> ModusId  (D) := modus(D/X, id(D));
+	attribute<uint32> ModusRel (D) := modus(D/X, D/Rel);
+
+	container checks
+	{
+		attribute<T>      FirstRowExpected (T): [0, 1, 0, 3, 1];
+		attribute<uint32> LookupExpected   (T): [10, 20, 10, 40, 20];
+
+		parameter<bool> first_row  := all(FirstRow == FirstRowExpected), IntegrityCheck = "first_row == true";
+		parameter<bool> by_index   := all(ByIndex  == LookupExpected),   IntegrityCheck = "by_index == true";
+		parameter<bool> by_lookup  := all(ByLookup == LookupExpected),   IntegrityCheck = "by_lookup == true";
+		parameter<bool> by_rjoin   := all(ByRjoin  == LookupExpected),   IntegrityCheck = "by_rjoin == true";
+		parameter<bool> null_key   := all(IsNull(NullByIndex) == IsNull(N/K)), IntegrityCheck = "null_key == true";
+
+		parameter<uint32> hundred_self := uint32(Hundred / Hundred), IntegrityCheck = "hundred_self == 1";
+		parameter<uint32> zero_self    := uint32(Zero / Zero),       IntegrityCheck = "IsNull(zero_self)";
+		parameter<uint32> null_self    := uint32(Null / Null),       IntegrityCheck = "IsNull(null_self)";
+		parameter<string> div_self        := asList(MakeDefined(string(DivSelf),      'null'), ' '), IntegrityCheck = "div_self == '1 1 null null'";
+		parameter<string> div_self_plus_x := asList(MakeDefined(string(DivSelfPlusX), 'null'), ' '), IntegrityCheck = "div_self_plus_x == '11 8 null null'";
+
+		parameter<string> sum_id    := asList(MakeDefined(string(SumId),    'null'), ' '), IntegrityCheck = "sum_id == '10 7 null 0'";
+		parameter<string> sum_rel   := asList(MakeDefined(string(SumRel),   'null'), ' '), IntegrityCheck = "sum_rel == '10 7 null 0'";
+		parameter<string> mean_id   := asList(MakeDefined(string(MeanId),   'null'), ' '), IntegrityCheck = "mean_id == '10 7 null 0'";
+		parameter<string> mean_rel  := asList(MakeDefined(string(MeanRel),  'null'), ' '), IntegrityCheck = "mean_rel == '10 7 null 0'";
+		parameter<string> modus_id  := asList(MakeDefined(string(ModusId),  'null'), ' '), IntegrityCheck = "modus_id == '10 7 null 0'";
+		parameter<string> modus_rel := asList(MakeDefined(string(ModusRel), 'null'), ' '), IntegrityCheck = "modus_rel == '10 7 null 0'";
+	}
+}

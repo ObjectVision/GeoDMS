@@ -16,6 +16,17 @@
    _P: Partitioner
    _s: Partition restriction
 
+   A number in this file is read as a float64 atom. In an expression, a float literal such as
+   1.0 is also a float64 atom, so a pattern with a bare number matches it, but an integer
+   literal such as 1 arrives as (uint32 n) around a uint64 atom, which no number in this file
+   matches: (uint32 1) in a pattern only matches a (uint32 1) that another rule's resolvent
+   produced.
+
+   A rule replaces an expression whatever its arguments are. It must give the same values,
+   nulls, domain and values unit as the expression it replaces for every argument for which
+   that expression is valid; an identity that holds only for some values (a key without
+   duplicates, a nonzero divisor) is not a rewrite rule.
+
 */
 (
 
@@ -66,7 +77,8 @@
 [(pow _X 4)                 (mul (mul _X _X) (mul _X _X))]
 [(pow _X 5)                 (mul _X (pow _X 4))]
 [(pow _X 6)                 (mul (mul _X _X) (pow _X 4))]
-/* These integer-literal fast paths keep unit-aware exact powers (e.g. length^2 -> length^2).
+/* These fast paths match a float literal exponent (2.0 .. 6.0; an integer literal arrives as
+   (uint32 2) and goes to the pow operator) and keep unit-aware exact powers (e.g. length^2 -> length^2).
    All other a^b cases (float/runtime/fractional exponents) are handled by the first-class
    pow operator (issue #839, clc/OperAttrBin.cpp); the old catch-all rewrite
    [(pow _X _Y) (exp (mul (log _X) _Y))] is removed because it yielded Null for any
@@ -180,7 +192,9 @@
 
 [(add _X 0)          _X]
 [(sub _X 0)          _X]
-[(mul _X (div 1 _Y)) (div _X _Y)]
+/* No rule turns X * (1.0 / Y) into X / Y: 1.0 / Y is valid only for a float64 Y, and for an
+   integer Y the rewrite made X * (1.0 / Y) the truncating integer division X / Y, where
+   (1.0 / Y) * X fails. */
 
 /*********** Properties        *********/
 
@@ -230,7 +244,9 @@
 /*********** Relational funcs ***********/
 
 [(rjoin _a _b _c)            (lookup (rlookup _a _b) _c)]
-[(lookup (rlookup _a _a) _c) _c]
+/* lookup(rlookup(a, a), c) is not c: rlookup(a, a) gives each row the first row with an equal
+   value, and null where a is null, so the lookup equals c only where a is unique and
+   defined (#1342). */
 /* sort_str, reversed_id and reverse retired to the typed prelude
    (res/prelude.dms, WP4.5 tranche 3) */
 /* the multi-argument index and subindex fold rules are DELETED (2026-07-18): they
@@ -250,11 +266,11 @@
 
 /*********** Rewrites for pseudo-aggregations ***********/
 
-[(uint32 (div _V _V)) (uint32 1)]                                   // rewrite gridverhouding for 100m
-[(div (pointrow _GRIDIDS) (convert (uint32 1) _PRU)) (pointrow _GRIDIDS)] // rewrite pseudo divide
-[(div (pointcol _GRIDIDS) (convert (uint32 1) _PRU)) (pointcol _GRIDIDS)] // rewrite pseudo divide
-
-[(div _X (uint32 1)) _X] // rewrite calculation of #cells of gridset
+/* uint32(x / x) is not uint32(1): a division by 0 gives null, and so does null / null, and
+   x / x of an attribute is an attribute (#1343). The rules for pointrow(g) / convert(1, u),
+   pointcol(g) / convert(1, u) and x / uint32(1) only matched the (uint32 1) that the
+   uint32(x / x) rule produced, never a literal 1 (see the note at the top), so they have no
+   use without it. */
 
 [(convert (id _E) _E) (id _E)]
 

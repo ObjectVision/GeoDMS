@@ -1,0 +1,18 @@
+// res/RewriteExpr.lsp had the rule [(mul _X (div 1 _Y)) (div _X _Y)]. A bare number in a rule
+// matches a float literal, so it turned X * (1.0 / Y) into X / Y. For an integer Y, 1.0 / Y has no
+// operator, and (1.0 / Y) * X failed, but X * (1.0 / Y) gave the truncating integer division
+// X / Y. Without the rule both spellings fail the same way.
+// Expected: exit nonzero on /checks.
+container rewrite_mul_inv_int_neg
+{
+	unit<uint32> D: nrofrows = 2
+	{
+		attribute<uint32> X: [10, 7];
+		attribute<uint32> Y: [3, 2];
+	}
+
+	container checks
+	{
+		parameter<uint32> total := sum(D/X * (1.0 / D/Y));
+	}
+}
