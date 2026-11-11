@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use GeoDMS in your work, please cite it using the metadata in this file, and name the GeoDMS version you used."
+type: software
+title: "GeoDMS: Geographic Data & Model Software"
+abstract: "GeoDMS is an open-source platform for spatial models that calculate with large grid, vector and attribute data, such as discrete allocation of land use under capacity restrictions and accessibility with impedance matrices and network assignment. A model is a set of plain-text configuration files that declare every result as an expression over source data; a multi-threaded C++ engine calculates what is requested, checks units and domains, and shows how any result was derived."
+authors:
+  - name: "Object Vision B.V."
+    city: Amsterdam
+    country: NL
+    website: "https://www.objectvision.nl"
+license: GPL-3.0-or-later
+repository-code: "https://github.com/ObjectVision/GeoDMS"
+url: "https://geodms.nl"
+keywords:
+  - spatial modelling
+  - land-use modelling
+  - discrete allocation
+  - accessibility
+  - network analysis
+  - raster
+  - planning support system
