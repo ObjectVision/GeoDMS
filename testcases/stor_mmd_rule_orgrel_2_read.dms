@@ -9,7 +9,8 @@
 //
 // The `file_` checks pin what the store holds as data and what as a rule. ExistingFile(a, b) gives
 // b when that file exists and a otherwise, both expanded to full paths, so two calls with different
-// fallbacks agree exactly when b exists.
+// fallbacks agree exactly when b exists. The data file of an item is its path below the store folder with the
+// extension .mmddata (#1349): dom/w_out is the file dom/w_out.mmddata.
 container stor_mmd_rule_orgrel_2_read
 {
 	function HasFile(parameter<string> path) -> parameter<bool>
@@ -43,18 +44,18 @@ container stor_mmd_rule_orgrel_2_read
 		parameter<string> root := '%LocalDataDir%/GeoDmsTestcases/';
 
 		// materialised: a data file each
-		parameter<bool> file_arrow_v     := HasFile(root + 'stor_mmd_rule_orgrel_arrow.mmd/v'),             IntegrityCheck = "file_arrow_v == true";
-		parameter<bool> file_orgrel_i    := HasFile(root + 'stor_mmd_rule_orgrel_only.mmd/i'),              IntegrityCheck = "file_orgrel_i == true";
-		parameter<bool> file_copied_v    := HasFile(root + 'stor_mmd_rule_orgrel_copied.mmd/v'),            IntegrityCheck = "file_copied_v == true";
-		parameter<bool> file_cond_v      := HasFile(root + 'stor_mmd_rule_orgrel_cond.mmd/v'),              IntegrityCheck = "file_cond_v == true";
-		parameter<bool> file_dom_w_out   := HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/w_out'),   IntegrityCheck = "file_dom_w_out == true";
+		parameter<bool> file_arrow_v     := HasFile(root + 'stor_mmd_rule_orgrel_arrow.mmd/v.mmddata'),             IntegrityCheck = "file_arrow_v == true";
+		parameter<bool> file_orgrel_i    := HasFile(root + 'stor_mmd_rule_orgrel_only.mmd/i.mmddata'),              IntegrityCheck = "file_orgrel_i == true";
+		parameter<bool> file_copied_v    := HasFile(root + 'stor_mmd_rule_orgrel_copied.mmd/v.mmddata'),            IntegrityCheck = "file_copied_v == true";
+		parameter<bool> file_cond_v      := HasFile(root + 'stor_mmd_rule_orgrel_cond.mmd/v.mmddata'),              IntegrityCheck = "file_cond_v == true";
+		parameter<bool> file_dom_w_out   := HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/w_out.mmddata'),   IntegrityCheck = "file_dom_w_out == true";
 
 		// kept as a rule (#1264): no data file. dom/rel_out names Src, a unit outside the store, which
 		// since GeoDMS 20.25.0 (#1318) keeps it a rule; this reader declares Src, so the rule resolves.
-		parameter<bool> file_dom_rel_out := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/rel_out')), IntegrityCheck = "file_dom_rel_out == true";
-		parameter<bool> file_tab_x       := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/tab/x')),      IntegrityCheck = "file_tab_x == true";
-		parameter<bool> file_dom_rel_in  := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/rel_in')), IntegrityCheck = "file_dom_rel_in == true";
-		parameter<bool> file_dom_w_in    := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/w_in')),   IntegrityCheck = "file_dom_w_in == true";
-		parameter<bool> file_dom_twice   := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/twice')),  IntegrityCheck = "file_dom_twice == true";
+		parameter<bool> file_dom_rel_out := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/rel_out.mmddata')), IntegrityCheck = "file_dom_rel_out == true";
+		parameter<bool> file_tab_x       := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/tab/x.mmddata')),      IntegrityCheck = "file_tab_x == true";
+		parameter<bool> file_dom_rel_in  := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/rel_in.mmddata')), IntegrityCheck = "file_dom_rel_in == true";
+		parameter<bool> file_dom_w_in    := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/w_in.mmddata')),   IntegrityCheck = "file_dom_w_in == true";
+		parameter<bool> file_dom_twice   := not(HasFile(root + 'stor_mmd_rule_orgrel_lookups.mmd/dom/twice.mmddata')),  IntegrityCheck = "file_dom_twice == true";
 	}
 }

@@ -1,0 +1,39 @@
+// An MMD item that changes between attribute and container under one name (issue #1349). Up to 20.28 the data
+// file of dom/a/b was dom\a\b in the store folder, so a rewrite that made the attribute dom/a a container needed
+// the name dom\a as a folder while the earlier write had left a file there: the write failed with "The system
+// cannot find the path specified" after the dictionary had been replaced. The other way round, the folder dom\a
+// was moved aside as if it were a file, which cost six retries of a second each and left the folder behind.
+// Since #1349 every data file has the extension .mmddata (dom/a.mmddata, dom/a/b.mmddata), and no item name
+// contains a dot, so the file of the attribute dom/a is never in the way of the folder dom/a of the container.
+//
+// Three configs, run in this order because run_testcases.ps1 walks them sorted by file name:
+//   _1_write     c4 with the attribute dom/a, c5 with the container dom/a and its attribute dom/a/b
+//   _2_rewrite   the same two stores, with the kinds swapped
+//   _3_read      reads both back and checks the names of their files
+container stor_mmd_kindchange_1_write
+{
+	unit<uint32> Src : nrofrows = 4 { attribute<uint64> v := uint64(id(.)) * 10[uint64] + 7[uint64]; } // 7 17 27 37
+
+	container c4 : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_kindchange_c4.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<Src>    rel := id(.)[Src];
+			attribute<uint64> a   := rel -> v;
+		}
+	}
+
+	container c5 : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_kindchange_c5.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<Src> rel := id(.)[Src];
+			container a
+			{
+				attribute<uint64> b (dom) := rel -> v;
+			}
+		}
+	}
+
+	parameter<string> write := 'Ready', ExplicitSuppliers = "c4;c5";
+}

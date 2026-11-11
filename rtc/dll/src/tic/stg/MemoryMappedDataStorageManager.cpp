@@ -31,6 +31,8 @@
 #include "utl/splitPath.h"
 #include "xml/XMLOut.h"
 
+#include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR: GeoDms 21 no longer reads data files without extension (#1349)
+
 #include "AbstrCalculator.h" // #1264: the rule's suppliers and IsDataBlock/IsStorageRead
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -376,13 +378,47 @@ SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 	return DelimitedConcat(GetNameStr().c_str(), MakeFileName(name).c_str());
 }
 
+SharedStr MmdStorageManager::GetDataFileName(CharPtrRange relItemName) const
+{
+	return MakeStoreDataFileName(GetNameStr(), relItemName);
+}
+
+SharedStr MmdStorageManager::FindDataFileName(CharPtrRange relItemName, bool warn) const
+{
+	auto storeFolder = GetNameStr();
+	auto fileName = MakeStoreDataFileName(storeFolder, relItemName);
+	if (IsFileOrDirAccessible(fileName))
+		return fileName;
+
+#if DMS_VERSION_MAJOR < 21
+	// a folder under that name holds the items of a container, and is no data file
+	auto unsuffixedName = MakeStoreUnsuffixedFileName(storeFolder, relItemName);
+	if (!IsExistingRegularFile(unsuffixedName))
+		return fileName;
+	if (warn && !m_UnsuffixedReported.exchange(true))
+		reportF(SeverityTypeID::ST_Warning,
+			"Deprecated: MMD storage {} was written by GeoDMS 20.28 or earlier, which named a data file after its item without an extension; "
+			"{} is read from {} instead of {}. Write the storage again to convert it: a write gives each data file the extension {} "
+			"and removes the file without it. GeoDms 21 will not read data files without the extension. "
+			"This warning is given once per storage per session."
+			, storeFolder.c_str(), SharedStr(relItemName).c_str(), unsuffixedName.c_str(), fileName.c_str(), STORE_DATA_FILE_EXTENSION);
+	return unsuffixedName;
+#else
+	return fileName;
+#endif
+}
+
 FileDateTime MmdStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const
 {
 	if (DoesExist(storageHolder)) // TODO: lock this file from here on.
 	{
-		m_FileTime = GetFileOrDirDateTime(GetFullFileName(path));
+		// a data file, or else, for a unit or container, the folder of its items, as in DoCheckExistence (#1349)
+		auto fileName = *path ? FindDataFileName(CharPtrRange(path, StrLen(path)), false) : GetFullFileName(path);
+		if (!IsFileOrDirAccessible(fileName))
+			fileName = GetFullFileName(path);
+		m_FileTime = GetFileOrDirDateTime(fileName);
 	}
-	return m_FileTime; 
+	return m_FileTime;
 }
 
 bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
@@ -390,8 +426,11 @@ bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const Tr
 	if (!storageItem)
 		return AbstrStorageManager::DoCheckExistence(storageHolder, storageItem);
 
+	// a unit or container below the holder is the folder of its items, which has no extension (#1349)
 	auto relName = storageItem->GetRelativeName(storageHolder);
-	return IsFileOrDirAccessible(GetFullFileName(relName.c_str()));
+	if (relName.empty() || !IsDataItem(storageItem))
+		return IsFileOrDirAccessible(GetFullFileName(relName.c_str()));
+	return IsFileOrDirAccessible(FindDataFileName(relName.AsRange(), false));
 }
 
 void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
@@ -882,7 +921,7 @@ void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, 
 	auto relName = adi->GetRelativeName(storageHolder);
 	if (relName.empty())
 		relName = SharedStr("@main"); // the same name DataWriteLock gives the holder itself
-	auto fileName = DelimitedConcat(GetNameStr().c_str(), relName.c_str());
+	auto fileName = GetDataFileName(relName.AsRange()); // #1349: with the extension
 
 	{
 		// m_CriticalSection is a binary_semaphore, not recursive, and OpenForWrite asserts that the

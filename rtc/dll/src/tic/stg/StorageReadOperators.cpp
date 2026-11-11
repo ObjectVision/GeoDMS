@@ -427,7 +427,9 @@ void MapMember(storage_read_request& req, storage_read_member& m)
 	auto relName = m.m_ConfigItem->GetRelativeName(req.m_Holder.get());
 	if (relName.empty())
 		relName = SharedStr("@main");
-	auto fileName = DelimitedConcat(sm->GetNameStr().AsRange(), relName.AsRange());
+	auto mmd = dynamic_cast<MmdStorageManager*>(sm);
+	MG_CHECK(mmd); // the only manager whose members are mapped
+	auto fileName = mmd->FindDataFileName(relName.AsRange()); // #1349: with the extension, or without, as 20.28 and earlier wrote it
 	if (!IsFileOrDirAccessible(fileName))
 	{
 		// #1298: an array gets its file only when its write has finished, so a missing file is also what a failed
@@ -449,8 +451,7 @@ void MapMember(storage_read_request& req, storage_read_member& m)
 		}
 	}
 	auto avu = AbstrValuesUnit(cacheItem);
-	auto mmd = dynamic_cast<MmdStorageManager*>(sm);
-	auto fh = OpenFileData(cacheItem, avu ? avu->GetTiledRangeData().get() : nullptr, fileName, mmd ? mmd->GetStoreLockForRead() : nullptr);
+	auto fh = OpenFileData(cacheItem, avu ? avu->GetTiledRangeData().get() : nullptr, fileName, mmd->GetStoreLockForRead());
 	if (!fh)
 	{
 		cacheItem->Fail("Cannot open data in .MMD storage folder", FailType::Data);

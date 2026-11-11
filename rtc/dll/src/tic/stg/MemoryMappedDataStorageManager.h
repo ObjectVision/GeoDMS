@@ -10,6 +10,7 @@
 #define __STG_MMD_STORAGEMANAGER_H
 
 
+#include <atomic>
 #include <map>
 #include <set>
 #include <string>
@@ -49,6 +50,16 @@ public:
 	using base_type = AbstrStorageManager;
 
 	SharedStr GetFullFileName(CharPtr name) const;
+
+	// #1349: the data file of the item at relItemName, the path relative to the holder ("@main" for the
+	// holder itself), with the extension .mmddata (MakeStoreDataFileName). A write always uses that name.
+	SharedStr GetDataFileName(CharPtrRange relItemName) const;
+
+	// #1349: the file a read maps: the name with the extension, or, when only a write of GeoDMS 20.28 or
+	// earlier has the item, its name without, which gives a deprecation warning once per store and session.
+	// The name with the extension when neither exists, so that the missing-file message names the file a write makes.
+	// An existence or file-time check passes warn = false: only the read that maps the file warns.
+	SharedStr FindDataFileName(CharPtrRange relItemName, bool warn = true) const;
 
 	// #587: an attribute of the store is read by mapping its file, as storage_read_attr / storage_read_value
 	bool SupportsReadOperator() const override { return true; }
@@ -156,6 +167,9 @@ protected:
 
 	// #1318: see NoteRuleUnits; per rule-only item, so that a decision taken again replaces the earlier one
 	std::map<const TreeItem*, std::vector<std::weak_ptr<const TreeItem>>> m_RuleUnits;
+
+	// #1349: set by the first read of this store that falls back on a file without extension; see FindDataFileName
+	mutable std::atomic<bool> m_UnsuffixedReported = false;
 
 	DECL_RTTI(, StorageClass)
 };

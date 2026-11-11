@@ -319,14 +319,13 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 				// MMD arm of TreeItem::PrepareDataUsage.
 				if (!configItem->IsMmdRuleOnly())
 				{
-					auto fsn = sm->GetNameStr();
 					auto rn = configItem->GetRelativeName(sp.get());
 					if (rn.empty())
 					{
 						rn = "@main";
 					}
 
-					auto fn = DelimitedConcat(fsn, rn);
+					auto fn = mmd->GetDataFileName(rn.AsRange()); // #1349: with the extension
 					// #1298: written under a temporary name, which Commit replaces by fn (FileTileArray::FinishWrite)
 					reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear, mmd->GetStoreLockForWrite()).release());
 					mmd->NoteWriteThrough(configItem.get(), adi); // #1318: what lets MaterializeSharedContent tell a written file from a missing one

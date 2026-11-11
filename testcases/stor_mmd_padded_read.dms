@@ -17,6 +17,9 @@
 // largest tile (reg/b is 3 * 4096 + 1 bytes), an irregular one each tile to its own pages (irr/b is 2 * 4096 + 3).
 // The values compare element by element, because a reader that took the padding for the layout would find the
 // right count and the wrong values from the second tile on.
+//
+// The store also has the file names of 20.28 and earlier, reg/b without extension, where a write since #1349 names
+// the file reg/b.mmddata. So this case also pins that such a store is still read, with a deprecation warning.
 container stor_mmd_padded_read
 {
 	container store

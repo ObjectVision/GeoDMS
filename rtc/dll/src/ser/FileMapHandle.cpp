@@ -24,6 +24,7 @@
 #include "utl/splitPath.h"
 #include "utl/StrFormat.h"
 
+#include <algorithm>
 #include <filesystem>
 
 #if defined(WIN32)
@@ -1459,6 +1460,15 @@ namespace {
 			KillFileOrDir(zombieName, false);
 	}
 
+	std::filesystem::path AsFileSystemPath(WeakStr path)
+	{
+#if defined(WIN32)
+		return std::filesystem::path(Utf8_2_wchar(ConvertDmsFileName(path).c_str()).get());
+#else
+		return std::filesystem::path(ConvertDmsFileName(path).c_str());
+#endif
+	}
+
 } // anonymous namespace
 
 SharedStr StoreFilePublisher::Begin(std::shared_ptr<StoreLock> storeLock, WeakStr finalName, bool hasSeqFile)
@@ -1469,6 +1479,31 @@ SharedStr StoreFilePublisher::Begin(std::shared_ptr<StoreLock> storeLock, WeakSt
 	m_HasSeqFile = hasSeqFile;
 	m_WriteNr    = storeLock->StartWrite(finalName);
 	m_PartialName = MakeStoreTmpName(finalName, 'w', m_WriteNr);
+
+	// #1349: a data file has an extension and a folder of the store has none, so a file in the way of a folder
+	// that this array needs can only be the data file that GeoDMS 20.28 or earlier wrote for an attribute that is
+	// a container now. It is not removed, as the write leaves every file that it does not write itself (#1339),
+	// but named before the write fails on the path it cannot make.
+	{
+		std::string_view folder(storeLock->GetStoreFolder().c_str());
+		std::string_view name(finalName.c_str());
+		for (auto pos = name.rfind(DELIMITER_CHAR); pos != std::string_view::npos && pos > folder.size(); pos = name.rfind(DELIMITER_CHAR, pos - 1))
+		{
+			auto parentFolder = SharedStr(CharPtrRange(name.data(), pos));
+			if (IsExistingRegularFile(parentFolder))
+				throwErrorF("MMD", "the file {} is in the way of the folder that {} needs. "
+					"It holds the data of an attribute that GeoDMS 20.28 or earlier wrote, and that attribute is a container now; "
+					"remove that file, or the whole store, and write the storage again."
+					, parentFolder.c_str(), finalName.c_str());
+		}
+	}
+
+	// #1349: the previous version of the array may still have the name that GeoDMS 20.28 and earlier gave it,
+	// without the extension, and is then retired as well, so that a rewritten store does not keep it beside the
+	// new file, and a reader cannot fall back on it when this write fails. A folder under that name holds the
+	// items of a container of an earlier write, which stay where they are (#1339).
+	auto unsuffixedName = StoreUnsuffixedNameOf(finalName);
+	bool retireUnsuffixed = !unsuffixedName.empty() && IsExistingRegularFile(unsuffixedName);
 
 	// The previous version goes before this one is written, so that a failed write leaves no array rather than
 	// the old one under a dictionary that no longer describes it. The index file first: a reader that comes in
@@ -1484,6 +1519,10 @@ SharedStr StoreFilePublisher::Begin(std::shared_ptr<StoreLock> storeLock, WeakSt
 			err = TryRetireStoreFile(finalName, retired);
 			if (!err && hasSeqFile)
 				err = TryRetireStoreFile(SharedStr(finalName) + ".seq", retired);
+			if (!err && retireUnsuffixed)
+				err = TryRetireStoreFile(unsuffixedName, retired);
+			if (!err && retireUnsuffixed)
+				err = TryRetireStoreFile(unsuffixedName + ".seq", retired); // the old pair goes whole
 		}
 		if (!err)
 			break;
@@ -1581,5 +1620,35 @@ void RemoveStoreLeftovers(WeakStr storeFolder)
 	}
 	if (!leftovers.empty())
 		reportF(SeverityTypeID::ST_MajorTrace, "{} temporary file(s) of an interrupted write removed from {}", leftovers.size(), storeFolder.c_str());
+}
+
+SharedStr MakeStoreDataFileName(WeakStr storeFolder, CharPtrRange relItemName)
+{
+	return DelimitedConcat(storeFolder.AsRange(), relItemName) + STORE_DATA_FILE_EXTENSION;
+}
+
+SharedStr MakeStoreUnsuffixedFileName(WeakStr storeFolder, CharPtrRange relItemName)
+{
+	return DelimitedConcat(storeFolder.AsRange(), relItemName);
+}
+
+SharedStr StoreUnsuffixedNameOf(WeakStr dataFileName)
+{
+	std::string_view name(dataFileName.c_str()), ext(STORE_DATA_FILE_EXTENSION);
+	if (name.size() <= ext.size() || name.substr(name.size() - ext.size()) != ext)
+		return {};
+	return SharedStr(CharPtrRange(name.data(), name.size() - ext.size()));
+}
+
+bool IsExistingDirectory(WeakStr path)
+{
+	std::error_code ec;
+	return std::filesystem::is_directory(AsFileSystemPath(path), ec);
+}
+
+bool IsExistingRegularFile(WeakStr path)
+{
+	std::error_code ec;
+	return std::filesystem::is_regular_file(AsFileSystemPath(path), ec);
 }
 
