@@ -112,8 +112,9 @@ session is nevertheless started in a worktree, it carries on in the main checkou
 
 This file holds the policy; the recipes that apply it on this machine are skills, one folder
 per topic under `.claude/skills/<name>/SKILL.md`, tracked in git (the rest of `.claude/` is
-ignored). Claude Code loads a skill by name when its description matches the task; any other
-agent can read them as plain markdown.
+ignored, except `toetser-project.md`, which lists what a reviewing subagent checks in a report
+about work in this repository). Claude Code loads a skill by name when its description matches
+the task; any other agent can read them as plain markdown.
 
 **`.agents/skills/` is a byte-identical copy**, for agents that load skills from there. Edit
 only `.claude/skills/`, write without naming an agent (as this file does; a real file name such
