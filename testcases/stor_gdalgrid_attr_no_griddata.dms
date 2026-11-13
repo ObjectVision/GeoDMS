@@ -1,0 +1,16 @@
+// #1354: an attribute that reads a raster through gdal.grid is the grid data itself, as with tif, and gets no
+// sub-item GridData. The item map requests @statistics on /checks, which updates every item in its subtree, so
+// a GridData under img fails the case, as "CreateHeapTileArray cannot create a DataArray for an unspecified
+// domain". A grid unit without configured sub-items still gets its GridData, over the unit itself, which sg reads.
+container stor_gdalgrid_attr_no_griddata
+{
+	unit<spoint> dom := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	container checks
+	{
+		attribute<uint8> img (dom): StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "gdal.grid";
+		unit<spoint> grid : StorageName = "%currDir%/data/tif_u8_sf.tif", StorageType = "gdal.grid", StorageReadOnly = "True";
+
+		parameter<uint32> s  := sum(uint32(img)), IntegrityCheck = "s == 496";
+		parameter<uint32> sg := sum(uint32(grid/GridData)), IntegrityCheck = "sg == 496";
+	}
+}

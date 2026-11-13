@@ -22,6 +22,7 @@
 ## Reading and writing data
 
 - GeoTIFFs with ZSTD compression can be read: libtiff is built with that codec (#1332).
+- An attribute read with `gdal.grid` no longer gets a sub-item GridData that fails with "CreateHeapTileArray cannot create a DataArray for an unspecified domain"; the attribute is the grid data itself, as with `tif` (#1354).
 - `gdalwrite.vect` no longer fails when a GDAL option parameter lies inside the storage; such items are not written to it (#1333).
 - The export dialog offers GeoParquet for an item with geometry, and one file per table where a format holds one table (#1330).
 - A native CSV export of a table with a failing attribute no longer ends the GUI (#1340).

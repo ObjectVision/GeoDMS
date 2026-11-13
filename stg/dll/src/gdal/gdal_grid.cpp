@@ -703,6 +703,8 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	curr->SetFreeDataState(true);
 
 	AbstrUnit* gridDataDomain = GetGridDataDomainRW(curr);
+	if (!gridDataDomain)
+		return;
 
 	// A read-only gdal.grid whose domain and values unit are fully configured must not fail
 	// metadata determination merely because its backing file cannot be opened yet - e.g. a
@@ -721,7 +723,12 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		return;
 	}
 
-	if (storageHolder == curr && !GetGridData(curr)) // Construct GridData if unavailable
+	// Construct GridData if unavailable, but only over a grid domain that the configuration holds: the storage
+	// holder itself as a grid unit, or its GridDomain sub-unit. An attribute that reads the raster is the grid
+	// data itself, as with tif; for it GetGridDataDomainRW gives the storage manager's own unit for the file's
+	// raster. That unit is not in the tree and its key carries no range, while the read of a GridData takes its
+	// domain from that key; such a GridData fails with "cannot create a DataArray for an unspecified domain" (#1354).
+	if (storageHolder->DoesContain(gridDataDomain) && !GetGridData(curr))
 	{
 		const AbstrUnit* vu = nullptr;
 		try {
