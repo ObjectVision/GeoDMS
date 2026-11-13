@@ -1,7 +1,7 @@
 container grid2polygon_example
 {
-    #include <%exeDir%/library/units.dms>
-    #include <%exeDir%/library/geometry/grid2poly.dms>
+    #include <%exeDir%/library/Units.dms>
+    #include <%exeDir%/library/geometry/Grid2Poly.dms>
 //    #include <%exeDir%/library/basedata_nl/rdc.dms> // already included in grids.dms
     #include <%exeDir%/library/basedata_nl/grids.dms>
     #include <%exeDir%/library/basedata_nl/RegioIndelingen.dms>

@@ -10,10 +10,14 @@
 #   1. the shipped copy of the battery is current (nothing in testcases/ is newer);
 #   2. every shipped examples/*.dms and library/**/*.dms is reached from a shipped
 #      shipped_*.dms case by following #include lines (a %exeDir% path against the
-#      output folder, a bare name against <dir>/<stem>/ then <dir>/), case-insensitively,
-#      since the includes spell some names in lower case and the shipped files do not;
+#      output folder, a bare name against <dir>/<stem>/ then <dir>/). Every name is
+#      compared in case, as on an installed system: an include that differs only in
+#      case from the file fails, with the real name (#1359);
 #   3. the battery's shipped_*.dms cases, run directly: the battery has no Linux runner.
-#      Positives must exit 0; there are no _neg cases among them.
+#      Positives must exit 0; there are no _neg cases among them. When the output folder
+#      is on a file system that ignores case, such as a Windows drive under WSL, the
+#      cases run from a copy of it in a temporary folder on the Linux file system, since
+#      from the Windows drive a file named in the wrong case is found anyway (#1359).
 #
 # Usage:  bash batch/TestShippedDms.sh [build/linux-x64-release/bin]
 # Exit code: 0 when every step passes.
@@ -46,18 +50,39 @@ echo "bin : $BIN"
 echo "logs: $LOGDIR"
 echo
 
-# resolve a path case-insensitively, component by component; prints the real path or nothing
-resolve_ci() {
-    local base="$1" rel="$2" cur="$1" part hit
+# Resolve a path one name at a time against the names in each folder, and print the path with
+# the names as they are on disk, or nothing. With "exact" every name must match in case, as on
+# an installed system; with "ci" case is ignored, to name the file an include meant. A plain
+# -f test cannot tell the two apart on a Windows drive, where WSL ignores case.
+resolve_names() {
+    local mode="$1" cur="$2" rel="$3" part entry hit
     rel="${rel//\\//}"
     IFS='/' read -r -a parts <<< "$rel"
     for part in "${parts[@]}"; do
-        [[ -z "$part" ]] && continue
-        hit="$(find "$cur" -mindepth 1 -maxdepth 1 -iname "$part" 2>/dev/null | head -n 1)"
+        [[ -z "$part" || "$part" == "." ]] && continue
+        if [[ "$part" == ".." ]]; then cur="$(dirname "$cur")"; continue; fi
+        hit=""
+        while IFS= read -r entry; do
+            if [[ "$mode" == exact ]]; then
+                [[ "$entry" == "$part" ]] && { hit="$cur/$entry"; break; }
+            else
+                [[ "${entry,,}" == "${part,,}" ]] && { hit="$cur/$entry"; break; }
+            fi
+        done < <(ls -1A "$cur" 2>/dev/null)
         [[ -z "$hit" ]] && return 1
         cur="$hit"
     done
     printf '%s\n' "$cur"
+}
+
+# the first of the given folders under which rel resolves to a file, in the given mode
+resolve_in() {
+    local mode="$1" rel="$2" b p; shift 2
+    for b in "$@"; do
+        p="$(resolve_names "$mode" "$b" "$rel")"
+        if [[ -n "$p" && -f "$p" ]]; then printf '%s\n' "$p"; return 0; fi
+    done
+    return 1
 }
 
 # --- 1/3: the shipped copy of the battery is current -------------------------
@@ -101,16 +126,19 @@ while [[ ${#queue[@]} -gt 0 ]]; do
         [[ -z "$inc" ]] && continue
         inc="${inc//\\//}"
         if [[ "$inc" == %exeDir%/* ]]; then
-            p="$(resolve_ci "$BIN" "${inc#%exeDir%/}")"
+            rel="${inc#%exeDir%/}"; bases=("$BIN")
         elif [[ "$inc" == %* ]]; then
             continue
         else
             dir="$(dirname "$f")"; stem="$(basename "$f" .dms)"
-            p="$(resolve_ci "$dir" "$stem/$inc")"
-            [[ -z "$p" ]] && p="$(resolve_ci "$dir" "$inc")"
+            rel="$inc"; bases=("$dir/$stem" "$dir")
         fi
-        if [[ -n "$p" && -f "$p" ]]; then
+        if p="$(resolve_in exact "$rel" "${bases[@]}")"; then
             queue+=("$p")
+        elif p="$(resolve_in ci "$rel" "${bases[@]}")"; then
+            echo "*** $f includes $inc, but the file is ${p#"$BIN"/}: an installed system does not find it ***"
+            queue+=("$p")   # still follow it, so that what it includes is counted as reached
+            COV_RC=1
         else
             echo "*** $f includes $inc, which does not exist under $BIN ***"
             COV_RC=1
@@ -130,6 +158,28 @@ echo "shipped .dms files outside the battery: $total, reached from the shipped_*
 
 # --- 3/3: the shipped_*.dms cases, from the shipped copy ----------------------
 echo
+# An existing name spelled in another case resolves only where the file system ignores case.
+RUNBIN="$BIN"
+if [[ -e "$BIN/GEODMSRUN" ]]; then
+    RUNBIN="$(mktemp -d "${TMPDIR:-/tmp}/geodms_shipped_XXXXXX")"
+    trap 'rm -rf "$RUNBIN"' EXIT
+    echo "$BIN ignores case; copying it to $RUNBIN to run the cases from there"
+    cp -a "$BIN/." "$RUNBIN/"
+    if [[ -e "$RUNBIN/GEODMSRUN" ]]; then
+        echo "*** $RUNBIN ignores case too - set TMPDIR to a folder on the Linux file system ***"
+        exit 2
+    fi
+    # The RUNPATH of a build-tree binary names the build folder, so the copy would load the
+    # libraries of $BIN, and %exeDir% follows libDmRtc.so back to the Windows drive.
+    # LD_LIBRARY_PATH comes before a RUNPATH; the packaged binaries have $ORIGIN instead.
+    export LD_LIBRARY_PATH="$RUNBIN${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    if ! ldd "$RUNBIN/GeoDmsRun" | grep -q "=> $RUNBIN/libDmRtc"; then
+        echo "*** the copy in $RUNBIN does not load its own libDmRtc.so - see: ldd $RUNBIN/GeoDmsRun ***"
+        exit 2
+    fi
+fi
+COPY="$RUNBIN/examples/testcases"
+EXE="$RUNBIN/GeoDmsRun"
 echo "--- 3/3: the shipped_*.dms cases of the battery, from $COPY ---"
 BAT_RC=0
 n=0
@@ -148,6 +198,6 @@ done
 echo
 echo "=== Shipped .dms content, offline: results for $BIN ==="
 ANY=0
-if [[ $COV_RC -eq 0 ]]; then echo "battery copy current and every shipped .dms reached: PASSED"; else echo "*** BATTERY COPY STALE OR A SHIPPED .DMS UNREACHED - see the lines above ***"; ANY=1; fi
+if [[ $COV_RC -eq 0 ]]; then echo "battery copy current and every shipped .dms reached: PASSED"; else echo "*** BATTERY COPY STALE, A SHIPPED .DMS UNREACHED OR AN INCLUDE IN THE WRONG CASE - see the lines above ***"; ANY=1; fi
 if [[ $BAT_RC -eq 0 ]]; then echo "shipped_*.dms cases PASSED ($n)"; else echo "*** SHIPPED_*.DMS CASES FAILED - see the lines above ***"; ANY=1; fi
 exit $ANY

@@ -17,7 +17,9 @@ rem   2. every shipped .dms is reached from a battery case: from the shipped
 rem      shipped_*.dms cases every #include is followed, and the files reached must
 rem      cover every examples\*.dms and library\**\*.dms that ships. That is what
 rem      keeps the set of shipped and the set of tested files equal: a new shipped
-rem      file that no case includes fails here, with its name. The cases in
+rem      file that no case includes fails here, with its name. So does an include
+rem      that differs only in case from the file: Windows finds it, but the same
+rem      files ship in the Linux setup, which does not (#1359). The cases in
 rem      testcases\shipped_*.dms include from %exeDir% and check the units, the RD
 rem      domains, the WMTS tile matrix, the grid domains and their cell areas, the
 rem      CBS year table and its instantiation, two grid2poly fixtures, and
@@ -76,7 +78,7 @@ set "BAT_RC=%ERRORLEVEL%"
 echo.
 echo === Shipped .dms content, offline: results for %BINDIR% ===
 set "ANY_FAILED=0"
-if "%COV_RC%"=="0" (echo battery copy current and every shipped .dms reached: PASSED) else (echo *** BATTERY COPY STALE OR A SHIPPED .DMS UNREACHED - see the lines above *** & set "ANY_FAILED=1")
+if "%COV_RC%"=="0" (echo battery copy current and every shipped .dms reached: PASSED) else (echo *** BATTERY COPY STALE, A SHIPPED .DMS UNREACHED OR AN INCLUDE IN THE WRONG CASE - see the lines above *** & set "ANY_FAILED=1")
 if "%BAT_RC%"=="0" (echo shipped testcases battery PASSED) else (echo *** SHIPPED TESTCASES BATTERY FAILED ^(exit %BAT_RC%^) - see the table above *** & set "ANY_FAILED=1")
 
 if "%ANY_FAILED%"=="1" exit /b 1

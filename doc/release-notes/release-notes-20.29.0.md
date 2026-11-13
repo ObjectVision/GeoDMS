@@ -35,3 +35,7 @@
 ## Stability
 
 - `OperationContext::Join` activates a parked supplier on the meta thread too, which addresses the occasional hang of GeoDmsRun 20.27.0 (#1329, still open: the hang was not reproduced).
+
+## Examples and library
+
+- `examples/grid_to_polygon.dms` runs on Linux: two of its includes named a library file in the wrong case, and `library/basedata_nl/RegioIndelingen.dms` downloads the CBS geopackage with `curl` instead of through cmd.exe (#1359).

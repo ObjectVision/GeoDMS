@@ -76,9 +76,12 @@ folder, and after installing, the installed copy. `batch\TestShippedDms.bat <out
 folder>` (bash twin `TestShippedDms.sh` for the `.l` build) is the gate: it checks that
 the shipped copy of the battery has the content of `testcases\`, follows the `#include`
 lines from the `shipped_*.dms` cases and fails when a shipped `examples\*.dms` or
-`library\**\*.dms` is reached by none of them, then runs the shipped battery from the
-output folder. All four `batch\BuildSignAndCreateSetup*.bat` scripts run it right before
-NSIS or `CreateLinuxSetup.sh`, and the `tst` unit suite runs the shipped battery again
+`library\**\*.dms` is reached by none of them, or when an include differs in case from the
+file it names (Windows finds that file, the Linux setup does not: #1359), then runs the
+shipped battery from the output folder. The bash twin runs it from a copy on the Linux file
+system when the output folder lies on a Windows drive, where WSL ignores case. All four
+`batch\BuildSignAndCreateSetup*.bat` scripts run it right before NSIS or
+`CreateLinuxSetup.sh`, and the `tst` unit suite runs the shipped battery again
 from the installed copy (`batch\unit\ShippedContent.bat`), so the post-install gate covers
 it too. A new shipped file needs a `shipped_*.dms` case that includes it, or the gate
 names it. Because the cases read the output folder, an edit under `library\` or

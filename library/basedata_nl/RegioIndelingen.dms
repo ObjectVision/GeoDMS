@@ -19,19 +19,27 @@ template Read_Gebiedsindelingen_gpkg_T
 	parameter<string> jaar;
 	//
 	
-	parameter<string> srcDir := replace(Expand(., '%SourceDataDir%'), '/', '\\');
-	parameter<string> local_folder    := srcDir + '\\RegionalUnits\\cbs';
-	parameter<string> local_file_path := local_folder + '\\gebiedsindelingen'+jaar+'.gpkg';
-	
+	parameter<string> srcDir          := expand(., '%SourceDataDir%');
+	parameter<string> local_folder    := srcDir + '/RegionalUnits/cbs';
+	parameter<string> local_file_path := local_folder + '/gebiedsindelingen'+jaar+'.gpkg';
+
 	container load_source_data
 	{
 		parameter<string> source_url := 'https://service.pdok.nl/cbs/gebiedsindelingen/atom/v1_0/downloads/cbsgebiedsindelingen'+jaar+'.gpkg';
-//		parameter<string> mkdir_cmd  := 'if not exist "'+srcDir+'" (mkdir "'+srcDir+'") && if not exist "'+srcDir+'\\RegionalUnits" (mkdir "'+srcDir+'\\RegionalUnits") && if not exist "'+srcDir+'\\RegionalUnits\\cbs" (mkdir "'+srcDir+'\\RegionalUnits\\cbs")';
-//		parameter<string> mkdir_cmd  := 'if not exist "'+local_folder+'" mkdir "'+local_folder+'"';
-		parameter<string> mkdir_cmd  := 'mkdir "'+local_folder+'" 2>nul';
-		parameter<string> download_cmd  := mkdir_cmd + '& if not exist "'+local_file_path+'" curl -L -o "'+local_file_path+'" '+source_url;
-		parameter<uint32> WriterCode := exec_ec(Expand(., '%env:ComSpec%'), '/c ' + download_cmd, '');
-		parameter<string> file_path := WriterCode == 0 ? local_file_path : 'Error ''in loading data from the Internet';
+
+		// ExistingFile(a, b) gives the full path of b when that file exists and a otherwise, so two
+		// calls that differ only in a give the same string exactly when the geopackage is there.
+		parameter<bool>   is_present   := ExistingFile(local_file_path + '.absent_a', local_file_path) == ExistingFile(local_file_path + '.absent_b', local_file_path);
+
+		// One command line for Windows and Linux, without cmd.exe. Given no program name, EXEC_EC
+		// lets Windows find curl on the PATH (current versions of Windows 10 and 11 include it) and
+		// runs the line through /bin/sh on Linux. --create-dirs makes the folder, and --fail keeps
+		// an HTTP error page from being saved as the geopackage.
+		parameter<string> download_cmd := 'curl --create-dirs --fail --location --output "' + local_file_path + '" ' + source_url;
+
+		// Indirect, so that curl only runs when the geopackage is missing: iif calculates both branches.
+		parameter<uint32> WriterCode   := = is_present ? '0u' : 'EXEC_EC(download_cmd)';
+		parameter<string> file_path    := WriterCode == 0 ? local_file_path : 'Error ''in loading data from the Internet';
 	}
 	
 	container gpkg
