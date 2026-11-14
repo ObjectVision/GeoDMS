@@ -432,6 +432,30 @@ namespace hof {
 			if (IsFoldHead(headID))
 				return ResolveBodyArg(refScope, expr).key;
 
+			// #1347: 'instantiate fold(...)' or 'instantiate fold_c(...)' as the rule of a body
+			// item. A function applied as a value has no items, so the states after the steps
+			// become sub-items by key, step0, step1, ..., and result, recorded under a key of
+			// their own that member access finds as it finds the sub-items of a structured fold
+			// state. That key is no value: a bare reference to the body item is refused
+			if (headID == t_InstantiateItem)
+			{
+				LispPtr innerCall = expr.Right().Left();
+				MG_CHECK(innerCall.IsRealList() && innerCall.Left().IsSymb());
+				TokenID calleeID = innerCall.Left().GetSymbID();
+				if (!IsFoldHead(calleeID))
+					throwErrorF("ExprParser", "'instantiate {}(...)' in the body of function '{}' makes items, which exist only in a copy of the function made with 'instantiate'"
+						, calleeID, m_FuncItem->GetFullName().c_str());
+				std::vector<CallArg> foldArgs;
+				for (LispPtr a = innerCall.Right(); !a.EndP(); a = a.Right())
+					foldArgs.push_back(ResolveBodyArg(refScope, a.Left()));
+				std::vector<CallArg> trace;
+				auto result = ReduceFoldCall(calleeID, foldArgs, this, m_SubstBuff, m_ErrorHolder, &trace);
+				RejectNestedFunctionResultMetaCall(result.key);
+				LispRef traceKey = ExprList(t_InstantiateItem, result.key);
+				m_StructuredByKey[traceKey] = MakeFoldTrace(trace, result);
+				return traceKey;
+			}
+
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			assert(og);
 			// arity-aware head dispatch: an argument count no operator member accepts may
@@ -743,14 +767,25 @@ namespace hof {
 								{
 									LispRef baseKey = ReduceBodyItem(ri->first.get());
 									// #1347: a local whose rule is a fold has the declared
-									// sub-items of the fold's state
+									// sub-items of the fold's state, and a local whose rule is
+									// 'instantiate fold(...)' the states after its steps
 									if (auto sit = m_StructuredByKey.find(baseKey); sit != m_StructuredByKey.end())
+									{
 										if (LispRef memberKey = FindStructuredMember(*sit->second, CharPtrRange(ri->second, e)); !memberKey.EndP())
 										{
 											if (foundItemPtr)
 												*foundItemPtr = nullptr;
 											return memberKey;
 										}
+										if (IsFoldTraceKey(baseKey))
+										{
+											SizeT nrSteps = sit->second->subItems.size() - 1; // the last one is result
+											SharedStr steps = nrSteps == 0 ? SharedStr("") : nrSteps == 1 ? SharedStr("step0 and ") : mySSPrintF("step0 to step{} and ", nrSteps - 1);
+											throwErrorF("ExprParser", "'{}': '{}' has the sub-items {}result, one per step that the fold took and the final state; '{}' is not among them (body of function '{}')"
+												, fullStr.c_str(), ri->first->GetFullName().c_str(), steps.c_str()
+												, SharedStr(CharPtrRange(ri->second, e)).c_str(), m_FuncItem->GetFullName().c_str());
+										}
+									}
 									// A CONFIG-item reference (a sourceDescr key: the
 									// local's rule was a bare import/def-scope/param alias
 									// to a config item) is NOT a cache result, so the
@@ -797,7 +832,11 @@ namespace hof {
 				}
 				if (foundItemPtr)
 					*foundItemPtr = nullptr; // reduced local: no item identity to bind member access to
-				return ReduceBodyItem(target.get());
+				LispRef localKey = ReduceBodyItem(target.get());
+				if (IsFoldTraceKey(localKey)) // #1347
+					throwErrorF("ExprParser", "'{}': the container that 'instantiate fold(...)' makes has no value of its own; refer to {}/result, or to a step such as {}/step0 (body of function '{}')"
+						, fullStr.c_str(), fullStr.c_str(), fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+				return localKey;
 			}
 			if (atFuncRoot)
 				break;

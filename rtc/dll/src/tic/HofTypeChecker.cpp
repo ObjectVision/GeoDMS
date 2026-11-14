@@ -1943,6 +1943,26 @@ namespace hof {
 			return InferApplication(refScope, fnVal, expr.Right().Right(), "(...)");
 		}
 
+		// #1347: 'instantiate fold(...)' or 'instantiate fold_c(...)' as the rule of a body item:
+		// a container of the states after the steps, step0, step1, ..., and the final state,
+		// result. Only result is typed here; how many steps there are, and so which step names
+		// exist, is known when the expression is reduced, so the member set is not complete
+		if (headID == t_InstantiateItem)
+		{
+			LispPtr innerCall = expr.Right().Left();
+			if (innerCall.IsRealList() && innerCall.Left().IsSymb() && IsFoldHead(innerCall.Left().GetSymbID()))
+			{
+				DefType state = InferFold(refScope, innerCall.Right(), innerCall.Left().GetSymbID() == t_FoldC);
+				auto members = std::make_shared<std::map<TokenID, DefType>>();
+				(*members)[GetTokenID_mt("result")] = std::move(state);
+				DefType r; r.kind = DefType::Kind::Container;
+				r.members = std::move(members);
+				r.membersComplete = false;
+				return r;
+			}
+			return {}; // another 'instantiate' in a body: the reduction reports it
+		}
+
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 		if (og->IsTemplateCall() && !ValueClass::FindByScriptName(headID)) // value-type heads (float64(x)) are conversions, not function calls
 		{

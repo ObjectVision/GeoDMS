@@ -1,0 +1,23 @@
+container fn_test_fold_body_trace_neg_bare
+{
+	// #1347: a function applied as a value uses its 'instantiate fold(...)' body item itself
+	// as a value. That item is a container of the states after the steps and has no value of
+	// its own, so the application is refused.
+
+	unit<uint32> Twice : nrofrows = 2;
+	unit<uint32> Vals : nrofrows = 2
+	{
+		attribute<float64> v : [8.0, 4.0];
+	}
+
+	function Halve(unit<uint32> dom; parameter<uint32> i; attribute<float64> x (dom)) -> attribute<float64> (dom) := x * 0.5;
+	function TraceItself(unit<uint32> dom; unit<uint32> iterations; attribute<float64> x (dom)) -> attribute<float64> (dom) := x + trace
+	{
+		container trace := instantiate fold(iterations, Halve(dom, _, _), x);
+	}
+
+	container checks
+	{
+		parameter<float64> c := sum(TraceItself(Vals, Twice, Vals/v)), IntegrityCheck = "c == 15.0";
+	}
+}

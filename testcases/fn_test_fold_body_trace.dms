@@ -1,0 +1,77 @@
+container fn_test_fold_body_trace
+{
+	// #1347: a function that is applied as a value, F(args), and that refers in its result to
+	// the sub-items of an 'instantiate fold(...)' or 'instantiate fold_c(...)' body item: the
+	// final state, a step, and an attribute of a unit state. Such an application makes no
+	// items; the reduction finds the state after each step by key.
+
+	unit<uint32> Twice : nrofrows = 2;
+
+	unit<uint32> Vals : nrofrows = 2
+	{
+		attribute<float64> v : [8.0, 4.0];
+	}
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+
+	function Halve(unit<uint32> dom; parameter<uint32> i; attribute<float64> x (dom)) -> attribute<float64> (dom) := x * 0.5;
+	function MaxAtLeast(unit<uint32> dom; parameter<float64> limit; attribute<float64> x (dom)) -> parameter<bool> := max(x) >= limit;
+
+	// a step on a unit state that keeps the rows below the maximum, and a condition on its size
+	function DropMax(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+	}
+	function Longer(parameter<uint32> n; unit<uint32> s) -> parameter<bool> := #s > n;
+
+	// (a) the final state: [8, 4] halved twice is [2, 1]
+	function HalveResult(unit<uint32> dom; unit<uint32> iterations; attribute<float64> x (dom)) -> attribute<float64> (dom) := trace/result
+	{
+		container trace := instantiate fold(iterations, Halve(dom, _, _), x);
+	}
+	attribute<float64> res_a (Vals) := HalveResult(Vals, Twice, Vals/v);
+
+	// (b) the state after the first step plus the final state: [4, 2] + [2, 1]
+	function FirstPlusLast(unit<uint32> dom; unit<uint32> iterations; attribute<float64> x (dom)) -> attribute<float64> (dom) := trace/step0 + trace/result
+	{
+		container trace := instantiate fold(iterations, Halve(dom, _, _), x);
+	}
+	attribute<float64> res_b (Vals) := FirstPlusLast(Vals, Twice, Vals/v);
+
+	// (c) fold_c halves [8, 4] until its maximum is below the limit 1, in four steps; the state
+	// after the second step is [2, 1]
+	function SecondStep(unit<uint32> dom; parameter<float64> limit; attribute<float64> x (dom)) -> attribute<float64> (dom) := trace/step1
+	{
+		container trace := instantiate fold_c(Halve(dom, _, _), MaxAtLeast(dom, limit, _), 20u, x);
+	}
+	attribute<float64> res_c (Vals) := SecondStep(Vals, 1.0, Vals/v);
+
+	// (d) a unit state: DropMax takes [5, 3, 8, 1, 4] to [5, 3, 1, 4], [3, 1, 4] and [3, 1];
+	// after the second step there are 3 rows
+	function RowsAfterTwo(parameter<uint32> n; unit<uint32> s { attribute<float64> v; }) -> parameter<uint32> := #trace/step1
+	{
+		container trace := instantiate fold_c(DropMax, Longer(n, _), 10u, s);
+	}
+	parameter<uint32> res_d := RowsAfterTwo(2u, Vals5);
+
+	// (e) an attribute of the final unit state: the sum of [3, 1]
+	function SumOfLast(parameter<uint32> n; unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(trace/result/v)
+	{
+		container trace := instantiate fold_c(DropMax, Longer(n, _), 10u, s);
+	}
+	parameter<float64> res_e := SumOfLast(2u, Vals5);
+
+	container checks
+	{
+		parameter<float64> c_a := sum(res_a), IntegrityCheck = "c_a == 3.0";
+		parameter<float64> c_b := sum(res_b), IntegrityCheck = "c_b == 9.0";
+		parameter<float64> c_c := sum(res_c), IntegrityCheck = "c_c == 3.0";
+		parameter<uint32>  c_d := res_d, IntegrityCheck = "c_d == 3";
+		parameter<float64> c_e := res_e, IntegrityCheck = "c_e == 4.0";
+	}
+}

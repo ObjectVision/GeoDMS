@@ -58,6 +58,10 @@ inline bool IsFoldHead(TokenID id) { return id == t_Fold || id == t_FoldC; }
 extern StaticTokenID t_ApplyItem;        // §5.9 'apply X(args)' marker head
 extern StaticTokenID t_InstantiateItem;  // §5.9 'instantiate X(args)' marker head
 extern StaticTokenID t_ApplyValue;       // §5.10 '(args)' applied to a call result
+// #1347: the key under which a body item with the rule 'instantiate fold(...)' records the
+// states of its steps in a function applied as a value, (instantiate_item <key of the final
+// state>); member access finds the states by it, but it is no value itself
+inline bool IsFoldTraceKey(LispPtr key) { return key.IsRealList() && key.Left().IsSymb() && key.Left().GetSymbID() == t_InstantiateItem; }
 extern StaticTokenID t_ContainerLiteral; // §5.9 '{ m: e; … }' argument literal
 extern StaticTokenID t_Member;           // §5.9 '(member name value)'
 extern StaticTokenID t_NoDomain;         // §5.9 domain-less literal marker

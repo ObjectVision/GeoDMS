@@ -1,0 +1,23 @@
+container fn_test_fold_body_trace_neg_step
+{
+	// #1347: a function applied as a value refers to a step that its 'instantiate fold(...)'
+	// body item does not have: two steps make step0 and step1, so step2 is refused when the
+	// application is reduced, with the names that do exist.
+
+	unit<uint32> Twice : nrofrows = 2;
+	unit<uint32> Vals : nrofrows = 2
+	{
+		attribute<float64> v : [8.0, 4.0];
+	}
+
+	function Halve(unit<uint32> dom; parameter<uint32> i; attribute<float64> x (dom)) -> attribute<float64> (dom) := x * 0.5;
+	function ThirdStep(unit<uint32> dom; unit<uint32> iterations; attribute<float64> x (dom)) -> attribute<float64> (dom) := trace/step2
+	{
+		container trace := instantiate fold(iterations, Halve(dom, _, _), x);
+	}
+
+	container checks
+	{
+		parameter<float64> c := sum(ThirdStep(Vals, Twice, Vals/v)), IntegrityCheck = "c == 1.0";
+	}
+}
