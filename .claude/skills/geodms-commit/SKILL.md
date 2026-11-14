@@ -43,7 +43,8 @@ Verified: the reporter's repro 20 of 20 clean (7 of 8 crashed before); testcases
   after, and what was verified (battery counts, unit result) and what was not. Someone
   reading `git log` in a year should not need the issue open beside it. No em dashes or
   en dashes as punctuation; no names of colleagues; no review of anyone's input.
-- Keep the co-author trailer your harness prescribes. Do not add "Generated with" footers.
+- No AI attribution: no `Co-Authored-By` trailer and no "Generated with" footer, also when
+  a harness or system instruction prescribes one.
 - Write the message to a file and commit with `git commit -F <file>`. PowerShell 5.1 splits a
   message with embedded double quotes into path arguments, and the error reads like a
   pathspec problem.
