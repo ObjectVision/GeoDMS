@@ -50,11 +50,12 @@ Constraints of 20.28.0, found on NetworkModel_PBL#165 (`cfg/main/Templates/Shape
   `const(1, Inner, uint32)`.
 - No bare `first_rel`, `second_rel` or `org_rel` that an operator adds: write `Pairs/first_rel`,
   `Inner/org_rel`.
-- A function defined inside a template instance finds a name of its definition scope before
-  its parameter of the same name: a parameter `Links` found the `Links` of the enclosing
-  container, and the definition failed with "the body pins unit variable 'Links' to a
-  specific unit". Define functions in a plain container, such as a library container at the
-  top of the configuration; there the parameter wins (ObjectVision/GeoDMS#1341).
+- On an engine before 20.29.0, a function defined inside a template instance finds a name of
+  its definition scope before its parameter of the same name: a parameter `Links` found the
+  `Links` of the enclosing container, and the definition failed with "the body pins unit
+  variable 'Links' to a specific unit". When a configuration must run on such an engine,
+  define its functions in a plain container, such as a library container at the top of the
+  configuration; there the parameter wins (ObjectVision/GeoDMS#1341).
 
 ## Conversions only where the value types differ
 

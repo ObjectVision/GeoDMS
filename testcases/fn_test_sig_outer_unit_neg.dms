@@ -1,0 +1,29 @@
+container fn_test_sig_outer_unit_neg
+{
+	// #1341: a function bound to a parameter whose type is a signature must have
+	// parameters over the units that the signature names. The check compares a unit
+	// outside the function by the unit its name resolves to, so that a function in a
+	// template instance, whose copy writes such a unit as its full name, passes
+	// (fn_test_template_instance_unit_param, case f). A function over another unit
+	// must still be refused, here one in a template instance over Other where the
+	// signature says Road.
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<float64> flow : [1.0, 2.0];
+	}
+	unit<uint32> Other : nrofrows = 2;
+
+	road_fn = (attribute<float64> v (Road)) -> attribute<float64> (Road);
+	function ApplyT(f: road_fn; attribute<float64> x (Road)) -> attribute<float64> (Road) := f(x);
+
+	Template T
+	{
+		parameter<uint32> dummy;
+		///
+		function OnOther(attribute<float64> v (Other)) -> attribute<float64> (Other) := v;
+	}
+	container Inst := T(0);
+
+	// expect: the domain of parameter 1 does not match the domain relationship required by signature '/road_fn'
+	attribute<float64> failing (Road) := ApplyT(Inst/OnOther, Road/flow);
+}

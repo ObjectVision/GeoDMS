@@ -32,6 +32,7 @@
 - `^` takes `fpoint` and `dpoint` polygons, and `bitxor` takes `spoint` and `ipoint` polygons (#1345).
 - The table-view aggregation `union_polygon` uses `dms_union_polygon`; it called an operator that the engine does not have (#1346).
 - The palette editor says Logarithmic Intervals.
+- A function defined inside a template instance finds its own unit parameter instead of a unit of the same name in the container around it, which failed with "the body pins unit variable ... to a specific unit" or with "relative pathname ascended above root". Such a function also passes as the argument of a parameter whose type is a function signature over a unit outside the template, which failed with "the domain of parameter ... does not match the domain relationship required by signature" (#1341).
 
 ## Stability
 

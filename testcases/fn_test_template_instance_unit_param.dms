@@ -1,0 +1,105 @@
+container fn_test_template_instance_unit_param
+{
+	// REGRESSION #1341: a function defined inside a template instance. Copying the
+	// instance writes a unit reference of a body item that sits in a sub-container
+	// or unit of the body as a path relative to that item's parent (`Pts` becomes
+	// `../Pts`). The definition check must read that path back as the parameter it
+	// names, not as the unit of the same name in the configuration root, which it
+	// took for a concrete unit and then refused the function because the body
+	// "pins unit variable 'Pts'".
+
+	// the outer units that a misread path landed on
+	unit<uint32> Pts : nrofrows = 3
+	{
+		attribute<float64> v : [1, 2, 3];
+	}
+	unit<uint32> Other : nrofrows = 2
+	{
+		attribute<float64> v : [10, 20];
+	}
+	unit<uint32> Pick : nrofrows = 3
+	{
+		attribute<Other> rel : [1, 0, 1];
+	}
+
+	Template T
+	{
+		parameter<uint32> dummy;
+		///
+		// (a) the case of the issue: the values unit of an attribute inside a body unit
+		function TotalA(unit<uint32> Pts { attribute<float64> v; }) -> parameter<float64> := s
+		{
+			unit<uint32> Sel := select_with_org_rel(Pts/v > 0.0)
+			{
+				attribute<Pts> P_rel := Sel/org_rel;
+			}
+			parameter<float64> s := sum(Pts/v[Sel/P_rel]);
+		}
+		parameter<float64> a := TotalA(/Other);
+
+		// (b) the values role inside a body container
+		function TotalB(unit<uint32> Pts { attribute<float64> v; }) -> parameter<float64> := s
+		{
+			container sub
+			{
+				attribute<Pts> r (Pts) := id(Pts);
+			}
+			parameter<float64> s := sum(Pts/v[sub/r]);
+		}
+		parameter<float64> b := TotalB(/Other);
+
+		// (c) the domain role inside a body container, combined with the parameter
+		function TotalC(unit<uint32> Pts { attribute<float64> v; }) -> parameter<float64> := s
+		{
+			container sub
+			{
+				attribute<float64> w (Pts) := Pts/v * 2.0;
+			}
+			attribute<float64> both (Pts) := sub/w + Pts/v;
+			parameter<float64> s := sum(both);
+		}
+		parameter<float64> c := TotalC(/Other);
+
+		// (d) a member of a parameter block over another parameter: the member is
+		// copied as `attribute<../Pts> rel`, relative to the block
+		function TotalD(unit<uint32> Pts { attribute<float64> v; }; unit<uint32> Sample { attribute<Pts> rel; }) -> parameter<float64> := s
+		{
+			parameter<float64> s := sum(Pts/v[Sample/rel]);
+		}
+		parameter<float64> d := TotalD(/Other, /Pick);
+
+		// (e) a unit of the template itself, outside the function, referenced two
+		// levels down in the body: the copy writes `.../Cls`, a path the check
+		// resolved from the function and then from the instance, where it ascended
+		// above the root
+		unit<uint32> Cls : nrofrows = 2;
+		function TotalE(unit<uint32> Pts { attribute<float64> v; }) -> parameter<float64> := s
+		{
+			container sub
+			{
+				attribute<Cls> k (Pts) := value(id(Pts), Cls);
+			}
+			parameter<float64> s := sum(float64(sub/k));
+		}
+		parameter<float64> e := TotalE(/Other);
+
+		// (f) a function of the instance bound to a parameter whose type is the
+		// signature pts_fn below: the copy writes the outer unit Pts of its parameter
+		// as `/Pts`, where the signature says `Pts`
+		function HalveF(attribute<float64> x (Pts)) -> attribute<float64> (Pts) := x / 2.0;
+	}
+	container Inst := T(0);
+
+	pts_fn = (attribute<float64> x (Pts)) -> attribute<float64> (Pts);
+	function ApplyTwice(f: pts_fn; attribute<float64> x (Pts)) -> attribute<float64> (Pts) := f(f(x));
+
+	container checks
+	{
+		parameter<float64> c_a := Inst/a, IntegrityCheck = "c_a == 30.0";
+		parameter<float64> c_b := Inst/b, IntegrityCheck = "c_b == 30.0";
+		parameter<float64> c_c := Inst/c, IntegrityCheck = "c_c == 90.0";
+		parameter<float64> c_d := Inst/d, IntegrityCheck = "c_d == 50.0";
+		parameter<float64> c_e := Inst/e, IntegrityCheck = "c_e == 1.0";
+		parameter<float64> c_f := sum(ApplyTwice(Inst/HalveF, Pts/v)), IntegrityCheck = "c_f == 1.5";
+	}
+}

@@ -121,6 +121,47 @@ namespace hof {
 		return item && !IsUnit(item) && !IsDataItem(item) && !item->IsFunctionItem() && !item->IsTemplate();
 	}
 
+	// #1341: the unit reference of a data item, as the checker names units. Copying
+	// a template instance rewrites a reference to a unit inside the copied subtree
+	// into a path relative to the referring item's parent whenever that parent does
+	// not contain the unit (CopyTreeContext::GetAbsOrRelUnitID): `attribute<Pts> r`
+	// in a body container becomes `attribute<../Pts> r`. The ladders below match
+	// parameters and generic variables by the name the function declares, and
+	// resolved such a path from the function and from its definition scope, where it
+	// found an unrelated unit of the same name. The path is resolved here from the
+	// parent it was written for, the scope the engine itself resolves it from, and
+	// translated back:
+	// - a direct sub-item of fnDef (a parameter, or a body-level declaration, which
+	//   the ladder then defers) gets its plain name;
+	// - the function itself, an item deeper inside it (a body-local unit) or a path
+	//   that does not resolve gives the empty token: defer;
+	// - any other unit gets its full name, which ResolveUnitInScope resolves as an
+	//   absolute path. fnDef == nullptr (a by-example exemplar's member block, whose
+	//   tokens never mean the function's parameters) always takes this branch.
+	// A token that does not start with a dot is returned unchanged.
+	static TokenID CanonicalUnitToken(TokenID tok, const TreeItem* declaringItem, const TreeItem* fnDef)
+	{
+		if (!tok)
+			return tok;
+		SharedStr s(tok.AsStrRangeLock()); // materialized: token creation below
+		if (s.empty() || *s.begin() != '.')
+			return tok;
+		auto scope = declaringItem->GetTreeParent();
+		if (!scope)
+			return {};
+		auto u = scope->ResolveItemPath(s);
+		if (!u)
+			return {};
+		if (fnDef)
+		{
+			if (u->GetTreeParent().get() == fnDef)
+				return u->GetNameID();
+			if (u.get() == fnDef || fnDef->DoesContain(u.get()))
+				return {};
+		}
+		return GetTokenID_mt(u->GetFullName().c_str());
+	}
+
 	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx,
 		SharedTreeItem* externalOut, ExtRefKind* extKindPtr, SharedStr* genSubPathOut)
 	{
@@ -633,7 +674,11 @@ namespace hof {
 					md.kind  = DefType::Kind::Data;
 					md.vcomp = adi->GetValueComposition();
 
-					if (TokenID vt = adi->ValuesUnitToken())
+					// #1341: a path that a template copy wrote is read back as the name
+					// the function declares (an exemplar's tokens never mean the
+					// function's names); see CanonicalUnitToken
+					const TreeItem* tokOwner = byExample ? nullptr : m_FuncItem;
+					if (TokenID vt = CanonicalUnitToken(adi->ValuesUnitToken(), m, tokOwner))
 					{
 						bool vMatched = false;
 						for (const TreeItem* u = block->_GetFirstSubItem(); u; u = u->GetNextItem())
@@ -699,7 +744,17 @@ namespace hof {
 					// PARAMETER name selects the default only for an explicit member
 					// block (an exemplar token never means it).
 					TokenID dt = adi->DomainUnitToken();
-					if (!dt || dt == t_Dot || dt == block->GetNameID() || (!byExample && block == memberSrc && dt == p->GetNameID()))
+					bool dDefer = false;
+					if (dt && dt != t_Dot) // a lone dot is the block itself: the default below
+					{
+						dt = CanonicalUnitToken(dt, m, tokOwner); // #1341
+						dDefer = !dt; // a copied path without a declared name: never the default
+					}
+					if (dDefer)
+					{
+						// md.dom stays Dom::Unknown -- defer
+					}
+					else if (!dt || dt == t_Dot || dt == block->GetNameID() || (!byExample && block == memberSrc && dt == p->GetNameID()))
 					{
 						if (blockDomNode != NO_TYPE_VAR)
 						{
@@ -943,7 +998,9 @@ namespace hof {
 		auto adi = AsDataItem(posItem);
 		r.vcomp = adi->GetValueComposition();
 
-		if (TokenID vTok = adi->ValuesUnitToken())
+		// #1341: a path that a template copy wrote is read back as the name the
+		// function declares (or defers); see CanonicalUnitToken
+		if (TokenID vTok = CanonicalUnitToken(adi->ValuesUnitToken(), posItem, fnDef))
 		{
 			if (tok2owner)
 				if (auto it = tok2owner->find(vTok); it != tok2owner->end())
@@ -1006,7 +1063,7 @@ namespace hof {
 			}
 		}
 
-		if (TokenID dTok = adi->DomainUnitToken())
+		if (TokenID dTok = CanonicalUnitToken(adi->DomainUnitToken(), posItem, fnDef))
 		{
 			if (tok2owner)
 				if (auto it = tok2owner->find(dTok); it != tok2owner->end())

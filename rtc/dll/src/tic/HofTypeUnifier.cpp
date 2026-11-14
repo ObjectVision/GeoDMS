@@ -167,8 +167,8 @@ namespace hof {
 				, nrFnParams, sigExemplar->GetFullName().c_str(), nrSigParams);
 
 		// a domain/values reference that names a parameter must name the positionally
-		// same parameter on both sides (alpha-invariant); other references must match
-		// literally
+		// same parameter on both sides (alpha-invariant); other references must name
+		// the same unit
 		auto normalizeUnitRef = [](const TreeItem* fn, TokenID unitRef) -> SharedStr
 		{
 			if (unitRef)
@@ -179,6 +179,32 @@ namespace hof {
 						return mySSPrintF("#{}", j);
 			}
 			return SharedStr(unitRef);
+		};
+		// #1341: the unit outside the function that a parameter's unit reference names,
+		// resolved from the function, the parent from which the engine resolves it
+		// (AbstrDataItem::FindUnit); null for a value type name, a unit inside the
+		// function and a name that does not resolve. Copying a template instance writes
+		// a unit outside the copied subtree as its full name
+		// (CopyTreeContext::GetAbsOrRelUnitID), so a function defined in a template
+		// instance says `/Road` where its signature says `Road`.
+		auto outerUnit = [](const TreeItem* fn, TokenID unitRef) -> SharedTreeItem
+		{
+			if (!unitRef || ValueClass::FindByScriptName(unitRef))
+				return {};
+			SharedStr s(unitRef.AsStrRangeLock()); // materialized: ResolveItemPath may parse
+			auto u = fn->ResolveItemPath(s);
+			if (!u || !IsUnit(u.get()) || fn->DoesContain(u.get()))
+				return {};
+			return u;
+		};
+		auto sameUnitRef = [&](TokenID sigRef, TokenID fnRef) -> bool
+		{
+			auto sigNorm = normalizeUnitRef(sigExemplar, sigRef);
+			auto fnNorm = normalizeUnitRef(boundFn, fnRef);
+			if (sigNorm == fnNorm)
+				return true;
+			auto sigUnit = outerUnit(sigExemplar, sigRef);
+			return sigUnit && sigUnit == outerUnit(boundFn, fnRef);
 		};
 
 		const TreeItem* sigParam = sigExemplar->_GetFirstSubItem();
@@ -206,12 +232,12 @@ namespace hof {
 				// a signature-side reference naming one of the signature's generic
 				// variables is a wildcard position in v1 (kind-level checking, §5.10)
 				if (!IsGenericVarOf(sigExemplar, sigADI->DomainUnitToken())
-					&& normalizeUnitRef(sigExemplar, sigADI->DomainUnitToken()) != normalizeUnitRef(boundFn, fnADI->DomainUnitToken()))
+					&& !sameUnitRef(sigADI->DomainUnitToken(), fnADI->DomainUnitToken()))
 					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': the domain of parameter {} does not match the domain relationship required by signature '{}'"
 						, boundFn->GetFullName().c_str(), paramName, i + 1
 						, sigExemplar->GetFullName().c_str());
 				if (!IsGenericVarOf(sigExemplar, sigADI->ValuesUnitToken())
-					&& normalizeUnitRef(sigExemplar, sigADI->ValuesUnitToken()) != normalizeUnitRef(boundFn, fnADI->ValuesUnitToken()))
+					&& !sameUnitRef(sigADI->ValuesUnitToken(), fnADI->ValuesUnitToken()))
 					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': the values unit of parameter {} does not match signature '{}'"
 						, boundFn->GetFullName().c_str(), paramName, i + 1
 						, sigExemplar->GetFullName().c_str());

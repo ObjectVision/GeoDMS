@@ -42,6 +42,7 @@ fn_test_scope.dms /checks
 fn_test_scope_neg.dms /checks
 fn_test_sig.dms /checks
 fn_test_sig_neg.dms /failing
+fn_test_sig_outer_unit_neg.dms /failing
 fn_test_table_spec_nested_neg.dms /invalid
 fn_test_unify.dms /checks
 fn_test_unify_neg1.dms /checks
