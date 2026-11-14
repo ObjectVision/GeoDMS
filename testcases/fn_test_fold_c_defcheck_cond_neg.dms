@@ -1,0 +1,16 @@
+container fn_test_fold_c_defcheck_cond_neg
+{
+	// #1347: the condition of fold_c must return a parameter<bool>. Here it returns the
+	// state itself, a uint32, which the definition check of Total reports before any
+	// application
+
+	function AddStep(parameter<uint32> k; parameter<uint32> acc) -> parameter<uint32> := acc + k + 1u;
+	function Same(parameter<uint32> acc) -> parameter<uint32> := acc;
+
+	function Total(parameter<uint32> n) -> parameter<uint32> := fold_c(AddStep, Same, n, 0u);
+
+	container checks
+	{
+		parameter<uint32> c := Total(3u), IntegrityCheck = "c == 6";
+	}
+}

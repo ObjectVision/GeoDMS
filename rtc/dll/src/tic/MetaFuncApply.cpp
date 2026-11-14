@@ -78,12 +78,15 @@ using namespace hof;
 void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr); // fwd (defined below, uses FunctionApplication)
 namespace {
 	void InstantiateStructuredFunctionResult(TreeItem* target, LispPtr rootKey, const StructuredFunctionResult& result); // fwd (defined below)
+	void InstantiateFoldTrace(TreeItem* target, const StructuredFunctionResult& trace); // fwd (defined below)
 }
 
 void MetaFuncCurry::operator ()(TreeItem* target, const AbstrCalculator* ac) const
 {
 	if (isMapCall)
 		InstantiateMap(target, ac, fullLispExpr);
+	else if (isFoldTrace)
+		InstantiateFoldTrace(target, *structuredResult);
 	else if (structuredResult)
 		InstantiateStructuredFunctionResult(target, fullLispExpr, *structuredResult);
 	else if (applyItem)
@@ -138,9 +141,13 @@ void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr te
 }
 
 namespace {
+	// mapMemberUnits: the sub-items of a member that is a unit take that member as their
+	// domain where the reduction gave them the reduced unit of the member, as the sub-items
+	// of the root do with the target. The items per step of a fold need it: each step is a
+	// unit of its own, with attributes over it
 	void InstantiateStructuredFunctionResultMembers(TreeItem* parent
 		, const std::vector<StructuredFunctionResultMember>& members
-		, const AbstrUnit* reducedRootDomain, AbstrUnit* targetRootDomain)
+		, const AbstrUnit* reducedRootDomain, AbstrUnit* targetRootDomain, bool mapMemberUnits = false)
 	{
 		for (const auto& member : members)
 		{
@@ -172,12 +179,30 @@ namespace {
 					child = parent->CreateItem(member.id);
 
 				child->SetCalculator(AbstrCalculator::ConstructFromLispRef(child.get(), member.key, CalcRole::Calculator));
+				if (mapMemberUnits && IsUnit(reducedItem.get()))
+				{
+					InstantiateStructuredFunctionResultMembers(child.get(), member.subItems
+						, AsUnit(reducedItem.get()), AsDynamicUnit(child.get()), mapMemberUnits);
+					continue;
+				}
 			}
 
-			InstantiateStructuredFunctionResultMembers(child.get(), member.subItems, reducedRootDomain, targetRootDomain);
+			InstantiateStructuredFunctionResultMembers(child.get(), member.subItems, reducedRootDomain, targetRootDomain, mapMemberUnits);
 			if (member.key.EndP())
 				child->SetIsInstantiated();
 		}
+	}
+
+	// #1347: 'container trace := instantiate fold(...)': the holder gets the state after
+	// each step and the final state as items (MakeFoldTrace, HofClosure.cpp). The holder
+	// itself is a container without a value
+	void InstantiateFoldTrace(TreeItem* target, const StructuredFunctionResult& trace)
+	{
+		dms_assert(target);
+		if (target->WasFailed(FailType::MetaInfo) || target->GetIsInstantiated())
+			return;
+		InstantiateStructuredFunctionResultMembers(target, trace.subItems, nullptr, nullptr, true);
+		target->SetIsInstantiated();
 	}
 
 	void InstantiateStructuredFunctionResult(TreeItem* target, LispPtr rootKey, const StructuredFunctionResult& result)

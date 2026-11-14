@@ -52,6 +52,9 @@ namespace hof {
 
 extern StaticTokenID t_Hole;             // '_' partial-application placeholder
 extern StaticTokenID t_Map;              // built-in map(function, container) metafunction
+extern StaticTokenID t_Fold;             // #1347 built-in fold(domain, step, initial state)
+extern StaticTokenID t_FoldC;            // #1347 built-in fold_c(step, condition, maxN, initial state)
+inline bool IsFoldHead(TokenID id) { return id == t_Fold || id == t_FoldC; }
 extern StaticTokenID t_ApplyItem;        // §5.9 'apply X(args)' marker head
 extern StaticTokenID t_InstantiateItem;  // §5.9 'instantiate X(args)' marker head
 extern StaticTokenID t_ApplyValue;       // §5.10 '(args)' applied to a call result
@@ -118,13 +121,15 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 		std::vector<SharedTreeItem>    m_ArgItems;    // per param: the referenced item iff the argument was a plain reference (enables member access), else null
 		std::vector<std::shared_ptr<FunctionBinding>> m_ArgBindings; // per param: the bound function value iff the argument is a function, else null
 		std::vector<std::shared_ptr<ContainerLiteralArg>> m_ArgLiterals; // per param: the container-literal argument, else null
+		std::vector<std::shared_ptr<const StructuredFunctionResult>> m_ArgStructured; // per param: the declared sub-items of an argument that is the result of a function application (#1347: the state of a fold), else null
 		std::shared_ptr<ClosureEnv>    m_Env;         // §5.10: closure environment of the applied function, else null
 		std::vector<const TreeItem*>   m_Params;      // the first N sub-items of m_FuncItem
 		const TreeItem*                m_RestParam = nullptr; // '...x' rest param (the last param); binds m_ArgKeys[nrParams-1 .. end)
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
+		std::map<LispRef, std::shared_ptr<const StructuredFunctionResult>> m_StructuredByKey; // #1347: the declared sub-items of each fold reduced in this body, by the key of its result
 
-		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); }
+		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); m_ArgStructured.push_back(a.structuredResult); }
 
 		// §5.10: this application's bound parameters as a closure environment, chained
 		// to the environment it was itself applied in. Captured by value, so the result
@@ -140,6 +145,7 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 				CallArg a;
 				a.key = m_ArgKeys[i]; a.item = m_ArgItems[i];
 				a.binding = m_ArgBindings[i]; a.literal = m_ArgLiterals[i];
+				a.structuredResult = m_ArgStructured[i];
 				env->args.push_back(std::move(a));
 			}
 			env->next = m_Env;
@@ -153,6 +159,7 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 			for (UInt32 k = TreeItem_GetFunctionParamCount(m_FuncItem) - 1; k != m_ArgKeys.size(); ++k)
 			{
 				CallArg a; a.key = m_ArgKeys[k]; a.item = m_ArgItems[k]; a.binding = m_ArgBindings[k]; a.literal = m_ArgLiterals[k];
+				a.structuredResult = m_ArgStructured[k];
 				out.push_back(std::move(a));
 			}
 		}
@@ -199,6 +206,31 @@ FunctionBinding MergeBinding(const FunctionBinding& b, const std::vector<CallArg
 CallArg ReduceMergedValue(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder);
 LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
 	, std::shared_ptr<const StructuredFunctionResult>* structuredResult = nullptr);
+
+// #1347: reduce a fold to its value, the state after the last step. `head` is t_Fold,
+// fold(domain, step, initial state), which applies the step to each element of the domain
+// in order, or t_FoldC, fold_c(step, condition, maxN, initial state), which applies the
+// step for as long as the condition holds for the state, at most maxN times. The
+// arguments are already resolved, in the caller's scope or in a function body. When
+// `trace` is given, it receives the state after each step that is taken.
+CallArg ReduceFoldCall(TokenID head, const std::vector<CallArg>& args
+	, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+	, std::vector<CallArg>* trace = nullptr);
+CallArg ReduceFold(const CallArg& domainArg, const CallArg& stepArg, CallArg state
+	, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+	, std::vector<CallArg>* trace = nullptr);
+CallArg ReduceFoldC(const CallArg& stepArg, const CallArg& condArg, const CallArg& maxNArg, CallArg state
+	, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+	, std::vector<CallArg>* trace = nullptr);
+
+// #1347: the items that 'instantiate fold(...)' and 'instantiate fold_c(...)' publish:
+// step0, step1, ..., one per step that is taken, each holding the state after that step,
+// and result, the final state, which is the initial state when no step is taken
+std::shared_ptr<const StructuredFunctionResult> MakeFoldTrace(const std::vector<CallArg>& trace, const CallArg& result);
+
+// #1347: the key of the declared sub-item `relPath` ('a' or 'a/b') of a function
+// result; empty when it declares no such sub-item
+LispRef FindStructuredMember(const StructuredFunctionResult& sr, CharPtrRange relPath);
 
 // resolve one argument expression in the CALLER's scope to a CallArg
 CallArg ResolveCallerArg(LispPtr argExpr,

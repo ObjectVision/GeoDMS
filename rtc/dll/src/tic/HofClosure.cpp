@@ -42,6 +42,7 @@
 #include "DataArray.h"
 #include "DataController.h"
 #include "DataItemClass.h"
+#include "DataLocks.h"
 #include "DC_Ptr.h"
 #include "ExprRewrite.h"
 #include "LispRef.h"
@@ -73,6 +74,8 @@ namespace hof {
 // the marker heads and placeholders of the typed-HOF notation, declared in HofClosure.h
 StaticTokenID t_Hole("_");
 StaticTokenID t_Map("map");
+StaticTokenID t_Fold("fold");
+StaticTokenID t_FoldC("fold_c");
 StaticTokenID t_ApplyItem("apply_item");
 StaticTokenID t_InstantiateItem("instantiate_item");
 StaticTokenID t_ApplyValue("apply_value");
@@ -222,6 +225,268 @@ StaticTokenID t_Dot(".");
 		return r.key;
 	}
 
+	// #1347: the key of a declared sub-item of a function result, by its path below the
+	// result ('point', or 'meta/factor' for a member of a container member)
+	LispRef FindStructuredMember(const StructuredFunctionResult& sr, CharPtrRange relPath)
+	{
+		const std::vector<StructuredFunctionResultMember>* level = &sr.subItems;
+		while (true)
+		{
+			CharPtr slash = std::find(relPath.first, relPath.second, '/');
+			TokenID id = GetTokenID_mt(relPath.first, slash);
+			auto m = std::find_if(level->begin(), level->end(), [id](const StructuredFunctionResultMember& sub) { return sub.id == id; });
+			if (m == level->end())
+				return {};
+			if (slash == relPath.second)
+				return m->key;
+			level = &m->subItems;
+			relPath.first = slash + 1;
+		}
+	}
+
+	// #1347: fold(D, f, x0) is f(e[n-1], ... f(e[1], f(e[0], x0))), with e[k] the k-th
+	// element of the unit D, as a parameter<D>. The number of steps is read from D when
+	// the expression is reduced, at meta time, as iterate and loop read theirs. Each step
+	// is a beta reduction of f, so the result is the key of one calculation that does all
+	// n steps, and no item is made per step. A state with declared sub-items (a unit
+	// result with its attributes) carries them to the next step as a structured result.
+	// When `trace` is given, it receives the state after each step (instantiate fold).
+	CallArg ReduceFold(const CallArg& domainArg, const CallArg& stepArg, CallArg state
+		, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+		, std::vector<CallArg>* trace)
+	{
+		constexpr CharPtr foldSig = "fold(domain, step, initial state)";
+		if (domainArg.isHole || stepArg.isHole || state.isHole)
+			throwErrorF("ExprParser", "{}: '_' cannot be an argument of fold itself; it marks the open arguments of the step", foldSig);
+		if (domainArg.binding || domainArg.literal || domainArg.key.EndP())
+			throwErrorF("ExprParser", "{}: the first argument must be a unit, the domain whose elements the step visits", foldSig);
+		if (!stepArg.binding)
+			throwErrorF("ExprParser", "{}: the second argument must be a function, or a partial application that leaves two arguments open", foldSig);
+		if (state.binding)
+			throwErrorF("ExprParser", "{}: the initial state must be a value, not a function", foldSig);
+		const FunctionBinding& step = *stepArg.binding;
+		if (TreeItem_IsFunctionVariantSet(step.funcItem.get()))
+			throwErrorF("ExprParser", "{}: the step '{}' is a set of variants; pass the variant to use"
+				, foldSig, step.funcItem->GetFullName().c_str());
+		if (step.NrHoles() != 2)
+			throwErrorF("ExprParser", "{}: the step '{}' must take two arguments, an element of the domain and the state; it leaves {} open"
+				, foldSig, step.funcItem->GetFullName().c_str(), step.NrHoles());
+
+		// the elements of the domain, read at meta time
+		row_id nrSteps = 0;
+		Float64 firstElem = 0;
+		{
+			FencedInterestRetainContext irc("hof::ReduceFold");
+			auto dc = GetOrCreateDataController(domainArg.key);
+			MG_CHECK(dc);
+			irc.Add(dc.get());
+			auto res = dc->MakeResult();
+			if (!res)
+			{
+				dms_assert(dc->WasFailed(FailType::MetaInfo));
+				if (errorHolder)
+					errorHolder->ThrowFail(dc.get());
+				throwErrorF("ExprParser", "{}: the domain cannot be determined", foldSig);
+			}
+			if (!IsUnit(res.get()))
+				throwErrorF("ExprParser", "{}: the first argument must be a unit, the domain whose elements the step visits", foldSig);
+			FutureData fd = dc->CalcCertainResult();
+			if (!fd || fd->WasFailed())
+			{
+				if (errorHolder)
+					errorHolder->ThrowFail(dc.get());
+				throwErrorF("ExprParser", "{}: the domain cannot be calculated", foldSig);
+			}
+			auto domainUnit = AsUnit(fd->GetOld());
+			auto vc = domainUnit->GetValueType();
+			if (domainUnit->GetNrDimensions() != 1 || !vc->IsIntegral())
+				throwErrorF("ExprParser", "{}: the domain must be a unit of integers, whose elements can be counted; it has values of type {}"
+					, foldSig, vc->GetNameID());
+			nrSteps = domainUnit->GetCount();
+			firstElem = domainUnit->GetRangeAsFloat64().first;
+		}
+
+		for (row_id k = 0; k != nrSteps; ++k)
+		{
+			CallArg elem;
+			elem.key = AsLispRef(Float64(firstElem + k), domainArg.key); // (convert value D): a parameter<D>
+			FunctionBinding merged = MergeBinding(step, { std::move(elem), std::move(state) });
+			state = ReduceMergedValue(merged, parent, substBuff, errorHolder);
+			if (state.binding)
+				throwErrorF("ExprParser", "{}: the step '{}' returned a function; it must return the next state"
+					, foldSig, step.funcItem->GetFullName().c_str());
+			if (trace)
+				trace->push_back(state);
+		}
+		return state;
+	}
+
+	namespace {
+		// #1347: calculate the parameter `key` now, at meta time, as fold calculates its
+		// domain, and return its value. fold_c reads its maximum number of steps and the
+		// condition of each state this way; `what` names the argument in an error
+		Float64 CalcMetaParameter(LispPtr key, bool mustBeBool, CharPtr sig, CharPtr what, SharedTreeItem errorHolder)
+		{
+			FencedInterestRetainContext irc("hof::fold_c");
+			auto dc = GetOrCreateDataController(key);
+			MG_CHECK(dc);
+			irc.Add(dc.get());
+			auto res = dc->MakeResult();
+			if (!res)
+			{
+				dms_assert(dc->WasFailed(FailType::MetaInfo));
+				if (errorHolder)
+					errorHolder->ThrowFail(dc.get());
+				throwErrorF("ExprParser", "{}: {} cannot be determined", sig, what);
+			}
+			const AbstrDataItem* adi = IsDataItem(res.get()) ? AsDataItem(res.get()) : nullptr;
+			const ValueClass* vc = adi ? adi->GetAbstrValuesUnit()->GetValueType() : nullptr;
+			if (!adi || !adi->HasVoidDomainGuarantee()
+				|| !(mustBeBool ? vc->GetValueClassID() == ValueClassID::VT_Bool : vc->IsIntegral()))
+				throwErrorF("ExprParser", "{}: {} must be a {}", sig, what
+					, mustBeBool ? "parameter<bool>" : "parameter with an integer value type, such as parameter<uint32>");
+			FutureData fd = dc->CalcCertainResult();
+			if (!fd || fd->WasFailed())
+			{
+				if (errorHolder)
+					errorHolder->ThrowFail(dc.get());
+				throwErrorF("ExprParser", "{}: {} cannot be calculated", sig, what);
+			}
+			auto resAdi = AsDataItem(fd->GetOld());
+			PreparedDataReadLock lock(resAdi, "hof::fold_c");
+			return resAdi->GetRefObj()->GetValueAsFloat64(0);
+		}
+
+		// interest in the data of a state and of its declared sub-items, so that the
+		// calculation of the next state finds it instead of recalculating the chain before it
+		void HoldState(const CallArg& state, std::vector<FutureData>& holds)
+		{
+			auto add = [&holds](LispPtr key)
+			{
+				if (!key.EndP())
+					if (auto dc = GetOrCreateDataController(key))
+						holds.emplace_back(dc.get());
+			};
+			add(state.key);
+			if (!state.structuredResult)
+				return;
+			std::vector<const std::vector<StructuredFunctionResultMember>*> levels = { &state.structuredResult->subItems };
+			while (!levels.empty())
+			{
+				auto level = levels.back(); levels.pop_back();
+				for (const auto& m : *level)
+				{
+					add(m.key);
+					levels.push_back(&m.subItems);
+				}
+			}
+		}
+	}
+
+	// #1347: fold_c(f, cond, maxN, x0) applies f while cond holds for the state, at most
+	// maxN times: with s[0] = x0, s[k+1] = f(k, s[k]) for as long as cond(s[k]) is true,
+	// and the result is the first state for which cond is false. The step takes the number
+	// of the step, a parameter<uint32> counting from 0, and the state. Whether to take
+	// another step depends on data, so the condition of each state is calculated when the
+	// expression is reduced, at meta time, as fold calculates its domain; a state whose
+	// condition still holds after maxN steps is an error, not a truncation. The data of each
+	// state is held while the next one is calculated, so a chain of n steps costs n steps.
+	CallArg ReduceFoldC(const CallArg& stepArg, const CallArg& condArg, const CallArg& maxNArg, CallArg state
+		, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+		, std::vector<CallArg>* trace)
+	{
+		constexpr CharPtr foldSig = "fold_c(step, condition, maxN, initial state)";
+		if (stepArg.isHole || condArg.isHole || maxNArg.isHole || state.isHole)
+			throwErrorF("ExprParser", "{}: '_' cannot be an argument of fold_c itself; it marks the open arguments of the step and the condition", foldSig);
+		if (!stepArg.binding)
+			throwErrorF("ExprParser", "{}: the first argument must be a function, or a partial application that leaves two arguments open", foldSig);
+		if (!condArg.binding)
+			throwErrorF("ExprParser", "{}: the second argument must be a function, or a partial application that leaves one argument open, the condition on the state", foldSig);
+		if (maxNArg.binding || maxNArg.literal || maxNArg.key.EndP())
+			throwErrorF("ExprParser", "{}: the third argument must be a number, the most steps that may be taken", foldSig);
+		if (state.binding)
+			throwErrorF("ExprParser", "{}: the initial state must be a value, not a function", foldSig);
+		const FunctionBinding& step = *stepArg.binding;
+		const FunctionBinding& cond = *condArg.binding;
+		for (const FunctionBinding* fb : { &step, &cond })
+			if (TreeItem_IsFunctionVariantSet(fb->funcItem.get()))
+				throwErrorF("ExprParser", "{}: the {} '{}' is a set of variants; pass the variant to use"
+					, foldSig, fb == &step ? "step" : "condition", fb->funcItem->GetFullName().c_str());
+		if (step.NrHoles() != 2)
+			throwErrorF("ExprParser", "{}: the step '{}' must take two arguments, the number of the step and the state; it leaves {} open"
+				, foldSig, step.funcItem->GetFullName().c_str(), step.NrHoles());
+		if (cond.NrHoles() != 1)
+			throwErrorF("ExprParser", "{}: the condition '{}' must take one argument, the state; it leaves {} open"
+				, foldSig, cond.funcItem->GetFullName().c_str(), cond.NrHoles());
+
+		Float64 maxN = CalcMetaParameter(maxNArg.key, false, foldSig, "the third argument, the most steps that may be taken,", errorHolder);
+		if (maxN < 0)
+			throwErrorF("ExprParser", "{}: the third argument, the most steps that may be taken, is {}; it cannot be negative", foldSig, maxN);
+
+		std::vector<FutureData> heldPrev; // the data of the state before the current one
+		for (row_id k = 0; ; ++k)
+		{
+			std::vector<FutureData> heldCurr;
+			HoldState(state, heldCurr); // before the condition calculates it, so that its data stays
+
+			FunctionBinding condMerged = MergeBinding(cond, { state });
+			CallArg c = ReduceMergedValue(condMerged, parent, substBuff, errorHolder);
+			if (c.binding || c.key.EndP())
+				throwErrorF("ExprParser", "{}: the condition '{}' must return a parameter<bool>"
+					, foldSig, cond.funcItem->GetFullName().c_str());
+			bool goOn = CalcMetaParameter(c.key, true, foldSig, "the result of the condition", errorHolder) != 0;
+			heldPrev = std::move(heldCurr);
+			if (!goOn)
+				return state;
+			if (Float64(k) >= maxN)
+				throwErrorF("ExprParser", "{}: the condition '{}' still holds after {} steps, the most that the third argument allows"
+					, foldSig, cond.funcItem->GetFullName().c_str(), k);
+
+			CallArg elem;
+			elem.key = AsLispRef(UInt32(k)); // the number of the step: a parameter<uint32>
+			FunctionBinding merged = MergeBinding(step, { std::move(elem), std::move(state) });
+			state = ReduceMergedValue(merged, parent, substBuff, errorHolder);
+			if (state.binding)
+				throwErrorF("ExprParser", "{}: the step '{}' returned a function; it must return the next state"
+					, foldSig, step.funcItem->GetFullName().c_str());
+			if (trace)
+				trace->push_back(state);
+		}
+	}
+
+	CallArg ReduceFoldCall(TokenID head, const std::vector<CallArg>& args
+		, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+		, std::vector<CallArg>* trace)
+	{
+		if (head == t_FoldC)
+		{
+			if (args.size() != 4)
+				throwErrorF("ExprParser", "fold_c(step, condition, maxN, initial state): expects 4 arguments; {} provided", args.size());
+			return ReduceFoldC(args[0], args[1], args[2], args[3], parent, substBuff, errorHolder, trace);
+		}
+		dms_assert(head == t_Fold);
+		if (args.size() != 3)
+			throwErrorF("ExprParser", "fold(domain, step, initial state): expects 3 arguments; {} provided", args.size());
+		return ReduceFold(args[0], args[1], args[2], parent, substBuff, errorHolder, trace);
+	}
+
+	std::shared_ptr<const StructuredFunctionResult> MakeFoldTrace(const std::vector<CallArg>& trace, const CallArg& result)
+	{
+		auto sr = std::make_shared<StructuredFunctionResult>();
+		auto add = [&sr](TokenID id, const CallArg& s)
+		{
+			auto& m = sr->subItems.emplace_back();
+			m.id = id;
+			m.key = s.key;
+			if (s.structuredResult)
+				m.subItems = s.structuredResult->subItems;
+		};
+		for (SizeT k = 0; k != trace.size(); ++k)
+			add(GetTokenID_mt(mySSPrintF("step{}", k).c_str()), trace[k]);
+		add(GetTokenID_mt("result"), result);
+		return sr;
+	}
+
 	// caller-side (non-body) argument resolution: build a CallArg from a caller-scope
 	// expression. `resolveData` substitutes an ordinary data expression to its key;
 	// `findItem` resolves a bare symbol to its item (null if absent). A function
@@ -275,6 +540,18 @@ StaticTokenID t_Dot(".");
 				if (merged.NrHoles() == 0)
 					return ReduceMergedValue(merged, nullptr, substBuff, errorHolder);
 				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
+			}
+
+			// #1347: fold(...) or fold_c(...) as an argument: its value, including the
+			// declared sub-items of a structured state
+			if (IsFoldHead(headID))
+			{
+				std::vector<CallArg> foldArgs;
+				for (LispPtr a = argExpr.Right(); !a.EndP(); a = a.Right())
+					foldArgs.push_back(ResolveCallerArg(a.Left(), resolveData, findItem, substBuff, errorHolder));
+				if (substBuff && substBuff->avs == AVS_SuspendedOrFailed)
+					return {};
+				return ReduceFoldCall(headID, foldArgs, nullptr, substBuff, errorHolder);
 			}
 
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);

@@ -1172,15 +1172,38 @@ namespace hof {
 	// declared result type under that instance
 	DefType FunctionChecker::InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName)
 	{
+		// #1347: as the step of fold, the holes take the element and the state (InferFold)
+		const FoldHoleFill* fill = std::exchange(m_FoldHoleFill, nullptr);
 		std::vector<DefType> argTerms;
-		UInt32 nrArgs = 0; bool anyHole = false;
+		std::vector<SharedStr> argSources;
+		UInt32 nrArgs = 0, nrHoles = 0; bool anyHole = false;
 		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
 		{
 			bool hole = a.Left().IsSymb() && a.Left().GetSymbID() == t_Hole;
-			anyHole |= hole;
-			argTerms.push_back(hole ? DefType{} : InferArg(refScope, a.Left()));
+			if (hole && fill && nrHoles < fill->terms.size())
+			{
+				argTerms.push_back(fill->terms[nrHoles]);
+				argSources.push_back(fill->sources[nrHoles]);
+			}
+			else
+			{
+				anyHole |= hole;
+				argTerms.push_back(hole ? DefType{} : InferArg(refScope, a.Left()));
+				argSources.push_back(mySSPrintF("argument {} of '{}'", nrArgs + 1, headName));
+			}
+			nrHoles += hole;
 			++nrArgs;
 		}
+		if (fill && nrHoles != fill->terms.size())
+			throwErrorF("ExprParser", "the definition of '{}': {}; '{}' leaves {}"
+				, m_FuncItem->GetFullName().c_str(), fill->role.c_str(), headName, nrHoles);
+		return InferApplicationTerms(fnVal, argTerms, anyHole, headName, fill ? &argSources : nullptr);
+	}
+
+	DefType FunctionChecker::InferApplicationTerms(const DefType& fnVal, const std::vector<DefType>& argTerms, bool anyHole, CharPtr headName,
+		const std::vector<SharedStr>* argSources)
+	{
+		UInt32 nrArgs = UInt32(argTerms.size());
 		if (fnVal.kind != DefType::Kind::Func || !fnVal.fn)
 			return {};
 		const TreeItem* fnDef = fnVal.fn;
@@ -1250,7 +1273,7 @@ namespace hof {
 				continue;
 			}
 			DefType pT = PositionType(p, fnDef, instance, ownerFn, ownerInstance, t2o);
-			SharedStr argSrc = mySSPrintF("argument {} of '{}'", k + 1, headName);
+			SharedStr argSrc = argSources ? (*argSources)[k] : mySSPrintF("argument {} of '{}'", k + 1, headName);
 			SharedStr parSrc = mySSPrintF("parameter '{}' of function '{}'", pName.c_str(), fnDef->GetFullName().c_str());
 			UnifyData(argTerms[k], pT, argSrc, parSrc);
 		}
@@ -1268,6 +1291,143 @@ namespace hof {
 			return r;
 		}
 		return PositionType(resultChild.get(), fnDef, instance, ownerFn, ownerInstance, t2o);
+	}
+
+	// #1347: fold(D, f, x0) and fold_c(f, cond, maxN, x0) in a body. The step is typed
+	// once for any number of steps, so the verdict does not depend on #D or on the data that
+	// decides when fold_c stops, which are only known per application: step 1 applies f to
+	// (an element, x0), step 2 to (an element, the result of step 1), and the result of step
+	// 2 is the type of the fold. Step 2 is the one that requires the state f returns to fit
+	// the state f takes; every later step repeats it. The element is a parameter<D> for fold
+	// and the number of the step, a parameter<uint32>, for fold_c. The condition of fold_c
+	// is typed on x0 and on the result of step 1, and must return a parameter<bool>. A
+	// partial application F(a, _, _) is typed the same way, with its holes filled. A variant
+	// set or a function without a declared signature defers, as it does in any other
+	// application.
+	DefType FunctionChecker::InferFold(const TreeItem* refScope, LispPtr argsList, bool conditional)
+	{
+		CharPtr name = conditional ? "fold_c" : "fold";
+		std::vector<LispPtr> args;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
+			args.push_back(a.Left());
+		if (args.size() != SizeT(conditional ? 4 : 3))
+			throwErrorF("ExprParser", "the definition of '{}': {} expects {} arguments; {} provided"
+				, m_FuncItem->GetFullName().c_str()
+				, conditional ? "fold_c(step, condition, maxN, initial state)" : "fold(domain, step, initial state)"
+				, conditional ? 4 : 3, args.size());
+		LispPtr stepExpr = args[conditional ? 0 : 1];
+		DefType x0T = InferArg(refScope, args[conditional ? 3 : 2]);
+		if (x0T.kind == DefType::Kind::Func)
+			throwErrorF("ExprParser", "the definition of '{}': the initial state of {} must be a value, not a function"
+				, m_FuncItem->GetFullName().c_str(), name);
+
+		DefType elemT;
+		elemT.kind  = DefType::Kind::Data;
+		elemT.vcomp = ValueComposition::Single;
+		elemT.dom   = DefType::Dom::Void;
+		SharedStr elemSrc;
+		if (conditional)
+		{
+			DefType maxT = InferArg(refScope, args[2]);
+			if (maxT.kind != DefType::Kind::Unknown
+				&& (maxT.kind != DefType::Kind::Data || maxT.dom == DefType::Dom::Concrete || maxT.dom == DefType::Dom::Node
+					|| (maxT.vc && !maxT.vc->IsIntegral())))
+				throwErrorF("ExprParser", "the definition of '{}': the third argument of fold_c must be a number, a parameter with an integer value type: the most steps that may be taken"
+					, m_FuncItem->GetFullName().c_str());
+			// the number of the step is a parameter<uint32>
+			elemT.vc = ValueClass::FindByValueClassID(ValueClassID::VT_UInt32);
+			elemSrc = SharedStr("the number of the step of fold_c");
+		}
+		else
+		{
+			DefType domT = InferArg(refScope, args[0]);
+			if (domT.kind != DefType::Kind::Unknown && domT.kind != DefType::Kind::UnitVal)
+				throwErrorF("ExprParser", "the definition of '{}': the first argument of fold must be a unit, the domain whose elements the step visits"
+					, m_FuncItem->GetFullName().c_str());
+			if (domT.kind != DefType::Kind::UnitVal)
+				elemT = DefType{}; // an element of an unknown domain defers
+			else
+			{
+				// an element of D is a parameter<D>: D's class, and D's identity as its values unit
+				elemT.vc = domT.vc;
+				if (domT.dom == DefType::Dom::Node)
+					elemT.vuNode = domT.dNode;
+				else if (domT.dom == DefType::Dom::Concrete)
+				{
+					elemT.vUnit = domT.domUnit; elemT.vKeep = domT.domKeep;
+				}
+			}
+			elemSrc = SharedStr("an element of the domain of fold");
+		}
+		SharedStr x0Src    = mySSPrintF("the initial state of {}", name);
+		SharedStr stateSrc = mySSPrintF("the state that the step of {} returns", name);
+
+		// what an application is (the step or the condition), the number of arguments it
+		// takes, and what they are, for the errors on another number
+		struct Role { CharPtr what; UInt32 nrParams; CharPtr nrText; CharPtr argsText; };
+		Role stepRole{ "step", 2, "two arguments", conditional ? "the number of the step and the state" : "an element of the domain and the state" };
+		Role condRole{ "condition", 1, "one argument", "the state" };
+
+		// a partial application F(a, _, _) as the step or the condition: its holes take the
+		// terms, in order, and the application is typed as a whole, fixed arguments
+		// included. Only a direct call of a function (the test InferExpr applies to a call
+		// head); another form defers as before
+		auto isPartial = [](LispPtr e)
+		{
+			if (!e.IsRealList() || !e.Left().IsSymb())
+				return false;
+			TokenID head = e.Left().GetSymbID();
+			if (head == t_ApplyValue || IsFoldHead(head) || head == t_Map
+				|| !AbstrOperGroup::FindName(head)->IsTemplateCall() || ValueClass::FindByScriptName(head))
+				return false;
+			for (LispPtr a = e.Right(); !a.EndP(); a = a.Right())
+				if (a.Left().IsSymb() && a.Left().GetSymbID() == t_Hole)
+					return true;
+			return false;
+		};
+		auto typeApplication = [&](LispPtr fnExpr, const Role& role, std::vector<DefType> terms, std::vector<SharedStr> sources) -> DefType
+		{
+			if (isPartial(fnExpr))
+			{
+				FoldHoleFill fill{ std::move(terms), std::move(sources)
+					, mySSPrintF("the {} of {} must leave {} open, {}", role.what, name, role.nrText, role.argsText) };
+				struct Reset { const FoldHoleFill*& p; ~Reset() { p = nullptr; } } reset{ m_FoldHoleFill };
+				m_FoldHoleFill = &fill;
+				return InferExpr(refScope, fnExpr);
+			}
+			DefType fnT = InferArg(refScope, fnExpr);
+			if (fnT.kind != DefType::Kind::Unknown && fnT.kind != DefType::Kind::Func)
+				throwErrorF("ExprParser", "the definition of '{}': the {} of {} must be a function"
+					, m_FuncItem->GetFullName().c_str(), role.what, name);
+			if (fnT.kind != DefType::Kind::Func || !fnT.fn)
+				return {};
+			const TreeItem* fn = fnT.fn;
+			if (!fnT.varsOwner && fn->IsFunctionItem() && TreeItem_GetFunctionResultName(fn)
+				&& !TreeItem_IsFunctionVariantSet(fn) && !TreeItem_HasFunctionRestParam(fn)
+				&& TreeItem_GetFunctionParamCount(fn) != role.nrParams)
+				throwErrorF("ExprParser", "the definition of '{}': the {} '{}' of {} must take {}, {}; it takes {}"
+					, m_FuncItem->GetFullName().c_str(), role.what, fn->GetFullName().c_str(), name, role.nrText, role.argsText
+					, TreeItem_GetFunctionParamCount(fn));
+			return InferApplicationTerms(fnT, terms, false, name, &sources);
+		};
+
+		DefType r1 = typeApplication(stepExpr, stepRole, { elemT, x0T }, { elemSrc, x0Src });
+		DefType r2 = typeApplication(stepExpr, stepRole, { elemT, r1 }, { elemSrc, stateSrc });
+		if (conditional)
+		{
+			// the condition is tested on x0 and on every state that a step returns
+			for (const auto& [stateT, src] : { std::pair{ x0T, x0Src }, std::pair{ r1, stateSrc } })
+			{
+				DefType c = typeApplication(args[1], condRole, { stateT }, { src });
+				if (c.kind == DefType::Kind::Unknown)
+					continue;
+				if (c.kind != DefType::Kind::Data || c.dom == DefType::Dom::Concrete || c.dom == DefType::Dom::Node
+					|| (c.vc && c.vc->GetValueClassID() != ValueClassID::VT_Bool))
+					throwErrorF("ExprParser", "the definition of '{}': the condition of fold_c must return a parameter<bool>, whether to take another step"
+						, m_FuncItem->GetFullName().c_str());
+			}
+		}
+		return r2;
 	}
 
 	// argument-position inference: function references become Func values (mirroring
@@ -1788,6 +1948,8 @@ namespace hof {
 		{
 			if (headID == t_Map)
 				throwErrorF("ExprParser", "map(...) can only appear as a whole calculation rule, not as a sub-expression");
+			if (IsFoldHead(headID))
+				return InferFold(refScope, expr.Right(), headID == t_FoldC); // #1347
 			// the head name is materialized BEFORE the recursive walk: a TokenStr
 			// temporary holds the token registry's shared lock, and the walk below
 			// parses body expressions (token creation needs the exclusive lock)

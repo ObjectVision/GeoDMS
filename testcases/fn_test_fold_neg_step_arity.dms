@@ -1,0 +1,11 @@
+container fn_test_fold_neg_step_arity
+{
+	// NEGATIVE #1347: the step of fold takes two arguments, an element of the domain
+	// and the state.
+	// Expected: "fold(domain, step, initial state): the step '/Three'
+	//            must take two arguments, an element of the domain and the state; it leaves 3 open"
+	unit<uint32> D : nrofrows = 3;
+	function Three(parameter<uint32> a; parameter<uint32> b; parameter<uint32> c) -> parameter<uint32> := a + b + c;
+	parameter<uint32> r := fold(D, Three, 0u);
+	container checks { parameter<uint32> use := r; }
+}

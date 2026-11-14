@@ -1,0 +1,15 @@
+container fn_test_fold_c_neg_maxn
+{
+	// #1347: a fold_c whose condition still holds after maxN steps is an error, not a
+	// truncation: 0, 1, 3, 6 stay below 1000, and maxN is 3
+
+	function AddStep(parameter<uint32> k; parameter<uint32> acc) -> parameter<uint32> := acc + k + 1u;
+	function Below(parameter<uint32> limit; parameter<uint32> acc) -> parameter<bool> := acc < limit;
+
+	parameter<uint32> r := fold_c(AddStep, Below(1000u, _), 3u, 0u);
+
+	container checks
+	{
+		parameter<uint32> c := r, IntegrityCheck = "c == 6";
+	}
+}

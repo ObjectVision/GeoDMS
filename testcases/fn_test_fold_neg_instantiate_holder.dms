@@ -1,0 +1,20 @@
+container fn_test_fold_neg_instantiate_holder
+{
+	// #1347: 'instantiate fold(...)' makes an item per step, so it needs a container as its
+	// holder; an attribute takes the final state with a bare fold(...)
+
+	unit<uint32> Twice : nrofrows = 2;
+	unit<uint32> Vals : nrofrows = 2
+	{
+		attribute<float64> v : [8.0, 4.0];
+	}
+
+	function Halve(unit<uint32> dom; parameter<uint32> i; attribute<float64> x (dom)) -> attribute<float64> (dom) := x * 0.5;
+
+	attribute<float64> r (Vals) := instantiate fold(Twice, Halve(Vals, _, _), Vals/v);
+
+	container checks
+	{
+		parameter<float64> c := sum(r), IntegrityCheck = "c == 3.0";
+	}
+}

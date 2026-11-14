@@ -1332,6 +1332,63 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				goto exit;
 			}
 
+			// #1347: fold(domain, step, initial state) and fold_c(step, condition, maxN,
+			// initial state) are values: resolve the arguments in the caller's scope and
+			// reduce the steps (ReduceFoldCall, HofClosure.cpp). As the whole calculation
+			// rule, a state with declared sub-items gives the item those sub-items, as the
+			// call of such a function does.
+			if (IsFoldHead(head.GetSymbID()))
+			{
+				if (substBuff.optionalVisitor)
+				{
+					// visit-only pass: record the suppliers of the arguments. The step and the
+					// condition are function references or partial applications F(x, _, _),
+					// whose '_' marks an open argument, not an item
+					auto hasHole = [](LispPtr call)
+					{
+						for (LispPtr b = call.Right(); !b.EndP(); b = b.Right())
+							if (b.Left().IsSymb() && b.Left().GetSymbID() == t_Hole)
+								return true;
+						return false;
+					};
+					for (LispPtr a = localExpr.Right(); !a.EndP(); a = a.Right())
+					{
+						LispPtr arg = a.Left();
+						bool partialStep = arg.IsRealList() && arg.Left().IsSymb()
+							&& arg.Left().GetSymbID() != t_ApplyValue && !IsFoldHead(arg.Left().GetSymbID())
+							&& AbstrOperGroup::FindName(arg.Left().GetSymbID())->IsTemplateCall()
+							&& hasHole(arg);
+						if (partialStep)
+						{
+							if (auto f = FindOrVisitItem(substBuff, arg.Left().GetSymbID()))
+								registerSupplier(substBuff, f.get());
+							for (LispPtr b = arg.Right(); !b.EndP() && substBuff.avs != AVS_SuspendedOrFailed; b = b.Right())
+								if (!(b.Left().IsSymb() && b.Left().GetSymbID() == t_Hole))
+									SubstituteExpr_impl(substBuff, LispRef(b.Left()), metainfo_policy_flags::subst_allowed);
+						}
+						else
+							SubstituteExpr_impl(substBuff, LispRef(arg), metainfo_policy_flags::subst_allowed);
+						if (substBuff.avs == AVS_SuspendedOrFailed)
+							return {};
+					}
+					goto exit; // bufferValue stays empty
+				}
+				{
+					auto foldHolder = m_Holder.lock();
+					if (!foldHolder)
+						throwTaskCanceled();
+					auto foldResolveData = [&](LispPtr e) { return SubstituteExpr_impl(substBuff, LispRef(e), metainfo_policy_flags::subst_allowed); };
+					auto foldFindItem = [&](TokenID t) -> SharedTreeItem { return FindItem(t); };
+					CallArg r = ResolveCallerArg(localExpr, foldResolveData, foldFindItem, &substBuff, foldHolder);
+					if (substBuff.avs == AVS_SuspendedOrFailed)
+						return {};
+					if (mpf & metainfo_policy_flags::is_root_expr)
+						substBuff.m_StructuredFunctionResult = std::move(r.structuredResult);
+					bufferValue = r.key;
+				}
+				goto exit;
+			}
+
 			// §5.9: a container literal only exists as a function argument, destructured by
 			// ResolveCallerArg. It reaches here only on the visit-only supplier walk: recurse
 			// into the domain and member values (with '.' rebound to the domain) to register
@@ -1538,6 +1595,41 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 			LispRef innerCall = localExpr.Right().Left(); // (X args)
 			MG_CHECK(innerCall.IsRealList() && innerCall.Left().IsSymb());
 			TokenID calleeID = innerCall.Left().GetSymbID();
+
+			// #1347: 'instantiate fold(...)' and 'instantiate fold_c(...)' publish the state
+			// after each step as an item of the holder, step0, step1, ..., and the final
+			// state as result. The steps are reduced here, in the holder's scope, so that the
+			// number of steps is known when the holder's meta info is determined; in an
+			// instantiated copy of a function that is after its parameters are bound
+			if (exprHeadID == t_InstantiateItem && IsFoldHead(calleeID))
+			{
+				if (substBuff.optionalVisitor)
+				{
+					SubstituteExpr_impl(substBuff, innerCall, metainfo_policy_flags::subst_allowed); // records the suppliers
+					return {};
+				}
+				auto traceHolder = m_Holder.lock();
+				if (!traceHolder)
+					throwTaskCanceled();
+				if (IsDataItem(traceHolder.get()) || IsUnit(traceHolder.get()))
+					throwErrorF("ExprParser", "'instantiate {}(...)' makes an item per step; bind it to a container, as in 'container {} := instantiate {}(...)', or leave out 'instantiate' for the final state"
+						, calleeID, traceHolder->GetNameID(), calleeID);
+				auto traceResolveData = [&](LispPtr e) { return SubstituteExpr_impl(substBuff, LispRef(e), metainfo_policy_flags::subst_allowed); };
+				auto traceFindItem = [&](TokenID t) -> SharedTreeItem { return FindItem(t); };
+				std::vector<CallArg> foldArgs;
+				for (LispPtr a = innerCall.Right(); !a.EndP(); a = a.Right())
+				{
+					foldArgs.push_back(ResolveCallerArg(a.Left(), traceResolveData, traceFindItem, &substBuff, traceHolder));
+					if (substBuff.avs == AVS_SuspendedOrFailed)
+						return {};
+				}
+				std::vector<CallArg> trace;
+				CallArg result = ReduceFoldCall(calleeID, foldArgs, nullptr, &substBuff, traceHolder, &trace);
+				if (substBuff.avs == AVS_SuspendedOrFailed)
+					return {};
+				return MetaFuncCurry{ .fullLispExpr = innerCall, .structuredResult = MakeFoldTrace(trace, result), .isFoldTrace = true };
+			}
+
 			auto callee = FindOrVisitItem(substBuff, calleeID);
 			if (substBuff.avs == AVS_SuspendedOrFailed)
 				return {};
@@ -1635,6 +1727,18 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				if (substBuff.optionalVisitor)
 					return {};
 				return MetaFuncCurry{ .fullLispExpr = localExpr, .isMapCall = true };
+			}
+
+			if (IsFoldHead(exprHeadID))
+			{
+				// #1347: fold(...) and fold_c(...) yield the final state, a value; they are
+				// reduced as an expression (SubstituteExpr_impl), like a function application
+				auto foldHolder = m_Holder.lock();
+				if (foldHolder && !IsDataItem(foldHolder.get()) && !IsUnit(foldHolder.get()) && !foldHolder->IsCacheItem())
+					throwErrorF("ExprParser", "{} yields the final state; bind it to an attribute, a parameter or a unit, or write 'container {} := instantiate {}(...)' for an item per step"
+						, exprHeadID == t_FoldC ? "fold_c(step, condition, maxN, initial state)" : "fold(domain, step, initial state)"
+						, foldHolder->GetNameID(), exprHeadID);
+				goto skipTemplInst;
 			}
 
 			auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());

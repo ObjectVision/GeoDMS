@@ -1,0 +1,14 @@
+container fn_test_fold_defcheck_partial_neg
+{
+	// NEGATIVE #1347, definition check with a partial application as the step: the two
+	// holes of ToFloatScaled(2u, _, _) take the element and the state, so the check finds
+	// that the state the step returns, a float64, does not fit the uint32 it takes.
+	// Expected: "the definition of '/Total': float64 (the
+	//            state that the step of fold returns) does not match uint32 (parameter
+	//            'acc' of function '/ToFloatScaled')"
+	unit<uint32> D : nrofrows = 3;
+	function ToFloatScaled(parameter<uint32> factor; parameter<uint32> e; parameter<uint32> acc) -> parameter<float64> := float64(acc + factor * uint32(e));
+	function Total(unit<uint32> n) -> parameter<float64> := fold(n, ToFloatScaled(2u, _, _), 0u);
+	parameter<float64> r := Total(D);
+	container checks { parameter<float64> use := r; }
+}

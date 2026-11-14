@@ -1,0 +1,15 @@
+container fn_test_fold_defcheck_state_neg
+{
+	// NEGATIVE #1347, definition check: the state a step returns must fit the state it
+	// takes, since the next step takes it. The check types the step twice, the second
+	// time with the state the first returned, so it finds this without knowing how many
+	// elements the domain n has.
+	// Expected: "the definition of '/Total': float64 (the
+	//            state that the step of fold returns) does not match uint32 (parameter
+	//            'acc' of function '/ToFloat')"
+	unit<uint32> D : nrofrows = 3;
+	function ToFloat(parameter<uint32> e; parameter<uint32> acc) -> parameter<float64> := float64(acc + uint32(e));
+	function Total(unit<uint32> n) -> parameter<float64> := fold(n, ToFloat, 0u);
+	parameter<float64> r := Total(D);
+	container checks { parameter<float64> use := r; }
+}

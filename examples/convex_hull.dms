@@ -11,13 +11,12 @@
 // exterior ring, a left turn is a reflex corner, a dent in the shape, and the
 // step drops those points, which fills the dent. Dropping points can turn a
 // neighbour into a reflex corner, as the bump in the third shape below
-// shows, so the step is repeated: container Simplified applies it 50 times,
-// many more than these shapes need. The points that remain form the convex
-// hull, including points that lie on a straight part of it.
-//
-// The repetition is configured where the hull is needed, with for_each_ne
-// and instantiate: a function body cannot contain for_each or an indirect
-// expression, so a function cannot repeat a step a given number of times.
+// shows, so the step is repeated: ConvexHull applies it with fold_c as long
+// as it still drops a point, each time to the points the step before it
+// kept. Each step that is taken drops at least one point, so a correct run
+// takes fewer steps than there are points; fold_c is given that number as
+// its ceiling and reports an error if it is reached. The points that remain
+// form the convex hull, including points that lie on a straight part of it.
 //
 // Limits: one ring per polygon, no holes, clockwise order; a counter-
 // clockwise ring would lose its convex corners instead. Dropping a corner
@@ -46,7 +45,7 @@ container convex_hull_example
 	//   1  an L shape
 	//   2  a 10 x 10 square with a notch in its top edge and a bump inside the
 	//      notch. The bump becomes a reflex corner only once the two corners of
-	//      the notch are dropped, so this ring needs a second iteration.
+	//      the notch are dropped, so this ring needs a second step.
 	unit<uint32> Shapes : nrofrows = 3
 	{
 		attribute<string>         Label : ['dented square', 'L shape', 'notch with a bump'];
@@ -67,11 +66,13 @@ container convex_hull_example
 	{
 		// One step: the points of the rings in seq, without the points where a ring turns left.
 		// seq holds the points of each ring in order, the first point of a ring once; crd is the
-		// unit of their coordinates and domain the unit of the rings. The functions read only
-		// their arguments, so they work for any coordinate unit.
+		// unit of their coordinates and domain the unit of the rings. iteration is the number of
+		// the step, which fold_c passes to every step; this step does not use it. The functions read
+		// only their arguments, so they work for any coordinate unit.
 		function DropReflexCorners(
 			unit<fpoint> crd;
 			unit<uint32> domain;
+			parameter<uint32> iteration;
 			unit<uint32> seq { attribute<crd> point; attribute<domain> sequence_rel; }
 		)
 		-> unit<uint32> := hull_points
@@ -83,15 +84,15 @@ container convex_hull_example
 			attribute<uint32> prev_id (seq) := id(seq) == first_id[seq/sequence_rel] ? last_id[seq/sequence_rel]  : sub_or_null(id(seq), 1);
 			attribute<uint32> next_id (seq) := id(seq) == last_id[seq/sequence_rel]  ? first_id[seq/sequence_rel] : id(seq) + 1;
 
-			attribute<crd> p (seq) := seq/point - seq/point[prev_id];
-			attribute<crd> q (seq) := seq/point[next_id] - seq/point;
-			attribute<float32>        det (seq) := pointcol(p) * pointrow(q) - pointrow(p) * pointcol(q);
+			attribute<crd>     p   (seq) := seq/point - seq/point[prev_id];
+			attribute<crd>     q   (seq) := seq/point[next_id] - seq/point;
+			attribute<float32> det (seq) := pointcol(p) * pointrow(q) - pointrow(p) * pointcol(q);
 
 			// keep the right turns and the straight parts, and drop a point that repeats its predecessor
 			unit<uint32> hull_points := select_with_org_rel(det <= 0f && seq/point != seq/point[prev_id])
 			{
-				attribute<crd> point        := seq/point[hull_points/org_rel];
-				attribute<domain>         sequence_rel := seq/sequence_rel[hull_points/org_rel];
+				attribute<crd>    point        := seq/point[hull_points/org_rel];
+				attribute<domain> sequence_rel := seq/sequence_rel[hull_points/org_rel];
 			}
 		}
 
@@ -105,32 +106,40 @@ container convex_hull_example
 		{
 			unit<uint32> with_endpoints := union_unit(pts, domain)
 			{
-				attribute<crd> point        := union_data(with_endpoints, pts/point, first(pts/point, pts/sequence_rel));
-				attribute<domain>         sequence_rel := union_data(with_endpoints, pts/sequence_rel, id(domain));
+				attribute<crd>    point        := union_data(with_endpoints, pts/point, first(pts/point, pts/sequence_rel));
+				attribute<domain> sequence_rel := union_data(with_endpoints, pts/sequence_rel, id(domain));
 			}
 			attribute<crd> rings (domain, poly) := points2polygon(with_endpoints/point, with_endpoints/sequence_rel);
 		}
+
+		// Whether DropReflexCorners drops a point of seq. The step does not use its number, so this
+		// application is the same calculation as the next step of fold_c in ConvexHull.
+		function DropsAPoint(
+			unit<fpoint> crd;
+			unit<uint32> domain;
+			unit<uint32> seq { attribute<crd> point; attribute<domain> sequence_rel; }
+		)
+		-> parameter<bool> := #DropReflexCorners(crd, domain, 0u, seq) < #seq;
+
+		// The convex hulls of the rings in seq: DropReflexCorners applied as long as it drops a
+		// point, each time to the points the step before it kept, and the rings closed again. The
+		// number of points in seq is a ceiling that a correct run cannot reach.
+		function ConvexHull(
+			unit<fpoint> crd;
+			unit<uint32> domain;
+			unit<uint32> seq { attribute<crd> point; attribute<domain> sequence_rel; }
+		)
+		-> attribute<crd> (domain, poly) := ClosedRings(crd, domain, fold_c(DropReflexCorners(crd, domain, _, _), DropsAPoint(crd, domain, _), #seq, seq));
 	}
 
 	// -------------------------------------------------------------- the hull
 
 	container Simplified
 	{
-		parameter<uint32> nrIterations := 50;
-
-		// iteration i starts from the points that iteration i - 1 kept, the first one from the rings themselves
-		unit<uint32> iter := range(uint32, 0, nrIterations)
-		{
-			attribute<string> name     := 'I' + string(id(.));
-			attribute<string> PrevName := MakeDefined('Iters/' + name[sub_or_null(id(.), 1)] + '/hull_points', 'StartingState');
-		}
-
+		// the first step starts from the points of the rings themselves
 		unit<uint32> StartingState := sequence2points(Shapes/geometry_rd);
 
-		container Iters    := for_each_ne(iter/name, 'instantiate lib/DropReflexCorners(geometries/rdc, Shapes, ' + iter/PrevName + ')');
-		container LastIter := = 'Iters/' + last(iter/name);
-
-		attribute<geometries/rdc> convex_hull (Shapes, poly) := lib/ClosedRings(geometries/rdc, Shapes, LastIter/hull_points);
+		attribute<geometries/rdc> convex_hull (Shapes, poly) := lib/ConvexHull(geometries/rdc, Shapes, StartingState);
 	}
 
 	// ----------------------------------------------------------------- checks

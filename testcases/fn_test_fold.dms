@@ -1,0 +1,83 @@
+container fn_test_fold
+{
+	// #1347: fold(D, f, x0) applies the step f to each element of the unit D in order,
+	// f(e, state) -> state, starting from x0, and yields the last state. The number of
+	// steps is read from D when the rule is reduced; each step is a beta reduction of f,
+	// so no item is made per step.
+
+	unit<uint32> D : nrofrows = 5;              // elements 0, 1, 2, 3, 4
+	unit<uint32> R := range(uint32, 3u, 6u);    // elements 3, 4, 5
+	unit<uint32> Empty : nrofrows = 0;
+	unit<uint32> Twice : nrofrows = 2;
+
+	unit<uint32> Vals : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+
+	// steps on a data state
+	function AddElem(parameter<uint32> e; parameter<uint32> acc) -> parameter<uint32> := acc + uint32(e);
+	function AppendDigit(parameter<uint32> e; parameter<uint32> acc) -> parameter<uint32> := acc * 10u + uint32(e);
+	function AddScaled(parameter<uint32> factor; parameter<uint32> e; parameter<uint32> acc) -> parameter<uint32> := acc + factor * uint32(e);
+
+	// a step on a structured state: a unit with an attribute, of which the step keeps
+	// the rows below the maximum
+	function DropMax(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+	}
+	function SumV(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(s/v);
+
+	// (a) a sum over the elements
+	parameter<uint32> res_a := fold(D, AddElem, 0u);
+	// (b) the elements of a unit that does not start at 0
+	parameter<uint32> res_b := fold(R, AddElem, 0u);
+	// (c) the order of the steps: 0, 1, 2, 3, 4 appended as digits
+	parameter<uint32> res_c := fold(D, AppendDigit, 0u);
+	// (d) an empty domain yields the initial state
+	parameter<uint32> res_d := fold(Empty, AddElem, 7u);
+	// (e) a partial application as the step
+	parameter<uint32> res_e := fold(D, AddScaled(2u, _, _), 0u);
+	// (f) a structured state as a whole rule: the item gets the sub-items of the state
+	unit<uint32> res_f := fold(Twice, DropMax, Vals);
+	// (g) fold inside a function body, the result bound to a local
+	function SumAfterDrops(unit<uint32> n; unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := total
+	{
+		unit<uint32> left := fold(n, DropMax, s);
+		parameter<float64> total := sum(left/v);
+	}
+	parameter<float64> res_g := SumAfterDrops(Twice, Vals);
+	// (h) fold inside a function body, the result passed straight on to a function
+	function SumAfterDrops2(unit<uint32> n; unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := SumV(fold(n, DropMax, s));
+	parameter<float64> res_h := SumAfterDrops2(Twice, Vals);
+	// (i) fold as an argument in the configuration
+	parameter<float64> res_i := SumV(fold(Twice, DropMax, Vals));
+	// (j) an attribute as the state, inside a function, with a partial application whose fixed
+	// argument is a unit parameter: the example of the wiki page Function-definition
+	function Halve(unit<uint32> dom; parameter<uint32> i; attribute<float64> x (dom)) -> attribute<float64> (dom) := x * 0.5;
+	function HalveN(unit<uint32> dom; unit<uint32> iterations; attribute<float64> x (dom)) -> attribute<float64> (dom) := fold(iterations, Halve(dom, _, _), x);
+	attribute<float64> res_j (Vals) := HalveN(Vals, Twice, Vals/v);
+	// (k) the element declared with the domain itself as values unit: the example of the
+	// wiki page Fold
+	function AddElemD(parameter<D> e; parameter<uint32> acc) -> parameter<uint32> := acc + uint32(e);
+	parameter<uint32> res_k := fold(D, AddElemD, 0u);
+
+	container checks
+	{
+		parameter<uint32>  c_a := res_a, IntegrityCheck = "c_a == 10";
+		parameter<uint32>  c_b := res_b, IntegrityCheck = "c_b == 12";
+		parameter<uint32>  c_c := res_c, IntegrityCheck = "c_c == 1234";
+		parameter<uint32>  c_d := res_d, IntegrityCheck = "c_d == 7";
+		parameter<uint32>  c_e := res_e, IntegrityCheck = "c_e == 20";
+		parameter<float64> c_f_sum := sum(res_f/v), IntegrityCheck = "c_f_sum == 8.0";
+		parameter<float64> c_f_max := max(res_f/v), IntegrityCheck = "c_f_max == 4.0";
+		parameter<float64> c_g := res_g, IntegrityCheck = "c_g == 8.0";
+		parameter<float64> c_h := res_h, IntegrityCheck = "c_h == 8.0";
+		parameter<float64> c_i := res_i, IntegrityCheck = "c_i == 8.0";
+		parameter<float64> c_j := sum(res_j), IntegrityCheck = "c_j == 5.25"; // 21 halved twice
+		parameter<uint32>  c_k := res_k, IntegrityCheck = "c_k == 10";
+	}
+}

@@ -358,6 +358,8 @@ namespace hof {
 			collectSubItems(collectSubItems, resultChild.get(), structured->subItems);
 			r.structuredResult = std::move(structured);
 		}
+		else if (auto sit = m_StructuredByKey.find(r.key); sit != m_StructuredByKey.end())
+			r.structuredResult = sit->second; // #1347: the result is a fold whose state declares sub-items
 		return r;
 	}
 
@@ -424,6 +426,11 @@ namespace hof {
 					throwErrorF("ExprParser", "a function value can only be applied with '(...)', passed as an argument, or returned as a result");
 				return r.key;
 			}
+
+			// #1347: fold(...) or fold_c(...) in a data position: the final state
+			// (ResolveBodyArg records the declared sub-items of a structured state)
+			if (IsFoldHead(headID))
+				return ResolveBodyArg(refScope, expr).key;
 
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			assert(og);
@@ -678,6 +685,18 @@ namespace hof {
 						// member access through a (structured or composite-typed) parameter:
 						// descend into the actual argument only (never its ancestors)
 						auto argItem = m_ArgItems[i];
+						if (!argItem && m_ArgStructured[i])
+						{
+							// #1347: the result of a function application, such as the state of
+							// a fold, carries the keys of the sub-items its function declares
+							LispRef memberKey = FindStructuredMember(*m_ArgStructured[i], CharPtrRange(slash + 1, e));
+							if (memberKey.EndP())
+								throwErrorF("ExprParser", "'{}': the value bound to parameter '{}' is the result of a function that declares no sub-item '{}'"
+									, fullStr.c_str(), firstTok, SharedStr(CharPtrRange(slash + 1, e)).c_str());
+							if (foundItemPtr)
+								*foundItemPtr = nullptr;
+							return memberKey;
+						}
 						if (!argItem)
 							throwErrorF("ExprParser", "'{}': member access through parameter '{}' requires the corresponding argument to be a direct item reference"
 								, fullStr.c_str(), firstTok);
@@ -723,6 +742,15 @@ namespace hof {
 								if (!ri->first->GetExpr().empty())
 								{
 									LispRef baseKey = ReduceBodyItem(ri->first.get());
+									// #1347: a local whose rule is a fold has the declared
+									// sub-items of the fold's state
+									if (auto sit = m_StructuredByKey.find(baseKey); sit != m_StructuredByKey.end())
+										if (LispRef memberKey = FindStructuredMember(*sit->second, CharPtrRange(ri->second, e)); !memberKey.EndP())
+										{
+											if (foundItemPtr)
+												*foundItemPtr = nullptr;
+											return memberKey;
+										}
 									// A CONFIG-item reference (a sourceDescr key: the
 									// local's rule was a bare import/def-scope/param alias
 									// to a config item) is NOT a cache result, so the
@@ -973,6 +1001,16 @@ namespace hof {
 				}
 				CallArg a; a.key = ResolveBodySymbol(refScope, sym, &a.item);
 				RejectNestedFunctionResultMetaCall(a.key);
+				// #1347: a parameter bound to the result of a function application (the
+				// state of a fold) passes its declared sub-items on; the key comparison
+				// keeps a body local of the same name out
+				if (bare && !a.item)
+					for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+						if (m_Params[i]->GetNameID() == sym && m_ArgStructured[i] && a.key == m_ArgKeys[i])
+						{
+							a.structuredResult = m_ArgStructured[i];
+							break;
+						}
 				return a;
 			}
 		}
@@ -1006,6 +1044,21 @@ namespace hof {
 					return result;
 				}
 				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
+			}
+
+			// #1347: fold(...) as an argument: its value, including the declared sub-items
+			// of a structured state, which are also recorded under the key of the result
+			// for a local that the fold is the rule of
+			if (IsFoldHead(headID))
+			{
+				std::vector<CallArg> foldArgs;
+				for (LispPtr a = argExpr.Right(); !a.EndP(); a = a.Right())
+					foldArgs.push_back(ResolveBodyArg(refScope, a.Left()));
+				auto result = ReduceFoldCall(headID, foldArgs, this, m_SubstBuff, m_ErrorHolder);
+				RejectNestedFunctionResultMetaCall(result.key);
+				if (result.structuredResult)
+					m_StructuredByKey[result.key] = result.structuredResult;
+				return result;
 			}
 
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);

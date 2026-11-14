@@ -1,0 +1,10 @@
+container fn_test_fold_neg_domain
+{
+	// NEGATIVE #1347: the first argument of fold is a unit, whose elements the step
+	// visits; a number of steps is not.
+	// Expected: "fold(domain, step, initial state): the first argument must be a unit,
+	//            the domain whose elements the step visits"
+	function AddElem(parameter<uint32> e; parameter<uint32> acc) -> parameter<uint32> := acc + uint32(e);
+	parameter<uint32> r := fold(3u, AddElem, 0u);
+	container checks { parameter<uint32> use := r; }
+}

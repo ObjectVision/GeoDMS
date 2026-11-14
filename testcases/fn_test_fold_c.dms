@@ -1,0 +1,100 @@
+container fn_test_fold_c
+{
+	// #1347: fold_c(f, cond, maxN, x0) applies the step f while the condition cond holds for
+	// the state, at most maxN times, f(k, state) -> state with k the number of the step from
+	// 0, and yields the first state for which cond is false. 'instantiate fold(...)' and
+	// 'instantiate fold_c(...)' make an item per step taken, step0, step1, ..., and result.
+
+	unit<uint32> Empty : nrofrows = 0;
+	unit<uint32> Twice : nrofrows = 2;
+
+	unit<uint32> Vals : nrofrows = 2
+	{
+		attribute<float64> v : [8.0, 4.0];
+	}
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+
+	// steps and conditions on a data state
+	function AddStep(parameter<uint32> k; parameter<uint32> acc) -> parameter<uint32> := acc + k + 1u;
+	function Below(parameter<uint32> limit; parameter<uint32> acc) -> parameter<bool> := acc < limit;
+
+	function Halve(unit<uint32> dom; parameter<uint32> i; attribute<float64> x (dom)) -> attribute<float64> (dom) := x * 0.5;
+	function MaxAtLeast(unit<uint32> dom; parameter<float64> limit; attribute<float64> x (dom)) -> parameter<bool> := max(x) >= limit;
+
+	// a step and a condition on a structured state: a unit with an attribute, of which the
+	// step keeps the rows below the maximum
+	function DropMax(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+	}
+	function Longer(parameter<uint32> n; unit<uint32> s) -> parameter<bool> := #s > n;
+
+	// (a) 0, 1, 3, 6, 10, 15, 21: the condition first fails on 21, after 6 steps
+	parameter<uint32> res_a := fold_c(AddStep, Below(20u, _), 100u, 0u);
+	// (b) the condition fails on the initial state: no step is taken
+	parameter<uint32> res_b := fold_c(AddStep, Below(0u, _), 10u, 5u);
+	// (c) the condition fails after exactly maxN steps, which is allowed
+	parameter<uint32> res_c := fold_c(AddStep, Below(20u, _), 6u, 0u);
+
+	// (d) an attribute state: [8, 4] is halved until its maximum is below 1, [0.5, 0.25]
+	attribute<float64> res_d (Vals) := fold_c(Halve(Vals, _, _), MaxAtLeast(Vals, 1.0, _), 20u, Vals/v);
+
+	// (e) a structured state: the largest value is dropped until two rows are left, [3, 1]
+	unit<uint32> res_e := fold_c(DropMax, Longer(2u, _), 10u, Vals5);
+
+	// (f) fold_c in a function body, with the limit and the maximum as arguments
+	function HalveUntil(unit<uint32> dom; parameter<float64> limit; parameter<uint32> maxN; attribute<float64> x (dom)) -> attribute<float64> (dom)
+		:= fold_c(Halve(dom, _, _), MaxAtLeast(dom, limit, _), maxN, x);
+	attribute<float64> res_f (Vals) := HalveUntil(Vals, 1.0, 20u, Vals/v);
+
+	// (g) an item per element of the domain: step0 is [4, 2], step1 and result are [2, 1]
+	container trace_g := instantiate fold(Twice, Halve(Vals, _, _), Vals/v);
+
+	// (h) an item per step that fold_c takes, each a unit with its attribute: 4, 3 and 2
+	// rows; the attribute of a step has that step as its domain
+	container trace_h := instantiate fold_c(DropMax, Longer(2u, _), 10u, Vals5);
+	attribute<float64> twice_h (trace_h/step1) := trace_h/step1/v * 2.0;
+
+	// (i) 'instantiate fold(...)' in the body of a function: an instantiated copy of the
+	// function has the items, with the number of steps taken from its argument
+	function HalveTrace(unit<uint32> dom; unit<uint32> iterations; attribute<float64> x (dom)) -> attribute<float64> (dom) := x
+	{
+		container trace := instantiate fold(iterations, Halve(dom, _, _), x);
+	}
+	container copy_i := instantiate HalveTrace(Vals, Twice, Vals/v);
+
+	// (j) a domain without elements: only result, the initial state
+	container trace_j := instantiate fold(Empty, Halve(Vals, _, _), Vals/v);
+
+	// (k) the example of the wiki page fold: step0/v is [5, 3, 1, 4], result/v is [3, 1, 4]
+	container trace_k := instantiate fold(Twice, DropMax, Vals5);
+
+	container checks
+	{
+		parameter<uint32>  c_a  := res_a, IntegrityCheck = "c_a == 21";
+		parameter<uint32>  c_b  := res_b, IntegrityCheck = "c_b == 5";
+		parameter<uint32>  c_c  := res_c, IntegrityCheck = "c_c == 21";
+		parameter<float64> c_d  := sum(res_d), IntegrityCheck = "c_d == 0.75";
+		parameter<uint32>  c_e  := #res_e, IntegrityCheck = "c_e == 2";
+		parameter<float64> c_ev := sum(res_e/v), IntegrityCheck = "c_ev == 4.0";
+		parameter<float64> c_f  := sum(res_f), IntegrityCheck = "c_f == 0.75";
+		parameter<float64> c_g0 := sum(trace_g/step0), IntegrityCheck = "c_g0 == 6.0";
+		parameter<float64> c_g1 := sum(trace_g/step1), IntegrityCheck = "c_g1 == 3.0";
+		parameter<float64> c_gr := sum(trace_g/result), IntegrityCheck = "c_gr == 3.0";
+		parameter<uint32>  c_h0 := #trace_h/step0, IntegrityCheck = "c_h0 == 4";
+		parameter<uint32>  c_h2 := #trace_h/step2, IntegrityCheck = "c_h2 == 2";
+		parameter<float64> c_hv := sum(trace_h/step2/v), IntegrityCheck = "c_hv == 4.0";
+		parameter<uint32>  c_hr := #trace_h/result, IntegrityCheck = "c_hr == 2";
+		parameter<float64> c_ht := sum(twice_h), IntegrityCheck = "c_ht == 16.0";
+		parameter<float64> c_i  := sum(copy_i/trace/result), IntegrityCheck = "c_i == 3.0";
+		parameter<float64> c_j  := sum(trace_j/result), IntegrityCheck = "c_j == 12.0";
+		parameter<float64> c_k0 := sum(trace_k/step0/v), IntegrityCheck = "c_k0 == 13.0";
+		parameter<float64> c_kr := sum(trace_k/result/v), IntegrityCheck = "c_kr == 8.0";
+	}
+}
