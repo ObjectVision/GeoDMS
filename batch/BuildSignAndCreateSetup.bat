@@ -11,7 +11,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RaisePriorityToNormal.
 REM It asks a question only where BuildSignAndCreateSetupCmake.bat does: when another build is
 REM running, and after vcpkg drift (30 s, default yes). Every other step is checked and stops the
 REM script when the check fails: the source checks, msbuild's exit code and a no-op build, the
-REM Python modules, the shipped battery, makensis and an installer of less than 60000000 bytes,
+REM Python modules, the shipped battery, the wheels, makensis and an installer of less than 60000000 bytes,
 REM signing and the verification of the signature, the install, and the unit suite on the
 REM installed build. Until 2026-10-06 it also asked whether the build, the NSIS step and the
 REM signing were OK and paused at the end, which kept an unattended Build.bat waiting.
@@ -195,6 +195,14 @@ REM install runs the same battery again, from the installed copy.
 call "%~dp0TestShippedDms.bat" "%geodms_rootdir%\bin\Release\x64"
 if errorlevel 1 goto :shipped_failed
 
+REM The PyPI wheels of this release (#1355), one per CPython minor of python\PythonVersions.txt,
+REM made from bin\Release\x64 into distr\, checked with twine, and each installed in a fresh venv
+REM of its own CPython with no GeoDMS folder on PATH, where python\tst\UnitTests.py --installed must
+REM pass. They go into the GitHub release with the setups, and .github\workflows\pypi-upload.yml
+REM uploads them to PyPI when a full release is published (not a pre-release).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\make-and-test-wheels.ps1" -OutputDir "%geodms_rootdir%\bin\Release\x64" -Dist "%geodms_rootdir%\distr" -Version %GeoDmsVersion%
+if errorlevel 1 goto :wheels_failed
+
 REM makensis, signtool and the installer are checked, and the previous installation of this
 REM version is uninstalled first, as the .c and .g scripts do (BAT-A35). Installing over it left
 REM a file that the .nsh no longer lists in place, where the post-install suite still found it,
@@ -267,6 +275,12 @@ set "INSTALL_DIR=C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlav
 call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 del /q "distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe" 2>nul
 echo Removed distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe
+del /q "distr\geodms-%GeoDmsVersion%-*.whl" 2>nul
+echo Removed the wheels distr\geodms-%GeoDmsVersion%-*.whl
+exit /B 1
+
+:wheels_failed
+echo *** Wheels FAILED - NSIS, signing, install and unit tests skipped; see the output of tools\make-and-test-wheels.ps1 above ***
 exit /B 1
 
 :shipped_failed

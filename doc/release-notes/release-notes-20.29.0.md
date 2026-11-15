@@ -6,6 +6,7 @@
 | `.c`: Windows, CMake | `GeoDms20.29.0.c-Setup-x64.exe` |
 | `.g`: Windows, GLOBIO compatibility | `GeoDms20.29.0.g-Setup-x64.exe` |
 | `.l`: Linux, Ubuntu 24.04 | `GeoDms20.29.0.l-linux-x64.deb`, `.tar.gz` (+ `.sha256`, `.sha256.p7s`) |
+| Python wheels for 64-bit Windows | `geodms-20.29.0-cp312-cp312-win_amd64.whl`, `-cp313-cp313-`, `-cp314-cp314-` |
 
 ## Changes that can affect an existing configuration
 
@@ -38,6 +39,11 @@
 - `container trace := instantiate fold(...)`, or `instantiate fold_c(...)`, makes the state after each step an item, `trace/step0`, `trace/step1`, ..., and `trace/result`; in the body of a function the result can refer to them, also when the function is applied as a value (#1347).
 - A function result with declared sub-items can be passed straight on as an argument of another function, as in `SumV(DropMax(x, Vals))`; this failed with "member access through parameter ... requires the corresponding argument to be a direct item reference" (#1347).
 - A function defined inside a template instance finds its own unit parameter instead of a unit of the same name in the container around it, which failed with "the body pins unit variable ... to a specific unit" or with "relative pathname ascended above root". Such a function also passes as the argument of a parameter whose type is a function signature over a unit outside the template, which failed with "the domain of parameter ... does not match the domain relationship required by signature" (#1341).
+
+## Python
+
+- The `geodms` module comes as a wheel for Python 3.12, 3.13 and 3.14 on 64-bit Windows, with the engine and its libraries inside, so it needs no setup (#1355). If 20.29.0 becomes a full release, the wheels are also published on PyPI, and `pip install geodms` installs them. See [Python bindings](https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings).
+- The binding of a setup also works when its folder is only on `sys.path`, not on PATH: Clc, Geo and Stg load GDAL from their own folder (#1355).
 
 ## Stability
 

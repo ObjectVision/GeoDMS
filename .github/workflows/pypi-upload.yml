@@ -1,0 +1,75 @@
+# Uploads the geodms wheels of a full GeoDMS release to PyPI (#1355).
+#
+# batch\BuildSignAndCreateSetup.bat builds and tests the wheels together with the .m setup, and the
+# gh release create command of the geodms-release skill attaches them to the GitHub release with the
+# setups. When a release is published that is not a pre-release, or a pre-release is turned into a
+# release, this workflow downloads the wheel assets of that release and uploads them to the PyPI
+# project geodms through trusted publishing: PyPI trusts this workflow file of ObjectVision/GeoDMS in
+# the environment pypi, so no token is stored anywhere.
+#
+# Two settings outside this repository make that work. On PyPI, the project geodms has a trusted
+# publisher with owner ObjectVision, repository GeoDMS, workflow pypi-upload.yml and environment
+# pypi. On GitHub, the repository has an environment called pypi (Settings, Environments), which
+# can require that someone approves each run.
+#
+# A file on PyPI can never be replaced, not even after deleting it. A wheel that turns out wrong is
+# yanked, or repaired by a wheel with a build number in its file name.
+#
+# Run it by hand (workflow_dispatch) with the tag of a full release to retry an upload that failed.
+# The upload skips the wheels that are already on PyPI, so a retry after a partial upload adds only
+# the missing ones.
+name: Upload wheels to PyPI
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag of the full release whose wheels to upload, such as v20.29.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/geodms/
+    permissions:
+      contents: read  # to download the release assets
+      id-token: write # for trusted publishing
+    steps:
+      - name: Download the wheels of the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          prerelease=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease,isDraft --jq '.isPrerelease or .isDraft')
+          if [ "$prerelease" != "false" ]; then
+            echo "::error::$TAG is a pre-release or a draft; only full releases go to PyPI"
+            exit 1
+          fi
+          mkdir dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'geodms-*.whl' --dir dist
+          ls -l dist
+          if ! ls dist/geodms-*.whl > /dev/null 2>&1; then
+            echo "::error::$TAG has no geodms-*.whl assets"
+            exit 1
+          fi
+          version="${TAG#v}"
+          for f in dist/*.whl; do
+            case "$(basename "$f")" in
+              "geodms-$version-"*) ;;
+              *) echo "::error::$f is not a wheel of version $version"; exit 1 ;;
+            esac
+          done
+
+      - name: Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true # a retry after a partial upload

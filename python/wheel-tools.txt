@@ -1,0 +1,8 @@
+# The Python packages that tools\make-wheels.py and tools\make-and-test-wheels.ps1 use to make and
+# check the PyPI wheels (#1355), pinned at versions tested together under CPython 3.13
+# ($toolPythonVersion in make-and-test-wheels.ps1).
+# A change here makes make-and-test-wheels.ps1 build its tool venv again.
+delvewheel==1.13.2
+pefile==2024.8.26
+wheel==0.48.0
+twine==7.0.0
