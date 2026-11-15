@@ -41,6 +41,7 @@
 #include "NameSet.h"
 #include "ViewPortInfoEx.h"
 #include "GridStorageManager.h"
+#include "utl/DelayLoadFromOwnFolder.h" // Stg's delay-load hook for GDAL, defined once per DLL
 void gdalFinalCleanup();
 
 // DMS_Stg_Load, stream-type helpers and the table-domain validation used by

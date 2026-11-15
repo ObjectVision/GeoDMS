@@ -8,8 +8,6 @@ pip install geodms
 
 There are wheels for 64-bit Windows and CPython 3.12, 3.13 and 3.14. Each holds the engine and the libraries it uses (GDAL, PROJ, GEOS, Arrow and others) under names of their own, so that they can be loaded in the same process as the GDAL, PROJ and SQLite of QGIS or of Python itself. The GDAL and PROJ data and the GeoDMS `library` folder are included.
 
-One case is refused. When a DLL called `gdal.dll` from another folder, such as that of a GeoDMS setup, is already loaded, `import geodms` stops with an error. A script that imports geodms before it loads the other GDAL does not have this problem.
-
 ```python
 import geodms
 

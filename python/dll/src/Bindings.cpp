@@ -124,6 +124,16 @@ namespace py_geodms
 				return; // DmGeo may be delay-loaded by a future build.
 
 			const auto bindingPath = GetLoadedModulePath(bindingModule);
+
+			// In a setup and in the build output, GeoDMS's own GDAL is the file of that name next to
+			// the binding, and a copy of the same name from elsewhere that is already loaded is what
+			// the engine's DLLs would bind to. In a wheel (#1355), delvewheel renamed GeoDMS's GDAL
+			// (geodms.libs\gdal-<hash>.dll) and patched the imports to match, so a gdal.dll that
+			// another package loaded is not the engine's and needs no check.
+			std::error_code existsError;
+			if (!std::filesystem::exists(bindingPath.parent_path() / gdalDllName, existsError))
+				return;
+
 			const auto gdalPath = GetLoadedModulePath(gdalModule);
 			std::error_code pathError;
 			const bool sameDirectory = std::filesystem::equivalent(

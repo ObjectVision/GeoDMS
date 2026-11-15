@@ -58,7 +58,25 @@ def run(args):
 PRELOAD_LIST = "delay-preload.txt"
 WORK_MARKER = ".made-by-make-wheels"
 
-INIT_PY = f'''"""GeoDMS engine for Python; see https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings."""
+# From this release on, Clc, Geo and Stg have a delay-load hook (rtc/dll/src/utl/DelayLoadFromOwnFolder.h)
+# that loads GDAL from their own folder, geodms.libs in a wheel, and the binding's GDAL check leaves a
+# gdal.dll that another package loaded alone in a wheel. The wheels of an older release, made from its
+# installed setup, need the preload in INIT_PY_WITH_PRELOAD instead, and their PyPI page says what
+# that check refuses (REFUSED_CASE).
+FIRST_VERSION_WITH_DELAY_LOAD_HOOK = "20.29.0"
+
+REFUSED_CASE = (
+    "\nIn this release one case is refused. When a DLL called `gdal.dll` from another folder, such as "
+    "that of a GeoDMS setup, is already loaded, `import geodms` stops with an error. A script that "
+    "imports geodms before it loads the other GDAL does not have this problem.\n"
+)
+
+INIT_PY = '''"""GeoDMS engine for Python; see https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings."""
+
+from .geodms import *  # noqa: F401,F403
+'''
+
+INIT_PY_WITH_PRELOAD = f'''"""GeoDMS engine for Python; see https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings."""
 
 
 def _preload_delay_loaded():
@@ -111,16 +129,22 @@ def delay_only_dlls(libs_dir, pyd_path):
 DESCRIPTION = os.path.join(REPO, "python", "pypi-description.md")  # the text of the PyPI page
 
 
+def version_key(version):
+    return tuple(int(p) for p in version.split("."))
+
+
 def requires_python(minors):
     # PyPI keeps one Requires-Python per release, taken from the first file uploaded, and serves
     # it for every file of that release; so all wheels of a version carry the same lower bound,
     # and the cpXY tag of each wheel is what ties it to its own Python.
-    lowest = min(minors, key=lambda m: tuple(int(p) for p in m.split(".")))
+    lowest = min(minors, key=version_key)
     return f">={lowest}"
 
 
 def metadata(version, python_requirement, licence_files=("license.txt",)):
     description = open(DESCRIPTION, encoding="utf-8").read()
+    if version_key(version) < version_key(FIRST_VERSION_WITH_DELAY_LOAD_HOOK):
+        description += REFUSED_CASE
     return (
         "Metadata-Version: 2.4\n"
         "Name: geodms\n"
@@ -276,8 +300,9 @@ def build_one(bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, pytho
     os.makedirs(pkg)
     os.makedirs(os.path.join(info, "licenses"))
     shutil.copy2(os.path.join(bin_dir, pyd), os.path.join(pkg, pyd))
+    preload_needed = version_key(version) < version_key(FIRST_VERSION_WITH_DELAY_LOAD_HOOK)
     with open(os.path.join(pkg, "__init__.py"), "w", encoding="utf-8", newline="\n") as f:
-        f.write(INIT_PY)
+        f.write(INIT_PY_WITH_PRELOAD if preload_needed else INIT_PY)
     with open(os.path.join(info, "METADATA"), "w", encoding="utf-8", newline="\n") as f:
         f.write(metadata(version, python_requirement))
     with open(os.path.join(info, "WHEEL"), "w", encoding="utf-8", newline="\n") as f:
@@ -309,11 +334,12 @@ def build_one(bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, pytho
     with open(os.path.join(info_dir, "METADATA"), "w", encoding="utf-8", newline="\n") as f:
         f.write(metadata(version, python_requirement, licence_files))
 
-    # 4. the list of delay-loaded DLLs that __init__.py preloads
-    preload = delay_only_dlls(libs_dir, os.path.join(root, "geodms", pyd))
-    print("delay-loaded only:", ", ".join(preload) or "none")
-    with open(os.path.join(libs_dir, PRELOAD_LIST), "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(preload) + "\n")
+    # 4. for an engine without the delay-load hook, the list of delay-loaded DLLs that __init__.py preloads
+    if preload_needed:
+        preload = delay_only_dlls(libs_dir, os.path.join(root, "geodms", pyd))
+        print("delay-loaded only, preloaded by __init__.py:", ", ".join(preload) or "none")
+        with open(os.path.join(libs_dir, PRELOAD_LIST), "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join(preload) + "\n")
     os.makedirs(out_dir, exist_ok=True)
     run([sys.executable, "-m", "wheel", "pack", root, "-d", out_dir])
     return os.path.join(out_dir, os.path.basename(bare))
