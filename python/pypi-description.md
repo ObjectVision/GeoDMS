@@ -1,0 +1,25 @@
+# geodms
+
+This package makes the GeoDMS engine available as a Python module. [GeoDMS](https://www.geodms.nl) is an open-source platform for spatial models over large grid, vector and attribute data, written as configurations in its own `.dms` language. With this module a Python script loads such a configuration, finds its items, changes an expression and reads the calculated values back, in the same process.
+
+```
+pip install geodms
+```
+
+There are wheels for 64-bit Windows and CPython 3.12, 3.13 and 3.14. Each holds the engine and the libraries it uses (GDAL, PROJ, GEOS, Arrow and others) under names of their own, so that they can be loaded in the same process as the GDAL, PROJ and SQLite of QGIS or of Python itself. The GDAL and PROJ data and the GeoDMS `library` folder are included.
+
+One case is refused. When a DLL called `gdal.dll` from another folder, such as that of a GeoDMS setup, is already loaded, `import geodms` stops with an error. A script that imports geodms before it loads the other GDAL does not have this problem.
+
+```python
+import geodms
+
+engine = geodms.Engine()                         # one per process
+config = engine.load_config("model.dms")         # keep this object: the items live as long as it does
+item = config.const_root().find("/results/total").asDataItem()
+item.update()                                    # calculates the item and what it depends on
+print(item.get_value_as_float(0))
+```
+
+A process has one `Engine` and one loaded configuration at a time.
+
+The functions of the module are described on the wiki page [Python bindings](https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings), and [GeoDMS through Python](https://github.com/ObjectVision/GeoDMS/wiki/GeoDMS-through-Python) compares this module with the other ways to combine GeoDMS and Python. The source is on [GitHub](https://github.com/ObjectVision/GeoDMS). GeoDMS is licensed under the GPL, version 3 or later; the licence texts of the bundled libraries are in the `.dist-info/licenses` folder of the wheel.

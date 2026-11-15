@@ -4,6 +4,10 @@
 # Runs non-interactively (suitable for batch/CI): it resolves the geodms module from
 # the GEODMS_PYDIR environment variable when set (else from the dev-tree bin dir relative
 # to this script), prints PASS/FAIL, and exits 0 on success / 1 on failure.
+#
+# With --installed it tests the geodms package installed in this Python, such as a wheel
+# (#1355): it then adds no folder to sys.path, PATH or the DLL search path, so the package
+# has to find its own DLLs and resources.
 import os
 import sys
 
@@ -11,12 +15,16 @@ print('Geodms python test module')
 print(f"{sys.version}")
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-geodms_path = os.environ.get('GEODMS_PYDIR') or os.path.abspath(os.path.join(script_dir, '..', '..', 'bin', 'Release', 'x64'))
-print(f"geodms module dir: {geodms_path}")
-sys.path.append(geodms_path)
-if hasattr(os, 'add_dll_directory') and os.path.isdir(geodms_path):
-    os.add_dll_directory(geodms_path)
-os.environ['PATH'] += os.pathsep + geodms_path
+installed = '--installed' in sys.argv[1:]
+if installed:
+    print("testing the installed geodms package")
+else:
+    geodms_path = os.environ.get('GEODMS_PYDIR') or os.path.abspath(os.path.join(script_dir, '..', '..', 'bin', 'Release', 'x64'))
+    print(f"geodms module dir: {geodms_path}")
+    sys.path.append(geodms_path)
+    if hasattr(os, 'add_dll_directory') and os.path.isdir(geodms_path):
+        os.add_dll_directory(geodms_path)
+    os.environ['PATH'] += os.pathsep + geodms_path
 
 config_file = os.path.join(script_dir, 'basic_data_test.dms')
 
@@ -29,9 +37,15 @@ def check(condition: bool, message: str):
 
 try:
     import geodms as geodms_module
+    # From the build output folder, geodms is the extension itself; installed, it is a package
+    # whose __init__.py loads the extension as geodms.geodms.
+    extension = sys.modules.get('geodms.geodms', geodms_module)
+    print(f"geodms extension: {extension.__file__}")
+    if installed:
+        check(hasattr(geodms_module, '__path__'), "geodms is an installed package, not the extension in a build folder")
     expected_abi_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
     check(
-        expected_abi_tag in os.path.basename(geodms_module.__file__),
+        expected_abi_tag in os.path.basename(extension.__file__),
         f"loaded ABI-tagged {expected_abi_tag} extension",
     )
     from geodms import *
