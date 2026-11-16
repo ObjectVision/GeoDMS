@@ -77,7 +77,7 @@ Many projects do not need the module and exchange data files instead. A configur
 
 - The [GeoDMS Academy](https://github.com/ObjectVision/GeoDMS_Academy/wiki) teaches the language step by step, from installation to land-use allocation and network calculations.
 - The [wiki](https://github.com/ObjectVision/GeoDMS/wiki), also published as [geodms.nl](https://geodms.nl), is the reference for the language, the operators, the GUI and GeoDmsRun, with worked [configuration examples](https://github.com/ObjectVision/GeoDMS/wiki/Configuration-examples).
-- The methods and the models built with GeoDMS, such as land-use allocation, accessibility, the network models for the Netherlands and Europe, RSopen, CRISP and the BAG tools, are documented in the wikis of their own repositories, listed under [Project wikis](https://github.com/ObjectVision/GeoDMS/wiki#project-wikis) on the wiki home.
+- The methods and the models built with GeoDMS, such as land-use allocation, accessibility, the network models for the Netherlands and Europe, RSopen, CRISP and the BAG tools, are documented in the wikis of their own repositories, which the wiki page [Project wikis](https://github.com/ObjectVision/GeoDMS/wiki/Project-wikis) lists with their key pages.
 
 ## GeoDMS as a tool for AI agents
 
