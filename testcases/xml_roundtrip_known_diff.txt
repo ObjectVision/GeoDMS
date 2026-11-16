@@ -1,5 +1,5 @@
 # Configurations whose XML round trip is known to differ from the direct DMS dump (#1261).
-# One per line: <config stem> <reason>. run_roundtrip.ps1 requires every OTHER configuration to
+# One per line: <config stem> <reason>. run_xml_roundtrip.ps1 requires every OTHER configuration to
 # round-trip byte for byte, and fails a listed one that has started to match, so that this list
 # shrinks deliberately rather than rotting.
 #
