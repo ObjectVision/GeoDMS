@@ -54,7 +54,10 @@ battery until then.
 **Do not confuse it with `testcases/run_roundtrip.bat`**, which asks a different question of the
 DMS writer: dump a configuration, RELOAD the dump and recompute its item. The XML one never
 reloads a `.dms`; it compares two DMS dumps of what should be the same tree, one taken after a
-detour through the XML notation.
+detour through the XML notation. The same four launchers run `run_roundtrip.bat` right after the
+XML one (#1368), over the positive configurations, two GeoDmsRun runs each; its output goes to
+`testcases/_out_rt/`. Until then nothing ran it, and 44 reloads failed unnoticed: a reload looked
+for the fixtures that a case reads through `%currDir%` beside the dump.
 
 **That battery must stay offline and cheap.** Anything that reaches the network or
 processes real source data belongs in **`batch\TestShippedContent.bat`** instead, the

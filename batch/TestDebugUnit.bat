@@ -37,6 +37,14 @@ set RT_FAILED=0
 Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%geodms_rootdir%\bin\Debug\x64\GeoDmsRun.exe"
 if errorlevel 1 set RT_FAILED=1
 
+REM DMS round-trip battery (#1368): every positive testcases configuration dumped in DMS syntax,
+REM the dump reloaded from testcases\_out_rt\ and its item computed again, so that what the DMS
+REM writer leaves out makes the reload fail. Offline; two GeoDmsRun runs per positive configuration.
+REM Not the XML one above: that compares two dumps and never reloads one.
+set DRT_FAILED=0
+Call "%geodms_rootdir%\testcases\run_roundtrip.bat" "%geodms_rootdir%\bin\Debug\x64\GeoDmsRun.exe"
+if errorlevel 1 set DRT_FAILED=1
+
 echo.
 if "%SC_FAILED%"=="1" (
   echo *** SOURCE CHECKS FAILED - see the report of batch\run_source_checks.bat further up ***
@@ -53,6 +61,11 @@ if "%RT_FAILED%"=="1" (
 ) else (
   echo XML ROUNDTRIP BATTERY PASSED
 )
+if "%DRT_FAILED%"=="1" (
+  echo *** DMS ROUNDTRIP BATTERY FAILED - see the failures listed above and testcases\_out_rt\ ***
+) else (
+  echo DMS ROUNDTRIP BATTERY PASSED
+)
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 
@@ -60,4 +73,5 @@ if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1
+if "%DRT_FAILED%"=="1" exit /b 1
 exit /b 0
