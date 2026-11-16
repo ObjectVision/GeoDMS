@@ -59,6 +59,13 @@ tiff('tif_i16_nosf.tif', W, H, 16, i16)                                   # STG-
 f32 = struct.pack('<32f', *[i * 0.5 for i in range(32)])                  # sum 248
 tiff('tif_f32_nosf.tif', W, H, 32, f32)                                   # STG-N04: float category taken from the configured type
 tiff('tif_u8_sf.tif', W, H, 8, u8, sample_format=1)                       # control: SampleFormat present
+# #1362: the same image with a world file beside it: cells of 100 m in EPSG:28992, the top left corner at x 155000,
+# y 463400. A world file gives the centre of the top left pixel. tif_u8_sf.tif keeps no world file: other cases read
+# it into domains without a georeference.
+tiff('tif_u8_georef.tif', W, H, 8, u8, sample_format=1)
+with open(os.path.join(OUT, 'tif_u8_georef.tfw'), 'w', newline='\n') as f:
+    f.write('100\n0\n0\n-100\n155050\n463350\n')
+print('tif_u8_georef.tfw')
 c, s = 10 * math.cos(math.radians(30)), 10 * math.sin(math.radians(30))
 mt = [c, s, 0, 1000.0, s, -c, 0, 2000.0, 0, 0, 0, 0, 0, 0, 0, 1]
 tiff('tif_u8_rotated.tif', W, H, 8, u8, sample_format=1, extra=[(34264, DOUBLE, mt)])   # STG-N02: ModelTransformation, 16 doubles

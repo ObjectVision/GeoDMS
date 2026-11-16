@@ -93,19 +93,30 @@ SharedDataItem GetPaletteData(const TreeItem * storageHolder)
 
 #include "UnitClass.h"
 
+// The raster unit of this manager, over which the read places the domain of an attribute that reads the raster
+// itself (ViewPortInfoProvider). It gets the range and the georeference of the file here, when it is made, and
+// not in DoUpdateTree: AbstrStorageManager::UpdateTree does not call DoUpdateTree under SyncMode None, and without
+// the georeference the read would take the pixel row and column numbers of the file for world coordinates and read
+// every cell of a georeferenced domain as null (#1362). A file that cannot be opened gives no unit,
+// as a file that is yet to be written may; an error in its georeference fails the caller.
 AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storageHolder)
 {
 	if (!m_GridDomainUnit)
 	{
-		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr); // sole-owning parentless unit; keep the std::shared_ptr
+		SharedMutableUnit gridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr); // sole-owning parentless unit; keep the std::shared_ptr
+		std::optional<StorageReadHandle> storageHandle;
 		try {
-			StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit.get(), StorageAction::read, false);
-			ReadUnitRange(*storageHandle.MetaInfo());
+			storageHandle.emplace(this, storageHolder, gridDomainUnit.get(), StorageAction::read, false);
+			ReadUnitRange(*storageHandle->MetaInfo());
 		}
 		catch (...)
 		{
-			m_GridDomainUnit = nullptr;
+			return nullptr;
 		}
+		if (IsOpen())
+			if (auto uBase = FindProjectionBase(storageHolder, gridDomainUnit.get()))
+				ReadGeoReference(gridDomainUnit.get(), uBase.get(), storageHolder);
+		m_GridDomainUnit = std::move(gridDomainUnit);
 	}
 	return m_GridDomainUnit.get();
 }

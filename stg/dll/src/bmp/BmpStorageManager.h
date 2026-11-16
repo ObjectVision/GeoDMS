@@ -28,6 +28,7 @@ struct BmpPalStorageManager : AbstrGridStorageManager
 
 protected:
 	virtual bool HasGridData() = 0;
+	void ReadGeoReference(AbstrUnit* gridDomain, const AbstrUnit* uBase, const TreeItem* storageHolder) const override;
 };
 
 

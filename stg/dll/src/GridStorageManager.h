@@ -105,6 +105,13 @@ public:
 	bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const override;
 
 	SharedMutableUnit m_GridDomainUnit; // std::shared_ptr owner (CreateResultUnit returns a sole-owning parentless unit)
+
+protected:
+	// #1362: gives gridDomain the georeference of the file, as a projection on uBase, the coordinate unit that
+	// FindProjectionBase found for it, with the storage open for reading. CreateGridDataDomain calls it for the
+	// raster unit of this manager (m_GridDomainUnit), in every SyncMode, and DoUpdateTree for a configured grid
+	// domain. A georeference that the projection cannot hold, such as a rotated one in tif, is an error.
+	virtual void ReadGeoReference(AbstrUnit* gridDomain, const AbstrUnit* uBase, const TreeItem* storageHolder) const = 0;
 };
 
 struct GridStorageMetaInfo : GdalMetaInfo

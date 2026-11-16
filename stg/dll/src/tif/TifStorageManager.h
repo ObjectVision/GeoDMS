@@ -34,6 +34,9 @@ struct TiffSM : AbstrGridStorageManager
 	UInt32 GetNativeTileSizeX() const override;
 	UInt32 GetNativeTileSizeY() const override;
 
+protected:
+	void ReadGeoReference(AbstrUnit* gridDomain, const AbstrUnit* uBase, const TreeItem* storageHolder) const override;
+
 private:
 	void ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t, StorageMetaInfoPtr smi);
 	void ReadGridData  (const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t, StorageMetaInfoPtr smi);

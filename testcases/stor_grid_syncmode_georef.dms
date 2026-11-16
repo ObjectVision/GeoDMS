@@ -1,0 +1,61 @@
+// #1362: a raster attribute with SyncMode None reads a georeferenced file at its place, as it does in the other
+// modes. data/tif_u8_georef.tif holds the image of data/tif_u8_sf.tif (values 0..31, sum 496) with a world file
+// beside it: cells of 100 m, the top left corner at x 155000, y 463400 in rdc. Until 20.29.0 the raster of the file
+// got its georeference only in DoUpdateTree, which SyncMode None skips, so the read took the pixel row and column
+// numbers of the file for coordinates in rdc, found no cell of the domain on it and read every cell as null,
+// without an error. Each mode is read through tif and through gdal.grid, into a domain computed from the
+// georeference of the world file and into a grid unit that reads it from the file, as in the issue.
+//
+// A grid unit that has SyncMode None itself gets no georeference from its file (grid_none). An attribute over it
+// reads the raster cell for cell, since neither side has a georeference then.
+container stor_grid_syncmode_georef
+{
+	unit<fpoint> rdc : SpatialReference = "EPSG:28992";
+
+	// the cells of the world file, computed
+	unit<spoint> dom := range(gridset(rdc, point_yx(-100f, 100f, rdc), point_yx(463400f, 155000f, rdc), spoint), point_yx(0s, 0s), point_yx(4s, 8s));
+	// the cells of the world file, read from the file: the grid unit takes its georeference on rdc
+	unit<spoint> grid : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True", DialogData = "rdc";
+	// with SyncMode None the grid unit gets the range of the file and no georeference
+	unit<spoint> grid_none : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True", DialogData = "rdc", SyncMode = "None";
+
+	container via_tif
+	{
+		attribute<uint8> mode_none      (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True", SyncMode = "None";
+		attribute<uint8> mode_attronly  (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True", SyncMode = "AttrOnly";
+		attribute<uint8> mode_alltables (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True", SyncMode = "AllTables";
+		attribute<uint8> mode_unset     (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True";
+		attribute<uint8> grid_mode_none (grid) : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True", SyncMode = "None";
+		attribute<uint8> on_grid_none   (grid_none) : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True";
+	}
+	container via_gdal
+	{
+		attribute<uint8> mode_none      (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True", SyncMode = "None";
+		attribute<uint8> mode_attronly  (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True", SyncMode = "AttrOnly";
+		attribute<uint8> mode_alltables (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True", SyncMode = "AllTables";
+		attribute<uint8> mode_unset     (dom)  : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True";
+		attribute<uint8> grid_mode_none (grid) : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True", SyncMode = "None";
+		attribute<uint8> on_grid_none   (grid_none) : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "gdal.grid", StorageReadOnly = "True", SyncMode = "None";
+	}
+
+	container checks
+	{
+		parameter<uint32> tif_none       := sum(uint32(via_tif/mode_none)),       IntegrityCheck = "tif_none == 496";
+		parameter<uint32> tif_attronly   := sum(uint32(via_tif/mode_attronly)),   IntegrityCheck = "tif_attronly == 496";
+		parameter<uint32> tif_alltables  := sum(uint32(via_tif/mode_alltables)),  IntegrityCheck = "tif_alltables == 496";
+		parameter<uint32> tif_unset      := sum(uint32(via_tif/mode_unset)),      IntegrityCheck = "tif_unset == 496";
+		parameter<uint32> tif_grid_none  := sum(uint32(via_tif/grid_mode_none)),  IntegrityCheck = "tif_grid_none == 496";
+		parameter<uint32> tif_on_none    := sum(uint32(via_tif/on_grid_none)),    IntegrityCheck = "tif_on_none == 496";
+
+		parameter<uint32> gdal_none      := sum(uint32(via_gdal/mode_none)),      IntegrityCheck = "gdal_none == 496";
+		parameter<uint32> gdal_attronly  := sum(uint32(via_gdal/mode_attronly)),  IntegrityCheck = "gdal_attronly == 496";
+		parameter<uint32> gdal_alltables := sum(uint32(via_gdal/mode_alltables)), IntegrityCheck = "gdal_alltables == 496";
+		parameter<uint32> gdal_unset     := sum(uint32(via_gdal/mode_unset)),     IntegrityCheck = "gdal_unset == 496";
+		parameter<uint32> gdal_grid_none := sum(uint32(via_gdal/grid_mode_none)), IntegrityCheck = "gdal_grid_none == 496";
+		parameter<uint32> gdal_on_none   := sum(uint32(via_gdal/on_grid_none)),   IntegrityCheck = "gdal_on_none == 496";
+
+		// cell for cell: the first cell holds 0 and the last 31, which a misplaced read would not give
+		parameter<bool> tif_first_last  := via_tif/mode_none[point_yx(0s, 0s)] == 0b && via_tif/mode_none[point_yx(3s, 7s)] == 31b, IntegrityCheck = "tif_first_last == true";
+		parameter<bool> gdal_first_last := via_gdal/mode_none[point_yx(0s, 0s)] == 0b && via_gdal/mode_none[point_yx(3s, 7s)] == 31b, IntegrityCheck = "gdal_first_last == true";
+	}
+}

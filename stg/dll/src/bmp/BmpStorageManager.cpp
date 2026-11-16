@@ -421,7 +421,19 @@ void BmpPalStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem*
 
 	MG_CHECK(!gridData || !paletteData || gridData->GetAbstrValuesUnit() == paletteData->GetAbstrDomainUnit());
 
-	GetImageToWorldTransformFromFile(curr, projectionFileName);
+	// An attribute that reads the raster itself has the raster unit of this storage manager as its grid domain,
+	// which got its range and its georeference when CreateGridDataDomain made it, in every SyncMode (#1362). A
+	// configured grid domain, the storage holder itself or its GridDomain, gets its georeference here.
+	AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(curr);
+	if (!gridDataDomainRW || gridDataDomainRW == m_GridDomainUnit.get())
+		return;
+	if (auto uBase = FindProjectionBase(curr, gridDataDomainRW))
+		ReadGeoReference(gridDataDomainRW, uBase.get(), curr);
+}
+
+void BmpPalStorageManager::ReadGeoReference(AbstrUnit* gridDomain, const AbstrUnit* uBase, const TreeItem* storageHolder) const
+{
+	ReadGeoRefFile(replaceFileExtension(GetNameStr().c_str(), "bmpw"), gridDomain, uBase);
 }
 
 

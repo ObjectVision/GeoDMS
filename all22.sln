@@ -576,6 +576,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "testcases", "testcases", "{
 		testcases\stor_gdalwrite_sibling_sup.dms = testcases\stor_gdalwrite_sibling_sup.dms
 		testcases\stor_gpkg_1_write.dms = testcases\stor_gpkg_1_write.dms
 		testcases\stor_gpkg_2_read.dms = testcases\stor_gpkg_2_read.dms
+		testcases\stor_grid_syncmode_georef.dms = testcases\stor_grid_syncmode_georef.dms
 		testcases\stor_mmd_alias_1_write.dms = testcases\stor_mmd_alias_1_write.dms
 		testcases\stor_mmd_alias_2_read.dms = testcases\stor_mmd_alias_2_read.dms
 		testcases\stor_mmd_cat_1_write.dms = testcases\stor_mmd_cat_1_write.dms

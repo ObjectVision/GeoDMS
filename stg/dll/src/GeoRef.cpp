@@ -10,7 +10,7 @@
 #endif
 
 // Geo-reference file I/O: the affine grid transformation from a grid data
-// item, Write/ReadGeoRefFile and GetImageToWorldTransformFromFile.
+// item, and Write/ReadGeoRefFile.
 // Split from stg DllMain.cpp (2026-08).
 
 #include "dbg/DebugCast.h"
@@ -237,25 +237,5 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
  	}
 
 	return uBase;
-}
-
-void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFileName)
-{
-	assert(storageHolder); // PRECONDITION
-/* 
-	const AbstrUnit* gridDataDomainRO = GetGridDataDomainRO(storageHolder); 
-	if (!storageHolder->DoesContain(gridDataDomainRO))
-		return;
-*/
-
-	AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(storageHolder);
-	if (!gridDataDomainRW)
-		return;
-
-	auto uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
-	if (!uBase)
-		return;
-
-	ReadGeoRefFile(geoRefFileName, gridDataDomainRW, uBase.get());
 }
 
