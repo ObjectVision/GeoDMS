@@ -841,6 +841,24 @@ namespace hof {
 										}
 										break; // config base could not be resolved -> keep the pre-tranche throw
 									}
+									// #1365: a sub-item that the calculation of the item does not make
+									// either fails now, with the path and the function, instead of in
+									// the SubItem operator, which can only name the nameless result
+									// item. The test is the one that operator makes; when the result
+									// cannot be made, the application reports that as before
+									{
+										SharedStr rest(CharPtrRange(ri->second, e));
+										if (auto baseDC = GetOrCreateDataController(baseKey))
+											if (auto baseRes = baseDC->MakeResult(); baseRes && baseRes->IsCacheItem() && !baseRes->GetCurrItem(rest))
+											{
+												SharedStr declared;
+												if (auto sit = m_StructuredByItem.find(ri->first.get()); sit != m_StructuredByItem.end())
+													for (const auto& m : sit->second->subItems)
+														declared = declared + SharedStr(declared.empty() ? "; the function or fold whose result it is declares " : ", ") + mySSPrintF("'{}'", m.id);
+												throwErrorF("ExprParser", "'{}': Cannot find '{}' from '{}', a body item of function '{}'{}"
+													, fullStr.c_str(), rest.c_str(), ri->first->GetFullName().c_str(), m_FuncItem->GetFullName().c_str(), declared.c_str());
+											}
+									}
 									if (foundItemPtr)
 										*foundItemPtr = nullptr;
 									return slSubItemCall(std::move(baseKey), CharPtrRange(ri->second, e));

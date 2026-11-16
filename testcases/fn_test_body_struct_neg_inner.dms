@@ -1,0 +1,30 @@
+// EXPECT-FAILURE: 'st/vv': Cannot find 'vv' from '/OuterFold/st', a body item of function '/OuterFold'; the function or fold whose result it is declares 'v'
+container fn_test_body_struct_neg_inner
+{
+	// #1365: an inner function reads a sub-item of a fold state of the enclosing function; a
+	// misspelt sub-item is reported with the body item and the function, and with the sub-items
+	// that the step declares for its result
+
+	unit<uint32> Twice : nrofrows = 2;
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+	function DropMax(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+	}
+	function OuterFold(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := Inner(1.0)
+	{
+		unit<uint32> st := fold(Twice, DropMax, s);
+		function Inner(parameter<float64> k) -> parameter<float64> := sum(st/vv) + k;
+	}
+
+	container checks
+	{
+		parameter<float64> c := OuterFold(Vals5), IntegrityCheck = "c == 9.0";
+	}
+}
