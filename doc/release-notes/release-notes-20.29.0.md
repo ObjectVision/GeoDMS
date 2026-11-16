@@ -56,3 +56,7 @@
 
 - `examples/grid_to_polygon.dms` runs on Linux: two of its includes named a library file in the wrong case, and `library/basedata_nl/RegioIndelingen.dms` downloads the CBS geopackage with `curl` instead of through cmd.exe (#1359).
 - `examples/convex_hull.dms` repeats its step with `fold_c` in a function `ConvexHull` until the step drops no more points, instead of with `for_each_ne` and an indirect expression a fixed number of times (#1347).
+
+## Setups
+
+- The Windows setups and the Linux `.deb` and `.tar.gz` now install `license.txt`, the GPL version 3 under which GeoDMS is distributed, and beside it a folder `licenses` with the licence texts of the libraries they bundle and a `README.txt` that lists every bundled binary with its source and version. Earlier setups shipped those libraries without their licence texts. The `.deb` also installs `/usr/share/doc/geodms/copyright`, and a setup build stops when a bundled binary has no known licence. The Python wheels carry the licence texts of their libraries in their `.dist-info/licenses` folder (#1371).
