@@ -358,8 +358,8 @@ namespace hof {
 			collectSubItems(collectSubItems, resultChild.get(), structured->subItems);
 			r.structuredResult = std::move(structured);
 		}
-		else if (auto sit = m_StructuredByKey.find(r.key); sit != m_StructuredByKey.end())
-			r.structuredResult = sit->second; // #1347: the result is a fold whose state declares sub-items
+		else if (auto sit = m_StructuredByItem.find(resultChild.get()); sit != m_StructuredByItem.end())
+			r.structuredResult = sit->second; // #1347, #1365: the result is a fold or a function result that declares sub-items
 		return r;
 	}
 
@@ -391,7 +391,12 @@ namespace hof {
 			auto bodyCalc = AbstrCalculator::ConstructFromStr(bodyItem, exprStr, CalcRole::Calculator);
 			auto refScope = bodyItem->GetTreeParent(); // names resolve from the referencing item's own scope outward, as in instantiated form
 			MG_CHECK(refScope);
-			result = SubstituteBodyExpr(refScope.get(), RewriteExpr(bodyCalc->GetLispExprOrg()));
+			// #1365: when the rule is the application of a function (or a fold) whose result
+			// declares sub-items, member access to this item finds them under the item
+			std::shared_ptr<const StructuredFunctionResult> structured;
+			result = SubstituteBodyExpr(refScope.get(), RewriteExpr(bodyCalc->GetLispExprOrg()), &structured);
+			if (structured)
+				m_StructuredByItem[bodyItem] = std::move(structured);
 		}
 
 		m_InProgress.erase(bodyItem);
@@ -399,7 +404,7 @@ namespace hof {
 		return result;
 	}
 
-	LispRef FunctionApplication::SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr)
+	LispRef FunctionApplication::SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr)
 	{
 		if (expr.EndP())
 			return expr;
@@ -411,7 +416,7 @@ namespace hof {
 			TokenID headID = head.GetSymbID();
 
 			if (headID == token::sourceDescr)
-				return ResolveBodySymbol(refScope, expr.Right().Left().GetSymbID(), nullptr);
+				return ResolveBodySymbol(refScope, expr.Right().Left().GetSymbID(), nullptr, structuredPtr);
 
 			if (headID == token::arrow || headID == token::scope || headID == token::subitem)
 				throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
@@ -424,19 +429,26 @@ namespace hof {
 				CallArg r = ResolveBodyArg(refScope, expr);
 				if (r.binding)
 					throwErrorF("ExprParser", "a function value can only be applied with '(...)', passed as an argument, or returned as a result");
+				if (structuredPtr)
+					*structuredPtr = std::move(r.structuredResult);
 				return r.key;
 			}
 
-			// #1347: fold(...) or fold_c(...) in a data position: the final state
-			// (ResolveBodyArg records the declared sub-items of a structured state)
+			// #1347: fold(...) or fold_c(...) in a data position: the final state, with the
+			// declared sub-items of a structured state
 			if (IsFoldHead(headID))
-				return ResolveBodyArg(refScope, expr).key;
+			{
+				CallArg r = ResolveBodyArg(refScope, expr);
+				if (structuredPtr)
+					*structuredPtr = std::move(r.structuredResult);
+				return r.key;
+			}
 
 			// #1347: 'instantiate fold(...)' or 'instantiate fold_c(...)' as the rule of a body
 			// item. A function applied as a value has no items, so the states after the steps
-			// become sub-items by key, step0, step1, ..., and result, recorded under a key of
-			// their own that member access finds as it finds the sub-items of a structured fold
-			// state. That key is no value: a bare reference to the body item is refused
+			// become sub-items by key, step0, step1, ..., and result, recorded for the body item,
+			// where member access finds them as it finds the sub-items of a structured fold
+			// state. Its key is no value: a bare reference to the body item is refused
 			if (headID == t_InstantiateItem)
 			{
 				LispPtr innerCall = expr.Right().Left();
@@ -451,9 +463,9 @@ namespace hof {
 				std::vector<CallArg> trace;
 				auto result = ReduceFoldCall(calleeID, foldArgs, this, m_SubstBuff, m_ErrorHolder, &trace);
 				RejectNestedFunctionResultMetaCall(result.key);
-				LispRef traceKey = ExprList(t_InstantiateItem, result.key);
-				m_StructuredByKey[traceKey] = MakeFoldTrace(trace, result);
-				return traceKey;
+				if (structuredPtr)
+					*structuredPtr = MakeFoldTrace(trace, result);
+				return ExprList(t_InstantiateItem, result.key);
 			}
 
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
@@ -522,7 +534,8 @@ namespace hof {
 					if (merged.NrHoles() != 0)
 						throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not used as a value"
 							, headID);
-					return ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder);
+					// #1365: with the sub-items that the result of the callee declares
+					return ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder, structuredPtr);
 				}
 				// arity-fallback probe found no function: fall through to the operator path,
 				// whose FindOper reports the arity error
@@ -621,33 +634,50 @@ namespace hof {
 				return ExprList(symbID);
 			if (ValueClass::FindByScriptName(symbID))
 				return List(LispRef(expr)); // unitName -> [UnitName []], i.e. unitName()
-			return ResolveBodySymbol(refScope, symbID, nullptr);
+			return ResolveBodySymbol(refScope, symbID, nullptr, structuredPtr);
 		}
 
 		return expr; // numeric, string and UInt64 literals
 	}
 
 	// §5.10: look a name up in the captured closure environment(s): the enclosing
-	// applications' parameters, nearest enclosure first. Returns true when bound.
-	bool FunctionApplication::ResolveEnvSymbol(TokenID symbID, SharedTreeItem* foundItemPtr, LispRef* keyPtr, std::shared_ptr<FunctionBinding>* bindingPtr)
+	// applications' parameters, nearest enclosure first. Returns the captured argument, or
+	// null when the name is not bound there.
+	const CallArg* FunctionApplication::FindEnvArg(TokenID symbID) const
 	{
 		for (auto env = m_Env; env; env = env->next)
 		{
 			UInt32 i = 0;
 			for (const TreeItem* c = env->funcItem->_GetFirstSubItem(); c && i < env->args.size(); c = c->GetNextItem(), ++i)
 				if (c->GetNameID() == symbID)
-				{
-					const CallArg& a = env->args[i];
-					if (foundItemPtr) *foundItemPtr = a.item;
-					if (keyPtr)       *keyPtr = a.key;
-					if (bindingPtr)   *bindingPtr = a.binding;
-					return true;
-				}
+					return &env->args[i];
 		}
-		return false;
+		return nullptr;
 	}
 
-	LispRef FunctionApplication::ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr)
+	namespace {
+		// §5.9: a name bound to a container literal, directly as a parameter or captured from an
+		// enclosing application: a bare use (slash == e) is the domain of the literal, and
+		// 'name/member' the value of the named member; `boundAs` says how, for the messages
+		LispRef ResolveLiteralUse(const ContainerLiteralArg& lit, CharPtr fullStr, TokenID name, CharPtr slash, CharPtr e, CharPtr boundAs)
+		{
+			if (slash == e)
+			{
+				if (!lit.hasDomain)
+					throwErrorF("ExprParser", "'{}': the container literal {} '{}' has no domain unit and cannot be used as a unit"
+						, fullStr, boundAs, name);
+				return lit.domainKey;
+			}
+			TokenID memberName = GetTokenID_mt(slash + 1, e);
+			for (const auto& mv : lit.members)
+				if (mv.first == memberName)
+					return mv.second;
+			throwErrorF("ExprParser", "'{}': the container literal {} '{}' has no member '{}'"
+				, fullStr, boundAs, name, SharedStr(CharPtrRange(slash + 1, e)).c_str());
+		}
+	}
+
+	LispRef FunctionApplication::ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr)
 	{
 		SharedStr fullStr(symbID.AsStrRangeLock());
 		CharPtr b = fullStr.begin(), e = fullStr.send();
@@ -678,22 +708,9 @@ namespace hof {
 						// domain and 'param/member' to the named member value -- no arg item exists
 						if (m_ArgLiterals[i])
 						{
-							const auto& lit = *m_ArgLiterals[i];
 							if (foundItemPtr)
 								*foundItemPtr = nullptr;
-							if (slash == e)
-							{
-								if (!lit.hasDomain)
-									throwErrorF("ExprParser", "'{}': the container literal bound to parameter '{}' has no domain unit and cannot be used as a unit"
-										, fullStr.c_str(), firstTok);
-								return lit.domainKey;
-							}
-							TokenID memberName = GetTokenID_mt(slash + 1, e);
-							for (const auto& mv : lit.members)
-								if (mv.first == memberName)
-									return mv.second;
-							throwErrorF("ExprParser", "'{}': the container literal bound to parameter '{}' has no member '{}'"
-								, fullStr.c_str(), firstTok, SharedStr(CharPtrRange(slash + 1, e)).c_str());
+							return ResolveLiteralUse(*m_ArgLiterals[i], fullStr.c_str(), firstTok, slash, e, "bound to parameter");
 						}
 
 						bool boundToFunction = (m_ArgBindings[i] != nullptr);
@@ -704,6 +721,8 @@ namespace hof {
 									, fullStr.c_str());
 							if (foundItemPtr)
 								*foundItemPtr = m_ArgItems[i];
+							if (structuredPtr)
+								*structuredPtr = m_ArgStructured[i]; // #1347: the result of a function application passes its declared sub-items on
 							return m_ArgKeys[i];
 						}
 						// member access through a (structured or composite-typed) parameter:
@@ -768,8 +787,12 @@ namespace hof {
 									LispRef baseKey = ReduceBodyItem(ri->first.get());
 									// #1347: a local whose rule is a fold has the declared
 									// sub-items of the fold's state, and a local whose rule is
-									// 'instantiate fold(...)' the states after its steps
-									if (auto sit = m_StructuredByKey.find(baseKey); sit != m_StructuredByKey.end())
+									// 'instantiate fold(...)' the states after its steps;
+									// #1365: a local whose rule applies a function has the
+									// sub-items that the result of that function declares.
+									// A sub-item they do not declare, such as one that the
+									// operator of the result computes, goes on as before
+									if (auto sit = m_StructuredByItem.find(ri->first.get()); sit != m_StructuredByItem.end())
 									{
 										if (LispRef memberKey = FindStructuredMember(*sit->second, CharPtrRange(ri->second, e)); !memberKey.EndP())
 										{
@@ -836,6 +859,9 @@ namespace hof {
 				if (IsFoldTraceKey(localKey)) // #1347
 					throwErrorF("ExprParser", "'{}': the container that 'instantiate fold(...)' makes has no value of its own; refer to {}/result, or to a step such as {}/step0 (body of function '{}')"
 						, fullStr.c_str(), fullStr.c_str(), fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+				if (structuredPtr)
+					if (auto sit = m_StructuredByItem.find(target.get()); sit != m_StructuredByItem.end())
+						*structuredPtr = sit->second; // #1365: a local passed on or referred to keeps the declared sub-items of its value
 				return localKey;
 			}
 			if (atFuncRoot)
@@ -844,36 +870,53 @@ namespace hof {
 
 		// §5.10: the captured closure environment -- the enclosing applications' bound
 		// parameters -- is lexically nearer than any import or definition-scope item
-		if (m_Env)
+		if (const CallArg* envArg = FindEnvArg(firstTok))
 		{
-			SharedTreeItem envItem; LispRef envKey; std::shared_ptr<FunctionBinding> envBnd;
-			if (ResolveEnvSymbol(firstTok, &envItem, &envKey, &envBnd))
+			if (envArg->binding)
+				throwErrorF("ExprParser", "'{}': a captured function value can only be applied or passed on as an argument"
+					, fullStr.c_str());
+			// #1365: a captured container literal, as one bound to a parameter
+			if (envArg->literal)
 			{
-				if (envBnd)
-					throwErrorF("ExprParser", "'{}': a captured function value can only be applied or passed on as an argument"
-						, fullStr.c_str());
-				if (slash == e)
-				{
-					if (foundItemPtr)
-						*foundItemPtr = envItem;
-					return envKey;
-				}
-				// member access through a captured structured value: descend into the
-				// argument item, as for a directly bound parameter
-				if (!envItem)
-					throwErrorF("ExprParser", "'{}': member access through captured '{}' requires the corresponding argument to be a direct item reference"
-						, fullStr.c_str(), firstTok);
-				auto member = FindSubItem(envItem.get(), SharedStr(CharPtrRange(slash + 1, e)));
-				if (!member)
-					throwErrorF("ExprParser", "'{}': the argument captured as '{}' has no member '{}'"
-						, fullStr.c_str(), firstTok, SharedStr(CharPtrRange(slash + 1, e)).c_str());
-				member->UpdateMetaInfo();
-				if (m_SubstBuff)
-					registerSupplier(*m_SubstBuff, member.get());
 				if (foundItemPtr)
-					*foundItemPtr = member;
-				return member->GetCheckedKeyExpr();
+					*foundItemPtr = nullptr;
+				return ResolveLiteralUse(*envArg->literal, fullStr.c_str(), firstTok, slash, e, "captured as");
 			}
+			if (slash == e)
+			{
+				if (foundItemPtr)
+					*foundItemPtr = envArg->item;
+				if (structuredPtr)
+					*structuredPtr = envArg->structuredResult;
+				return envArg->key;
+			}
+			// #1365: a captured result of a function application carries the keys of the
+			// sub-items that its function declares, as for a directly bound parameter
+			if (!envArg->item && envArg->structuredResult)
+			{
+				LispRef memberKey = FindStructuredMember(*envArg->structuredResult, CharPtrRange(slash + 1, e));
+				if (memberKey.EndP())
+					throwErrorF("ExprParser", "'{}': the value captured as '{}' is the result of a function that declares no sub-item '{}'"
+						, fullStr.c_str(), firstTok, SharedStr(CharPtrRange(slash + 1, e)).c_str());
+				if (foundItemPtr)
+					*foundItemPtr = nullptr;
+				return memberKey;
+			}
+			// member access through a captured structured value: descend into the
+			// argument item, as for a directly bound parameter
+			if (!envArg->item)
+				throwErrorF("ExprParser", "'{}': member access through captured '{}' requires the corresponding argument to be a direct item reference"
+					, fullStr.c_str(), firstTok);
+			auto member = FindSubItem(envArg->item.get(), SharedStr(CharPtrRange(slash + 1, e)));
+			if (!member)
+				throwErrorF("ExprParser", "'{}': the argument captured as '{}' has no member '{}'"
+					, fullStr.c_str(), firstTok, SharedStr(CharPtrRange(slash + 1, e)).c_str());
+			member->UpdateMetaInfo();
+			if (m_SubstBuff)
+				registerSupplier(*m_SubstBuff, member.get());
+			if (foundItemPtr)
+				*foundItemPtr = member;
+			return member->GetCheckedKeyExpr();
 		}
 
 		// imports and externals: own scope + explicit imports first, then the lexical
@@ -888,6 +931,23 @@ namespace hof {
 		auto found = m_FuncItem->ResolveItemPath(fullStr);
 		for (auto defScope = m_FuncItem->GetTreeParent(); !found && defScope; defScope = defScope->GetTreeParent())
 			found = defScope->ResolveItemPath(fullStr);
+		// #1365: 'st/v' where st is a body item of an enclosing function and v is no sub-item
+		// of st in the tree, but one that the fold or function whose result st is declares.
+		// Only the application of the enclosing function knows those, so the whole path goes
+		// to that application on the parent chain, which resolves it as a reference of its
+		// own body. The enclosing member is found as the definition check finds it
+		// (FindEnclosingFunctionMember); with no such application on the chain, the nested
+		// function was returned as a closure and applied elsewhere, and the reference fails
+		// as before
+		if (!found && slash != e)
+			for (auto enc = m_FuncItem->GetTreeParent(); enc && enc->IsFunctionItem(); enc = enc->GetTreeParent())
+				if (enc->GetConstSubTreeItemByID(firstTok))
+				{
+					for (const FunctionApplication* p = m_Parent; p; p = p->m_Parent)
+						if (p->m_FuncItem == enc.get())
+							return const_cast<FunctionApplication*>(p)->ResolveBodySymbol(enc.get(), symbID, foundItemPtr, structuredPtr); // non-const: see the delegation below
+					break;
+				}
 		if (!found)
 			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, 'using' imports, and the definition scope)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
@@ -921,7 +981,11 @@ namespace hof {
 					auto* encl = const_cast<FunctionApplication*>(p);
 					if (foundItemPtr)
 						*foundItemPtr = nullptr; // reduced in the enclosing scope: no item identity to bind member access to
-					return encl->ReduceBodyItem(found.get());
+					LispRef enclKey = encl->ReduceBodyItem(found.get());
+					if (structuredPtr) // #1365: with the declared sub-items of its value, when it is passed on
+						if (auto sit = encl->m_StructuredByItem.find(found.get()); sit != encl->m_StructuredByItem.end())
+							*structuredPtr = sit->second;
+					return enclKey;
 				}
 			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
@@ -954,17 +1018,13 @@ namespace hof {
 				}
 
 		// §5.10: a captured function value from the closure environment
-		if (m_Env)
+		if (const CallArg* envArg = FindEnvArg(headID))
 		{
-			SharedTreeItem envItem; LispRef envKey; std::shared_ptr<FunctionBinding> envBnd;
-			if (ResolveEnvSymbol(headID, &envItem, &envKey, &envBnd))
-			{
-				if (!envBnd)
-					throwErrorF("ExprParser", "'{}': captured value is applied as a function but is not a function reference"
-						, headID);
-				if (paramBinding) *paramBinding = envBnd;
-				return envBnd->funcItem;
-			}
+			if (!envArg->binding)
+				throwErrorF("ExprParser", "'{}': captured value is applied as a function but is not a function reference"
+					, headID);
+			if (paramBinding) *paramBinding = envArg->binding;
+			return envArg->binding->funcItem;
 		}
 
 		SharedStr headName(headID.AsStrRangeLock()); // materialized (#1233 P16/B6): a TokenStr temporary as an argument lives to the end of the full expression, i.e. across the call
@@ -1016,12 +1076,15 @@ namespace hof {
 							{
 								CallArg a; a.binding = m_ArgBindings[i]; return a;
 							}
-					// §5.10: a captured value from the closure environment
-					if (m_Env)
+					// §5.10: a captured value from the closure environment, with the declared
+					// sub-items of the result of a function application (#1365); a captured
+					// container literal stands for its domain, as one bound to a parameter does
+					if (const CallArg* envArg = FindEnvArg(sym))
 					{
-						CallArg a;
-						if (ResolveEnvSymbol(sym, &a.item, &a.key, &a.binding))
-							return a;
+						if (!envArg->literal)
+							return *envArg;
+						CallArg a; a.key = ResolveLiteralUse(*envArg->literal, s.c_str(), sym, s.send(), s.send(), "captured as");
+						return a;
 					}
 					// import or lexically visible function?
 					auto callee = m_FuncItem->ResolveItemPath(s);
@@ -1038,18 +1101,11 @@ namespace hof {
 						CallArg a; a.binding = MakeAllHoles(callee); return a;
 					}
 				}
-				CallArg a; a.key = ResolveBodySymbol(refScope, sym, &a.item);
+				// #1347, #1365: a parameter bound to the result of a function application (the
+				// state of a fold), or a local whose rule is such an application, passes its
+				// declared sub-items on
+				CallArg a; a.key = ResolveBodySymbol(refScope, sym, &a.item, &a.structuredResult);
 				RejectNestedFunctionResultMetaCall(a.key);
-				// #1347: a parameter bound to the result of a function application (the
-				// state of a fold) passes its declared sub-items on; the key comparison
-				// keeps a body local of the same name out
-				if (bare && !a.item)
-					for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
-						if (m_Params[i]->GetNameID() == sym && m_ArgStructured[i] && a.key == m_ArgKeys[i])
-						{
-							a.structuredResult = m_ArgStructured[i];
-							break;
-						}
 				return a;
 			}
 		}
@@ -1086,8 +1142,8 @@ namespace hof {
 			}
 
 			// #1347: fold(...) as an argument: its value, including the declared sub-items
-			// of a structured state, which are also recorded under the key of the result
-			// for a local that the fold is the rule of
+			// of a structured state (SubstituteBodyExpr passes them on to a local that the
+			// fold is the rule of)
 			if (IsFoldHead(headID))
 			{
 				std::vector<CallArg> foldArgs;
@@ -1095,8 +1151,6 @@ namespace hof {
 					foldArgs.push_back(ResolveBodyArg(refScope, a.Left()));
 				auto result = ReduceFoldCall(headID, foldArgs, this, m_SubstBuff, m_ErrorHolder);
 				RejectNestedFunctionResultMetaCall(result.key);
-				if (result.structuredResult)
-					m_StructuredByKey[result.key] = result.structuredResult;
 				return result;
 			}
 

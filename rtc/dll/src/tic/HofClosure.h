@@ -131,7 +131,7 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 		const TreeItem*                m_RestParam = nullptr; // '...x' rest param (the last param); binds m_ArgKeys[nrParams-1 .. end)
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
-		std::map<LispRef, std::shared_ptr<const StructuredFunctionResult>> m_StructuredByKey; // #1347: the declared sub-items of each fold reduced in this body, by the key of its result
+		std::map<const TreeItem*, std::shared_ptr<const StructuredFunctionResult>> m_StructuredByItem; // #1347, #1365: per body item whose value has declared sub-items (the result of a function or a fold, the states of 'instantiate fold', or a reference to such a value), those sub-items; by item, not by key, because two items can share a calculation and differ in what they declare
 
 		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); m_ArgStructured.push_back(a.structuredResult); }
 
@@ -170,10 +170,12 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 
 		LispRef Reduce();
 		CallArg ReduceValue(); // §5.10: like Reduce, but a function-typed result yields a closure binding
-		bool ResolveEnvSymbol(TokenID symbID, SharedTreeItem* foundItemPtr, LispRef* keyPtr, std::shared_ptr<FunctionBinding>* bindingPtr); // §5.10 closure-env lookup
+		const CallArg* FindEnvArg(TokenID symbID) const; // §5.10 closure-env lookup: the captured argument, or null
 		LispRef ReduceBodyItem(const TreeItem* bodyItem);
-		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr);
-		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr);
+		// structuredPtr, when given, receives the declared sub-items of the value when the whole
+		// expression (resp. the symbol) is a value that has them, such as the result of a function
+		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr = nullptr);
+		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr = nullptr);
 		CallArg ResolveBodyArg(const TreeItem* refScope, LispPtr argExpr);
 		SharedTreeItem ResolveBodyHeadFunction(const TreeItem* refScope, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding, bool mayFail = false);
 	};
