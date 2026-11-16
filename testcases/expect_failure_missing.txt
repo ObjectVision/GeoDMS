@@ -9,4 +9,3 @@
 #
 # When this list was made, on 20.29.0 (0b8bb0113), 223 of the 225 negative cases were given a line.
 fn_test_subref_neg5 its comment expects the throw "Cannot find sub from ..." of a member access on a bare config-item alias, but c/sub resolves, and the case fails only on its own IntegrityCheck 'c_1 == 0.0', as it already did in a run of 2026-09-06
-oper_points2sequence_dup_ord_neg its comment expects the duplicate-ordinal error of points2sequence, but the case fails before that with "Cannot find Values unit Seq": the attribute seq of Pt is found where the unit Seq is meant, as names are compared without case; with the attribute renamed the case fails with "orderNr 0 occurs more than once in sequence 0"
