@@ -244,6 +244,62 @@ StaticTokenID t_Dot(".");
 		}
 	}
 
+	namespace {
+		// #1367: the step of fold or fold_c, or the condition of fold_c, may be a set of
+		// variants. The variant is chosen once, on the arguments of the first application,
+		// which hold the initial state, as a call with those arguments chooses it
+		// (SelectVariant, the selection of ResolveVariant), and `fb` becomes the binding of
+		// that variant; the errors name fold or fold_c and the role of the set in it. Choosing again per
+		// step would let the state change its type halfway, where fold assumes that each step
+		// returns what the next one takes; so every later application checks that its
+		// arguments choose the same variant, and a state that chooses another one, or none, is
+		// an error that says so. A set of variants has no parameters of its own, so its
+		// binding leaves nothing filled: the arguments are exactly the ones that fold passes.
+		struct FoldVariant
+		{
+			SharedTreeItem  set;            // the set of variants; null until the first application
+			const TreeItem* chosen = nullptr;
+		};
+
+		void ApplyFoldVariant(FoldVariant& fv, FunctionBinding& fb, const std::vector<CallArg>& args, row_id nrStepsTaken
+			, CharPtr sig, CharPtr role, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
+		{
+			bool first = !fv.set;
+			if (first)
+				fv.set = fb.funcItem;
+			std::vector<const ValueClass*> argVCs;
+			argVCs.reserve(args.size());
+			for (const auto& a : args)
+				argVCs.push_back(ArgValueClass(a.key, errorHolder));
+			std::pair<const TreeItem*, const TreeItem*> tie;
+			SharedStr candidates;
+			const TreeItem* v = SelectVariant(fv.set.get(), argVCs, &tie, &candidates); // as ResolveVariant selects
+			if (first && v)
+			{
+				fv.chosen = v;
+				if (substBuff)
+					registerSupplier(*substBuff, fv.chosen);
+				CheckFunctionDefinition(fv.chosen);
+				auto env = fb.env;
+				fb = *MakeAllHoles(make_shared_tree(fv.chosen, existing_obj{}));
+				fb.env = std::move(env);
+				return;
+			}
+			if (v && v == fv.chosen)
+				return;
+			const ValueClass* stateVC = argVCs.empty() ? nullptr : argVCs.back(); // the state is the last argument
+			SharedStr stateType = stateVC ? SharedStr(stateVC->GetNameID()) : SharedStr("an unknown type");
+			SharedStr choice = v ? mySSPrintF("chooses the variant '{}'", v->GetNameID())
+				: tie.first ? mySSPrintF("matches the variants '{}' and '{}', of which neither is more specific", tie.first->GetNameID(), tie.second->GetNameID())
+				: SharedStr("matches no variant");
+			if (first)
+				throwErrorF("ExprParser", "{}: the {} '{}' is a set of variants, and its first application, on the initial state, which has values of type {}, {} (variants: {})"
+					, sig, role, fv.set->GetFullName().c_str(), stateType.c_str(), choice.c_str(), candidates.c_str());
+			throwErrorF("ExprParser", "{}: the {} '{}' is a set of variants, and the variant '{}' is chosen once, on the initial state; the state after {} step{} has values of type {} and {}"
+				, sig, role, fv.set->GetFullName().c_str(), fv.chosen->GetNameID(), nrStepsTaken, nrStepsTaken == 1 ? "" : "s", stateType.c_str(), choice.c_str());
+		}
+	}
+
 	// #1347: fold(D, f, x0) is f(e[n-1], ... f(e[1], f(e[0], x0))), with e[k] the k-th
 	// element of the unit D, as a parameter<D>. The number of steps is read from D when
 	// the expression is reduced, at meta time, as iterate and loop read theirs. Each step
@@ -264,11 +320,9 @@ StaticTokenID t_Dot(".");
 			throwErrorF("ExprParser", "{}: the second argument must be a function, or a partial application that leaves two arguments open", foldSig);
 		if (state.binding)
 			throwErrorF("ExprParser", "{}: the initial state must be a value, not a function", foldSig);
-		const FunctionBinding& step = *stepArg.binding;
-		if (TreeItem_IsFunctionVariantSet(step.funcItem.get()))
-			throwErrorF("ExprParser", "{}: the step '{}' is a set of variants; pass the variant to use"
-				, foldSig, step.funcItem->GetFullName().c_str());
-		if (step.NrHoles() != 2)
+		FunctionBinding step = *stepArg.binding; // a copy: a set of variants becomes the variant it chooses (#1367)
+		bool stepIsSet = TreeItem_IsFunctionVariantSet(step.funcItem.get());
+		if (!stepIsSet && step.NrHoles() != 2)
 			throwErrorF("ExprParser", "{}: the step '{}' must take two arguments, an element of the domain and the state; it leaves {} open"
 				, foldSig, step.funcItem->GetFullName().c_str(), step.NrHoles());
 
@@ -306,11 +360,15 @@ StaticTokenID t_Dot(".");
 			firstElem = domainUnit->GetRangeAsFloat64().first;
 		}
 
+		FoldVariant stepVariant;
 		for (row_id k = 0; k != nrSteps; ++k)
 		{
 			CallArg elem;
 			elem.key = AsLispRef(Float64(firstElem + k), domainArg.key); // (convert value D): a parameter<D>
-			FunctionBinding merged = MergeBinding(step, { std::move(elem), std::move(state) });
+			std::vector<CallArg> stepArgs{ std::move(elem), std::move(state) };
+			if (stepIsSet)
+				ApplyFoldVariant(stepVariant, step, stepArgs, k, foldSig, "step", substBuff, errorHolder);
+			FunctionBinding merged = MergeBinding(step, stepArgs);
 			state = ReduceMergedValue(merged, parent, substBuff, errorHolder);
 			if (state.binding)
 				throwErrorF("ExprParser", "{}: the step '{}' returned a function; it must return the next state"
@@ -406,16 +464,15 @@ StaticTokenID t_Dot(".");
 			throwErrorF("ExprParser", "{}: the third argument must be a number, the most steps that may be taken", foldSig);
 		if (state.binding)
 			throwErrorF("ExprParser", "{}: the initial state must be a value, not a function", foldSig);
-		const FunctionBinding& step = *stepArg.binding;
-		const FunctionBinding& cond = *condArg.binding;
-		for (const FunctionBinding* fb : { &step, &cond })
-			if (TreeItem_IsFunctionVariantSet(fb->funcItem.get()))
-				throwErrorF("ExprParser", "{}: the {} '{}' is a set of variants; pass the variant to use"
-					, foldSig, fb == &step ? "step" : "condition", fb->funcItem->GetFullName().c_str());
-		if (step.NrHoles() != 2)
+		// copies: a set of variants becomes the variant it chooses (#1367)
+		FunctionBinding step = *stepArg.binding;
+		FunctionBinding cond = *condArg.binding;
+		bool stepIsSet = TreeItem_IsFunctionVariantSet(step.funcItem.get());
+		bool condIsSet = TreeItem_IsFunctionVariantSet(cond.funcItem.get());
+		if (!stepIsSet && step.NrHoles() != 2)
 			throwErrorF("ExprParser", "{}: the step '{}' must take two arguments, the number of the step and the state; it leaves {} open"
 				, foldSig, step.funcItem->GetFullName().c_str(), step.NrHoles());
-		if (cond.NrHoles() != 1)
+		if (!condIsSet && cond.NrHoles() != 1)
 			throwErrorF("ExprParser", "{}: the condition '{}' must take one argument, the state; it leaves {} open"
 				, foldSig, cond.funcItem->GetFullName().c_str(), cond.NrHoles());
 
@@ -424,12 +481,16 @@ StaticTokenID t_Dot(".");
 			throwErrorF("ExprParser", "{}: the third argument, the most steps that may be taken, is {}; it cannot be negative", foldSig, maxN);
 
 		std::vector<FutureData> heldPrev; // the data of the state before the current one
+		FoldVariant stepVariant, condVariant;
 		for (row_id k = 0; ; ++k)
 		{
 			std::vector<FutureData> heldCurr;
 			HoldState(state, heldCurr); // before the condition calculates it, so that its data stays
 
-			FunctionBinding condMerged = MergeBinding(cond, { state });
+			std::vector<CallArg> condArgs{ state };
+			if (condIsSet)
+				ApplyFoldVariant(condVariant, cond, condArgs, k, foldSig, "condition", substBuff, errorHolder);
+			FunctionBinding condMerged = MergeBinding(cond, condArgs);
 			CallArg c = ReduceMergedValue(condMerged, parent, substBuff, errorHolder);
 			if (c.binding || c.key.EndP())
 				throwErrorF("ExprParser", "{}: the condition '{}' must return a parameter<bool>"
@@ -444,7 +505,10 @@ StaticTokenID t_Dot(".");
 
 			CallArg elem;
 			elem.key = AsLispRef(UInt32(k)); // the number of the step: a parameter<uint32>
-			FunctionBinding merged = MergeBinding(step, { std::move(elem), std::move(state) });
+			std::vector<CallArg> stepArgs{ std::move(elem), std::move(state) };
+			if (stepIsSet)
+				ApplyFoldVariant(stepVariant, step, stepArgs, k, foldSig, "step", substBuff, errorHolder);
+			FunctionBinding merged = MergeBinding(step, stepArgs);
 			state = ReduceMergedValue(merged, parent, substBuff, errorHolder);
 			if (state.binding)
 				throwErrorF("ExprParser", "{}: the step '{}' returned a function; it must return the next state"
@@ -623,24 +687,22 @@ StaticTokenID t_Dot(".");
 	// than a concrete or tighter-constrained one. Definition-time disjointness
 	// (TreeItem_CheckVariantSetDisjointness) guarantees overlapping variants are
 	// specificity-ordered, so the most specific match is unique.
-	const TreeItem* ResolveVariant(const TreeItem* setItem, const std::vector<CallArg>& callArgs, SharedTreeItem errorHolder)
+	const TreeItem* SelectVariant(const TreeItem* setItem, const std::vector<const ValueClass*>& argVCs
+		, std::pair<const TreeItem*, const TreeItem*>* tiePtr, SharedStr* candidatesPtr)
 	{
-		std::vector<const ValueClass*> argVCs;
-		argVCs.reserve(callArgs.size());
-		for (const auto& a : callArgs)
-			argVCs.push_back(ArgValueClass(a.key, errorHolder));
-
 		const TreeItem* best = nullptr;
-		SharedStr candidates;
+		std::pair<const TreeItem*, const TreeItem*> tie; // the first two matches of which neither is more specific
 		for (const TreeItem* v = setItem->_GetFirstSubItem(); v; v = v->GetNextItem())
 		{
 			if (!v->IsFunctionItem())
 				continue;
-			if (!candidates.empty())
-				candidates = candidates + SharedStr(", ");
-			candidates = candidates + SharedStr(v->GetNameID());
-
-			if (!TreeItem_VariantMatches(v, argVCs))
+			if (candidatesPtr)
+			{
+				if (!candidatesPtr->empty())
+					*candidatesPtr = *candidatesPtr + SharedStr(", ");
+				*candidatesPtr = *candidatesPtr + SharedStr(v->GetNameID());
+			}
+			if (tie.first || !TreeItem_VariantMatches(v, argVCs))
 				continue;
 			if (!best)
 			{
@@ -651,9 +713,26 @@ StaticTokenID t_Dot(".");
 			if (cmp == -1)
 				best = v;
 			else if (cmp != +1)
-				throwErrorF("ExprParser", "call to variant set '{}': the arguments match variants '{}' and '{}' and neither is more specific"
-					, setItem->GetFullName().c_str(), best->GetNameID(), v->GetNameID());
+				tie = { best, v };
 		}
+		if (tiePtr)
+			*tiePtr = tie;
+		return tie.first ? nullptr : best;
+	}
+
+	const TreeItem* ResolveVariant(const TreeItem* setItem, const std::vector<CallArg>& callArgs, SharedTreeItem errorHolder)
+	{
+		std::vector<const ValueClass*> argVCs;
+		argVCs.reserve(callArgs.size());
+		for (const auto& a : callArgs)
+			argVCs.push_back(ArgValueClass(a.key, errorHolder));
+
+		std::pair<const TreeItem*, const TreeItem*> tie;
+		SharedStr candidates;
+		const TreeItem* best = SelectVariant(setItem, argVCs, &tie, &candidates);
+		if (tie.first)
+			throwErrorF("ExprParser", "call to variant set '{}': the arguments match variants '{}' and '{}' and neither is more specific"
+				, setItem->GetFullName().c_str(), tie.first->GetNameID(), tie.second->GetNameID());
 		if (!best)
 			throwErrorF("ExprParser", "call to variant set '{}': no variant matches the argument types (variants: {})"
 				, setItem->GetFullName().c_str(), candidates.c_str());

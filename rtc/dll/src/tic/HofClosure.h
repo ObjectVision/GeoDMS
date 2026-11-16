@@ -221,7 +221,8 @@ LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* p
 // in order, or t_FoldC, fold_c(step, condition, maxN, initial state), which applies the
 // step for as long as the condition holds for the state, at most maxN times. The
 // arguments are already resolved, in the caller's scope or in a function body. When
-// `trace` is given, it receives the state after each step that is taken.
+// `trace` is given, it receives the state after each step that is taken. The step and the
+// condition may be sets of variants (#1367); the variant is chosen on the initial state.
 CallArg ReduceFoldCall(TokenID head, const std::vector<CallArg>& args
 	, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
 	, std::vector<CallArg>* trace = nullptr);
@@ -255,6 +256,11 @@ const ValueClass* ParamValueClass(const TreeItem* param);
 // §5.7 v2: select the variant of `setItem` whose acceptance set matches the argument
 // value classes, taking the MOST SPECIFIC match
 const TreeItem* ResolveVariant(const TreeItem* setItem, const std::vector<CallArg>& callArgs, SharedTreeItem errorHolder);
+// #1367: the selection of ResolveVariant without its errors: null when no variant matches, or
+// when two match and neither is more specific, which *tiePtr then names (two nulls otherwise);
+// the names of all variants are appended to *candidatesPtr when given
+const TreeItem* SelectVariant(const TreeItem* setItem, const std::vector<const ValueClass*>& argVCs
+	, std::pair<const TreeItem*, const TreeItem*>* tiePtr = nullptr, SharedStr* candidatesPtr = nullptr);
 
 // §5.10 Stage 2: does `tok` name a generic type/domain variable of `fn`, a DOMAIN-sorted
 // one, resp. one declared in fn's OWN <...> clause?

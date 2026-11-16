@@ -1,0 +1,41 @@
+container fn_test_fold_variant
+{
+	// #1367: the step of fold and fold_c, and the condition of fold_c, may be a set of variants.
+	// The variant is chosen once, on the types of the initial state (and of an element of the
+	// domain); here each state has the type of the initial state, so that variant stays right.
+
+	unit<uint32> D : nrofrows = 3;
+
+	function AddV
+	{
+		variant u32(parameter<uint32> k; parameter<uint32> acc) -> parameter<uint32> := acc + k + 1u;
+		variant f64(parameter<uint32> k; parameter<float64> acc) -> parameter<float64> := acc + float64(k) + 1.0;
+	}
+	function BelowV
+	{
+		variant u32(parameter<uint32> acc) -> parameter<bool> := acc < 6u;
+		variant f64(parameter<float64> acc) -> parameter<bool> := acc < 6.0;
+	}
+	function AddPlain(parameter<uint32> k; parameter<uint32> acc) -> parameter<uint32> := acc + k + 1u;
+	function Below6(parameter<uint32> acc) -> parameter<bool> := acc < 6u;
+
+	// a fold in a function body, over a domain parameter
+	function SumSteps(unit<uint32> n) -> parameter<uint32> := fold(n, AddV, 0u);
+
+	container checks
+	{
+		// 0 -> 1 -> 3 -> 6, by the variant u32
+		parameter<uint32>  fold_u32     := fold(D, AddV, 0u), IntegrityCheck = "fold_u32 == 6";
+		// the same steps by the variant f64, chosen by the float64 initial state
+		parameter<float64> fold_f64     := fold(D, AddV, 0.0), IntegrityCheck = "fold_f64 == 6.0";
+		// fold_c passes the step the number of the step: 0 -> 1 -> 3 -> 6, for which the condition is false
+		parameter<uint32>  foldc_step   := fold_c(AddV, Below6, 10, 0u), IntegrityCheck = "foldc_step == 6";
+		parameter<uint32>  foldc_cond   := fold_c(AddPlain, BelowV, 10, 0u), IntegrityCheck = "foldc_cond == 6";
+		parameter<float64> foldc_both   := fold_c(AddV, BelowV, 10u, 0.0), IntegrityCheck = "foldc_both == 6.0";
+		parameter<uint32>  in_body      := SumSteps(D), IntegrityCheck = "in_body == 6";
+
+		// the trace that instantiate makes holds the state after each step
+		container trace := instantiate fold(D, AddV, 0u);
+		parameter<uint32>  trace_step1  := trace/step1, IntegrityCheck = "trace_step1 == 3";
+	}
+}
