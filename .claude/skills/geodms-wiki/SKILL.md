@@ -61,7 +61,11 @@ option, a GUI behaviour. Verifying tells you it works; the wiki makes it usable.
   own; that menu is `nav/geodms.md` in the converter repository, not `_Sidebar.md`. Say so
   whenever you add a page.
 - Open a page with a sentence, not a table or an image: the first paragraph is the search
-  snippet.
+  snippet. A breadcrumb line and lists above that paragraph are skipped. An operator page
+  may open with its `## syntax` section; the first sentence of its `## definition` (or
+  `## description`) then becomes the snippet and must stand on its own, and its entry in
+  www.geodms.nl/llms.txt starts with the syntax (#1363). The rules are in `CLAUDE.md` of the
+  converter repository, `C:\dev\GeoDmsWikiToStaticHtml`.
 - The wiki documents the software. Project, client and publication lists live on
   objectvision.nl; link, do not copy.
 - **A `[[label|Page-Name]]` link inside a table cell needs its pipe escaped**, or the table
