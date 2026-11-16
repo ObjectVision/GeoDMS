@@ -48,7 +48,7 @@
 
 ## Python
 
-- The `geodms` module comes as a wheel for Python 3.12, 3.13 and 3.14 on 64-bit Windows, with the engine and its libraries inside, so it needs no setup (#1355). If 20.29.0 becomes a full release, the wheels are also published on PyPI, and `pip install geodms` installs them. See [Python bindings](https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings).
+- The `geodms` module comes as a wheel for Python 3.12, 3.13 and 3.14 on 64-bit Windows, with the engine and its libraries inside, so it needs no setup (#1355). The licence texts of those libraries are in its `.dist-info/licenses` folder. If 20.29.0 becomes a full release, the wheels are also published on PyPI, and `pip install geodms` installs them. See [Python bindings](https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings).
 - The binding of a setup also works when its folder is only on `sys.path`, not on PATH: Clc, Geo and Stg load GDAL from their own folder (#1355).
 
 ## Stability
@@ -62,4 +62,4 @@
 
 ## Setups
 
-- The Windows setups and the Linux `.deb` and `.tar.gz` now install `license.txt`, the GPL version 3 under which GeoDMS is distributed, and beside it a folder `licenses` with the licence texts of the libraries they bundle and a `README.txt` that lists every bundled binary with its source and version. Earlier setups shipped those libraries without their licence texts. The `.deb` also installs `/usr/share/doc/geodms/copyright`, and a setup build stops when a bundled binary has no known licence. The Python wheels carry the licence texts of their libraries in their `.dist-info/licenses` folder (#1371).
+- The Windows setups and the Linux `.deb` and `.tar.gz` now install `license.txt`, the GPL version 3 under which GeoDMS is distributed, and beside it a folder `licenses` with the licence texts of the libraries they bundle and a `README.txt` that lists every bundled binary with its source and version. Earlier setups shipped those libraries without their licence texts. The `.deb` also installs `/usr/share/doc/geodms/copyright`, and a setup build stops when a bundled binary has no known licence (#1371).
