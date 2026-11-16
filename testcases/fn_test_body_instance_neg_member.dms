@@ -1,0 +1,26 @@
+// EXPECT-FAILURE: is a copy of function '/G', made with 'instantiate', and that function has no item 'totl'
+container fn_test_body_instance_neg_member
+{
+	// #1365: a function applied as a value refers to c/totl, where c copies the function G with
+	// 'instantiate G(s)'. G has no item totl (its item is total), so the application is refused
+	// with the items that G does have.
+
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+
+	function G(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := total
+	{
+		parameter<float64> total := sum(s/v);
+	}
+	function F(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := c/totl
+	{
+		container c := instantiate G(s);
+	}
+
+	container checks
+	{
+		parameter<float64> c := F(Vals5), IntegrityCheck = "c == 21.0";
+	}
+}

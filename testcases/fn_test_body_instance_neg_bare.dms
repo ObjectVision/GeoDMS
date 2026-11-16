@@ -1,0 +1,26 @@
+// EXPECT-FAILURE: 'c': the copy of function '/G' that 'instantiate G(...)' makes has no value of its own
+container fn_test_body_instance_neg_bare
+{
+	// #1365: a function applied as a value uses its body item 'instantiate G(s)' itself as a
+	// value. That item is a copy of the function G and has no value of its own, so the
+	// application is refused; c/total would be its item total.
+
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+
+	function G(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := total
+	{
+		parameter<float64> total := sum(s/v);
+	}
+	function F(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := c + 1.0
+	{
+		container c := instantiate G(s);
+	}
+
+	container checks
+	{
+		parameter<float64> c := F(Vals5), IntegrityCheck = "c == 22.0";
+	}
+}

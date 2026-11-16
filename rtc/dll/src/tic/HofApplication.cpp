@@ -79,7 +79,7 @@ namespace hof {
 		return r.key;
 	}
 
-	CallArg FunctionApplication::ReduceValue()
+	void FunctionApplication::BindArgs()
 	{
 		assert(m_FuncItem && m_FuncItem->IsTemplate()); // functions are IsTemplate too
 		assert(m_ErrorHolder);
@@ -283,6 +283,12 @@ namespace hof {
 				, [&](TokenID t) { return unifier.UnitVar(m_FuncItem, 0, t); }
 				, ++bindingInstance, sigSource);
 		}
+	}
+
+	CallArg FunctionApplication::ReduceValue()
+	{
+		BindArgs();
+		bool isPlainTemplate = !m_FuncItem->IsFunctionItem();
 
 		SharedTreeItem resultChild;
 		if (isPlainTemplate)
@@ -334,6 +340,10 @@ namespace hof {
 
 		CallArg r;
 		r.key = ReduceBodyItem(resultChild.get());
+		if (auto iit = m_InstancesByItem.find(resultChild.get()); iit != m_InstancesByItem.end()) // #1365
+			throwErrorF("ExprParser", "'{}': the result '{}' is a copy of function '{}' made with 'instantiate', which has no value of its own; make one of its items the result, such as {}/{}"
+				, m_FuncItem->GetFullName().c_str(), resultChild->GetNameID(), iit->second->m_FuncItem->GetFullName().c_str()
+				, resultChild->GetNameID(), TreeItem_GetFunctionResultName(iit->second->m_FuncItem));
 		// A generic unit result is represented as a container in the inert
 		// function tree (its concrete UnitClass is only known after applying the
 		// function).  Retain its member block, but do not treat every container
@@ -487,17 +497,129 @@ namespace hof {
 			auto bodyCalc = AbstrCalculator::ConstructFromStr(bodyItem, exprStr, CalcRole::Calculator);
 			auto refScope = bodyItem->GetTreeParent(); // names resolve from the referencing item's own scope outward, as in instantiated form
 			MG_CHECK(refScope);
-			// #1365: when the rule is the application of a function (or a fold) whose result
-			// declares sub-items, member access to this item finds them under the item
-			std::shared_ptr<const StructuredFunctionResult> structured;
-			result = SubstituteBodyExpr(refScope.get(), RewriteExpr(bodyCalc->GetLispExprOrg()), &structured);
-			if (structured)
-				m_StructuredByItem[bodyItem] = std::move(structured);
+			LispRef expr = RewriteExpr(bodyCalc->GetLispExprOrg());
+			// #1365: 'instantiate G(args)', with G a function and not fold or fold_c
+			if (expr.IsRealList() && expr.Left().IsSymb() && expr.Left().GetSymbID() == t_InstantiateItem
+				&& expr.Right().Left().IsRealList() && expr.Right().Left().Left().IsSymb()
+				&& !IsFoldHead(expr.Right().Left().Left().GetSymbID()))
+				result = ReduceBodyInstance(bodyItem, refScope.get(), expr.Right().Left());
+			else
+			{
+				// #1365: when the rule is the application of a function (or a fold) whose result
+				// declares sub-items, member access to this item finds them under the item
+				std::shared_ptr<const StructuredFunctionResult> structured;
+				result = SubstituteBodyExpr(refScope.get(), expr, &structured);
+				if (structured)
+					m_StructuredByItem[bodyItem] = std::move(structured);
+			}
 		}
 
 		m_InProgress.erase(bodyItem);
 		m_Reductions[bodyItem] = result;
 		return result;
+	}
+
+	// #1365: 'instantiate G(args)' as the rule of a body item, with G a function. A function that is
+	// applied as a value makes no items, so the copy of G that the rule asks for is the application
+	// of G to these arguments, kept for the body item. Member access, c/total, reduces the item of G
+	// that it names in that application, as a reference to it in the body of G would, and only the
+	// items that are named. The arguments are bound and checked here, as for a call of G, so an
+	// argument that does not fit is reported even when no item of the copy is used. The copy has no
+	// value of its own: its key is a marker that member access recognises, and a bare reference to
+	// the body item is refused
+	LispRef FunctionApplication::ReduceBodyInstance(const TreeItem* bodyItem, const TreeItem* refScope, LispPtr innerCall)
+	{
+		TokenID calleeID = innerCall.Left().GetSymbID();
+		std::shared_ptr<FunctionBinding> paramBinding;
+		auto headFn = ResolveBodyHeadFunction(refScope, calleeID, &paramBinding);
+		MG_CHECK(headFn);
+		std::vector<CallArg> args;
+		for (LispPtr a = innerCall.Right(); !a.EndP(); a = a.Right())
+		{
+			LispPtr ae = a.Left();
+			if (ae.IsSymb() && IsRestParamSymbol(ae.GetSymbID()))
+			{
+				if (!a.Right().EndP())
+					throwErrorF("ExprParser", "'{}': rest parameter '{}' must be the trailing argument of the call"
+						, m_FuncItem->GetFullName().c_str(), ae.GetSymbStr().c_str());
+				SpliceRestArgs(args); // '...x' passed on: splice the captured tail
+				break;
+			}
+			args.push_back(ResolveBodyArg(refScope, ae));
+		}
+		// §5.7: a set of variants chooses by the types of the arguments, as a call does
+		if (!paramBinding && TreeItem_IsFunctionVariantSet(headFn.get()))
+		{
+			auto variant = ResolveVariant(headFn.get(), args, m_ErrorHolder);
+			headFn = make_shared_tree(variant, existing_obj{});
+			if (m_SubstBuff) registerSupplier(*m_SubstBuff, variant);
+			CheckFunctionDefinition(variant);
+		}
+		FunctionBinding calleeBinding = paramBinding ? *paramBinding : *MakeAllHoles(headFn);
+		if (!paramBinding && !calleeBinding.env && IsNestedInside(headFn.get(), m_FuncItem))
+			calleeBinding.env = MakeCurrentEnv(); // #1166: a nested function sees the enclosing parameters
+		FunctionBinding merged = MergeBinding(calleeBinding, args);
+		if (merged.NrHoles() != 0)
+			throwErrorF("ExprParser", "'{}': 'instantiate {}(...)' leaves {} argument(s) open; a copy of a function takes all its arguments (body of function '{}')"
+				, bodyItem->GetFullName().c_str(), calleeID, merged.NrHoles(), m_FuncItem->GetFullName().c_str());
+
+		auto instance = std::make_shared<FunctionApplication>();
+		instance->m_FuncItem = merged.funcItem.get(); // a function of the configuration, which outlives this reduction
+		instance->m_Parent = this;                    // recursion detection; `this` outlives the instance, which it owns
+		instance->m_SubstBuff = m_SubstBuff;
+		instance->m_ErrorHolder = m_ErrorHolder;
+		instance->m_Env = merged.env;
+		for (const auto& slot : merged.slots)
+			instance->PushArg(slot);
+		instance->BindArgs();
+		m_InstancesByItem[bodyItem] = instance;
+
+		// the marker: (instantiate_item (<G> <argument keys>)), never a value
+		LispRef argList;
+		for (auto ri = merged.slots.rbegin(); ri != merged.slots.rend(); ++ri)
+			if (!ri->key.EndP())
+				argList = LispRef(ri->key, argList);
+		return ExprList(t_InstantiateItem, LispRef(LispRef(TokenID(merged.funcItem->GetFullName())), std::move(argList)));
+	}
+
+	LispRef FunctionApplication::ResolveInstanceMember(const TreeItem* bodyItem, CharPtrRange relPath, CharPtr fullStr, SharedTreeItem* foundItemPtr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr)
+	{
+		auto iit = m_InstancesByItem.find(bodyItem);
+		MG_CHECK(iit != m_InstancesByItem.end());
+		FunctionApplication& instance = *iit->second;
+		const TreeItem* copied = instance.m_FuncItem;
+
+		CharPtr slash = std::find(relPath.first, relPath.second, DELIMITER_CHAR);
+		SharedStr memberName(CharPtrRange(relPath.first, slash));
+		auto member = copied->GetConstSubTreeItemByID(GetTokenID_mt(relPath.first, slash));
+		if (!member)
+		{
+			SharedStr items;
+			for (const TreeItem* c = copied->_GetFirstSubItem(); c; c = c->GetNextItem())
+				if (!c->IsFunctionItem())
+					items = items + SharedStr(items.empty() ? "" : ", ") + mySSPrintF("'{}'", c->GetNameID());
+			throwErrorF("ExprParser", "'{}': '{}' is a copy of function '{}', made with 'instantiate', and that function has no item '{}'; it has {} (body of function '{}')"
+				, fullStr, bodyItem->GetFullName().c_str(), copied->GetFullName().c_str(), memberName.c_str()
+				, items.empty() ? "none" : items.c_str(), m_FuncItem->GetFullName().c_str());
+		}
+		if (member->IsFunctionItem())
+			throwErrorF("ExprParser", "'{}': '{}' is a function defined in '{}'; in the copy that '{}' is, it can be applied only by the items of that copy (body of function '{}')"
+				, fullStr, memberName.c_str(), copied->GetFullName().c_str(), bodyItem->GetFullName().c_str(), m_FuncItem->GetFullName().c_str());
+		// the rest of the path is a reference in the body of the copied function, from its root
+		return instance.ResolveBodySymbol(copied, GetTokenID_mt(relPath.first, relPath.second), foundItemPtr, structuredPtr);
+	}
+
+	void FunctionApplication::RefuseValueless(const TreeItem* bodyItem, LispPtr key, CharPtr fullStr) const
+	{
+		if (auto iit = m_InstancesByItem.find(bodyItem); iit != m_InstancesByItem.end())
+		{
+			const TreeItem* copied = iit->second->m_FuncItem;
+			throwErrorF("ExprParser", "'{}': the copy of function '{}' that 'instantiate {}(...)' makes has no value of its own; refer to one of its items, such as {}/{} (body of function '{}')"
+				, fullStr, copied->GetFullName().c_str(), copied->GetNameID(), fullStr, TreeItem_GetFunctionResultName(copied), m_FuncItem->GetFullName().c_str());
+		}
+		if (IsFoldTraceKey(key)) // #1347
+			throwErrorF("ExprParser", "'{}': the container that 'instantiate fold(...)' makes has no value of its own; refer to {}/result, or to a step such as {}/step0 (body of function '{}')"
+				, fullStr, fullStr, fullStr, m_FuncItem->GetFullName().c_str());
 	}
 
 	LispRef FunctionApplication::SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr)
@@ -544,15 +666,17 @@ namespace hof {
 			// item. A function applied as a value has no items, so the states after the steps
 			// become sub-items by key, step0, step1, ..., and result, recorded for the body item,
 			// where member access finds them as it finds the sub-items of a structured fold
-			// state. Its key is no value: a bare reference to the body item is refused
+			// state. Its key is no value: a bare reference to the body item is refused.
+			// 'instantiate G(...)' of a function G is handled by ReduceBodyItem when it is the
+			// whole rule of a body item (#1365), and refused anywhere else
 			if (headID == t_InstantiateItem)
 			{
 				LispPtr innerCall = expr.Right().Left();
 				MG_CHECK(innerCall.IsRealList() && innerCall.Left().IsSymb());
 				TokenID calleeID = innerCall.Left().GetSymbID();
 				if (!IsFoldHead(calleeID))
-					throwErrorF("ExprParser", "'instantiate {}(...)' in the body of function '{}' makes items, which exist only in a copy of the function made with 'instantiate'"
-						, calleeID, m_FuncItem->GetFullName().c_str());
+					throwErrorF("ExprParser", "'instantiate {}(...)' in the body of function '{}' can only be the whole calculation rule of a body item, as in 'container c := instantiate {}(...)', whose items are then c/name"
+						, calleeID, m_FuncItem->GetFullName().c_str(), calleeID);
 				std::vector<CallArg> foldArgs;
 				for (LispPtr a = innerCall.Right(); !a.EndP(); a = a.Right())
 					foldArgs.push_back(ResolveBodyArg(refScope, a.Left()));
@@ -880,6 +1004,9 @@ namespace hof {
 								if (!ri->first->GetExpr().empty())
 								{
 									LispRef baseKey = ReduceBodyItem(ri->first.get());
+									// #1365: a local whose rule is 'instantiate G(args)' has the items of G
+									if (m_InstancesByItem.contains(ri->first.get()))
+										return ResolveInstanceMember(ri->first.get(), CharPtrRange(ri->second, e), fullStr.c_str(), foundItemPtr, structuredPtr);
 									// #1347: a local whose rule is a fold has the declared
 									// sub-items of the fold's state, and a local whose rule is
 									// 'instantiate fold(...)' the states after its steps;
@@ -969,9 +1096,7 @@ namespace hof {
 				if (foundItemPtr)
 					*foundItemPtr = nullptr; // reduced local: no item identity to bind member access to
 				LispRef localKey = ReduceBodyItem(target.get());
-				if (IsFoldTraceKey(localKey)) // #1347
-					throwErrorF("ExprParser", "'{}': the container that 'instantiate fold(...)' makes has no value of its own; refer to {}/result, or to a step such as {}/step0 (body of function '{}')"
-						, fullStr.c_str(), fullStr.c_str(), fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+				RefuseValueless(target.get(), localKey, fullStr.c_str()); // #1347, #1365
 				if (structuredPtr)
 					if (auto sit = m_StructuredByItem.find(target.get()); sit != m_StructuredByItem.end())
 						*structuredPtr = sit->second; // #1365: a local passed on or referred to keeps the declared sub-items of its value
@@ -1095,6 +1220,7 @@ namespace hof {
 					if (foundItemPtr)
 						*foundItemPtr = nullptr; // reduced in the enclosing scope: no item identity to bind member access to
 					LispRef enclKey = encl->ReduceBodyItem(found.get());
+					encl->RefuseValueless(found.get(), enclKey, fullStr.c_str()); // #1347, #1365
 					if (structuredPtr) // #1365: with the declared sub-items of its value, when it is passed on
 						if (auto sit = encl->m_StructuredByItem.find(found.get()); sit != encl->m_StructuredByItem.end())
 							*structuredPtr = sit->second;

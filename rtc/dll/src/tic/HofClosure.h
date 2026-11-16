@@ -133,6 +133,7 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
 		std::map<const TreeItem*, std::shared_ptr<const StructuredFunctionResult>> m_StructuredByItem; // #1347, #1365: per body item whose value has declared sub-items (the result of a function or a fold, the states of 'instantiate fold', or a reference to such a value), those sub-items; by item, not by key, because two items can share a calculation and differ in what they declare
+		std::map<const TreeItem*, std::shared_ptr<FunctionApplication>> m_InstancesByItem; // #1365: per body item whose rule is 'instantiate G(args)', with G a function, the application of G to those arguments; member access reduces in it only the body items of G that it names
 
 		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); m_ArgStructured.push_back(a.structuredResult); }
 
@@ -171,8 +172,16 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 
 		LispRef Reduce();
 		CallArg ReduceValue(); // §5.10: like Reduce, but a function-typed result yields a closure binding
+		void BindArgs(); // the start of ReduceValue: check the arguments against the parameters and bind them
 		const CallArg* FindEnvArg(TokenID symbID) const; // §5.10 closure-env lookup: the captured argument, or null
 		LispRef ReduceBodyItem(const TreeItem* bodyItem);
+		// #1365: the body item `bodyItem` with the rule 'instantiate G(args)', `innerCall` being (G args),
+		// and the item `relPath` ('total', or 'kept/v') of such a copy, named by `fullStr` in this body
+		LispRef ReduceBodyInstance(const TreeItem* bodyItem, const TreeItem* refScope, LispPtr innerCall);
+		LispRef ResolveInstanceMember(const TreeItem* bodyItem, CharPtrRange relPath, CharPtr fullStr, SharedTreeItem* foundItemPtr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr);
+		// #1347, #1365: refuse `key`, the reduction of `bodyItem` named by `fullStr`, when it is the
+		// container of 'instantiate fold(...)' or the copy of 'instantiate G(...)', which have no value of their own
+		void RefuseValueless(const TreeItem* bodyItem, LispPtr key, CharPtr fullStr) const;
 		// structuredPtr, when given, receives the declared sub-items of the value when the whole
 		// expression (resp. the symbol) is a value that has them, such as the result of a function
 		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr = nullptr);
