@@ -1,3 +1,7 @@
+// EXPECT-FAILURE: the definition of '/bad_net': the body requires unit variables
+// EXPECT-FAILURE: to be equal (operator 'add'), but they are independent in the definition
+// EXPECT-FAILURE: 'nw/ns1'
+// EXPECT-FAILURE: 'nw/ns2'
 container fn_test_structmember_neg2
 {
 	// K11a-1b: F1 and F2 relate to DIFFERENT node units (ns1, ns2) in the structured

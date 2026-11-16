@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the kernel variant must be a parameter, not an attribute
 // #917 negative: the kernel variant must be a parameter, not an attribute.
 // It names one of six fixed rings and is read once, before any tile is calculated, so a per-element
 // variant cannot be honoured. Rejecting it is better than quietly using the first element's value.

@@ -1,8 +1,9 @@
+// EXPECT-FAILURE: the argument for parameter 'nw' does not match its declared members: member 'N2_rel' is missing
 container fn_test_network_neg2
 {
-	// K11a-3 contract check: the argument lacks the declared member F2 — rejected AT
+	// K11a-3 contract check: the argument lacks the declared member N2_rel — rejected AT
 	// THE APPLICATION with a boundary message naming parameter and member ("member
-	// 'F2' is missing"), instead of an Unknown-identifier error deep inside the
+	// 'N2_rel' is missing"), instead of an Unknown-identifier error deep inside the
 	// reduced body.
 	unit<uint32> Net : nrofrows = 3
 	{

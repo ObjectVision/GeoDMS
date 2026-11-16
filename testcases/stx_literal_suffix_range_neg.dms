@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: ExprProd Error: the literal 300b is outside the range of uint8
 // Regression for doc/code-audit-2026-09-27.md STX-A25: a literal whose value the type of its suffix cannot
 // hold, such as 300b for a uint8, was cast to null at run time without a word, while an unsuffixed integer
 // above uint32 is a parse error. Since 20.24.0 it is an error that names the literal and the type.

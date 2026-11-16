@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Arguments must have compatible units, but arg1 has Metric m and arg2 has Metric s
 container fn_test_metric_neg
 {
 	unit<float64> meter  := BaseUnit('m', float64);

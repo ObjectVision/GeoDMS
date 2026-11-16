@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: IntegrityCheck : 'b == 99' is not true
 // #1224 from the failing side: a member named by the DERIVED ExplicitSuppliers list carries
 // a check that does not hold. Declaring it means "evaluate me first", so the driver -- and
 // with it the run -- must fail. If this one ever exits 0, the computed list resolved to

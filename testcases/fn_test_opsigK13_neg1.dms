@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad': number of given arguments to operator 'impedance_table' doesn't match the specification 'directed;startPoint(Node_rel)': 6 arguments given (including the specification), but 5 expected
 container fn_test_opsigK13_neg1
 {
 	// NEGATIVE (definition-time, §12.7): the ruled honest ARITY check. The spec

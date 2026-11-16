@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the closing tag '</TreeItemm>' does not match the open tag '<TreeItem>'
+// EXPECT-FAILURE: Unknown identifier 'xmlpart/xcm/after'
 // #1261: a closing tag whose name does not match the open tag must be a reported error, not an
 // MG_CHECK assertion; the read stops there, so the item that follows the bad tag is absent
 container xml_close_mismatch_neg

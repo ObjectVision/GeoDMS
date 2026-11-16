@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: a comment '<!--' is not closed before the end of the file
+// EXPECT-FAILURE: Unknown identifier 'xmlpart/xco/after'
 // #1261: a comment that is never closed swallows the rest of the file, so it must be reported
 // rather than read as if the file simply ended; the item behind it is absent
 container xml_comment_open_neg

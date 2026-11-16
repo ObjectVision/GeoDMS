@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: [[/checks/mc]] Convert Error: Failed to convert 300 to unsigned char
 // Regression for doc/code-audit-2026-09-27.md CLC-A05: modus_count_uint8 returned the count of the
 // modal value converted to uint8 without a check, so 300 equal values gave 44. Its twins
 // unique_count, pcount_uint8 and count_uint8 report such an overflow. Since 20.22.0 modus_count_uintN

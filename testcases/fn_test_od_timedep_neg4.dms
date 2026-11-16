@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: timedependent: slot_duration must be a parameter
 // #1304: slot_duration is one duration for the whole profile table, a parameter. An attribute is refused with
 // "timedependent: slot_duration must be a parameter". Expected: exit nonzero on /checks.
 container fn_test_od_timedep_neg4

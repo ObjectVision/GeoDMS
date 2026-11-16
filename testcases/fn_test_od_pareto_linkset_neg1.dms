@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto does not (yet) support link_attr
 container fn_test_od_pareto_linkset_neg1
 {
 	// pareto with od:LinkSet is admitted since #1325, but link_attr is not: it accumulates over the

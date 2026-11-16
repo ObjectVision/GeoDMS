@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Domain mismatch between Domain of the first argument ( : uint32) and Domain of the second argument ( : uint32)
 // Regression for doc/code-audit-2026-09-27.md CLC-A01: the total forms of cov, corr and
 // modus_weighted paired their arguments element by element over the first argument's domain
 // without unifying the domains, so a second argument on a smaller domain was read out of bounds.

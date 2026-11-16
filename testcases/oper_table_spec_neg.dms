@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator table_spec Error: the specification must say by_org_rel or by_cond
 // table_spec uses the collect_spec grammar: the relation/condition mode is mandatory.
 container oper_table_spec_neg
 {

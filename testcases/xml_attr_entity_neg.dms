@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Cannot find Values unit str&ing&unknown;
 // Regression for doc/code-audit-2026-09-27.md INF-A01: an attribute value with an entity reference
 // hung the load of an .xml configuration. The entity table's comparator ordered a ';'-terminated
 // name before its key but not the key before it, so no entity in an attribute value was ever found,

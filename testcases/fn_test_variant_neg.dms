@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: call to variant set '/describe': no variant matches the argument types (variants: asFloat, asInt)
 container fn_test_variant_neg
 {
 	unit<uint32> Dx : nrofrows = 2

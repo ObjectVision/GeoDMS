@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Value 7 out of range of valid Atomic Regions
 // greedy_alloc with an atomic region map holding a value outside its atomic region unit: land unit 6 lies
 // in region 7, while Region has 2 elements. Such a value is an error, as it is for discrete_alloc; before
 // 20.21.0 greedy_alloc and needy_alloc indexed the claims with it, which asserted in a Debug build and

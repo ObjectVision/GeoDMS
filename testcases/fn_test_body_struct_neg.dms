@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Cannot find 'w' from '
 container fn_test_body_struct_neg
 {
 	// #1365: a body item that is the result of a function has the sub-items that the result

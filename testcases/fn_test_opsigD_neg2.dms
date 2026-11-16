@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad2': the argument types of operator 'select' do not match any of its registered overloads
 container fn_test_opsigD_neg2
 {
 	// NEGATIVE (definition-time, op-sig batch D): select requires a Bool condition.

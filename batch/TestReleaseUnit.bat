@@ -20,7 +20,8 @@ call "%~dp0run_unit_suite.bat" R64 off bin\Release\x64
 if errorlevel 2 (set UNIT_FAILED=2) else if errorlevel 1 set UNIT_FAILED=1
 
 REM Typed-function testcases battery (testcases\*.dms): positives must exit 0,
-REM _neg/defcheck configs must exit nonzero, a Debug assert (exit 3) always fails.
+REM _neg/defcheck configs must exit nonzero with the message of their EXPECT-FAILURE lines (#1369)
+REM or be listed in testcases\expect_failure_missing.txt, a Debug assert (exit 3) always fails.
 set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin\Release\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1

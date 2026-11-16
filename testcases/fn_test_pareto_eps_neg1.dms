@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto_optimal_eps: the epsilon of criterion 2 must be a fraction from 0 to 1 (0.01 = 1%)
 // #1282: the epsilon of pareto_optimal_eps is relative, a fraction from 0 to 1. A bucket width in the unit of
 // the criterion, as the builds until 2026-10-05 took it, such as 2.0 here, is refused with "pareto_optimal_eps:
 // the epsilon of criterion 2 must be a fraction from 0 to 1 (0.01 = 1%); ...". Expected: exit nonzero on /checks.

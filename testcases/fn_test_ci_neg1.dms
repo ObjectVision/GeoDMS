@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the calculation rule of '/bad/ci' generates member(s) arc_rel, dist, ArcID, CutPoint, InArc, InSegm, SegmID; 'nonesuch' is not among them
 container fn_test_ci_neg1
 {
 	// connect_info members: the result member set is COMPLETE (dist, arc_rel,

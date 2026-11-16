@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the values unit [[/TM]] of argument 2 has 36 elements, but the factors of [[/TYM]] that its factors stand for have 12 combinations
 // #1310: in combine_data a combine in the values unit of a relation may stand for its factors, which are then
 // paired with factors of X. Month and Year unify as values, both uint32 without a metric, but a relation to
 // combine(Town, Month) cannot number the combinations of Town and Year, and is refused when it is calculated,

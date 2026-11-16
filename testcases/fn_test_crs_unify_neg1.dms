@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Arguments must have compatible units, but arg1 has SpatialReference EPSG:28992 and arg2 has SpatialReference EPSG:3857
 // NEGATIVE: units in DIFFERENT coordinate reference systems must not unify.
 // doc/development/crs-metric-decoupling.md, Stage 5.
 //

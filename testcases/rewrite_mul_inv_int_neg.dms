@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: div Error: Cannot find operator for these arguments:
 // res/RewriteExpr.lsp had the rule [(mul _X (div 1 _Y)) (div _X _Y)]. A bare number in a rule
 // matches a float literal, so it turned X * (1.0 / Y) into X / Y. For an integer Y, 1.0 / Y has no
 // operator, and (1.0 / Y) * X failed, but X * (1.0 / Y) gave the truncating integer division

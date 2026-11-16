@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: 'Rd/cap': the container literal bound to parameter 'Rd' has no member 'cap'
 container fn_test_literal_neg
 {
 	function CongestionRatio(unit<uint32> Rd { attribute<float64> flow; attribute<float64> cap; })

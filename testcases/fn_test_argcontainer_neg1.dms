@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the domain of member 'LuA' of argument 3 of operator 'discrete_alloc_np' differs from the domain of member 'LuB' of argument 3
 container fn_test_argcontainer_neg1
 {
 	// K11b negative (definition-scope container): the NAMED suitability members

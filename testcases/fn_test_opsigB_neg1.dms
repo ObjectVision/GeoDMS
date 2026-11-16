@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad': inconsistent instantiation of unit variable 'sig_E2': the unit bound argument 1 of operator 'lookup' differs from the unit bound argument 2 of operator 'lookup'
 container fn_test_opsigB_neg1
 {
 	// NEGATIVE (definition-time, op-sig batch B): the K2 join-key catch. lookup's

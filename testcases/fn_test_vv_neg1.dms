@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: '/ap': int32 (parameter 'x') does not satisfy 'Wx: floats' (function '/fhalf' bound to parameter 'f')
 container fn_test_vv_neg1
 {
 	// NEGATIVE: the data argument's value class violates a constraint that reaches

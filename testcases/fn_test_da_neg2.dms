@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the body pins unit variable 'cells' to a specific unit (the declared type of 'bad')
 container fn_test_da_neg2
 {
 	// §12.8 discrete_alloc array-spec join: alloc/landuse's DOMAIN is allocUnit

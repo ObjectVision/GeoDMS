@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: dms_union Error: the grid size 1e-06 is too fine for operands that span 1e+06: at most 2^36 cells are supported in either direction
 // #1214 negative: a grid too fine for the operands. The internal coordinates are budgeted at 2^36
 // cells in either direction, so an extent of 1000000 at a grid of 0.000001, 10^12 cells, is refused
 // with a message that names the budget and asks for a coarser grid.

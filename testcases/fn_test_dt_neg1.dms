@@ -1,12 +1,13 @@
+// EXPECT-FAILURE: the definition of '/bad': type variable 'Vx' must satisfy 'Wx: floats' (function '/fonly') for every instantiation
 container fn_test_dt_neg1
 {
 	// NEGATIVE (definition-time): the body applies a floats-only callee to a
-	// parameter of a <V: numerics> function. The DEFINITION is wrong — it does not
-	// hold for V = int32 — even though the only call site uses float64 (which
+	// parameter of a <Vx: numerics> function. The DEFINITION is wrong — it does not
+	// hold for Vx = int32 — even though the only call site uses float64 (which
 	// application-time checking would happily accept). The typed walker must
 	// reject at the first reference.
-	// Expected: "the definition of '/bad': type variable 'V' must satisfy
-	//            'W: floats' (function '/fonly') for every instantiation ..."
+	// Expected: "the definition of '/bad': type variable 'Vx' must satisfy
+	//            'Wx: floats' (function '/fonly') for every instantiation ..."
 	unit<uint32> Road : nrofrows = 3
 	{
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];

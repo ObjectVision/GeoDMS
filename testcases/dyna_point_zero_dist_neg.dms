@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator dyna_point Error: the distance argument must be a defined positive value
 // Regression for doc/code-fixes.md GEO-29 (2026-09-05): dyna_point with a distance of 0 divided
 // every segment length by zero and converted the resulting inf to a point count. The distance
 // argument is now refused unless it is a defined positive value.

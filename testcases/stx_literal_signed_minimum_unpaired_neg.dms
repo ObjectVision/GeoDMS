@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: ExprProd Error: the literal 128c is outside the range of int8, which holds at most 127
 // Companion of stx_literal_signed_minimum: the two literals 128c of 128c + -128c are one shared expression
 // object, and the minus before the second must not also excuse the first, which stands alone.
 // Expected: nonzero exit on /checks, "the literal 128c is outside the range of int8, which holds at most 127".

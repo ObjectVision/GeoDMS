@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: function '/Fx' expects 2 argument(s); 1 provided
 container fn_test_arity
 {
 	unit<uint32> Road : nrofrows = 2

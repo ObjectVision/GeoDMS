@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: RegCount Error: Overflow in count for region 0 of class 0
 // Regression for doc/code-audit-2026-09-27.md GEO-A23: reg_count_uint8 and reg_count_uint16 tested
 // for an overflow after incrementing, by comparing with 0, but the count after the largest one is
 // the null value (255 for uint8), not 0: exactly 255 cells of one class in one region were stored

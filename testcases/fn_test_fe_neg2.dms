@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: number of given arguments to operator 'for_each_ind' doesn't match the specification 'nedv': 4 arguments given (including the specification), but 5 expected
 container fn_test_fe_neg2
 {
 	// §12.7 for_each tranche: for_each_ind's layout is directed by the first

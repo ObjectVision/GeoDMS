@@ -1,9 +1,10 @@
+// EXPECT-FAILURE: '/f': the argument for parameter 'nw' does not match its declared members: member 'N2_rel' is missing
 container fn_test_structcontract2_neg1
 {
 	// K11a-3 on the INSTANTIATE path, negative: the argument lacks the declared
-	// member F2 — the boundary check reports "member 'F2' is missing" at the
+	// member N2_rel — the boundary check reports "member 'N2_rel' is missing" at the
 	// application, where previously the instantiate path bypassed the check and
-	// the failure surfaced as a transitive "Unknown identifier 'nw/F2'" inside the
+	// the failure surfaced as a transitive "Unknown identifier 'nw/N2_rel'" inside the
 	// copied body.
 	unit<uint32> Net : nrofrows = 3
 	{

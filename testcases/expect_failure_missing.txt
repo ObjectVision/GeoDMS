@@ -1,0 +1,12 @@
+# Negative cases that have no '// EXPECT-FAILURE: <fragment>' line (#1369).
+# One per line: <config stem> <reason>. run_testcases.ps1 requires every OTHER negative case to state
+# the message it is written to fail with in such a line, and fails a run in which that message is
+# absent. A case listed here is judged on its exit code only. A listed case that has an EXPECT-FAILURE
+# line fails the run as well, as does a listed name that is no negative case, so that this list
+# shrinks deliberately rather than rotting. A case belongs here only when it does not fail for the
+# reason it was written for, or when that reason is unclear; the reason given says which, so that the
+# case can be repaired and given a line.
+#
+# When this list was made, on 20.29.0 (0b8bb0113), 223 of the 225 negative cases were given a line.
+fn_test_subref_neg5 its comment expects the throw "Cannot find sub from ..." of a member access on a bare config-item alias, but c/sub resolves, and the case fails only on its own IntegrityCheck 'c_1 == 0.0', as it already did in a run of 2026-09-06
+oper_points2sequence_dup_ord_neg its comment expects the duplicate-ordinal error of points2sequence, but the case fails before that with "Cannot find Values unit Seq": the attribute seq of Pt is found where the unit Seq is meant, as names are compared without case; with the attribute renamed the case fails with "orderNr 0 occurs more than once in sequence 0"

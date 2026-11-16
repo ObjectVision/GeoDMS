@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: '/mixap': inconsistent instantiation of unit variable 'Dx': the unit bound via parameter 'y' differs from the unit bound by function '/road_only' bound to parameter 'h'
 container fn_test_unify_neg2
 {
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }

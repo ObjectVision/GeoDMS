@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/scale': parameter 'cfg' declares no member 'missing'
 container fn_test_containerparam_neg2
 {
 	// K11a-4 definition-time negative: a body reference to an undeclared DIRECT

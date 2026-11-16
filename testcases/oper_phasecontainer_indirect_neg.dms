@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: requires PhaseContainer result /phase/selector (phase 2). Results supplied through a PhaseContainer cannot be used in indirect expressions.
 // issue #1199: resolving an indirect expression is an inline metadata operation. It cannot
 // demand a result behind a PhaseContainer, because doing so would enter the fence while the
 // holder's expression is still being determined. The diagnostic must be raised before the

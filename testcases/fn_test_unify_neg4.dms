@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: '/compose': inconsistent instantiation of type variable 'Vx': float64 (function '/fhalf' bound to parameter 'f') vs string (function '/strlength' bound to parameter 'g')
 container fn_test_unify_neg4
 {
 	// strlength is string -> uint32; composing it with fhalf (float64 -> float64)

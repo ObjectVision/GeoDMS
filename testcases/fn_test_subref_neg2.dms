@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: inconsistent instantiation of type variable 'sig_V': float64 (argument 1 of operator 'unique') vs string (the declared type of 'result')
 container fn_test_subref_neg2
 {
 	// §12.7 slSubItemCall tranche: the member TYPE flows — u/Values is

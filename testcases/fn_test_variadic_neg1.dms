@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: a '...' rest parameter must be the last parameter
 container fn_test_variadic_neg1
 {
 	// NEGATIVE: a '...' rest parameter must be the LAST parameter — parse error

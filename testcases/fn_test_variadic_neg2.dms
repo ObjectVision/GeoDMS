@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: parameter 'r' is a '...' rest parameter; it can only be passed on as the trailing argument of a function call
 container fn_test_variadic_neg2
 {
 	// NEGATIVE: a rest parameter can only be passed on as the trailing argument of a

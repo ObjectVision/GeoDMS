@@ -165,8 +165,8 @@ assertion: `Get-Clipboard -Raw` and `-Format Image`.
 - Write the check as an expression, `IntegrityCheck = "x == True"`, never as the bare name
   `IntegrityCheck = "x"`: the bare name makes the item its own check, and the run ends with
   *Invalid Recursion in UpdateMetaInfo detected* on every such parameter. It exits 1, so a
-  `_neg` case written that way passes for the wrong reason (28 new cases of the 2026-09-27
-  audit fixes did this).
+  `_neg` case written that way fails for the wrong reason, which only its `EXPECT-FAILURE`
+  line catches (28 new cases of the 2026-09-27 audit fixes did this).
 - Identifiers are case-insensitive: `unit<spoint> W3` beside `attribute<float32> w3` is
   "already defined". Inside a unit the same clash is silent: an attribute `seq` of `Pt`
   hides the unit `Seq` from `attribute<Seq> ...` in `Pt`, which then reports *Cannot find
@@ -187,14 +187,17 @@ assertion: `Get-Clipboard -Raw` and `-Format Image`.
 - A probe worth keeping becomes `testcases\fn_test_<topic>.dms` or
   `testcases\oper_<name>.dms` with a `/checks` container, offline and cheap; it needs no
   packaging edit. The runner takes a case with `_neg` anywhere in its name for a negative
-  that must exit nonzero (`fn_test_ci_neg1`, `oper_alloc_partitioning_neg_null`), so a
-  positive case about `neg` is named `oper_negate_...`, not `oper_neg_...`. Anything that downloads or reads real data goes to
-  `batch\TestShippedContent.bat` instead.
+  (`fn_test_ci_neg1`, `oper_alloc_partitioning_neg_null`), so a positive case about `neg` is
+  named `oper_negate_...`, not `oper_neg_...`. A negative must exit nonzero with the message
+  of its `// EXPECT-FAILURE: <fragment>` lines: take the fragment from the first line of the
+  message in the case's `.out`, without absolute paths, or the case fails as `NO-EXPECT`.
+  Anything that downloads or reads real data goes to `batch\TestShippedContent.bat` instead.
 - A regression case proves something only when it fails on the code before the fix. Run it
   on the unfixed binaries first (a battery on a build without the fix does this for every
   new case at once) and read *why* it fails; then it must pass on the fixed build.
-- A `_neg` case passes on any nonzero exit, a typo included. When the fix turns a silent
-  wrong result into an error (an overflow that wrapped, a count that became null), let the
+- A `_neg` case passes only on a nonzero exit whose output holds every fragment of its
+  `EXPECT-FAILURE` lines, so a fragment as general as `Error` lets a typo pass again. When
+  the fix turns a silent wrong result into an error (an overflow that wrapped, a count that became null), let the
   check accept exactly the old wrong result, `IntegrityCheck = "wrapped == True"` with
   `wrapped := c[1] == uint8(44)`: then the case exits 0, and fails, only on a build that
   still wraps. Read the log of the fixed run once to see that the error is the intended one.

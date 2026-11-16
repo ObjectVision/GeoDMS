@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto: imp2_epsilon is relative, a dimensionless fraction from 0 to 1 (0.01 = 1%), and may not have a metric
 // #1282: the imp2_epsilon of impedance_matrix's pareto option is relative, so dimensionless. An epsilon with a
 // metric, such as 0.4 km for a second criterion in km, which the builds until 2026-10-05 read as a bucket width
 // of 400 m, is refused with "pareto: imp2_epsilon is relative, a dimensionless fraction ... and may not have a

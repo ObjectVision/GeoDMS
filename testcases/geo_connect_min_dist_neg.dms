@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator connect_info Error: the minimum distance argument is not implemented
 // GEO-A32: the minimum distance argument of connect, connect_info and dist_info (the argument after the maximum
 // distance) is refused with "the minimum distance argument is not implemented": it was accepted and never read, so
 // the result was not filtered on it, without a word. Expected: exit nonzero on /checks.

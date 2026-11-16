@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: '<' expected at the start of a tag inside the element '<Descr>', but the end of the file was found
+// EXPECT-FAILURE: IntegrityCheck : 'd != ''''' is not true
 // RTC-04: an entity that runs into the end of the file (&amp without ';') looped on a missing EOF sentinel; it must be a clean error, after which the Descr it sat in is never set
 container xml_entity_eof_neg
 {

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/Total': the condition of fold_c must return a parameter<bool>
 container fn_test_fold_c_defcheck_cond_neg
 {
 	// #1347: the condition of fold_c must return a parameter<bool>. Here it returns the

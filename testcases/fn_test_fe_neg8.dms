@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the definition of '/f_formal': the body requires unit variables
+// EXPECT-FAILURE: to be equal (the declared type of 'bad'), but they are independent in the definition
 container fn_test_fe_neg8
 {
 	// §12.7 for_each typed result container — the DOMAIN half, under forall.

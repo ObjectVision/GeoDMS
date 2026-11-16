@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: gdal.grid Error: band 2 is asked for, but
+// EXPECT-FAILURE: tif_u8_sf.tif has 1 band(s), numbered from 1
 // Negative case: a gdal.grid band specification that names a band the file does not have. GDAL gave a null
 // band, which then failed an internal check (Check Failed: m_RasterBand); it is now a user error that names
 // the band and the number of bands the dataset has (security review #9).

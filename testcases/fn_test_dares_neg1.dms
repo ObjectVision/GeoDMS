@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: string (the declared type of 'result') is not among the value types supported by operator 'discrete_alloc_np' (uint32)
 container fn_test_dares_neg1
 {
 	// K11b result side, negative: total_allocated/<name> is a parameter<claim_type>

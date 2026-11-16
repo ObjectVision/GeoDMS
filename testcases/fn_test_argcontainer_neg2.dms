@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the definition of '/alloc_bad': the body requires unit variables
+// EXPECT-FAILURE: to be equal (argument 3 of operator 'discrete_alloc_np'), but they are independent in the definition
 container fn_test_argcontainer_neg2
 {
 	// K11b negative (container PARAMETER): the NAMED suitability members are

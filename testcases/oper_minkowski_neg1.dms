@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: bp_minkowski_sum Error: unknown kernel variant 'i5D'; expected '4HV', '4D', '8D', '16D', 'XHV' or 'XD'
 // #917 negative: an unknown kernel variant must be rejected, not silently substituted.
 // Expected: nonzero exit (ParseMinkowskiKernelShape throws, listing the accepted spellings).
 container oper_minkowski_neg1

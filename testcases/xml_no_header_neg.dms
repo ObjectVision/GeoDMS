@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the document must open with an '<?xml ... ?>' header, but it opens with the element '<TreeItem>'
 // #1261: a fragment without the '<?xml ... ?>' header must be a reported error, not an assertion.
 // The check used to be an MG_CHECK, which asserts before it throws, so a headless Debug run exited 3
 // mid-load and the TreeItem registry then reported the half-built tree as a memory leak. It also

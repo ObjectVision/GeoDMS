@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: [[/r]] WindowsSystem Error: FileMapHandle(
+// EXPECT-FAILURE: /no_such_file_1270.fss/
 // #1270: a @statistics request whose item fails to compute exits 1, like a failed commit.
 // Run as '@statistics /r' (fnrun_itemmap.txt): /r reads a file that does not exist, so its
 // own production fails. Before #1270 the failure text landed in the statistics HTML on

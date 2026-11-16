@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: 'apply' on template '/NoResult': no 'result' sub-item to take as the value
 container fn_test_applyt_neg
 {
 	// no 'result' sub-item: 'apply' has no value to take

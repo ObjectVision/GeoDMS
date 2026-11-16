@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: parameter 2: the type '/nosuch/unary_fn' does not resolve to a declared item
 container fn_test_sigpath_neg
 {
 	// GeoDMS #1252. A path that resolves to nothing is a typo, not a type. The reference is

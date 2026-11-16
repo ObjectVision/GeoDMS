@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: DisableStorage is not supported below the MMD storage
+// EXPECT-FAILURE: stor_mmd_disablestorage_neg2.mmd that is being written: every item below its holder /store is part of the store
 // The direct form of stor_mmd_disablestorage_neg1.dms: a calculated attribute below an MMD storage
 // holder configured with DisableStorage = "True" (issue #1245). Before 20.19.3 the dictionary
 // silently left it out, and an attribute declared on a DisableStorage'd unit was written against a

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: IntegrityCheck : 'guard == 45' is not true
 // Negative twin of fn_test_icheck_storage: the ancestor check over the storage-read item is
 // violated (guard is 44), so consuming the read item must fail the run -- through the guard
 // woven around the source reference, which the retired unguarded GetCheckedDC exit did not do.

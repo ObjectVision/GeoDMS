@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: function '/add2' bound to parameter 'h' has 2 parameter(s); its declared signature '/nuf' requires 1
 container fn_test_gsig_neg
 {
 	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; }

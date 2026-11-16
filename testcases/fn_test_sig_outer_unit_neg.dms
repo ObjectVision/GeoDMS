@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: function '/Inst/OnOther' bound to parameter 'f': the domain of parameter 1 does not match the domain relationship required by signature '/road_fn'
 container fn_test_sig_outer_unit_neg
 {
 	// #1341: a function bound to a parameter whose type is a signature must have

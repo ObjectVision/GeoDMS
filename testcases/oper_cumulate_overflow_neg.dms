@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: [[/checks/c]] Convert Error: Failed to convert 300 to unsigned char
 // Regression for doc/code-audit-2026-09-27.md CLC-A04: cumulate kept its running sum in a wider type
 // but stored every partial sum into the values type unchecked, so cumulate of uint8 [200, 100] gave
 // [200, 44], an int32 sum past 2^31 wrapped, and a uint32 partial sum of 2^32-1 became null. sum

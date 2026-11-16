@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: bp_minkowski_sum Error: kernel variant 'd4HV' requests deflation; use bp_minkowski_difference for that
 // #917 negative: a 'd' (deflate) prefix handed to the DILATING operator must be rejected.
 // Honouring it would compute the opposite of what the operator name promises, so the error names
 // bp_minkowski_difference instead.

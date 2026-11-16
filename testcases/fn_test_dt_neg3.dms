@@ -1,10 +1,11 @@
+// EXPECT-FAILURE: the definition of '/bad': the body requires type variable 'Vx' to be float64 (the calculation rule of 'result'), but 'Vx' must remain generic in the definition
 container fn_test_dt_neg3
 {
 	// NEGATIVE (definition-time): the body's result is concretely float64 (via a
-	// conversion), but the declared result type is attribute<V> — pinning the
-	// rigid V. The definition must fail at first reference.
-	// Expected: "the definition of '/bad': the body requires type variable 'V'
-	//            to be Float64 ..."
+	// conversion), but the declared result type is attribute<Vx> — pinning the
+	// rigid Vx. The definition must fail at first reference.
+	// Expected: "the definition of '/bad': the body requires type variable 'Vx'
+	//            to be float64 ..."
 	unit<uint32> Road : nrofrows = 3
 	{
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];

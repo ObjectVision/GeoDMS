@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator dms_intersect Error: Arguments must have compatible units, but arg1 has SpatialReference EPSG:28992 and arg2 has SpatialReference EPSG:3857
 // #1214 negative: the two operands must have the same values unit, as for every polygon overlay;
 // a square in one coordinate system against a square in another is refused.
 // Expected: nonzero exit.

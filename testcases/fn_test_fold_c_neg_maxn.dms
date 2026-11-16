@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the condition '/Below' still holds after 3 steps, the most that the third argument allows
 container fn_test_fold_c_neg_maxn
 {
 	// #1347: a fold_c whose condition still holds after maxN steps is an error, not a

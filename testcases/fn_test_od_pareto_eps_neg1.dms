@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto: imp2_epsilon must be a fraction from 0 to 1 (0.01 = 1%)
 // #1282: the imp2_epsilon of impedance_matrix's pareto option is relative, a fraction from 0 to 1. A bucket width
 // in the unit of the second criterion, as the builds until 2026-10-05 took it, such as 20.0 here, is refused
 // with "pareto: imp2_epsilon must be a fraction from 0 to 1 (0.01 = 1%); ...". Expected: exit nonzero on /checks.

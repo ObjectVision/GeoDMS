@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: function '/Wrong3' bound to parameter 'f' has 3 parameter(s); its declared signature '/unary_fn' requires 2
 container fn_test_sig_neg
 {
 	unary_fn = (unit<uint32> Dx; attribute<float64> v (Dx)) -> attribute<float64> (Dx);

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: 'CongestionRatio': a function application yields its result value; bind it to an attribute/parameter/unit
 container fn_test_apply_neg
 {
 	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; attribute<float64> cap : [ 2.0, 4.0 ]; }

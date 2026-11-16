@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: IntegrityCheck : 'guard_src == 45' is not true
 // Negative twin of fn_test_icheck_dedup: the ancestor check is violated (guard_src is 44),
 // so reading anything under grp must fail -- including items whose own wrap the #1182 memo
 // skipped because a referenced sibling already carries the guard. The failure surfaces on

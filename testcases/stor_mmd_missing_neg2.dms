@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: stor_mmd_missing_neg2.mmd/0Dictionary.dms: the folder is not a complete MMD store
 // The other half of issue #1272: the store FOLDER exists but holds no 0Dictionary.dms -- a folder
 // that is not an MMD store, or a store whose write never got as far as its dictionary. Before
 // 20.21.0 this was as silent as a missing folder (stor_mmd_missing_neg1.dms); since 20.21.0 the

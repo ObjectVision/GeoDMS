@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad_net': the argument types of operator 'pcount' do not match any of its registered overloads
 container fn_test_structmember_neg1
 {
 	// K11a: F1 is declared as a FLOAT relation in the structured parameter's member

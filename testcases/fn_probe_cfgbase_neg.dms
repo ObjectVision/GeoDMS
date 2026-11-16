@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: FindSubItem Error: Cannot find nonexistent from /cfg
 container fn_probe_cfgbase_neg
 {
 	// Config-alias member access, NEGATIVE: a genuinely MISSING member below a

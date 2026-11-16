@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto_optimal_eps: argument 4 must be a numeric parameter, the epsilon of criterion 2 (argument 3)
 // #1287: pareto_optimal_eps reads its arguments by type, a numeric criterion after the first followed by its epsilon
 // and the first criterion and a bool criterion without one (#1282). Here the numeric price, criterion 2, is followed
 // by the bool needsCar, which is then its epsilon and is refused with "pareto_optimal_eps: argument 4 must be a

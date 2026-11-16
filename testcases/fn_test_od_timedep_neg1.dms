@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: timedependent: profile_slot_factor has 3 elements, which is not a positive multiple of the 2 profiles of link_profile_rel
 // #1304: profile_slot_factor has one factor per profile and time slot, so its count is a multiple of the number
 // of profiles. Three factors for two profiles are refused with "timedependent: profile_slot_factor has 3 elements,
 // which is not a positive multiple of the 2 profiles of link_profile_rel ...". Expected: exit nonzero on /checks.

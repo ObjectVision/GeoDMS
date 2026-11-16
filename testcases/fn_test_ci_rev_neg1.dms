@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Unknown identifier 'rev/arc_rel'
 container fn_test_ci_rev_neg1
 {
 	// #1228: a REVERSED connect_info is keyed by the arcs and names its relation

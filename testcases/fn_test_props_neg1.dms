@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: parameter 'self' is an item (meta-reference) parameter; its argument must be a reference to a config item, not a calculated expression
 container fn_test_props_neg1
 {
 	// NEGATIVE: an 'item' (meta-reference) parameter requires an item REFERENCE;

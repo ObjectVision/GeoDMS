@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the calculation rule of '/f/u' generates member(s) Values; 'bogus' is not among them
 container fn_test_subref_neg1
 {
 	// §12.7 slSubItemCall tranche: unique's member set is described COMPLETE —

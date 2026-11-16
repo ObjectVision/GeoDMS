@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: TIFFFillStrip Error: Read error on strip 0
 // STG-14, STG-A10: a TIFF whose strip is shorter than StripByteCounts declares (data/tif_u8_truncated.tif, 12 bytes short).
 // Since 353a4664e the read error libtiff reports is an error of the item ("TIFFFillStrip Error: Read error on strip 0"),
 // as in gdal.grid; before, the whole tile read as the undefined default, which is what this case checked until then.

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad': inconsistent instantiation of unit variable 'sig_P': the unit bound argument 2 of operator 'sum' differs from the unit bound the declared type of 'result'
 container fn_test_opsigC_neg1
 {
 	// NEGATIVE (definition-time, op-sig batch C): THE classic aggregation error —

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: function name 'add' collides with a built-in operator: it declares an argument count the operator also accepts
 container fn_test_aritydisp_neg1
 {
 	// NEGATIVE: a user function may share an operator's name ONLY for argument counts

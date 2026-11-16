@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Value 255 (a.k.a. null-value) out of range of valid Atomic Regions
 // needy_alloc with a null in the atomic region map. The atomic region of every land unit is checked,
 // also of one that no type can be allocated to: here land unit 7, whose suitabilities are all below the
 // threshold. discrete_alloc checks every land unit likewise.

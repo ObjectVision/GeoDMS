@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: inconsistent instantiation of type variable 'sig_Imp': float64 (argument 2 of operator 'impedance_matrix') vs string (the declared type of 'mislabeled')
 container fn_test_odmembers_neg2
 {
 	// dijkstra OD member emissions: the impedance member types as float64

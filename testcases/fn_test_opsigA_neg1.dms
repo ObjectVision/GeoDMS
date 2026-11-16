@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad': the argument types of operator 'iif' do not match any of its registered overloads
 container fn_test_opsigA_neg1
 {
 	// NEGATIVE (definition-time, op-sig batch A): every registered iif overload

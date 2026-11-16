@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: inconsistent instantiation of type variable 'sig_default': float64 (operator 'connect_info') vs string (the declared type of 'mislabeled')
 container fn_test_ci_neg2
 {
 	// connect_info members: the dist member types as float (the metric-less

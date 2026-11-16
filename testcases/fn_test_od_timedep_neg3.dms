@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: timedependent: profile_slot_factor is the speed relative to free flow (1 = free flow, 0.5 = half the speed) and may not have a metric
 // #1304: profile_slot_factor is relative to free flow, so dimensionless. A speed with a metric, such as km/h,
 // is refused with "timedependent: profile_slot_factor is the speed relative to free flow (1 = free flow, 0.5 =
 // half the speed) and may not have a metric". Expected: exit nonzero on /checks.

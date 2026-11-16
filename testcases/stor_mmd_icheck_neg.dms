@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: IntegrityCheck on an item stored in MMD storage
+// EXPECT-FAILURE: is not supported: it would produce a storage without 0Dictionary.dms (issue #1179)
 // An IntegrityCheck on an item stored in an MMD store is refused (issue #1179): the data file
 // would be produced but OpenForWrite would never run, leaving a store without 0Dictionary.dms
 // that reads back empty. The restriction belongs on the storage holder, whose IntegrityCheck

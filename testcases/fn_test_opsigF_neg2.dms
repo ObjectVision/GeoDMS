@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the definition of '/bad': the body requires unit variables
+// EXPECT-FAILURE: to be equal (the declared type of 'result'), but they are independent in the definition
 container fn_test_opsigF_neg2
 {
 	// NEGATIVE (definition-time, batch F): dist_info's result domain IS the

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: connect Error: Cannot find operator for these arguments:
 container fn_test_opsigE_neg1
 {
 	// NEGATIVE (batch E printer wiring): calling a DESCRIBED operator-group with

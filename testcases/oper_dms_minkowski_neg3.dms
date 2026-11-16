@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: dms_minkowski_sum Error: the kernel is not convex. The dms_ backend accepts a convex kernel only
 // #1301 negative: dms_minkowski_sum refuses a kernel polygon that is not convex, here an L. The
 // other backends accept any simple ring; the dms_ backend sums with convex kernels only, and says
 // so instead of returning a sum that would be wrong.

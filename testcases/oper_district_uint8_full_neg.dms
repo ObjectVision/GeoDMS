@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: district Error: number of found districts exceeds the maximum of the chosen district operator that stores only 1 bytes per cell
 // Regression for doc/code-audit-2026-09-27.md GEO-A22: district_uint8 tested for too many districts
 // by a wrap of its counter to 0, but the id after the largest one is the null value 255, so a 256th
 // district got id 255, the counter then wrapped, and exactly 256 districts gave a unit of 0 rows

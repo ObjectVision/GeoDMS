@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: timedependent: profile_slot_factor must be a positive speed relative to factor 1, but element 1 (profile 0, slot 1) is 0
 // #1304: profile_slot_factor is a speed relative to free flow, and a link is ridden at that speed for as long as
 // the slot lasts, so a factor of 0 would never let a route leave it. It is refused with "timedependent:
 // profile_slot_factor must be a positive speed relative to factor 1, but element 1 (profile 0, slot 1) is 0".

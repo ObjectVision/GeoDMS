@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: ordered_union_data: the concatenation of the argument values is not non-decreasing.
 // issue #1168: ordered_union_data must reject a descent INSIDE one of its arguments.
 // The IntegrityCheck below holds for the concatenated values (3+2+1+3+7 == 16), so the run may only
 // fail on the order check of ordered_union_data.

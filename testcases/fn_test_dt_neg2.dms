@@ -1,11 +1,13 @@
+// EXPECT-FAILURE: the definition of '/both': the body requires type variables
+// EXPECT-FAILURE: to be equal (parameter 'q' of function '/pick'), but they are independent generic parameters of the definition
 container fn_test_dt_neg2
 {
 	// NEGATIVE (definition-time): the body forces two independent generic
-	// parameters equal — pick's single W meets both A and B, so A ≡ W ≡ B. The
+	// parameters equal — pick's single Wx meets both Ax and Bx, so Ax ≡ Wx ≡ Bx. The
 	// definition must fail even though the call site passes two float64
 	// attributes (which would satisfy application-time checking).
 	// Expected: "the definition of '/both': the body requires type variables
-	//            'A' and 'B' to be equal ..."
+	//            'Bx' and 'Ax' to be equal ..."
 	unit<uint32> Road : nrofrows = 3
 	{
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];

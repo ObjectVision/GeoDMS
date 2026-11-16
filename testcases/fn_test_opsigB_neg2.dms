@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad2': inconsistent instantiation of unit variable 'sig_E': the unit bound argument 2 of operator 'rlookup' differs from the unit bound the declared type of 'result'
 container fn_test_opsigB_neg2
 {
 	// NEGATIVE (definition-time, op-sig batch B): rlookup's result is VALUED in

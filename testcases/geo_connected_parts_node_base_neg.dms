@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator connected_parts Error: the node unit, the values unit of the node relations, must have a range that starts at 0
 // GEO-A20: the node unit of connected_parts must have a range that starts at 0; a node id was used as an index, so
 // on range(uint32, 1, 4) the part of node v was written for node v+1, and the last one past the end. It is refused
 // with "the node unit, the values unit of the node relations, must have a range that starts at 0". Expected: exit nonzero on /checks.

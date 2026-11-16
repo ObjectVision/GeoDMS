@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto_optimal_eps: the epsilon of criterion 2 (argument 4) is relative, a dimensionless fraction from 0 to 1 (0.01 = 1%), and may not have a metric
 // #1282: the epsilon of pareto_optimal_eps is relative, so dimensionless. An epsilon with a metric, such as
 // 0.4 km for a distance, which the builds until 2026-10-05 read as a bucket width of 400 m and which would
 // otherwise pass as 40%, is refused with "pareto_optimal_eps: the epsilon of criterion 2 (argument 4) is

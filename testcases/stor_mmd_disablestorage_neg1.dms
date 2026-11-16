@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: DisableStorage is not supported below the MMD storage
+// EXPECT-FAILURE: stor_mmd_disablestorage_neg1.mmd that is being written: every item below its holder /store is part of the store
 // A template's case parameter declared with DisableStorage = "True", instantiated below an MMD
 // storage holder (issue #1245). The property was lost on instantiation, so the writer stored the
 // parameter unit `domain` as a stored domain of its own, with a second copy of s on it, and the

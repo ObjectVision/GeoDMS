@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad': the argument types of operator 'add' do not match any of its registered overloads
 container fn_test_opsig_neg2
 {
 	// NEGATIVE (definition-time): no registered add overload takes a bool
