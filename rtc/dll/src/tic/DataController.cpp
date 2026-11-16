@@ -29,8 +29,13 @@
 #include "LispTreeType.h"
 #include "OperationContext.h"
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <iterator>
+#include <map>
+#include <mutex>
 #include <vector>
 
 // *****************************************************************************
@@ -540,10 +545,149 @@ DataControllerRef GetExistingDataController(LispPtr keyExpr)
 	return GetDataControllerImpl(keyExpr, false);
 }
 
+/********** KeptData (#1364) **********/
+
+struct KeptData
+{
+	std::vector<FutureData>            m_Holds;   // the interest that is kept
+	std::vector<const DataController*> m_Pending; // the DataControllers whose request releases m_Holds, while it is not released; guarded by KeptDataRegistry::section
+	~KeptData();
+};
+
+namespace {
+	// which KeptData waits for a request for the data of a DataController. A DataController is in it
+	// only while it is pending for a KeptData that is alive, which holds interest in it, so the
+	// pointers stay valid. Allocated once and never destroyed, so that a calculator destroyed during
+	// static destruction can still unregister (a static destructor may release, never work)
+	struct KeptDataRegistry
+	{
+		std::mutex section;
+		std::multimap<const DataController*, KeptData*> waiting;
+		std::atomic<SizeT> nrWaiting = 0; // waiting.size(), read without the lock by ReleaseKeptDataOnAsk
+	};
+	KeptDataRegistry& GetKeptDataRegistry()
+	{
+		static auto* registry = new KeptDataRegistry;
+		return *registry;
+	}
+
+	// removes every entry of kept from the registry; called with its section locked
+	void UnregisterKeptData(KeptDataRegistry& reg, KeptData* kept)
+	{
+		for (auto dc : kept->m_Pending)
+		{
+			auto range = reg.waiting.equal_range(dc);
+			for (auto i = range.first; i != range.second; )
+				if (i->second == kept)
+					i = reg.waiting.erase(i);
+				else
+					++i;
+		}
+		kept->m_Pending.clear();
+		reg.nrWaiting = reg.waiting.size();
+	}
+
+	// the CallCalcResult calls on the stack of this thread, and the interest that their requests
+	// released, which is dropped when the outermost one ends
+	thread_local UInt32 t_KeptDataRequestDepth = 0;
+	thread_local std::vector<FutureData> t_KeptDataReleasedAtEnd;
+}
+
+KeptData::~KeptData()
+{
+	auto& reg = GetKeptDataRegistry();
+	std::lock_guard lock(reg.section);
+	UnregisterKeptData(reg, this);
+	// m_Holds is released after this body, outside the lock
+}
+
+KeptDataRequestScope::KeptDataRequestScope() noexcept
+{
+	++t_KeptDataRequestDepth;
+}
+
+KeptDataRequestScope::~KeptDataRequestScope()
+{
+	assert(t_KeptDataRequestDepth);
+	if (--t_KeptDataRequestDepth)
+		return;
+	if (t_KeptDataReleasedAtEnd.empty())
+		return;
+	auto released = std::move(t_KeptDataReleasedAtEnd); // dropping the interest may start a new request, which then finds an empty list
+	t_KeptDataReleasedAtEnd.clear();
+}
+
+void ReleaseAllKeptData() noexcept
+{
+	auto& reg = GetKeptDataRegistry();
+	std::vector<FutureData> released; // destroyed after the lock is released
+	{
+		std::lock_guard lock(reg.section);
+		for (auto& entry : reg.waiting)
+		{
+			KeptData* kept = entry.second;
+			std::move(kept->m_Holds.begin(), kept->m_Holds.end(), std::back_inserter(released));
+			kept->m_Holds.clear();
+			kept->m_Pending.clear();
+		}
+		reg.waiting.clear();
+		reg.nrWaiting = 0;
+	}
+}
+
+auto KeepDataUntilAsked(std::vector<FutureData> holds, std::vector<const DataController*> releasedWhenAsked) -> std::shared_ptr<KeptData>
+{
+	std::sort(releasedWhenAsked.begin(), releasedWhenAsked.end());
+	releasedWhenAsked.erase(std::unique(releasedWhenAsked.begin(), releasedWhenAsked.end()), releasedWhenAsked.end());
+	std::erase(releasedWhenAsked, nullptr);
+	if (releasedWhenAsked.empty() || holds.empty())
+		return {};
+
+	auto result = std::make_shared<KeptData>();
+	result->m_Holds = std::move(holds);
+	auto& reg = GetKeptDataRegistry();
+	std::lock_guard lock(reg.section);
+	result->m_Pending = std::move(releasedWhenAsked);
+	for (auto dc : result->m_Pending)
+		reg.waiting.emplace(dc, result.get());
+	reg.nrWaiting = reg.waiting.size();
+	return result;
+}
+
+void ReleaseKeptDataOnAsk(const DataController* dc)
+{
+	auto& reg = GetKeptDataRegistry();
+	if (!reg.nrWaiting.load(std::memory_order_relaxed))
+		return; // the usual case: nothing is kept
+
+	std::vector<FutureData> released; // dropped after the lock is released: dropping interest frees data and may destroy DataControllers
+	{
+		std::lock_guard lock(reg.section);
+		auto range = reg.waiting.equal_range(dc);
+		if (range.first == range.second)
+			return;
+		std::vector<KeptData*> keepers;
+		for (auto i = range.first; i != range.second; ++i)
+			keepers.push_back(i->second);
+		for (auto kept : keepers)
+		{
+			UnregisterKeptData(reg, kept);
+			std::move(kept->m_Holds.begin(), kept->m_Holds.end(), std::back_inserter(released));
+			kept->m_Holds.clear();
+		}
+	}
+	// a calculation of the same request may still have to take interest in what is released here,
+	// such as the state before the final one, which the sub-item of a unit state is calculated from
+	// after the unit itself was asked for; so a request keeps it until its outermost CallCalcResult ends
+	if (t_KeptDataRequestDepth)
+		std::move(released.begin(), released.end(), std::back_inserter(t_KeptDataReleasedAtEnd));
+}
+
 #include "DataLocks.h"
 
 auto DataController::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
+	KeptDataRequestScope keptDataRequest; // #1364: kept data that this request releases is let go when the outermost request ends
 	FutureData resultHolder(DataControllerRef(this));
 	assert(GetInterestCount());
 	assert(!SuspendTrigger::DidSuspend());
@@ -560,6 +704,8 @@ auto DataController::CallCalcResult(std::shared_ptr<Explain::Context> context) c
 	}
 
 	assert(resultHolder);
+	if (resultHolder)
+		ReleaseKeptDataOnAsk(this); // #1364
 	return resultHolder;
 }
 

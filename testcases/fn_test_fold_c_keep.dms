@@ -1,0 +1,53 @@
+container fn_test_fold_c_keep
+{
+	// #1364: fold_c calculates its condition on each state when its expression is reduced, and
+	// keeps the data of the final state, and of the state before it, until that data is asked
+	// for, so that the item does not calculate the steps again. This case checks the results
+	// where the keeping matters: states too large to stay in memory without interest, a unit
+	// state whose attribute no condition needed, two items with the same fold_c, which share the
+	// kept data, the count and the attribute of one unit state asked for by separate items, and
+	// a fold_c that takes no step. That the steps are calculated once is measured in a probe,
+	// from the log, since a configuration cannot count the evaluations of an operator.
+
+	unit<uint32> Dom : nrofrows = 100000;
+	attribute<float64> x0 (Dom) := float64(id(Dom) % 8) + 1.0;
+
+	function Scale99(unit<uint32> dom; parameter<uint32> k; attribute<float64> x (dom)) -> attribute<float64> (dom) := x * 0.99;
+	function MaxAtLeast(unit<uint32> dom; parameter<float64> limit; attribute<float64> x (dom)) -> parameter<bool> := max(x) >= limit;
+
+	// 8 * 0.99^n first drops below 4.86 at n = 50
+	attribute<float64> scaled      (Dom) := fold_c(Scale99(Dom, _, _), MaxAtLeast(Dom, 4.86, _), 300u, x0);
+	attribute<float64> scaled_same (Dom) := fold_c(Scale99(Dom, _, _), MaxAtLeast(Dom, 4.86, _), 300u, x0);
+	unit<uint32> Fifty : nrofrows = 50;
+	attribute<float64> scaled_fold (Dom) := fold(Fifty, Scale99(Dom, _, _), x0);
+	// the condition holds for no state: no step, the initial state
+	attribute<float64> unscaled    (Dom) := fold_c(Scale99(Dom, _, _), MaxAtLeast(Dom, 100.0, _), 300u, x0);
+
+	unit<uint32> Rows : nrofrows = 100000
+	{
+		attribute<float64> v := float64(id(.) % 8) + 1.0;
+	}
+	function DropMax(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+	}
+	function Longer(parameter<uint32> n; unit<uint32> s) -> parameter<bool> := #s > n;
+
+	// 100000 rows of the values 1 to 8 lose their largest value while more than 30000 are left:
+	// 6 steps, which leave the 25000 rows with the values 1 and 2
+	unit<uint32> dropped := fold_c(DropMax, Longer(30000u, _), 20u, Rows);
+
+	container checks
+	{
+		parameter<float64> c_scaled := max(abs(scaled - scaled_fold)), IntegrityCheck = "c_scaled == 0.0";
+		parameter<float64> c_same   := max(abs(scaled_same - scaled_fold)), IntegrityCheck = "c_same == 0.0";
+		parameter<float64> c_max    := max(scaled), IntegrityCheck = "c_max < 4.86 && c_max >= 4.86 * 0.99";
+		parameter<float64> c_none   := sum(unscaled), IntegrityCheck = "c_none == 450000.0";
+		parameter<uint32>  c_count  := #dropped, IntegrityCheck = "c_count == 25000";
+		parameter<float64> c_sum    := sum(dropped/v), IntegrityCheck = "c_sum == 37500.0";
+		parameter<float64> c_vmax   := max(dropped/v), IntegrityCheck = "c_vmax == 2.0";
+	}
+}

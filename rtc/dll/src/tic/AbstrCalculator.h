@@ -29,6 +29,7 @@ enum class CalcRole : UInt8
 
 struct ActorVisitor;
 enum class SupplierVisitFlag;
+struct KeptData; // #1364, DataController.h
 
 // *****************************************************************************
 // struct SubstitutionBuffer 
@@ -46,6 +47,7 @@ struct SubstitutionBuffer
 	LispRefAssoc m_SubstituteBuffer[3];
 	TTreeItemSet m_SupplierSet;
 	std::shared_ptr<const StructuredFunctionResult> m_StructuredFunctionResult;
+	std::vector<std::shared_ptr<KeptData>> m_KeptData; // #1364: data that the substitution calculated and that the calculator keeps (DataController.h, KeepDataUntilAsked)
 
 	bool m_CollectSuppliers;
 
@@ -199,6 +201,7 @@ public:
 
 	mutable BestItemRef m_BestGuessErrorSuppl;
 	mutable std::vector<SharedTreeItem> m_NamedSuppliers;
+	mutable std::vector<std::shared_ptr<KeptData>> m_KeptData; // #1364: data that GetMetaInfo calculated (the final state of a fold_c), kept until it is asked for or this calculator goes
 
 	friend struct TreeItem;
 	friend struct InterestReporter;

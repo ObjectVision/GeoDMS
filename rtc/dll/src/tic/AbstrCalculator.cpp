@@ -1212,6 +1212,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					substBuff.avs = AVS_SuspendedOrFailed;
 					return {};
 				}
+				std::move(localBuffer.m_KeptData.begin(), localBuffer.m_KeptData.end(), std::back_inserter(substBuff.m_KeptData)); // #1364
 				goto exit;
 			}
 			if (head->GetSymbID() == token::arrow)
@@ -1255,6 +1256,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					substBuff.avs = AVS_SuspendedOrFailed;
 					return {};
 				}
+				std::move(localBuffer.m_KeptData.begin(), localBuffer.m_KeptData.end(), std::back_inserter(substBuff.m_KeptData)); // #1364
 
 				bufferValue =
 					ExprList(token::lookup
@@ -1836,6 +1838,7 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 			SubstitutionBuffer substBuff(true);
 
 			m_LispExprSubst = SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
+			m_KeptData = std::move(substBuff.m_KeptData); // #1364
 
 			// process registered suppliers
 			std::vector<SharedTreeItem> supplierArrayCopy; supplierArrayCopy.swap(m_NamedSuppliers);

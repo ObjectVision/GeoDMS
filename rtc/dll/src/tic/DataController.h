@@ -95,6 +95,32 @@ protected:
 TIC_CALL DataControllerRef GetOrCreateDataController(LispPtr keyExpr);
 DataControllerRef GetExistingDataController(LispPtr keyExpr);
 
+// #1364: interest in data that a reduction calculated while it determined meta info, kept for the
+// calculation that asks for that data again. fold_c calculates its condition on each state when its
+// expression is reduced, and the item whose calculation rule it is asks for the final state later;
+// without interest in between, that data is gone by then, unless it is small, and asking for it
+// repeats the steps. `holds` is the interest that is kept. It is released when one of the
+// DataControllers in `releasedWhenAsked` has been asked for its data (CallCalcResult returned it),
+// at the end of the outermost CallCalcResult of that thread, by which time every calculation that
+// the request started holds the data it reads itself; or else when the returned KeptData is
+// destroyed, which happens with the calculator that owns it (AbstrCalculator::m_KeptData); or when
+// the configuration closes (ReleaseAllKeptData). Releasing at the first request rather than at the
+// end of it would drop data that a calculation of the same request still has to take interest in.
+struct KeptData;
+auto KeepDataUntilAsked(std::vector<FutureData> holds, std::vector<const DataController*> releasedWhenAsked) -> std::shared_ptr<KeptData>;
+void ReleaseKeptDataOnAsk(const DataController* dc); // the CallCalcResult implementations call this when they return data
+void ReleaseAllKeptData() noexcept; // before the close-down waits for the session usages, which kept interest holds
+
+// marks a CallCalcResult on the stack of this thread; at the end of the outermost one, the kept
+// data that its requests released is let go
+struct KeptDataRequestScope
+{
+	KeptDataRequestScope() noexcept;
+	~KeptDataRequestScope();
+	KeptDataRequestScope(const KeptDataRequestScope&) = delete;
+	KeptDataRequestScope& operator =(const KeptDataRequestScope&) = delete;
+};
+
 /********** DcRefListElem **********/
 
 struct DcRefListElem

@@ -439,6 +439,30 @@ StaticTokenID t_Dot(".");
 				}
 			}
 		}
+
+		// #1364: the reduction is over, and the item whose calculation rule it reduced asks for the
+		// data of the final state later. Without the interest held here that data is gone by then,
+		// unless it is small, and asking for it calculates every step again. So the calculator keeps
+		// the interest in the final state, which the last condition calculated, and in the state before
+		// it: a declared sub-item of the final state that no condition needed, such as the attribute of
+		// a unit state whose condition reads only its size, is still to be calculated, from the state
+		// before it. The interest is released when the final state or one of its declared sub-items has
+		// been asked for, once the request that asked has ended and its calculations hold what they
+		// read, or else with the calculator, or when the configuration closes (KeepDataUntilAsked).
+		// Without a substitution buffer, which only happens outside the calculation rule of an item,
+		// nothing is kept
+		void KeepFinalState(SubstitutionBuffer* substBuff, std::vector<FutureData> finalState, std::vector<FutureData> stateBefore)
+		{
+			if (!substBuff)
+				return;
+			std::vector<const DataController*> releasedWhenAsked;
+			releasedWhenAsked.reserve(finalState.size());
+			for (const auto& fd : finalState)
+				releasedWhenAsked.push_back(fd.get_ptr());
+			std::move(stateBefore.begin(), stateBefore.end(), std::back_inserter(finalState));
+			if (auto kept = KeepDataUntilAsked(std::move(finalState), std::move(releasedWhenAsked)))
+				substBuff->m_KeptData.push_back(std::move(kept));
+		}
 	}
 
 	// #1347: fold_c(f, cond, maxN, x0) applies f while cond holds for the state, at most
@@ -448,7 +472,9 @@ StaticTokenID t_Dot(".");
 	// another step depends on data, so the condition of each state is calculated when the
 	// expression is reduced, at meta time, as fold calculates its domain; a state whose
 	// condition still holds after maxN steps is an error, not a truncation. The data of each
-	// state is held while the next one is calculated, so a chain of n steps costs n steps.
+	// state is held while the next one is calculated, so a chain of n steps costs n steps, and
+	// the data of the final state is kept for the item that asks for it (KeepFinalState, #1364).
+	// So the meta info of the item depends on data: determining it calculates the steps.
 	CallArg ReduceFoldC(const CallArg& stepArg, const CallArg& condArg, const CallArg& maxNArg, CallArg state
 		, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
 		, std::vector<CallArg>* trace)
@@ -496,9 +522,12 @@ StaticTokenID t_Dot(".");
 				throwErrorF("ExprParser", "{}: the condition '{}' must return a parameter<bool>"
 					, foldSig, cond.funcItem->GetFullName().c_str());
 			bool goOn = CalcMetaParameter(c.key, true, foldSig, "the result of the condition", errorHolder) != 0;
-			heldPrev = std::move(heldCurr);
 			if (!goOn)
+			{
+				KeepFinalState(substBuff, std::move(heldCurr), std::move(heldPrev));
 				return state;
+			}
+			heldPrev = std::move(heldCurr);
 			if (Float64(k) >= maxN)
 				throwErrorF("ExprParser", "{}: the condition '{}' still holds after {} steps, the most that the third argument allows"
 					, foldSig, cond.funcItem->GetFullName().c_str(), k);
