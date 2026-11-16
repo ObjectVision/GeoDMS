@@ -36,6 +36,7 @@
 #include <vector>
 
 class ValueClass;
+struct AbstrOperGroup;
 
 // ---- provided by AbstrCalculator.cpp -----------------------------------------------
 
@@ -178,6 +179,8 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr = nullptr);
 		CallArg ResolveBodyArg(const TreeItem* refScope, LispPtr argExpr);
 		SharedTreeItem ResolveBodyHeadFunction(const TreeItem* refScope, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding, bool mayFail = false);
+		// #1366: the refusal of the meta function call `headID`(argsList) in this body, with what to do instead
+		[[noreturn]] void ThrowMetaCallInBody(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList) const;
 	};
 
 // ---- the operations on them ---------------------------------------------------------
@@ -261,6 +264,30 @@ bool IsOwnDeclaredVar(const TreeItem* fn, TokenID tok);
 
 // WP3.4 + tranche 3 typed walker; defined in HofTypeChecker.cpp
 void CheckFunctionDefinition(const TreeItem* funcItem);
+
+// #1366: what keeps a body expression open over the parameters of its function, as the
+// definition check finds it (FunctionChecker::TryBuildClosedKeyExpr): parameters of the
+// function itself, and parameters and body items of an enclosing function, which a nested
+// function reads through its closure
+struct BodyExprOpenRefs
+{
+	std::vector<const TreeItem*> params;
+	std::vector<const TreeItem*> captures;
+	bool empty() const { return params.empty() && captures.empty(); }
+};
+
+// #1366: per argument of a call in the body of `funcItem`, whose parameters are `params`:
+// `closed` when the argument depends on no parameter, as the definition check decides it, and
+// else the names it depends on. An argument that is neither closed nor depends on a name,
+// such as one that calls a function, has `closed` false and no names. Defined in
+// HofTypeChecker.cpp
+struct BodyCallArgDeps
+{
+	bool closed = false;
+	BodyExprOpenRefs refs;
+};
+std::vector<BodyCallArgDeps> AnalyseBodyCallArgs(const TreeItem* funcItem, const std::vector<const TreeItem*>& params
+	, const TreeItem* refScope, LispPtr argsList);
 
 } // namespace hof
 

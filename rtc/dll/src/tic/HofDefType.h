@@ -276,8 +276,10 @@ namespace hof {
 		// any stage yields nullopt/empty = defer, exactly as without the spec.
 		std::map<std::pair<const TreeItem*, LispRef>, LispRef> m_ClosedKeyMemo; // strong key AND value LispRefs: nothing dangles
 		std::set<const TreeItem*> m_ScanBusy; // cycle guard for body-local recursion (distinct from m_InProgress)
-		LispRef TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr);
-		LispRef TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr);
+		// #1366: with `openRefs`, the scan of an open expression goes on to collect the
+		// parameters and captured items it meets; the key it returns is the same
+		LispRef TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs = nullptr);
+		LispRef TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs);
 		std::optional<SharedStr> EvalClosedSpec(const TreeItem* refScope, LispPtr specExpr);
 		std::optional<DefType> TrySpecProcessing(const AbstrOperGroup* og,
 			const OperGroupSignatures::MergedRecord& mr, const std::vector<const Operator*>& survivors,

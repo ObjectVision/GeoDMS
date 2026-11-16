@@ -293,20 +293,32 @@ namespace hof {
 	// Empty result = open or not buildable: the caller defers. Mirrors the closed
 	// subset of FunctionApplication::SubstituteBodyExpr; memoized (the strong
 	// LispRefs in the memo also pin the built keys for the checker's lifetime).
-	LispRef FunctionChecker::TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr)
+	// #1366: `openRefs`, when given, receives the parameters and captured items that keep
+	// the expression open. The scan then goes on past the first open argument and into the
+	// arguments of a call it cannot build, but what it returns does not change, so this
+	// remains the one definition of a closed expression.
+	LispRef FunctionChecker::TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs)
 	{
 		if (expr.EndP())
 			return {};
 		auto memoKey = std::make_pair(refScope, LispRef(expr));
 		if (auto it = m_ClosedKeyMemo.find(memoKey); it != m_ClosedKeyMemo.end())
-			return it->second;
-		LispRef built = TryBuildClosedKeyExprImpl(refScope, expr);
+			if (!openRefs || !it->second.EndP()) // a closed expression has nothing to collect
+				return it->second;
+		LispRef built = TryBuildClosedKeyExprImpl(refScope, expr, openRefs);
 		m_ClosedKeyMemo.emplace(std::move(memoKey), built);
 		return built;
 	}
 
-	LispRef FunctionChecker::TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr)
+	LispRef FunctionChecker::TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs)
 	{
+		// #1366: collect from the arguments of a call that stays open for another reason
+		auto collectArgs = [&](LispPtr argList)
+		{
+			if (openRefs)
+				for (LispPtr argPtr = argList; !argPtr.EndP(); argPtr = argPtr.Right())
+					TryBuildClosedKeyExpr(refScope, argPtr.Left(), openRefs);
+		};
 		if (expr.IsRealList())
 		{
 			if (!expr.Left().IsSymb())
@@ -314,23 +326,51 @@ namespace hof {
 			LispRef head = expr.Left();
 			TokenID headID = head.GetSymbID();
 			if (headID == token::sourceDescr)
-				return TryBuildClosedKeyExpr(refScope, expr.Right().Left());
+				return TryBuildClosedKeyExpr(refScope, expr.Right().Left(), openRefs);
 			if (headID == token::arrow || headID == token::scope || headID == token::subitem
 				|| headID == t_ApplyValue || headID == t_ContainerLiteral)
 				return {};
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			if (og->IsTemplateCall() && !ValueClass::FindByScriptName(headID))
+			{
+				// #1366: the head may itself be a function-valued parameter or a captured function
+				if (openRefs && !IsFoldHead(headID) && headID != t_Map)
+				{
+					try
+					{
+						UInt32 paramIdx = 0; ExtRefKind extKind = ExtRefKind::DefScopeExternal;
+						int code = ResolveName(refScope, headID, nullptr, &paramIdx, nullptr, &extKind);
+						if (code == 0)
+							openRefs->params.push_back(m_Params[paramIdx]);
+						else if (code == 2 && extKind == ExtRefKind::ClosureCapture)
+							if (auto captured = FindEnclosingFunctionMember(headID))
+								openRefs->captures.push_back(captured.get());
+					}
+					catch (...) {} // a head that does not resolve as a name names nothing to collect
+				}
+				collectArgs(expr.Right());
 				return {}; // function-call heads: not buildable in v1 (ReduceValue re-entrancy)
+			}
 			if (!og->IsTemplateCall() && !og->MustCacheResult())
+			{
+				collectArgs(expr.Right());
 				return {}; // meta heads: reduction rejects them in bodies anyway
+			}
 			std::vector<LispRef> substArgs;
+			bool anyOpen = false;
 			for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
 			{
-				auto sub = TryBuildClosedKeyExpr(refScope, argPtr.Left());
+				auto sub = TryBuildClosedKeyExpr(refScope, argPtr.Left(), openRefs);
 				if (sub.EndP() && !argPtr.Left().EndP())
-					return {}; // an open/unbuildable argument
+				{
+					if (!openRefs)
+						return {}; // an open/unbuildable argument
+					anyOpen = true; // #1366: go on collecting from the other arguments
+				}
 				substArgs.push_back(sub);
 			}
+			if (anyOpen)
+				return {};
 			LispRef argList;
 			for (auto ri = substArgs.rbegin(); ri != substArgs.rend(); ++ri)
 				argList = LispRef(*ri, argList);
@@ -360,6 +400,8 @@ namespace hof {
 			switch (ResolveName(refScope, symbID, &local, &paramIdx, &external, &extKind))
 			{
 			case 0:
+				if (openRefs)
+					openRefs->params.push_back(m_Params[paramIdx]);
 				return {}; // a formal: OPEN
 			case 1:
 			{
@@ -373,12 +415,21 @@ namespace hof {
 				{
 					auto calc = AbstrCalculator::ConstructFromStr(local, exprStr, CalcRole::Calculator);
 					auto localScope = local->GetTreeParent();
-					r = TryBuildClosedKeyExpr(localScope.get(), RewriteExpr(calc->GetLispExprOrg()));
+					r = TryBuildClosedKeyExpr(localScope.get(), RewriteExpr(calc->GetLispExprOrg()), openRefs);
 				}
 				m_ScanBusy.erase(local);
 				return r;
 			}
 			default:
+				if (openRefs && extKind == ExtRefKind::ParamMember)
+					openRefs->params.push_back(m_Params[paramIdx]); // 'p/member'
+				if (openRefs && extKind == ExtRefKind::ClosureCapture)
+				{
+					SharedStr symbStr(symbID.AsStrRangeLock()); // materialized: token creation below
+					CharPtr slash = std::find(symbStr.begin(), symbStr.send(), '/');
+					if (auto captured = FindEnclosingFunctionMember(GetTokenID_mt(symbStr.begin(), slash)))
+						openRefs->captures.push_back(captured.get());
+				}
 				if (extKind != ExtRefKind::DefScopeExternal || !external)
 					return {}; // param-member / prelude-fn / closure capture: OPEN or not a data value
 				if (external->IsFunctionItem() || external->InTemplate())
@@ -1805,8 +1856,24 @@ namespace hof {
 	DefType FunctionChecker::InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList)
 	{
 		std::vector<DefType> argTerms;
-		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
+		// as SubstituteArgs asks every argument's policy; a group whose policies depend on the
+		// value of its first argument (for_each_ind) needs that value, which is not known here
+		bool mayHaveTemplArgs = !og->MustCacheResult() && !og->HasDynamicArgPolicies();
+		arg_index argNr = 0;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right(), ++argNr)
+		{
+			// #1366: the template argument of a meta function, such as the step of loop or
+			// iterate, is not typed. A reference to a template from the body is refused when
+			// it is typed, but here it is valid: a copy of the function made with instantiate
+			// accepts the call. The call form refuses the meta call itself, at the reduction,
+			// with a message that says what to do instead
+			if (mayHaveTemplArgs && og->GetArgPolicy(argNr, nullptr) == oper_arg_policy::is_templ)
+			{
+				argTerms.emplace_back();
+				continue;
+			}
 			argTerms.push_back(InferExpr(refScope, a.Left()));
+		}
 
 		if (!og->MustCacheResult())
 		{
@@ -2148,5 +2215,43 @@ namespace hof {
 		TreeItem_SetFunctionDefinitionChecked(funcItem);
 	}
 
+	// #1366: the reduction of a call F(args) refuses a meta function call in the body of F,
+	// and its message says which argument of that call depends on which parameter. It asks
+	// the definition check, so that "closed" means here what it means where the check decides
+	// to evaluate a closed name array (EvalClosedStrArray). Called on the way to an error, so a
+	// failure while scanning an argument leaves that argument undecided instead of throwing
+	std::vector<BodyCallArgDeps> AnalyseBodyCallArgs(const TreeItem* funcItem, const std::vector<const TreeItem*>& params
+		, const TreeItem* refScope, LispPtr argsList)
+	{
+		FunctionChecker chk;
+		chk.m_FuncItem = funcItem;
+		chk.m_Unifier.m_ApplItem = funcItem;
+		chk.m_Params = params;
+		std::vector<BodyCallArgDeps> result;
+		for (LispPtr argPtr = argsList; !argPtr.EndP(); argPtr = argPtr.Right())
+		{
+			BodyCallArgDeps& deps = result.emplace_back();
+			try
+			{
+				deps.closed = !chk.TryBuildClosedKeyExpr(refScope, argPtr.Left(), &deps.refs).EndP();
+			}
+			catch (...)
+			{
+				chk.m_ScanBusy.clear(); // unwind the cycle-guard marks of the aborted scan
+				deps.closed = false;
+			}
+			if (deps.closed)
+				deps.refs = {};
+			for (auto* v : { &deps.refs.params, &deps.refs.captures })
+			{
+				std::vector<const TreeItem*> unique;
+				for (const TreeItem* p : *v)
+					if (std::find(unique.begin(), unique.end(), p) == unique.end())
+						unique.push_back(p);
+				*v = std::move(unique);
+			}
+		}
+		return result;
+	}
 
 } // namespace hof

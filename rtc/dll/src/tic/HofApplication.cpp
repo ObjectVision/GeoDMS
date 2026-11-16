@@ -363,6 +363,102 @@ namespace hof {
 		return r;
 	}
 
+	namespace {
+		StaticTokenID t_Loop("loop");
+		StaticTokenID t_Iterate("iterate");
+
+		// "the parameter 'x'", "the parameters 'x' and 'y'", or "'st', a body item of the
+		// enclosing function '/a/f'": the names that an argument of a meta function call depends on
+		SharedStr DescribeOpenRefs(const BodyExprOpenRefs& refs)
+		{
+			std::vector<SharedStr> parts;
+			if (!refs.params.empty())
+			{
+				SharedStr names;
+				for (SizeT i = 0, n = refs.params.size(); i != n; ++i)
+				{
+					if (i)
+						names = names + SharedStr(i + 1 == n ? " and " : ", ");
+					names = names + mySSPrintF("'{}'", refs.params[i]->GetNameID());
+				}
+				parts.push_back(mySSPrintF("the parameter{} {}", refs.params.size() == 1 ? "" : "s", names.c_str()));
+			}
+			for (const TreeItem* c : refs.captures)
+			{
+				auto enc = c->GetTreeParent();
+				bool isParam = false;
+				UInt32 i = 0, np = TreeItem_GetFunctionParamCount(enc.get());
+				for (const TreeItem* p = enc->_GetFirstSubItem(); p && i != np; p = p->GetNextItem(), ++i)
+					if (p == c)
+						isParam = true;
+				parts.push_back(mySSPrintF("'{}', a {} of the enclosing function '{}'"
+					, c->GetNameID(), isParam ? "parameter" : "body item", enc->GetFullName().c_str()));
+			}
+			SharedStr result;
+			for (SizeT i = 0, n = parts.size(); i != n; ++i)
+			{
+				if (i)
+					result = result + SharedStr(i + 1 == n ? " and " : ", ");
+				result = result + parts[i];
+			}
+			return result;
+		}
+	}
+
+	// #1366: a meta function call, such as for_each_nedv, in the body of a function that is
+	// applied in an expression, F(args), cannot be reduced: its result is a set of items that
+	// only a copy of the function, made with 'instantiate F(args)', has. The message says what
+	// can be done instead. When an argument of the call depends on a parameter, it says which,
+	// as the definition check decides it (AnalyseBodyCallArgs); expression strings, such as
+	// 'x * 2.0', are not parsed for the names they mention. When no argument does, the call
+	// can be moved into the container that holds the function. A copy made with instantiate
+	// accepts the call in either case. And for loop and iterate, which repeat a step, fold and
+	// fold_c do that inside a function body.
+	[[noreturn]] void FunctionApplication::ThrowMetaCallInBody(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList) const
+	{
+		// the name a call uses: a variant is called by the name of its set
+		const TreeItem* callee = m_FuncItem;
+		if (auto parent = callee->GetTreeParent(); parent && TreeItem_IsFunctionVariantSet(parent.get()))
+			callee = parent.get();
+		SharedStr calleeName(callee->GetNameID().AsStrRangeLock());
+
+		SharedStr msg = mySSPrintF("'{}': meta function call is not supported inside function bodies when the function is applied in an expression; here in the body of '{}'."
+			, headID, m_FuncItem->GetFullName().c_str());
+
+		auto deps = AnalyseBodyCallArgs(m_FuncItem, m_Params, refScope, argsList);
+		SharedStr dependent;
+		bool allClosed = !deps.empty();
+		for (SizeT k = 0; k != deps.size(); ++k)
+		{
+			allClosed = allClosed && deps[k].closed;
+			if (deps[k].refs.empty())
+				continue;
+			if (dependent.empty())
+				dependent = mySSPrintF("Argument {} of {} depends on {}", k + 1, headID, DescribeOpenRefs(deps[k].refs).c_str());
+			else
+				dependent = dependent + mySSPrintF("; argument {} depends on {}", k + 1, DescribeOpenRefs(deps[k].refs).c_str());
+		}
+		if (!dependent.empty())
+			msg = msg + mySSPrintF(" {}.", dependent.c_str());
+		if (allClosed)
+		{
+			const TreeItem* container = m_FuncItem->GetTreeParent().get();
+			while (container && container->IsFunctionItem())
+				container = container->GetTreeParent().get();
+			// the root of a configuration has an empty full name
+			SharedStr where = (container && container->GetTreeParent())
+				? mySSPrintF("the container '{}'", container->GetFullName().c_str())
+				: SharedStr("the root container of the configuration");
+			msg = msg + mySSPrintF(" No argument depends on a parameter of the function: move the call into {}, which holds the function, and refer to the items that it makes from the body."
+				, where.c_str());
+		}
+		msg = msg + mySSPrintF(" A copy of the function made with 'container c := instantiate {}(...)' {}accepts the call."
+			, calleeName.c_str(), allClosed ? "also " : "");
+		if (og->GetNameID() == t_Loop || og->GetNameID() == t_Iterate)
+			msg = msg + SharedStr(" To repeat a step inside a function body, use fold(domain, step, initial state) or fold_c(step, condition, maxN, initial state); 'container trace := instantiate fold(...)' in the body keeps the state after each step as an item.");
+		throwErrorD("ExprParser", msg.c_str());
+	}
+
 	LispRef FunctionApplication::ReduceBodyItem(const TreeItem* bodyItem)
 	{
 		auto memo = m_Reductions.find(bodyItem);
@@ -543,8 +639,7 @@ namespace hof {
 			if (!og->MustCacheResult())
 			{
 				if (!og->AllowsAsFunctionResult())
-					throwErrorF("ExprParser", "'{}': meta function call is not supported inside function bodies"
-						, headID);
+					ThrowMetaCallInBody(og, headID, refScope, expr.Right()); // #1366
 
 				// A result-eligible generating call survives beta reduction so the
 				// caller's typed holder can instantiate it.  Tree arguments must remain

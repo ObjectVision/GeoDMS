@@ -1,0 +1,27 @@
+// EXPECT-FAILURE: Argument 3 of iterate depends on the parameter 'init'.
+// EXPECT-FAILURE: To repeat a step inside a function body, use fold(domain, step, initial state) or fold_c(step, condition, maxN, initial state)
+container fn_test_meta_body_neg_iterate
+{
+	// #1366: iterate in a function body is refused when the function is applied in an expression;
+	// for loop and iterate the message points at fold and fold_c, which repeat a step inside a
+	// function body
+
+	unit<uint32> iters : nrofrows = 3
+	{
+		attribute<string> name := 'it' + string(id(.));
+	}
+	function CountLocal(parameter<string> init) -> parameter<uint32> := res/it2/nextValue
+	{
+		template stepL
+		{
+			parameter<uint32> currValue;
+			parameter<uint32> nextValue := currValue + uint32(1);
+		}
+		container res := iterate(iters/name, stepL, init);
+	}
+
+	container checks
+	{
+		parameter<uint32> c := CountLocal('uint32(0)'), IntegrityCheck = "c == 3";
+	}
+}

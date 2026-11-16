@@ -1,0 +1,23 @@
+// EXPECT-FAILURE: 'for_each_nedv': meta function call is not supported inside function bodies when the function is applied in an expression; here in the body of '/Twice'.
+// EXPECT-FAILURE: Argument 3 of for_each_nedv depends on the parameter 'dom'.
+// EXPECT-FAILURE: A copy of the function made with 'container c := instantiate Twice(...)' accepts the call.
+container fn_test_meta_body_neg_param
+{
+	// #1366: a meta function call in a function body is refused when the function is applied in
+	// an expression. The message says which argument depends on which parameter, here argument 3
+	// on the parameter 'dom', and that a copy made with instantiate accepts the call.
+
+	function Twice(unit<uint32> dom; attribute<float64> x (dom)) -> attribute<float64> (dom) := r/a
+	{
+		container r := for_each_nedv('a', 'x * 2.0', dom, float64);
+	}
+	unit<uint32> Vals : nrofrows = 2
+	{
+		attribute<float64> v : [1, 2];
+	}
+
+	container checks
+	{
+		parameter<float64> c := sum(Twice(Vals, Vals/v)), IntegrityCheck = "c == 6.0";
+	}
+}
