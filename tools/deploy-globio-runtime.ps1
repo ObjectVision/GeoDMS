@@ -32,7 +32,8 @@ $dumpbinPath = if ($dumpbin.Source) { $dumpbin.Source } else { $dumpbin.FullName
 # GeoDMS is built with the current v145 runtime. Never replace it with the older
 # runtime carried by the conda prefix, even when a conda DLL imports the same ABI.
 #
-# ICU is on the list for a different reason. Qt6Core.dll (vcpkg) carries a STATIC import
+# ICU is on the list for a different reason. Qt6Core.dll, which comes from the Qt installation
+# (C:\Qt\6.11.1\msvc2022_64) and not from vcpkg, carries a STATIC import
 # of icuuc.dll for the UNSUFFIXED ucnv_* symbols; on Windows those come from the OS copy,
 # C:\Windows\System32\icuuc.dll, which forwards them into icu.dll. conda-forge ships
 # icuuc.dll as an alias of icuuc68.dll, whose exports are ALL version-suffixed

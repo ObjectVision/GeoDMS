@@ -11,9 +11,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RaisePriorityToNormal.
 REM It asks a question only where BuildSignAndCreateSetupCmake.bat does: when another build is
 REM running, and after vcpkg drift (30 s, default yes). Every other step is checked and stops the
 REM script when the check fails: the source checks, msbuild's exit code and a no-op build, the
-REM Python modules, the shipped battery, the wheels, makensis and an installer of less than 60000000 bytes,
-REM signing and the verification of the signature, the install, and the unit suite on the
-REM installed build. Until 2026-10-06 it also asked whether the build, the NSIS step and the
+REM Python modules, the shipped battery, the wheels, the licence texts, makensis and an installer of less
+REM than 60000000 bytes, signing and the verification of the signature, the install, the licence texts
+REM of the install, and the unit suite on the installed build. Until 2026-10-06 it also asked whether the build, the NSIS step and the
 REM signing were OK and paused at the end, which kept an unattended Build.bat waiting.
 
 REM Version comes from GeoDmsVersion.cmd in the repo root (shared with the cmake +
@@ -203,6 +203,14 @@ REM uploads them to PyPI when a full release is published (not a pre-release).
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\make-and-test-wheels.ps1" -OutputDir "%geodms_rootdir%\bin\Release\x64" -Dist "%geodms_rootdir%\distr" -Version %GeoDmsVersion%
 if errorlevel 1 goto :wheels_failed
 
+REM The GPL of GeoDMS and the licence texts of the libraries this setup bundles (#1371).
+REM tools\setup_licences.py reads the File lines of nsi\DmsSetupScript.nsh, maps every binary they
+REM install to GeoDMS, the Visual C++ runtime, the Qt installation or a vcpkg port, and writes the
+REM licence texts with a table, README.txt, to bin\Release\x64\licenses, which NSIS installs beside
+REM license.txt. It stops on a binary without a known licence and on an NSIS line it cannot read.
+py -3 "%geodms_rootdir%\tools\setup_licences.py" stage --flavour m
+if errorlevel 1 goto :licences_failed
+
 REM makensis, signtool and the installer are checked, and the previous installation of this
 REM version is uninstalled first, as the .c and .g scripts do (BAT-A35). Installing over it left
 REM a file that the .nsh no longer lists in place, where the post-install suite still found it,
@@ -249,6 +257,11 @@ call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 "%INSTALLER%" /S
 if errorlevel 1 goto :install_failed
 
+REM The installed binaries against licenses\README.txt, in both directions, and the licence texts
+REM it names (#1371). A difference means that the setup installs a binary the table does not list.
+py -3 "%geodms_rootdir%\tools\setup_licences.py" check --install "%INSTALL_DIR%"
+if errorlevel 1 goto :installed_licences_failed
+
 del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 
@@ -269,14 +282,23 @@ echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built, signed, installed and
 echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%
 exit /B 0
 
+:installed_licences_failed
+echo *** The installed binaries do not match licenses\README.txt - removing installed build and setup file ***
+goto :remove_install
+
 :unit_failed
 echo *** Unit tests FAILED - removing installed build and setup file so a broken build cannot ship ***
+:remove_install
 set "INSTALL_DIR=C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%"
 call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 del /q "distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe" 2>nul
 echo Removed distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe
 del /q "distr\geodms-%GeoDmsVersion%-*.whl" 2>nul
 echo Removed the wheels distr\geodms-%GeoDmsVersion%-*.whl
+exit /B 1
+
+:licences_failed
+echo *** Licence texts FAILED before packaging - NSIS, signing, install and unit tests skipped; see the output of tools\setup_licences.py above ***
 exit /B 1
 
 :wheels_failed

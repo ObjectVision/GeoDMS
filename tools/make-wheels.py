@@ -167,39 +167,17 @@ def metadata(version, python_requirement, licence_files=("license.txt",)):
     )
 
 
-# The DLLs that all22.sln builds, under the GPL of license.txt. A bundled DLL that is none of these,
-# not installed by a vcpkg port and not the Visual C++ runtime stops the script, so that no library
-# goes out without its licence text.
-GEODMS_DLLS = {"clc.dll", "geo.dll", "rtc.dll", "shv.dll", "stg.dll", "stx.dll"}
-MSVC_RUNTIME = re.compile(r"(msvcp140|vcruntime140|concrt140)(_\w+)?\.dll", re.IGNORECASE)
+# The names of the GeoDMS DLLs (under the GPL of license.txt), the pattern of the Visual C++ runtime
+# and the reader of the vcpkg tree are those of tools/setup_licences.py, which writes the licence
+# texts of the setups (#1371), so that a wheel and a setup map a DLL to its source in the same way.
+# A bundled DLL that is no GeoDMS DLL, not installed by a vcpkg port and not the Visual C++ runtime
+# stops the script, so that no library goes out without its licence text. Importing it writes no
+# tools/__pycache__ into the working copy.
+sys.dont_write_bytecode = True
+from setup_licences import GEODMS_DLLS, MSVC_RUNTIME, vcpkg_ports, write_table  # noqa: E402
+
 DELVEWHEEL_SUFFIX = re.compile(r"-[0-9a-f]{32}(?=\.dll$)", re.IGNORECASE)  # the hash delvewheel adds
 THIRD_PARTY = "third-party"  # the folder in .dist-info/licenses with the texts of the vcpkg ports
-
-
-def vcpkg_ports(vcpkg_installed):
-    """Two maps: the lower-case name of every DLL that vcpkg installed to (port, version, triplet),
-    and every installed port to (version, triplet)."""
-    info = os.path.join(vcpkg_installed, "vcpkg", "info")
-    dlls, ports = {}, {}
-    for listing in os.listdir(info):
-        if not listing.endswith(".list"):
-            continue
-        # <port>_<version>_<triplet>.list; port names and triplets have no underscore
-        port, rest = listing[: -len(".list")].split("_", 1)
-        version, triplet = rest.rsplit("_", 1)
-        ports[port] = (version, triplet)
-        with open(os.path.join(info, listing), encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if "/bin/" in line and line.lower().endswith(".dll"):
-                    dlls[os.path.basename(line).lower()] = (port, version, triplet)
-    return dlls, ports
-
-
-def write_table(out, header, rows):
-    widths = [max(len(r[i]) for r in rows + [header]) for i in range(len(header) - 1)]
-    for r in [header] + rows:
-        out.write("  ".join(r[i].ljust(w) for i, w in enumerate(widths)) + "  " + r[-1] + "\n")
 
 
 def add_licences(libs_dir, licences_dir, vcpkg_installed):
