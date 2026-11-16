@@ -197,6 +197,25 @@ ReadCallSpec AbstrGridStorageManager::DescribeReadCall(const TreeItem* storageHo
 	return result;
 }
 
+// Whether a and b are the same coordinate unit. The base unit of a projection is mostly a cache unit that represents a
+// configured unit, the result of its key: the projection of a TiledUnit of a grid domain has such a unit for that grid
+// domain. UnifyDomain compares a cache unit with a configured unit and only looks up the representation of its right
+// side, which a read on a worker thread may do.
+static bool IsSameCoordinateUnit(const AbstrUnit* a, const AbstrUnit* b)
+{
+	if (a == b)
+		return true;
+	if (!a || !b)
+		return false;
+	if (a->GetCurrUltimateItem() == b->GetCurrUltimateItem())
+		return true;
+	if (!a->IsCacheItem())
+		std::swap(a, b);
+	if (!a->IsCacheItem())
+		return false;
+	return a->UnifyDomain(b);
+}
+
 bool AbstrGridStorageManager::DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const
 {
 	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
@@ -207,6 +226,36 @@ bool AbstrGridStorageManager::DoCheckFactorSimilarity(StorageMetaInfoPtr smi) co
 	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(no_tile, smi);
 	auto grid_projection = gbr->m_VPIP->m_GridDomain->GetCurrProjection();
 	auto curr_projection = gbr->m_VPIP->m_CurrDomain->GetCurrProjection();
+
+	// The read places the domain on the grid of the storage through both georeferences, and takes the row and column
+	// numbers of a side without one for world coordinates. With a georeference on one side only, that mostly puts the
+	// domain beside the grid, so that every cell reads as null; the warning says why (#1362). A grid unit that gets no
+	// georeference from its file because of SyncMode None is such a side. Without one on either side the read goes
+	// cell for cell, by row and column, as meant, and so it does when the georeference of one side is a projection
+	// onto the other side itself, as a TiledUnit of the grid domain has. The message context names the item that is
+	// read, and MsgDispatch cuts a message after 256 characters, so the text is short and names the two sides first.
+	if (!grid_projection != !curr_projection
+		&& !IsSameCoordinateUnit(GetCurrWorldCrdUnitFromGeoUnit(gbr->m_VPIP->m_GridDomain.get_ptr()), GetCurrWorldCrdUnitFromGeoUnit(gbr->m_VPIP->m_CurrDomain.get_ptr())))
+	{
+		auto domainName = SharedStr(gbr->m_VPIP->m_CurrDomain->GetFullName());
+		const AbstrUnit* gridDomain = gbr->m_VPIP->m_GridDomain.get_ptr();
+		auto gridName = gridDomain->GetTreeParent() ? mySSPrintF(" {}", gridDomain->GetFullName().c_str()) : SharedStr();
+		if (curr_projection)
+			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning,
+				"Domain {} has a georeference and the grid{} of {} has none; the read takes the row and column numbers of that grid for world coordinates"
+				, domainName.c_str()
+				, gridName.c_str()
+				, GetNameStr().c_str()
+			);
+		else
+			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning,
+				"The grid{} of {} has a georeference and domain {} has none; the read takes the row and column numbers of the domain for world coordinates"
+				, gridName.c_str()
+				, GetNameStr().c_str()
+				, domainName.c_str()
+			);
+		return false;
+	}
 
 	if (!grid_projection) // no projection, assume similar factor
 		return true;
