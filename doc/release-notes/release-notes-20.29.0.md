@@ -16,6 +16,7 @@
 - A raster read into a domain warns when only the domain or only the raster has a georeference, which mostly reads every cell as null; what is read does not change (#1362). It warns for a domain with a georeference read under a grid unit that has none, because the grid unit names no coordinate unit with DialogData or has SyncMode None, and for a domain without a georeference read from a raster that DialogData gives one. See [Projection](https://github.com/ObjectVision/GeoDMS/wiki/Projection).
 - The `bp_` polygon set operations give polygons, not arcs, so a result declared as polygon no longer warns (#1348).
 - `fold` and `fold_c` are new operators (#1347): a configuration that defines its own function or template with one of these names must rename it.
+- `exec_ec` gives its folder to the child process only; the GeoDMS process keeps its own current folder while the child runs. A folder that does not exist is now an error on Windows as well; an empty string as folder keeps the current folder. A program argument named without a path is looked for in the folder and then on the PATH. On Linux the command line is split into words by the rules of Windows, with the first word as the program's own name, so a Linux call that puts only the arguments in the command line must now start it with the program name. See [Exec_ec](https://github.com/ObjectVision/GeoDMS/wiki/Exec_ec) (#1361).
 
 ## Speed
 

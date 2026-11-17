@@ -38,7 +38,11 @@ using start_process_result_t = std::pair<HANDLE, HANDLE>;
 RTC_CALL void   Wait(UInt32 nrMillisecs);
 SizeT  RemainingStackSpace();
 start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
-RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine);
+
+// Runs a child process and waits for it; returns its exit code (exec_ec). The child runs in
+// currentDir, which must be an existing folder; an empty or null currentDir keeps the current
+// folder. The current folder of this process does not change (#1361).
+RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine, CharPtr currentDir);
 
 extern "C" {
 

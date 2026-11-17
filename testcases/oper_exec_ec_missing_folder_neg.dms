@@ -1,0 +1,13 @@
+// EXPECT-FAILURE: cannot be the current folder of the child process
+// #1361: the folder that exec_ec gives to the child process must exist, on Windows as on Linux.
+// The error comes before any child process is started; the program does not exist either, so that
+// a build that still ignores the folder fails as well, with another message, and starts nothing.
+// Expected: an error that names the folder, so exit nonzero on /checks.
+container oper_exec_ec_missing_folder_neg
+{
+	container checks
+	{
+		parameter<uint32> exitcode := exec_ec('no_such_program_i1361', 'no_such_program_i1361 x', 'no_such_folder_i1361/sub');
+		parameter<bool>   ran      := exitcode == 0, IntegrityCheck = "ran == true";
+	}
+}
