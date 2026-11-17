@@ -107,6 +107,36 @@ try:
     values = ints.asDataItem().asDataItem().get_values_as_int_list()
     check(values == [0, 1, 256, -100, 9999], f"/reference/IntegerAtt values (got {values})")
 
+    # #1370: an item keeps its configuration loaded, also when the script keeps no Config; close() and
+    # the end of a with-block close it, and its items raise from then on; load_config refuses while the
+    # Config of the loaded configuration exists, and closes one that only loose items still hold.
+    def raises(fn, fragment):
+        try:
+            fn()
+        except RuntimeError as e:
+            return fragment in str(e)
+        return False
+
+    check(raises(lambda: engine.load_config(config_file), "close()"),
+          "load_config refuses while the Config of the loaded configuration exists, and names close()")
+    config.close()
+    check(raises(lambda: root.find("/parameters"), "has been closed"), "an item of a closed configuration raises")
+    check(raises(lambda: config.root(), "has been closed"), "a closed Config raises")
+
+    with engine.load_config(config_file) as config:
+        ints = config.const_root().find("/reference/IntegerAtt").asDataItem()
+        ints.update()
+        check(ints.get_values_as_int_list() == [0, 1, 256, -100, 9999], "a configuration loaded in a with-block is read")
+    check(raises(lambda: ints.size(), "has been closed"), "the end of the with-block closes the configuration")
+
+    loose = engine.load_config(config_file).const_root().find("/reference/IntegerAtt").asDataItem()
+    loose.update()
+    check(loose.get_values_as_int_list() == [0, 1, 256, -100, 9999], "an item is read without a variable for its Config")
+    config = engine.load_config(config_file)
+    check(raises(lambda: loose.size(), "has been closed"),
+          "load_config closes a configuration that only loose items hold, and those items raise")
+    config.close()
+
     print("UnitTests.py: PASS")
     sys.exit(0)
 

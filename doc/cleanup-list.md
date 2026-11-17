@@ -4,7 +4,8 @@
 it took over the six items that `doc/code-fixes.md` still had open (item 17) and the open items of
 `TECH_DEBT_REVIEW.md`: recursion (added to item 15), an automated gate (item 18) and the security
 hardening of the May 2026 audit (item 19); both documents are now in `doc/archive/`. Done: 4, and 11 on
-code that turned out to be unreachable. Partly done: 1, 3, 5, 8, 12. Open: 2, 6, 7, 9, 10, 13, 15 to 19.
+code that turned out to be unreachable. Partly done: 1, 2, 3, 5, 8, 12. Open: 6, 7, 9, 10, 13, 15 to 19.
+On 2026-11-16 #1370 did item 2, the lifecycle of the Python `Engine`, except a test of a failed initialisation.
 Gated on version 21: 14. The open findings of `doc/code-audit-2026-09-27.md` stay in that document and the
 open GitHub issues in `doc/issues.md`; which item to take next across all of them is ranked in
 `doc/continuations-2026-10-06.md`. Until 2026-10-06 the table below called item 1 done, while on Linux an
@@ -27,7 +28,7 @@ note below.
 | 11 | done, but the unit it cleaned is unreachable (code audit INF-A13) |
 | 1 | partly done: right on Windows; on Linux an override is still lost at exit |
 | 3, 5, 8, 12 | partly done: the defect or dead code is gone, the refactor around it is open |
-| 2 | open: the `Engine`'s once-only construction is deliberate; making it re-constructible needs the Python harness |
+| 2 | partly done (2026-11-16, #1370): the `Engine` publishes itself after its initialisation, releases its callback on a failed one and in its destructor, is kept alive by every `Config` and item, and can be made again once the previous one is gone; a failed initialisation is not tested |
 | 6, 7, 9, 10, 13, 15, 16 | open |
 | 17, 18, 19 | open: carried over on 2026-10-06 from `doc/archive/code-fixes.md`, `doc/archive/TECH_DEBT_REVIEW.md` and the May 2026 security audit |
 | 14 | gated on the major version bump to 21 |
@@ -61,6 +62,8 @@ note below.
    clear the pointer during teardown, and define what happens if a `Config` is
    still alive. Test construction, destruction, and reconstruction, including
    an initialization failure.
+
+   *Partly done 2026-11-16 (#1370)*: `Engine()` sets `s_currSingleEngine` only after `DMS_Clc_Load`, `DMS_Geo_Load` and `DMS_Stx_Load` have returned, and releases the message callback when one of them throws; `~Engine` releases the callback and clears the pointer. A `Config` and every item hold the state of their configuration, which holds the `Engine` by a `shared_ptr`. The task group is created by the first `Engine` and ended by an `atexit` hook, because `~tg_maintainer` leaves `s_OcTaskGroupIsCanceling` set. Construction, destruction and a new `Engine` after the first one are tested by probes; a failed initialisation is not.
 
 3. **Make the options dialogs descriptor-driven.**
 
@@ -396,7 +399,7 @@ which orders these items together with the open findings of the code audit
 and the open issues. The order below is the one of 2026-09-13.*
 
 1. Ship items 1-4 as small correctness and dead-code changes (done, except the
-   Python `Engine` lifecycle and the dialog descriptor table).
+   dialog descriptor table and a test of a failed initialisation of the Python `Engine`).
 2. Refactor the settings/platform layer and command-line parser (items 5 and 8).
 3. Improve GUI boundaries incrementally (items 6 and 7).
 4. Refactor the GDAL and Python type-driven code only after strengthening their

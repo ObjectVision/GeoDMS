@@ -50,6 +50,7 @@
 
 - The `geodms` module comes as a wheel for Python 3.12, 3.13 and 3.14 on 64-bit Windows, with the engine and its libraries inside, so it needs no setup (#1355). The licence texts of those libraries are in its `.dist-info/licenses` folder. If 20.29.0 becomes a full release, the wheels are also published on PyPI, and `pip install geodms` installs them. See [Python bindings](https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings).
 - The binding of a setup also works when its folder is only on `sys.path`, not on PATH: Clc, Geo and Stg load GDAL from their own folder (#1355).
+- An item keeps its configuration loaded for as long as Python holds it, so `engine.load_config(p).const_root().find("/total").asDataItem()` no longer crashes Python at the first read. `Config` has `close()` and works as a `with` block, after which its items raise an exception; the rules are on the wiki page [Python bindings](https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings) (#1370).
 
 ## Stability
 
