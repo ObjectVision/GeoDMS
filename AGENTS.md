@@ -30,7 +30,11 @@ negatives of #1347 fail because the operators of #1347 do not exist there, and e
 fragment from the first line of the message where it can, and from a later line only for what
 only that line says, such as the signatures listed after `Cannot find operator for these
 arguments:`; leave out absolute paths, so that it also holds when the battery runs from the
-installed copy or another output folder.
+installed copy or another output folder. A message is cut after 256 characters before it is
+logged (`MsgDispatch`), so a fragment that follows an absolute path in its message must end well
+before that: under `build\windows-x64-release\bin\examples\testcases\` a path is 39 characters
+longer than under `testcases\` (`xml_prop_construction_neg`, whose message starts with the path of
+an `.xml`, failed in the output folder of the `.m` build for that reason).
 `testcases/expect_failure_missing.txt` lists the negatives that have no such line, each with the
 reason, and they are judged on the exit code only. A negative without a line that is not listed
 fails as `NO-EXPECT`, so a new negative comes with its message, and a listed one that has a line
