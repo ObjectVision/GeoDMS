@@ -19,15 +19,18 @@ repros) still belong in gitignored `scratch/`, not `testcases/`.
 
 **A negative case states the message it is written to fail with** (#1369), in one or more
 lines `// EXPECT-FAILURE: <fragment>` of its `.dms`. Each fragment is literal text, not a
-pattern, that must occur in a line of the case's output that starts with `Failure:`,
-`Last ErrMsg:` or `[E]`; a negative that fails without one of them fails the run as
-`WRONG-FAILURE`. Judged on the exit code alone, a negative also passed when it failed for
+pattern, that must occur in a message of the case's output: a line that starts with `Failure:`,
+`Last ErrMsg:` or `[E]`, or a line that continues it, up to the next line that starts with a
+timestamp, with `Context:` or with `Update [[`. A negative whose output lacks one of its
+fragments fails the run as `WRONG-FAILURE`. Judged on the exit code alone, a negative also
+passed when it failed for
 another reason than the one it was written for: a misspelled item, a syntax error, an operator
 the build under test does not have (on a build of 2026-11-10, from before #1347, the nine `fold`
 negatives of #1347 fail because the operators of #1347 do not exist there, and exit 1). Take a
-fragment from the first line of the message, the only one that carries such a marker, and leave
-out absolute paths, so that it also holds when the battery runs from the installed copy or
-another output folder.
+fragment from the first line of the message where it can, and from a later line only for what
+only that line says, such as the signatures listed after `Cannot find operator for these
+arguments:`; leave out absolute paths, so that it also holds when the battery runs from the
+installed copy or another output folder.
 `testcases/expect_failure_missing.txt` lists the negatives that have no such line, each with the
 reason, and they are judged on the exit code only. A negative without a line that is not listed
 fails as `NO-EXPECT`, so a new negative comes with its message, and a listed one that has a line

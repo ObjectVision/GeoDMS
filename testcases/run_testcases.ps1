@@ -13,9 +13,13 @@
 # A negative case states the message it is written to fail with, in one or more lines of its .dms
 # that consist of a comment of the form
 #     // EXPECT-FAILURE: <fragment>
-# Each fragment must occur, as literal text (not a pattern) and in the same case, in a line of the
-# case's output that starts with 'Failure:', 'Last ErrMsg:' or '[E]'; one line need not hold them
-# all. Such a line holds the first line of a message only, so a fragment comes from that line. A
+# Each fragment must occur, as literal text (not a pattern) and in the same case, in a message of
+# the case's output: a line that starts with 'Failure:', 'Last ErrMsg:' or '[E]', or one of the
+# lines that continue it, up to the next line that starts with a timestamp ('['), with 'Context:'
+# or with 'Update [[', or that starts another message. A fragment cannot span lines, and one line
+# need not hold them all. Take a fragment from the first line of the message where it can; use a
+# later line only for what only that line says, such as the list of signatures that follows
+# 'Cannot find operator for these arguments:', or the item that a storage error names. A
 # negative case whose fragments are all found passes as ok(neg); one that fails without one of them
 # fails the run as WRONG-FAILURE, as it failed for a reason other than the one it was written for:
 # a misspelled item, a syntax error in the configuration, an operator that the build under test
@@ -103,7 +107,8 @@ if (Test-Path $uncheckedFile) {
     }
 }
 $expectPattern = '^\s*//\s*EXPECT-FAILURE:(.*)$'        # a line of a case's .dms, in this case
-$errorPattern  = '^(Failure:|Last ErrMsg:|\[E\])'       # a line of its output that a fragment is sought in
+$errorPattern  = '^(Failure:|Last ErrMsg:|\[E\])'       # a line of its output that starts a message
+$msgEndPattern = '^(\[|\s*Context:|Update \[\[)'         # a line that ends the lines continuing a message
 $utf8 = New-Object System.Text.UTF8Encoding $false
 
 $results = @()
@@ -141,7 +146,14 @@ try {
         }
         elseif (-not $expects.Count)                { $verdict = 'NO-EXPECT' }
         else {
-            $errorLines = @([IO.File]::ReadAllLines($out, $utf8) | Where-Object { $_ -cmatch $errorPattern })
+            # the lines of every message: its first line, and the lines that continue it
+            $errorLines = New-Object System.Collections.Generic.List[string]
+            $inMessage = $false
+            foreach ($l in [IO.File]::ReadAllLines($out, $utf8)) {
+                if ($l -cmatch $errorPattern) { $errorLines.Add($l); $inMessage = $true; continue }
+                if ($inMessage -and ($l -cmatch $msgEndPattern)) { $inMessage = $false }
+                if ($inMessage) { $errorLines.Add($l) }
+            }
             $missing = @()
             foreach ($f in $expects) {
                 $found = $false

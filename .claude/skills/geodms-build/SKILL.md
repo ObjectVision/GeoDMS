@@ -184,9 +184,10 @@ Rules per tier:
   of commit and 300 s (`testcases\case_guard.ps1`; `-MaxCommitGB`, `-TimeoutSec`) and fails as
   `LIMIT(...)` when it reaches either, so running it against an older or kept build (bisecting) cannot
   take the machine's memory. A negative case passes only when it fails with its expected message:
-  every fragment of its `// EXPECT-FAILURE:` lines must occur in a `Failure:`, `Last ErrMsg:` or
-  `[E]` line of its `.out`, or it fails as `WRONG-FAILURE` (#1369). A new negative needs such a
-  line, or it fails as `NO-EXPECT`; `testcases\expect_failure_missing.txt` lists the few that have
+  every fragment of its `// EXPECT-FAILURE:` lines must occur in a message of its `.out`, a
+  `Failure:`, `Last ErrMsg:` or `[E]` line or a line that continues it, or it fails as
+  `WRONG-FAILURE` (#1369). A new negative needs such a
+  line, or it fails as `NO-EXPECT`; `testcases\expect_failure_missing.txt` lists any that have
   none, with the reason (AGENTS.md has the rules). On an older build a `WRONG-FAILURE` is often
   only a message that changed since; read the `.out` before calling it a regression.
 - Tier 2 must run in a visible console, never piped headless: the suite ends by launching

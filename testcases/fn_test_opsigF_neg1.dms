@@ -1,4 +1,6 @@
 // EXPECT-FAILURE: impedance_matrix Error: Cannot find operator for these arguments:
+// EXPECT-FAILURE: Declared unit-constraint signatures for this operator-group:
+// EXPECT-FAILURE: [shape: the argument layout is computed from the specification
 container fn_test_opsigF_neg1
 {
 	// NEGATIVE (batch F printer floor): impedance_matrix is the K13 archetype —

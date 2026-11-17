@@ -8,4 +8,4 @@
 # case can be repaired and given a line.
 #
 # When this list was made, on 20.29.0 (0b8bb0113), 223 of the 225 negative cases were given a line.
-fn_test_subref_neg5 its comment expects the throw "Cannot find sub from ..." of a member access on a bare config-item alias, but c/sub resolves, and the case fails only on its own IntegrityCheck 'c_1 == 0.0', as it already did in a run of 2026-09-06
+# No negative case is listed at present.
