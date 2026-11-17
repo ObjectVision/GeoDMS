@@ -1,0 +1,21 @@
+// The read half of the carried case (issue #1350); stor_mmd_carried_1_write.dms carries the
+// description. The reader declares only the read-only holder and Src with the 4 rows that gen was
+// written with, so every item below the holder comes from the dictionary that _2_rewrite left.
+container stor_mmd_carried_3_read
+{
+	unit<uint32> Src : nrofrows = 4;
+
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_carried.mmd"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<string> w     := asList(string(store/dom/w), ' '),      IntegrityCheck = "w == '7 8 9 10'";
+		parameter<string> gen_p := asList(string(store/gen/p), ' '),      IntegrityCheck = "gen_p == '7 17 27 37'";
+		parameter<string> gen_q := asList(string(store/gen/q), ' '),      IntegrityCheck = "gen_q == '7 17 27 37'";
+		parameter<string> d     := asList(string(store/inst/d), ' '),     IntegrityCheck = "d == '1 2 3'";
+		parameter<string> e     := asList(string(store/inst/out/e), ' '), IntegrityCheck = "e == '2 4 6'";
+		parameter<uint32> extra := store/inst/out/extra,                  IntegrityCheck = "extra == 5";
+	}
+}

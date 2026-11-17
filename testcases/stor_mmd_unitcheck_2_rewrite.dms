@@ -1,0 +1,42 @@
+// The second write of the unit-check case (issue #1350); stor_mmd_unitcheck_1_write.dms carries the
+// description. The same store as _1_write; the item map requests dom/w only.
+container stor_mmd_unitcheck_2_rewrite
+{
+	unit<uint32> Names : nrofrows = 2
+	{
+		attribute<string> name : ['p', 'q'];
+	}
+
+	Template T_ext
+	{
+		unit<uint32> u : nrofrows = 4
+		{
+			attribute<uint64> v := uint64(id(.)) * 10[uint64] + 7[uint64];
+		}
+	}
+	container ext := T_ext();
+
+	container src
+	{
+		unit<uint32> p : nrofrows = 5;
+	}
+
+	Template T
+	{
+		parameter<uint64> k;
+		container out
+		{
+			attribute<uint32> a (dom) := const(#src/p, dom);
+		}
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_unitcheck.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<uint64> w := uint64(id(.)) + 7[uint64];
+		}
+		container gen  := for_each_nedv(Names/name, '/ext/u/v', /ext/u, uint64);
+		container inst := T(3[uint64]);
+	}
+}

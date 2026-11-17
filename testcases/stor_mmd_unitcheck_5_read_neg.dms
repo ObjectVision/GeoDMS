@@ -1,0 +1,27 @@
+// EXPECT-FAILURE: LowerBound(/src/p) == uint32(0) && UpperBound(/src/p) == uint32(5)
+// EXPECT-FAILURE: ' is not true
+// The unit-check case (issue #1350), read with src/p declared with 6 rows where the writer had 5. The rule
+// of inst/out/a counts src/p, so it would compute over another extent; the check on the holder that
+// _2_rewrite kept from the dictionary of _1_write must refuse this reader. Without that check the read went
+// ahead, and only the reader's own check on s_a failed. stor_mmd_unitcheck_1_write.dms carries the
+// description.
+container stor_mmd_unitcheck_5_read_neg
+{
+	container ext
+	{
+		unit<uint32> u : nrofrows = 4;
+	}
+	container src
+	{
+		unit<uint32> p : nrofrows = 6;
+	}
+
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_unitcheck.mmd"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<uint32> s_a := sum(store/inst/out/a), IntegrityCheck = "s_a == 20";
+	}
+}

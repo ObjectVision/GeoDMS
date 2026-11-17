@@ -1,0 +1,43 @@
+// An MMD store with containers whose sub-items come from for_each_nedv, written in two sessions
+// (issue #1350). Each write session replaces 0Dictionary.dms as a whole, and the dump of the
+// dictionary walks the tree of that session, where a container whose rule the session did not apply
+// has no sub-items. A session that wrote only another part of the store therefore declared gen and
+// twice as empty containers. The files of gen/p and gen/q stayed in the store, but the reader, which
+// may not declare sub-items of a read-only holder, no longer found them:
+//
+//   Unknown identifier 'store/gen/p'
+//
+// and the attributes of twice, rule-only attributes (#1264) that have no file, lost their rules
+// altogether. Since the fix the dictionary declares the sub-items of such a container as the
+// previous dictionary declared them.
+//
+// Three configs, run in this order because run_testcases.ps1 walks them sorted by file name:
+//   _1_write     writes the whole store
+//   _2_rewrite   the same configuration, writes dom/w only, so the rules of gen and twice are not applied
+//   _3_read      reads all of it back
+// The store part of _1_write and _2_rewrite must stay identical. stor_mmd_instance_* is the same
+// case for a template instance.
+container stor_mmd_foreach_1_write
+{
+	unit<uint32> Src : nrofrows = 4
+	{
+		attribute<uint64> v := uint64(id(.)) * 10[uint64] + 7[uint64];
+	}
+	unit<uint32> Names : nrofrows = 2
+	{
+		attribute<string> name : ['p', 'q'];
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_foreach.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<Src>    rel := id(.)[Src];
+			attribute<uint64> w   := rel -> v;
+		}
+		// rel -> v reads Src/v, outside the store, so gen/p and gen/q are written as files
+		container gen   := for_each_nedv(Names/name, 'dom/rel -> v', dom, uint64);
+		// dom/w is in the store, so twice/p and twice/q are written as rules (#1264)
+		container twice := for_each_nedv(Names/name, 'dom/w * 2[uint64]', dom, uint64);
+	}
+}

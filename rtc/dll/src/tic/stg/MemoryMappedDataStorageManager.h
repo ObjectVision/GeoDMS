@@ -39,6 +39,25 @@ enum class Mmd_StoredEntryKind { rule, range, cat_range };
 struct Mmd_StoredEntry { Mmd_StoredEntryKind kind; SharedStr text; };
 using Mmd_StoredEntryMap = std::map<std::string, Mmd_StoredEntry>;
 
+// #1350: how the dictionary that an earlier session left declares an item, in the strings the dump of
+// that dictionary wrote for it. A container whose sub-items come from its rule (a template instance, a
+// for_each, the items of a function call) gets them when its rule is applied, and a session that wrote
+// another part of the store has not applied it: below such a container the dump declares the sub-items
+// this tree lacks as the previous dictionary declared them, so that the dictionary keeps describing the
+// files of the earlier session (Mmd_DumpStoredDecl in TreeItemXmlDump.cpp). The rule of an item and
+// the range of a unit are its Mmd_StoredEntry. Keyed as Mmd_StoredEntry is.
+struct Mmd_StoredDecl
+{
+	SharedStr signature, name;                          // the element: 'attribute<uint64>' and 'p'
+	std::vector<std::pair<SharedStr, SharedStr>> attrs; // the construction attributes, DumpPropList's '(../dom)'
+	Mmd_PresentationTags tags;                          // as the dictionary gave them (#1275)
+	SharedStr dataBlock;                                // a value array
+	std::vector<std::pair<TokenID, std::string>> subItems; // in the order of the dictionary, with the key of the declaration of each
+	std::vector<std::pair<SharedStr, bool>> outsideUnits; // a unit outside the store, by its absolute path, and whether it is the domain (#1154)
+	SharedStr integrityCheck;                           // the holder's only: the checks of #1154 that the dump of that dictionary wrote
+};
+using Mmd_StoredDeclMap = std::map<std::string, Mmd_StoredDecl>;
+
 /*
  *	MmdStorageManager
  *
@@ -100,6 +119,12 @@ public:
 	// session does not produce keeps the entry the dictionary last gave it, a produced one records its own.
 	auto FindStoredEntry(const std::string& relName) const -> const Mmd_StoredEntry*;
 	void NoteStoredEntry(const std::string& relName, Mmd_StoredEntryKind kind, SharedStr text);
+	auto FindStoredDecl(const std::string& relName) const -> const Mmd_StoredDecl*; // #1350
+
+	// #1350: the sub-items that the previous dictionary declared below the item at relName and that item
+	// lacks in this tree, each with the path of its declaration; for an item below one whose rule this
+	// session has not applied (Mmd_IsRuleUnapplied)
+	auto GetCarriedSubItems(const TreeItem* item, const std::string& relName) const -> std::vector<std::pair<std::string, const Mmd_StoredDecl*>>;
 	bool HasProducedContent(const TreeItem* item) const; // a file of this process: written through or copied
 
 	// #1318: the units outside the holder that the rule of a rule-only attribute names. The reader
@@ -165,6 +190,10 @@ protected:
 	// the files of the session that did were still in the store.
 	Mmd_StoredEntryMap m_StoredEntries;
 
+	// #1350: the declarations of that dictionary, read with its entries and not changed after: a session
+	// declares what it makes itself from its own tree
+	Mmd_StoredDeclMap m_StoredDecls;
+
 	// #1318: see NoteRuleUnits; per rule-only item, so that a decision taken again replaces the earlier one
 	std::map<const TreeItem*, std::vector<std::weak_ptr<const TreeItem>>> m_RuleUnits;
 
@@ -187,6 +216,11 @@ extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfiguration
 // both live in DmRtc.
 extern thread_local const TreeItem* t_MmdDictionaryRoot;
 auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr;
+
+// #1350: an item with a rule whose meta info this session has not updated, so that it lacks the sub-items
+// its rule makes, as a template instance, a for_each or the items of a function call does before its rule is
+// applied. Reads members only, as the dump of the dictionary may (#1155).
+bool Mmd_IsRuleUnapplied(const TreeItem* item);
 
 
 #endif // !defined(__STG_MMD_STORAGEMANAGER_H)

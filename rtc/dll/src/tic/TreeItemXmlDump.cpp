@@ -40,6 +40,7 @@
 #include "utl/splitPath.h"
 #include "utl/scoped_exit.h"
 #include "utl/SourceLocation.h"
+#include "utl/swapper.h" // #1350: t_MmdBelowUnappliedRule
 #include "xct/DmsException.h"
 
 #include "LispList.h"
@@ -489,6 +490,51 @@ namespace {
 		}
 	}
 
+	// #1350: a container whose sub-items come from its rule (a template instance, a for_each, the items of a
+	// function call) gets them when that rule is applied, and a session that writes another part of the store
+	// need not apply it. Then this tree lacks those sub-items while the store still holds the files that an
+	// earlier session wrote for them, and the reader, which may not declare sub-items of a read-only holder,
+	// can only find what the dictionary declares. So below an item whose rule this session has not applied
+	// (Mmd_IsRuleUnapplied), the dump also writes the sub-items that the previous dictionary declared and this
+	// tree lacks, as that dictionary declared them (Mmd_StoredDecl); nothing is calculated for them. The flag
+	// is set while the sub-items of such an item are written: a configured sub-item there may lack what the
+	// rule makes as well, as a configured 'out' of a template instance lacks the 'a' that the template's 'out'
+	// declares. An item whose rule this session applied declares what it has, which is what its rule makes now.
+	thread_local bool t_MmdBelowUnappliedRule = false;
+
+	// #1350: the declaration that the previous dictionary gave the item at relName, written as TreeItem::XML_Dump
+	// writes an item of a dictionary, with its rule or range (Mmd_StoredEntry) and its sub-items
+	void Mmd_DumpStoredDecl(OutStreamBase* xmlOutStr, const std::string& relName, const Mmd_StoredDecl& decl)
+	{
+		XML_OutElement xmlElem(*xmlOutStr, decl.signature.c_str(), decl.name.c_str());
+		for (const auto& [name, value] : decl.attrs)
+			xmlOutStr->WriteAttr(name.c_str(), value.c_str());
+		auto entry = t_MmdDictionaryManager->FindStoredEntry(relName);
+		if (entry && entry->kind == Mmd_StoredEntryKind::rule)
+			xmlOutStr->DumpSubTag(CALCRULE_NAME, entry->text.c_str(), true);
+		// DumpSubTag writes nothing for an empty value
+		xmlOutStr->DumpSubTag(DESCR_NAME,      decl.tags.descr     .c_str(), false);
+		xmlOutStr->DumpSubTag(LABEL_NAME,      decl.tags.label     .c_str(), false);
+		xmlOutStr->DumpSubTag(DIALOGTYPE_NAME, decl.tags.dialogType.c_str(), false);
+		xmlOutStr->DumpSubTag(DIALOGDATA_NAME, decl.tags.dialogData.c_str(), false);
+		xmlOutStr->DumpSubTag(CDF_NAME,        decl.tags.cdf       .c_str(), false);
+		if (entry && entry->kind != Mmd_StoredEntryKind::rule)
+			xmlOutStr->DumpSubTag(entry->kind == Mmd_StoredEntryKind::cat_range ? "cat_range" : "range", entry->text.c_str(), false);
+		if (!decl.dataBlock.empty())
+		{
+			xmlOutStr->DumpSubTagDelim();
+			*xmlOutStr << decl.dataBlock.c_str();
+		}
+		if (decl.subItems.empty())
+			return;
+		xmlElem.SetHasSubItems();
+		xmlOutStr->BeginSubItems();
+		for (const auto& [id, subRelName] : decl.subItems)
+			if (auto subDecl = t_MmdDictionaryManager->FindStoredDecl(subRelName))
+				Mmd_DumpStoredDecl(xmlOutStr, subRelName, *subDecl);
+		xmlOutStr->EndSubItems();
+	}
+
 } // anonymous namespace
 
 void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) const
@@ -655,33 +701,44 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 			Mmd_DumpStoredEntry(this, xmlOutStr, false); // #1316: not calculated in this session; what an earlier one wrote
 	}
 
+	// #1350: below an item whose rule this session has not applied, the sub-items that the previous dictionary
+	// declared and this tree lacks are declared as well (see t_MmdBelowUnappliedRule)
+	bool belowUnappliedRule = false;
+	std::vector<std::pair<std::string, const Mmd_StoredDecl*>> carriedSubItems;
+	if (!notWritingDictionary && t_MmdDictionaryManager)
+	{
+		belowUnappliedRule = t_MmdBelowUnappliedRule || Mmd_IsRuleUnapplied(this);
+		if (belowUnappliedRule)
+			carriedSubItems = t_MmdDictionaryManager->GetCarriedSubItems(this, Mmd_DictionaryRelName(this));
+	}
+
 	// check if any non endogenous subitems exist
 	const TreeItem* subItem = _GetFirstSubItem(); // we don't want UpdateMetaInfo
-	if (!subItem)
-		return;
 	bool mustDumpEndogenousSubItems = !IsDumpingToFolder();
-	while (true)
-	{
+	for (; subItem; subItem = subItem->GetNextItem())
 		if (notWritingDictionary || !subItem->IsDisabledStorage()) // an MMD dictionary skips only the engine-set shadows; a configured DisableStorage was refused before the dump (#1245)
 			if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
 				break; // found one
-		subItem = subItem->GetNextItem();
-		if (!subItem)
-			return; // no non endogenous subitems, so we don't dump subitems
-	}
+	if (!subItem && carriedSubItems.empty())
+		return; // no non endogenous subitems, so we don't dump subitems
 
 	// output all non endogenous subitems
 	xmlElem.SetHasSubItems();
 	xmlOutStr->BeginSubItems();
 
-	subItem = _GetFirstSubItem(); // we don't want UpdateMetaInfo
-	while (subItem)
 	{
-		if (notWritingDictionary || !subItem->IsDisabledStorage()) // an MMD dictionary skips only the engine-set shadows; a configured DisableStorage was refused before the dump (#1245)
-			if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
-				TreeItem_XML_DumpSubItemSafe(subItem, xmlOutStr, notWritingDictionary);
-		subItem = subItem->GetNextItem();
+		tmp_swapper<bool> belowUnappliedSwapper(t_MmdBelowUnappliedRule, belowUnappliedRule);
+		subItem = _GetFirstSubItem(); // we don't want UpdateMetaInfo
+		while (subItem)
+		{
+			if (notWritingDictionary || !subItem->IsDisabledStorage()) // an MMD dictionary skips only the engine-set shadows; a configured DisableStorage was refused before the dump (#1245)
+				if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
+					TreeItem_XML_DumpSubItemSafe(subItem, xmlOutStr, notWritingDictionary);
+			subItem = subItem->GetNextItem();
+		}
 	}
+	for (const auto& [relName, decl] : carriedSubItems)
+		Mmd_DumpStoredDecl(xmlOutStr, relName, *decl);
 	xmlOutStr->EndSubItems();
 }
 

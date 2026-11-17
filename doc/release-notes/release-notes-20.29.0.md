@@ -31,6 +31,7 @@
 - `gdalwrite.vect` no longer fails when a GDAL option parameter lies inside the storage; such items are not written to it (#1333).
 - The export dialog offers GeoParquet for an item with geometry, and one file per table where a format holds one table (#1330).
 - A native CSV export of a table with a failing attribute no longer ends the GUI (#1340).
+- A write of part of an MMD store keeps the sub-items of a container that gets them from its calculation rule, such as a template instance, the result of `for_each_nedv` or a copy made with `instantiate`, in the dictionary as the previous dictionary declared them, with their rules and ranges and the checks on the units outside the store that they use, when the run does not apply that rule (#1350). Such a container was declared empty, so a reader no longer found the files of the earlier write and lost the rules of its rule-only attributes. A store whose dictionary an earlier version already emptied in this way is not repaired by another partial write: write it once in full. See [MMD](https://github.com/ObjectVision/GeoDMS/wiki/MMD).
 
 ## Operators and views
 

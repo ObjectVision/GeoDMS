@@ -1,0 +1,20 @@
+// The read half of the for_each case (issue #1350); stor_mmd_foreach_1_write.dms carries the
+// description. The reader declares only the read-only holder, so every item below it comes from the
+// dictionary that _2_rewrite left. On its own this config fails, because the store does not exist.
+container stor_mmd_foreach_3_read
+{
+	unit<uint32> Src : nrofrows = 4;
+
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_foreach.mmd"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<string> w       := asList(string(store/dom/w), ' '),   IntegrityCheck = "w == '7 17 27 37'";
+		parameter<string> gen_p   := asList(string(store/gen/p), ' '),   IntegrityCheck = "gen_p == '7 17 27 37'";
+		parameter<string> gen_q   := asList(string(store/gen/q), ' '),   IntegrityCheck = "gen_q == '7 17 27 37'";
+		parameter<string> twice_p := asList(string(store/twice/p), ' '), IntegrityCheck = "twice_p == '14 34 54 74'";
+		parameter<string> twice_q := asList(string(store/twice/q), ' '), IntegrityCheck = "twice_q == '14 34 54 74'";
+	}
+}

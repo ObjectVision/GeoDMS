@@ -1,0 +1,25 @@
+// The second write session of the instance case (issue #1350); stor_mmd_instance_1_write.dms carries
+// the description. The store part is identical to that of _1_write; this session writes dom/w only,
+// so it makes neither inst nor fin.
+container stor_mmd_instance_2_rewrite
+{
+	Template T
+	{
+		parameter<uint64> k;
+		container out
+		{
+			attribute<uint64> a (dom) := uint64(id(dom)) * k;
+		}
+	}
+	function F(unit<uint32> D; parameter<uint64> k) -> attribute<uint64> (D) := uint64(id(D)) * k;
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_instance.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<uint64> w := uint64(id(.)) + 7[uint64];
+		}
+		container inst := T(3[uint64]);
+		container fin  := instantiate F(dom, 5[uint64]);
+	}
+}

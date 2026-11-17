@@ -105,3 +105,11 @@ stor_mmd_seq_1_write.dms /store
 stor_mmd_failed_1_write.dms /store
 stor_mmd_failed_2_rewrite_neg.dms /store
 oper_impedance_tiles_mmd_1_write.dms /store
+stor_mmd_foreach_1_write.dms /store
+stor_mmd_foreach_2_rewrite.dms /store/dom/w
+stor_mmd_instance_1_write.dms /store
+stor_mmd_instance_2_rewrite.dms /store/dom/w
+stor_mmd_carried_1_write.dms /store
+stor_mmd_carried_2_rewrite.dms /store/dom/w
+stor_mmd_unitcheck_1_write.dms /store
+stor_mmd_unitcheck_2_rewrite.dms /store/dom/w
