@@ -125,12 +125,16 @@ if errorlevel 1 (
 )
 
 REM The .dms content this build ships, tested inside WSL from build\linux-x64-release\bin
-REM before CreateLinuxSetup.sh stages it (GeoDMS-Test #24): every shipped examples\ and
-REM library\ file must be reached from a shipped_*.dms case of the battery, that copy must
-REM be current, and those cases run from the output folder. Offline; see
-REM batch\TestShippedDms.sh.
-echo --- testing the shipped .dms content, offline ---
-wsl bash -c "cd %geodms_wsldir% && bash batch/TestShippedDms.sh build/linux-x64-release/bin"
+REM before CreateLinuxSetup.sh stages it, by batch\TestShippedContent.sh, the twin of
+REM batch\TestShippedContent.bat. First batch\TestShippedDms.sh, offline (GeoDMS-Test #24):
+REM every shipped examples\ and library\ file must be reached from a shipped_*.dms case of
+REM the battery, that copy must be current, and those cases run from the output folder. Then
+REM examples\grid_to_polygon.dms over the CBS buurt map, which RegioIndelingen.dms downloads
+REM with curl into an empty temporary SourceDataDir, from a copy of the output folder on the
+REM Linux file system (#1360). That step needs the network and the memory the script names;
+REM without either the setup stops here.
+echo --- testing the shipped .dms content: offline, then grid_to_polygon over the downloaded CBS buurt map ---
+wsl bash -c "cd %geodms_wsldir% && bash batch/TestShippedContent.sh build/linux-x64-release/bin"
 if errorlevel 1 goto :shipped_failed
 
 echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) ---
@@ -182,7 +186,7 @@ endlocal
 exit /B 1
 
 :shipped_failed
-echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
+echo *** Shipped .dms content FAILED before packaging - see the results above, scratch\shipped_dms\ and scratch\grid_to_polygon_release_linux.log ***
 endlocal
 exit /B 1
 

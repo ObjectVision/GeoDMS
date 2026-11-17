@@ -208,11 +208,18 @@ Rules per tier:
   are fixed (the runner adds `FAILED`, the gate takes `not OK` too), but read the lines,
   not the exit code or the file size, before calling a round green. A per-test `.txt` under
   `unit\` is that test's log: empty is a pass, any text is a failure.
-  `TestReleaseUnit.bat` and `TestGlobioReleaseUnit.bat`
+  `TestReleaseUnit.bat`, `TestCMakeReleaseUnit.bat` and `TestGlobioReleaseUnit.bat`
   also run `batch\TestShippedContent.bat`: first `TestShippedDms.bat`, the offline gate
   over every shipped `.dms` (the same one the setup scripts run before NSIS), then
-  `grid_to_polygon.dms` over real data, which downloads and rasterises; `[W] GEOS fix
-  failed` lines there are expected, any `[E]` is not. The `shipped_*.dms` cases read
+  `grid_to_polygon.dms` over real data, which it downloads into an empty temporary
+  `SourceDataDir` and rasterises (#1360); `[W] GEOS fix failed` lines there are expected,
+  any `[E]` is not. Its bash twin `batch\TestShippedContent.sh` is what the Linux setup runs
+  before packaging, from a copy of the output folder on the Linux file system; it needs the
+  network and the memory it names at its top, and fails without either. Both may be run by
+  hand against an existing output folder; the third argument names the folder in which the
+  temporary `SourceDataDir` is made (`%TEMP%`, `/tmp` by default). On OVSRV10 on
+  2026-11-17 the grid_to_polygon step, download included, took 12 s on Windows and 18 to 19 s
+  in WSL, with a peak of about 12 GB on both. The `shipped_*.dms` cases read
   `library\` and `examples\` from the output folder, so an edit there is green only after
   a build has mirrored it. `TestGlobioReleaseUnit.bat 20.19.1`
   tests the installed `GeoDms20.19.1.g` instead of `bin_GLOBIO\Release\x64`; that is how the

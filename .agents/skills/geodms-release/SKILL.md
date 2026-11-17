@@ -84,8 +84,13 @@ The agent prepares, watches and verifies.
    `examples\` and `library\` file reached from a `shipped_*.dms` case, the battery run
    from that folder); that gate reads the copies in `bin\`, so a change under `library\`
    or `testcases\` is green there only after the script's own msbuild has mirrored it.
+   The Linux script runs it as the first step of `batch\TestShippedContent.sh`, whose second
+   step downloads the CBS geopackage into an empty temporary `SourceDataDir` and runs
+   `examples/grid_to_polygon.dms` over it (#1360).
 4. `.g` needs `GLOBIO_ENV_ROOT` pointing at the conda prefix from
-   `vcpkg-globio\environment.yml`; `.l` needs the WSL distro up.
+   `vcpkg-globio\environment.yml`; `.l` needs the WSL distro up, with a network and at
+   least the memory that `batch\TestShippedContent.sh` names at its top, or the setup stops
+   before packaging.
 5. Hand the user the one-liner that keeps the output on their screen and in a log you can
    read:
 

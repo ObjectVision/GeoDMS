@@ -21,9 +21,10 @@ container grid2polygon_example
 	// Run headless with:
 	//   GeoDmsRun.exe <install>\examples\grid_to_polygon.dms /checks
 	//
-	// batch\TestShippedContent.bat does exactly that before every release, after
-	// renaming the CBS geopackage to .bak so RegioIndelingen.dms has to download
-	// it again -- that download path is user-facing and silent when it breaks.
+	// batch\TestShippedContent.bat (and its Linux twin TestShippedContent.sh) does
+	// exactly that before every release, with an empty temporary SourceDataDir, so
+	// RegioIndelingen.dms has to download the CBS geopackage again -- that download
+	// path is user-facing and silent when it breaks.
 	//
 	// What is asserted:
 	//

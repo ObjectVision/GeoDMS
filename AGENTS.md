@@ -87,13 +87,18 @@ processes real source data belongs in **`batch\TestShippedContent.bat`** instead
 release test for the `.dms` content the installer ships (issue #1031). It runs against
 `bin\<Config>\x64\` — the copies NSIS packages, not the source tree beside them — in two
 steps: `batch\TestShippedDms.bat`, the offline part, and then
-`examples\grid_to_polygon.dms` over the real CBS buurt map, with the CBS geopackage
-renamed to `.bak` first so `RegioIndelingen.dms` has to download it again.
-`batch\TestReleaseUnit.bat`, `batch\TestCMakeReleaseUnit.bat` and
-`batch\TestGlobioReleaseUnit.bat` call it, so each Windows flavour walks its own output
-folder (`bin\`, `build\windows-x64-release\bin\`, `bin_GLOBIO\`); the `.g` setup script runs
-the Globio launcher against the installed build (#1231). Pass a third argument to point the
-geopackage step at a scratch `SourceDataDir` when testing the script itself.
+`examples\grid_to_polygon.dms` over the real CBS buurt map. The second step gives GeoDmsRun
+an empty temporary `SourceDataDir` through `GEODMS_directories_SourceDataDir`, made under
+`%TEMP%` (or under the folder named by the third argument) and removed afterwards, so
+`RegioIndelingen.dms` always has to download the geopackage with curl, and no existing
+source data is read or touched (#1360). `batch\TestReleaseUnit.bat`,
+`batch\TestCMakeReleaseUnit.bat` and `batch\TestGlobioReleaseUnit.bat` call it, so each
+Windows flavour walks its own output folder (`bin\`, `build\windows-x64-release\bin\`,
+`bin_GLOBIO\`); the `.g` setup script runs the Globio launcher against the installed build
+(#1231). Its bash twin `batch\TestShippedContent.sh` does the same in WSL, from a copy of
+the output folder on the Linux file system, with the temporary folder under `/tmp`.
+`batch\BuildSignAndCreateSetupLinux.bat` runs it before `CreateLinuxSetup.sh`, and the
+setup stops when WSL has no network or less memory than the minimum the script names.
 
 **Every shipped `.dms` is tested before it is packaged (GeoDMS-Test #24).** The installer
 ships three examples and six `library\` files, and the battery's `testcases\shipped_*.dms`
@@ -107,7 +112,8 @@ file it names (Windows finds that file, the Linux setup does not: #1359), then r
 shipped battery from the output folder. The bash twin runs it from a copy on the Linux file
 system when the output folder lies on a Windows drive, where WSL ignores case. All four
 `batch\BuildSignAndCreateSetup*.bat` scripts run it right before NSIS or
-`CreateLinuxSetup.sh`, and the `tst` unit suite runs the shipped battery again
+`CreateLinuxSetup.sh` (the Linux one as the first step of `TestShippedContent.sh`), and the
+`tst` unit suite runs the shipped battery again
 from the installed copy (`batch\unit\ShippedContent.bat`), so the post-install gate covers
 it too. A new shipped file needs a `shipped_*.dms` case that includes it, or the gate
 names it. Because the cases read the output folder, an edit under `library\` or

@@ -31,11 +31,22 @@ template Read_Gebiedsindelingen_gpkg_T
 		// calls that differ only in a give the same string exactly when the geopackage is there.
 		parameter<bool>   is_present   := ExistingFile(local_file_path + '.absent_a', local_file_path) == ExistingFile(local_file_path + '.absent_b', local_file_path);
 
+		// --remove-on-error makes curl remove the file when the download breaks off; otherwise the
+		// partial file stays, is_present finds it, and every later run fails to open it without
+		// downloading again. curl knows the option since version 7.83.0. An older curl refuses it and
+		// would download nothing, so the option is only passed when curl accepts it in this test:
+		// curl reads its options in order and stops at --version, so a curl that knows the option
+		// prints its version and ends with exit code 0, and an older one ends with an error.
+		// download_cmd is only calculated for the download below, so the test only runs when the
+		// geopackage is missing. A download that is killed halfway still leaves a partial file.
+		parameter<uint32> remove_on_error_test   := EXEC_EC('curl --remove-on-error --version');
+		parameter<string> remove_on_error_option := remove_on_error_test == 0 ? ' --remove-on-error' : '';
+
 		// One command line for Windows and Linux, without cmd.exe. Given no program name, EXEC_EC
 		// lets Windows find curl on the PATH (current versions of Windows 10 and 11 include it) and
 		// runs the line through /bin/sh on Linux. --create-dirs makes the folder, and --fail keeps
 		// an HTTP error page from being saved as the geopackage.
-		parameter<string> download_cmd := 'curl --create-dirs --fail --location --output "' + local_file_path + '" ' + source_url;
+		parameter<string> download_cmd := 'curl --create-dirs --fail --location' + remove_on_error_option + ' --output "' + local_file_path + '" ' + source_url;
 
 		// Indirect, so that curl only runs when the geopackage is missing: iif calculates both branches.
 		parameter<uint32> WriterCode   := = is_present ? '0u' : 'EXEC_EC(download_cmd)';
