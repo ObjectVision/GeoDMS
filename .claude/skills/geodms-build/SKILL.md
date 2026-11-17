@@ -213,8 +213,9 @@ Rules per tier:
   over every shipped `.dms` (the same one the setup scripts run before NSIS), then
   `grid_to_polygon.dms` over real data, which it downloads into an empty temporary
   `SourceDataDir` and rasterises (#1360); `[W] GEOS fix failed` lines there are expected,
-  any `[E]` is not. Its bash twin `batch\TestShippedContent.sh` is what the Linux setup runs
-  before packaging, from a copy of the output folder on the Linux file system; it needs the
+  any `[E]` is not. The `.m` and `.c` setups run it on their output folder before NSIS. Its
+  bash twin `batch\TestShippedContent.sh` is what the Linux setup runs before packaging, from
+  a copy of the output folder on the Linux file system; it needs the
   network and the memory it names at its top, and fails without either. Both may be run by
   hand against an existing output folder; the third argument names the folder in which the
   temporary `SourceDataDir` is made (`%TEMP%`, `/tmp` by default). On OVSRV10 on

@@ -60,7 +60,7 @@
 ## Examples and library
 
 - `examples/grid_to_polygon.dms` runs on Linux: two of its includes named a library file in the wrong case, and `library/basedata_nl/RegioIndelingen.dms` downloads the CBS geopackage with `curl` instead of through cmd.exe (#1359).
-- When that download breaks off, curl now removes the partial file, so the next run downloads the geopackage again instead of failing to open it; a curl older than 7.83.0 downloads as before. The Linux setup now tests the download before packaging, as the Windows release test does, and both tests download into an empty temporary SourceDataDir (#1360).
+- When that download breaks off, curl now removes the partial file, so the next run downloads the geopackage again instead of failing to open it; a curl older than 7.83.0 downloads as before. The .m, .c and Linux setups now test the download before packaging, as the .g setup does after installing, and every such test downloads into an empty temporary SourceDataDir (#1360).
 - `examples/convex_hull.dms` repeats its step with `fold_c` in a function `ConvexHull` until the step drops no more points, instead of with `for_each_ne` and an indirect expression a fixed number of times (#1347).
 
 ## Setups

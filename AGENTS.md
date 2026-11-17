@@ -95,7 +95,8 @@ source data is read or touched (#1360). `batch\TestReleaseUnit.bat`,
 `batch\TestCMakeReleaseUnit.bat` and `batch\TestGlobioReleaseUnit.bat` call it, so each
 Windows flavour walks its own output folder (`bin\`, `build\windows-x64-release\bin\`,
 `bin_GLOBIO\`); the `.g` setup script runs the Globio launcher against the installed build
-(#1231). Its bash twin `batch\TestShippedContent.sh` does the same in WSL, from a copy of
+(#1231), and `batch\BuildSignAndCreateSetup.bat` and `batch\BuildSignAndCreateSetupCmake.bat`
+run it on their output folder right before NSIS. Its bash twin `batch\TestShippedContent.sh` does the same in WSL, from a copy of
 the output folder on the Linux file system, with the temporary folder under `/tmp`.
 `batch\BuildSignAndCreateSetupLinux.bat` runs it before `CreateLinuxSetup.sh`, and the
 setup stops when WSL has no network or less memory than the minimum the script names.
@@ -112,7 +113,8 @@ file it names (Windows finds that file, the Linux setup does not: #1359), then r
 shipped battery from the output folder. The bash twin runs it from a copy on the Linux file
 system when the output folder lies on a Windows drive, where WSL ignores case. All four
 `batch\BuildSignAndCreateSetup*.bat` scripts run it right before NSIS or
-`CreateLinuxSetup.sh` (the Linux one as the first step of `TestShippedContent.sh`), and the
+`CreateLinuxSetup.sh` (the `.m`, `.c` and Linux ones as the first step of
+`TestShippedContent.bat` or `TestShippedContent.sh`), and the
 `tst` unit suite runs the shipped battery again
 from the installed copy (`batch\unit\ShippedContent.bat`), so the post-install gate covers
 it too. A new shipped file needs a `shipped_*.dms` case that includes it, or the gate

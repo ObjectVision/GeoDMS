@@ -193,8 +193,11 @@ if errorlevel 1 goto :build_failed
 REM The .dms content this build ships, tested from the output folder before NSIS packages it
 REM (GeoDMS-Test #24): every shipped examples\ and library\ file must be reached from a case
 REM of the shipped examples\testcases battery, that copy must be the current one, and the
-REM battery runs from the output folder. Offline, about a minute.
-call "%~dp0TestShippedDms.bat" "%geodms_rootdir%\%BUILD_DIR%\bin"
+REM battery runs from the output folder. Offline, about a minute. batch\TestShippedContent.bat
+REM runs that check as its first step, and then examples\grid_to_polygon.dms over the CBS buurt
+REM map, which RegioIndelingen.dms downloads with curl into an empty temporary SourceDataDir
+REM (#1360). That second step takes about 12 s, needs the network and about 12 GB of memory.
+call "%~dp0TestShippedContent.bat" "%geodms_rootdir%\%BUILD_DIR%\bin"
 if errorlevel 1 goto :shipped_failed
 
 REM The GPL of GeoDMS and the licence texts of the libraries this setup bundles (#1371), as in
@@ -286,7 +289,7 @@ endlocal
 exit /B 1
 
 :shipped_failed
-echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
+echo *** Shipped .dms content FAILED before packaging - see the results above, scratch\shipped_dms\ and scratch\grid_to_polygon_release.log ***
 endlocal
 exit /B 1
 

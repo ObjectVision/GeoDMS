@@ -191,8 +191,11 @@ REM (GeoDMS-Test #24): every shipped examples\ and library\ file must be reached
 REM of the shipped examples\testcases battery, that copy must be the current one, and the
 REM battery runs from the output folder. Offline, about a minute. A shipped configuration
 REM that no longer loads or computes must not reach the installer. The unit suite after the
-REM install runs the same battery again, from the installed copy.
-call "%~dp0TestShippedDms.bat" "%geodms_rootdir%\bin\Release\x64"
+REM install runs the same battery again, from the installed copy. batch\TestShippedContent.bat
+REM runs that check as its first step, and then examples\grid_to_polygon.dms over the CBS buurt
+REM map, which RegioIndelingen.dms downloads with curl into an empty temporary SourceDataDir
+REM (#1360). That second step takes about 12 s, needs the network and about 12 GB of memory.
+call "%~dp0TestShippedContent.bat" "%geodms_rootdir%\bin\Release\x64"
 if errorlevel 1 goto :shipped_failed
 
 REM The PyPI wheels of this release (#1355), one per CPython minor of python\PythonVersions.txt,
@@ -306,7 +309,7 @@ echo *** Wheels FAILED - NSIS, signing, install and unit tests skipped; see the 
 exit /B 1
 
 :shipped_failed
-echo *** Shipped .dms content FAILED before packaging - NSIS, signing, install and unit tests skipped; see the table above and scratch\shipped_dms\ ***
+echo *** Shipped .dms content FAILED before packaging - NSIS, signing, install and unit tests skipped; see the results above, scratch\shipped_dms\ and scratch\grid_to_polygon_release.log ***
 exit /B 1
 
 :source_checks_failed
