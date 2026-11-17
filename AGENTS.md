@@ -21,8 +21,9 @@ repros) still belong in gitignored `scratch/`, not `testcases/`.
 lines `// EXPECT-FAILURE: <fragment>` of its `.dms`. Each fragment is literal text, not a
 pattern, that must occur in a message of the case's output: a line that starts with `Failure:`,
 `Last ErrMsg:` or `[E]`, or a line that continues it, up to the next line that starts with a
-timestamp, with `Context:` or with `Update [[`. A negative whose output lacks one of its
-fragments fails the run as `WRONG-FAILURE`. Judged on the exit code alone, a negative also
+timestamp, with `Context:` or with `Update [[`. In the output of a Debug build, where the CRT
+copy of each line comes first, the console's copy behind it is read. A negative whose output
+lacks one of its fragments fails the run as `WRONG-FAILURE`. Judged on the exit code alone, a negative also
 passed when it failed for
 another reason than the one it was written for: a misspelled item, a syntax error, an operator
 the build under test does not have (on a build of 2026-11-10, from before #1347, the nine `fold`

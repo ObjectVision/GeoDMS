@@ -16,9 +16,11 @@
 # Each fragment must occur, as literal text (not a pattern) and in the same case, in a message of
 # the case's output: a line that starts with 'Failure:', 'Last ErrMsg:' or '[E]', or one of the
 # lines that continue it, up to the next line that starts with a timestamp ('['), with 'Context:'
-# or with 'Update [[', or that starts another message. A fragment cannot span lines, and one line
-# need not hold them all. Take a fragment from the first line of the message where it can; use a
-# later line only for what only that line says, such as the list of signatures that follows
+# or with 'Update [[', or that starts another message. In the output of a Debug build, where the
+# CRT copy of each line comes first, the console's copy behind it is read (ConvertFrom-DebugLine
+# below). A fragment cannot span lines, and one line need not hold them all. Take a fragment from
+# the first line of the message where it can; use a later line only for what only that line says,
+# such as the list of signatures that follows
 # 'Cannot find operator for these arguments:', or the item that a storage error names. A
 # negative case whose fragments are all found passes as ok(neg); one that fails without one of them
 # fails the run as WRONG-FAILURE, as it failed for a reason other than the one it was written for:
@@ -111,6 +113,26 @@ $errorPattern  = '^(Failure:|Last ErrMsg:|\[E\])'       # a line of its output t
 $msgEndPattern = '^(\[|\s*Context:|Update \[\[)'         # a line that ends the lines continuing a message
 $utf8 = New-Object System.Text.UTF8Encoding $false
 
+# A Debug build also writes each line of a message to the CRT output, and in the .out that copy comes
+# first, on the same line as the console's copy: '[other]Error: <text>[E][<time>][1][other]<text>' for
+# the first line of a message, 'Error: <text>   <text>' for a line that continues one. The console's
+# copy is the line that a Release build writes, so that is the line the patterns above are applied to.
+$consolePrefixPattern = '\[[^\]]\]\[\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\]\[\d+\]\['
+$crtPrefixPattern     = '^(\[[a-z]+\])?[A-Za-z]+: '
+function ConvertFrom-DebugLine([string]$line) {
+    $m = [regex]::Match($line, $consolePrefixPattern)
+    if ($m.Success -and $m.Index -gt 0) { return $line.Substring($m.Index) }
+    $c = [regex]::Match($line, $crtPrefixPattern)
+    if ($c.Success) {
+        $rest = $line.Substring($c.Length)
+        if ($rest.Length -ge 3 -and (($rest.Length - 3) % 2) -eq 0) {
+            $k = ($rest.Length - 3) / 2
+            if ($rest.Substring($k, 3) -ceq '   ' -and $rest.Substring(0, $k) -ceq $rest.Substring($k + 3)) { return '   ' + $rest.Substring($k + 3) }
+        }
+    }
+    return $line
+}
+
 $results = @()
 $negSeen = @{}
 try {
@@ -149,7 +171,8 @@ try {
             # the lines of every message: its first line, and the lines that continue it
             $errorLines = New-Object System.Collections.Generic.List[string]
             $inMessage = $false
-            foreach ($l in [IO.File]::ReadAllLines($out, $utf8)) {
+            foreach ($raw in [IO.File]::ReadAllLines($out, $utf8)) {
+                $l = ConvertFrom-DebugLine $raw
                 if ($l -cmatch $errorPattern) { $errorLines.Add($l); $inMessage = $true; continue }
                 if ($inMessage -and ($l -cmatch $msgEndPattern)) { $inMessage = $false }
                 if ($inMessage) { $errorLines.Add($l) }
