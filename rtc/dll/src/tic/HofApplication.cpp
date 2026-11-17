@@ -875,6 +875,53 @@ namespace hof {
 	}
 
 	namespace {
+		// #1365: what TreeItem::GetCurrItem(path) finds below a calculation result, for the check on a
+		// misspelt sub-item in ResolveBodySymbol. GetCurrItem reads the sub-items of each item on the
+		// path, and when the name is not among them those of the item it refers to, and asserts that the
+		// meta info of each of them is ready (TreeItem::GetCurrFirstSubItem). Here the result has just
+		// been made, and its meta info has not been updated yet, so the sub-items are read raw. That is
+		// complete for a cache item: its operator makes its sub-items with it, and updating its meta
+		// info copies none into it (TreeItem_MergeReferredCacheRoot skips that copy for a cache item).
+		// For another item, one that a cache item refers to, it is complete only once its meta info is
+		// ready; before that the check cannot know (unknown), and the reference goes to the SubItem
+		// operator, which decides once its argument is ready, as it did before the check.
+		enum class ResultSubItem { found, missing, unknown };
+
+		ResultSubItem LookupResultSubItem(const TreeItem* item, CharPtrRange path)
+		{
+			auto isReady = [](const TreeItem* ti) { return ti->IsCacheItem() || ti->Was(ProgressState::MetaInfo) || ti->WasFailed(); };
+			std::vector<std::shared_ptr<const TreeItem>> referred; // keeps each referred item alive while it is read
+			CharPtr segBegin = path.begin();
+			while (true)
+			{
+				CharPtr segEnd = std::find(segBegin, path.end(), DELIMITER_CHAR);
+				TokenID id = GetTokenID_mt(segBegin, segEnd);
+				const TreeItem* found = nullptr;
+				for (const TreeItem* curr = item; curr && !found; )
+				{
+					if (!isReady(curr))
+						return ResultSubItem::unknown;
+					for (auto sub = curr->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+						if (sub->GetNameID() == id)
+						{
+							found = sub;
+							break;
+						}
+					if (!found)
+					{
+						referred.emplace_back(curr->GetCurrRefItem());
+						curr = referred.back().get();
+					}
+				}
+				if (!found)
+					return ResultSubItem::missing;
+				if (segEnd == path.end())
+					return ResultSubItem::found;
+				item = found;
+				segBegin = segEnd + 1;
+			}
+		}
+
 		// §5.9: a name bound to a container literal, directly as a parameter or captured from an
 		// enclosing application: a bare use (slash == e) is the domain of the literal, and
 		// 'name/member' the value of the named member; `boundAs` says how, for the messages
@@ -1067,11 +1114,12 @@ namespace hof {
 									// either fails now, with the path and the function, instead of in
 									// the SubItem operator, which can only name the nameless result
 									// item. The test is the one that operator makes; when the result
-									// cannot be made, the application reports that as before
+									// cannot be made, the application reports that as before, and when
+									// its meta info is not ready yet, the SubItem operator decides
 									{
 										SharedStr rest(CharPtrRange(ri->second, e));
 										if (auto baseDC = GetOrCreateDataController(baseKey))
-											if (auto baseRes = baseDC->MakeResult(); baseRes && baseRes->IsCacheItem() && !baseRes->GetCurrItem(rest))
+											if (auto baseRes = baseDC->MakeResult(); baseRes && baseRes->IsCacheItem() && LookupResultSubItem(baseRes.get(), CharPtrRange(ri->second, e)) == ResultSubItem::missing)
 											{
 												SharedStr declared;
 												if (auto sit = m_StructuredByItem.find(ri->first.get()); sit != m_StructuredByItem.end())

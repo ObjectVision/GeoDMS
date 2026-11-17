@@ -1,4 +1,4 @@
-// EXPECT-FAILURE: Cannot find 'nope' from '
+// EXPECT-FAILURE: 'twice/nope': Cannot find 'nope' from '/f/twice', a body item of function '/f'
 container fn_test_subref_neg3
 {
 	// §12.7 slSubItemCall tranche, the DEFER guard: an operator result WITHOUT

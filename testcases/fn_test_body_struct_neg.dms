@@ -1,4 +1,4 @@
-// EXPECT-FAILURE: Cannot find 'w' from '
+// EXPECT-FAILURE: 'h/w': Cannot find 'w' from '/SumW/h', a body item of function '/SumW'; the function or fold whose result it is declares 'v'
 container fn_test_body_struct_neg
 {
 	// #1365: a body item that is the result of a function has the sub-items that the result
