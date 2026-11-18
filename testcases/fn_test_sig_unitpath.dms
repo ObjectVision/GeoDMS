@@ -1,0 +1,59 @@
+// GeoDMS #1351. A function signature that names a unit outside the function by a path, in the
+// values unit or the domain of a parameter, in a member of a structured parameter or in the result
+// type, keeps that spelling in the XML notation. Read back from XML, the DMS notation used to write
+// such a signature with the path relative to the item, '..../geometries/rdc' for 'geometries/rdc',
+// and the XML round trip (testcases\run_xml_roundtrip.bat) reported the configuration as DIFFERS.
+//
+// The functions are applied from a/b, next to units with the same names as the ones the signatures
+// name. A reference resolved from the call site would bind to those instead: the domain
+// of G2 would have 5 rows instead of 3. The checks hold in the configuration, in its DMS dump and in
+// its XML dump read back.
+container fn_test_sig_unitpath
+{
+	container geometries
+	{
+		unit<fpoint> rdc;
+		unit<uint32> D : nrofrows = 3;
+	}
+	container lib
+	{
+		// the form of the issue: a member of a structured parameter, and the result type
+		function F(unit<uint32> T { attribute<geometries/rdc> p; }) -> attribute<geometries/rdc> (T) := T/p;
+		// a data parameter whose values unit is a path
+		function G1(unit<uint32> T; attribute<geometries/rdc> x (T)) -> attribute<geometries/rdc> (T) := x;
+		// a data parameter whose domain is a path
+		function G2(attribute<float32> y (geometries/D)) -> attribute<float32> (geometries/D) := y;
+		// an absolute path
+		function G3(unit<uint32> T; attribute</geometries/rdc> x (T)) -> attribute</geometries/rdc> (T) := x;
+		// a bare name, found through a using; this form kept its spelling before #1351 as well
+		function G4(unit<uint32> T; attribute<rdc> x (T)), using = geometries -> attribute<rdc> (T) := x;
+	}
+	container a
+	{
+		container b
+		{
+			container geometries
+			{
+				unit<fpoint> rdc;
+				unit<uint32> D : nrofrows = 5;
+			}
+			unit<uint32> P : nrofrows = 3
+			{
+				attribute</geometries/rdc> p := point_xy(float32(id(.)), const(1f, .), /geometries/rdc);
+			}
+			attribute</geometries/rdc> f  (P) := /lib/F(P);
+			attribute</geometries/rdc> g1 (P) := /lib/G1(P, P/p);
+			attribute<float32>         g2 (/geometries/D) := /lib/G2(float32(id(/geometries/D)));
+			attribute</geometries/rdc> g3 (P) := /lib/G3(P, P/p);
+			attribute</geometries/rdc> g4 (P) := /lib/G4(P, P/p);
+		}
+	}
+	container checks
+	{
+		parameter<bool> f_ok  := sum(PointCol(a/b/f))  == 3f, IntegrityCheck = "f_ok == true";
+		parameter<bool> g1_ok := sum(PointCol(a/b/g1)) == 3f, IntegrityCheck = "g1_ok == true";
+		parameter<bool> g2_ok := sum(a/b/g2)           == 3f, IntegrityCheck = "g2_ok == true";
+		parameter<bool> g3_ok := sum(PointCol(a/b/g3)) == 3f, IntegrityCheck = "g3_ok == true";
+		parameter<bool> g4_ok := sum(PointCol(a/b/g4)) == 3f, IntegrityCheck = "g4_ok == true";
+	}
+}
