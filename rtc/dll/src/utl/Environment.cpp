@@ -2093,7 +2093,7 @@ SharedStr GetCurrentDir()
 void SetCurrentDir(CharPtr dir)
 {
 	if (chdir(dir) != 0)
-		throwErrorD("Environment", "chdir failed");
+		throwErrorF("Environment", "the folder '{}' cannot be made the current folder: {}", dir, strerror(errno));
 }
 
 RTC_CALL void DMS_CONV DMS_Appl_SetFont()

@@ -123,6 +123,13 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
 #else
         if ((*argv)[0] == '-' && (*argv)[1] != '\0')
             throw CmdLineException(mySSPrintF("Unknown command-line option {}, or an option given out of turn.", *argv));
+
+        // On Linux an absolute path starts with '/' too, so a /L or /T given out of turn arrives here
+        // as the name of the configuration file. A name that starts as one of them and is not an
+        // existing file is that option, and is reported as on Windows. (A /S or /C never gets this
+        // far: ParseRegStatusFlags above takes every argument that starts as one of them.)
+        if ((*argv)[0] == '/' && ((*argv)[1] == 'L' || (*argv)[1] == 'T') && !IsFileOrDirAccessible(SharedStr(*argv)))
+            throw CmdLineException(mySSPrintF("Unknown command-line option {}, or an option given out of turn.", *argv));
 #endif
 
         settingsFrame.m_ConfigFileName = SharedStr(*argv);
