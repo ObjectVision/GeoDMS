@@ -1,7 +1,11 @@
-// EXPECT-FAILURE: TIFFFillStrip Error: Read error on strip 0
+// EXPECT-FAILURE: Error: Read error
+// EXPECT-FAILURE: got 20 bytes, expected 32
 // STG-14, STG-A10: a TIFF whose strip is shorter than StripByteCounts declares (data/tif_u8_truncated.tif, 12 bytes short).
-// Since 353a4664e the read error libtiff reports is an error of the item ("TIFFFillStrip Error: Read error on strip 0"),
-// as in gdal.grid; before, the whole tile read as the undefined default, which is what this case checked until then.
+// Since 353a4664e the read error libtiff reports is an error of the item, as in gdal.grid; before, the whole tile read
+// as the undefined default, which is what this case checked until then.
+// libtiff words that error per version: 4.7.1 from vcpkg says "TIFFFillStrip Error: Read error on strip 0; got 20 bytes,
+// expected 32", 4.4.0 from the GLOBIO conda environment (the .g build) says "TIFFReadEncodedStrip Error: Read error at
+// scanline 4294967295; got 20 bytes, expected 32". The two EXPECT-FAILURE fragments are the parts that both share.
 // Expected: exit nonzero on /checks.
 container stor_tif_u8_truncated_neg
 {
