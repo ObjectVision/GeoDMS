@@ -1629,10 +1629,19 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
   retry:
     try {
         auto orgConfigFilePath = SharedStr(configFilePath);
-        m_currConfigFileName = ConvertDosFileName(orgConfigFilePath); // replace back-slashes to linux/dms style separators and prefix //SYSTEM/path with 'file:'
-        
+        // ConvertDosFileName replaces back-slashes by dms style separators and prefixes //SYSTEM/path with 'file:'.
+        // The name is made absolute before the current folder becomes that of the configuration, so that
+        // a name relative to the folder GeoDMS was started in, with or without a folder part, still names
+        // the same file for the load below, for the caption and for Reopen.
+        m_currConfigFileName = ConvertDosFileName(orgConfigFilePath);
+        if (!m_currConfigFileName.empty())
+            m_currConfigFileName = MakeAbsolutePath(m_currConfigFileName.c_str());
+
+        // A folder that is not there is left alone: the configuration file cannot be in it, and the load
+        // below then reports that it cannot open the file, naming it. An empty folder part remains for a
+        // file in the root folder, which needs no change of folder.
         auto folderName = splitFullPath(m_currConfigFileName.c_str());
-        if (strnicmp(folderName.c_str(), "file:",5) != 0)
+        if (!folderName.empty() && strnicmp(folderName.c_str(), "file:", 5) != 0 && IsFileOrDirAccessible(folderName))
             SetCurrentDir(ConvertDmsFileNameAlways(std::move(folderName)).c_str());
 
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
