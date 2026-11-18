@@ -218,7 +218,10 @@ bool WmCopyData(MSG* copyMsgPtr) {
     case CommandCode::SendFocus: hWindow = GetFocus(); break;
     case CommandCode::SendActiveDmsControl:
     case CommandCode::WmCopyActiveDmsControl: {
-        auto aw = MainWindow::TheOne()->m_mdi_area->activeSubWindow();
+        // The current sub-window, as in the Linux branch of TestScript.cpp: activeSubWindow() is
+        // null while another application has the desktop focus, which is when another program or
+        // a test script whose user works elsewhere sends this.
+        auto aw = MainWindow::TheOne()->m_mdi_area->currentSubWindow();
         if (!aw)
             return false;
         auto va = dynamic_cast<QDmsViewArea*>(aw);
