@@ -52,7 +52,10 @@ struct ArcRunIndex
 		my_vec_t<ArcRunBoxes<T>> arcs(longArcs.size());
 		parallel_for<SizeT>(longArcs.size(), [&arcs, &longArcs, first, isPolygon](SizeT c)
 			{
-				const auto& arc = *(first + longArcs[c]);
+				// a named iterator: the operator* of a sequence iterator returns a reference into the iterator itself, which
+				// dangles once a temporary iterator such as first + longArcs[c] is gone
+				auto arcIter = first + longArcs[c];
+				const auto& arc = *arcIter;
 				arcs[c].Build(begin_ptr(arc), end_ptr(arc), isPolygon);
 			}
 		);
