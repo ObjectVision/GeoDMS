@@ -460,6 +460,104 @@ bool dms_convex_sum(const std::vector<GPoint>& ring, const Support& support
 }
 
 // *****************************************************************************
+//	the input of a buffer: the simplification of GEOS
+// *****************************************************************************
+
+// dms_buffer_multi_polygon simplifies the rings of an element before it builds their pieces, the
+// way geos_buffer_multi_polygon does (#1352): when it grows an element it fills the dents of the
+// material that are less deep than a hundredth of the distance, and when it erodes one it cuts off
+// the bumps of that size, which moves the result outward (inward) by less than that. Without this
+// step a detailed outline with a distance of hundreds of metres gave every edge's rectangle
+// hundreds of overlapping neighbours, and the sweep spent minutes and gigabytes on their crossings
+// where GEOS took a tenth of a second. The issue has the measurements.
+//
+// The tolerance factor of GEOS (OffsetCurveBuilder::SIMPLIFY_FACTOR): the tolerance is the distance
+// divided by it.
+constexpr Float64 DmsBufferSimplifyFactor = 100.0;
+// How many vertices between the two ends of a candidate are sampled
+// (BufferInputLineSimplifier::NUM_PTS_TO_CHECK).
+constexpr SizeT DmsBufferSimplifySamples = 10;
+
+inline Float64 dms_point_to_segment(const GPoint& p, const GPoint& a, const GPoint& b)
+{
+	Float64 px = p.X(), py = p.Y(), ax = a.X(), ay = a.Y(), dx = Float64(b.X()) - ax, dy = Float64(b.Y()) - ay;
+	Float64 len2 = dx * dx + dy * dy;
+	if (len2 == 0)
+		return std::hypot(px - ax, py - ay);
+	Float64 r = ((px - ax) * dx + (py - ay) * dy) / len2;
+	if (r <= 0)
+		return std::hypot(px - ax, py - ay);
+	if (r >= 1)
+		return std::hypot(px - (ax + dx), py - (ay + dy));
+	return std::fabs((ay - py) * dx - (ax - px) * dy) / std::sqrt(len2);
+}
+
+// BufferInputLineSimplifier of GEOS 3.14.1 on one ring of the engine (open, in its stored
+// orientation, material on the right), with the tolerance in lattice units. `turn` is the
+// orientation of the corners it may remove: +1, a left turn, for a buffer, where that is a reflex
+// corner of the material; -1 for an erosion. As in GEOS, on the ring closed by repeating its first
+// vertex: repeat a pass until it removes nothing; a pass moves a window of three kept vertices p0,
+// p1, p2 along the ring and removes p1 when it turns that way, lies within the tolerance of the
+// segment p0 - p2, and lies within the tolerance of the segment from p0 to every sampled vertex
+// from p0 up to p2. GEOS passes p1 to that last test where its parameter says p2 (isDeletable calls
+// isShallowSampled(p0, p1, ...)), and so does this port: its first sample is p0 itself, so p1 is
+// removed only when it also lies within the tolerance of p0. The first two vertices are never
+// removed. False when nothing was removed, or when fewer than three vertices would be left, in
+// which case pts stays as it was.
+inline bool dms_simplify_shallow_turns(std::vector<GPoint>& pts, Float64 tol, int turn, std::vector<char>& removed, std::vector<GPoint>& out)
+{
+	SizeT m = pts.size();
+	if (m < 4)
+		return false;
+	SizeT n = m + 1; // with the closing vertex, pts[0], at index m
+	auto at = [&pts, m](SizeT i) -> const GPoint& { return pts[i == m ? 0 : i]; };
+	removed.assign(n, 0);
+	auto nextKept = [&removed, n](SizeT i) { ++i; while (i < n && removed[i]) ++i; return i; };
+	auto shallowSampled = [&](const GPoint& p0, const GPoint& p1, SizeT i0, SizeT i2)
+	{
+		SizeT inc = (i2 - i0) / DmsBufferSimplifySamples;
+		if (inc == 0)
+			inc = 1;
+		for (SizeT i = i0; i < i2; i += inc)
+			if (!(dms_point_to_segment(p1, p0, at(i)) < tol))
+				return false;
+		return true;
+	};
+	bool anyRemoved = false, changed;
+	do {
+		changed = false;
+		SizeT i0 = 1, i1 = nextKept(i0), i2 = nextKept(i1);
+		while (i2 < n)
+		{
+			const GPoint& p0 = at(i0);
+			const GPoint& p1 = at(i1);
+			const GPoint& p2 = at(i2);
+			bool remove = Orient(p0, p1, p2) == turn
+				&& dms_point_to_segment(p1, p0, p2) < tol
+				&& shallowSampled(p0, p1, i0, i2);
+			if (remove)
+			{
+				removed[i1] = 1;
+				changed = anyRemoved = true;
+			}
+			i0 = remove ? i2 : i1;
+			i1 = nextKept(i0);
+			i2 = nextKept(i1);
+		}
+	} while (changed);
+	if (!anyRemoved)
+		return false;
+	out.clear();
+	for (SizeT i = 0; i != m; ++i)
+		if (!removed[i])
+			out.push_back(pts[i]);
+	if (out.size() < 3)
+		return false;
+	pts.swap(out);
+	return true;
+}
+
+// *****************************************************************************
 //	one element
 // *****************************************************************************
 
@@ -476,6 +574,7 @@ struct DmsMinkowskiWorker
 	DmsOverlayEngine<P>  engine;
 	std::vector<Segment> bag;
 	std::vector<GPoint>  ring, chain, outline, kernelScratch;
+	std::vector<char>    removed; // dms_simplify_shallow_turns
 	std::vector<DmsPolygonSupport::Edge> polygonEdges;
 	std::vector<DmsRoundSupport::Edge>   roundEdges;
 
@@ -517,6 +616,31 @@ bool dms_frame_and_clean(DmsOverlayEngine<P>& engine, const R& geometry, Float64
 	if (!engine.SingleRingToRings(geometry))
 		engine.CleanToRings(geometry);
 	return !engine.CurrRings().empty();
+}
+
+// Simplifies the engine's rings for a buffer by `distance` on a lattice of `cell` world units
+// (dms_simplify_shallow_turns), and cleans what is left back into the engine's rings with one
+// sweep: the edge p0 - p2 that a removed vertex leaves may cross another edge of the element
+// within the tolerance, and the pieces are built for simple rings. Filling a dent only adds
+// material and cutting off a bump only takes it away, so coverage 1 gives the element with its
+// dents filled (its bumps cut off). False when nothing is left.
+template <typename P>
+bool dms_simplify_buffer_input(DmsMinkowskiWorker<P>& w, Float64 distance, Float64 cell)
+{
+	Float64 tol = std::fabs(distance) / DmsBufferSimplifyFactor / cell;
+	int turn = distance > 0 ? +1 : -1;
+	bool anyRemoved = false;
+	w.bag.clear();
+	for (const auto& ring : w.engine.CurrRings())
+	{
+		w.ring.assign(ring.pts.begin(), ring.pts.end());
+		if (dms_simplify_shallow_turns(w.ring, tol, turn, w.removed, w.outline))
+			anyRemoved = true;
+		dms_append_ring(w.bag, w.ring, Origin(), +1);
+	}
+	if (!anyRemoved)
+		return true;
+	return w.engine.ThresholdBag(w.bag, 1);
 }
 
 // The sum of the engine's rings (shifted by `shift`) and a support: the convex shortcut when the
@@ -591,7 +715,8 @@ void dms_minkowski(DmsMinkowskiWorker<P>& w, E&& res, const R& geometry, const M
 }
 
 // dms_buffer_multi_polygon of one element. An undefined or infinite distance leaves the result
-// empty, distance zero gives the cleaned element.
+// empty, distance zero gives the cleaned element; otherwise the element is first simplified as
+// GEOS simplifies it (dms_simplify_buffer_input).
 template <typename P, typename E, typename R>
 void dms_buffer(DmsMinkowskiWorker<P>& w, E&& res, const R& geometry, Float64 distance, UInt8 quadrantSegments)
 {
@@ -605,6 +730,8 @@ void dms_buffer(DmsMinkowskiWorker<P>& w, E&& res, const R& geometry, Float64 di
 		w.engine.Store(std::forward<E>(res));
 		return;
 	}
+	if (!dms_simplify_buffer_input(w, distance, cell))
+		return;
 	DmsRoundSupport support(std::fabs(distance) / cell, quadrantSegments);
 	if (distance > 0)
 		dms_sum_rings(w, std::forward<E>(res), support, Origin(), w.roundEdges);
