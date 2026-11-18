@@ -1,4 +1,4 @@
-*Draft, started 2026-11-11 and kept up to date until the setups are built. Whether 20.29.0 is a pre-release or a full release is still to be decided.* GeoDms 20.29.0 holds the changes since 20.28.0. The details are in the issues linked below.
+**Pre-release.** GeoDms 20.29.0 holds the changes since the pre-release 20.28.0, in all four flavours and as Python wheels for Windows. The details are in the issues linked below.
 
 | Flavour | Asset |
 |---|---|
