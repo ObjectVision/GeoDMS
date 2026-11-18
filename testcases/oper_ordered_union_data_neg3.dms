@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: ordered_union_data: the concatenation of the argument values is not non-decreasing.
 // issue #1168: ordered_union_data must also reject a descent when it has ONE data item that already
 // has the resulting domain. union_data adopts such an argument without reading it; ordered_union_data
 // reads it to verify the stated order.

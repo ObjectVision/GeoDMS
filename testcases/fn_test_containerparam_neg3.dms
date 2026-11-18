@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/scale': parameter 'cfg' declares no member 'nested/wrong'
 container fn_test_containerparam_neg3
 {
 	// K11a-4 review finding: an undeclared DEEP member under a COMPLETE nested

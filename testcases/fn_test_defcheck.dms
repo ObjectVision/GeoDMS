@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: 'nonexistent_thing': unknown identifier in body of function '/Bad'
 container fn_test_defcheck
 {
 	unit<uint32> Road : nrofrows = 2

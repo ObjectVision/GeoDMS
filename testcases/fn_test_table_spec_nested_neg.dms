@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: a generating meta function such as 'table_spec' can only be the whole result of an inlined function
 // A generating meta-call may escape beta reduction as the whole function
 // result, but it cannot be embedded in an ordinary data expression.
 container fn_test_table_spec_nested_neg

@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: stor_mmd_failed.mmd has no data for m: the file
+// EXPECT-FAILURE: stor_mmd_failed.mmd/m.mmddata is missing
 // The read after the failed rewrite of the #1298 case; stor_mmd_failed_1_write.dms describes the three
 // configs. The check holds for any m that can be read, so this config exits 0, and fails as a negative,
 // on every build that still hands out an array whose write did not finish: before 20.24 that was the

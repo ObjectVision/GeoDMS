@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the definition of '/bad': the body requires type variables
+// EXPECT-FAILURE: to be equal (the declared type of 's'), but they are independent generic parameters of the definition
 container fn_test_structmember3_neg1
 {
 	// K11a-3.1 negative: two members typed by INDEPENDENT generic value variables

@@ -1,0 +1,20 @@
+// EXPECT-FAILURE: fold(domain, step, initial state): the step '/Flip' is a set of variants, and the variant 'u32' is chosen once, on the initial state; the state after 1 step has values of type float64 and chooses the variant 'f64'
+container fn_test_fold_variant_neg_switch
+{
+	// #1367: the variant of a step that is a set of variants is chosen once, on the initial
+	// state. The variant u32 returns a float64, so the state after one step would choose the
+	// variant f64; that is an error, not a silent switch of variant.
+
+	unit<uint32> D : nrofrows = 3;
+
+	function Flip
+	{
+		variant u32(parameter<uint32> k; parameter<uint32> acc) -> parameter<float64> := float64(acc + k);
+		variant f64(parameter<uint32> k; parameter<float64> acc) -> parameter<float64> := acc + 1.0;
+	}
+
+	container checks
+	{
+		parameter<float64> c := fold(D, Flip, 0u), IntegrityCheck = "c == 3.0";
+	}
+}

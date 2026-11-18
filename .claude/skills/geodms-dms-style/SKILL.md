@@ -50,11 +50,20 @@ Constraints of 20.28.0, found on NetworkModel_PBL#165 (`cfg/main/Templates/Shape
   `const(1, Inner, uint32)`.
 - No bare `first_rel`, `second_rel` or `org_rel` that an operator adds: write `Pairs/first_rel`,
   `Inner/org_rel`.
-- A function defined inside a template instance finds a name of its definition scope before
-  its parameter of the same name: a parameter `Links` found the `Links` of the enclosing
-  container, and the definition failed with "the body pins unit variable 'Links' to a
-  specific unit". Define functions in a plain container, such as a library container at the
-  top of the configuration; there the parameter wins.
+- On an engine before 20.29.0, a function defined inside a template instance finds a name of
+  its definition scope before its parameter of the same name: a parameter `Links` found the
+  `Links` of the enclosing container, and the definition failed with "the body pins unit
+  variable 'Links' to a specific unit". When a configuration must run on such an engine,
+  define its functions in a plain container, such as a library container at the top of the
+  configuration; there the parameter wins (ObjectVision/GeoDMS#1341).
+
+A function body refuses `for_each` and indirect expressions. To repeat a step a given number
+of times, write `fold(D, step, x0)`: the step takes an element of the unit `D` and the state,
+and returns the next state, which may be a unit with sub-items
+(`examples/convex_hull.dms`, ObjectVision/GeoDMS#1347). To repeat it until a condition fails,
+write `fold_c(step, cond, maxN, x0)`, with a `maxN` that a correct run cannot reach: reaching it
+is an error. `container trace := instantiate fold(...)` (or `fold_c`) makes the state after each
+step an item, `trace/step0`, ..., `trace/result`, for inspecting an iterative model.
 
 ## Conversions only where the value types differ
 

@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the closing tag '</TreeItem>' carries an attribute; only an open tag may
+// EXPECT-FAILURE: Unknown identifier 'xmlpart/xca/after'
 // #1261: a closing tag that carries an attribute must be a reported error, not an MG_CHECK
 // assertion; the read stops there, so the item that follows the bad tag is absent
 container xml_close_attr_neg

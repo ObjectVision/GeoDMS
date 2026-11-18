@@ -13,7 +13,7 @@ anything is built.
 
 | Flavour | Script | Assets in `distr\` |
 |---|---|---|
-| `.m` Windows, msbuild | `batch\BuildSignAndCreateSetup.bat` | `GeoDms<ver>.m-Setup-x64.exe` |
+| `.m` Windows, msbuild | `batch\BuildSignAndCreateSetup.bat` | `GeoDms<ver>.m-Setup-x64.exe`, and the PyPI wheels `geodms-<ver>-cp3XY-cp3XY-win_amd64.whl`, one per CPython minor of `python\PythonVersions.txt` |
 | `.c` Windows, CMake | `batch\BuildSignAndCreateSetupCmake.bat` | `GeoDms<ver>.c-Setup-x64.exe` |
 | `.g` Windows, GLOBIO stack | `batch\BuildSignAndCreateSetupGlobio.bat` | `GeoDms<ver>.g-Setup-x64.exe` |
 | `.l` Linux, WSL Ubuntu 24.04 | `batch\BuildSignAndCreateSetupLinux.bat` | `GeoDms<ver>.l-linux-x64.deb`, `.tar.gz`, `.tar.gz.sha256`, `.tar.gz.sha256.p7s` |
@@ -84,8 +84,15 @@ The agent prepares, watches and verifies.
    `examples\` and `library\` file reached from a `shipped_*.dms` case, the battery run
    from that folder); that gate reads the copies in `bin\`, so a change under `library\`
    or `testcases\` is green there only after the script's own msbuild has mirrored it.
-4. `.g` needs `GLOBIO_ENV_ROOT` pointing at the conda prefix from
-   `vcpkg-globio\environment.yml`; `.l` needs the WSL distro up.
+   The `.m` and `.c` scripts run it as the first step of `batch\TestShippedContent.bat`, and
+   the Linux script as the first step of `batch\TestShippedContent.sh`; their second step
+   downloads the CBS geopackage into an empty temporary `SourceDataDir` and runs
+   `examples/grid_to_polygon.dms` over it (#1360). The `.g` script keeps the offline gate
+   there and runs the download after installing, through `TestGlobioReleaseUnit.bat`.
+4. `.m`, `.c` and `.l` need a network and, for that second step, about 12 GB of memory
+   (`.l`: the minimum that `batch\TestShippedContent.sh` names at its top, in WSL), or the
+   setup stops before packaging. `.g` needs `GLOBIO_ENV_ROOT` pointing at the conda prefix
+   from `vcpkg-globio\environment.yml`; `.l` needs the WSL distro up.
 5. Hand the user the one-liner that keeps the output on their screen and in a log you can
    read:
 
@@ -183,11 +190,15 @@ assets cannot be added, and deleting a published release does not free its tag n
 gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release-notes\release-notes-<ver>.md ^
   [--target <full sha>] distr\GeoDms<ver>.m-Setup-x64.exe distr\GeoDms<ver>.c-Setup-x64.exe ^
   distr\GeoDms<ver>.g-Setup-x64.exe distr\GeoDms<ver>.l-linux-x64.deb distr\GeoDms<ver>.l-linux-x64.tar.gz ^
-  distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256 distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256.p7s
+  distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256 distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256.p7s ^
+  distr\geodms-<ver>-cp312-cp312-win_amd64.whl distr\geodms-<ver>-cp313-cp313-win_amd64.whl ^
+  distr\geodms-<ver>-cp314-cp314-win_amd64.whl
 ```
 
    A draft creates no tag; it is safe to make and to inspect. Missing an asset here means a
-   new draft, not an upload later.
+   new draft, not an upload later. The wheels are those of `python\PythonVersions.txt`;
+   `batch\BuildSignAndCreateSetup.bat` made and tested them with the `.m` setup
+   (`tools\make-and-test-wheels.ps1`, #1355).
 2. `--target <full sha>` whenever the built commit is not the head of `main` on GitHub:
    without it the tag lands on `main` HEAD, the wrong commit. The commit must already be on
    origin (`git branch -r --contains <sha>`); if it is not, the user pushes it first. You
@@ -195,7 +206,11 @@ gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release
 3. Publishing is `gh release edit v<ver> --draft=false --prerelease` (or without
    `--prerelease` for a full release). That creates the tag on origin, an outward action:
    do it only on the user's explicit go-ahead for this release, after they have looked at
-   the draft. A pre-release is not marked Latest.
+   the draft. A pre-release is not marked Latest. A full release, published as one or turned
+   from a pre-release into one, also starts `.github\workflows\pypi-upload.yml`, which
+   uploads the wheel assets of that release to the PyPI project `geodms`. A file on PyPI can
+   never be replaced, so say so when asking for the go-ahead of a full release; a pre-release
+   stays off PyPI.
 4. Check `gh release view v<ver>` afterwards: title, target, assets, pre-release flag.
 
 Never test what a release or asset operation does by writing placeholder text to a live

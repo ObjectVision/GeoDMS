@@ -1,0 +1,30 @@
+// EXPECT-FAILURE: 'h/w': Cannot find 'w' from '/SumW/h', a body item of function '/SumW'; the function or fold whose result it is declares 'v'
+container fn_test_body_struct_neg
+{
+	// #1365: a body item that is the result of a function has the sub-items that the result
+	// of that function declares, and those that the operator of the result computes. DropMax
+	// declares v, and select_with_org_rel computes org_rel; w is neither, so the application
+	// is refused because w cannot be found.
+
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+
+	function DropMax(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+	}
+	function SumW(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(h/w)
+	{
+		unit<uint32> h := DropMax(0u, s);
+	}
+
+	container checks
+	{
+		parameter<float64> c := SumW(Vals5), IntegrityCheck = "c == 13.0";
+	}
+}

@@ -1,0 +1,18 @@
+// The read half of the instance case (issue #1350); stor_mmd_instance_1_write.dms carries the
+// description. The reader declares only the read-only holder, so every item below it comes from the
+// dictionary that _2_rewrite left. On its own this config fails, because the store does not exist.
+container stor_mmd_instance_3_read
+{
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_instance.mmd"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<string> w      := asList(string(store/dom/w), ' '),       IntegrityCheck = "w == '7 8 9 10'";
+		parameter<uint64> inst_k := store/inst/k,                           IntegrityCheck = "inst_k == 3[uint64]";
+		parameter<string> inst_a := asList(string(store/inst/out/a), ' '),  IntegrityCheck = "inst_a == '0 3 6 9'";
+		parameter<uint32> fin_n  := #store/fin/D,                           IntegrityCheck = "fin_n == 4";
+		parameter<string> fin_r  := asList(string(store/fin/result), ' '),  IntegrityCheck = "fin_r == '0 5 10 15'";
+	}
+}

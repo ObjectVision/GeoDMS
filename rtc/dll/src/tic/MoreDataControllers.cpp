@@ -374,6 +374,7 @@ static bool JoinOperationThatMissesWantedMember(const FuncDC& funcDC, const Tree
 
 auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
+	KeptDataRequestScope keptDataRequest; // #1364: kept data that this request releases is let go when the outermost request ends
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
@@ -490,6 +491,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		assert(!SuspendTrigger::DidSuspend());
 		assert(m_OperContext || IsDataReady(curr.get()) || curr->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 	}
+	ReleaseKeptDataOnAsk(this); // #1364: the caller now holds this data, and a calculation started for it the data it reads
 	return thisFutureResult;
 }
 
@@ -1272,6 +1274,7 @@ SharedTreeItem SymbDC::MakeResult() const
 
 auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
+	KeptDataRequestScope keptDataRequest; // #1364: kept data that this request releases is let go when the outermost request ends
 	dms_check(GetInterestCount());
 	dms_assert(!SuspendTrigger::DidSuspend());
 	MakeResult();
@@ -1313,6 +1316,7 @@ auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	}
 
 	dms_assert(!SuspendTrigger::DidSuspend());
+	ReleaseKeptDataOnAsk(this); // #1364
 	return resultHolder;
 }
 

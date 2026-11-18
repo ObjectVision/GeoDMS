@@ -125,12 +125,16 @@ if errorlevel 1 (
 )
 
 REM The .dms content this build ships, tested inside WSL from build\linux-x64-release\bin
-REM before CreateLinuxSetup.sh stages it (GeoDMS-Test #24): every shipped examples\ and
-REM library\ file must be reached from a shipped_*.dms case of the battery, that copy must
-REM be current, and those cases run from the output folder. Offline; see
-REM batch\TestShippedDms.sh.
-echo --- testing the shipped .dms content, offline ---
-wsl bash -c "cd %geodms_wsldir% && bash batch/TestShippedDms.sh build/linux-x64-release/bin"
+REM before CreateLinuxSetup.sh stages it, by batch\TestShippedContent.sh, the twin of
+REM batch\TestShippedContent.bat. First batch\TestShippedDms.sh, offline (GeoDMS-Test #24):
+REM every shipped examples\ and library\ file must be reached from a shipped_*.dms case of
+REM the battery, that copy must be current, and those cases run from the output folder. Then
+REM examples\grid_to_polygon.dms over the CBS buurt map, which RegioIndelingen.dms downloads
+REM with curl into an empty temporary SourceDataDir, from a copy of the output folder on the
+REM Linux file system (#1360). That step needs the network and the memory the script names;
+REM without either the setup stops here.
+echo --- testing the shipped .dms content: offline, then grid_to_polygon over the downloaded CBS buurt map ---
+wsl bash -c "cd %geodms_wsldir% && bash batch/TestShippedContent.sh build/linux-x64-release/bin"
 if errorlevel 1 goto :shipped_failed
 
 echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) ---
@@ -146,8 +150,13 @@ if not exist "%DEB%" (
     )
 )
 
+REM After dpkg -i, tools/setup_licences.py compares the installed binaries with licenses/README.txt in
+REM both directions and checks the licence texts it names, license.txt and the Debian copyright file
+REM (#1371). A failed install or check removes the package and the setup files, as a failed unit
+REM suite does; a skipped install skips the check.
 echo --- installing .deb in WSL (passwordless sudo required, or skipped) ---
-wsl bash -c "if [ -f '%geodms_wsldir%/%DEB:\=/%' ] && sudo -n true 2>/dev/null; then sudo dpkg -i '%geodms_wsldir%/%DEB:\=/%'; else echo '** skipping dpkg install (no passwordless sudo) — install manually with:  wsl sudo dpkg -i %geodms_wsldir%/%DEB:\=/%'; fi"
+wsl bash -c "if [ -f '%geodms_wsldir%/%DEB:\=/%' ] && sudo -n true 2>/dev/null; then sudo dpkg -i '%geodms_wsldir%/%DEB:\=/%' && python3 '%geodms_wsldir%/tools/setup_licences.py' check --install '/opt/ObjectVision/GeoDms%GeoDmsVersion%.%GeoDmsFlavor%' --deb-copyright /usr/share/doc/geodms/copyright; else echo '** skipping dpkg install (no passwordless sudo) — install manually with:  wsl sudo dpkg -i %geodms_wsldir%/%DEB:\=/%'; fi"
+if errorlevel 1 goto :installed_licences_failed
 
 REM Post-install unit tests (mirrors the unit.bat call in BuildSignAndCreateSetup.bat
 REM (.m) and BuildSignAndCreateSetupCmake.bat (.c)). TestLinuxReleaseUnit.sh runs
@@ -177,7 +186,7 @@ endlocal
 exit /B 1
 
 :shipped_failed
-echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
+echo *** Shipped .dms content FAILED before packaging - see the results above, scratch\shipped_dms\ and scratch\grid_to_polygon_release_linux.log ***
 endlocal
 exit /B 1
 
@@ -186,8 +195,13 @@ echo *** CreateLinuxSetup.sh failed ***
 endlocal
 exit /B 1
 
+:installed_licences_failed
+echo *** dpkg -i failed, or the installed binaries do not match licenses/README.txt - removing installed package and setup files ***
+goto :remove_install
+
 :unit_failed
 echo *** Linux unit tests FAILED - removing installed package and setup files so a broken build cannot ship ***
+:remove_install
 REM dpkg -r removes the package (and the /opt/ObjectVision/GeoDms<ver>.l tree it
 REM owns); the explicit rm -rf is belt-and-suspenders for the versioned dir.
 wsl bash -c "sudo -n dpkg -r geodms 2>/dev/null; sudo -n rm -rf '/opt/ObjectVision/GeoDms%GeoDmsVersion%.%GeoDmsFlavor%'"

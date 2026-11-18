@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Mismatch in number of bits between user specified value type: 'uint16' and tiff pixel value type: 'uint8'.
 // STG-N04: a uint16 attribute on an 8-bit TIFF without SampleFormat: the bit depth of the file and of the configured type differ, which must be an error of the read, not a crash
 container stor_tif_u8_nosf_mismatch_neg
 {

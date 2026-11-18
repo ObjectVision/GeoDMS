@@ -1,0 +1,17 @@
+// #1361: exec_ec gives its folder to the child process, and returns the exit code of the child.
+// The program is the command shell: ComSpec on Windows, and on Linux /bin/sh, as a program name
+// that contains ComSpec stands for it there (an unset %env:ComSpec% expands to env:ComSpec) and the
+// leading /c is dropped. The child runs in testcases/data, which has the subfolder mmd_padded.mmd,
+// so 'cd mmd_padded.mmd' succeeds and the child exits with 7; in a folder without that subfolder
+// cd fails, and cmd exits with 1 and sh with 2.
+// Expected: exit 0 on /checks.
+container oper_exec_ec_folder
+{
+	container checks
+	{
+		parameter<string> Shell    := expand(., '%env:ComSpec%');
+		parameter<string> Folder   := expand(., '%currDir%/data');
+		parameter<uint32> exitcode := exec_ec(Shell, '/c cd mmd_padded.mmd && exit 7', Folder);
+		parameter<bool>   ran      := exitcode == 7, IntegrityCheck = "ran == true";
+	}
+}

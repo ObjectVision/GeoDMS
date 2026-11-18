@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the body requires type variable 'Dx' to be string (the declared type of 'bad'), but 'Dx' must remain generic in the definition
 container fn_test_da
 {
 	// §12.8 discrete_alloc array-spec join: in a function body,

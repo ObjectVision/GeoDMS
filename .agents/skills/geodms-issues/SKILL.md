@@ -27,8 +27,8 @@ Post with a file, never an inline string: `gh issue comment <n> --body-file <fil
 - Write in the language of the thread. Many GeoDMS threads are in Dutch; keep the code
   identifiers, paths and error texts verbatim in either language.
 - First person, on behalf of the user. No "we" for Object Vision, no attribution footer
-  ("Generated with ..."), no name of an AI in the text. The co-author trailer belongs in
-  commits only (geodms-commit).
+  ("Generated with ..."), no name of an AI in the text. Commits carry no AI attribution
+  either (geodms-commit).
 - Refer to people by role, the reporter, the maintainer of the suite, unless you are quoting
   the thread.
 - Reference issues as `#1234`; commits by short sha, `c8d5e6af`; files as `path:line`.

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: map: a partial-application mapped function must leave exactly one '_' hole
 container fn_test_mappart_neg
 {
 	// NEGATIVE: a partial application mapped by map(...) must leave EXACTLY ONE '_' hole for the

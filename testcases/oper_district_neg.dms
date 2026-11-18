@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: Error: Unknown identifier 'NoSuchItem'
+// EXPECT-FAILURE: [[/Dx/cellCount]] Unknown identifier 'Districts'
 container oper_district_neg
 {
 	// #1188: when the district argument cannot derive its meta info, the result unit never

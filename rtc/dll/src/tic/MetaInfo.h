@@ -39,6 +39,7 @@ struct MetaFuncCurry
 	const TreeItem* applyItem = nullptr;
 	const AbstrOperGroup* og = nullptr;
 	bool isMapCall = false; // built-in 'map(function, container)' metafunction (WP3.3)
+	bool isFoldTrace = false; // #1347 'instantiate fold(...)': structuredResult holds the items per step; the holder has no value
 
 	void operator ()(TreeItem* target, const AbstrCalculator* ac) const;
 	LispRef GetAsLispRef() const;

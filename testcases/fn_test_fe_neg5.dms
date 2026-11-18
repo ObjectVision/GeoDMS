@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: 'for_each_nedv': meta function call is not supported inside function bodies
 container fn_test_fe_neg5
 {
 	// §12.7 for_each tranche, the S1 guard: an OPEN name array (a FORMAL

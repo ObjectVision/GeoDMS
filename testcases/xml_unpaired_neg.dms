@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: '>' expected after the '/' that ends the unpaired element '<TreeItem/>', but 'o' was found
+// EXPECT-FAILURE: Unknown identifier 'xmlpart/xup/after'
 // #1261: a '/' inside a tag that is not followed by '>' must be a reported error, not an MG_CHECK
 // assertion; the read stops there, so the item that follows the bad tag is absent
 container xml_unpaired_neg

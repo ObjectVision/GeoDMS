@@ -43,6 +43,9 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 	UInt32 GetNativeTileSizeX() const override;
 	UInt32 GetNativeTileSizeY() const override;
 
+protected:
+	void ReadGeoReference(AbstrUnit* gridDomain, const AbstrUnit* uBase, const TreeItem* storageHolder) const override;
+
 private:
 	void EnsureBlockSizeCached() const;
 	void ReadGridData  (StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi);

@@ -1,0 +1,59 @@
+// The checks on units outside an MMD store that a write of part of the store keeps (issue #1350), in the
+// two cases that stor_mmd_carried_* does not cover. In both the session that writes only dom/w cannot
+// derive the check from its own tree, so it keeps the one that the previous dictionary put on the holder
+// (#1154), which is what the files and rules of the carried items were written against:
+// - gen comes from for_each_nedv over /ext/u, a domain outside the store that itself lies in a template
+//   instance, ext. That session applies neither the rule of gen nor that of ext, so /ext/u is not in its
+//   tree at all: LowerBound(/ext/u) == uint32(0) && UpperBound(/ext/u) == uint32(4).
+// - inst is a template instance with the rule-only attribute (#1264) out/a, whose rule names the unit
+//   src/p outside the store and has it neither as domain nor as values unit (#1318). The check that the
+//   dictionary writes for such a unit comes from that rule, which the session does not apply:
+//   LowerBound(/src/p) == uint32(0) && UpperBound(/src/p) == uint32(5).
+//
+// Five configs, run in this order because run_testcases.ps1 walks them sorted by file name:
+//   _1_write      writes the whole store
+//   _2_rewrite    the same configuration, writes dom/w only, so the rules of gen, ext and inst are not applied
+//   _3_read       reads all of it back
+//   _4_read_neg   declares ext/u with 5 rows, which the kept check on /ext/u refuses
+//   _5_read_neg   declares src/p with 6 rows, which the kept check on /src/p refuses
+// The store part of _1_write and _2_rewrite must stay identical.
+container stor_mmd_unitcheck_1_write
+{
+	unit<uint32> Names : nrofrows = 2
+	{
+		attribute<string> name : ['p', 'q'];
+	}
+
+	Template T_ext
+	{
+		unit<uint32> u : nrofrows = 4
+		{
+			attribute<uint64> v := uint64(id(.)) * 10[uint64] + 7[uint64];
+		}
+	}
+	container ext := T_ext();
+
+	container src
+	{
+		unit<uint32> p : nrofrows = 5;
+	}
+
+	Template T
+	{
+		parameter<uint64> k;
+		container out
+		{
+			attribute<uint32> a (dom) := const(#src/p, dom);
+		}
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_unitcheck.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<uint64> w := uint64(id(.)) + 7[uint64];
+		}
+		container gen  := for_each_nedv(Names/name, '/ext/u/v', /ext/u, uint64);
+		container inst := T(3[uint64]);
+	}
+}

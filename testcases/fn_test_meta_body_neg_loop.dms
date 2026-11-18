@@ -1,0 +1,30 @@
+// EXPECT-FAILURE: 'loop': meta function call is not supported inside function bodies when the function is applied in an expression
+// EXPECT-FAILURE: Argument 2 of loop depends on the parameter 'n'.
+// EXPECT-FAILURE: To repeat a step inside a function body, use fold(domain, step, initial state)
+container fn_test_meta_body_neg_loop
+{
+	// #1366: loop in a function body, with the template in the container around the function.
+	// The definition check does not type the template argument of a meta function, so the call
+	// reaches the refusal that names fold and fold_c instead of an error about the reference to
+	// a template.
+
+	template LoopTemplate
+	{
+		parameter<uint16> NrIter;
+		container currValue;
+		container nextValue;
+		container results
+		{
+			parameter<uint16> LoopWaarde := NrIter;
+		}
+	}
+	function LastIter(parameter<uint16> n) -> parameter<uint16> := lp/lastIter/results/LoopWaarde
+	{
+		container lp := loop(LoopTemplate, n);
+	}
+
+	container checks
+	{
+		parameter<uint16> c := LastIter(uint16(5)), IntegrityCheck = "c == uint16(4)";
+	}
+}

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: shp_arc2_stale.shp' holds 2 records while its index file declares 4
 // STG-N01: a polyline shapefile with 2 records whose .shx declares 4 (data/shp_arc2_stale.shp); reading the arcs must be an error
 container stor_shp_arc2_stale_neg
 {

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: /GeoDmsTestcases/stor_mmd_missing_neg1.mmd does not exist
 // A read-only MMD holder whose store does not exist at all (issue #1272). Everything below a
 // read holder comes from the dictionary of the store, and before 20.21.0 the reader's only probe
 // was for that dictionary, with a silent return when it was absent: the holder became an empty

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: spoint (parameter 'Dx') does not satisfy 'Px: unsigned_domain_points' (declared by function '/nrCellsU')
 container fn_test_domptconstr_neg2
 {
 	// a SIGNED point domain does not satisfy unsigned_domain_points

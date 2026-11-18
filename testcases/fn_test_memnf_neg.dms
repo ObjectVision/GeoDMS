@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad': parameter 'nw' declares no member 'F3'
 container fn_test_memnf_neg
 {
 	// K11a-3 definition-time member-not-found: the member block is the parameter's

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: string (parameter 'x') does not satisfy 'Vx: numerics' (declared by function '/TwiceG')
 container fn_test_p2_neg1
 {
 	unit<uint32> Road : nrofrows = 2

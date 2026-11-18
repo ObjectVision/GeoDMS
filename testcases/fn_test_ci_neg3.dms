@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/nearest_err': the argument types of operator 'add' do not match any of its registered overloads
 container fn_test_ci_neg3
 {
 	// nearest_err's result adds sum(uint32(ci/arc_rel)) — uint32 — to sum(ci/dist),

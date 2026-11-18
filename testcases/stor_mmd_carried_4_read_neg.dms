@@ -1,0 +1,18 @@
+// EXPECT-FAILURE: IntegrityCheck : 'LowerBound(/Src) == uint32(0) && UpperBound(/Src) == uint32(4)' is not true
+// The carried case (issue #1350), read with Src declared with 5 rows where gen was written with 4.
+// _2_rewrite did not apply the rule of gen and did not know the range of Src, so the check on the holder
+// is the one that the dictionary of _1_write wrote; it must refuse this reader.
+// stor_mmd_carried_1_write.dms carries the description.
+container stor_mmd_carried_4_read_neg
+{
+	unit<uint32> Src : nrofrows = 5;
+
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_carried.mmd"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<string> gen_p := asList(string(store/gen/p), ' '), IntegrityCheck = "gen_p == '7 17 27 37'";
+	}
+}

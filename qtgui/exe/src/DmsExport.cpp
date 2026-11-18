@@ -192,10 +192,9 @@ void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
         }
     }
 
-    auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), true);
-
-    Table_Dump(fout.get(), begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
-    fout->Close(); // RTC-A05: an export that was not written, or only in part, is reported
+    // The file is created only after every column has been read: a failing attribute used to
+    // leave it empty (#1340).
+    Table_DumpToFile(ConvertDosFileName(fullFileName), begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
 }
 
 // The file of one table of a database container, in a format that holds one table per file

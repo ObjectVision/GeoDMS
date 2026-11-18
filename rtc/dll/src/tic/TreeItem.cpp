@@ -510,6 +510,7 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 		// reports what it is waiting for; see DrainSessionUsageOrReport above for why (#1191).
 		if (auto sd = SessionData::Curr())
 			sd->SetCancelling();
+		ReleaseAllKeptData(); // #1364: data that a fold_c kept for an item whose data was never asked for holds session usages through its interest
 		DrainSessionUsageOrReport(this);
 
 		dbg_assert(ExplainValue_IsClear());

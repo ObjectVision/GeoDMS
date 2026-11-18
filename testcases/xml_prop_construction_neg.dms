@@ -1,3 +1,9 @@
+// EXPECT-FAILURE: names a property that cannot be set here
+// EXPECT-FAILURE: Unknown identifier 'xmlpart/xpc/after'
+// The first fragment stops before the reason that ends its message ("it is set at construction,
+// from an attribute of the open tag"): the message starts with the absolute path of the .xml and is
+// cut after 256 characters, so from a longer folder, such as an output folder or the installed
+// copy, its last words are lost.
 // #1261: a property that a tree item fixes when it is created ('name' here) or that is read-only
 // used to be dropped without a word when it was written as a child element, so the element simply
 // had no effect. It is refused now, and the item that follows it in the fragment is therefore absent

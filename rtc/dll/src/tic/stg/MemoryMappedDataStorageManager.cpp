@@ -18,6 +18,8 @@
 #include "act/TriggerOperator.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
+#include "mci/Class.h"   // #1350: Mmd_ReadConstructionAttrs walks the property definitions as DumpPropList does
+#include "mci/PropDef.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "ptr/InterestHolders.h"
@@ -30,6 +32,8 @@
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
 #include "xml/XMLOut.h"
+
+#include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR: GeoDms 21 no longer reads data files without extension (#1349)
 
 #include "AbstrCalculator.h" // #1264: the rule's suppliers and IsDataBlock/IsStorageRead
 #include "AbstrDataItem.h"
@@ -87,7 +91,10 @@ namespace {
 		if (!isDomainRole)
 			return {};
 		auto rangeItem = u->GetCurrRangeItem();
-		if (!rangeItem || !IsCalculatingOrReady(rangeItem.get()))
+		// asked without interest, as Mmd_AddRuleUnitRestriction and the Range subtag ask (#1266): IsCalculatingOrReady
+		// asserts that the range item has interest, and the domain of a stored attribute need not have any when the
+		// dump runs: the domain outside the store of the for_each in testcases\stor_mmd_carried_1_write.dms (#1350)
+		if (!rangeItem || !(IsCalculating(rangeItem.get()) || IsDataCurrStandby(rangeItem.get())))
 			return {}; // not known yet; a later re-emission (see UpdateDictionary) refreshes the dictionary
 		InterestPtr<const TreeItem*> holder(u); // the same guarded access the Range subtag emission uses
 		u->PrepareDataUsage(DrlType::Certain);
@@ -159,7 +166,12 @@ namespace {
 	// is how the reader's holder reaches it. The rule names it from a sub-item of the holder and may
 	// have reached it up-scope; a reader that declares it at that path satisfies both. Asked without
 	// interest first: the dump may visit a unit that nothing in this session holds.
-	void Mmd_AddRuleUnitRestriction(SharedStr& expr, std::vector<const AbstrUnit*>& seen, const TreeItem* dictRoot, const AbstrUnit* u)
+	// #1350: and so does a unit outside the holder that a declaration carried over from the previous dictionary
+	// names as its domain or values unit (isDomainRole false), as it would for the item that this tree lacks.
+	// Such a unit is mostly one that nothing in this session asked for, so its range is not known here:
+	// carriedBounds is then the check that the previous dictionary put on it, which is what the files of
+	// the carried item were written against.
+	void Mmd_AddRuleUnitRestriction(SharedStr& expr, std::vector<const AbstrUnit*>& seen, const TreeItem* dictRoot, const AbstrUnit* u, bool isDomainRole = true, const SharedStr& carriedBounds = SharedStr())
 	{
 		if (!u || u->IsDefaultUnit() || dictRoot->DoesContain(u))
 			return;
@@ -169,18 +181,203 @@ namespace {
 
 		auto name = u->GetFullName();
 		SharedStr bounds;
-		if (u->Was(ProgressState::MetaInfo) || u->IsPassor())
+		if (isDomainRole && (u->Was(ProgressState::MetaInfo) || u->IsPassor()))
 			if (auto rangeItem = u->GetCurrRangeItem(); rangeItem && (IsCalculating(rangeItem.get()) || IsDataCurrStandby(rangeItem.get())))
 			{
 				InterestPtr<const TreeItem*> holder(rangeItem.get()); // what Mmd_UnitBoundsRestriction asks next requires it
 				bounds = Mmd_UnitBoundsRestriction(u, name, true);
 			}
+		if (bounds.empty() && isDomainRole && !carriedBounds.empty())
+			bounds = SharedStr(carriedBounds);
 
 		if (!expr.empty())
 			expr += " && ";
 		expr += bounds.empty()
 			? mySSPrintF("PropValue({}, 'ValueType') == '{}'", name, u->GetValueType()->GetNameID())
 			: bounds;
+	}
+
+	// #1350: the bounds check of the unit name in the IntegrityCheck that the dump of the previous dictionary
+	// wrote on the holder, "LowerBound(name) == .. && UpperBound(name) == ..", as Mmd_UnitBoundsRestriction
+	// writes it; empty when that check gives the unit none
+	SharedStr Mmd_CarriedBoundsTerm(WeakStr check, WeakStr name)
+	{
+		static constexpr std::string_view sep = " && ";
+		if (check.empty() || name.empty())
+			return {};
+		std::string text(check.begin(), check.send()), unitName(name.begin(), name.send());
+		std::string lower = "LowerBound(" + unitName + ") == ", upper = " && UpperBound(" + unitName + ") == ";
+		for (auto pos = text.find(lower); pos != std::string::npos; pos = text.find(lower, pos + 1))
+		{
+			if (pos != 0 && (pos < sep.size() || text.compare(pos - sep.size(), sep.size(), sep) != 0))
+				continue; // not where a term starts
+			auto upperPos = text.find(sep, pos);
+			if (upperPos == std::string::npos || text.compare(upperPos, upper.size(), upper) != 0)
+				continue;
+			auto end = upperPos + upper.size();
+			for (int depth = 0; end != text.size(); ++end) // the term ends at the next separator outside brackets
+			{
+				if (text[end] == '(')
+					++depth;
+				else if (text[end] == ')')
+					--depth;
+				else if (depth == 0 && text.compare(end, sep.size(), sep) == 0)
+					break;
+			}
+			return SharedStr(text.substr(pos, end - pos));
+		}
+		return {};
+	}
+
+	// #1350: the item at an absolute path, found through the raw links of the configuration, as a carried-over
+	// declaration names a unit outside the store; nothing when a container on the way has not made it yet
+	const TreeItem* Mmd_FindRawAbsolute(const TreeItem* anyItem, CharPtrRange path)
+	{
+		const TreeItem* curr = anyItem;
+		while (auto parent = curr->GetTreeParent().get())
+			curr = parent;
+		CharPtr i = path.begin(), e = path.end();
+		if (i == e || *i != '/')
+			return nullptr;
+		++i;
+		while (curr && i != e)
+		{
+			CharPtr j = std::find(i, e, '/');
+			const TreeItem* found = nullptr;
+			for (auto sub = curr->_GetFirstSubItem(); sub && !found; sub = sub->GetNextItem())
+			{
+				auto subName = sub->GetName();
+				if (std::equal(i, j, subName.begin(), subName.send()))
+					found = sub;
+			}
+			curr = found;
+			i = (j == e) ? j : j + 1;
+		}
+		return curr;
+	}
+
+	// #1350: the check of the unit name in the IntegrityCheck of the previous dictionary: its bounds check
+	// (Mmd_CarriedBoundsTerm), or else its value-type check "PropValue(name, 'ValueType') == '..'", as
+	// Mmd_AddUnitRestriction writes them; empty when that check gives the unit neither
+	SharedStr Mmd_CarriedUnitTerm(WeakStr check, WeakStr name)
+	{
+		if (auto bounds = Mmd_CarriedBoundsTerm(check, name); !bounds.empty())
+			return bounds;
+		static constexpr std::string_view sep = " && ";
+		if (check.empty() || name.empty())
+			return {};
+		std::string text(check.begin(), check.send());
+		std::string start = "PropValue(" + std::string(name.begin(), name.send()) + ", 'ValueType') == '";
+		for (auto pos = text.find(start); pos != std::string::npos; pos = text.find(start, pos + 1))
+		{
+			if (pos != 0 && (pos < sep.size() || text.compare(pos - sep.size(), sep.size(), sep) != 0))
+				continue; // not where a term starts
+			auto close = text.find('\'', pos + start.size());
+			if (close == std::string::npos)
+				break;
+			return SharedStr(text.substr(pos, close + 1 - pos));
+		}
+		return {};
+	}
+
+	// #1350: the units that the IntegrityCheck of the previous dictionary checks, by the absolute path it
+	// names them with, in the order of that check
+	std::vector<std::string> Mmd_CheckedUnitNames(WeakStr check)
+	{
+		std::vector<std::string> names;
+		std::string text(check.begin(), check.send());
+		for (std::string_view opener : { std::string_view("LowerBound("), std::string_view("PropValue(") })
+			for (auto pos = text.find(opener); pos != std::string::npos; pos = text.find(opener, pos + 1))
+			{
+				auto b = pos + opener.size();
+				auto e = text.find_first_of("),", b);
+				if (e == std::string::npos)
+					break;
+				auto name = text.substr(b, e - b);
+				if (!name.empty() && name[0] == '/' && std::find(names.begin(), names.end(), name) == names.end())
+					names.emplace_back(std::move(name));
+			}
+		return names;
+	}
+
+	// #1350: whether a rule names the unit at the absolute path unitPath. A rule-only attribute may not name
+	// anything by an absolute path (Mmd_QualifiesAsRuleOnly); it names a unit outside the store by a path
+	// that is found up-scope from the attribute (#1318), so that path is the end of the unit's full path.
+	// A path in a string literal counts as well, which can only keep a check too many.
+	bool Mmd_RuleNamesUnit(WeakStr rule, const std::string& unitPath)
+	{
+		auto isNameChar = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+		CharPtr i = rule.begin(), e = rule.send();
+		while (i != e)
+		{
+			if (!isNameChar(*i) && *i != '.')
+			{
+				++i;
+				continue;
+			}
+			CharPtr b = i;
+			while (i != e && (isNameChar(*i) || *i == '/' || *i == '.'))
+				++i;
+			std::string_view path(b, i - b);
+			while (!path.empty() && (path.front() == '.' || path.front() == '/'))
+				path.remove_prefix(1); // "../", "./" and the dots notation ".../" all lead up-scope
+			while (path.ends_with('/'))
+				path.remove_suffix(1);
+			if (path.empty() || !isNameChar(path.front()))
+				continue;
+			if (unitPath.size() > path.size() && unitPath.ends_with(path) && unitPath[unitPath.size() - path.size() - 1] == '/')
+				return true;
+		}
+		return false;
+	}
+
+	// #1350: the outside units of the declarations that the dump carries over below item (see Mmd_StoredDecl):
+	// the domain and values unit of each, and the units that the rule of a carried rule-only attribute names
+	// (#1318). A unit that this tree has gets the check of Mmd_AddRuleUnitRestriction, with the check of the
+	// previous dictionary for when its range is not known here. A unit that this tree lacks, as it lies in a
+	// container outside the store whose rule this session did not apply either, keeps the check that the
+	// previous dictionary put on it, as the carried declaration itself does.
+	void Mmd_AddCarriedUnitRestrictions(SharedStr& expr, std::vector<const AbstrUnit*>& seen, const TreeItem* dictRoot, const TreeItem* item)
+	{
+		auto relName = (item == dictRoot) ? std::string() : std::string(item->GetRelativeName(dictRoot).c_str());
+		auto decls = t_MmdDictionaryManager->GetCarriedSubItems(item, relName);
+		if (decls.empty())
+			return;
+		auto previousRoot = t_MmdDictionaryManager->FindStoredDecl(std::string());
+		SharedStr previousCheck = previousRoot ? previousRoot->integrityCheck : SharedStr();
+		auto checkedNames = Mmd_CheckedUnitNames(previousCheck);
+
+		auto addUnit = [&](const std::string& path, bool isDomainRole)
+		{
+			SharedStr pathStr(path.c_str());
+			if (auto ti = Mmd_FindRawAbsolute(dictRoot, pathStr.AsRange()); ti && IsUnit(ti))
+			{
+				Mmd_AddRuleUnitRestriction(expr, seen, dictRoot, AsUnit(ti), isDomainRole
+					, isDomainRole ? Mmd_CarriedBoundsTerm(previousCheck, pathStr) : SharedStr());
+				return;
+			}
+			auto term = Mmd_CarriedUnitTerm(previousCheck, pathStr);
+			if (term.empty() || std::string(expr.begin(), expr.send()).find(term.c_str()) != std::string::npos)
+				return; // no check to keep, or another carried declaration already kept it
+			if (!expr.empty())
+				expr += " && ";
+			expr += term;
+		};
+
+		while (!decls.empty())
+		{
+			auto [declRelName, decl] = decls.back();
+			decls.pop_back();
+			for (const auto& [path, isDomainRole] : decl->outsideUnits)
+				addUnit(std::string(path.begin(), path.send()), isDomainRole);
+			if (auto entry = t_MmdDictionaryManager->FindStoredEntry(declRelName); entry && entry->kind == Mmd_StoredEntryKind::rule)
+				for (const auto& name : checkedNames)
+					if (Mmd_RuleNamesUnit(entry->text, name))
+						addUnit(name, true); // #1318 checks a unit that a rule names as it checks a domain
+			for (const auto& sub : decl->subItems)
+				if (auto subDecl = t_MmdDictionaryManager->FindStoredDecl(sub.second))
+					decls.emplace_back(sub.second, subDecl);
+		}
 	}
 
 } // anonymous namespace
@@ -190,14 +387,17 @@ auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedS
 	SharedStr expr;
 	std::vector<const AbstrUnit*> seen; // first-encounter order keeps the dictionary text deterministic
 
-	std::vector<const TreeItem*> stack{ dictRoot };
+	std::vector<std::pair<const TreeItem*, bool>> stack{ { dictRoot, false } }; // #1350: with whether an ancestor's rule is unapplied
 	while (!stack.empty())
 	{
-		auto ti = stack.back();
+		auto [ti, belowUnapplied] = stack.back();
 		stack.pop_back();
+		belowUnapplied = belowUnapplied || Mmd_IsRuleUnapplied(ti);
 		for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
 			if (!sub->IsDisabledStorage()) // mirrors what the dictionary dump includes
-				stack.push_back(sub);
+				stack.emplace_back(sub, belowUnapplied);
+		if (belowUnapplied && t_MmdDictionaryManager)
+			Mmd_AddCarriedUnitRestrictions(expr, seen, dictRoot, ti);
 		if (!IsDataItem(ti))
 			continue;
 		auto adi = AsDataItem(ti);
@@ -376,13 +576,47 @@ SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 	return DelimitedConcat(GetNameStr().c_str(), MakeFileName(name).c_str());
 }
 
+SharedStr MmdStorageManager::GetDataFileName(CharPtrRange relItemName) const
+{
+	return MakeStoreDataFileName(GetNameStr(), relItemName);
+}
+
+SharedStr MmdStorageManager::FindDataFileName(CharPtrRange relItemName, bool warn) const
+{
+	auto storeFolder = GetNameStr();
+	auto fileName = MakeStoreDataFileName(storeFolder, relItemName);
+	if (IsFileOrDirAccessible(fileName))
+		return fileName;
+
+#if DMS_VERSION_MAJOR < 21
+	// a folder under that name holds the items of a container, and is no data file
+	auto unsuffixedName = MakeStoreUnsuffixedFileName(storeFolder, relItemName);
+	if (!IsExistingRegularFile(unsuffixedName))
+		return fileName;
+	if (warn && !m_UnsuffixedReported.exchange(true))
+		reportF(SeverityTypeID::ST_Warning,
+			"Deprecated: MMD storage {} was written by GeoDMS 20.28 or earlier, which named a data file after its item without an extension; "
+			"{} is read from {} instead of {}. Write the storage again to convert it: a write gives each data file the extension {} "
+			"and removes the file without it. GeoDms 21 will not read data files without the extension. "
+			"This warning is given once per storage per session."
+			, storeFolder.c_str(), SharedStr(relItemName).c_str(), unsuffixedName.c_str(), fileName.c_str(), STORE_DATA_FILE_EXTENSION);
+	return unsuffixedName;
+#else
+	return fileName;
+#endif
+}
+
 FileDateTime MmdStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const
 {
 	if (DoesExist(storageHolder)) // TODO: lock this file from here on.
 	{
-		m_FileTime = GetFileOrDirDateTime(GetFullFileName(path));
+		// a data file, or else, for a unit or container, the folder of its items, as in DoCheckExistence (#1349)
+		auto fileName = *path ? FindDataFileName(CharPtrRange(path, StrLen(path)), false) : GetFullFileName(path);
+		if (!IsFileOrDirAccessible(fileName))
+			fileName = GetFullFileName(path);
+		m_FileTime = GetFileOrDirDateTime(fileName);
 	}
-	return m_FileTime; 
+	return m_FileTime;
 }
 
 bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
@@ -390,8 +624,11 @@ bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const Tr
 	if (!storageItem)
 		return AbstrStorageManager::DoCheckExistence(storageHolder, storageItem);
 
+	// a unit or container below the holder is the folder of its items, which has no extension (#1349)
 	auto relName = storageItem->GetRelativeName(storageHolder);
-	return IsFileOrDirAccessible(GetFullFileName(relName.c_str()));
+	if (relName.empty() || !IsDataItem(storageItem))
+		return IsFileOrDirAccessible(GetFullFileName(relName.c_str()));
+	return IsFileOrDirAccessible(FindDataFileName(relName.AsRange(), false));
 }
 
 void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
@@ -606,16 +843,69 @@ namespace {
 		}
 	}
 
+	// #1350: the construction attributes of an item as OutStreamBase::DumpPropList writes them into a
+	// dictionary, which is DMS: the properties in xml_mode::attribute, base classes first
+	void Mmd_ReadConstructionAttrs(const Object* self, const Class* cls, std::vector<std::pair<SharedStr, SharedStr>>& attrs)
+	{
+		if (auto base = cls->GetBaseClass())
+			Mmd_ReadConstructionAttrs(self, base, attrs);
+		for (auto propDef = cls->GetLastPropDef(); propDef; propDef = propDef->GetPrevPropDef())
+			if (propDef->GetSetMode() > set_mode::none && propDef->GetXmlMode() == xml_mode::attribute && propDef->HasNonDefaultValue(self))
+				attrs.emplace_back(SharedStr(propDef->GetNameID()), propDef->GetRawValueAsSharedStr(self));
+	}
+
+	// #1350: what the dump of the previous dictionary wrote for ti, read back from the merged copy. Its
+	// unit references were never resolved there, so the raw accessors give them as that dictionary
+	// spelled them: relative inside the store, by the absolute path outside it (UnitRefDumpValue).
+	Mmd_StoredDecl Mmd_ReadStoredDecl(const TreeItem* ti, const TreeItem* root)
+	{
+		bool isRoot = (ti == root);
+		Mmd_StoredDecl decl;
+		decl.signature = ti->GetSignature();
+		decl.name = SharedStr(ti->GetNameID());
+		Mmd_ReadConstructionAttrs(ti, ti->GetDynamicClass(), decl.attrs);
+		if (!isRoot) // as Mmd_GatherPresentationTags; the references were checked when that dictionary was written
+		{
+			if (descrPropDefPtr->HasNonDefaultValue(ti))      decl.tags.descr      = descrPropDefPtr->GetRawValueAsSharedStr(ti);
+			if (labelPropDefPtr->HasNonDefaultValue(ti))      decl.tags.label      = labelPropDefPtr->GetRawValueAsSharedStr(ti);
+			if (dialogTypePropDefPtr->HasNonDefaultValue(ti)) decl.tags.dialogType = dialogTypePropDefPtr->GetRawValueAsSharedStr(ti);
+			if (dialogDataPropDefPtr->HasNonDefaultValue(ti)) decl.tags.dialogData = dialogDataPropDefPtr->GetRawValueAsSharedStr(ti);
+			if (cdfPropDefPtr->HasNonDefaultValue(ti))        decl.tags.cdf        = cdfPropDefPtr->GetRawValueAsSharedStr(ti);
+		}
+		else if (integrityCheckPropDefPtr->HasNonDefaultValue(ti))
+			decl.integrityCheck = integrityCheckPropDefPtr->GetRawValueAsSharedStr(ti); // what Mmd_SynthesizeExternalUnitRestrictions wrote
+		if (IsDataItem(ti))
+		{
+			auto adi = AsDataItem(ti);
+			if (auto& calc = adi->GetCalculatorMember(); calc && calc->IsDataBlock())
+				decl.dataBlock = calc->GetExpr();
+			for (bool isDomainRole : { true, false })
+			{
+				auto* propDef = isDomainRole ? s_DomainUnitPropDefPtr : s_ValuesUnitPropDefPtr;
+				if (isDomainRole && !propDef->HasNonDefaultValue(adi))
+					continue; // a parameter
+				auto unitRef = propDef->GetRawValue(adi);
+				if (!unitRef.empty() && *unitRef.begin() == '/')
+					decl.outsideUnits.emplace_back(std::move(unitRef), isDomainRole);
+			}
+		}
+		for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+			decl.subItems.emplace_back(sub->GetNameID(), std::string(sub->GetRelativeName(root).c_str()));
+		return decl;
+	}
+
 	// #1316: what the dictionary that an earlier session left says of each unit and each rule-only
 	// attribute. Read the way a reader reads it: the dictionary is merged into an item of the class
 	// of the holder, here a detached one that nothing shows and that never gets its meta info, and
 	// what the merge set on each item is read back through the raw accessors, which read a member
 	// and nothing more. A dictionary this configuration cannot take, a unit holder over a container
 	// store say, fails the merge and describes nothing.
-	Mmd_StoredEntryMap Mmd_ReadStoredEntries(const TreeItem* storageHolder, const SharedStr& dictFileName)
+	// #1350: and how it declares each item, in decls.
+	Mmd_StoredEntryMap Mmd_ReadStoredEntries(const TreeItem* storageHolder, const SharedStr& dictFileName, Mmd_StoredDeclMap& decls)
 	{
 		assert(IsMetaThread());
 		Mmd_StoredEntryMap entries;
+		decls.clear();
 		if (!s_AppendTreeFromConfigurationPtr || !IsFileOrDirAccessible(dictFileName))
 			return entries; // the first write session of this store
 
@@ -661,6 +951,8 @@ namespace {
 			for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
 				stack.push_back(sub);
 			addEntry(ti);
+			auto relName = (ti == previous.get()) ? std::string() : std::string(ti->GetRelativeName(previous.get()).c_str());
+			decls[relName] = Mmd_ReadStoredDecl(ti, previous.get());
 		}
 		return entries;
 	}
@@ -755,13 +1047,15 @@ void MmdStorageManager::GatherPresentationTagsOnce(const TreeItem* storageHolder
 
 	// #1316: parsed before the lock is taken; only the meta thread gets here, and the store is not
 	// opened for writing before this call returns (every OpenForWrite of an MMD store comes after it)
-	auto storedEntries = IsReadOnly() ? Mmd_StoredEntryMap() : Mmd_ReadStoredEntries(storageHolder, GetFullFileName("0Dictionary.dms"));
+	Mmd_StoredDeclMap storedDecls;
+	auto storedEntries = IsReadOnly() ? Mmd_StoredEntryMap() : Mmd_ReadStoredEntries(storageHolder, GetFullFileName("0Dictionary.dms"), storedDecls);
 
 	auto lock = lock_t(m_CriticalSection);
 	if (m_PresentationTagsGathered)
 		return;
 	Mmd_GatherPresentationTags(storageHolder, m_PresentationTags);
 	m_StoredEntries = std::move(storedEntries);
+	m_StoredDecls = std::move(storedDecls);
 	m_PresentationTagsGathered = true;
 }
 
@@ -769,6 +1063,36 @@ auto MmdStorageManager::FindStoredEntry(const std::string& relName) const -> con
 {
 	auto i = m_StoredEntries.find(relName);
 	return (i == m_StoredEntries.end()) ? nullptr : &i->second;
+}
+
+auto MmdStorageManager::FindStoredDecl(const std::string& relName) const -> const Mmd_StoredDecl*
+{
+	auto i = m_StoredDecls.find(relName);
+	return (i == m_StoredDecls.end()) ? nullptr : &i->second;
+}
+
+auto MmdStorageManager::GetCarriedSubItems(const TreeItem* item, const std::string& relName) const -> std::vector<std::pair<std::string, const Mmd_StoredDecl*>>
+{
+	std::vector<std::pair<std::string, const Mmd_StoredDecl*>> result;
+	auto decl = FindStoredDecl(relName);
+	if (!decl)
+		return result;
+	for (const auto& [id, subRelName] : decl->subItems)
+	{
+		bool inTree = false;
+		for (auto sub = item->_GetFirstSubItem(); sub && !inTree; sub = sub->GetNextItem())
+			inTree = (sub->GetNameID() == id);
+		if (inTree)
+			continue; // declared by this tree, as this session has it
+		if (auto subDecl = FindStoredDecl(subRelName))
+			result.emplace_back(subRelName, subDecl);
+	}
+	return result;
+}
+
+bool Mmd_IsRuleUnapplied(const TreeItem* item)
+{
+	return !item->GetExprMember().empty() && !item->Was(ProgressState::MetaInfo) && !item->IsPassor();
 }
 
 void MmdStorageManager::NoteStoredEntry(const std::string& relName, Mmd_StoredEntryKind kind, SharedStr text)
@@ -882,7 +1206,7 @@ void MmdStorageManager::MaterializeSharedContent(const TreeItem* storageHolder, 
 	auto relName = adi->GetRelativeName(storageHolder);
 	if (relName.empty())
 		relName = SharedStr("@main"); // the same name DataWriteLock gives the holder itself
-	auto fileName = DelimitedConcat(GetNameStr().c_str(), relName.c_str());
+	auto fileName = GetDataFileName(relName.AsRange()); // #1349: with the extension
 
 	{
 		// m_CriticalSection is a binary_semaphore, not recursive, and OpenForWrite asserts that the

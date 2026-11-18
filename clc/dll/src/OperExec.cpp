@@ -48,13 +48,15 @@ namespace {
 		}
 	}
 
+	// #1361: the child gets the folder; the current folder of this process stays as it is, so the
+	// threads that keep working while the child runs do not see it change.
 	template <bool returnValue>
-	void Execute(TreeItemDualRef& resultHolder, CharPtr moduleName, SharedStr& cmdLine)
+	void Execute(TreeItemDualRef& resultHolder, CharPtr moduleName, SharedStr& cmdLine, CharPtr folder)
 	{
 //		DMS_ReduceResources();
 		Wait(100);
 		reportF(SeverityTypeID::ST_MinorTrace, "exec_ec: {} {}", moduleName ? moduleName : "", cmdLine.c_str());
-		auto errorCode = ExecuteChildProcess(moduleName, cmdLine.begin());
+		auto errorCode = ExecuteChildProcess(moduleName, cmdLine.begin(), folder);
 
 		if constexpr (returnValue)
 		{
@@ -93,31 +95,16 @@ struct OperExec : UnaryOperator
 			checked_domain<Void>(args[0], "a1");
 			SharedStr cmd = GetValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[0]), 0);
 
-			// Execute 
-			Execute<returnValue>(resultHolder, nullptr, cmd);
+			// Execute
+			Execute<returnValue>(resultHolder, nullptr, cmd, nullptr);
 		}
 		return true;
 	}
 };
 
 // *****************************************************************************
-//											OperExecInDir (1 param with command line, 1 parameter in temp curr dir)
+//											OperExecInDir (1 param with command line, 1 parameter with the folder of the child)
 // *****************************************************************************
-
-struct CurrentDirSelector
-{
-	CurrentDirSelector(CharPtr dir)
-		:	m_PrevDir(GetCurrentDir())
-	{
-		SetCurrentDir(dir);
-	}
-	~CurrentDirSelector()
-	{
-		SetCurrentDir(m_PrevDir.c_str());
-	}
-private:
-	SharedStr m_PrevDir;
-};
 
 template<bool returnValue>
 struct OperExecInDir : BinaryOperator
@@ -142,9 +129,8 @@ struct OperExecInDir : BinaryOperator
 			SharedStr cmd = GetTheCurrValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[0]));
 			SharedStr dir = GetTheCurrValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[1]));
 
-			// Execute 
-			CurrentDirSelector cds(dir.c_str());
-			Execute<returnValue>(resultHolder, nullptr, cmd);
+			// Execute
+			Execute<returnValue>(resultHolder, nullptr, cmd, dir.c_str());
 		}
 		return true;
 	}
@@ -175,9 +161,8 @@ struct OperCmdInDir : TernaryOperator
 			SharedStr cmdLine = GetTheCurrValue<SharedStr>(args[1]);
 			SharedStr dirPath = GetTheCurrValue<SharedStr>(args[2]);
 
-			// Execute 
-			CurrentDirSelector cds(dirPath.c_str());
-			Execute<returnValue>(resultHolder, module.c_str(), cmdLine);
+			// Execute
+			Execute<returnValue>(resultHolder, module.c_str(), cmdLine, dirPath.c_str());
 		}
 		return true;
 	}

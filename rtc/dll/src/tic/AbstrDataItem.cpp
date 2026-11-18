@@ -11,6 +11,7 @@
 // AbstrDataItem: the abstract attribute item -- domain/values unit
 // resolution, data-object administration, checks and interest handling.
 
+#include <optional>
 #include <semaphore>
 
 #include "AbstrDataItem.h"
@@ -26,6 +27,7 @@
 #include "mci/ValueClass.h"
 #include "mci/PropDef.h"
 #include "ser/FileCreationMode.h"
+#include "ser/FileStreamBuff.h"
 #include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "xml/XMLOut.h"
@@ -50,6 +52,7 @@
 #include "TileLock.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
+#include "TreeItemFunctionSpec.h" // IsFunctionSignatureItem (#1351)
 #include "TreeItemUtils.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -1006,8 +1009,39 @@ static SharedStr UnitRefDumpValue(TokenID srcToken, SharedStr resolved)
 // (TreeItem_ResolveUnitRefs in Xml/XmlTreeOut.cpp), so what a raw read finds unresolved is a
 // reference nothing can bind -- a function or template body item -- and that is written as it was
 // configured, which is what UnitRefDumpValue prefers for a bare name anyway.
+//
+// #1351: an item of a function SIGNATURE -- a parameter, a member in the block of a parameter, or the
+// designated result -- is written as the source wrote it, path or not. XML_DumpFunctionDecl writes the
+// signature of the DMS notation from these source tokens (#1252), and the XML notation, which has no
+// declaration grammar of its own, writes it through these properties; the XML reader takes the value
+// back as the source token. With the resolved relative path here, a signature read back from XML was
+// written by the DMS notation as '..../geometries/rdc' where the source had 'geometries/rdc'. The
+// source token is as safe as the resolved path in a signature: it is resolved from where the function
+// declares it, never from a call site, and a copy that applies the function is no function item.
+static bool IsFunctionSignatureItem(const TreeItem* item)
+{
+	bool isMember = false;
+	for (const TreeItem* parent = item->GetTreeParent().get(); parent; isMember = true, item = parent, parent = parent->GetTreeParent().get())
+	{
+		if (!parent->IsFunctionItem())
+			continue; // item may be a member of a parameter, or of a container in the body
+		if (TreeItem_IsFunctionVariantSet(parent))
+			return false; // its sub-items are the variants, which are functions themselves
+		if (!isMember && item->GetNameID() == TreeItem_GetFunctionResultName(parent))
+			return true; // the result, but not what it contains: the signature names only its type
+		UInt32 nrParams = TreeItem_GetFunctionParamCount(parent);
+		for (const TreeItem* p = parent->_GetFirstSubItem(); p && nrParams; p = p->GetNextItem(), --nrParams)
+			if (p == item)
+				return true;
+		return false;
+	}
+	return false;
+}
+
 static SharedStr UnitRefRawValue(const AbstrDataItem* item, TokenID srcToken, const SharedUnit& currUnit)
 {
+	if (!t_MmdDictionaryRoot && IsDefined(srcToken) && srcToken != TokenID::GetEmptyID() && IsFunctionSignatureItem(item))
+		return SharedStr(srcToken);
 	if (currUnit)
 		return UnitRefDumpValue(srcToken, currUnit->GetScriptName(item));
 	assert(IsDefined(srcToken));
@@ -1232,7 +1266,10 @@ TIC_CALL UInt32 DMS_CONV DMS_AbstrDataItem_GetNrFeatures(const AbstrDataItem* se
 	return 0;
 }
 
-TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
+// The body of Table_Dump and Table_DumpToFile. openOut is called once, after every column has been
+// read, and returns the stream to write to.
+template <typename OpenOut>
+static void Table_DumpImpl(OpenOut&& openOut, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
 {
 	SizeT nrDataItems = columnSpecEnd - columnSpecPtr;
 	if (!nrDataItems)
@@ -1253,6 +1290,7 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 	for (const auto& drl : readLocks)
 		tileLocks.emplace_back(drl.GetRefObj()->CreateReadableTileData(no_tile));
 
+	OutStreamBuff* out = openOut();
 	FormattedOutStream fout(out, FormattingFlags::None);
 	if (nrDataItems > 1 || !recNos || recNoEnd - recNos != 1)
 	{
@@ -1298,6 +1336,22 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 		}
 		out->WriteByte('\n');
 	}
+}
+
+TIC_CALL void Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
+{
+	Table_DumpImpl([out] { return out; }, columnSpecPtr, columnSpecEnd, recNos, recNoEnd);
+}
+
+TIC_CALL void Table_DumpToFile(WeakStr fileName, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
+{
+	std::optional<FileOutStreamBuff> file;
+	auto openFile = [&file, &fileName]() -> OutStreamBuff* { return &file.emplace(fileName, true); };
+
+	Table_DumpImpl(openFile, columnSpecPtr, columnSpecEnd, recNos, recNoEnd);
+	if (!file)
+		openFile(); // no columns: an empty file, as before
+	file->Close(); // RTC-A05: an export that was not written, or only in part, is reported
 }
 
 TIC_CALL void DMS_CONV DMS_Table_Dump(OutStreamBuff* out, UInt32 nrDataItems, const ConstAbstrDataItemPtr* dataItemArray)

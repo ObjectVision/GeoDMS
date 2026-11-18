@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: '/lib/R': recursive function application is not supported
 container fn_test_p1_rec
 {
 	container lib

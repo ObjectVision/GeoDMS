@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Values mismatch between factor 2 [[/Year]] of [[/TY]] ( : uint32) and Values [[/Year8]] of argument 3 ( : uint8)
 // #1293: combine_data checks the values unit of each relation against the factor at its position with
 // UnifyValues. A relation of value type uint8 in the place of a uint32 factor is refused in the meta
 // phase; the prelude function that combine_data was until then computed a key from it without notice.

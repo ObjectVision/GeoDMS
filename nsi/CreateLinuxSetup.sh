@@ -194,6 +194,21 @@ for plugin_dir in platforms imageformats xcbglintegrations iconengines tls netwo
 done
 
 # ---------------------------------------------------------------------------
+# The GPL of GeoDMS and the licence texts of the bundled libraries (#1371):
+# license.txt in the installation folder, beside it licenses/ with the texts and
+# README.txt, a table of every binary in the stage, and the Debian copyright
+# file of the package. tools/setup_licences.py maps each binary to GeoDMS, a
+# Debian package of this machine (Qt and the libraries Qt needs) or a vcpkg
+# port, and stops on one without a known licence. It runs before patchelf,
+# since it recognises a bundled library as a byte-identical copy of the system
+# file it came from.
+# ---------------------------------------------------------------------------
+install -m 644 "${REPO_ROOT}/license.txt" "${DST}/"
+python3 "${REPO_ROOT}/tools/setup_licences.py" stage --flavour l --tree "${DST}" \
+    --version "${GeoDmsVersion}" --install-prefix "${INSTALL_PREFIX}" \
+    --deb-copyright "${STAGE}/usr/share/doc/geodms/copyright"
+
+# ---------------------------------------------------------------------------
 # Self-contained loader paths: point every bundled ELF's rpath at its own
 # directory ($ORIGIN) so libDm*.so and the bundled libQt6*.so are found no
 # matter how the binary is launched. The GUI test harness runs GeoDmsGuiQt
@@ -366,6 +381,8 @@ CRITICAL_FILES=(
     proj4data/proj.db
     library/Units.dms
     misc/fonts/dms.ttf
+    license.txt
+    licenses/README.txt
 )
 for _f in "${CRITICAL_FILES[@]}"; do
     if ! grep -Fxq "${PAYLOAD_PREFIX}/${_f}" "${TAR_LIST}"; then
@@ -373,6 +390,11 @@ for _f in "${CRITICAL_FILES[@]}"; do
         VERIFY_FAILED=1
     fi
 done
+# The Debian copyright file lies outside the installation folder (#1371).
+if ! grep -Fxq "usr/share/doc/geodms/copyright" "${TAR_LIST}"; then
+    echo "ERROR: critical file missing from package: /usr/share/doc/geodms/copyright"
+    VERIFY_FAILED=1
+fi
 
 # Data dirs that must be non-trivially populated (minimum entry counts are
 # deliberately below the current values — gdaldata ~230, proj4data ~30 — to

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: is a combine of 3 factors, but 2 relations were given, and factor 3 [[/Mode]] is left without a relation
 // #1293: combine_data needs one relation per factor of the combined unit, or per factor after
 // unfolding the combines among them. Two relations for a combine of three factors are refused in
 // the meta phase. Expected: exit nonzero on /checks.

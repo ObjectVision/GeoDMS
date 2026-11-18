@@ -105,6 +105,14 @@ REM real buurt map on the GLOBIO GDAL stack.
 call "%~dp0TestShippedDms.bat" "%OUTPUT_DIR%"
 if errorlevel 1 goto :shipped_failed
 
+REM The GPL of GeoDMS and the licence texts of the libraries this setup bundles (#1371), as in
+REM BuildSignAndCreateSetup.bat. Here tools\setup_licences.py also maps the DLLs of the conda
+REM environment of GLOBIO_ENV_ROOT, by content, to their package; the texts of the packages without
+REM one of their own are kept in vcpkg-globio\licenses. It writes them with their table to
+REM %OUTPUT_DIR%\licenses and stops on a binary without a known licence.
+py -3 "%geodms_rootdir%\tools\setup_licences.py" stage --flavour g
+if errorlevel 1 goto :licences_failed
+
 if not exist distr md distr
 cd nsi
 "C:\Program Files (x86)\NSIS\makensis.exe" DmsSetupScriptX64-globio.nsi
@@ -125,6 +133,11 @@ call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 "%INSTALLER%" /S
 if errorlevel 1 goto :unit_failed
 
+REM The installed binaries against licenses\README.txt, in both directions, and the licence texts
+REM it names (#1371).
+py -3 "%geodms_rootdir%\tools\setup_licences.py" check --install "%INSTALL_DIR%"
+if errorlevel 1 goto :installed_licences_failed
+
 REM Post-install tests through the shared launcher (issue #1231), against the INSTALLED
 REM GeoDms<ver>.g, i.e. what the setup just put on disk: the tst unit suite via
 REM run_unit_suite.bat (which proves a NEW aggregate appeared and gates on a FAILED line
@@ -138,8 +151,13 @@ echo === DONE: GeoDms%GeoDmsVersion%.g built, signed, installed, and tested ===
 endlocal
 exit /b 0
 
+:installed_licences_failed
+echo *** The installed binaries do not match licenses\README.txt; removing the installed build and setup. ***
+goto :remove_install
+
 :unit_failed
 echo *** G post-install tests failed - unit suite, testcases battery or shipped content, see above; removing the installed build and setup. ***
+:remove_install
 call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 if exist "%INSTALLER%" del /q "%INSTALLER%"
 endlocal
@@ -147,6 +165,11 @@ exit /b 1
 
 :shipped_failed
 echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
+endlocal
+exit /b 1
+
+:licences_failed
+echo *** Licence texts FAILED before packaging - see the output of tools\setup_licences.py above ***
 endlocal
 exit /b 1
 

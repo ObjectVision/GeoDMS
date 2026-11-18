@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: IntegrityCheck : 'this == 0' is not true
 // Negative twin of fn_test_icheck_suppl: the check on a directly declared ExplicitSupplier is
 // violated on purpose, so requesting the declaring item must fail the run -- the supplier's
 // guard is folded into x's checked expression (#1218), even though x's own calculation rule

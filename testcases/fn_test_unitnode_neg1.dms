@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad': inconsistent instantiation of unit variable 'E': the unit bound argument 2 of 'joinval' differs from the unit bound argument 3 of 'joinval'
 container fn_test_unitnode_neg1
 {
 	// NEGATIVE (definition-time, batch U): joinval declares rel's VALUES unit and

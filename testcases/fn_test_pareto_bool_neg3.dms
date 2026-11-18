@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto_optimal_eps: 9 criteria given, at most 8 are supported
 // #1287: pareto_optimal_eps has an operator for every number of arguments up to 17, so that eight numeric
 // criteria fit, but nine bool criteria are ten arguments and are refused with "pareto_optimal_eps: 9 criteria
 // given, at most 8 are supported", as pareto_optimal refuses nine criteria. Expected: exit nonzero on /checks.

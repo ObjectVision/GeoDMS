@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: factor 3 [[/Mode]] of Values [[/TYM]] of argument 2 is left without a factor
 // #1310: in combine_data a combine in the values unit of a relation may stand for its factors, but they
 // must end together with the factors of X. A relation to combine(Town, Year, Mode) for X := combine(Town,
 // Year) leaves Mode without a factor of X, and is refused in the meta phase. Expected: exit nonzero on /checks.

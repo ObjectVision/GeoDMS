@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator bg_simplify_multi_polygon Error: the tolerance must be a defined value of 0 or more, not -1
 // GEO-A18: a negative or null simplify tolerance is refused by every simplify operator with the same message; a
 // negative one made GEOS throw its own, and a null was undefined for boost. Expected: exit nonzero on /checks.
 container geo_simplify_tolerance_negative_neg

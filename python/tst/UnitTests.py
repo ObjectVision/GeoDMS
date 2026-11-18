@@ -4,6 +4,10 @@
 # Runs non-interactively (suitable for batch/CI): it resolves the geodms module from
 # the GEODMS_PYDIR environment variable when set (else from the dev-tree bin dir relative
 # to this script), prints PASS/FAIL, and exits 0 on success / 1 on failure.
+#
+# With --installed it tests the geodms package installed in this Python, such as a wheel
+# (#1355): it then adds no folder to sys.path, PATH or the DLL search path, so the package
+# has to find its own DLLs and resources.
 import os
 import sys
 
@@ -11,12 +15,16 @@ print('Geodms python test module')
 print(f"{sys.version}")
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-geodms_path = os.environ.get('GEODMS_PYDIR') or os.path.abspath(os.path.join(script_dir, '..', '..', 'bin', 'Release', 'x64'))
-print(f"geodms module dir: {geodms_path}")
-sys.path.append(geodms_path)
-if hasattr(os, 'add_dll_directory') and os.path.isdir(geodms_path):
-    os.add_dll_directory(geodms_path)
-os.environ['PATH'] += os.pathsep + geodms_path
+installed = '--installed' in sys.argv[1:]
+if installed:
+    print("testing the installed geodms package")
+else:
+    geodms_path = os.environ.get('GEODMS_PYDIR') or os.path.abspath(os.path.join(script_dir, '..', '..', 'bin', 'Release', 'x64'))
+    print(f"geodms module dir: {geodms_path}")
+    sys.path.append(geodms_path)
+    if hasattr(os, 'add_dll_directory') and os.path.isdir(geodms_path):
+        os.add_dll_directory(geodms_path)
+    os.environ['PATH'] += os.pathsep + geodms_path
 
 config_file = os.path.join(script_dir, 'basic_data_test.dms')
 
@@ -29,9 +37,15 @@ def check(condition: bool, message: str):
 
 try:
     import geodms as geodms_module
+    # From the build output folder, geodms is the extension itself; installed, it is a package
+    # whose __init__.py loads the extension as geodms.geodms.
+    extension = sys.modules.get('geodms.geodms', geodms_module)
+    print(f"geodms extension: {extension.__file__}")
+    if installed:
+        check(hasattr(geodms_module, '__path__'), "geodms is an installed package, not the extension in a build folder")
     expected_abi_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
     check(
-        expected_abi_tag in os.path.basename(geodms_module.__file__),
+        expected_abi_tag in os.path.basename(extension.__file__),
         f"loaded ABI-tagged {expected_abi_tag} extension",
     )
     from geodms import *
@@ -92,6 +106,36 @@ try:
     ints.update()
     values = ints.asDataItem().asDataItem().get_values_as_int_list()
     check(values == [0, 1, 256, -100, 9999], f"/reference/IntegerAtt values (got {values})")
+
+    # #1370: an item keeps its configuration loaded, also when the script keeps no Config; close() and
+    # the end of a with-block close it, and its items raise from then on; load_config refuses while the
+    # Config of the loaded configuration exists, and closes one that only loose items still hold.
+    def raises(fn, fragment):
+        try:
+            fn()
+        except RuntimeError as e:
+            return fragment in str(e)
+        return False
+
+    check(raises(lambda: engine.load_config(config_file), "close()"),
+          "load_config refuses while the Config of the loaded configuration exists, and names close()")
+    config.close()
+    check(raises(lambda: root.find("/parameters"), "has been closed"), "an item of a closed configuration raises")
+    check(raises(lambda: config.root(), "has been closed"), "a closed Config raises")
+
+    with engine.load_config(config_file) as config:
+        ints = config.const_root().find("/reference/IntegerAtt").asDataItem()
+        ints.update()
+        check(ints.get_values_as_int_list() == [0, 1, 256, -100, 9999], "a configuration loaded in a with-block is read")
+    check(raises(lambda: ints.size(), "has been closed"), "the end of the with-block closes the configuration")
+
+    loose = engine.load_config(config_file).const_root().find("/reference/IntegerAtt").asDataItem()
+    loose.update()
+    check(loose.get_values_as_int_list() == [0, 1, 256, -100, 9999], "an item is read without a variable for its Config")
+    config = engine.load_config(config_file)
+    check(raises(lambda: loose.size(), "has been closed"),
+          "load_config closes a configuration that only loose items hold, and those items raise")
+    config.close()
 
     print("UnitTests.py: PASS")
     sys.exit(0)

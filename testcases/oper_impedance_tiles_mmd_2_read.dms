@@ -62,7 +62,7 @@ container oper_impedance_tiles_mmd_2_read
 		                      && all(uint32(store_step/sequence_rel) == uint32(od_step/sequence_rel[od_step_rel])), IntegrityCheck = "links == true";
 
 		parameter<string> root := '%LocalDataDir%/GeoDmsTestcases/oper_impedance_tiles.mmd/';
-		parameter<bool> files := HasFile(root + 'impedance') && HasFile(root + 'OrgZone_rel') && HasFile(root + 'DstZone_rel')
-		                      && HasFile(root + 'LinkSet') && HasFile(root + 'LinkSet.seq'), IntegrityCheck = "files == true";
+		parameter<bool> files := HasFile(root + 'impedance.mmddata') && HasFile(root + 'OrgZone_rel.mmddata') && HasFile(root + 'DstZone_rel.mmddata')
+		                      && HasFile(root + 'LinkSet.mmddata') && HasFile(root + 'LinkSet.mmddata.seq'), IntegrityCheck = "files == true";
 	}
 }

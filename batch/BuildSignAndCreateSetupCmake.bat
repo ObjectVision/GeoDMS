@@ -193,9 +193,20 @@ if errorlevel 1 goto :build_failed
 REM The .dms content this build ships, tested from the output folder before NSIS packages it
 REM (GeoDMS-Test #24): every shipped examples\ and library\ file must be reached from a case
 REM of the shipped examples\testcases battery, that copy must be the current one, and the
-REM battery runs from the output folder. Offline, about a minute.
-call "%~dp0TestShippedDms.bat" "%geodms_rootdir%\%BUILD_DIR%\bin"
+REM battery runs from the output folder. Offline, about a minute. batch\TestShippedContent.bat
+REM runs that check as its first step, and then examples\grid_to_polygon.dms over the CBS buurt
+REM map, which RegioIndelingen.dms downloads with curl into an empty temporary SourceDataDir
+REM (#1360). That second step takes about 12 s, needs the network and about 12 GB of memory.
+call "%~dp0TestShippedContent.bat" "%geodms_rootdir%\%BUILD_DIR%\bin"
 if errorlevel 1 goto :shipped_failed
+
+REM The GPL of GeoDMS and the licence texts of the libraries this setup bundles (#1371), as in
+REM BuildSignAndCreateSetup.bat: tools\setup_licences.py reads the File lines of
+REM nsi\DmsSetupScriptX64-cmake.nsi and writes the texts with their table to %BUILD_DIR%\bin\licenses.
+REM It stops on a binary without a known licence and on an NSIS line it cannot read.
+echo --- licence texts ---
+py -3 "%geodms_rootdir%\tools\setup_licences.py" stage --flavour c
+if errorlevel 1 goto :licences_failed
 
 echo --- creating NSIS installer ---
 mkdir distr 2>nul
@@ -226,6 +237,11 @@ echo --- silent install ---
 "%INSTALLER%" /S
 echo Installed to: %INSTALL_DIR%
 
+REM The installed binaries against licenses\README.txt, in both directions, and the licence texts
+REM it names (#1371).
+py -3 "%geodms_rootdir%\tools\setup_licences.py" check --install "%INSTALL_DIR%"
+if errorlevel 1 goto :installed_licences_failed
+
 del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
 FORFILES /P "%INSTALL_DIR%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
 
@@ -249,8 +265,13 @@ echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlav
 endlocal
 exit /B 0
 
+:installed_licences_failed
+echo *** The installed binaries do not match licenses\README.txt - removing installed build and signed setup file ***
+goto :remove_install
+
 :unit_failed
 echo *** Unit tests FAILED - removing installed build and signed setup file so a broken build cannot ship ***
+:remove_install
 call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 del /q "%INSTALLER%" 2>nul
 echo Removed "%INSTALLER%"
@@ -268,7 +289,12 @@ endlocal
 exit /B 1
 
 :shipped_failed
-echo *** Shipped .dms content FAILED before packaging - see the table above and scratch\shipped_dms\ ***
+echo *** Shipped .dms content FAILED before packaging - see the results above, scratch\shipped_dms\ and scratch\grid_to_polygon_release.log ***
+endlocal
+exit /B 1
+
+:licences_failed
+echo *** Licence texts FAILED before packaging - see the output of tools\setup_licences.py above ***
 endlocal
 exit /B 1
 

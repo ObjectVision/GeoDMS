@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto: illegal negative value in alternative Impedance data
 container fn_test_od_pareto_neg3
 {
 	// In pareto mode the alternative impedances DRIVE pruning, so they get the same

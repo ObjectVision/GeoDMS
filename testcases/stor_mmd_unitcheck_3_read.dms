@@ -1,0 +1,25 @@
+// The read of the unit-check case (issue #1350), after the partial write of _2_rewrite;
+// stor_mmd_unitcheck_1_write.dms carries the description. It declares the two units outside the store
+// with the extents that the writer had, so the kept checks on the holder hold.
+container stor_mmd_unitcheck_3_read
+{
+	container ext
+	{
+		unit<uint32> u : nrofrows = 4;
+	}
+	container src
+	{
+		unit<uint32> p : nrofrows = 5;
+	}
+
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_unitcheck.mmd"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<string> gen_p := asList(string(store/gen/p), ' '), IntegrityCheck = "gen_p == '7 17 27 37'";
+		parameter<uint64> inst_k := store/inst/k,                  IntegrityCheck = "inst_k == 3[uint64]";
+		parameter<uint32> s_a    := sum(store/inst/out/a),         IntegrityCheck = "s_a == 20";
+	}
+}

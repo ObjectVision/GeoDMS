@@ -1,13 +1,15 @@
+// EXPECT-FAILURE: the definition of '/bad_net': the body requires unit variables
+// EXPECT-FAILURE: to be equal (operator 'add'), but they are independent in the definition
+// EXPECT-FAILURE: 'nw/ns1'
+// EXPECT-FAILURE: 'nw/ns2'
 container fn_test_structmember_neg2
 {
 	// K11a-1b: F1 and F2 relate to DIFFERENT node units (ns1, ns2) in the structured
 	// parameter's member block. Each member attribute carries its sibling member unit's
 	// IDENTITY node (K11a-1b), so pcount(nw/F1) types over ns1 and pcount(nw/F2) over ns2
-	// at definition. The body adds them, which requires a shared domain. NOTE: the `+`
-	// (add) operator has multi-class/undescribed overloads, so the def-time walker DEFERS
-	// it (theRecord<0); the ns1!=ns2 domain conflict is therefore reported at the
-	// instantiation (reduction of the concrete argument), not under forall. A def-time
-	// forall catch of this needs a DESCRIBED combining operator (add deferral is the gate).
+	// at definition. The body adds them, which requires a shared domain, so the definition
+	// check of bad_net already reports the conflict: the body requires the unit variables
+	// nw/ns1 and nw/ns2 to be equal for 'add', while the signature declares them independent.
 	unit<uint32> Net : nrofrows = 2
 	{
 		unit<uint32> ns1 : nrofrows = 3;

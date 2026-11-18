@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: '/ap2': no value type can instantiate type variable 'Vx': 'Wx: floats' (function '/fhalf' bound to parameter 'f') conflicts with 'Ux: uints' (function '/uinc' bound to parameter 'g')
 container fn_test_vv_neg2
 {
 	// NEGATIVE: constraint-set intersection becomes EMPTY with no concrete anchor

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: SafeIncrement Error: non-representable numerical overflow
 // Regression for doc/code-audit-2026-09-27.md GEO-A01: 300 occurrences of one key in the first
 // argument do not fit a uint8 count. The sparse path of join_equal_values used to wrap the count to
 // 44 and write beyond the result; it now reports the overflow.

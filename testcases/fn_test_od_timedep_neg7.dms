@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: timedependent_alt requires the pareto option
 // #1304: timedependent_alt makes the second criterion of the pareto search time-dependent, so it requires
 // pareto. Without it the specification is refused with "timedependent_alt requires the pareto option ...".
 // Expected: exit nonzero on /checks.

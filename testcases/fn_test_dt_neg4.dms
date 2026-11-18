@@ -1,11 +1,13 @@
+// EXPECT-FAILURE: the definition of '/bad': the body requires unit variables
+// EXPECT-FAILURE: to be equal (parameter 'q' of function '/add2c'), but they are independent in the definition
 container fn_test_dt_neg4
 {
 	// NEGATIVE (definition-time): the body forces two independent domain
 	// variables equal — add2c's single E meets both D1 and D2. Must fail at
 	// first reference even though the call site passes two attributes over the
 	// SAME domain.
-	// Expected: "the definition of '/bad': the body requires domains 'D1' and
-	//            'D2' to be equal ..."
+	// Expected: "the definition of '/bad': the body requires unit variables 'D2' and
+	//            'D1' to be equal ..."
 	unit<uint32> Road : nrofrows = 3
 	{
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];

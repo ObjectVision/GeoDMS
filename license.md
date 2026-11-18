@@ -1,4 +1,4 @@
-For software and GeoDMS code:see GNU General Public License v3.0 in license.txt
+For software and GeoDMS code: see GNU General Public License v3.0 or later in license.txt
 
 For the wiki and GeoDmsAcademy: see Creative Commons Attribution-ShareAlike 4.0 International License.
 

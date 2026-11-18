@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: number of given arguments doesn't match the specification
+// EXPECT-FAILURE: timedependent(link_profile_rel,profile_slot_factor,slot_duration,departure_time);od:impedance': 9 arguments given
 // #1304: timedependent(...) takes four arguments, after those of pareto and before those of interaction. A call
 // without the departure_time is refused with "number of given arguments doesn't match the specification ...".
 // Expected: exit nonzero on /checks.

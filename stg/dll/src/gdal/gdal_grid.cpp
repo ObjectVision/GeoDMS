@@ -703,6 +703,14 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	curr->SetFreeDataState(true);
 
 	AbstrUnit* gridDataDomain = GetGridDataDomainRW(curr);
+	if (!gridDataDomain)
+		return;
+
+	// An attribute that reads the raster itself has the raster unit of this storage manager as its grid domain,
+	// which got its range and its georeference when CreateGridDataDomain made it, in every SyncMode (#1362), and
+	// gets no GridData (#1354). A configured grid domain, the storage holder itself or its GridDomain, gets them here.
+	if (gridDataDomain == m_GridDomainUnit.get())
+		return;
 
 	// A read-only gdal.grid whose domain and values unit are fully configured must not fail
 	// metadata determination merely because its backing file cannot be opened yet - e.g. a
@@ -721,7 +729,12 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		return;
 	}
 
-	if (storageHolder == curr && !GetGridData(curr)) // Construct GridData if unavailable
+	// Construct GridData if unavailable, but only over a grid domain that the configuration holds: the storage
+	// holder itself as a grid unit, or its GridDomain sub-unit. An attribute that reads the raster is the grid
+	// data itself, as with tif; for it GetGridDataDomainRW gives the storage manager's own unit for the file's
+	// raster. That unit is not in the tree and its key carries no range, while the read of a GridData takes its
+	// domain from that key; such a GridData fails with "cannot create a DataArray for an unspecified domain" (#1354).
+	if (storageHolder->DoesContain(gridDataDomain) && !GetGridData(curr))
 	{
 		const AbstrUnit* vu = nullptr;
 		try {
@@ -807,24 +820,33 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	}
 
 	// Get pixel to world coordinates transformation
-	if (uBase && IsOpen() && m_hDS->GetRasterCount())
+	if (uBase && IsOpen())
 	{
 		try {
-			GDAL_ErrorFrame frame;
-			gdal_transform gdalTr;
-
-			// Pixel- to world coordinates transformation
-			m_hDS->GetGeoTransform(gdalTr);
-			gridDataDomain->SetProjection(new UnitProjection(uBase.get(), GetTransformation(gdalTr)));
-			m_hDS.UpdateBaseProjection(curr, uBase.get());
-
-			frame.ThrowUpWhateverCameUp();
+			ReadGeoReference(gridDataDomain, uBase.get(), curr);
 		}
 		catch (...)
 		{
 			gridDataDomain->CatchFail(FailType::MetaInfo);
 		}
 	}
+}
+
+void GdalGridSM::ReadGeoReference(AbstrUnit* gridDomain, const AbstrUnit* uBase, const TreeItem* storageHolder) const
+{
+	assert(IsOpen());
+	if (!m_hDS->GetRasterCount())
+		return;
+
+	GDAL_ErrorFrame frame;
+	gdal_transform gdalTr;
+
+	// Pixel- to world coordinates transformation
+	m_hDS->GetGeoTransform(gdalTr);
+	gridDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
+	m_hDS.UpdateBaseProjection(storageHolder, uBase);
+
+	frame.ThrowUpWhateverCameUp();
 }
 
 // *****************************************************************************

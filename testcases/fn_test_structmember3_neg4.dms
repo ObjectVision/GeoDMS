@@ -1,3 +1,7 @@
+// EXPECT-FAILURE: the definition of '/two': the body requires unit variables
+// EXPECT-FAILURE: to be equal (operator 'lookup'), but they are independent in the definition
+// EXPECT-FAILURE: 'nw1/ns'
+// EXPECT-FAILURE: 'nw2/ns'
 container fn_test_structmember3_neg4
 {
 	// K11a-3.1 review finding #3: member-unit nodes are keyed by the PARAMETER-

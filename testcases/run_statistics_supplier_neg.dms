@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: [[/r]] WindowsSystem Error: FileMapHandle(
+// EXPECT-FAILURE: /no_such_file_1270.fss/
 // #1270: a @statistics request whose item cannot compute because a SUPPLIER fails exits 1.
 // Run as '@statistics /w' (fnrun_itemmap.txt): /r reads a file that does not exist, /w waits
 // for it. This is the other half of run_statistics_own_neg.dms: here the failure is not the

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: diversity: the radius must be a defined value of at most 32767
 // GEO-A31: diversity with a null radius is refused with "diversity: the radius must be a defined value of at most
 // 32767". The null (65535 for uint16) wrapped the form's offsets to 0 and the scan never ended, in every build, as a
 // radius above 32767 did not fit the signed offsets either. Expected: exit nonzero on /checks.

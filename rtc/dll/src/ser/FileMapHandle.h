@@ -300,6 +300,7 @@ struct StoreLock
 	RTC_CALL ~StoreLock();
 
 	bool IsForWrite() const { return m_ForWrite; }
+	WeakStr GetStoreFolder() const { return m_StoreFolder; }
 
 	// takes byte 1 for as long as this object lives; throws when another process holds it
 	RTC_CALL void BeginWriteSession();
@@ -360,6 +361,24 @@ RTC_CALL void ReplaceFileBy(WeakStr fileName, WeakStr replacementFileName);
 
 // removes, in the store folder and below, the temporary files that a write of another process left
 RTC_CALL void RemoveStoreLeftovers(WeakStr storeFolder);
+
+// #1349: the data file of an item of a store is the path of the item relative to the holder, below the store
+// folder, with STORE_DATA_FILE_EXTENSION: dom/a/b is the file dom/a/b.mmddata, its values, when it has a
+// sequence file, dom/a/b.mmddata.seq. No item name contains a dot, so the file of the attribute dom/a can
+// never have the name of the folder dom/a that the items of a container dom/a need, which is what made an item
+// that changes between attribute and container fail its rewrite. A store written by GeoDMS 20.28 or earlier
+// names the file after the item alone (dom/a/b); that file is still read, with a deprecation warning, until
+// the item is written again.
+constexpr CharPtr STORE_DATA_FILE_EXTENSION = ".mmddata";
+
+RTC_CALL SharedStr MakeStoreDataFileName      (WeakStr storeFolder, CharPtrRange relItemName); // with the extension
+RTC_CALL SharedStr MakeStoreUnsuffixedFileName(WeakStr storeFolder, CharPtrRange relItemName); // GeoDMS 20.28 and earlier
+
+// the 20.28 name of the data file dataFileName: without the extension, or empty when it has none
+RTC_CALL SharedStr StoreUnsuffixedNameOf(WeakStr dataFileName);
+
+RTC_CALL bool IsExistingDirectory(WeakStr path);
+RTC_CALL bool IsExistingRegularFile(WeakStr path);
 
 // The write of one stored array: Begin moves the files of the previous version aside and returns the name
 // to write under, Publish gives the written files the array's name. An unpublished write removes its files.

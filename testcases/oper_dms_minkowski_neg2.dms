@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: dms_minkowski_difference Error: kernel variant 'dXD' is not convex
 // #1301 negative: dms_minkowski_difference refuses the star-shaped variant 'XD', in its d-prefixed
 // spelling as well. The dms_ backend erodes with convex kernels only.
 // Expected: nonzero exit.

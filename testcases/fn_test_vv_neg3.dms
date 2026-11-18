@@ -1,3 +1,6 @@
+// EXPECT-FAILURE: '/zip': inconsistent instantiation of type variable
+// EXPECT-FAILURE: int32 (parameter 'y')
+// EXPECT-FAILURE: float64 (parameter 'x')
 container fn_test_vv_neg3
 {
 	// NEGATIVE: a bound function using ONE variable W in two signature positions

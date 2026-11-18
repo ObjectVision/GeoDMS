@@ -31,7 +31,9 @@
 #include "utl/splitPath.h"
 #include "LockLevels.h"
 #include <chrono>
+#include <cstring>
 #include <string>
+#include <vector>
 #include <thread>
 #include <atomic>
 #include <iterator> // std::size
@@ -149,6 +151,178 @@ namespace {
 		std::chrono::steady_clock::time_point m_Start = std::chrono::steady_clock::now();
 		UInt64 m_NextReportSec = c_ChildReportIntervalSec;
 	};
+}
+
+//  -----------------------------------------------------------------------
+// The program a child process runs and the words of its command line (#1361);
+// shared by the MSVC and POSIX implementations of StartChildProcessImpl below.
+//
+// exec_ec with a folder used to make that folder the current folder of the whole
+// GeoDMS process while the child ran, and the threads that kept working saw it
+// too. Now only the child gets it (lpCurrentDirectory of CreateProcessW,
+// posix_spawn_file_actions_addchdir_np), so the operating system no longer finds
+// a program named relative to that folder by itself. FindProgram looks for it
+// there, and for a name without a folder part also on the PATH.
+
+namespace {
+#if defined(_MSC_VER)
+	constexpr char    c_PathListSeparator = ';';
+	constexpr CharPtr c_DirSeparator      = "\\";
+	constexpr CharPtr c_ProgramSuffix     = ".exe"; // added to a program named without extension
+
+	// whether the file name in path, after its last / or \, has an extension
+	bool HasExtension(CharPtr path)
+	{
+		CharPtr fileName = path;
+		for (CharPtr p = path; *p; ++p)
+			if (*p == '/' || *p == '\\')
+				fileName = p + 1;
+		return std::strchr(fileName, '.') != nullptr;
+	}
+#else
+	constexpr char    c_PathListSeparator = ':';
+	constexpr CharPtr c_DirSeparator      = "/";
+#endif
+
+	// per platform, below
+	bool IsAbsoluteOsPath(CharPtr path);
+	bool HasFolderPart(CharPtr path);
+	bool IsProgramFile(CharPtr path);
+
+	// folder/name as a program file; empty when it is none. On Windows a name without extension
+	// is tried with .exe added and never bare, as CreateProcessW does with the first word of a
+	// command line, so that a file without extension beside the .exe, such as a shim of pyenv-win,
+	// is not taken for the program.
+	SharedStr ProgramInFolder(CharPtr folder, CharPtr name)
+	{
+		SizeT folderLen = folder ? std::strlen(folder) : 0;
+		SharedStr path(folder);
+		if (folderLen && folder[folderLen - 1] != '/' && folder[folderLen - 1] != '\\')
+			path += c_DirSeparator;
+		path += name;
+#if defined(_MSC_VER)
+		if (!HasExtension(name))
+			path += c_ProgramSuffix;
+#endif
+		if (IsProgramFile(path.c_str()))
+			return path;
+		return {};
+	}
+
+	// The program file that a child process runs for programName: a relative name is looked
+	// for in the folder of the child, which is the current folder when none is given, and a
+	// name without a folder part then also on the PATH. Empty when programName has an absolute
+	// path or is not found; the caller then passes the name on unchanged, so that the search of
+	// the system (that of CreateProcessW, or none for posix_spawn) applies as before.
+	SharedStr FindProgram(CharPtr programName, WeakStr childFolder)
+	{
+		if (!programName || !*programName || IsAbsoluteOsPath(programName))
+			return {};
+		SharedStr folder = childFolder.empty() ? GetCurrentDir() : SharedStr(childFolder);
+		if (auto found = ProgramInFolder(folder.c_str(), programName); !found.empty())
+			return found;
+		if (HasFolderPart(programName))
+			return {};
+
+		SharedStr pathList;
+		if (!PlatformInfo::GetEnv("PATH", pathList))
+			return {};
+		for (CharPtr entry = pathList.c_str(); *entry; )
+		{
+			CharPtr entryEnd = entry;
+			while (*entryEnd && *entryEnd != c_PathListSeparator)
+				++entryEnd;
+			std::string dir(entry, entryEnd);
+			if (dir.size() >= 2 && dir.front() == '"' && dir.back() == '"')
+				dir = dir.substr(1, dir.size() - 2);
+			if (!dir.empty())
+				if (auto found = ProgramInFolder(dir.c_str(), programName); !found.empty())
+					return found;
+			entry = *entryEnd ? entryEnd + 1 : entryEnd;
+		}
+		return {};
+	}
+
+	// Splits a command line into words by the rules that CommandLineToArgvW applies; on Linux
+	// these words are the argv of the child, as a Windows program makes them from its command
+	// line. The first word, the program's own name, runs to the next space or tab, or, when it
+	// starts with a double quote, to the next double quote, without backslash rules. In the
+	// other words a space or tab outside double quotes separates; double quotes group and are
+	// dropped; 2n backslashes before a double quote become n backslashes, 2n+1 become n
+	// backslashes and a literal quote; other backslashes are literal. A run of three quotes
+	// gives one literal quote and ends a quoted part. That last rule is the one where the C
+	// runtime of Visual C++ since 2008 differs: it reads "" inside a quoted part as a literal
+	// quote and stays inside. The algorithm is that of CommandLineToArgvW in Wine.
+	std::vector<std::string> SplitCommandLine(CharPtr s)
+	{
+		std::vector<std::string> words;
+		if (!s || !*s)
+			return words;
+		auto isBlank = [](char c) { return c == ' ' || c == '\t'; };
+
+		std::string word;
+		if (*s == '"')
+		{
+			for (++s; *s && *s != '"'; ++s)
+				word += *s;
+			if (*s)
+				++s; // the closing quote
+		}
+		else
+			for (; *s && !isBlank(*s); ++s)
+				word += *s;
+		words.emplace_back(std::move(word));
+
+		while (isBlank(*s))
+			++s;
+		word.clear();
+		bool   inWord        = *s != 0;
+		SizeT  nrBackslashes = 0; // directly before the current character
+		UInt32 nrQuotes      = 0; // 1 inside a quoted part, 0 outside it
+		while (*s)
+		{
+			if (isBlank(*s) && !nrQuotes)
+			{
+				words.emplace_back(std::move(word));
+				word.clear();
+				while (isBlank(*s))
+					++s;
+				inWord = *s != 0;
+				nrBackslashes = 0;
+			}
+			else if (*s == '\\')
+			{
+				word += *s++;
+				++nrBackslashes;
+			}
+			else if (*s == '"')
+			{
+				word.resize(word.size() - nrBackslashes / 2);
+				if (nrBackslashes % 2)
+					word.back() = '"'; // the remaining backslash escapes the quote
+				else
+					++nrQuotes;
+				++s;
+				nrBackslashes = 0;
+				for (; *s == '"'; ++s)
+					if (++nrQuotes == 3)
+					{
+						word += '"';
+						nrQuotes = 0;
+					}
+				if (nrQuotes == 2)
+					nrQuotes = 0;
+			}
+			else
+			{
+				word += *s++;
+				nrBackslashes = 0;
+			}
+		}
+		if (inWord)
+			words.emplace_back(std::move(word));
+		return words;
+	}
 }
 
 #if defined(_MSC_VER)
@@ -1409,9 +1583,59 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 
 //  -----------------------------------------------------------------------
 
+namespace {
+	bool IsAbsoluteOsPath(CharPtr path) { return path[0] == '/' || path[0] == '\\' || (path[0] && path[1] == ':'); }
+	bool HasFolderPart(CharPtr path) { return strpbrk(path, "/\\:") != nullptr; }
+	bool IsProgramFile(CharPtr path)
+	{
+		DWORD attr = GetFileAttributesW(Utf8_2_wchar(path).get());
+		return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+	}
+
+	// #1361: the folder of the child as a full path, or empty when none is given; a folder that
+	// does not exist is an error, which names it as given.
+	SharedStr ChildFolderFullPath(CharPtr folder)
+	{
+		if (!folder || !*folder)
+			return {};
+		auto folderW = Utf8_2_wchar(ConvertDmsFileName(SharedStr(folder)).c_str());
+		std::vector<wchar_t> fullW(GetFullPathNameW(folderW.get(), 0, nullptr, nullptr));
+		DWORD attr = INVALID_FILE_ATTRIBUTES;
+		if (!fullW.empty() && GetFullPathNameW(folderW.get(), DWORD(fullW.size()), fullW.data(), nullptr))
+			attr = GetFileAttributesW(fullW.data());
+		if (attr == INVALID_FILE_ATTRIBUTES)
+			throwErrorF("exec_ec", "the folder '{}' cannot be the current folder of the child process: {}"
+			,	folder, platform::GetSystemErrorText(GetLastError()).c_str());
+		if (!(attr & FILE_ATTRIBUTE_DIRECTORY))
+			throwErrorF("exec_ec", "the folder '{}' cannot be the current folder of the child process: it is not a folder", folder);
+		return wchar_2_Utf8Str(fullW.data());
+	}
+}
+
 // Child process used by exec expressions for executables; Create; Execute and Wait for termination
-static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cmdLine, HANDLE childStdOutErr)
+static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cmdLine, CharPtr currentDir, HANDLE childStdOutErr)
 {
+	// #1361: the child runs in the given folder; the current folder of this process stays as it
+	// is. A program that is given is looked for by FindProgram, in that folder and then on the
+	// PATH, and passed as given when it is not found. Without one, the first word of the command
+	// line is looked for in the given folder only, where the folder that used to be made the current
+	// folder had CreateProcessW find it; when it is not there, or no folder is given,
+	// lpApplicationName stays NULL and CreateProcessW searches in its own order, as it always did.
+	SharedStr childFolder = ChildFolderFullPath(currentDir);
+	SharedStr program;
+	if (moduleName && *moduleName)
+	{
+		program = FindProgram(moduleName, childFolder);
+		if (program.empty())
+			program = SharedStr(moduleName);
+	}
+	else if (!childFolder.empty())
+	{
+		auto words = SplitCommandLine(cmdLine);
+		if (!words.empty() && !words.front().empty() && !IsAbsoluteOsPath(words.front().c_str()))
+			program = ProgramInFolder(childFolder.c_str(), words.front().c_str());
+	}
+
 	STARTUPINFOW siStartInfo;
 	PROCESS_INFORMATION piProcInfo;
 
@@ -1430,33 +1654,35 @@ static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cm
 		siStartInfo.hStdError  = childStdOutErr;
 	}
 
-	auto moduleNameW = Utf8_2_wchar(moduleName);
+	auto programW = Utf8_2_wchar(program.c_str());
 	auto cmdLineW = Utf8_2_wchar(cmdLine);
+	auto childFolderW = Utf8_2_wchar(childFolder.c_str());
 
 	// Create the child process.
 	BOOL res = CreateProcessW
 	(
-		moduleNameW.get(),
+		program.empty() ? NULL : programW.get(),
 		cmdLineW.get(),		// command line can be rewritten
-		NULL,           // process security attributes 
-		NULL,           // primary thread security attributes 
-		TRUE,           // handles are inherited 
-		0,              // creation flags		
-		NULL,           // use parent's environment 
-		NULL,           // use parent's current directory 
-		&siStartInfo,   // STARTUPINFO pointer 
+		NULL,           // process security attributes
+		NULL,           // primary thread security attributes
+		TRUE,           // handles are inherited
+		0,              // creation flags
+		NULL,           // use parent's environment
+		childFolder.empty() ? NULL : childFolderW.get(), // NULL: the parent's current directory
+		&siStartInfo,   // STARTUPINFO pointer
 		&piProcInfo
-	);  // receives PROCESS_INFORMATION 
+	);  // receives PROCESS_INFORMATION
 
 	if (!res)
-		throwLastSystemError("ExecuteChildProcess({}, {}) failed", moduleName?moduleName:"NULL", cmdLine);
+		throwLastSystemError("ExecuteChildProcess({}, {}) in folder '{}' failed"
+		,	program.empty() ? "NULL" : program.c_str(), cmdLine, currentDir ? currentDir : "");
 
 	return { piProcInfo.hProcess, piProcInfo.hThread };
 }
 
 start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 {
-	return StartChildProcessImpl(moduleName, cmdLine, nullptr);
+	return StartChildProcessImpl(moduleName, cmdLine, nullptr, nullptr);
 }
 
 namespace {
@@ -1493,7 +1719,7 @@ namespace {
 	}
 }
 
-DWORD ExecuteChildProcess(CharPtr moduleName, Char * cmdLine)
+DWORD ExecuteChildProcess(CharPtr moduleName, Char * cmdLine, CharPtr currentDir)
 {
 	// #659: one inheritable pipe carries both stdout and stderr of the child. Failing
 	// to create it is not fatal; the child then inherits our std handles, as before.
@@ -1509,7 +1735,7 @@ DWORD ExecuteChildProcess(CharPtr moduleName, Char * cmdLine)
 		}
 	}
 
-	auto childProcess = StartChildProcessImpl(moduleName, cmdLine, outputWrite.get());
+	auto childProcess = StartChildProcessImpl(moduleName, cmdLine, currentDir, outputWrite.get());
 	scoped_handle processHandle(childProcess.first), threadHandle(childProcess.second);
 
 	outputWrite.reset(); // as long as we hold a writing end, the pipe never reports end-of-data
@@ -2113,46 +2339,93 @@ namespace {
 		posix_spawn_file_actions_t* m_Ptr = nullptr;
 		~file_actions_guard() { if (m_Ptr) posix_spawn_file_actions_destroy(m_Ptr); }
 	};
+
+	bool IsAbsoluteOsPath(CharPtr path) { return path[0] == '/'; }
+	bool HasFolderPart(CharPtr path) { return strchr(path, '/') != nullptr; }
+	bool IsProgramFile(CharPtr path)
+	{
+		struct stat st;
+		return stat(path, &st) == 0 && S_ISREG(st.st_mode) && access(path, X_OK) == 0;
+	}
+
+	// #1361: the folder of the child as an absolute path, or empty when none is given; a folder
+	// that does not exist is an error, which names it as given.
+	SharedStr ChildFolderFullPath(CharPtr folder)
+	{
+		if (!folder || !*folder)
+			return {};
+		SharedStr path = ConvertDmsFileName(SharedStr(folder));
+		if (!IsAbsoluteOsPath(path.c_str()))
+			path = mySSPrintF("{}/{}", GetCurrentDir().c_str(), path.c_str());
+		struct stat st;
+		if (stat(path.c_str(), &st) != 0)
+			throwErrorF("exec_ec", "the folder '{}' cannot be the current folder of the child process: {}", folder, strerror(errno));
+		if (!S_ISDIR(st.st_mode))
+			throwErrorF("exec_ec", "the folder '{}' cannot be the current folder of the child process: it is not a folder", folder);
+		return path;
+	}
+
+	// the file name in a path, after the last '/' or '\'
+	CharPtr FileNameOf(CharPtr path)
+	{
+		CharPtr name = path;
+		for (CharPtr p = path; *p; ++p)
+			if (*p == '/' || *p == '\\')
+				name = p + 1;
+		return name;
+	}
 }
 
-static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cmdLine, int childStdOutErrFd)
+static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cmdLine, CharPtr currentDir, int childStdOutErrFd)
 {
 	pid_t pid;
 	int status;
 
+	// #1361: the child runs in the given folder; the current folder of this process stays as it is.
+	SharedStr childFolder = ChildFolderFullPath(currentDir);
+
 	// #659: send the child's stdout and stderr into the caller's pipe.
 	posix_spawn_file_actions_t fileActions;
 	file_actions_guard fileActionsGuard;
-	if (childStdOutErrFd != -1 && posix_spawn_file_actions_init(&fileActions) == 0)
+	if (childStdOutErrFd != -1 || !childFolder.empty())
 	{
+		if (int err = posix_spawn_file_actions_init(&fileActions))
+			throwErrorF("exec_ec", "posix_spawn_file_actions_init failed: {}", strerror(err));
 		fileActionsGuard.m_Ptr = &fileActions;
+	}
+	if (childStdOutErrFd != -1)
+	{
 		posix_spawn_file_actions_adddup2(&fileActions, childStdOutErrFd, STDOUT_FILENO);
 		posix_spawn_file_actions_adddup2(&fileActions, childStdOutErrFd, STDERR_FILENO);
 		posix_spawn_file_actions_addclose(&fileActions, childStdOutErrFd);
 	}
+	if (!childFolder.empty())
+		if (int err = posix_spawn_file_actions_addchdir_np(&fileActions, childFolder.c_str()))
+			throwErrorF("exec_ec", "the folder '{}' cannot be the current folder of the child process: {}", currentDir, strerror(err));
 	auto fileActionsPtr = fileActionsGuard.m_Ptr;
 
-	// On Linux, use /bin/sh -c for command interpretation when:
-	// - no module specified (nullptr/empty), or
-	// - module is a Windows command shell reference (e.g. "cmd.exe", "env:ComSpec")
-	bool useShell = !moduleName || !*moduleName
-		|| strstr(moduleName, "cmd") != nullptr
-		|| strstr(moduleName, "ComSpec") != nullptr;
+	// On Linux, use /bin/sh -c for command interpretation when no program is given, or when the
+	// program is a Windows command shell: cmd, cmd.exe, or a name with ComSpec in it, such as the
+	// env:ComSpec that an unset %env:ComSpec% expands to. A Unix shell (sh, bash, dash) gets the
+	// command line with -c too. #1361: decided by the file name of the program only, so that a
+	// folder such as /opt/cmdstan/ in its path does not make it a shell.
+	bool    hasModule = moduleName && *moduleName;
+	CharPtr fileName  = hasModule ? FileNameOf(moduleName) : "";
+	bool isWindowsShell = !hasModule
+		|| strcasecmp(fileName, "cmd") == 0
+		|| strcasecmp(fileName, "cmd.exe") == 0
+		|| strcasestr(fileName, "ComSpec") != nullptr;
+	bool isUnixShell = !isWindowsShell
+		&& (strcmp(fileName, "sh") == 0 || strcmp(fileName, "bash") == 0 || strcmp(fileName, "dash") == 0);
 
-	// Also use shell mode when module is explicitly a Unix shell
-	if (!useShell && moduleName)
+	// #1361: a program named relative to the folder, or by its name only, is looked for there and
+	// on the PATH; when it is not found, posix_spawn gets it as given.
+	SharedStr program = (isWindowsShell) ? SharedStr("/bin/sh") : FindProgram(moduleName, childFolder);
+	if (program.empty())
+		program = SharedStr(moduleName);
+
+	if (isWindowsShell || isUnixShell)
 	{
-		CharPtr base = strrchr(moduleName, '/');
-		base = base ? base + 1 : moduleName;
-		if (strcmp(base, "sh") == 0 || strcmp(base, "bash") == 0 || strcmp(base, "dash") == 0)
-			useShell = true;
-	}
-
-	if (useShell)
-	{
-		CharPtr shell = (moduleName && *moduleName && strstr(moduleName, "cmd") == nullptr && strstr(moduleName, "ComSpec") == nullptr)
-			? moduleName : "/bin/sh";
-
 		// Strip Windows cmd.exe "/c " or Unix shell "-c " prefixes if present,
 		// since we pass -c as a separate argv element to the shell.
 		const char* shellCmd = cmdLine ? cmdLine : "";
@@ -2161,17 +2434,25 @@ static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cm
 		else if (strncmp(shellCmd, "-c ", 3) == 0)
 			shellCmd = shellCmd + 3;
 
-		char* argv[] = { const_cast<char*>(shell), const_cast<char*>("-c"), const_cast<char*>(shellCmd), nullptr };
-		status = posix_spawn(&pid, shell, fileActionsPtr, nullptr, argv, environ);
+		char* argv[] = { program.begin(), const_cast<char*>("-c"), const_cast<char*>(shellCmd), nullptr };
+		status = posix_spawn(&pid, program.c_str(), fileActionsPtr, nullptr, argv, environ);
 		if (status != 0)
-			throwErrorF("Environment", "posix_spawn({} -c '{}') failed: {}", shell, shellCmd, strerror(status));
+			throwErrorF("Environment", "posix_spawn({} -c '{}') in folder '{}' failed: {}", program.c_str(), shellCmd, currentDir ? currentDir : "", strerror(status));
 	}
 	else
 	{
-		char* argv[] = { const_cast<char*>(moduleName), cmdLine, nullptr };
-		status = posix_spawn(&pid, moduleName, fileActionsPtr, nullptr, argv, environ);
+		// #1361: as a Windows program does with its command line, the child gets it split into
+		// words, the first being its own name; an empty command line gives the program path.
+		auto words = SplitCommandLine(cmdLine);
+		if (words.empty())
+			words.emplace_back(program.c_str());
+		std::vector<char*> argv;
+		for (auto& word : words)
+			argv.push_back(word.data());
+		argv.push_back(nullptr);
+		status = posix_spawn(&pid, program.c_str(), fileActionsPtr, nullptr, argv.data(), environ);
 		if (status != 0)
-			throwErrorF("Environment", "posix_spawn({}) failed: {}", moduleName, strerror(status));
+			throwErrorF("Environment", "posix_spawn({}) in folder '{}' failed: {}", program.c_str(), currentDir ? currentDir : "", strerror(status));
 	}
 
 	// Return pid in the HANDLE pair (process, thread=0 on Linux)
@@ -2180,7 +2461,7 @@ static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cm
 
 start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 {
-	return StartChildProcessImpl(moduleName, cmdLine, -1);
+	return StartChildProcessImpl(moduleName, cmdLine, nullptr, -1);
 }
 
 namespace {
@@ -2192,7 +2473,7 @@ namespace {
 	};
 }
 
-DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine)
+DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine, CharPtr currentDir)
 {
 	// #659: one pipe carries both stdout and stderr of the child, and the wait polls
 	// so that the pipe is drained while the child runs; see the MSVC section above.
@@ -2209,7 +2490,7 @@ DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine)
 		}
 	}
 
-	auto result = StartChildProcessImpl(moduleName, cmdLine, outputWrite.m_Fd);
+	auto result = StartChildProcessImpl(moduleName, cmdLine, currentDir, outputWrite.m_Fd);
 	pid_t pid = static_cast<pid_t>(reinterpret_cast<intptr_t>(result.first));
 
 	outputWrite.reset(); // as long as we hold a writing end, the pipe never reports end-of-data

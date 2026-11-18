@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: IntegrityCheck : 'strlen(byName) > 20' is not true
 // Negative twin of fn_test_icheck_storage_self: the self-referring check on the stored item
 // is violated (the payload has 10 characters, the check demands more than 20), so consuming
 // the item must fail the run, through the check and not through a SubstitutionError.

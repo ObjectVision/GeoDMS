@@ -1,0 +1,97 @@
+container fn_test_body_instance
+{
+	// #1365: in a function that is applied as a value, F(args), a body item 'instantiate G(args)'
+	// copies the function G, and the body refers to the items of that copy, as c/total. Such an
+	// application makes no items: the reduction reduces in G, with the arguments of the copy, the
+	// items that the body names, and only those.
+
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+	unit<uint32> Vals3 : nrofrows = 3
+	{
+		attribute<float64> v : [2, 6, 1];
+	}
+
+	function Twice(parameter<uint32> k; parameter<float64> x) -> parameter<float64> := x * 2.0;
+	function Below(parameter<float64> limit; parameter<float64> x) -> parameter<bool> := x < limit;
+
+	// G has a total, a unit with a declared attribute, and an item that fails when it is
+	// calculated: fold_c doubles 1 while it is below 1000, which takes 10 steps, more than the 2
+	// that it allows. A body that does not refer to c/never_used never reduces it.
+	function G(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := total
+	{
+		parameter<float64> total := sum(s/v);
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+		parameter<float64> never_used := fold_c(Twice, Below(1000.0, _), 2u, 1.0);
+	}
+
+	// (a) the case of the issue: the sum of [5, 3, 8, 1, 4] is 21
+	function F(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := c/total
+	{
+		container c := instantiate G(s);
+	}
+	parameter<float64> res_a := F(Vals5);
+
+	// (b) an attribute of a unit of the copy: [5, 3, 1, 4], sum 13
+	function SumKept(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(c/kept/v)
+	{
+		container c := instantiate G(s);
+	}
+	parameter<float64> res_b := SumKept(Vals5);
+
+	// (c) two copies with different arguments: 21 + 9
+	function TwoCopies(unit<uint32> a { attribute<float64> v; }; unit<uint32> b { attribute<float64> v; }) -> parameter<float64> := ca/total + cb/total
+	{
+		container ca := instantiate G(a);
+		container cb := instantiate G(b);
+	}
+	parameter<float64> res_c := TwoCopies(Vals5, Vals3);
+
+	// (d) a copy inside a copy: H copies G and adds the count of the rows it keeps, 21 + 4 = 25;
+	// H2 copies G and applies H; FofH copies H2 and reaches through c/inner the copy of G that H2
+	// makes, so its result is 21 * 10 + 25
+	function H(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := inner/total + float64(#inner/kept)
+	{
+		container inner := instantiate G(s);
+	}
+	function FofH(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := c/inner/total * 10.0 + c/result_of_h
+	{
+		container c := instantiate H2(s);
+	}
+	function H2(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := result_of_h
+	{
+		container inner := instantiate G(s);
+		parameter<float64> result_of_h := H(s);
+	}
+	parameter<float64> res_d := FofH(Vals5); // 21 * 10 + 25
+
+	// (e) a function defined inside the function refers to an item of the copy: 21 + 1
+	function Outer(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := Inner(1.0)
+	{
+		container c := instantiate G(s);
+		function Inner(parameter<float64> k) -> parameter<float64> := c/total + k;
+	}
+	parameter<float64> res_e := Outer(Vals5);
+
+	// (f) the parameter of the copy is the argument: the sum of its v
+	function ViaParam(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(c/s/v)
+	{
+		container c := instantiate G(s);
+	}
+	parameter<float64> res_f := ViaParam(Vals3);
+
+	container checks
+	{
+		parameter<float64> c_a := res_a, IntegrityCheck = "c_a == 21.0";
+		parameter<float64> c_b := res_b, IntegrityCheck = "c_b == 13.0";
+		parameter<float64> c_c := res_c, IntegrityCheck = "c_c == 30.0";
+		parameter<float64> c_d := res_d, IntegrityCheck = "c_d == 235.0";
+		parameter<float64> c_e := res_e, IntegrityCheck = "c_e == 22.0";
+		parameter<float64> c_f := res_f, IntegrityCheck = "c_f == 9.0";
+	}
+}

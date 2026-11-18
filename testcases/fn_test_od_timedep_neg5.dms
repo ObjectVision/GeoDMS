@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: timedependent: departure_time contains a negative value
 // #1304: the time slots count from time 0, so a departure before it falls in no slot. A negative departure_time
 // is refused with "timedependent: departure_time contains a negative value". Expected: exit nonzero on /checks.
 container fn_test_od_timedep_neg5

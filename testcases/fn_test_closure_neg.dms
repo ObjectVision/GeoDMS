@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: '(...)' applied to an expression that is not a function value
 container fn_test_closure_neg
 {
 	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; }

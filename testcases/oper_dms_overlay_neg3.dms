@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the grid size must be a parameter, not an attribute
 // #1214 negative: the grid size is one number for the whole attribute, a parameter; an attribute
 // with a grid per element is refused, since neighbours would then snap a shared boundary differently.
 // Expected: nonzero exit.

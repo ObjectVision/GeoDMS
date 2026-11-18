@@ -42,6 +42,7 @@ fn_test_scope.dms /checks
 fn_test_scope_neg.dms /checks
 fn_test_sig.dms /checks
 fn_test_sig_neg.dms /failing
+fn_test_sig_outer_unit_neg.dms /failing
 fn_test_table_spec_nested_neg.dms /invalid
 fn_test_unify.dms /checks
 fn_test_unify_neg1.dms /checks
@@ -58,6 +59,7 @@ fn_test_vv4.dms /checks
 oper_table_spec_neg.dms /bad
 oper_dms_minkowski.dms /all_checks
 oper_dms_buffer.dms /all_checks
+stor_gdalgrid_attr_no_griddata.dms @statistics /checks
 stor_gdalwrite_geom_name.dms /Export/shape
 stor_gdalwrite_sibling_dep.dms /Export/sel/y
 stor_gdalwrite_sibling_sup.dms /Export/sel/name
@@ -89,6 +91,8 @@ stor_mmd_shared_1_write.dms /write/t/waarde /write/p/waarde /write/c/tiled/waard
 stor_mmd_twosession_1_write.dms /store/tiled/waarde /store/plain/waarde /store/plain/dubbel
 stor_mmd_twosession_2_rewrite.dms /store/other/waarde
 stor_mmd_outside_1_write.dms /store
+stor_mmd_kindchange_1_write.dms /write
+stor_mmd_kindchange_2_rewrite.dms /write
 run_statistics_ok.dms @statistics /ok
 run_statistics_own_neg.dms @statistics /r
 run_statistics_supplier_neg.dms @statistics /w
@@ -101,3 +105,11 @@ stor_mmd_seq_1_write.dms /store
 stor_mmd_failed_1_write.dms /store
 stor_mmd_failed_2_rewrite_neg.dms /store
 oper_impedance_tiles_mmd_1_write.dms /store
+stor_mmd_foreach_1_write.dms /store
+stor_mmd_foreach_2_rewrite.dms /store/dom/w
+stor_mmd_instance_1_write.dms /store
+stor_mmd_instance_2_rewrite.dms /store/dom/w
+stor_mmd_carried_1_write.dms /store
+stor_mmd_carried_2_rewrite.dms /store/dom/w
+stor_mmd_unitcheck_1_write.dms /store
+stor_mmd_unitcheck_2_rewrite.dms /store/dom/w

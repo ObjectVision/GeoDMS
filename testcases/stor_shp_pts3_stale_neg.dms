@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: shp_pts3_stale.shp' holds 3 point records while its index file declares 5
 // STG-N01: a point shapefile with 3 records whose .shx declares 5 (data/shp_pts3_stale.shp); reading the points must be an error, not a read past the record vector
 container stor_shp_pts3_stale_neg
 {

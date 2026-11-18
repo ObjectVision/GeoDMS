@@ -1,0 +1,30 @@
+// The second write of issue #1349, see stor_mmd_kindchange_1_write.dms: c4 now has the container dom/a with the
+// attribute dom/a/b, c5 the attribute dom/a, with values that differ from the first write so that _3_read can
+// tell which write it reads. Up to 20.28 the write of c4 failed with exit 1 and the write of c5 took seven seconds.
+container stor_mmd_kindchange_2_rewrite
+{
+	unit<uint32> Src : nrofrows = 4 { attribute<uint64> v := uint64(id(.)) * 100[uint64] + 1[uint64]; } // 1 101 201 301
+
+	container c4 : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_kindchange_c4.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<Src> rel := id(.)[Src];
+			container a
+			{
+				attribute<uint64> b (dom) := rel -> v;
+			}
+		}
+	}
+
+	container c5 : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_kindchange_c5.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<Src>    rel := id(.)[Src];
+			attribute<uint64> a   := rel -> v;
+		}
+	}
+
+	parameter<string> write := 'Ready', ExplicitSuppliers = "c4;c5";
+}

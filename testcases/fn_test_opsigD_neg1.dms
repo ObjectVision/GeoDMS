@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the definition of '/bad': the body requires unit variables
+// EXPECT-FAILURE: to be equal (operator 'collect_by_cond'), but they are independent in the definition
 container fn_test_opsigD_neg1
 {
 	// NEGATIVE (definition-time, op-sig batch D): collect_by_cond requires the

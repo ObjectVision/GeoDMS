@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/f': float32 (the calculation rule of 'result') does not match string (the declared type of 'result')
 container fn_test_fe_neg4
 {
 	// §12.7 for_each tranche: the pseudo-expanded member TYPE flows into the

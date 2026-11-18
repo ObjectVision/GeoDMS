@@ -1,0 +1,27 @@
+// The second write session of the for_each case (issue #1350); stor_mmd_foreach_1_write.dms carries
+// the description. The store part is identical to that of _1_write; this session writes dom/w only,
+// so it applies the rules of neither gen nor twice.
+container stor_mmd_foreach_2_rewrite
+{
+	unit<uint32> Src : nrofrows = 4
+	{
+		attribute<uint64> v := uint64(id(.)) * 10[uint64] + 7[uint64];
+	}
+	unit<uint32> Names : nrofrows = 2
+	{
+		attribute<string> name : ['p', 'q'];
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_foreach.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<Src>    rel := id(.)[Src];
+			attribute<uint64> w   := rel -> v;
+		}
+		// rel -> v reads Src/v, outside the store, so gen/p and gen/q are written as files
+		container gen   := for_each_nedv(Names/name, 'dom/rel -> v', dom, uint64);
+		// dom/w is in the store, so twice/p and twice/q are written as rules (#1264)
+		container twice := for_each_nedv(Names/name, 'dom/w * 2[uint64]', dom, uint64);
+	}
+}

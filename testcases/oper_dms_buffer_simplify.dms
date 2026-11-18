@@ -1,0 +1,89 @@
+// GeoDMS #1352. dms_buffer_multi_polygon simplifies the rings of an element before it builds their
+// pieces, as geos_buffer_multi_polygon does, with a tolerance of a hundredth of the distance: when
+// it grows an element it fills its dents, when it shrinks one it cuts off its bumps. As in GEOS, a
+// vertex goes only when it lies within the tolerance of the line between the kept vertices on
+// either side and also within the tolerance of the kept vertex before it.
+//
+// Each case is a ring of 1000 vertices on a circle of radius 500 m, every other vertex moved out
+// and in by A, a zigzag of depth 2A with edges that run 3.14 m along the circle, buffered with 4
+// segments per quarter circle. Removing the vertices changes how many segments the corners next
+// to them get, so where GEOS simplifies and dms does not, the areas differ. The checks compare the
+// area of the dms result with that of geos_buffer_multi_polygon on the same input; at 0b8bb0113,
+// before this change, the four relative differences were 0.11, 0.97, 15.7 and 0.064 percent.
+container oper_dms_buffer_simplify
+{
+	unit<dpoint> rdc;
+	parameter<float64> pi := 3.141592653589793;
+
+	// the vertices of a zigzag ring, closed by its last point; clockwise for a shell, counter-
+	// clockwise for a hole
+	function ZigzagPoint(unit<uint32> V; parameter<uint32> N; parameter<float64> R; parameter<float64> A; parameter<bool> clockwise)
+	-> attribute<rdc> (V) := pt
+	{
+		attribute<uint32>  i   (V) := id(V) % N;
+		attribute<float64> phi (V) := (clockwise ? -2.0 : 2.0) * pi * float64(i) / float64(N);
+		attribute<float64> rad (V) := R + float64(i % 2 == 0) * 2.0 * A - A;
+		attribute<rdc>     pt  (V) := point_xy(rad * cos(phi), rad * sin(phi), rdc);
+	}
+
+	// |area(dms) - area(geos)| / area(geos)
+	function RelDiff(unit<uint32> E; attribute<rdc> poly (E, polygon); parameter<float64> d) -> parameter<float64> := rel
+	{
+		attribute<rdc>     dms  (E, polygon) := dms_buffer_multi_polygon (poly, d, 4b);
+		attribute<rdc>     geos (E, polygon) := geos_buffer_multi_polygon(poly, d, 4b);
+		parameter<float64> rel := abs(sum(area(dms, float64)) - sum(area(geos, float64))) / sum(area(geos, float64));
+	}
+
+	unit<uint32> E : nrofrows = 1;
+
+	unit<uint32> V1000 := range(uint32, 0, 1001)
+	{
+		attribute<E>   e_rel   := const(0[E], .);
+		// depth 6.28 m, 7.0 m from the vertex before
+		attribute<rdc> shallow := ZigzagPoint(., 1000, 500.0, 3.14, true);
+		// depth 0.63 m, 3.2 m from the vertex before
+		attribute<rdc> flat    := ZigzagPoint(., 1000, 500.0, 0.314, true);
+	}
+	attribute<rdc> shallow (E, polygon) := points2polygon(V1000/shallow, V1000/e_rel, id(V1000));
+	attribute<rdc> flat    (E, polygon) := points2polygon(V1000/flat,    V1000/e_rel, id(V1000));
+
+	// a square of 2 km, clockwise, with a counterclockwise zigzag hole of depth 0.63 m and radius
+	// 500 m, written as one sequence that returns to the first corner after the hole; the corners of
+	// the hole that point away from its centre are dents of the material
+	unit<uint32> Sq : nrofrows = 5
+	{
+		attribute<rdc> pt := point_xy(
+			  union_data(., -1000.0, -1000.0,  1000.0,  1000.0, -1000.0)
+			, union_data(., -1000.0,  1000.0,  1000.0, -1000.0, -1000.0), rdc);
+	}
+	unit<uint32> Hole := range(uint32, 0, 1001)
+	{
+		attribute<rdc> pt := ZigzagPoint(., 1000, 500.0, 0.314, false);
+	}
+	unit<uint32> Back : nrofrows = 1
+	{
+		attribute<rdc> pt := point_xy(union_data(., -1000.0), union_data(., -1000.0), rdc);
+	}
+	unit<uint32> HoledPt := union_unit(Sq, Hole, Back)
+	{
+		attribute<rdc> pt    := union_data(., Sq/pt, Hole/pt, Back/pt);
+		attribute<E>   e_rel := const(0[E], .);
+	}
+	attribute<rdc> holed (E, polygon) := points2polygon(HoledPt/pt, HoledPt/e_rel, id(HoledPt));
+
+	container checks
+	{
+		// grown by 1000 m, tolerance 10 m: the dents are filled
+		parameter<float64> shallow_rel := RelDiff(E, shallow, 1000.0);
+		parameter<float64> flat_rel    := RelDiff(E, flat,    1000.0);
+		// shrunk by 400 m, tolerance 4 m: the bumps are cut off
+		parameter<float64> bumps_rel   := RelDiff(E, flat,    -400.0);
+		// grown by 400 m, tolerance 4 m: the dents along the hole are filled
+		parameter<float64> holed_rel   := RelDiff(E, holed,    400.0);
+
+		parameter<bool> shallow_ok := shallow_rel < 1e-6, IntegrityCheck = "shallow_ok == true";
+		parameter<bool> flat_ok    := flat_rel    < 1e-6, IntegrityCheck = "flat_ok == true";
+		parameter<bool> bumps_ok   := bumps_rel   < 1e-6, IntegrityCheck = "bumps_ok == true";
+		parameter<bool> holed_ok   := holed_rel   < 1e-6, IntegrityCheck = "holed_ok == true";
+	}
+}

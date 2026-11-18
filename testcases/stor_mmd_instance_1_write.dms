@@ -1,0 +1,42 @@
+// An MMD store with two instances, written in two sessions (issue #1350): inst, an instance of a
+// template, which is the subject here, and fin, the items of a call of a typed function. The
+// sub-items of both exist only once the instance is made. Each write session replaces
+// 0Dictionary.dms as a whole, and the dump of the dictionary walks the tree of that session, where an
+// instance that the session did not make has no sub-items. A session that wrote only dom/w therefore
+// declared inst and fin as empty containers: the files of inst/k and fin/k stayed in the store but
+// the reader no longer found them, and inst/out/a and fin/result, rule-only attributes (#1264) whose
+// rules were written in the dictionary only, were gone, as was the range of fin/D:
+//
+//   Unknown identifier 'store/inst/out/a'
+//
+// Since the fix the dictionary declares the sub-items of such a container as the previous
+// dictionary declared them.
+//
+// Three configs, run in this order because run_testcases.ps1 walks them sorted by file name:
+//   _1_write     writes the whole store
+//   _2_rewrite   the same configuration, writes dom/w only, so neither instance is made
+//   _3_read      reads all of it back
+// The store part of _1_write and _2_rewrite must stay identical. stor_mmd_foreach_* is the same case
+// for for_each_nedv.
+container stor_mmd_instance_1_write
+{
+	Template T
+	{
+		parameter<uint64> k;
+		container out
+		{
+			attribute<uint64> a (dom) := uint64(id(dom)) * k;
+		}
+	}
+	function F(unit<uint32> D; parameter<uint64> k) -> attribute<uint64> (D) := uint64(id(D)) * k;
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_instance.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<uint64> w := uint64(id(.)) + 7[uint64];
+		}
+		container inst := T(3[uint64]);
+		container fin  := instantiate F(dom, 5[uint64]);
+	}
+}

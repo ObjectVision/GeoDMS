@@ -1,0 +1,11 @@
+# Negative cases that have no '// EXPECT-FAILURE: <fragment>' line (#1369).
+# One per line: <config stem> <reason>. run_testcases.ps1 requires every OTHER negative case to state
+# the message it is written to fail with in such a line, and fails a run in which that message is
+# absent. A case listed here is judged on its exit code only. A listed case that has an EXPECT-FAILURE
+# line fails the run as well, as does a listed name that is no negative case, so that this list
+# shrinks deliberately rather than rotting. A case belongs here only when it does not fail for the
+# reason it was written for, or when that reason is unclear; the reason given says which, so that the
+# case can be repaired and given a line.
+#
+# When this list was made, on 20.29.0 (0b8bb0113), 223 of the 225 negative cases were given a line.
+# No negative case is listed at present.

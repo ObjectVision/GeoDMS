@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: [[/r]] WindowsSystem Error: FileMapHandle(
+// EXPECT-FAILURE: /no_such_file_1270.fss/
 // #1270: a @valueinfo request whose item cannot compute because a supplier fails exits 1.
 // Run as '@valueinfo 0 /w' (fnrun_itemmap.txt): the same configuration as
 // run_statistics_supplier_neg.dms, through the other command that computes its item

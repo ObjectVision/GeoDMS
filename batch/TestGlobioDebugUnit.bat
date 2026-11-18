@@ -1,7 +1,7 @@
 echo on
 
-REM Debug counterpart of TestGlobioReleaseUnit.bat (issue #1231): the tst unit suite and
-REM the testcases battery against the dev tree bin_GLOBIO\Debug\x64, as built by
+REM Debug counterpart of TestGlobioReleaseUnit.bat (issue #1231): the tst unit suite, the
+REM testcases battery and its XML and DMS round trips against the dev tree bin_GLOBIO\Debug\x64, as built by
 REM batch\BuildGlobio.bat Debug. No shipped-content test and no installed-version form,
 REM since setups are Release only. TestGlobioReleaseUnit.bat explains the g flavour argument.
 
@@ -20,7 +20,8 @@ call "%~dp0run_unit_suite.bat" GD64 g bin_GLOBIO\Debug\x64
 if errorlevel 2 (set UNIT_FAILED=2) else if errorlevel 1 set UNIT_FAILED=1
 
 REM Typed-function testcases battery (testcases\*.dms): positives must exit 0,
-REM _neg/defcheck configs must exit nonzero, a Debug assert (exit 3) always fails.
+REM _neg/defcheck configs must exit nonzero with the message of their EXPECT-FAILURE lines (#1369)
+REM or be listed in testcases\expect_failure_missing.txt, a Debug assert (exit 3) always fails.
 set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin_GLOBIO\Debug\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
@@ -30,6 +31,12 @@ REM lock-ceiling check of the dump path (#1268).
 set RT_FAILED=0
 Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%geodms_rootdir%\bin_GLOBIO\Debug\x64\GeoDmsRun.exe"
 if errorlevel 1 set RT_FAILED=1
+
+REM DMS round-trip battery (#1368), see TestDebugUnit.bat: every positive configuration dumped
+REM in DMS syntax, reloaded from testcases\_out_rt\ and computed again.
+set DRT_FAILED=0
+Call "%geodms_rootdir%\testcases\run_roundtrip.bat" "%geodms_rootdir%\bin_GLOBIO\Debug\x64\GeoDmsRun.exe"
+if errorlevel 1 set DRT_FAILED=1
 
 echo.
 if "%SC_FAILED%"=="1" (
@@ -47,6 +54,11 @@ if "%RT_FAILED%"=="1" (
 ) else (
   echo XML ROUNDTRIP BATTERY PASSED
 )
+if "%DRT_FAILED%"=="1" (
+  echo *** DMS ROUNDTRIP BATTERY FAILED - see the failures listed above and testcases\_out_rt\ ***
+) else (
+  echo DMS ROUNDTRIP BATTERY PASSED
+)
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 
@@ -54,4 +66,5 @@ if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1
+if "%DRT_FAILED%"=="1" exit /b 1
 exit /b 0

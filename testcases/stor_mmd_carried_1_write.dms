@@ -1,0 +1,54 @@
+// What a write of part of an MMD store keeps of the containers whose rule it does not apply
+// (issue #1350), beyond what stor_mmd_foreach_* and stor_mmd_instance_* test:
+// - gen comes from for_each_nedv over Src, a domain outside the store. The dictionary puts the check
+//   LowerBound(/Src) == uint32(0) && UpperBound(/Src) == uint32(4) on the holder (#1154). The session
+//   that writes only dom/w asks nothing of Src, so it does not know that range; it keeps the check that
+//   the previous dictionary wrote, which is what the files of gen were written against.
+// - inst is a template instance with a data block (d) and with a configured sub-item out, a container
+//   that the template also declares. In the session that does not apply the rule of inst, out holds
+//   only its configured extra; the e that the template puts in out must stay declared as well.
+//
+// Four configs, run in this order because run_testcases.ps1 walks them sorted by file name:
+//   _1_write      writes the whole store
+//   _2_rewrite    the same configuration, writes dom/w only, so the rules of gen and inst are not applied
+//   _3_read       reads all of it back
+//   _4_read_neg   declares Src with 5 rows, which the kept check on the holder refuses
+// The store part of _1_write and _2_rewrite must stay identical.
+container stor_mmd_carried_1_write
+{
+	unit<uint32> Src : nrofrows = 4
+	{
+		attribute<uint64> v := uint64(id(.)) * 10[uint64] + 7[uint64];
+	}
+	unit<uint32> Names : nrofrows = 2
+	{
+		attribute<string> name : ['p', 'q'];
+	}
+
+	Template T
+	{
+		parameter<uint32> n;
+		unit<uint32> u : nrofrows = 3;
+		attribute<uint32> d (u) : [1, 2, 3];
+		container out
+		{
+			attribute<uint32> e (u) := d * n;
+		}
+	}
+
+	container store : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_carried.mmd"
+	{
+		unit<uint32> dom : nrofrows = 4
+		{
+			attribute<uint64> w := uint64(id(.)) + 7[uint64];
+		}
+		container gen  := for_each_nedv(Names/name, 'Src/v', Src, uint64);
+		container inst := T(2)
+		{
+			container out
+			{
+				parameter<uint32> extra := 5;
+			}
+		}
+	}
+}

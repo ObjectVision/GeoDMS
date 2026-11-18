@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the calculation rule of '/f/r' generates member(s) a, b; 'zz' is not among them
 container fn_test_fe_neg1
 {
 	// §12.7 for_each tranche: a CLOSED name array is evaluated at definition

@@ -1,0 +1,23 @@
+// EXPECT-FAILURE: No argument depends on a parameter of the function: move the call into the root container of the configuration, which holds the function
+// EXPECT-FAILURE: 'container c := instantiate Closed(...)' also accepts the call.
+container fn_test_meta_body_neg_closed
+{
+	// #1366: no argument of the meta function call depends on a parameter of the function, so
+	// the message advises to move the call into the container that holds the function
+
+	unit<uint32> Vals : nrofrows = 2;
+	unit<uint32> NSet : nrofrows = 2;
+	attribute<string>  mnames (NSet) : ['a', 'b'];
+	attribute<string>  mexprs (NSet) : ['src + src', 'src - src'];
+	attribute<float64> src (Vals) : [1.0, 2.0];
+
+	function Closed(attribute<float64> x (Vals)) -> attribute<float64> (Vals) := r/a + x
+	{
+		container r := for_each_nedv(mnames, mexprs, Vals, float64);
+	}
+
+	container checks
+	{
+		parameter<float64> c := sum(Closed(src)), IntegrityCheck = "c == 9.0";
+	}
+}

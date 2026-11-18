@@ -164,8 +164,8 @@ If the build cannot be run exactly this way, stop and ask.
 |---|---|---|---|
 | S | `batch\run_source_checks.bat` | ~40 s, no build | the syntactic checks over the source: lock ceilings (`DMS_ENTERS`), token-registry lifetimes across sinks, ptr discipline, and one argument per placeholder in every format call with a literal format |
 | 0 | a headless `GeoDmsRun` probe with `@statistics` or an IntegrityCheck (geodms-debug) | seconds | the one thing you changed, on the data |
-| 1 | `testcases\run_testcases.bat` | minutes, offline | the typed-function battery, ~440 configs, positives exit 0, `_neg` exit nonzero, exit 3 and a guard limit always fail |
-| 2 | `batch\TestReleaseUnit.bat` / `TestDebugUnit.bat` (`.m`), `TestCMakeReleaseUnit.bat` / `TestCMakeDebugUnit.bat` (`.c`), `TestGlobioReleaseUnit.bat` / `TestGlobioDebugUnit.bat` (`.g`) | 5 to 15 min | the `tst` unit suite, plus tier 1 (`.m`, `.g`), plus (Release) the shipped-content test |
+| 1 | `testcases\run_testcases.bat` | minutes, offline | the typed-function battery, ~570 configs, positives exit 0, `_neg` exit nonzero with the message of their `// EXPECT-FAILURE:` lines, exit 3 and a guard limit always fail |
+| 2 | `batch\TestReleaseUnit.bat` / `TestDebugUnit.bat` (`.m`), `TestCMakeReleaseUnit.bat` / `TestCMakeDebugUnit.bat` (`.c`), `TestGlobioReleaseUnit.bat` / `TestGlobioDebugUnit.bat` (`.g`) | 5 to 15 min | the `tst` unit suite, plus tier 1 and the XML and DMS round trips over its configurations (`.m`, `.g`), plus (Release) the shipped-content test |
 | 3 | `python full.py -version <installed>` in `C:\dev\tst\batch` | hours | the project regressions; the only thing that trips threading, stack-pressure and meta-thread bugs |
 
 Rules per tier:
@@ -183,7 +183,13 @@ Rules per tier:
   overrides live in `testcases\fnrun_itemmap.txt`, default item `/checks`. Every case is held to 8 GB
   of commit and 300 s (`testcases\case_guard.ps1`; `-MaxCommitGB`, `-TimeoutSec`) and fails as
   `LIMIT(...)` when it reaches either, so running it against an older or kept build (bisecting) cannot
-  take the machine's memory.
+  take the machine's memory. A negative case passes only when it fails with its expected message:
+  every fragment of its `// EXPECT-FAILURE:` lines must occur in a message of its `.out`, a
+  `Failure:`, `Last ErrMsg:` or `[E]` line or a line that continues it, or it fails as
+  `WRONG-FAILURE` (#1369). A new negative needs such a
+  line, or it fails as `NO-EXPECT`; `testcases\expect_failure_missing.txt` lists any that have
+  none, with the reason (AGENTS.md has the rules). On an older build a `WRONG-FAILURE` is often
+  only a message that changed since; read the `.out` before calling it a regression.
 - Tier 2 must run in a visible console, never piped headless: the suite ends by launching
   Notepad++ on the result file and pausing, which hangs without a console. Register an
   interactive scheduled task (`schtasks /Create ... /IT` then `/Run`) and read the results
@@ -202,11 +208,19 @@ Rules per tier:
   are fixed (the runner adds `FAILED`, the gate takes `not OK` too), but read the lines,
   not the exit code or the file size, before calling a round green. A per-test `.txt` under
   `unit\` is that test's log: empty is a pass, any text is a failure.
-  `TestReleaseUnit.bat` and `TestGlobioReleaseUnit.bat`
+  `TestReleaseUnit.bat`, `TestCMakeReleaseUnit.bat` and `TestGlobioReleaseUnit.bat`
   also run `batch\TestShippedContent.bat`: first `TestShippedDms.bat`, the offline gate
   over every shipped `.dms` (the same one the setup scripts run before NSIS), then
-  `grid_to_polygon.dms` over real data, which downloads and rasterises; `[W] GEOS fix
-  failed` lines there are expected, any `[E]` is not. The `shipped_*.dms` cases read
+  `grid_to_polygon.dms` over real data, which it downloads into an empty temporary
+  `SourceDataDir` and rasterises (#1360); `[W] GEOS fix failed` lines there are expected,
+  any `[E]` is not. The `.m` and `.c` setups run it on their output folder before NSIS. Its
+  bash twin `batch\TestShippedContent.sh` is what the Linux setup runs before packaging, from
+  a copy of the output folder on the Linux file system; it needs the
+  network and the memory it names at its top, and fails without either. Both may be run by
+  hand against an existing output folder; the third argument names the folder in which the
+  temporary `SourceDataDir` is made (`%TEMP%`, `/tmp` by default). On OVSRV10 on
+  2026-11-17 the grid_to_polygon step, download included, took 12 s on Windows and 18 to 19 s
+  in WSL, with a peak of about 12 GB on both. The `shipped_*.dms` cases read
   `library\` and `examples\` from the output folder, so an edit there is green only after
   a build has mirrored it. `TestGlobioReleaseUnit.bat 20.19.1`
   tests the installed `GeoDms20.19.1.g` instead of `bin_GLOBIO\Release\x64`; that is how the

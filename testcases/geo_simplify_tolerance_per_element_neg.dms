@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator geos_simplify_multi_polygon Error: the tolerance must be a parameter; a tolerance per element is not supported
 // GEO-A18: the simplify operators take one tolerance, a parameter. A tolerance per element was accepted and the value
 // of element 0 applied to every element; it is now refused. Expected: exit nonzero on /checks.
 container geo_simplify_tolerance_per_element_neg

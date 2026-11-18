@@ -13,9 +13,33 @@ diag files; don't let that happen again.
 battery + a few `fn_probe_*` probes + `tmpl_regress.dms`, with the `fe_names.txt`/
 `impspec.txt` fixtures and `fnrun_itemmap.txt`). Run it via **`testcases/run_testcases.bat`**
 (defaults to `bin\Release\x64\GeoDmsRun.exe`; classifies positives=exit-0,
-`_neg`/`defcheck`=exit-nonzero, exit-3 assert=always-fail). Run artifacts land in the
-gitignored `testcases/_out*/`. One-off investigation configs (controls, repros) still
-belong in gitignored `scratch/`, not `testcases/`.
+`_neg`/`defcheck`=exit-nonzero with their expected message, exit-3 assert=always-fail). Run
+artifacts land in the gitignored `testcases/_out*/`. One-off investigation configs (controls,
+repros) still belong in gitignored `scratch/`, not `testcases/`.
+
+**A negative case states the message it is written to fail with** (#1369), in one or more
+lines `// EXPECT-FAILURE: <fragment>` of its `.dms`. Each fragment is literal text, not a
+pattern, that must occur in a message of the case's output: a line that starts with `Failure:`,
+`Last ErrMsg:` or `[E]`, or a line that continues it, up to the next line that starts with a
+timestamp, with `Context:` or with `Update [[`. In the output of a Debug build, where the CRT
+copy of each line comes first, the console's copy behind it is read. A negative whose output
+lacks one of its fragments fails the run as `WRONG-FAILURE`. Judged on the exit code alone, a negative also
+passed when it failed for
+another reason than the one it was written for: a misspelled item, a syntax error, an operator
+the build under test does not have (on a build of 2026-11-10, from before #1347, the nine `fold`
+negatives of #1347 fail because the operators of #1347 do not exist there, and exit 1). Take a
+fragment from the first line of the message where it can, and from a later line only for what
+only that line says, such as the signatures listed after `Cannot find operator for these
+arguments:`; leave out absolute paths, so that it also holds when the battery runs from the
+installed copy or another output folder. A message is cut after 256 characters before it is
+logged (`MsgDispatch`), so a fragment that follows an absolute path in its message must end well
+before that: under `build\windows-x64-release\bin\examples\testcases\` a path is 39 characters
+longer than under `testcases\` (`xml_prop_construction_neg`, whose message starts with the path of
+an `.xml`, failed in the output folder of the `.m` build for that reason).
+`testcases/expect_failure_missing.txt` lists the negatives that have no such line, each with the
+reason, and they are judged on the exit code only. A negative without a line that is not listed
+fails as `NO-EXPECT`, so a new negative comes with its message, and a listed one that has a line
+fails as `LISTED-HAS-EXPECT`, so a name leaves the list once its case has a line.
 
 **Every GeoDmsRun that these runners start is held to two limits** (`testcases/case_guard.ps1`,
 dot-sourced by `run_testcases.ps1`, `run_xml_roundtrip.ps1` and `run_roundtrip.ps1`): a Windows
@@ -54,20 +78,29 @@ battery until then.
 **Do not confuse it with `testcases/run_roundtrip.bat`**, which asks a different question of the
 DMS writer: dump a configuration, RELOAD the dump and recompute its item. The XML one never
 reloads a `.dms`; it compares two DMS dumps of what should be the same tree, one taken after a
-detour through the XML notation.
+detour through the XML notation. The same four launchers run `run_roundtrip.bat` right after the
+XML one (#1368), over the positive configurations, two GeoDmsRun runs each; its output goes to
+`testcases/_out_rt/`. Until then nothing ran it, and 44 reloads failed unnoticed: a reload looked
+for the fixtures that a case reads through `%currDir%` beside the dump.
 
 **That battery must stay offline and cheap.** Anything that reaches the network or
 processes real source data belongs in **`batch\TestShippedContent.bat`** instead, the
 release test for the `.dms` content the installer ships (issue #1031). It runs against
 `bin\<Config>\x64\` — the copies NSIS packages, not the source tree beside them — in two
 steps: `batch\TestShippedDms.bat`, the offline part, and then
-`examples\grid_to_polygon.dms` over the real CBS buurt map, with the CBS geopackage
-renamed to `.bak` first so `RegioIndelingen.dms` has to download it again.
-`batch\TestReleaseUnit.bat`, `batch\TestCMakeReleaseUnit.bat` and
-`batch\TestGlobioReleaseUnit.bat` call it, so each Windows flavour walks its own output
-folder (`bin\`, `build\windows-x64-release\bin\`, `bin_GLOBIO\`); the `.g` setup script runs
-the Globio launcher against the installed build (#1231). Pass a third argument to point the
-geopackage step at a scratch `SourceDataDir` when testing the script itself.
+`examples\grid_to_polygon.dms` over the real CBS buurt map. The second step gives GeoDmsRun
+an empty temporary `SourceDataDir` through `GEODMS_directories_SourceDataDir`, made under
+`%TEMP%` (or under the folder named by the third argument) and removed afterwards, so
+`RegioIndelingen.dms` always has to download the geopackage with curl, and no existing
+source data is read or touched (#1360). `batch\TestReleaseUnit.bat`,
+`batch\TestCMakeReleaseUnit.bat` and `batch\TestGlobioReleaseUnit.bat` call it, so each
+Windows flavour walks its own output folder (`bin\`, `build\windows-x64-release\bin\`,
+`bin_GLOBIO\`); the `.g` setup script runs the Globio launcher against the installed build
+(#1231), and `batch\BuildSignAndCreateSetup.bat` and `batch\BuildSignAndCreateSetupCmake.bat`
+run it on their output folder right before NSIS. Its bash twin `batch\TestShippedContent.sh` does the same in WSL, from a copy of
+the output folder on the Linux file system, with the temporary folder under `/tmp`.
+`batch\BuildSignAndCreateSetupLinux.bat` runs it before `CreateLinuxSetup.sh`, and the
+setup stops when WSL has no network or less memory than the minimum the script names.
 
 **Every shipped `.dms` is tested before it is packaged (GeoDMS-Test #24).** The installer
 ships three examples and six `library\` files, and the battery's `testcases\shipped_*.dms`
@@ -76,9 +109,14 @@ folder, and after installing, the installed copy. `batch\TestShippedDms.bat <out
 folder>` (bash twin `TestShippedDms.sh` for the `.l` build) is the gate: it checks that
 the shipped copy of the battery has the content of `testcases\`, follows the `#include`
 lines from the `shipped_*.dms` cases and fails when a shipped `examples\*.dms` or
-`library\**\*.dms` is reached by none of them, then runs the shipped battery from the
-output folder. All four `batch\BuildSignAndCreateSetup*.bat` scripts run it right before
-NSIS or `CreateLinuxSetup.sh`, and the `tst` unit suite runs the shipped battery again
+`library\**\*.dms` is reached by none of them, or when an include differs in case from the
+file it names (Windows finds that file, the Linux setup does not: #1359), then runs the
+shipped battery from the output folder. The bash twin runs it from a copy on the Linux file
+system when the output folder lies on a Windows drive, where WSL ignores case. All four
+`batch\BuildSignAndCreateSetup*.bat` scripts run it right before NSIS or
+`CreateLinuxSetup.sh` (the `.m`, `.c` and Linux ones as the first step of
+`TestShippedContent.bat` or `TestShippedContent.sh`), and the
+`tst` unit suite runs the shipped battery again
 from the installed copy (`batch\unit\ShippedContent.bat`), so the post-install gate covers
 it too. A new shipped file needs a `shipped_*.dms` case that includes it, or the gate
 names it. Because the cases read the output folder, an edit under `library\` or
@@ -112,8 +150,9 @@ session is nevertheless started in a worktree, it carries on in the main checkou
 
 This file holds the policy; the recipes that apply it on this machine are skills, one folder
 per topic under `.claude/skills/<name>/SKILL.md`, tracked in git (the rest of `.claude/` is
-ignored). Claude Code loads a skill by name when its description matches the task; any other
-agent can read them as plain markdown.
+ignored, except `toetser-project.md`, which lists what a reviewing subagent checks in a report
+about work in this repository). Claude Code loads a skill by name when its description matches
+the task; any other agent can read them as plain markdown.
 
 **`.agents/skills/` is a byte-identical copy**, for agents that load skills from there. Edit
 only `.claude/skills/`, write without naming an agent (as this file does; a real file name such
@@ -327,19 +366,22 @@ or erroring, a check that now fires where it did not, a rule about what a storag
 a reader may declare — belongs on the wiki in the same session, next to the code and the issue
 debrief. Verifying a change tells you it works; the wiki is what makes it usable.
 
-Conventions that the existing pages follow, worth matching:
+Conventions for the pages (the `geodms-wiki` skill has the details):
 
-- **Date the change**: "**Since GeoDMS 20.14.0** …", so a reader on an older build knows why the
-  page and their build disagree. When the old behaviour was wrong rather than merely different,
-  say what it was — the pages are read by people debugging configurations written years ago.
-- **Say what breaks.** Where a change makes a previously silent configuration fail, name that:
-  the IntegrityCheck page states that a check which never fired before can surface on the first
-  run after upgrading, which is the whole point of the change but still a surprise.
+- **Reference, not a log.** A page describes how GeoDMS works now, in the present tense, as if
+  it had always worked that way: no "Since GeoDMS 20.14.0" paragraphs, no account of the old
+  behaviour, of what was wrong with it or of how it was found. A change rewrites the paragraph
+  it affects. The history belongs in the issue and the release notes.
+- **A version only in the `## since version` section** of an operator or property page, which
+  names the release in which the operator, or a form of it, first appears. When a change makes
+  a configuration fail that used to run, the page states the rule it now breaks and the release
+  notes say that the rule is new.
 - **Put it on the topic page**, not in a changelog: `IntegrityCheck.md`, `MMD.md`, `XY-order.md`,
   `Indirect-expression.md`, … Link between them with the wiki's own `[[Page-name]]` /
   `[[label|Page-name]]` syntax, and add the reverse link on the pages that should point back.
 - **Keep the issue debrief and the wiki distinct**: the issue records what was wrong, how it was
-  diagnosed and what was measured; the wiki records only what a modeller must now do differently.
+  diagnosed and what was measured; the wiki records how GeoDMS works and what a modeller needs
+  to know to use it.
 
 ## Plan documents: the status line moves with the status
 

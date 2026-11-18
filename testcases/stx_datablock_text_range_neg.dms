@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: DataBlock Error: the text '300' is not a value of uint8, in element 1 of the data block
 // Regression for doc/code-audit-2026-09-27.md STX-A25: in a data block, a text element that the values type
 // cannot hold, such as '300' for a uint8, became null without a word, while the number 300 is a range error.
 // Since 20.24.0 it is an error that names the text, the type and the element.

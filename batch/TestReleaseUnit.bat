@@ -20,7 +20,8 @@ call "%~dp0run_unit_suite.bat" R64 off bin\Release\x64
 if errorlevel 2 (set UNIT_FAILED=2) else if errorlevel 1 set UNIT_FAILED=1
 
 REM Typed-function testcases battery (testcases\*.dms): positives must exit 0,
-REM _neg/defcheck configs must exit nonzero, a Debug assert (exit 3) always fails.
+REM _neg/defcheck configs must exit nonzero with the message of their EXPECT-FAILURE lines (#1369)
+REM or be listed in testcases\expect_failure_missing.txt, a Debug assert (exit 3) always fails.
 set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin\Release\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
@@ -33,6 +34,14 @@ REM differences and their reason live in testcases\xml_roundtrip_known_diff.txt.
 set RT_FAILED=0
 Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%geodms_rootdir%\bin\Release\x64\GeoDmsRun.exe"
 if errorlevel 1 set RT_FAILED=1
+
+REM DMS round-trip battery (#1368): every positive testcases configuration dumped in DMS syntax,
+REM the dump reloaded from testcases\_out_rt\ and its item computed again, so that what the DMS
+REM writer leaves out makes the reload fail. Offline; two GeoDmsRun runs per positive configuration.
+REM Not the XML one above: that compares two dumps and never reloads one.
+set DRT_FAILED=0
+Call "%geodms_rootdir%\testcases\run_roundtrip.bat" "%geodms_rootdir%\bin\Release\x64\GeoDmsRun.exe"
+if errorlevel 1 set DRT_FAILED=1
 
 REM Shipped-content release test (issue #1031): the examples\testcases battery run
 REM from the OUTPUT folder, plus examples\grid_to_polygon.dms over the real CBS buurt
@@ -59,6 +68,11 @@ if "%RT_FAILED%"=="1" (
 ) else (
   echo XML ROUNDTRIP BATTERY PASSED
 )
+if "%DRT_FAILED%"=="1" (
+  echo *** DMS ROUNDTRIP BATTERY FAILED - see the failures listed above and testcases\_out_rt\ ***
+) else (
+  echo DMS ROUNDTRIP BATTERY PASSED
+)
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
 if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 if "%SHIPPED_FAILED%"=="1" (
@@ -71,5 +85,6 @@ if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1
+if "%DRT_FAILED%"=="1" exit /b 1
 if "%SHIPPED_FAILED%"=="1" exit /b 1
 exit /b 0

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: IntegrityCheck : 'g1 == 45 && g2 == 7' is not true
 // The unsound direction must NOT be taken: here the NEARER ancestor guards only "a", while the
 // outer one guards "a && b". Enforcing a says nothing about b, so the outer guard may not be
 // skipped. With b violated the run must fail; if a future change ever skipped a candidate whose

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator combine_rel Error: [[/TY]] is a combine of 2 factors, so it has no factor at position 2
 // #1293: combine_rel at a position beyond the factors of the combined unit is refused in the meta
 // phase; positions count from 0, so a combine of two factors has none at position 2.
 // Expected: exit nonzero on /checks.

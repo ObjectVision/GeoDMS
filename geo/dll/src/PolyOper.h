@@ -181,7 +181,7 @@ struct BinaryPolyAttrAssignOper : BinaryAttrOper< typename PolyAttrOper::assigne
 {
 	BinaryPolyAttrAssignOper(AbstrOperGroup* gr) 
 		: BinaryAttrOper<typename PolyAttrOper::assignee_type, typename PolyAttrOper::arg1_type, typename PolyAttrOper::arg2_type>(gr
-			,	&PolyAttrOper::unit_creator, composition_of_v<typename PolyAttrOper::assignee_type>
+			,	&PolyAttrOper::unit_creator, ValueComposition::Polygon // a polygon set operation gives polygons; composition_of_v of the value type would say Sequence (#1348)
 			)
 	{}
 

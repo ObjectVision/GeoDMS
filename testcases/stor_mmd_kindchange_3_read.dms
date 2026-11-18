@@ -1,0 +1,28 @@
+// The read of issue #1349, see stor_mmd_kindchange_1_write.dms. The reader declares only the holders, so every
+// item comes from the dictionary of the second write, and the values are those of that write.
+//
+// The `file_` checks pin the names: the data file of dom/a/b is dom/a/b.mmddata below the store folder.
+// ExistingFile(a, b) gives b when that file exists and a otherwise, both expanded to full paths, so two calls with
+// different fallbacks agree exactly when b exists. The file dom/a.mmddata that the first write gave c4 is still there,
+// as every file is that a write does not write itself (#1339), and is not checked.
+container stor_mmd_kindchange_3_read
+{
+	function HasFile(parameter<string> path) -> parameter<bool>
+		:= ExistingFile(path + '.absent_a', path) == ExistingFile(path + '.absent_b', path);
+
+	unit<uint32> Src : nrofrows = 4;
+
+	container c4 : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_kindchange_c4.mmd", StorageReadOnly = "True";
+	container c5 : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_kindchange_c5.mmd", StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<string> root := '%LocalDataDir%/GeoDmsTestcases/';
+
+		parameter<string> c4_b := asList(string(c4/dom/a/b), ' '), IntegrityCheck = "c4_b == '1 101 201 301'";
+		parameter<string> c5_a := asList(string(c5/dom/a), ' '),   IntegrityCheck = "c5_a == '1 101 201 301'";
+
+		parameter<bool> file_c4_b := HasFile(root + 'stor_mmd_kindchange_c4.mmd/dom/a/b.mmddata'), IntegrityCheck = "file_c4_b == true";
+		parameter<bool> file_c5_a := HasFile(root + 'stor_mmd_kindchange_c5.mmd/dom/a.mmddata'),   IntegrityCheck = "file_c5_a == true";
+	}
+}

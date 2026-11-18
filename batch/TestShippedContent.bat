@@ -18,15 +18,17 @@ rem      covered. The setup scripts run that part on its own before NSIS;
 rem
 rem   2. the shipped examples\grid_to_polygon.dms over the real CBS buurt map.
 rem
-rem Before step 2 the CBS geopackage is renamed to <name>.bak (deleting an
-rem older .bak first), so RegioIndelingen.dms has to download it again. That
+rem Step 2 runs with a temporary SourceDataDir, an empty folder that this script
+rem makes and removes again, given to GeoDmsRun as GEODMS_directories_SourceDataDir
+rem (#1360). So RegioIndelingen.dms never finds the geopackage and always has to
+rem download it with curl, and no existing SourceData is read or touched. That
 rem download path is user-facing and silent when it breaks, so every release
-rem should walk it. The original stays as .bak; nothing is destroyed.
+rem should walk it. The batch\TestShippedContent.sh twin does the same in WSL.
 rem
-rem Usage:  TestShippedContent.bat [bin\Release\x64] [cbs-year] [source-data-dir]
-rem   source-data-dir defaults to the SourceDataDir the engine itself would use;
-rem   pass it to point the geopackage step at a scratch folder, which is how the
-rem   rename logic gets tested without touching the real source data.
+rem Usage:  TestShippedContent.bat [bin\Release\x64] [cbs-year] [temp-parent]
+rem   temp-parent is the folder in which the temporary SourceDataDir is made,
+rem   %TEMP% when not given. The geopackage takes some 170 MB there while the
+rem   test runs.
 rem Exit code: 0 when both steps pass.
 rem
 rem NOT part of testcases\run_testcases.bat: that battery must stay offline
@@ -45,6 +47,9 @@ set "CBSYEAR=%~2"
 rem Must track the year examples\grid_to_polygon.dms asks for (/CBS/Y<year>/Buurt).
 if "%CBSYEAR%"=="" set "CBSYEAR=2025"
 
+set "TMP_PARENT=%~3"
+if "%TMP_PARENT%"=="" set "TMP_PARENT=%TEMP%"
+
 if not exist "%BINDIR%\GeoDmsRun.exe" (
   echo *** GeoDmsRun.exe not found in "%BINDIR%" - build first, or pass the bin folder ***
   exit /b 2
@@ -57,38 +62,15 @@ if not exist "%BINDIR%\examples\grid_to_polygon.dms" (
   echo *** "%BINDIR%\examples\grid_to_polygon.dms" is missing - the CopyResources step did not run ***
   exit /b 2
 )
-
-rem --- Resolve SourceDataDir exactly the way GetGeoDmsRegKey() does, or the rename
-rem     below silently touches nothing and the download path is never walked.
-rem
-rem     Note the trap: RegistryHandleLocalMachineRO is NOT HKLM. Registry.cpp builds
-rem     its path as HKEY_CURRENT_USER\Software\ObjectVision\<COMPUTERNAME>\GeoDMS --
-rem     the per-machine settings live under HKCU. That key is consulted first, and a
-rem     value of #DELETED# there means "unset" and does NOT fall through to
-rem     Software\ObjectVision\DMS. Then comes that DMS key, then the C:\SourceData
-rem     default. An explicit third argument wins over all of it.
-set "SOURCEDATADIR=%~3"
-if defined SOURCEDATADIR goto :have_sourcedatadir
-
-set "SDD_LM="
-for /f "tokens=2,*" %%a in ('reg query "HKCU\Software\ObjectVision\%COMPUTERNAME%\GeoDMS" /v SourceDataDir 2^>nul ^| find "SourceDataDir"') do set "SDD_LM=%%b"
-if defined SDD_LM (
-  if /i not "%SDD_LM%"=="#DELETED#" set "SOURCEDATADIR=%SDD_LM%"
-  goto :sourcedatadir_default
+if not exist "%TMP_PARENT%\" (
+  echo *** the folder "%TMP_PARENT%" for the temporary SourceDataDir does not exist ***
+  exit /b 2
 )
-for /f "tokens=2,*" %%a in ('reg query "HKCU\Software\ObjectVision\DMS" /v SourceDataDir 2^>nul ^| find "SourceDataDir"') do set "SOURCEDATADIR=%%b"
-
-:sourcedatadir_default
-if not defined SOURCEDATADIR set "SOURCEDATADIR=C:\SourceData"
-:have_sourcedatadir
-
-set "GPKG=%SOURCEDATADIR%\RegionalUnits\cbs\gebiedsindelingen%CBSYEAR%.gpkg"
 
 echo.
 echo === Shipped content release test ===
 echo bin           : %BINDIR%
-echo SourceDataDir : %SOURCEDATADIR%
-echo CBS geopackage: %GPKG%
+echo temporary SourceDataDir under: %TMP_PARENT%
 echo.
 
 rem --- Step 1: the offline part: shipped battery, library, examples --------
@@ -97,38 +79,43 @@ set "TC_FAILED=0"
 call "%~dp0TestShippedDms.bat" "%BINDIR%"
 if errorlevel 1 set "TC_FAILED=1"
 
-rem --- Step 2: force a fresh download, then run grid_to_polygon ------------
+rem --- Step 2: grid_to_polygon over a geopackage downloaded into an empty SourceDataDir
 echo.
 echo --- 2/2: examples\grid_to_polygon.dms over the real CBS buurt map ---
-if exist "%GPKG%" (
-  if exist "%GPKG%.bak" (
-    echo Removing the previous backup "%GPKG%.bak"
-    del /q "%GPKG%.bak"
-    if exist "%GPKG%.bak" (
-      echo *** could not delete "%GPKG%.bak" - is it open? ***
-      exit /b 2
-    )
-  )
-  echo Renaming "%GPKG%" to "%GPKG%.bak" so it has to be downloaded again
-  ren "%GPKG%" "gebiedsindelingen%CBSYEAR%.gpkg.bak"
-  if exist "%GPKG%" (
-    echo *** could not rename "%GPKG%" - is it open? ***
-    exit /b 2
-  )
-) else (
-  echo No geopackage present; the run below downloads it for the first time.
+:pick_sdd
+set "SDD=%TMP_PARENT%\geodms_shipped_content_%RANDOM%%RANDOM%"
+if exist "%SDD%" goto :pick_sdd
+mkdir "%SDD%"
+if not exist "%SDD%\" (
+  echo *** could not make the temporary SourceDataDir "%SDD%" ***
+  exit /b 2
 )
+set "GPKG=%SDD%\RegionalUnits\cbs\gebiedsindelingen%CBSYEAR%.gpkg"
+echo SourceDataDir : %SDD% ^(new and empty, removed after the run^)
+echo CBS geopackage: %GPKG%
 
 rem The example is run from the OUTPUT folder and carries its own /checks, so this
 rem is the same command the header of that file invites a user to type. It must be
 rem the top-level container of its own config -- it resolves the buurt map as the
-rem absolute path /CBS/Y2025/Buurt -- which is why nothing wraps it here.
+rem absolute path /CBS/Y2025/Buurt -- which is why nothing wraps it here. GeoDMS
+rem takes the environment variable before the SourceDataDir setting, and uses it as
+rem given, so it gets forward slashes.
 set "G2P_LOG=%GEODMS_ROOT%\scratch\grid_to_polygon_release.log"
 if not exist "%GEODMS_ROOT%\scratch" mkdir "%GEODMS_ROOT%\scratch"
+if exist "%G2P_LOG%" del /q "%G2P_LOG%"
 
 set "G2P_FAILED=0"
+set "GEODMS_directories_SourceDataDir=%SDD:\=/%"
 "%BINDIR%\GeoDmsRun.exe" "/L%G2P_LOG%" "%BINDIR%\examples\grid_to_polygon.dms" /checks
 if errorlevel 1 set "G2P_FAILED=1"
+set "GEODMS_directories_SourceDataDir="
+
+set "GPKG_INFO=was not downloaded (see the message of curl in the log; is there no network?)"
+if exist "%GPKG%" for %%F in ("%GPKG%") do set "GPKG_INFO=was downloaded: %%~zF bytes"
+
+rmdir /s /q "%SDD%"
+set "SDD_INFO=removed"
+if exist "%SDD%" set "SDD_INFO=NOT removed; delete it by hand"
 
 echo.
 echo === Shipped content release test: results ===
@@ -143,7 +130,8 @@ if "%G2P_FAILED%"=="1" (
 ) else (
   echo grid_to_polygon PASSED
 )
-if exist "%GPKG%.bak" echo the previous geopackage is kept as "%GPKG%.bak"
+echo the CBS geopackage !GPKG_INFO!
+echo the temporary SourceDataDir "%SDD%" is !SDD_INFO!
 
 if "%TC_FAILED%"=="1" exit /b 1
 if "%G2P_FAILED%"=="1" exit /b 1

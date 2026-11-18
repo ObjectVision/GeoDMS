@@ -1,0 +1,32 @@
+// #1362: a raster read into a domain when only one of the two has a georeference. The read places the domain on
+// the raster through both georeferences and takes the row and column numbers of the side without one for world
+// coordinates; here no cell of the domain then lies on the raster, so every cell reads as null. Since 20.29.0 the
+// read warns about it in the log ([W] in the .out), where it used to say nothing. The runner checks exit codes and
+// not warnings, so the checks below hold the outcome: a change in how such a read places the cells shows here.
+// data/tif_u8_georef.tif has a world file that puts its cells of 100 m at x 155000, y 463400 in rdc.
+container stor_grid_georef_one_side
+{
+	unit<fpoint> rdc : SpatialReference = "EPSG:28992";
+
+	unit<spoint> dom_plain := range(spoint, point_yx(0s, 0s), point_yx(4s, 8s));
+	unit<spoint> dom_true  := range(gridset(rdc, point_yx(-100f, 100f, rdc), point_yx(463400f, 155000f, rdc), spoint), point_yx(0s, 0s), point_yx(4s, 8s));
+
+	// the raster has a georeference, through the DialogData of the attribute, and the domain has none
+	attribute<uint8> raster_only (dom_plain) : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True", DialogData = "rdc";
+
+	// the domain has a georeference and the raster has none: a grid unit with SyncMode None gets none from its file
+	unit<spoint> grid_none : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True", DialogData = "rdc", SyncMode = "None"
+	{
+		attribute<uint8> ReadData (dom_true);
+	}
+
+	// control: both have a georeference, and the same raster reads in full
+	attribute<uint8> both (dom_true) : StorageName = "%currDir%/data/tif_u8_georef.tif", StorageType = "tif", StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<uint32> raster_only_nulls := sum_uint32(IsNull(raster_only)),        IntegrityCheck = "raster_only_nulls == 32";
+		parameter<uint32> domain_only_nulls := sum_uint32(IsNull(grid_none/ReadData)), IntegrityCheck = "domain_only_nulls == 32";
+		parameter<uint32> both_sum          := sum(uint32(both)),                      IntegrityCheck = "both_sum == 496";
+	}
+}

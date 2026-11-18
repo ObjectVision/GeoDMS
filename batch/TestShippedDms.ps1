@@ -14,7 +14,9 @@
 #      examples\testcases\shipped_*.dms, every #include is followed (a %exeDir% path against
 #      <bin>, a bare name against <dir>\<stem>\ then <dir>\, the way the engine resolves it),
 #      and the set reached must contain every examples\*.dms and library\**\*.dms that ships.
-#      A new shipped file that no case includes fails here, with its name.
+#      A new shipped file that no case includes fails here, with its name. Every name in an
+#      include is compared in case: Windows finds a file named in the wrong case, but the same
+#      files ship in the Linux setup, where that include fails (#1359).
 #
 # Usage: TestShippedDms.ps1 -Bin <output folder> -Source <repo>\testcases
 # Exit code: 0 when both hold.
@@ -43,6 +45,25 @@ if ($stale.Count) {
 }
 
 # --- 2. every shipped .dms is reached from a battery case ---------------------------------
+
+# Resolve $rel under $base one name at a time against the names in each folder, and return the
+# path with the names as they are on disk, or $null. Test-Path ignores case, so it cannot tell
+# an include that Linux finds from one that it does not; -IgnoreCase gives the file meant.
+function Resolve-Names([string]$base, [string]$rel, [switch]$IgnoreCase) {
+    $cur = $base
+    foreach ($part in ($rel -split '[\\/]')) {
+        if ($part -eq '' -or $part -eq '.') { continue }
+        if ($part -eq '..') { $cur = Split-Path $cur -Parent; continue }
+        $hit = Get-ChildItem -LiteralPath $cur -Force -ErrorAction SilentlyContinue |
+            Where-Object { if ($IgnoreCase) { $_.Name -eq $part } else { $_.Name -ceq $part } } |
+            Select-Object -First 1
+        if (-not $hit) { return $null }
+        $cur = $hit.FullName
+    }
+    if (Test-Path -LiteralPath $cur -PathType Leaf) { return $cur }
+    return $null
+}
+
 $reached = @{}
 $queue = New-Object System.Collections.Generic.Queue[string]
 foreach ($c in Get-ChildItem (Join-Path $copy 'shipped_*.dms')) { $queue.Enqueue($c.FullName) }
@@ -59,21 +80,28 @@ while ($queue.Count) {
     foreach ($m in [regex]::Matches($text, '#include\s*[<"]([^>"]+)[>"]')) {
         $inc = $m.Groups[1].Value.Trim() -replace '/', '\'
         if ($inc -match '^%exeDir%\\(.+)$') {
-            $p = Join-Path $Bin $Matches[1]
+            $rel = $Matches[1]; $bases = @($Bin)
         } elseif ($inc -match '^%') {
             continue   # another placeholder; not a shipped file
         } else {
             $dir  = Split-Path $f -Parent
             $stem = [IO.Path]::GetFileNameWithoutExtension($f)
-            $p = Join-Path (Join-Path $dir $stem) $inc
-            if (-not (Test-Path $p)) { $p = Join-Path $dir $inc }
+            $rel = $inc; $bases = @((Join-Path $dir $stem), $dir)
         }
-        if (Test-Path $p) {
-            $queue.Enqueue((Resolve-Path $p).Path)
+        $p = $null
+        foreach ($b in $bases) { if (-not $p) { $p = Resolve-Names $b $rel } }
+        if ($p) {
+            $queue.Enqueue($p)
+            continue
+        }
+        foreach ($b in $bases) { if (-not $p) { $p = Resolve-Names $b $rel -IgnoreCase } }
+        if ($p) {
+            Write-Host "*** $f includes $inc, but the file is $($p.Substring($Bin.Length + 1)): the Linux setup does not find it ***"
+            $queue.Enqueue($p)   # still follow it, so that what it includes is counted as reached
         } else {
             Write-Host "*** $f includes $inc, which does not exist under $Bin ***"
-            $rc = 1
         }
+        $rc = 1
     }
 }
 $shipped = @(Get-ChildItem (Join-Path $Bin 'examples\*.dms')) + @(Get-ChildItem (Join-Path $Bin 'library') -Recurse -Filter *.dms)

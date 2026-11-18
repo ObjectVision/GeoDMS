@@ -36,7 +36,8 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* uD
 
 auto GetAffineTransformationFromGridDataItem(const AbstrDataItem* grid_adi, bool offset_to_top_left_cell=true)->Transformation<Float64>;
 FileResult WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName);
-void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFileName);
+// gives uDomain the projection on uBase that the world file geoRefFileName describes (.tfw, .bmpw); a missing file is an error
+void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit* uBase);
 
 
 #endif // __STG_STORAGEUTILS_H

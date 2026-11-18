@@ -121,6 +121,47 @@ namespace hof {
 		return item && !IsUnit(item) && !IsDataItem(item) && !item->IsFunctionItem() && !item->IsTemplate();
 	}
 
+	// #1341: the unit reference of a data item, as the checker names units. Copying
+	// a template instance rewrites a reference to a unit inside the copied subtree
+	// into a path relative to the referring item's parent whenever that parent does
+	// not contain the unit (CopyTreeContext::GetAbsOrRelUnitID): `attribute<Pts> r`
+	// in a body container becomes `attribute<../Pts> r`. The ladders below match
+	// parameters and generic variables by the name the function declares, and
+	// resolved such a path from the function and from its definition scope, where it
+	// found an unrelated unit of the same name. The path is resolved here from the
+	// parent it was written for, the scope the engine itself resolves it from, and
+	// translated back:
+	// - a direct sub-item of fnDef (a parameter, or a body-level declaration, which
+	//   the ladder then defers) gets its plain name;
+	// - the function itself, an item deeper inside it (a body-local unit) or a path
+	//   that does not resolve gives the empty token: defer;
+	// - any other unit gets its full name, which ResolveUnitInScope resolves as an
+	//   absolute path. fnDef == nullptr (a by-example exemplar's member block, whose
+	//   tokens never mean the function's parameters) always takes this branch.
+	// A token that does not start with a dot is returned unchanged.
+	static TokenID CanonicalUnitToken(TokenID tok, const TreeItem* declaringItem, const TreeItem* fnDef)
+	{
+		if (!tok)
+			return tok;
+		SharedStr s(tok.AsStrRangeLock()); // materialized: token creation below
+		if (s.empty() || *s.begin() != '.')
+			return tok;
+		auto scope = declaringItem->GetTreeParent();
+		if (!scope)
+			return {};
+		auto u = scope->ResolveItemPath(s);
+		if (!u)
+			return {};
+		if (fnDef)
+		{
+			if (u->GetTreeParent().get() == fnDef)
+				return u->GetNameID();
+			if (u.get() == fnDef || fnDef->DoesContain(u.get()))
+				return {};
+		}
+		return GetTokenID_mt(u->GetFullName().c_str());
+	}
+
 	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx,
 		SharedTreeItem* externalOut, ExtRefKind* extKindPtr, SharedStr* genSubPathOut)
 	{
@@ -252,20 +293,32 @@ namespace hof {
 	// Empty result = open or not buildable: the caller defers. Mirrors the closed
 	// subset of FunctionApplication::SubstituteBodyExpr; memoized (the strong
 	// LispRefs in the memo also pin the built keys for the checker's lifetime).
-	LispRef FunctionChecker::TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr)
+	// #1366: `openRefs`, when given, receives the parameters and captured items that keep
+	// the expression open. The scan then goes on past the first open argument and into the
+	// arguments of a call it cannot build, but what it returns does not change, so this
+	// remains the one definition of a closed expression.
+	LispRef FunctionChecker::TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs)
 	{
 		if (expr.EndP())
 			return {};
 		auto memoKey = std::make_pair(refScope, LispRef(expr));
 		if (auto it = m_ClosedKeyMemo.find(memoKey); it != m_ClosedKeyMemo.end())
-			return it->second;
-		LispRef built = TryBuildClosedKeyExprImpl(refScope, expr);
+			if (!openRefs || !it->second.EndP()) // a closed expression has nothing to collect
+				return it->second;
+		LispRef built = TryBuildClosedKeyExprImpl(refScope, expr, openRefs);
 		m_ClosedKeyMemo.emplace(std::move(memoKey), built);
 		return built;
 	}
 
-	LispRef FunctionChecker::TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr)
+	LispRef FunctionChecker::TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs)
 	{
+		// #1366: collect from the arguments of a call that stays open for another reason
+		auto collectArgs = [&](LispPtr argList)
+		{
+			if (openRefs)
+				for (LispPtr argPtr = argList; !argPtr.EndP(); argPtr = argPtr.Right())
+					TryBuildClosedKeyExpr(refScope, argPtr.Left(), openRefs);
+		};
 		if (expr.IsRealList())
 		{
 			if (!expr.Left().IsSymb())
@@ -273,23 +326,51 @@ namespace hof {
 			LispRef head = expr.Left();
 			TokenID headID = head.GetSymbID();
 			if (headID == token::sourceDescr)
-				return TryBuildClosedKeyExpr(refScope, expr.Right().Left());
+				return TryBuildClosedKeyExpr(refScope, expr.Right().Left(), openRefs);
 			if (headID == token::arrow || headID == token::scope || headID == token::subitem
 				|| headID == t_ApplyValue || headID == t_ContainerLiteral)
 				return {};
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			if (og->IsTemplateCall() && !ValueClass::FindByScriptName(headID))
+			{
+				// #1366: the head may itself be a function-valued parameter or a captured function
+				if (openRefs && !IsFoldHead(headID) && headID != t_Map)
+				{
+					try
+					{
+						UInt32 paramIdx = 0; ExtRefKind extKind = ExtRefKind::DefScopeExternal;
+						int code = ResolveName(refScope, headID, nullptr, &paramIdx, nullptr, &extKind);
+						if (code == 0)
+							openRefs->params.push_back(m_Params[paramIdx]);
+						else if (code == 2 && extKind == ExtRefKind::ClosureCapture)
+							if (auto captured = FindEnclosingFunctionMember(headID))
+								openRefs->captures.push_back(captured.get());
+					}
+					catch (...) {} // a head that does not resolve as a name names nothing to collect
+				}
+				collectArgs(expr.Right());
 				return {}; // function-call heads: not buildable in v1 (ReduceValue re-entrancy)
+			}
 			if (!og->IsTemplateCall() && !og->MustCacheResult())
+			{
+				collectArgs(expr.Right());
 				return {}; // meta heads: reduction rejects them in bodies anyway
+			}
 			std::vector<LispRef> substArgs;
+			bool anyOpen = false;
 			for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
 			{
-				auto sub = TryBuildClosedKeyExpr(refScope, argPtr.Left());
+				auto sub = TryBuildClosedKeyExpr(refScope, argPtr.Left(), openRefs);
 				if (sub.EndP() && !argPtr.Left().EndP())
-					return {}; // an open/unbuildable argument
+				{
+					if (!openRefs)
+						return {}; // an open/unbuildable argument
+					anyOpen = true; // #1366: go on collecting from the other arguments
+				}
 				substArgs.push_back(sub);
 			}
+			if (anyOpen)
+				return {};
 			LispRef argList;
 			for (auto ri = substArgs.rbegin(); ri != substArgs.rend(); ++ri)
 				argList = LispRef(*ri, argList);
@@ -319,6 +400,8 @@ namespace hof {
 			switch (ResolveName(refScope, symbID, &local, &paramIdx, &external, &extKind))
 			{
 			case 0:
+				if (openRefs)
+					openRefs->params.push_back(m_Params[paramIdx]);
 				return {}; // a formal: OPEN
 			case 1:
 			{
@@ -332,12 +415,21 @@ namespace hof {
 				{
 					auto calc = AbstrCalculator::ConstructFromStr(local, exprStr, CalcRole::Calculator);
 					auto localScope = local->GetTreeParent();
-					r = TryBuildClosedKeyExpr(localScope.get(), RewriteExpr(calc->GetLispExprOrg()));
+					r = TryBuildClosedKeyExpr(localScope.get(), RewriteExpr(calc->GetLispExprOrg()), openRefs);
 				}
 				m_ScanBusy.erase(local);
 				return r;
 			}
 			default:
+				if (openRefs && extKind == ExtRefKind::ParamMember)
+					openRefs->params.push_back(m_Params[paramIdx]); // 'p/member'
+				if (openRefs && extKind == ExtRefKind::ClosureCapture)
+				{
+					SharedStr symbStr(symbID.AsStrRangeLock()); // materialized: token creation below
+					CharPtr slash = std::find(symbStr.begin(), symbStr.send(), '/');
+					if (auto captured = FindEnclosingFunctionMember(GetTokenID_mt(symbStr.begin(), slash)))
+						openRefs->captures.push_back(captured.get());
+				}
 				if (extKind != ExtRefKind::DefScopeExternal || !external)
 					return {}; // param-member / prelude-fn / closure capture: OPEN or not a data value
 				if (external->IsFunctionItem() || external->InTemplate())
@@ -633,7 +725,11 @@ namespace hof {
 					md.kind  = DefType::Kind::Data;
 					md.vcomp = adi->GetValueComposition();
 
-					if (TokenID vt = adi->ValuesUnitToken())
+					// #1341: a path that a template copy wrote is read back as the name
+					// the function declares (an exemplar's tokens never mean the
+					// function's names); see CanonicalUnitToken
+					const TreeItem* tokOwner = byExample ? nullptr : m_FuncItem;
+					if (TokenID vt = CanonicalUnitToken(adi->ValuesUnitToken(), m, tokOwner))
 					{
 						bool vMatched = false;
 						for (const TreeItem* u = block->_GetFirstSubItem(); u; u = u->GetNextItem())
@@ -699,7 +795,17 @@ namespace hof {
 					// PARAMETER name selects the default only for an explicit member
 					// block (an exemplar token never means it).
 					TokenID dt = adi->DomainUnitToken();
-					if (!dt || dt == t_Dot || dt == block->GetNameID() || (!byExample && block == memberSrc && dt == p->GetNameID()))
+					bool dDefer = false;
+					if (dt && dt != t_Dot) // a lone dot is the block itself: the default below
+					{
+						dt = CanonicalUnitToken(dt, m, tokOwner); // #1341
+						dDefer = !dt; // a copied path without a declared name: never the default
+					}
+					if (dDefer)
+					{
+						// md.dom stays Dom::Unknown -- defer
+					}
+					else if (!dt || dt == t_Dot || dt == block->GetNameID() || (!byExample && block == memberSrc && dt == p->GetNameID()))
 					{
 						if (blockDomNode != NO_TYPE_VAR)
 						{
@@ -943,7 +1049,9 @@ namespace hof {
 		auto adi = AsDataItem(posItem);
 		r.vcomp = adi->GetValueComposition();
 
-		if (TokenID vTok = adi->ValuesUnitToken())
+		// #1341: a path that a template copy wrote is read back as the name the
+		// function declares (or defers); see CanonicalUnitToken
+		if (TokenID vTok = CanonicalUnitToken(adi->ValuesUnitToken(), posItem, fnDef))
 		{
 			if (tok2owner)
 				if (auto it = tok2owner->find(vTok); it != tok2owner->end())
@@ -1006,7 +1114,7 @@ namespace hof {
 			}
 		}
 
-		if (TokenID dTok = adi->DomainUnitToken())
+		if (TokenID dTok = CanonicalUnitToken(adi->DomainUnitToken(), posItem, fnDef))
 		{
 			if (tok2owner)
 				if (auto it = tok2owner->find(dTok); it != tok2owner->end())
@@ -1115,15 +1223,38 @@ namespace hof {
 	// declared result type under that instance
 	DefType FunctionChecker::InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName)
 	{
+		// #1347: as the step of fold, the holes take the element and the state (InferFold)
+		const FoldHoleFill* fill = std::exchange(m_FoldHoleFill, nullptr);
 		std::vector<DefType> argTerms;
-		UInt32 nrArgs = 0; bool anyHole = false;
+		std::vector<SharedStr> argSources;
+		UInt32 nrArgs = 0, nrHoles = 0; bool anyHole = false;
 		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
 		{
 			bool hole = a.Left().IsSymb() && a.Left().GetSymbID() == t_Hole;
-			anyHole |= hole;
-			argTerms.push_back(hole ? DefType{} : InferArg(refScope, a.Left()));
+			if (hole && fill && nrHoles < fill->terms.size())
+			{
+				argTerms.push_back(fill->terms[nrHoles]);
+				argSources.push_back(fill->sources[nrHoles]);
+			}
+			else
+			{
+				anyHole |= hole;
+				argTerms.push_back(hole ? DefType{} : InferArg(refScope, a.Left()));
+				argSources.push_back(mySSPrintF("argument {} of '{}'", nrArgs + 1, headName));
+			}
+			nrHoles += hole;
 			++nrArgs;
 		}
+		if (fill && nrHoles != fill->terms.size())
+			throwErrorF("ExprParser", "the definition of '{}': {}; '{}' leaves {}"
+				, m_FuncItem->GetFullName().c_str(), fill->role.c_str(), headName, nrHoles);
+		return InferApplicationTerms(fnVal, argTerms, anyHole, headName, fill ? &argSources : nullptr);
+	}
+
+	DefType FunctionChecker::InferApplicationTerms(const DefType& fnVal, const std::vector<DefType>& argTerms, bool anyHole, CharPtr headName,
+		const std::vector<SharedStr>* argSources)
+	{
+		UInt32 nrArgs = UInt32(argTerms.size());
 		if (fnVal.kind != DefType::Kind::Func || !fnVal.fn)
 			return {};
 		const TreeItem* fnDef = fnVal.fn;
@@ -1193,7 +1324,7 @@ namespace hof {
 				continue;
 			}
 			DefType pT = PositionType(p, fnDef, instance, ownerFn, ownerInstance, t2o);
-			SharedStr argSrc = mySSPrintF("argument {} of '{}'", k + 1, headName);
+			SharedStr argSrc = argSources ? (*argSources)[k] : mySSPrintF("argument {} of '{}'", k + 1, headName);
 			SharedStr parSrc = mySSPrintF("parameter '{}' of function '{}'", pName.c_str(), fnDef->GetFullName().c_str());
 			UnifyData(argTerms[k], pT, argSrc, parSrc);
 		}
@@ -1211,6 +1342,143 @@ namespace hof {
 			return r;
 		}
 		return PositionType(resultChild.get(), fnDef, instance, ownerFn, ownerInstance, t2o);
+	}
+
+	// #1347: fold(D, f, x0) and fold_c(f, cond, maxN, x0) in a body. The step is typed
+	// once for any number of steps, so the verdict does not depend on #D or on the data that
+	// decides when fold_c stops, which are only known per application: step 1 applies f to
+	// (an element, x0), step 2 to (an element, the result of step 1), and the result of step
+	// 2 is the type of the fold. Step 2 is the one that requires the state f returns to fit
+	// the state f takes; every later step repeats it. The element is a parameter<D> for fold
+	// and the number of the step, a parameter<uint32>, for fold_c. The condition of fold_c
+	// is typed on x0 and on the result of step 1, and must return a parameter<bool>. A
+	// partial application F(a, _, _) is typed the same way, with its holes filled. A variant
+	// set or a function without a declared signature defers, as it does in any other
+	// application.
+	DefType FunctionChecker::InferFold(const TreeItem* refScope, LispPtr argsList, bool conditional)
+	{
+		CharPtr name = conditional ? "fold_c" : "fold";
+		std::vector<LispPtr> args;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
+			args.push_back(a.Left());
+		if (args.size() != SizeT(conditional ? 4 : 3))
+			throwErrorF("ExprParser", "the definition of '{}': {} expects {} arguments; {} provided"
+				, m_FuncItem->GetFullName().c_str()
+				, conditional ? "fold_c(step, condition, maxN, initial state)" : "fold(domain, step, initial state)"
+				, conditional ? 4 : 3, args.size());
+		LispPtr stepExpr = args[conditional ? 0 : 1];
+		DefType x0T = InferArg(refScope, args[conditional ? 3 : 2]);
+		if (x0T.kind == DefType::Kind::Func)
+			throwErrorF("ExprParser", "the definition of '{}': the initial state of {} must be a value, not a function"
+				, m_FuncItem->GetFullName().c_str(), name);
+
+		DefType elemT;
+		elemT.kind  = DefType::Kind::Data;
+		elemT.vcomp = ValueComposition::Single;
+		elemT.dom   = DefType::Dom::Void;
+		SharedStr elemSrc;
+		if (conditional)
+		{
+			DefType maxT = InferArg(refScope, args[2]);
+			if (maxT.kind != DefType::Kind::Unknown
+				&& (maxT.kind != DefType::Kind::Data || maxT.dom == DefType::Dom::Concrete || maxT.dom == DefType::Dom::Node
+					|| (maxT.vc && !maxT.vc->IsIntegral())))
+				throwErrorF("ExprParser", "the definition of '{}': the third argument of fold_c must be a number, a parameter with an integer value type: the most steps that may be taken"
+					, m_FuncItem->GetFullName().c_str());
+			// the number of the step is a parameter<uint32>
+			elemT.vc = ValueClass::FindByValueClassID(ValueClassID::VT_UInt32);
+			elemSrc = SharedStr("the number of the step of fold_c");
+		}
+		else
+		{
+			DefType domT = InferArg(refScope, args[0]);
+			if (domT.kind != DefType::Kind::Unknown && domT.kind != DefType::Kind::UnitVal)
+				throwErrorF("ExprParser", "the definition of '{}': the first argument of fold must be a unit, the domain whose elements the step visits"
+					, m_FuncItem->GetFullName().c_str());
+			if (domT.kind != DefType::Kind::UnitVal)
+				elemT = DefType{}; // an element of an unknown domain defers
+			else
+			{
+				// an element of D is a parameter<D>: D's class, and D's identity as its values unit
+				elemT.vc = domT.vc;
+				if (domT.dom == DefType::Dom::Node)
+					elemT.vuNode = domT.dNode;
+				else if (domT.dom == DefType::Dom::Concrete)
+				{
+					elemT.vUnit = domT.domUnit; elemT.vKeep = domT.domKeep;
+				}
+			}
+			elemSrc = SharedStr("an element of the domain of fold");
+		}
+		SharedStr x0Src    = mySSPrintF("the initial state of {}", name);
+		SharedStr stateSrc = mySSPrintF("the state that the step of {} returns", name);
+
+		// what an application is (the step or the condition), the number of arguments it
+		// takes, and what they are, for the errors on another number
+		struct Role { CharPtr what; UInt32 nrParams; CharPtr nrText; CharPtr argsText; };
+		Role stepRole{ "step", 2, "two arguments", conditional ? "the number of the step and the state" : "an element of the domain and the state" };
+		Role condRole{ "condition", 1, "one argument", "the state" };
+
+		// a partial application F(a, _, _) as the step or the condition: its holes take the
+		// terms, in order, and the application is typed as a whole, fixed arguments
+		// included. Only a direct call of a function (the test InferExpr applies to a call
+		// head); another form defers as before
+		auto isPartial = [](LispPtr e)
+		{
+			if (!e.IsRealList() || !e.Left().IsSymb())
+				return false;
+			TokenID head = e.Left().GetSymbID();
+			if (head == t_ApplyValue || IsFoldHead(head) || head == t_Map
+				|| !AbstrOperGroup::FindName(head)->IsTemplateCall() || ValueClass::FindByScriptName(head))
+				return false;
+			for (LispPtr a = e.Right(); !a.EndP(); a = a.Right())
+				if (a.Left().IsSymb() && a.Left().GetSymbID() == t_Hole)
+					return true;
+			return false;
+		};
+		auto typeApplication = [&](LispPtr fnExpr, const Role& role, std::vector<DefType> terms, std::vector<SharedStr> sources) -> DefType
+		{
+			if (isPartial(fnExpr))
+			{
+				FoldHoleFill fill{ std::move(terms), std::move(sources)
+					, mySSPrintF("the {} of {} must leave {} open, {}", role.what, name, role.nrText, role.argsText) };
+				struct Reset { const FoldHoleFill*& p; ~Reset() { p = nullptr; } } reset{ m_FoldHoleFill };
+				m_FoldHoleFill = &fill;
+				return InferExpr(refScope, fnExpr);
+			}
+			DefType fnT = InferArg(refScope, fnExpr);
+			if (fnT.kind != DefType::Kind::Unknown && fnT.kind != DefType::Kind::Func)
+				throwErrorF("ExprParser", "the definition of '{}': the {} of {} must be a function"
+					, m_FuncItem->GetFullName().c_str(), role.what, name);
+			if (fnT.kind != DefType::Kind::Func || !fnT.fn)
+				return {};
+			const TreeItem* fn = fnT.fn;
+			if (!fnT.varsOwner && fn->IsFunctionItem() && TreeItem_GetFunctionResultName(fn)
+				&& !TreeItem_IsFunctionVariantSet(fn) && !TreeItem_HasFunctionRestParam(fn)
+				&& TreeItem_GetFunctionParamCount(fn) != role.nrParams)
+				throwErrorF("ExprParser", "the definition of '{}': the {} '{}' of {} must take {}, {}; it takes {}"
+					, m_FuncItem->GetFullName().c_str(), role.what, fn->GetFullName().c_str(), name, role.nrText, role.argsText
+					, TreeItem_GetFunctionParamCount(fn));
+			return InferApplicationTerms(fnT, terms, false, name, &sources);
+		};
+
+		DefType r1 = typeApplication(stepExpr, stepRole, { elemT, x0T }, { elemSrc, x0Src });
+		DefType r2 = typeApplication(stepExpr, stepRole, { elemT, r1 }, { elemSrc, stateSrc });
+		if (conditional)
+		{
+			// the condition is tested on x0 and on every state that a step returns
+			for (const auto& [stateT, src] : { std::pair{ x0T, x0Src }, std::pair{ r1, stateSrc } })
+			{
+				DefType c = typeApplication(args[1], condRole, { stateT }, { src });
+				if (c.kind == DefType::Kind::Unknown)
+					continue;
+				if (c.kind != DefType::Kind::Data || c.dom == DefType::Dom::Concrete || c.dom == DefType::Dom::Node
+					|| (c.vc && c.vc->GetValueClassID() != ValueClassID::VT_Bool))
+					throwErrorF("ExprParser", "the definition of '{}': the condition of fold_c must return a parameter<bool>, whether to take another step"
+						, m_FuncItem->GetFullName().c_str());
+			}
+		}
+		return r2;
 	}
 
 	// argument-position inference: function references become Func values (mirroring
@@ -1588,8 +1856,24 @@ namespace hof {
 	DefType FunctionChecker::InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList)
 	{
 		std::vector<DefType> argTerms;
-		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
+		// as SubstituteArgs asks every argument's policy; a group whose policies depend on the
+		// value of its first argument (for_each_ind) needs that value, which is not known here
+		bool mayHaveTemplArgs = !og->MustCacheResult() && !og->HasDynamicArgPolicies();
+		arg_index argNr = 0;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right(), ++argNr)
+		{
+			// #1366: the template argument of a meta function, such as the step of loop or
+			// iterate, is not typed. A reference to a template from the body is refused when
+			// it is typed, but here it is valid: a copy of the function made with instantiate
+			// accepts the call. The call form refuses the meta call itself, at the reduction,
+			// with a message that says what to do instead
+			if (mayHaveTemplArgs && og->GetArgPolicy(argNr, nullptr) == oper_arg_policy::is_templ)
+			{
+				argTerms.emplace_back();
+				continue;
+			}
 			argTerms.push_back(InferExpr(refScope, a.Left()));
+		}
 
 		if (!og->MustCacheResult())
 		{
@@ -1726,11 +2010,33 @@ namespace hof {
 			return InferApplication(refScope, fnVal, expr.Right().Right(), "(...)");
 		}
 
+		// #1347: 'instantiate fold(...)' or 'instantiate fold_c(...)' as the rule of a body item:
+		// a container of the states after the steps, step0, step1, ..., and the final state,
+		// result. Only result is typed here; how many steps there are, and so which step names
+		// exist, is known when the expression is reduced, so the member set is not complete
+		if (headID == t_InstantiateItem)
+		{
+			LispPtr innerCall = expr.Right().Left();
+			if (innerCall.IsRealList() && innerCall.Left().IsSymb() && IsFoldHead(innerCall.Left().GetSymbID()))
+			{
+				DefType state = InferFold(refScope, innerCall.Right(), innerCall.Left().GetSymbID() == t_FoldC);
+				auto members = std::make_shared<std::map<TokenID, DefType>>();
+				(*members)[GetTokenID_mt("result")] = std::move(state);
+				DefType r; r.kind = DefType::Kind::Container;
+				r.members = std::move(members);
+				r.membersComplete = false;
+				return r;
+			}
+			return {}; // another 'instantiate' in a body: the reduction reports it
+		}
+
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 		if (og->IsTemplateCall() && !ValueClass::FindByScriptName(headID)) // value-type heads (float64(x)) are conversions, not function calls
 		{
 			if (headID == t_Map)
 				throwErrorF("ExprParser", "map(...) can only appear as a whole calculation rule, not as a sub-expression");
+			if (IsFoldHead(headID))
+				return InferFold(refScope, expr.Right(), headID == t_FoldC); // #1347
 			// the head name is materialized BEFORE the recursive walk: a TokenStr
 			// temporary holds the token registry's shared lock, and the walk below
 			// parses body expressions (token creation needs the exclusive lock)
@@ -1909,5 +2215,43 @@ namespace hof {
 		TreeItem_SetFunctionDefinitionChecked(funcItem);
 	}
 
+	// #1366: the reduction of a call F(args) refuses a meta function call in the body of F,
+	// and its message says which argument of that call depends on which parameter. It asks
+	// the definition check, so that "closed" means here what it means where the check decides
+	// to evaluate a closed name array (EvalClosedStrArray). Called on the way to an error, so a
+	// failure while scanning an argument leaves that argument undecided instead of throwing
+	std::vector<BodyCallArgDeps> AnalyseBodyCallArgs(const TreeItem* funcItem, const std::vector<const TreeItem*>& params
+		, const TreeItem* refScope, LispPtr argsList)
+	{
+		FunctionChecker chk;
+		chk.m_FuncItem = funcItem;
+		chk.m_Unifier.m_ApplItem = funcItem;
+		chk.m_Params = params;
+		std::vector<BodyCallArgDeps> result;
+		for (LispPtr argPtr = argsList; !argPtr.EndP(); argPtr = argPtr.Right())
+		{
+			BodyCallArgDeps& deps = result.emplace_back();
+			try
+			{
+				deps.closed = !chk.TryBuildClosedKeyExpr(refScope, argPtr.Left(), &deps.refs).EndP();
+			}
+			catch (...)
+			{
+				chk.m_ScanBusy.clear(); // unwind the cycle-guard marks of the aborted scan
+				deps.closed = false;
+			}
+			if (deps.closed)
+				deps.refs = {};
+			for (auto* v : { &deps.refs.params, &deps.refs.captures })
+			{
+				std::vector<const TreeItem*> unique;
+				for (const TreeItem* p : *v)
+					if (std::find(unique.begin(), unique.end(), p) == unique.end())
+						unique.push_back(p);
+				*v = std::move(unique);
+			}
+		}
+		return result;
+	}
 
 } // namespace hof

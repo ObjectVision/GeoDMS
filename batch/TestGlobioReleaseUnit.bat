@@ -12,7 +12,9 @@ REM
 REM Three steps, each against that one folder, each reported separately at the end:
 REM   1. the tst unit suite through run_unit_suite.bat, which proves the suite really
 REM      started and produced a NEW aggregate, and gates on a FAILED line in it;
-REM   2. the typed-function testcases battery (testcases\run_testcases.bat), offline;
+REM   2. the typed-function testcases battery (testcases\run_testcases.bat) and the XML and
+REM      DMS round trips over its configurations (run_xml_roundtrip.bat, run_roundtrip.bat),
+REM      offline;
 REM   3. TestShippedContent.bat: the shipped examples\testcases run from that folder, plus
 REM      examples\grid_to_polygon.dms over the real CBS buurt map after renaming the
 REM      geopackage, so the download path is walked on the GLOBIO GDAL stack as well.
@@ -52,7 +54,8 @@ call "%~dp0run_unit_suite.bat" %G_SELECTOR% g "%G_BIN%"
 if errorlevel 2 (set UNIT_FAILED=2) else if errorlevel 1 set UNIT_FAILED=1
 
 REM Typed-function testcases battery (testcases\*.dms): positives must exit 0,
-REM _neg/defcheck configs must exit nonzero, a Debug assert (exit 3) always fails.
+REM _neg/defcheck configs must exit nonzero with the message of their EXPECT-FAILURE lines (#1369)
+REM or be listed in testcases\expect_failure_missing.txt, a Debug assert (exit 3) always fails.
 set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%G_BIN%\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
@@ -65,6 +68,14 @@ REM differences and their reason live in testcases\xml_roundtrip_known_diff.txt.
 set RT_FAILED=0
 Call "%geodms_rootdir%\testcases\run_xml_roundtrip.bat" "%G_BIN%\GeoDmsRun.exe"
 if errorlevel 1 set RT_FAILED=1
+
+REM DMS round-trip battery (#1368): every positive testcases configuration dumped in DMS syntax,
+REM the dump reloaded from testcases\_out_rt\ and its item computed again, so that what the DMS
+REM writer leaves out makes the reload fail. Offline; two GeoDmsRun runs per positive configuration.
+REM Not the XML one above: that compares two dumps and never reloads one.
+set DRT_FAILED=0
+Call "%geodms_rootdir%\testcases\run_roundtrip.bat" "%G_BIN%\GeoDmsRun.exe"
+if errorlevel 1 set DRT_FAILED=1
 
 REM Shipped-content release test (issue #1031). Goes to the internet and rasterises NL
 REM at 25 m; see TestCMakeReleaseUnit.bat for why every Windows flavour runs it.
@@ -94,6 +105,11 @@ if "%RT_FAILED%"=="1" (
 ) else (
   echo XML ROUNDTRIP BATTERY PASSED
 )
+if "%DRT_FAILED%"=="1" (
+  echo *** DMS ROUNDTRIP BATTERY FAILED - see the failures listed above and testcases\_out_rt\ ***
+) else (
+  echo DMS ROUNDTRIP BATTERY PASSED
+)
 if "%SHIPPED_FAILED%"=="1" (
   echo *** SHIPPED CONTENT RELEASE TEST FAILED - see scratch\grid_to_polygon_release.log ***
 ) else (
@@ -104,5 +120,6 @@ if "%SC_FAILED%"=="1" exit /b 1
 if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%RT_FAILED%"=="1" exit /b 1
+if "%DRT_FAILED%"=="1" exit /b 1
 if "%SHIPPED_FAILED%"=="1" exit /b 1
 exit /b 0

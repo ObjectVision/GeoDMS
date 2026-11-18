@@ -120,11 +120,24 @@ namespace hof {
 		// are get-or-create so this only removes rework, never changes a verdict.
 		std::map<UInt32, DefType>    m_ParamTypes;
 		std::vector<SharedTreeItem>  m_Keep;             // liveness of resolved callees
+		// #1347: the terms that fill the '_' holes of a partial application that is the step
+		// of fold or fold_c (the element and the state) or the condition of fold_c (the
+		// state). InferFold sets it for one walk of the expression; InferApplication takes it
+		// on entry, so an application nested in a fixed argument never sees it. `role` says
+		// what the application is and how many holes it must leave, for the error when it
+		// leaves another number
+		struct FoldHoleFill { std::vector<DefType> terms; std::vector<SharedStr> sources; SharedStr role; };
+		const FoldHoleFill*          m_FoldHoleFill = nullptr;
 
 		DefType InferBodyItem(const TreeItem* refItem);
 		DefType InferExpr(const TreeItem* refScope, LispPtr expr);
 		DefType InferArg(const TreeItem* refScope, LispPtr argExpr);
 		DefType InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName);
+		// the part of InferApplication after the arguments are typed; argSources, when
+		// given, names each argument in an error instead of "argument k of 'headName'"
+		DefType InferApplicationTerms(const DefType& fnVal, const std::vector<DefType>& argTerms, bool anyHole, CharPtr headName,
+			const std::vector<SharedStr>* argSources = nullptr);
+		DefType InferFold(const TreeItem* refScope, LispPtr argsList, bool conditional); // #1347: fold, or fold_c when conditional
 		DefType InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList); // op-sig batch A
 		DefType ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms
 			, const TreeItem* refScope = nullptr, LispPtr argsList = LispPtr()); // K11b: refScope+argsList enable ArgContainer member enumeration
@@ -263,8 +276,10 @@ namespace hof {
 		// any stage yields nullopt/empty = defer, exactly as without the spec.
 		std::map<std::pair<const TreeItem*, LispRef>, LispRef> m_ClosedKeyMemo; // strong key AND value LispRefs: nothing dangles
 		std::set<const TreeItem*> m_ScanBusy; // cycle guard for body-local recursion (distinct from m_InProgress)
-		LispRef TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr);
-		LispRef TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr);
+		// #1366: with `openRefs`, the scan of an open expression goes on to collect the
+		// parameters and captured items it meets; the key it returns is the same
+		LispRef TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs = nullptr);
+		LispRef TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr, BodyExprOpenRefs* openRefs);
 		std::optional<SharedStr> EvalClosedSpec(const TreeItem* refScope, LispPtr specExpr);
 		std::optional<DefType> TrySpecProcessing(const AbstrOperGroup* og,
 			const OperGroupSignatures::MergedRecord& mr, const std::vector<const Operator*>& survivors,

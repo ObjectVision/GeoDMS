@@ -147,6 +147,13 @@ Section "GeoDMS Program Folder"
   File "..\res\Visual Studio Code\README-vscode-extension.txt"
   SetOutPath $INSTDIR
 
+  ; The GPL of GeoDMS and the licence texts of the bundled libraries (#1371), as in
+  ; DmsSetupScript.nsh: tools\setup_licences.py writes the licenses folder from the File lines of
+  ; this script right before makensis runs, and checks the installation against it afterwards.
+  File ..\license.txt
+  SetOutPath $INSTDIR\licenses
+  File /r ${CMakeBinDir}\licenses\*
+  SetOutPath $INSTDIR
 
   WriteUninstaller $INSTDIR\uninstaller.exe
 
@@ -274,9 +281,11 @@ Section uninstall
   Delete $INSTDIR\regression.py
   Delete $INSTDIR\geodms*.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml
+  Delete $INSTDIR\license.txt
 
-  ; The shipped VS Code extension has nested folders, so remove it as a tree.
+  ; The shipped VS Code extension and the licence texts have nested folders, so remove them as trees.
   RMDir /r "$INSTDIR\VSCode"
+  RMDir /r $INSTDIR\licenses
 
   Delete $INSTDIR\*.dll
   Delete $INSTDIR\*.pyd

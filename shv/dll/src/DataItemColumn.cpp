@@ -156,7 +156,7 @@ static bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 			return vcm == ValueComposition::Single;
 
 		case AggrMethod::union_polygon:
-			return vc->GetNrDims() == 2 && vcm == ValueComposition::Polygon && vc->IsIntegral();
+			return vc->GetNrDims() == 2 && vcm == ValueComposition::Polygon; // dms_union_polygon takes every point type
 
 		case AggrMethod::modus:
 		case AggrMethod::modus_count:
@@ -225,6 +225,9 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 		case AggrMethod::last:
 			return { make_shared_tree(avu, existing_obj{}), adi->GetValueComposition() };
 
+		case AggrMethod::union_polygon:
+			return { make_shared_tree(avu, existing_obj{}), ValueComposition::Polygon };
+
 		case AggrMethod::modus_count:
 			return { count_unit_creator(adi), ValueComposition::Single };
 
@@ -254,7 +257,7 @@ static CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::any: return "any";
 		case AggrMethod::all: return "all";
 		case AggrMethod::sum: return "sum";
-		case AggrMethod::union_polygon: return "partitioned_union_polygon";
+		case AggrMethod::union_polygon: return "dms_union_polygon"; // also for polygons that are not valid
 		case AggrMethod::asItemList: return "asItemList";
 		case AggrMethod::min:  return "min";
 		case AggrMethod::max:  return "max";
@@ -312,7 +315,7 @@ static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* gro
 
 	case AggrMethod::mean:
 		if (adi->GetValueComposition() != ValueComposition::Single)
-			return "mean(centroid({1}), {2}))";
+			return "mean(centroid({1}), {2})";
 		break;
 	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi).get(), "count_uint8({1}, {2})", "count_uint16({1}, {2})", "count_uint32({1}, {2})", "count_uint64({1}, {2})");
 	case AggrMethod::nr_undefined_values: return SelectCardinality(count_unit_creator(adi).get(), "sum_uint8(not(IsDefined({1})), {2})", "sum_uint16(not(IsDefined({1})), {2})", "sum_uint32(not(IsDefined({1})), {2})", "sum_uint64(not(IsDefined({1})), {2})");

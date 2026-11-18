@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: bp_minkowski_sum Error: the kernel must be a single ring; holes and islands are not supported
 // #917 negative: a kernel with more than one ring must be rejected.
 // A Minkowski kernel is a single ring here -- boost.polygon's own convolution documents the same
 // restriction, and holding all four backends to it is what lets them agree. Two disjoint squares

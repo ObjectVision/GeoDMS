@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: neg Error: 200 has no negation of the same width: it is above the largest signed value
 // Regression for doc/code-audit-2026-09-27.md CLC-A08: neg of an unsigned value gives the signed type
 // of the same width, and a value above that type's maximum wrapped: neg(uint8(200)) gave 56 and
 // neg(uint32(3000000000)) gave 1294967296. add, sub and mul report such an overflow; since 20.22.0 neg

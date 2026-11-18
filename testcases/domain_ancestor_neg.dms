@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: Cannot find Domain unit .: an attribute without a domain specification takes the nearest ancestor unit as its domain
+// EXPECT-FAILURE: searched from /grp up to the configuration root
 // The other half of domain_ancestor.dms (issue #1244): an attribute without a domain whose
 // ancestors are all containers is refused, with an error that names what was searched.
 // Expected: exit nonzero on /checks ("Cannot find Domain unit ." on /grp/orphan).

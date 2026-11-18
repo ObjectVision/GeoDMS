@@ -1,0 +1,106 @@
+container fn_test_body_struct
+{
+	// #1365: a function applied as a value refers to a sub-item of a body item, as h/v, where
+	// v is not declared under h in the tree but by the function whose result h is. The same
+	// holds for a function defined inside the function, which refers to a body item or a
+	// parameter of the enclosing function.
+
+	unit<uint32> Twice : nrofrows = 2;
+	unit<uint32> Vals5 : nrofrows = 5
+	{
+		attribute<float64> v : [5, 3, 8, 1, 4];
+	}
+
+	// keeps the rows below the maximum: [5, 3, 1, 4] for Vals5, sum 13
+	function DropMax(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> v := s/v[kept/org_rel];
+		}
+	}
+	// the same rows, the same calculation for the unit, but with an attribute w of twice the value
+	function DropMaxW(parameter<uint32> e; unit<uint32> s { attribute<float64> v; }) -> unit<uint32> := kept
+	{
+		unit<uint32> kept := select_with_org_rel(s/v < max(s/v))
+		{
+			attribute<float64> w := s/v[kept/org_rel] * 2.0;
+		}
+	}
+	function SumV(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(s/v);
+
+	// (a) a body item that is the result of a function: 13
+	function SumAfterDrop(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(h/v)
+	{
+		unit<uint32> h := DropMax(0u, s);
+	}
+	// (b) a sub-item of that body item that the operator computes and DropMax does not
+	// declare: org_rel is [0, 1, 3, 4], sum 8
+	function SumOrgRel(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(float64(h/org_rel))
+	{
+		unit<uint32> h := DropMax(0u, s);
+	}
+	// (c) that body item passed on to another function: 13
+	function SumViaArg(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := SumV(h)
+	{
+		unit<uint32> h := DropMax(0u, s);
+	}
+	// (d) two body items with the same calculation and different declared attributes: 13 + 26 + 13
+	function SumBoth(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := sum(h1/v) + sum(h2/w) + sum(h1/v)
+	{
+		unit<uint32> h1 := DropMax(0u, s);
+		unit<uint32> h2 := DropMaxW(0u, s);
+	}
+	// (e) a function defined inside the function reads a fold state of the enclosing
+	// function: st is [3, 1, 4], 8 + 1 = 9
+	function OuterFold(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := Inner(1.0)
+	{
+		unit<uint32> st := fold(Twice, DropMax, s);
+		function Inner(parameter<float64> k) -> parameter<float64> := sum(st/v) + k;
+	}
+	// (f) the same with a body item that is the result of a function: 13 + 1 = 14
+	function OuterDrop(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := Inner(1.0)
+	{
+		unit<uint32> st := DropMax(0u, s);
+		function Inner(parameter<float64> k) -> parameter<float64> := sum(st/v) + k;
+	}
+	// (g) that body item passed on to another function by the inner function: 13 + 1 = 14
+	function OuterDropArg(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := Inner(1.0)
+	{
+		unit<uint32> st := DropMax(0u, s);
+		function Inner(parameter<float64> k) -> parameter<float64> := SumV(st) + k;
+	}
+	// (h) a function defined inside the function reads a parameter of the enclosing function
+	// that is bound to the result of a function: 13 + 1 = 14; bound to a container literal
+	// with v = [10, 6, 16, 2, 8]: 42 + 1 = 43
+	function OuterParam(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := Inner(1.0)
+	{
+		function Inner(parameter<float64> k) -> parameter<float64> := sum(s/v) + k;
+	}
+	// (i) the same parameter passed on to another function: 13 + 1 = 14
+	function OuterParamArg(unit<uint32> s { attribute<float64> v; }) -> parameter<float64> := Inner(1.0)
+	{
+		function Inner(parameter<float64> k) -> parameter<float64> := SumV(s) + k;
+	}
+	// (j) the same parameter bound to a container literal and used as a unit, which is the
+	// domain of the literal: 5 + 1 = 6
+	function OuterParamCount(unit<uint32> s { attribute<float64> v; }) -> parameter<uint32> := Inner(1u)
+	{
+		function Inner(parameter<uint32> k) -> parameter<uint32> := #s + k;
+	}
+
+	container checks
+	{
+		parameter<float64> c_a := SumAfterDrop(Vals5),            IntegrityCheck = "c_a == 13.0";
+		parameter<float64> c_b := SumOrgRel(Vals5),               IntegrityCheck = "c_b == 8.0";
+		parameter<float64> c_c := SumViaArg(Vals5),               IntegrityCheck = "c_c == 13.0";
+		parameter<float64> c_d := SumBoth(Vals5),                 IntegrityCheck = "c_d == 52.0";
+		parameter<float64> c_e := OuterFold(Vals5),               IntegrityCheck = "c_e == 9.0";
+		parameter<float64> c_f := OuterDrop(Vals5),               IntegrityCheck = "c_f == 14.0";
+		parameter<float64> c_g := OuterDropArg(Vals5),            IntegrityCheck = "c_g == 14.0";
+		parameter<float64> c_h := OuterParam(DropMax(0u, Vals5)),    IntegrityCheck = "c_h == 14.0";
+		parameter<float64> c_h_lit := OuterParam(Vals5 { v: Vals5/v * 2.0; }), IntegrityCheck = "c_h_lit == 43.0";
+		parameter<float64> c_i := OuterParamArg(DropMax(0u, Vals5)), IntegrityCheck = "c_i == 14.0";
+		parameter<uint32>  c_j := OuterParamCount(Vals5 { v: Vals5/v * 2.0; }), IntegrityCheck = "c_j == 6";
+	}
+}

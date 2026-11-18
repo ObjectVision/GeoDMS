@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto_optimal_eps: argument 3 is a parameter where criterion 2 is expected; the first criterion only orders and takes no epsilon
 // #1282: since 2026-10-05 the first criterion of pareto_optimal_eps takes no epsilon: it only orders, and the first row
 // of a group always survives. A call written for the builds before, with an epsilon after the first criterion, is
 // refused with "pareto_optimal_eps: argument 3 is a parameter where criterion 2 is expected; the first criterion only

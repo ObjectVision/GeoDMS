@@ -1,8 +1,11 @@
+// EXPECT-FAILURE: Arguments must have compatible units, but arg1 has SpatialReference EPSG:28992 and arg2 has SpatialReference EPSG:3857
 // NEGATIVE: units in DIFFERENT coordinate reference systems must not unify.
 // doc/development/crs-metric-decoupling.md, Stage 5.
 //
 // Both have an identical {m:1} metric, so metric comparison cannot separate them; only
-// the SpatialReference check in AbstrUnit::UnifyValues can. An error rather than a
+// the SpatialReference stage of the compatible-units check that the `add` operator makes
+// on its arguments (compatible_values_unit_creator_func in rtc/dll/src/tic/UnitCreators.cpp)
+// can. An error rather than a
 // warning because the engine treats a differing CRS as semantically real -- a non-empty
 // CRS difference triggers an actual OGR coordinate transformation (clc/OperConv.h).
 container fn_test_crs_unify_neg1

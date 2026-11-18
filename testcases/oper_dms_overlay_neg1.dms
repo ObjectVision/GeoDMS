@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: dms_union Error: the grid size must be a positive number, not 0
 // #1214 negative: a grid size of zero is refused (the three-argument form needs a positive grid).
 // Expected: nonzero exit.
 container oper_dms_overlay_neg1

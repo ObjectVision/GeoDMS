@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: an anonymous function result requires a signature-typed result specification
 container fn_test_anon_neg2
 {
 	// NEGATIVE (parse-time): an anonymous result-position function under a DATA

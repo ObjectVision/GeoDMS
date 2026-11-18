@@ -1,3 +1,6 @@
+// EXPECT-FAILURE: connect Error: Cannot find operator for these arguments:
+// EXPECT-FAILURE: Declared unit-constraint signatures for this operator-group:
+// EXPECT-FAILURE: connect(point1: attribute<sig_Vc>(sig_D1); point2: attribute<sig_Vc>(sig_D2))
 container fn_test_opsigE_neg1
 {
 	// NEGATIVE (batch E printer wiring): calling a DESCRIBED operator-group with

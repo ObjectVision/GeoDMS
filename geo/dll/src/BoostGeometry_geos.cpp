@@ -9,7 +9,8 @@
 #endif
 
 // The GEOS backend: geos_simplify_*, geos_intersect/union/xor/difference
-// (incl. their infix registrations * & + | - ^ over float points),
+// (incl. their registrations under * + - ^ and bitand, bitor, bitxor over float points;
+// GeoSupport.cpp registers the bp_ ones under the same names over sint points),
 // geos_buffer_* and the composition-dispatching geos_buffer (#1038).
 // Shared machinery in BoostGeometryImpl.h (split from BoostGeometry.cpp 2026-08).
 
@@ -65,6 +66,7 @@ namespace
 
 	template <typename P> using GEOS_SymmetricDifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_sym_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_SymmetricDifferenceMultiPolygonOperator> geosSymmetricDifferenceMultiPolygonOperatorsNamed(grgeosXOR);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_SymmetricDifferenceMultiPolygonOperator> bgSymmetricDifferenceMultiPolygonOperatorsPow(cog_pow); // the infix ^
 	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_SymmetricDifferenceMultiPolygonOperator> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
 
 	// issue #917. GEOS has no Minkowski primitive; these build the sum from the convex cells of

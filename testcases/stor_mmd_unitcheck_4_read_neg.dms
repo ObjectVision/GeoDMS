@@ -1,0 +1,26 @@
+// EXPECT-FAILURE: LowerBound(/ext/u) == uint32(0) && UpperBound(/ext/u) == uint32(4)
+// EXPECT-FAILURE: ' is not true
+// The unit-check case (issue #1350), read with ext/u declared with 5 rows where gen was written with 4.
+// _2_rewrite did not have /ext/u in its tree, so the check on the holder is the one that the dictionary of
+// _1_write wrote; it must refuse this reader before any file is read. Without that check the read of
+// gen/p stopped on the size of its file instead. stor_mmd_unitcheck_1_write.dms carries the description.
+container stor_mmd_unitcheck_4_read_neg
+{
+	container ext
+	{
+		unit<uint32> u : nrofrows = 5;
+	}
+	container src
+	{
+		unit<uint32> p : nrofrows = 5;
+	}
+
+	container store
+	:	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_unitcheck.mmd"
+	,	StorageReadOnly = "True";
+
+	container checks
+	{
+		parameter<string> gen_p := asList(string(store/gen/p), ' '), IntegrityCheck = "gen_p == '7 17 27 37'";
+	}
+}

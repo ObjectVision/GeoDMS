@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: dms_minkowski_sum Error: kernel variant 'XHV' is not convex. The dms_ backend accepts the convex variants '4HV', '4D', '8D' and '16D' only
 // #1301 negative: dms_minkowski_sum refuses the star-shaped variant 'XHV'. The dms_ backend sums with
 // convex kernels only; the bg_, geos_, cgal_ and bp_ forms keep XHV and XD.
 // Expected: nonzero exit (the variant is checked before any tile runs, and the error names the

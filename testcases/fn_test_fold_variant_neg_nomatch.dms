@@ -1,0 +1,19 @@
+// EXPECT-FAILURE: fold(domain, step, initial state): the step '/AddV' is a set of variants, and its first application, on the initial state, which has values of type int32, matches no variant (variants: u32, f64)
+container fn_test_fold_variant_neg_nomatch
+{
+	// #1367: the variant of the step is chosen on the initial state; an int32 state matches
+	// neither variant, which take a uint32 or a float64 state
+
+	unit<uint32> D : nrofrows = 3;
+
+	function AddV
+	{
+		variant u32(parameter<uint32> k; parameter<uint32> acc) -> parameter<uint32> := acc + k + 1u;
+		variant f64(parameter<uint32> k; parameter<float64> acc) -> parameter<float64> := acc + float64(k) + 1.0;
+	}
+
+	container checks
+	{
+		parameter<int32> c := fold(D, AddV, int32(0)), IntegrityCheck = "c == int32(6)";
+	}
+}

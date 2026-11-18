@@ -36,6 +36,7 @@
 #include <vector>
 
 class ValueClass;
+struct AbstrOperGroup;
 
 // ---- provided by AbstrCalculator.cpp -----------------------------------------------
 
@@ -52,9 +53,16 @@ namespace hof {
 
 extern StaticTokenID t_Hole;             // '_' partial-application placeholder
 extern StaticTokenID t_Map;              // built-in map(function, container) metafunction
+extern StaticTokenID t_Fold;             // #1347 built-in fold(domain, step, initial state)
+extern StaticTokenID t_FoldC;            // #1347 built-in fold_c(step, condition, maxN, initial state)
+inline bool IsFoldHead(TokenID id) { return id == t_Fold || id == t_FoldC; }
 extern StaticTokenID t_ApplyItem;        // §5.9 'apply X(args)' marker head
 extern StaticTokenID t_InstantiateItem;  // §5.9 'instantiate X(args)' marker head
 extern StaticTokenID t_ApplyValue;       // §5.10 '(args)' applied to a call result
+// #1347: the key under which a body item with the rule 'instantiate fold(...)' records the
+// states of its steps in a function applied as a value, (instantiate_item <key of the final
+// state>); member access finds the states by it, but it is no value itself
+inline bool IsFoldTraceKey(LispPtr key) { return key.IsRealList() && key.Left().IsSymb() && key.Left().GetSymbID() == t_InstantiateItem; }
 extern StaticTokenID t_ContainerLiteral; // §5.9 '{ m: e; … }' argument literal
 extern StaticTokenID t_Member;           // §5.9 '(member name value)'
 extern StaticTokenID t_NoDomain;         // §5.9 domain-less literal marker
@@ -118,13 +126,16 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 		std::vector<SharedTreeItem>    m_ArgItems;    // per param: the referenced item iff the argument was a plain reference (enables member access), else null
 		std::vector<std::shared_ptr<FunctionBinding>> m_ArgBindings; // per param: the bound function value iff the argument is a function, else null
 		std::vector<std::shared_ptr<ContainerLiteralArg>> m_ArgLiterals; // per param: the container-literal argument, else null
+		std::vector<std::shared_ptr<const StructuredFunctionResult>> m_ArgStructured; // per param: the declared sub-items of an argument that is the result of a function application (#1347: the state of a fold), else null
 		std::shared_ptr<ClosureEnv>    m_Env;         // §5.10: closure environment of the applied function, else null
 		std::vector<const TreeItem*>   m_Params;      // the first N sub-items of m_FuncItem
 		const TreeItem*                m_RestParam = nullptr; // '...x' rest param (the last param); binds m_ArgKeys[nrParams-1 .. end)
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
+		std::map<const TreeItem*, std::shared_ptr<const StructuredFunctionResult>> m_StructuredByItem; // #1347, #1365: per body item whose value has declared sub-items (the result of a function or a fold, the states of 'instantiate fold', or a reference to such a value), those sub-items; by item, not by key, because two items can share a calculation and differ in what they declare
+		std::map<const TreeItem*, std::shared_ptr<FunctionApplication>> m_InstancesByItem; // #1365: per body item whose rule is 'instantiate G(args)', with G a function, the application of G to those arguments; member access reduces in it only the body items of G that it names
 
-		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); }
+		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); m_ArgStructured.push_back(a.structuredResult); }
 
 		// §5.10: this application's bound parameters as a closure environment, chained
 		// to the environment it was itself applied in. Captured by value, so the result
@@ -140,6 +151,7 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 				CallArg a;
 				a.key = m_ArgKeys[i]; a.item = m_ArgItems[i];
 				a.binding = m_ArgBindings[i]; a.literal = m_ArgLiterals[i];
+				a.structuredResult = m_ArgStructured[i];
 				env->args.push_back(std::move(a));
 			}
 			env->next = m_Env;
@@ -153,18 +165,31 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 			for (UInt32 k = TreeItem_GetFunctionParamCount(m_FuncItem) - 1; k != m_ArgKeys.size(); ++k)
 			{
 				CallArg a; a.key = m_ArgKeys[k]; a.item = m_ArgItems[k]; a.binding = m_ArgBindings[k]; a.literal = m_ArgLiterals[k];
+				a.structuredResult = m_ArgStructured[k];
 				out.push_back(std::move(a));
 			}
 		}
 
 		LispRef Reduce();
 		CallArg ReduceValue(); // §5.10: like Reduce, but a function-typed result yields a closure binding
-		bool ResolveEnvSymbol(TokenID symbID, SharedTreeItem* foundItemPtr, LispRef* keyPtr, std::shared_ptr<FunctionBinding>* bindingPtr); // §5.10 closure-env lookup
+		void BindArgs(); // the start of ReduceValue: check the arguments against the parameters and bind them
+		const CallArg* FindEnvArg(TokenID symbID) const; // §5.10 closure-env lookup: the captured argument, or null
 		LispRef ReduceBodyItem(const TreeItem* bodyItem);
-		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr);
-		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr);
+		// #1365: the body item `bodyItem` with the rule 'instantiate G(args)', `innerCall` being (G args),
+		// and the item `relPath` ('total', or 'kept/v') of such a copy, named by `fullStr` in this body
+		LispRef ReduceBodyInstance(const TreeItem* bodyItem, const TreeItem* refScope, LispPtr innerCall);
+		LispRef ResolveInstanceMember(const TreeItem* bodyItem, CharPtrRange relPath, CharPtr fullStr, SharedTreeItem* foundItemPtr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr);
+		// #1347, #1365: refuse `key`, the reduction of `bodyItem` named by `fullStr`, when it is the
+		// container of 'instantiate fold(...)' or the copy of 'instantiate G(...)', which have no value of their own
+		void RefuseValueless(const TreeItem* bodyItem, LispPtr key, CharPtr fullStr) const;
+		// structuredPtr, when given, receives the declared sub-items of the value when the whole
+		// expression (resp. the symbol) is a value that has them, such as the result of a function
+		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr = nullptr);
+		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr, std::shared_ptr<const StructuredFunctionResult>* structuredPtr = nullptr);
 		CallArg ResolveBodyArg(const TreeItem* refScope, LispPtr argExpr);
 		SharedTreeItem ResolveBodyHeadFunction(const TreeItem* refScope, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding, bool mayFail = false);
+		// #1366: the refusal of the meta function call `headID`(argsList) in this body, with what to do instead
+		[[noreturn]] void ThrowMetaCallInBody(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList) const;
 	};
 
 // ---- the operations on them ---------------------------------------------------------
@@ -200,6 +225,32 @@ CallArg ReduceMergedValue(const FunctionBinding& merged, const FunctionApplicati
 LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
 	, std::shared_ptr<const StructuredFunctionResult>* structuredResult = nullptr);
 
+// #1347: reduce a fold to its value, the state after the last step. `head` is t_Fold,
+// fold(domain, step, initial state), which applies the step to each element of the domain
+// in order, or t_FoldC, fold_c(step, condition, maxN, initial state), which applies the
+// step for as long as the condition holds for the state, at most maxN times. The
+// arguments are already resolved, in the caller's scope or in a function body. When
+// `trace` is given, it receives the state after each step that is taken. The step and the
+// condition may be sets of variants (#1367); the variant is chosen on the initial state.
+CallArg ReduceFoldCall(TokenID head, const std::vector<CallArg>& args
+	, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+	, std::vector<CallArg>* trace = nullptr);
+CallArg ReduceFold(const CallArg& domainArg, const CallArg& stepArg, CallArg state
+	, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+	, std::vector<CallArg>* trace = nullptr);
+CallArg ReduceFoldC(const CallArg& stepArg, const CallArg& condArg, const CallArg& maxNArg, CallArg state
+	, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+	, std::vector<CallArg>* trace = nullptr);
+
+// #1347: the items that 'instantiate fold(...)' and 'instantiate fold_c(...)' publish:
+// step0, step1, ..., one per step that is taken, each holding the state after that step,
+// and result, the final state, which is the initial state when no step is taken
+std::shared_ptr<const StructuredFunctionResult> MakeFoldTrace(const std::vector<CallArg>& trace, const CallArg& result);
+
+// #1347: the key of the declared sub-item `relPath` ('a' or 'a/b') of a function
+// result; empty when it declares no such sub-item
+LispRef FindStructuredMember(const StructuredFunctionResult& sr, CharPtrRange relPath);
+
 // resolve one argument expression in the CALLER's scope to a CallArg
 CallArg ResolveCallerArg(LispPtr argExpr,
 	const std::function<LispRef(LispPtr)>& resolveData,
@@ -214,6 +265,11 @@ const ValueClass* ParamValueClass(const TreeItem* param);
 // §5.7 v2: select the variant of `setItem` whose acceptance set matches the argument
 // value classes, taking the MOST SPECIFIC match
 const TreeItem* ResolveVariant(const TreeItem* setItem, const std::vector<CallArg>& callArgs, SharedTreeItem errorHolder);
+// #1367: the selection of ResolveVariant without its errors: null when no variant matches, or
+// when two match and neither is more specific, which *tiePtr then names (two nulls otherwise);
+// the names of all variants are appended to *candidatesPtr when given
+const TreeItem* SelectVariant(const TreeItem* setItem, const std::vector<const ValueClass*>& argVCs
+	, std::pair<const TreeItem*, const TreeItem*>* tiePtr = nullptr, SharedStr* candidatesPtr = nullptr);
 
 // §5.10 Stage 2: does `tok` name a generic type/domain variable of `fn`, a DOMAIN-sorted
 // one, resp. one declared in fn's OWN <...> clause?
@@ -223,6 +279,30 @@ bool IsOwnDeclaredVar(const TreeItem* fn, TokenID tok);
 
 // WP3.4 + tranche 3 typed walker; defined in HofTypeChecker.cpp
 void CheckFunctionDefinition(const TreeItem* funcItem);
+
+// #1366: what keeps a body expression open over the parameters of its function, as the
+// definition check finds it (FunctionChecker::TryBuildClosedKeyExpr): parameters of the
+// function itself, and parameters and body items of an enclosing function, which a nested
+// function reads through its closure
+struct BodyExprOpenRefs
+{
+	std::vector<const TreeItem*> params;
+	std::vector<const TreeItem*> captures;
+	bool empty() const { return params.empty() && captures.empty(); }
+};
+
+// #1366: per argument of a call in the body of `funcItem`, whose parameters are `params`:
+// `closed` when the argument depends on no parameter, as the definition check decides it, and
+// else the names it depends on. An argument that is neither closed nor depends on a name,
+// such as one that calls a function, has `closed` false and no names. Defined in
+// HofTypeChecker.cpp
+struct BodyCallArgDeps
+{
+	bool closed = false;
+	BodyExprOpenRefs refs;
+};
+std::vector<BodyCallArgDeps> AnalyseBodyCallArgs(const TreeItem* funcItem, const std::vector<const TreeItem*>& params
+	, const TreeItem* refScope, LispPtr argsList);
 
 } // namespace hof
 

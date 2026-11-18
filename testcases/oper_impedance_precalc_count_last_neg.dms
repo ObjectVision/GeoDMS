@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: precalculated_NrDstZones: origin zone 2 reaches 1 destination zones, more than the 0 given for it
 container oper_impedance_precalc_count_last_neg
 {
 	// Negative case of oper_impedance_precalc_count.dms (code audit GEO-A29, part c): the count given

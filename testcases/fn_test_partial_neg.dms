@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: 'Add2': a partial application can only be passed as an argument, not bound to an item
 container fn_test_partial_neg
 {
 	unit<uint32> Road : nrofrows = 2

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: function '/gen_add' bound to parameter 'g' has 2 parameter(s); its declared signature '/nuf' requires 1
 container fn_test_unify_neg3
 {
 	// gen_add is a 2-parameter generic; the signature nuf<V,D> requires a

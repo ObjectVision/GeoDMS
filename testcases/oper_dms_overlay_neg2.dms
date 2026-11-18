@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: dms_intersect Error: the grid size for integer coordinates must be a whole number of at least 1, not 2.5
 // #1214 negative: on integer coordinates the grid size must be a whole number; 2.5 is refused.
 // Expected: nonzero exit.
 container oper_dms_overlay_neg2

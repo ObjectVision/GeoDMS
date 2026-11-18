@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: IntegrityCheck : 'this == 0' is not true
 // Transitive negative twin of fn_test_icheck_suppl: the violated check sits two hops away,
 // behind an intermediate supplier that carries no check of its own. The closure along the
 // ExplicitSuppliers relation (#1218) still folds it into x's checked expression, so the run

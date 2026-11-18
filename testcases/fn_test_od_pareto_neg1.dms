@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto requires alternative(link_imp) to supply the second criterion per link
 container fn_test_od_pareto_neg1
 {
 	// pareto requires alternative(link_imp) -- without it there is no second criterion, and

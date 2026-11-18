@@ -260,10 +260,9 @@ TIC_CALL UInt32  DMS_CONV DMS_AnyDataItem_GetValueAsCharArraySize(const AbstrDat
 TIC_CALL void       DMS_CONV DMS_AnyDataItem_SetValueAsCharArray(AbstrDataItem* self, UInt32 index, CharPtr clientBuffer);
 
 using ConstAbstrDataItemPtr = const AbstrDataItem*;
-struct TableColumnSpec;
 
+// Table_Dump itself is declared in AbstrDataItem.h, with C++ linkage: see there why (#1340).
 TIC_CALL void DMS_CONV DMS_Table_Dump(OutStreamBuff* out, UInt32 nrDataItems, const ConstAbstrDataItemPtr* dataItemArray);
-TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd);
 
 /********** Stored PropDef creation                        **********/
 

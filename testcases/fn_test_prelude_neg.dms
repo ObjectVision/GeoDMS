@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: 'sqr_no_such_function': unknown operator and no template or function was found with this name
 container fn_test_prelude_neg
 {
 	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 2.0, 3.0 ]; }

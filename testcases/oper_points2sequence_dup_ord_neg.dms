@@ -2,6 +2,9 @@
 // each point at its ordinal without noticing a duplicate, which left another slot of the sequence
 // unwritten and uninitialised. A duplicate ordinal is now an error.
 // Expected: exit nonzero on /checks (orderNr 0 occurs more than once in sequence 0).
+// The relation is named seq_rel: names are compared without case, so an attribute seq of Pt would be
+// found where the values unit Seq is meant.
+// EXPECT-FAILURE: orderNr 0 occurs more than once in sequence 0
 container oper_points2sequence_dup_ord_neg
 {
 	unit<uint32> Seq: nrofrows = 1;
@@ -9,10 +12,10 @@ container oper_points2sequence_dup_ord_neg
 	{
 		attribute<float64> x: [0, 1, 2];
 		attribute<dpoint>  point := point_xy(x, x, dpoint);
-		attribute<Seq>     seq: [0, 0, 0];
+		attribute<Seq>     seq_rel: [0, 0, 0];
 		attribute<uint32>  ord: [0, 0, 2];
 	}
-	attribute<dpoint> lines (Seq, arc) := points2sequence(Pt/point, Pt/seq, Pt/ord);
+	attribute<dpoint> lines (Seq, arc) := points2sequence(Pt/point, Pt/seq_rel, Pt/ord);
 
 	container checks
 	{

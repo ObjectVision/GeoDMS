@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: and the values unit of the calculation results ( m: float64) (incompatible SpatialReferences)
 // NEGATIVE: a CRS-less unit must not silently unify with a CRS-bearing one.
 // doc/development/crs-metric-decoupling.md, Stage 5.
 //

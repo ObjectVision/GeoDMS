@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Operator for_each_ind Error: argument specification, unexpected token(s): 'qq' in nqq
 container fn_test_fe_neg7
 {
 	// §12.7 honest-error upgrade: a CLOSED, cleanly evaluated but INVALID

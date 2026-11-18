@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: Value 7 for atomic region 2 out of range [0, 2) of the regions of [[/RegA]]
 // discrete_alloc with a partitioning attribute holding a value outside its region unit: PA maps atomic
 // region 2 onto region 7, while RegA has 2 regions. Such a value is an error in every regime, since
 // FeasibilityTest indexes the unique regions with it before anything is allocated; before 20.21.0 that

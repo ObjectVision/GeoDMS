@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: pareto_optimal_eps: criterion 2 (argument 3) is numeric and must be followed by its epsilon
 // #1287: in pareto_optimal_eps a numeric criterion after the first is followed by its epsilon, also when a bool
 // criterion comes first (#1282). Here the numeric price is criterion 2 and the last argument and is refused with
 // "pareto_optimal_eps: criterion 2 (argument 3) is numeric and must be followed by its epsilon; ...". Expected:

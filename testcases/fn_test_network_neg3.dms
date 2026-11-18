@@ -1,3 +1,5 @@
+// EXPECT-FAILURE: the argument for parameter 'nw' does not match its declared members: the values of 'N1_rel' must be 'nodeset'
+// EXPECT-FAILURE: the argument for parameter 'nw' does not match its declared members: 'w' must be an attribute<float64>, not an attribute<uint32>
 container fn_test_network_neg3
 {
 	// K11a-3 contract check: the argument's F1 relates to a DIFFERENT unit than its

@@ -430,16 +430,20 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	SharedStr projectionFileName = replaceFileExtension(GetNameStr().c_str(), "tfw");
 	bool tfw_file_exists = IsFileOrDirAccessible(projectionFileName);
 
-	std::vector<Float64> pixel_to_world_transform = {};
-
 	// GridData item && GridPalette item
-	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists || !pixel_to_world_transform.empty()).get();
+	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists).get();
 	const AbstrDataItem* paletteData = GetPaletteData(storageHolder).get();
 
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
 	
 	if (gridData && gridData->HasConfiguredCalcRule()) // #587
 		return;
+
+	// An attribute that reads the raster itself has the raster unit of this storage manager as its grid domain,
+	// which got its range and its georeference when CreateGridDataDomain made it, in every SyncMode (#1362). A
+	// configured grid domain, the storage holder itself or its GridDomain, gets its georeference here. Asked for
+	// before the storage is locked below, since CreateGridDataDomain opens the storage itself.
+	AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(curr);
 
 	auto smi = this->GetMetaInfo(storageHolder, curr, StorageAction::read);
 	if(!smi)
@@ -451,17 +455,22 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	if (!this->m_pImp)
 		return;
 
+	if (!gridDataDomainRW || gridDataDomainRW == m_GridDomainUnit.get())
+		return;
+	auto uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
+	if (!uBase)
+		return;
+	ReadGeoReference(gridDataDomainRW, uBase.get(), storageHolder);
+}
+
+void TiffSM::ReadGeoReference(AbstrUnit* gridDomain, const AbstrUnit* uBase, const TreeItem* storageHolder) const
+{
+	assert(m_pImp);
+
 	// Obtain pixel to world transformation obtained form GeoTiff tags
-	pixel_to_world_transform = m_pImp->GetImageToWorldTransform();
+	auto pixel_to_world_transform = m_pImp->GetImageToWorldTransform();
 	if (!pixel_to_world_transform.empty())
 	{
-		AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(const_cast<TreeItem*>(storageHolder));
-		if (!gridDataDomainRW)
-			return;
-
-		auto uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
-		if (!uBase)
-			return;
 		// The ModelTransformationTag can rotate; the projection built below is axis-aligned and took only
 		// the scale and the origin, so a rotated GeoTIFF got a wrong georeference on its grid domain without
 		// a word. gdal.grid builds the full affine transformation. Reading only the values stays possible.
@@ -471,12 +480,12 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 		uBase->UpdateMetaInfo();
 		DPoint factor = rowcol2dms_order<Float64>(pixel_to_world_transform[3], pixel_to_world_transform[0]);
 		DPoint offset = rowcol2dms_order<Float64>(pixel_to_world_transform[5], pixel_to_world_transform[4]);
-		gridDataDomainRW->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()).get(), offset, factor));
+		gridDomain->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()).get(), offset, factor));
 		return;
 	}
 
 	// Final straw, get pixel to world transformation from .tfw file
-	GetImageToWorldTransformFromFile(curr, projectionFileName);
+	ReadGeoRefFile(replaceFileExtension(GetNameStr().c_str(), "tfw"), gridDomain, uBase);
 }
 
 // Register

@@ -1,3 +1,4 @@
+// EXPECT-FAILURE: the definition of '/bad2': inconsistent instantiation of unit variable 'E': the unit bound argument 2 of 'pass2' differs from the unit bound argument 3 of 'pass2'
 container fn_test_unitnode_neg2
 {
 	// NEGATIVE (definition-time, batch U): pass2 declares BOTH data parameters'
