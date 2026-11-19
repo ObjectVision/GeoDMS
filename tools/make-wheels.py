@@ -1,4 +1,4 @@
-"""Build the geodms wheels for PyPI from an msbuild output folder (#1355).
+"""Build the geodms wheels for PyPI from a build output folder (#1355).
 
 One wheel per CPython minor in python/PythonVersions.txt. Each holds the ABI-tagged binding
 geodms.cpXY-win_amd64.pyd in a package geodms, the engine DLLs it loads (found and renamed by
@@ -17,9 +17,19 @@ the GLOBIO conda environment (vcpkg-globio/environment.yml), so the wheel carrie
 renamed like the others, and their licence texts come from that environment (--conda, default
 GLOBIO_ENV_ROOT), as in the .g setup (tools/setup_licences.py).
 
-Run it with a Python that has delvewheel and wheel installed:
+On Linux, with --flavour l (the default there), it makes the Linux wheels of the distribution
+geodms from the CMake output folder build/linux-x64-release/bin: per CPython minor the binding
+geodms.cpython-3XY-x86_64-linux-gnu.so, and in geodms.libs the libDm*.so it loads, stripped and with
+an rpath of $ORIGIN, beside the same resources. auditwheel then adds the system libraries those need
+that a manylinux platform does not promise (unixODBC), renamed, and gives the wheel its manylinux
+tag. The engine libraries keep their names: renaming them would have patchelf copy their large
+dynamic symbol tables into the file once more. The licence texts are those of the vcpkg ports,
+which the static triplet x64-linux compiles into the libraries, and those of the Debian packages
+the added system libraries come from, as in the .l setup.
 
-    python tools/make-wheels.py [--flavour m|g] [--bin bin/Release/x64] [--out distr]
+Run it with a Python that has the packages of python/wheel-tools.txt installed:
+
+    python tools/make-wheels.py [--flavour m|g|l] [--bin bin/Release/x64] [--out distr]
                                 [--python 3.12;3.13;3.14] [--version 20.26.0]
                                 [--vcpkg vcpkg_installed] [--conda C:\\dev\\globio4env]
 
@@ -29,6 +39,7 @@ the port versions in the table come from --vcpkg (and --conda), so those folders
 ports and packages that the release was built with.
 """
 import argparse
+import glob
 import os
 import re
 import shutil
@@ -46,21 +57,25 @@ RESOURCE_FILES = ["prelude.dms", "RewriteExpr.lsp"]
 RESOURCE_TREES = ["gdaldata", "proj4data", "library"]
 RESOURCE_TOP_LEVEL_ONLY = ["examples"]
 
-# Per flavour: the distribution name on PyPI, the build output, the vcpkg tree, the list of CPython
-# minors, the text of the PyPI page and its one-line summary, and whether the spatial libraries come
-# from the GLOBIO conda environment. The package that both install is called geodms.
+# Per flavour: the distribution name on PyPI, the platform it is made on (sys.platform), the build
+# output, the vcpkg tree, the list of CPython minors, the text of the PyPI page and its one-line
+# summary, and whether the spatial libraries come from the GLOBIO conda environment. The package
+# that all install is called geodms; m and l are the Windows and Linux wheels of one distribution.
+SUMMARY = "GeoDMS, an open-source platform for spatial models over large grid, vector and attribute data"
 FLAVOURS = {
     "m": {
         "name": "geodms",
+        "platform": "win32",
         "bin": os.path.join("bin", "Release", "x64"),
         "vcpkg": "vcpkg_installed",
         "pythons": os.path.join("python", "PythonVersions.txt"),
         "description": os.path.join("python", "pypi-description.md"),
-        "summary": "GeoDMS, an open-source platform for spatial models over large grid, vector and attribute data",
+        "summary": SUMMARY,
         "conda": False,
     },
     "g": {
         "name": "geodms-globio",
+        "platform": "win32",
         "bin": os.path.join("bin_GLOBIO", "Release", "x64"),
         "vcpkg": "vcpkg_installed_GLOBIO",
         "pythons": os.path.join("python", "PythonVersionsGlobio.txt"),
@@ -68,7 +83,26 @@ FLAVOURS = {
         "summary": "GeoDMS built against the GDAL, PROJ and GEOS of the GLOBIO 4 conda environment",
         "conda": True,
     },
+    "l": {
+        "name": "geodms",
+        "platform": "linux",
+        "bin": os.path.join("build", "linux-x64-release", "bin"),
+        "vcpkg": os.path.join("build", "linux-x64-release", "vcpkg_installed"),
+        "pythons": os.path.join("python", "PythonVersions.txt"),
+        "description": os.path.join("python", "pypi-description.md"),
+        "summary": SUMMARY,
+        "conda": False,
+    },
 }
+OS_CLASSIFIER = {"win32": "Microsoft :: Windows", "linux": "POSIX :: Linux"}
+
+# The largest wheel PyPI accepts without a limit raised for the project: its default upload limit
+# per file, 100 MiB. A larger wheel stops the script, because the upload of the release would fail
+# on it. Raise this value once PyPI has granted the project a higher limit.
+PYPI_FILE_LIMIT_BYTES = 100 * 1024 * 1024
+
+# The processor of the Linux build (preset linux-x64-release), as the module names and tags spell it.
+LINUX_ARCH = "x86_64"
 
 # The conda packages whose versions the PyPI page of the GLOBIO flavour names, by the token in
 # python/pypi-description-globio.md that stands for each.
@@ -91,9 +125,9 @@ def read_python_versions(flavour):
     return open(os.path.join(REPO, flavour["pythons"]), encoding="utf-8").read().strip().split(";")
 
 
-def run(args):
+def run(args, env=None):
     print(">", " ".join(args), flush=True)
-    subprocess.run(args, check=True)
+    subprocess.run(args, check=True, env=env)
 
 
 PRELOAD_LIST = "delay-preload.txt"
@@ -192,7 +226,8 @@ def description_text(flavour, version, conda):
     unreplaced = re.findall(r"@[A-Z_]+@", description)
     if unreplaced:
         sys.exit(f"make-wheels: {flavour['description']} has tokens that nothing replaces: {', '.join(unreplaced)}")
-    if not flavour["conda"] and version_key(version) < version_key(FIRST_VERSION_WITH_DELAY_LOAD_HOOK):
+    if (flavour["platform"] == "win32" and not flavour["conda"]
+            and version_key(version) < version_key(FIRST_VERSION_WITH_DELAY_LOAD_HOOK)):
         description += REFUSED_CASE
     return description
 
@@ -211,7 +246,7 @@ def metadata(flavour, version, python_requirement, conda, licence_files=("licens
         "Project-URL: Documentation, https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings\n"
         "Project-URL: Source, https://github.com/ObjectVision/GeoDMS\n"
         "Project-URL: Issues, https://github.com/ObjectVision/GeoDMS/issues\n"
-        "Classifier: Operating System :: Microsoft :: Windows\n"
+        f"Classifier: Operating System :: {OS_CLASSIFIER[flavour['platform']]}\n"
         "Classifier: Programming Language :: C++\n"
         "Classifier: Programming Language :: Python :: 3\n"
         "Classifier: Topic :: Scientific/Engineering :: GIS\n"
@@ -228,8 +263,8 @@ def metadata(flavour, version, python_requirement, conda, licence_files=("licens
 # stops the script, so that no library goes out without its licence text. Importing it writes no
 # tools/__pycache__ into the working copy.
 sys.dont_write_bytecode = True
-from setup_licences import (GEODMS_DLLS, MSVC_RUNTIME, CondaEnv, Problems, sha256,  # noqa: E402
-                            vcpkg_ports, write_table)
+from setup_licences import (GEODMS_DLLS, GEODMS_OTHER, MSVC_RUNTIME, SHARED_LIBRARY,  # noqa: E402
+                            CondaEnv, DebianSystem, Problems, VcpkgTree, sha256, vcpkg_ports, write_table)
 
 DELVEWHEEL_SUFFIX = re.compile(r"-[0-9a-f]{32}(?=\.dll$)", re.IGNORECASE)  # the hash delvewheel adds
 THIRD_PARTY = "third-party"  # the folder in .dist-info/licenses with the texts of the vcpkg ports
@@ -424,21 +459,196 @@ def build_one(flavour, bin_dir, out_dir, work_dir, vcpkg_installed, conda, versi
     return os.path.join(out_dir, os.path.basename(bare))
 
 
+# ---------------------------------------------------------------------------------------------
+# Linux (--flavour l)
+# ---------------------------------------------------------------------------------------------
+
+# The name auditwheel gives a system library that it adds to a wheel: eight hex digits before .so
+AUDITWHEEL_SUFFIX = re.compile(r"(.+?)-[0-9a-f]{8}(\.so(\.\d+)*)")
+
+
+def tool_path():
+    """PATH with the folder of the tool venv first, where pip put patchelf and auditwheel."""
+    return os.pathsep.join([os.path.dirname(sys.executable), os.environ.get("PATH", "")])
+
+
+def tool(name):
+    """A program of the tool venv (patchelf), else one on PATH (strip, from binutils)."""
+    found = shutil.which(name, path=tool_path())
+    if not found:
+        sys.exit(f"make-wheels: {name} not found; install python/wheel-tools.txt, and binutils for strip")
+    return found
+
+
+def elf_query(option, path):
+    return subprocess.run([tool("patchelf"), option, path], check=True, capture_output=True, text=True).stdout.split()
+
+
+def engine_libraries(bin_dir, module):
+    """The libraries in bin_dir that the module loads, directly or through each other: the libDm*.so
+    of the engine it uses, so not libDmShv.so, the map and table views that only the GUI loads."""
+    found, todo = [], [module]
+    while todo:
+        for name in elf_query("--print-needed", todo.pop()):
+            path = os.path.join(bin_dir, name)
+            if name not in found and os.path.isfile(path):
+                found.append(name)
+                todo.append(path)
+    return sorted(found)
+
+
+def copy_elf(src, dst, rpath):
+    """Copy a library or module without the symbols that only a debugger reads, a quarter of the
+    libDm*.so, and give it the rpath when it has one: a library without an rpath (libDmRtc.so) needs
+    nothing beside it, and adding an entry would have patchelf copy its dynamic symbol table."""
+    run([tool("strip"), "--strip-unneeded", "-o", dst, src])
+    if elf_query("--print-rpath", dst):
+        run([tool("patchelf"), "--set-rpath", rpath, dst])
+
+
+def add_licences_linux(libs_dir, licences_dir, vcpkg_installed):
+    """Copy the licence texts of the libraries in a Linux wheel into licences_dir/third-party: those
+    of the Debian packages that the system libraries added by auditwheel come from, and those of
+    the vcpkg ports, which the static triplet x64-linux compiles into the libDm*.so. Write a table
+    of them there, and return the new files as paths relative to licences_dir, for License-File."""
+    libs_name = os.path.basename(libs_dir)
+    third = os.path.join(licences_dir, THIRD_PARTY)
+    os.makedirs(third)
+    debian, problems = DebianSystem(), Problems()
+    texts = {}  # the licence path in third-party, and the file it is copied from
+    lib_rows = []
+    for f in sorted(os.listdir(libs_dir)):
+        if not SHARED_LIBRARY.fullmatch(f):
+            continue
+        if GEODMS_OTHER.fullmatch(f):
+            lib_rows.append((f, "GeoDMS", "", "license.txt"))
+            continue
+        m = AUDITWHEEL_SUFFIX.fullmatch(f)
+        candidates = debian.candidate(m.group(1) + m.group(2)) if m else []
+        if not candidates:
+            problems.append(f"no licence known for {f}: not a GeoDMS library, and not the copy of a library "
+                            "of a Debian package of this machine")
+            continue
+        c = candidates[0]
+        texts[c.licence] = c.copy_from
+        lib_rows.append((f, c.source, c.version, f"{THIRD_PARTY}/{c.licence}".replace(os.sep, "/")))
+    port_rows = []
+    for key, version, licence, copy_from in VcpkgTree(vcpkg_installed).static_ports():
+        texts[licence] = copy_from
+        port_rows.append((key, version, f"{THIRD_PARTY}/{licence}".replace(os.sep, "/")))
+    for licence, src in sorted(texts.items()):
+        if not os.path.isfile(src):
+            problems.append(f"the licence text {src} does not exist")
+            continue
+        dst = os.path.join(third, licence)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copyfile(src, dst)
+    problems.stop_if_any("collecting the licence texts of the Linux wheel")
+
+    with open(os.path.join(third, "README.txt"), "w", encoding="utf-8", newline="\n") as out:
+        out.write(f"The shared libraries in {libs_name}, with where each comes from and the file in this\n"
+                  "licenses folder that holds its licence text. auditwheel added a hash to the names of\n"
+                  "the system libraries it bundled.\n\n")
+        write_table(out, (f"library in {libs_name}", "comes from", "version", "licence"), lib_rows)
+        out.write("\nThe vcpkg ports, whose code the static triplet x64-linux compiles into the GeoDMS\n"
+                  "libraries above and into the binding where these use it. Not every one of them need\n"
+                  "be in this wheel. The Boost libraries share one licence text.\n\n")
+        write_table(out, ("port", "version", "licence"), port_rows)
+    return [f"{THIRD_PARTY}/README.txt"] + sorted(f"{THIRD_PARTY}/{licence}".replace(os.sep, "/") for licence in texts)
+
+
+def build_one_linux(flavour, bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, python_requirement):
+    abi = minor.replace(".", "")
+    cp = "cp" + abi
+    module = f"geodms.cpython-{abi}-{LINUX_ARCH}-linux-gnu.so"
+    if not os.path.isfile(os.path.join(bin_dir, module)):
+        raise FileNotFoundError(f"{module} is not in {bin_dir}")
+    dist = dist_file_name(flavour["name"])
+    libs_name = f"{dist}.libs"  # the folder where auditwheel puts the libraries it adds
+
+    # 1. the package with the module, and in geodms.libs the engine libraries it loads, with the
+    #    resources beside libDmRtc.so, where GetExeDir looks for them (it finds that library through
+    #    dladdr); the libraries are found through their rpath, so auditwheel leaves them as they are
+    stage = os.path.join(work_dir, cp, "stage", f"{dist}-{version}")
+    pkg = os.path.join(stage, "geodms")
+    libs_dir = os.path.join(stage, libs_name)
+    info = os.path.join(stage, f"{dist}-{version}.dist-info")
+    for folder in (pkg, libs_dir, os.path.join(info, "licenses")):
+        os.makedirs(folder)
+    copy_elf(os.path.join(bin_dir, module), os.path.join(pkg, module), f"$ORIGIN/../{libs_name}")
+    libraries = engine_libraries(bin_dir, os.path.join(bin_dir, module))
+    print("engine libraries:", ", ".join(libraries))
+    for lib in libraries:
+        copy_elf(os.path.join(bin_dir, lib), os.path.join(libs_dir, lib), "$ORIGIN")
+    copy_resources(bin_dir, libs_dir)
+    with open(os.path.join(pkg, "__init__.py"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(INIT_PY)
+    with open(os.path.join(info, "METADATA"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(metadata(flavour, version, python_requirement, None))
+    with open(os.path.join(info, "WHEEL"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(wheel_file(f"{cp}-{cp}-linux_{LINUX_ARCH}"))
+    shutil.copy2(os.path.join(REPO, "license.txt"), os.path.join(info, "licenses", "license.txt"))
+    bare_dir = os.path.join(work_dir, cp, "bare")
+    os.makedirs(bare_dir)
+    run([sys.executable, "-m", "wheel", "pack", stage, "-d", bare_dir])
+    bare = os.path.join(bare_dir, f"{dist}-{version}-{cp}-{cp}-linux_{LINUX_ARCH}.whl")
+
+    # 2. auditwheel adds the system libraries that a manylinux platform does not promise, renamed,
+    #    and tags the wheel with the oldest manylinux platform whose glibc and libstdc++ have every
+    #    symbol version that the files of the wheel ask for
+    repaired_dir = os.path.join(work_dir, cp, "repaired")
+    env = dict(os.environ, PATH=tool_path())  # auditwheel runs patchelf from PATH
+    run([sys.executable, "-m", "auditwheel", "repair", "-w", repaired_dir, bare], env=env)
+    repaired = glob.glob(os.path.join(repaired_dir, "*.whl"))
+    if len(repaired) != 1:
+        sys.exit(f"make-wheels: auditwheel wrote {len(repaired)} wheels in {repaired_dir}, expected one")
+    repaired = repaired[0]
+
+    # 3. the licence texts of what the wheel contains go into the metadata (wheel pack below writes
+    #    a new RECORD, and names the wheel after the tag that auditwheel wrote in WHEEL)
+    unpack_dir = os.path.join(work_dir, cp, "unpacked")
+    run([sys.executable, "-m", "wheel", "unpack", repaired, "-d", unpack_dir])
+    root = os.path.join(unpack_dir, f"{dist}-{version}")
+    info_dir = os.path.join(root, f"{dist}-{version}.dist-info")
+    licence_files = ["license.txt"] + add_licences_linux(os.path.join(root, libs_name), os.path.join(info_dir, "licenses"),
+                                                         vcpkg_installed)
+    with open(os.path.join(info_dir, "METADATA"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(metadata(flavour, version, python_requirement, None, licence_files))
+    os.makedirs(out_dir, exist_ok=True)
+    run([sys.executable, "-m", "wheel", "pack", root, "-d", out_dir])
+    return os.path.join(out_dir, os.path.basename(repaired))
+
+
+def check_size(wheel):
+    size = os.path.getsize(wheel)
+    if size > PYPI_FILE_LIMIT_BYTES:
+        sys.exit(f"make-wheels: {wheel} has {size} bytes, more than the {PYPI_FILE_LIMIT_BYTES} that PyPI accepts "
+                 "per file (PYPI_FILE_LIMIT_BYTES in this script)")
+    print(f"{os.path.basename(wheel)}: {size} bytes")
+    return wheel
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--flavour", choices=sorted(FLAVOURS), default="m",
-                        help="m: the distribution geodms; g: geodms-globio, of the GLOBIO build")
-    parser.add_argument("--bin", help="msbuild output folder (default: bin/Release/x64, or bin_GLOBIO/Release/x64 for g)")
+    on_linux = sys.platform.startswith("linux")
+    parser.add_argument("--flavour", choices=sorted(FLAVOURS), default="l" if on_linux else "m",
+                        help="m: the Windows wheels of geodms (the default on Windows); g: geodms-globio, of the "
+                             "GLOBIO build; l: the Linux wheels of geodms (the default on Linux)")
+    parser.add_argument("--bin", help="build output folder (default: bin/Release/x64, bin_GLOBIO/Release/x64 for g, "
+                                      "build/linux-x64-release/bin for l)")
     parser.add_argument("--out", default=os.path.join(REPO, "distr"), help="folder for the finished wheels")
     parser.add_argument("--python", help="';'-separated CPython minors (default: those of the flavour's list in python/)")
     parser.add_argument("--version", default=read_version(), help="package version (default: RtcVersionNumbers.h)")
     parser.add_argument("--work", default="", help="work folder (default: a temporary folder, removed afterwards)")
     parser.add_argument("--vcpkg", help="vcpkg_installed folder with the licence texts of the bundled libraries "
-                                        "(default: vcpkg_installed, or vcpkg_installed_GLOBIO for g)")
+                                        "(default: vcpkg_installed, vcpkg_installed_GLOBIO for g, "
+                                        "build/linux-x64-release/vcpkg_installed for l)")
     parser.add_argument("--conda", help="g: the GLOBIO conda environment the build took its spatial libraries "
                                         "from (default: GLOBIO_ENV_ROOT)")
     args = parser.parse_args()
     flavour = FLAVOURS[args.flavour]
+    if not sys.platform.startswith(flavour["platform"]):
+        sys.exit(f"make-wheels: the flavour {args.flavour} is made on {flavour['platform']}, not on {sys.platform}")
     bin_dir = os.path.abspath(args.bin or os.path.join(REPO, flavour["bin"]))
     vcpkg_installed = os.path.abspath(args.vcpkg or os.path.join(REPO, flavour["vcpkg"]))
     minors = (args.python or ";".join(read_python_versions(flavour))).split(";")
@@ -465,9 +675,15 @@ def main():
         os.makedirs(work_dir, exist_ok=True)
         open(os.path.join(work_dir, WORK_MARKER), "w").close()
     try:
+        out_dir = os.path.abspath(args.out)
         for minor in minors:
-            print("wrote", build_one(flavour, bin_dir, os.path.abspath(args.out), work_dir, vcpkg_installed, conda,
-                                     args.version, minor, requires_python(flavour, minors)))
+            if flavour["platform"] == "linux":
+                wheel = build_one_linux(flavour, bin_dir, out_dir, work_dir, vcpkg_installed, args.version, minor,
+                                        requires_python(flavour, minors))
+            else:
+                wheel = build_one(flavour, bin_dir, out_dir, work_dir, vcpkg_installed, conda, args.version, minor,
+                                  requires_python(flavour, minors))
+            print("wrote", check_size(wheel))
     finally:
         if not args.work:
             shutil.rmtree(work_dir, ignore_errors=True)

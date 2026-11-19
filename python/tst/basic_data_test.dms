@@ -20,6 +20,18 @@
 		}
 	}
 
+	// a point converted through PROJ, which needs the proj.db among the resources beside the engine
+	// (proj4data), also in an installed wheel (#1355)
+	container proj_check
+	{
+		unit<dpoint> rdc   : SpatialReference = "EPSG:28992";
+		unit<dpoint> wgs84 : SpatialReference = "EPSG:4326";
+		parameter<rdc>     p     := point_xy(155000.0, 463000.0, rdc);
+		parameter<wgs84>   q     := convert(p, wgs84);
+		parameter<float64> q_row := pointrow(q);
+		parameter<float64> q_col := pointcol(q);
+	}
+
 	unit<uint32> reference: nrofrows = 5
 	{
 		attribute<int32>   IntegerAtt           : [0,1,256,-100,9999];

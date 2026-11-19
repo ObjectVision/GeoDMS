@@ -110,6 +110,7 @@ GEODMS_DLLS = {"clc.dll", "geo.dll", "rtc.dll", "shv.dll", "stg.dll", "stx.dll",
                "dmclc.dll", "dmgeo.dll", "dmrtc.dll", "dmshv.dll", "dmstg.dll", "dmstx.dll"}
 # The other binaries of GeoDMS: the programs, the Python binding and the Linux libraries.
 GEODMS_OTHER = re.compile(r"geodmsrun(\.exe)?|geodmsguiqt(\.exe)?|geodms\.cp\d+-win_amd64\.pyd"
+                          r"|geodms\.cpython-\d+-\w+-linux-gnu\.so"
                           r"|libdm(clc|geo|rtc|shv|stg|stx)\.so", re.IGNORECASE)
 # The Visual C++ runtime, redistributable under the licence terms of Visual Studio. vccorlib140,
 # vcomp140 and vcamp140 are part of the same redistributable and are shipped by the setups.

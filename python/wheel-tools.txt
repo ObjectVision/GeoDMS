@@ -1,8 +1,11 @@
-# The Python packages that tools\make-wheels.py and tools\make-and-test-wheels.ps1 use to make and
-# check the PyPI wheels (#1355), pinned at versions tested together under CPython 3.13
-# ($toolPythonVersion in make-and-test-wheels.ps1).
-# A change here makes make-and-test-wheels.ps1 build its tool venv again.
-delvewheel==1.13.2
-pefile==2024.8.26
+# The Python packages that tools\make-wheels.py, tools\make-and-test-wheels.ps1 (Windows) and
+# tools/make-and-test-wheels.sh (Linux) use to make and check the PyPI wheels (#1355), pinned at
+# versions tested together under CPython 3.13 (toolPythonVersion in both scripts).
+# A change here makes those scripts build their tool venv again.
+delvewheel==1.13.2; sys_platform == "win32"
+pefile==2024.8.26; sys_platform == "win32"
+auditwheel==6.8.2; sys_platform == "linux"
+patchelf==0.19.3.0; sys_platform == "linux"
+pyelftools==0.33; sys_platform == "linux"
 wheel==0.48.0
 twine==7.0.0

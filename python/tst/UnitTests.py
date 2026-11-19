@@ -110,6 +110,17 @@ try:
     values = ints.asDataItem().asDataItem().get_values_as_int_list()
     check(values == [0, 1, 256, -100, 9999], f"/reference/IntegerAtt values (got {values})")
 
+    # #1355: the RD point (155000, 463000) in WGS84, which needs PROJ and its proj.db among the
+    # resources that the engine finds beside it, also in an installed wheel. The tolerance, a tenth
+    # of a millidegree or about 10 m, leaves room for the PROJ 8 of the GLOBIO build and still tells
+    # a working conversion from a failed one; the larger value is the latitude in either axis order.
+    EXPECTED_LAT, EXPECTED_LON, TOLERANCE_DEG = 52.155172, 5.387204, 1e-4
+    row = const_root.find("/proj_check/q_row").asDataItem().get_value_as_float(0)
+    col = const_root.find("/proj_check/q_col").asDataItem().get_value_as_float(0)
+    lat, lon = max(row, col), min(row, col)
+    check(abs(lat - EXPECTED_LAT) < TOLERANCE_DEG and abs(lon - EXPECTED_LON) < TOLERANCE_DEG,
+          f"PROJ converts RD (155000, 463000) to WGS84 (got {lat:.6f}, {lon:.6f})")
+
     # #1370: an item keeps its configuration loaded, also when the script keeps no Config; close() and
     # the end of a with-block close it, and its items raise from then on; load_config refuses while the
     # Config of the loaded configuration exists, and closes one that only loose items still hold.
