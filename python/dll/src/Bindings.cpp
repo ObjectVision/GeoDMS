@@ -23,7 +23,9 @@
 #include "utl/splitPath.h"
 #include "DataArray.h"
 
+#if defined(_WIN32)
 #include "libloaderapi.h"
+#endif
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -49,9 +51,15 @@
 #include <utility>
 #include <vector>
 
+// On compilers other than MSVC, cpc/CompChar.h defines override as an empty macro, which would erase
+// the local variable of that name in pybind11.h (get_type_override); the macro is hidden while the
+// pybind11 headers are read (#1355).
+#pragma push_macro("override")
+#undef override
 #include <pybind11/pybind11.h>
 #include <pybind11/cast.h>
 #include <pybind11/stl.h>
+#pragma pop_macro("override")
 
 static_assert(PY_MAJOR_VERSION == GEODMS_PYTHON_MAJOR && PY_MINOR_VERSION == GEODMS_PYTHON_MINOR,
 	"Python.h does not match python/PythonVersions.txt; point the ABI-specific Python root at the requested CPython minor");
@@ -64,6 +72,7 @@ namespace py_geodms
 {
 	namespace
 	{
+#if defined(_WIN32)
 		int binding_module_anchor;
 
 		std::filesystem::path GetLoadedModulePath(HMODULE module)
@@ -164,6 +173,12 @@ namespace py_geodms
 				"use matching builds or separate processes.");
 #endif
 		}
+#else
+		// The Linux build links GDAL statically into the engine libraries (vcpkg triplet x64-linux),
+		// so there is no shared GDAL that another package could have loaded in its place, and
+		// nothing to check (#1355).
+		void CheckBundledGdalIsActive() {}
+#endif
 	}
 
 	//----------------------------------------------------------------------

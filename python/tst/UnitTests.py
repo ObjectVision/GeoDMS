@@ -10,6 +10,7 @@
 # has to find its own DLLs and resources.
 import os
 import sys
+import sysconfig
 
 print('Geodms python test module')
 print(f"{sys.version}")
@@ -43,10 +44,12 @@ try:
     print(f"geodms extension: {extension.__file__}")
     if installed:
         check(hasattr(geodms_module, '__path__'), "geodms is an installed package, not the extension in a build folder")
-    expected_abi_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    # The file name of an extension for this interpreter: geodms.cp313-win_amd64.pyd on Windows,
+    # geodms.cpython-313-x86_64-linux-gnu.so on Linux.
+    expected_name = "geodms" + sysconfig.get_config_var("EXT_SUFFIX")
     check(
-        expected_abi_tag in os.path.basename(extension.__file__),
-        f"loaded ABI-tagged {expected_abi_tag} extension",
+        os.path.basename(extension.__file__) == expected_name,
+        f"loaded the ABI-tagged extension {expected_name}",
     )
     from geodms import *
 
