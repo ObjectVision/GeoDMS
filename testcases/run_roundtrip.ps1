@@ -5,6 +5,12 @@
 #
 # Negatives (_neg / defcheck) are skipped: they intentionally fail to load or compute.
 #
+# A positive case can also state how its dump must read, in one or more lines
+# '// EXPECT-DUMP: <fragment>' of its .dms (#1377). Each fragment is literal text that must occur in
+# the dumped .dms, compared case-sensitively; a dump that lacks one fails the case as WRONG-DUMP,
+# unless the reload fails as well, which is then the verdict. Comments do not survive a dump, so a
+# fragment cannot match its own line.
+#
 # As in run_testcases.ps1, the cases' %LocalDataDir% is <OutDir>\LocalData, so that the storage
 # round trips of runs with different OutDirs do not share their files.
 #
@@ -110,10 +116,21 @@ try {
             $results += [pscustomobject]@{ config = $stem; item = $item; verdict = 'DUMP-FAIL' }
             continue
         }
+        # 1b. the dump must contain every '// EXPECT-DUMP:' fragment of the case (see the header);
+        # String.Contains compares ordinally, where PowerShell's own operators would fold case
+        $expects = @(Select-String -LiteralPath $cfg.FullName -Pattern '^\s*//\s*EXPECT-DUMP:\s*(.+?)\s*$' -CaseSensitive |
+            ForEach-Object { $_.Matches[0].Groups[1].Value })
+        $wrongDump = $false
+        if ($expects.Count) {
+            $dumpText = [IO.File]::ReadAllText($dump)
+            foreach ($fragment in $expects) {
+                if (-not $dumpText.Contains($fragment)) { "WRONG-DUMP: $stem lacks: $fragment"; $wrongDump = $true }
+            }
+        }
         # 2. reload the DUMPED config and recompute the item (IntegrityChecks re-verify)
         $r = Invoke-GuardedRun $Exe (@("/L$(Join-Path $OutDir "$stem.reload.log")", $dump) + $itemArgs) (Join-Path $OutDir "$stem.reload.out") $MaxCommitGB $TimeoutSec "$stem.reload"
         if ($r.Limit) { "LIMIT: $stem, reload: $($r.Note)" }
-        $verdict = if ($r.Limit) { "LIMIT($($r.Limit))" } elseif ($r.ExitCode -eq 0) { 'ok' } else { 'RELOAD-FAIL' }
+        $verdict = if ($r.Limit) { "LIMIT($($r.Limit))" } elseif ($r.ExitCode -ne 0) { 'RELOAD-FAIL' } elseif ($wrongDump) { 'WRONG-DUMP' } else { 'ok' }
         $results += [pscustomobject]@{ config = $stem; item = $item; verdict = $verdict }
     }
 }

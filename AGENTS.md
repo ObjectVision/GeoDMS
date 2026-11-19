@@ -83,6 +83,13 @@ XML one (#1368), over the positive configurations, two GeoDmsRun runs each; its 
 `testcases/_out_rt/`. Until then nothing ran it, and 44 reloads failed unnoticed: a reload looked
 for the fixtures that a case reads through `%currDir%` beside the dump.
 
+**A positive case can state how its dump must read** (#1377), in one or more lines
+`// EXPECT-DUMP: <fragment>` of its `.dms`. `run_roundtrip.bat` requires each fragment, as literal
+text and compared case-sensitively, in the dump of that case, and fails the case as `WRONG-DUMP`
+when one is missing. A reload only shows that the dump means the same as its source; it does not
+see a dump that is spelled otherwise, such as `using = "geometries"` written as
+`Using = "../geometries"`. Comments do not survive a dump, so a fragment cannot match its own line.
+
 **That battery must stay offline and cheap.** Anything that reaches the network or
 processes real source data belongs in **`batch\TestShippedContent.bat`** instead, the
 release test for the `.dms` content the installer ships (issue #1031). It runs against

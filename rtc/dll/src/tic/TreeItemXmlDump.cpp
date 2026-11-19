@@ -305,10 +305,11 @@ void DMS_WriteFunctionParam(OutStreamBase& out, const TreeItem* fn, const TreeIt
 		DMS_WriteMemberBlock(out, param);
 }
 
-// TIC-A35: the usings as UsingPropDef::GetRawValue reads them (#1268), the namespaces resolved so far and then the
-// urls not resolved yet, as configured. GetNrNamespaceUsages resolved them first (UsingCache::UpdateUsings); a using
-// that did not resolve threw there, and the whole function was dumped as an "ERROR dumping" comment, which a reload
-// of the dump fails on, where an ordinary item is written with its configured using.
+// TIC-A35: the usings as UsingPropDef::GetRawValue reads them (#1268), the namespaces resolved so far, each by the url
+// that resolved to it as configured (#1377), and then the urls not resolved yet, as configured. GetNrNamespaceUsages
+// resolved them first (UsingCache::UpdateUsings); a using that did not resolve threw there, and the whole function was
+// dumped as an "ERROR dumping" comment, which a reload of the dump fails on, where an ordinary item is written with its
+// configured using.
 void DMS_WriteFunctionUsings(OutStreamBase& out, const TreeItem* fn)
 {
 	if (!fn->CurrHasUsingCache())
@@ -316,12 +317,8 @@ void DMS_WriteFunctionUsings(OutStreamBase& out, const TreeItem* fn)
 	auto uc = fn->GetUsingCache();
 	for (UInt32 i = 0, n = uc->GetNrCurrUsings(); i != n; ++i)
 	{
-		auto ns = uc->GetCurrUsing(i); // null for an expired using entry
-		if (ns && !ns->DoesContain(fn))
-		{
-			SharedStr nsName(ns->GetScriptName(fn));
-			if (!nsName.empty()) { out << ", using = "; out << nsName.c_str(); }
-		}
+		SharedStr nsName = uc->GetCurrUsingDumpName(i, fn);
+		if (!nsName.empty()) { out << ", using = "; out << nsName.c_str(); }
 	}
 	for (auto url : uc->UsingUrls())
 	{

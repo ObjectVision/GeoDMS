@@ -123,6 +123,7 @@ UsingCache::~UsingCache()
 				if (pos < incoming->m_NrFixedUsings)
 					--incoming->m_NrFixedUsings;
 				incoming->m_Usings.erase(incoming->m_Usings.begin() + pos);
+				incoming->m_UsingSpellings.erase(incoming->m_UsingSpellings.begin() + pos);
 			}
 		}
 		incoming->SetDirty();
@@ -154,6 +155,21 @@ const TreeItem* UsingCache::GetCurrUsing(UInt32 i) const // #1268: GetUsing with
 {
 	MG_PRECONDITION(i < m_Usings.size());
 	return lock_raw(m_Usings[i]);
+}
+
+// #1377: the url as configured, rather than the path from item's parent that GetScriptName gives
+// ('../geometries' for 'geometries'). The url resolves from the namespaces of item, the first segment
+// by up-scope search (FindNamespace), and a dump writes the same tree in the same order, so after a
+// reload it resolves to the same namespace, as it did in the source.
+SharedStr UsingCache::GetCurrUsingDumpName(UInt32 i, const TreeItem* item) const
+{
+	assert(m_UsingSpellings.size() == m_Usings.size());
+	const TreeItem* ns = GetCurrUsing(i); // null for an expired using entry
+	if (!ns || ns->DoesContain(item))
+		return {};
+	if (TokenID spelling = m_UsingSpellings[i])
+		return SharedStr(spelling);
+	return ns->GetScriptName(item);
 }
 
 
@@ -215,9 +231,15 @@ void UsingCache::ClearUsings(bool keepFixedUsings)
 				ns->GetUsingCache()->DelIncoming(this);
 
 	if (nrKeep)
+	{
 		m_Usings.erase(b, e);
+		m_UsingSpellings.erase(m_UsingSpellings.begin() + nrKeep, m_UsingSpellings.end());
+	}
 	else
+	{
 		vector_clear(m_Usings);
+		vector_clear(m_UsingSpellings);
+	}
 
 	vector_clear(m_UsingUrls);
 	SetDirty();
@@ -243,9 +265,10 @@ void UsingCache::ResetFixedUsings(bool includeImplicitParent, const TreeItem* de
 	SetDirty();
 }
 
-bool UsingCache::AddUsingInternal(const TreeItem* nameSpace) const
+bool UsingCache::AddUsingInternal(const TreeItem* nameSpace, TokenID spelling) const
 {
 	dms_assert(nameSpace);
+	assert(m_UsingSpellings.size() == m_Usings.size());
 
 	SizeT prevPos = weak_find(m_Usings, nameSpace);
 	if (prevPos >= m_Usings.size())
@@ -261,8 +284,10 @@ bool UsingCache::AddUsingInternal(const TreeItem* nameSpace) const
 		if (prevPos == m_Usings.size() -1)
 			return false;
 		m_Usings.erase(m_Usings.begin() + prevPos);
+		m_UsingSpellings.erase(m_UsingSpellings.begin() + prevPos);
 	}
 	m_Usings.emplace_back(make_weak(nameSpace));
+	m_UsingSpellings.emplace_back(spelling);
 	return true;
 }
 
@@ -355,7 +380,7 @@ void UsingCache::UpdateUsings() const
 			,	url
 			,	m_Context->GetSourceName().c_str()
 			);
-		AddUsingInternal(ns.get());
+		AddUsingInternal(ns.get(), url); // #1377: the url stays beside its namespace, for the dump
 	}
 	vector_clear(m_UsingUrls);
 }
