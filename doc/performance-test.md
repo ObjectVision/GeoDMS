@@ -2221,6 +2221,88 @@ of `proximity`'s inner loop in `Geo.dll`; see the known cause below.
   regression experiment shows it.
 - t810's +26 s in the round is `proximity`'s loop in this link of `Geo.dll`, not #1334.
 
+## Results (OVSRV05), the pre-release v20.29.0 (tag `a0a454738`), `.l`, `.c` and `.m`
+
+Installed from GitHub on 2026-11-18 (sha256 of the three assets equal to the release's digests, the two setups signed
+by Object Vision B.V.): `.m` and `.c` in `C:\Program Files\ObjectVision`, kept as `release_a0a454738_{m,c}`; `.l` by
+`dpkg -i` in mtahi's WSL Ubuntu 26.04 (48 GB), 20.28.0.l restored beside it. Against the local build of `6019e78bd`
+(above) the tag adds 57 commits, among them #1355 (GDAL loaded from the engine's own folder), #1342 and #1343 (rewrite
+rules that changed their result removed), #1348, #1352, #1350, #1361 and #1362. GeoDMS-Test at `4a9ea15`, one commit past
+the rounds above, which gives the `exec_ec` of t405's TomTom list no working folder, since #1361 makes a folder that
+does not exist an error. The rounds ran in the order `.l`, `.c`, `.m` from one scheduled task
+(`scratch\launch_perf_20290_release.cmd`), 2026-11-18 21:10 to 2026-11-19 04:15, threshold 60, put back to 95, no
+reuse, no Remote Desktop session:
+
+| flavour | report header | 20.28.0 | experiment logs | 20.28.0 | verdict |
+|---|---|---|---|---|---|
+| `.l` | 1:12:49 | 1:22:44 | 72.8 min | 82.8 min | 21 of 21 `ok` |
+| `.c` | 2:50:11 | 3:00:59 | 170.4 min | 181.4 min | 27 of 27 `ok` |
+| `.m` | 2:50:29 | 3:00:21 | 170.7 min | 180.7 min | 27 of 27 `ok` |
+
+Every result equals its reference, so neither the ties of #1334 nor the removed rewrite rules moved a regression
+result. Rows that move by more than 3 % and 3 s against 20.28.0 of the same flavour, wall time of the logs:
+
+| test | `.l` 20.28.0 | `.l` 20.29.0 | `.c` 20.28.0 | `.c` 20.29.0 | `.m` 20.28.0 | `.m` 20.29.0 |
+|---|---|---|---|---|---|---|
+| t020 | 0:03:31 | 0:03:23 | | | | |
+| t060 | 0:02:45 | 0:02:25 | 0:01:44 | 0:01:22 | 0:01:51 | 0:01:23 |
+| t101 | 0:03:31 | 0:03:22 | | | | |
+| t200 | 0:00:55 | 0:01:00 | | | | |
+| t300 | | | 0:01:06 | 0:01:02 | 0:01:39 | 0:01:03 |
+| t301 | | | 0:03:24 | 0:02:35 | | |
+| t405.1 | 0:04:16 | 0:03:32 | 0:04:26 | 0:03:35 | 0:04:29 | 0:03:36 |
+| t405.2 | 0:22:58 | 0:19:01 | 0:17:02 | 0:13:45 | 0:16:49 | 0:13:39 |
+| t405.3 | 0:22:17 | 0:18:59 | 0:17:25 | 0:13:40 | 0:16:31 | 0:13:46 |
+| t410 | 0:04:08 | 0:02:48 | 0:03:54 | 0:02:25 | 0:03:51 | 0:02:25 |
+| t720 | | | | | 0:07:02 | 0:07:19 |
+| t2000 | not run | | | | 0:17:10 | 0:16:05 |
+
+The rows of t300 and t301 are the rounds. t300 on `.m` is level in the A/B below; its 1:39 in the round of 20.28.0.m was
+the first read of its XML (see "t300 and the first read of its XML on OVSRV05"). t301 on `.c` took 148 to 175 s in the
+A/B of 2026-11-01 for two builds alike, where the round of 20.28.0.c gave 3:24 (above). t810 is level on all three
+flavours (`.m` 4:53 and 4:48): the release's `proximity` loop starts at offset 16 (see the known cause below).
+
+### Interleaved A/B: 20.28.0 against 20.29.0
+
+2026-11-19 04:19 to 06:45, threshold 60, inputs read once beforehand (`scratch\perf_ovsrv05\ab_20290r.cmd`). `.m`: X =
+`release_01feccd21_m`, Y = `release_a0a454738_m`, X Y Y X, t2000 in an X Y Y X of its own. `.l`: t200 in six pairs, X =
+20.28.0.l, Y = 20.29.0.l (`run_exp_l.py`). Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| `.m` t060 | 98 | 79 | 79 | 96 |
+| `.m` t200 | 38 | 31 | 32 | 31 |
+| `.m` t300 | 60 | 59 | 60 | 61 |
+| `.m` t910 | 43 | 40 | 40 | 40 |
+| `.m` t410 | 245 | 150 | 155 | 239 |
+| `.m` t405.1 | 217 | 157 | 156 | 213 |
+| `.m` t720 | 436 | 436 | 437 | 436 |
+| `.m` t2000 | 1014 | 953 | 969 | 1015 |
+
+`.l` t200: X 68, 53, 55, 52, 55, 56; Y 54, 55, 55, 54, 54, 54. The metrics of every `.json` result are equal in all
+runs. t405.2 and t405.3 were not in this A/B; their gain rests on the three rounds and on the A/B of `98974d5fa`
+against `6019e78bd` above (t405.2 1018 and 1015 s against 816 and 822 s).
+
+`PeakPagefileUsage` per run is level on every `.m` row except t2000: t720 spreads from 24.2 to 26.0 GB on both
+releases, the other rows lie within 0.25 GB, and t060 is 0.1 GB lower on 20.29.0. For t2000: X 83.15 and 82.48 GB, Y 83.96 and 84.02 GB, 0.8 and 1.5 GB higher. That lies within the spread of one
+build in the earlier t2000 A/Bs (`98974d5fa` 84.58 and 79.41 GB, `6019e78bd` 80.96 and 82.44 GB), so it is not a
+finding.
+
+### Reading
+
+- Correct: 21 of 21 on `.l`, 27 of 27 on `.c` and `.m`, and every result of the A/Bs equal between the releases.
+- Faster, on all three flavours: t405.2 and t405.3 by 2:45 to 3:57 in the rounds (15 to 22 %), t410 by 80 to 89 s in the
+  rounds (32 to 38 %) and 84 to 95 s in the A/B, and t405.1 by 44 to 61 s, the nearest-first search of #1334; t060 by 17
+  to 28 s, #1320. t2000 on `.m` is 46 and 61 s faster in the two pairs of the A/B (4.5 and 6 %), mostly the run boxes and
+  nearest-first search of #1334 in hestia's `connect_info`; not split per item on the releases.
+- Nothing is slower. t720 on `.m` (+17 s in the round) and t200 on `.l` (+5 s) are level in the A/B; the first X run
+  after the warm-up is the slow one there.
+- Not measured again on the releases: `dist_info_eq` with a filter that refuses most nearby arcs, 30 % slower on short
+  arcs since `6019e78bd` (probe above), which no regression experiment shows; since `6019e78bd` the search code changed
+  only in `ArcRunIndex.h` (`a0a454738`), the run boxes of arcs with 32 or more vertices, which the probe's rings of 5 do
+  not have. And `Pand_rel` in t2000, 0.64 s slower since #1320, inside a t2000 that is faster on the whole.
+- Memory: the peak commit of the A/B is level, t2000's 1 GB more on 20.29.0 included, which is within its spread.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
