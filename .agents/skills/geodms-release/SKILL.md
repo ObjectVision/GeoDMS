@@ -1,6 +1,6 @@
 ---
 name: geodms-release
-description: Producing GeoDMS setups and publishing them as a GitHub release. The four flavours (.m msbuild, .c cmake, .g GLOBIO, .l linux) and their assets in distr\, the version bump, the release notes in doc\release-notes\, why the user runs the canonical batch\BuildSignAndCreateSetup*.bat scripts in their own console while the agent prepares, tails and verifies, the release tests, the release-notes convention, and the gh release procedure with the immutable-release trap that burns a tag forever. Use for any request about a setup, an installer, a release, release notes, or publishing on GitHub.
+description: Producing GeoDMS setups and publishing them as a GitHub release. The four flavours (.m msbuild, .c cmake, .g GLOBIO, .l linux) and their assets in distr\, the version bump, the release notes in doc\release-notes\, why the user runs the canonical batch\BuildSignAndCreateSetup*.bat scripts in their own console while the agent prepares, tails and verifies, the release tests, the licence texts every setup installs and what to do when their step stops, the release-notes convention, and the gh release procedure with the immutable-release trap that burns a tag forever. Use for any request about a setup, an installer, a release, release notes, or publishing on GitHub.
 ---
 
 # Building setups and publishing a release
@@ -51,6 +51,20 @@ drift question of the `.m` or `.g` script leaves the previous build output in pl
 output folder is wiped after that question (BAT-A34). The Linux script removes an old
 `.p7s` before it signs and fails when signing writes none (BAT-A36), so a `.sha256.p7s` in
 `distr\` belongs to the `.sha256` of the same run.
+
+Every setup installs `license.txt`, the GPL of GeoDMS, and beside it a folder `licenses` with
+the licence texts of the libraries it bundles and `README.txt`, a table of every binary it
+installs: where that binary comes from, its version and which text is its licence (#1371).
+`tools\setup_licences.py stage` writes that folder into the output folder right before
+makensis. For `.l`, `nsi\CreateLinuxSetup.sh` runs it on the tree it has staged, before
+patchelf, and the `.deb` also gets `/usr/share/doc/geodms/copyright`. After the install,
+`setup_licences.py check` compares the installed binaries with the table in both directions
+and checks that `license.txt` and every text the table names are there; a difference removes
+the install and the setup, as a failed suite does. The `.l` script skips the check together
+with the install when WSL has no passwordless sudo, and says so. The uninstall sections
+remove `license.txt` and `licenses` with the rest, so when `UninstallGeoDms.bat` reports a
+folder still there that holds them, those lines have gone from the uninstall section.
+`tools\make-wheels.py` maps the DLLs of a wheel to their source with the same code.
 
 ## Who runs what
 
@@ -136,6 +150,37 @@ watcher per `cmd.exe` that, while that `cmd.exe` lives, raises every process bel
 BelowNormal to Normal once a second, so every vcpkg the setup reaches is covered. It prints a line
 for each. Do not change the priority of someone else's run unless the user asks.
 
+When the licence step stops, it prints each problem as `setup_licences: ERROR: ...`, and the
+Windows scripts stop before NSIS with `*** Licence texts FAILED before packaging`, the Linux
+one with `*** CreateLinuxSetup.sh failed`. What the messages mean, and what makes the next run
+pass:
+
+- `no licence known for <file>`: the setup installs a binary that is not GeoDMS, not the
+  Visual C++ runtime and not a copy of a file of the Qt installation, a vcpkg port, the conda
+  environment (`.g`) or a Debian package of the build machine (`.l`). That is a new
+  dependency; let it come from one of those sources, so that its licence text comes along.
+- `<file> differs from every file of that name in the sources of this flavour`: the output
+  folder holds a copy from another build of that library than the one its source holds now.
+  A stale output folder is one cause (on 2026-11-16 `build\windows-x64-release\bin` held five
+  DLLs of an older vcpkg build); the Windows setup scripts empty their output folder before
+  they build, so a run of the whole script deploys it again. A Qt upgrade is the other: then
+  every Qt file differs, or, when the old Qt installation is gone, the step reports `no Qt
+  SBOM in ...`. `QT_ROOT` in `tools\setup_licences.py` names the Qt installation and moves
+  with `QtInstall` in `qtgui\exe\GeoDmsGuiQt.vcxproj` and `shv\dll\ShvDLL.vcxproj` and with
+  `CMAKE_PREFIX_PATH` in `batch\BuildSignAndCreateSetupCmake.bat`. That installation needs
+  its `sbom` folder and the Sources component of the Qt installer (`C:\Qt\<ver>\Src`), which
+  holds the `LICENSES` folder of each module.
+- `the conda package <name> <version> has no licence text of its own, and the text kept ...
+  is for another version`: `vcpkg-globio\environment.yml` moved `libcurl`, `libpq` or
+  `libsqlite`, whose conda packages carry no text. Take the licence of that version from the
+  upstream source, keep it as `vcpkg-globio\licenses\<package>-<version>.txt`, commit it and
+  run the setup again.
+- `<nsi file>:<line number>: cannot read '<line>': <reason>`, such as `the command <name>,
+  which this script does not know`: the NSIS script has a line that the NSIS parser of
+  `tools\setup_licences.py` does not understand. It stops on purpose, so that a new `File`
+  line cannot install a binary the table misses. Teach the parser the line; a command that
+  installs no file goes into `NSIS_HARMLESS`.
+
 ## After a flavour
 
 - `Test-Path 'C:\Program Files\ObjectVision\GeoDms<ver>.<f>\GeoDmsGuiQt.exe'`
@@ -146,6 +191,9 @@ for each. Do not change the priority of someone else's run unless the user asks.
 - `.g`: the launcher's summary at the end of the log reads `UNIT SUITE PASSED`,
   `TESTCASES BATTERY PASSED` and `SHIPPED CONTENT RELEASE TEST PASSED`
 - `.l`: all four files in `distr\`, and the `.deb` installed in WSL
+- the log line `setup_licences: <install dir>: <n> installed binaries, all in the table and
+  the table holds no other`, and `license.txt` and `licenses\README.txt` in the installation
+  folder (`.l`: under `/opt/ObjectVision/GeoDms<ver>.l`, with `/usr/share/doc/geodms/copyright`)
 
 ## Release tests
 
