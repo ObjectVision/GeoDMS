@@ -15,7 +15,7 @@ anything is built.
 |---|---|---|
 | `.m` Windows, msbuild | `batch\BuildSignAndCreateSetup.bat` | `GeoDms<ver>.m-Setup-x64.exe`, and the PyPI wheels `geodms-<ver>-cp3XY-cp3XY-win_amd64.whl`, one per CPython minor of `python\PythonVersions.txt` |
 | `.c` Windows, CMake | `batch\BuildSignAndCreateSetupCmake.bat` | `GeoDms<ver>.c-Setup-x64.exe` |
-| `.g` Windows, GLOBIO stack | `batch\BuildSignAndCreateSetupGlobio.bat` | `GeoDms<ver>.g-Setup-x64.exe` |
+| `.g` Windows, GLOBIO stack | `batch\BuildSignAndCreateSetupGlobio.bat` | `GeoDms<ver>.g-Setup-x64.exe`, and the PyPI wheel of the distribution geodms-globio, `geodms_globio-<ver>-cp39-cp39-win_amd64.whl` (the CPython minor of `python\PythonVersionsGlobio.txt`) |
 | `.l` Linux, WSL Ubuntu 24.04 | `batch\BuildSignAndCreateSetupLinux.bat` | `GeoDms<ver>.l-linux-x64.deb`, `.tar.gz`, `.tar.gz.sha256`, `.tar.gz.sha256.p7s` |
 
 `Build.bat` at the root runs the four in sequence. Each script builds, packages (NSIS or
@@ -240,13 +240,14 @@ gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release
   distr\GeoDms<ver>.g-Setup-x64.exe distr\GeoDms<ver>.l-linux-x64.deb distr\GeoDms<ver>.l-linux-x64.tar.gz ^
   distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256 distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256.p7s ^
   distr\geodms-<ver>-cp312-cp312-win_amd64.whl distr\geodms-<ver>-cp313-cp313-win_amd64.whl ^
-  distr\geodms-<ver>-cp314-cp314-win_amd64.whl
+  distr\geodms-<ver>-cp314-cp314-win_amd64.whl distr\geodms_globio-<ver>-cp39-cp39-win_amd64.whl
 ```
 
    A draft creates no tag; it is safe to make and to inspect. Missing an asset here means a
    new draft, not an upload later. The wheels are those of `python\PythonVersions.txt`;
    `batch\BuildSignAndCreateSetup.bat` made and tested them with the `.m` setup
-   (`tools\make-and-test-wheels.ps1`, #1355).
+   (`tools\make-and-test-wheels.ps1`, #1355), and `batch\BuildSignAndCreateSetupGlobio.bat`
+   the GLOBIO wheel with the `.g` setup (`-Flavour g`).
 2. `--target <full sha>` whenever the built commit is not the head of `main` on GitHub:
    without it the tag lands on `main` HEAD, the wrong commit. The commit must already be on
    origin (`git branch -r --contains <sha>`); if it is not, the user pushes it first. You
@@ -256,7 +257,8 @@ gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release
    do it only on the user's explicit go-ahead for this release, after they have looked at
    the draft. A pre-release is not marked Latest. A full release, published as one or turned
    from a pre-release into one, also starts `.github\workflows\pypi-upload.yml`, which
-   uploads the wheel assets of that release to the PyPI project `geodms`. A file on PyPI can
+   uploads the wheel assets of that release to PyPI: the `geodms-*` wheels to the project
+   `geodms`, and a `geodms_globio-*` wheel to the project `geodms-globio`. A file on PyPI can
    never be replaced, so say so when asking for the go-ahead of a full release; a pre-release
    stays off PyPI.
 4. Check `gh release view v<ver>` afterwards: title, target, assets, pre-release flag.

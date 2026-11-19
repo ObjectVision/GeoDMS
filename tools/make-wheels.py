@@ -5,19 +5,28 @@ geodms.cpXY-win_amd64.pyd in a package geodms, the engine DLLs it loads (found a
 delvewheel, so that they cannot clash with a DLL of the same name that another package already
 loaded), and the resource files the engine looks for next to Rtc.dll (GetExeDir).
 
-delvewheel puts the DLLs in geodms.libs, so GetExeDir points there, and the resources go there
-as well. Each wheel also carries the licence text of every vcpkg port that one of its DLLs comes
-from, in its .dist-info/licenses/third-party folder, with a table of the bundled DLLs.
+delvewheel puts the DLLs in <distribution>.libs (geodms.libs), so GetExeDir points there, and the
+resources go there as well. Each wheel also carries the licence text of every vcpkg port that one
+of its DLLs comes from, in its .dist-info/licenses/third-party folder, with a table of the bundled
+DLLs.
+
+With --flavour g it makes the wheel of the GLOBIO flavour instead: the distribution geodms-globio,
+whose package is also called geodms, from bin_GLOBIO/Release/x64, for the CPython minor of
+python/PythonVersionsGlobio.txt. That build takes GDAL, PROJ, GEOS and the libraries they use from
+the GLOBIO conda environment (vcpkg-globio/environment.yml), so the wheel carries copies of those,
+renamed like the others, and their licence texts come from that environment (--conda, default
+GLOBIO_ENV_ROOT), as in the .g setup (tools/setup_licences.py).
 
 Run it with a Python that has delvewheel and wheel installed:
 
-    python tools/make-wheels.py [--bin bin/Release/x64] [--out distr] [--python 3.12;3.13;3.14]
-                                [--version 20.26.0] [--vcpkg vcpkg_installed]
+    python tools/make-wheels.py [--flavour m|g] [--bin bin/Release/x64] [--out distr]
+                                [--python 3.12;3.13;3.14] [--version 20.26.0]
+                                [--vcpkg vcpkg_installed] [--conda C:\\dev\\globio4env]
 
 --bin may also be the folder of an installed setup, to make wheels of a published release; give
 its --version then, since the default is the version of the source tree. The licence texts and
-the port versions in the table come from --vcpkg, so that folder must hold the ports that the
-release was built with.
+the port versions in the table come from --vcpkg (and --conda), so those folders must hold the
+ports and packages that the release was built with.
 """
 import argparse
 import os
@@ -37,7 +46,39 @@ RESOURCE_FILES = ["prelude.dms", "RewriteExpr.lsp"]
 RESOURCE_TREES = ["gdaldata", "proj4data", "library"]
 RESOURCE_TOP_LEVEL_ONLY = ["examples"]
 
-SUMMARY = "GeoDMS, an open-source platform for spatial models over large grid, vector and attribute data"
+# Per flavour: the distribution name on PyPI, the build output, the vcpkg tree, the list of CPython
+# minors, the text of the PyPI page and its one-line summary, and whether the spatial libraries come
+# from the GLOBIO conda environment. The package that both install is called geodms.
+FLAVOURS = {
+    "m": {
+        "name": "geodms",
+        "bin": os.path.join("bin", "Release", "x64"),
+        "vcpkg": "vcpkg_installed",
+        "pythons": os.path.join("python", "PythonVersions.txt"),
+        "description": os.path.join("python", "pypi-description.md"),
+        "summary": "GeoDMS, an open-source platform for spatial models over large grid, vector and attribute data",
+        "conda": False,
+    },
+    "g": {
+        "name": "geodms-globio",
+        "bin": os.path.join("bin_GLOBIO", "Release", "x64"),
+        "vcpkg": "vcpkg_installed_GLOBIO",
+        "pythons": os.path.join("python", "PythonVersionsGlobio.txt"),
+        "description": os.path.join("python", "pypi-description-globio.md"),
+        "summary": "GeoDMS built against the GDAL, PROJ and GEOS of the GLOBIO 4 conda environment",
+        "conda": True,
+    },
+}
+
+# The conda packages whose versions the PyPI page of the GLOBIO flavour names, by the token in
+# python/pypi-description-globio.md that stands for each.
+CONDA_VERSION_TOKENS = {"@GDAL_VERSION@": "libgdal", "@PROJ_VERSION@": "proj", "@GEOS_VERSION@": "geos",
+                        "@PYTHON_VERSION@": "python"}
+
+
+def dist_file_name(name):
+    """The distribution name as wheel file names and the .dist-info and .libs folders spell it."""
+    return re.sub(r"[-_.]+", "_", name).lower()
 
 
 def read_version():
@@ -46,8 +87,8 @@ def read_version():
     return ".".join(parts)
 
 
-def read_python_versions():
-    return open(os.path.join(REPO, "python", "PythonVersions.txt"), encoding="utf-8").read().strip().split(";")
+def read_python_versions(flavour):
+    return open(os.path.join(REPO, flavour["pythons"]), encoding="utf-8").read().strip().split(";")
 
 
 def run(args):
@@ -126,30 +167,43 @@ def delay_only_dlls(libs_dir, pyd_path):
     return sorted(present[n] for n in delay - eager if n in present)
 
 
-DESCRIPTION = os.path.join(REPO, "python", "pypi-description.md")  # the text of the PyPI page
-
-
 def version_key(version):
     return tuple(int(p) for p in version.split("."))
 
 
-def requires_python(minors):
+def requires_python(flavour, minors):
     # PyPI keeps one Requires-Python per release, taken from the first file uploaded, and serves
     # it for every file of that release; so all wheels of a version carry the same lower bound,
-    # and the cpXY tag of each wheel is what ties it to its own Python.
+    # and the cpXY tag of each wheel is what ties it to its own Python. The GLOBIO flavour has a
+    # project of its own and one minor, that of the GLOBIO environment, so it names that minor.
+    if flavour["conda"] and len(minors) == 1:
+        return f"=={minors[0]}.*"
     lowest = min(minors, key=version_key)
     return f">={lowest}"
 
 
-def metadata(version, python_requirement, licence_files=("license.txt",)):
-    description = open(DESCRIPTION, encoding="utf-8").read()
-    if version_key(version) < version_key(FIRST_VERSION_WITH_DELAY_LOAD_HOOK):
+def description_text(flavour, version, conda):
+    description = open(os.path.join(REPO, flavour["description"]), encoding="utf-8").read()
+    if conda is not None:
+        for token, package in CONDA_VERSION_TOKENS.items():
+            if package not in conda.packages:
+                sys.exit(f"make-wheels: the conda environment {conda.root} has no package {package}")
+            description = description.replace(token, conda.packages[package][0])
+    unreplaced = re.findall(r"@[A-Z_]+@", description)
+    if unreplaced:
+        sys.exit(f"make-wheels: {flavour['description']} has tokens that nothing replaces: {', '.join(unreplaced)}")
+    if not flavour["conda"] and version_key(version) < version_key(FIRST_VERSION_WITH_DELAY_LOAD_HOOK):
         description += REFUSED_CASE
+    return description
+
+
+def metadata(flavour, version, python_requirement, conda, licence_files=("license.txt",)):
+    description = description_text(flavour, version, conda)
     return (
         "Metadata-Version: 2.4\n"
-        "Name: geodms\n"
+        f"Name: {flavour['name']}\n"
         f"Version: {version}\n"
-        f"Summary: {SUMMARY}\n"
+        f"Summary: {flavour['summary']}\n"
         "License-Expression: GPL-3.0-or-later\n"
         + "".join(f"License-File: {f}\n" for f in licence_files)
         + f"Requires-Python: {python_requirement}\n"
@@ -174,20 +228,47 @@ def metadata(version, python_requirement, licence_files=("license.txt",)):
 # stops the script, so that no library goes out without its licence text. Importing it writes no
 # tools/__pycache__ into the working copy.
 sys.dont_write_bytecode = True
-from setup_licences import GEODMS_DLLS, MSVC_RUNTIME, vcpkg_ports, write_table  # noqa: E402
+from setup_licences import (GEODMS_DLLS, MSVC_RUNTIME, CondaEnv, Problems, sha256,  # noqa: E402
+                            vcpkg_ports, write_table)
 
 DELVEWHEEL_SUFFIX = re.compile(r"-[0-9a-f]{32}(?=\.dll$)", re.IGNORECASE)  # the hash delvewheel adds
 THIRD_PARTY = "third-party"  # the folder in .dist-info/licenses with the texts of the vcpkg ports
 
 
-def add_licences(libs_dir, licences_dir, vcpkg_installed):
-    """Copy the licence texts of the vcpkg ports in the wheel into licences_dir/third-party, write
-    a table of them there, and return the new files as paths relative to licences_dir, for
-    License-File. The ports are those that a DLL in libs_dir comes from, and those without a DLL
-    of their own, whose code is compiled into the DLLs and the binding that use them."""
+def add_licences(libs_dir, licences_dir, vcpkg_installed, bin_dir, conda=None):
+    """Copy the licence texts of the vcpkg ports and conda packages in the wheel into
+    licences_dir/third-party, write a table of them there, and return the new files as paths
+    relative to licences_dir, for License-File. The ports are those that a DLL in libs_dir comes
+    from, and those without a DLL of their own, whose code is compiled into the DLLs and the
+    binding that use them. A DLL whose name both a vcpkg port and a conda package install is
+    assigned by the copy in bin_dir, the folder the wheel was made from."""
     dlls, ports = vcpkg_ports(vcpkg_installed)
+    libs_name = os.path.basename(libs_dir)
     os.makedirs(os.path.join(licences_dir, THIRD_PARTY))
     copied = {}
+    conda_folders, conda_texts = set(), []
+    problems = Problems()
+
+    def copy_conda_text(package):
+        # the licence of a conda package can be several files (GDAL's covers its parts), so each
+        # package gets a folder, and every file in it becomes a License-File
+        rel = f"{THIRD_PARTY}/conda/{package}"
+        if rel not in conda_folders:
+            conda_folders.add(rel)
+            src = conda.licence_source(package, problems)
+            if src is None:
+                return rel
+            dst = os.path.join(licences_dir, THIRD_PARTY, "conda", package)
+            if isinstance(src, list):
+                os.makedirs(dst)
+                for f in src:
+                    shutil.copyfile(f, os.path.join(dst, os.path.basename(f)))
+            else:
+                shutil.copytree(src, dst)
+            for dirpath, _, files in os.walk(dst):
+                for f in files:
+                    conda_texts.append(os.path.relpath(os.path.join(dirpath, f), licences_dir).replace(os.sep, "/"))
+        return rel
 
     def copy_text(port, key, triplet):
         if key not in copied:
@@ -203,18 +284,29 @@ def add_licences(libs_dir, licences_dir, vcpkg_installed):
         if not f.lower().endswith(".dll"):
             continue
         name = DELVEWHEEL_SUFFIX.sub("", f)
-        if name.lower() in GEODMS_DLLS:
+        lower = name.lower()
+        in_vcpkg = lower in dlls
+        in_conda = conda is not None and lower in conda.dlls
+        if in_vcpkg and in_conda:
+            in_conda = sha256(conda.dlls[lower][1]) == sha256(os.path.join(bin_dir, name))
+            in_vcpkg = not in_conda
+        if lower in GEODMS_DLLS:
             dll_rows.append((name, "GeoDMS", "", "license.txt"))
         elif MSVC_RUNTIME.fullmatch(name):
             dll_rows.append((name, "Visual C++ runtime", "", "redistributable under the Visual Studio licence terms"))
-        elif name.lower() in dlls:
-            port, version, triplet = dlls[name.lower()]
+        elif in_conda:
+            package = conda.dlls[lower][0]
+            dll_rows.append((name, f"conda {package}", conda.packages[package][0], copy_conda_text(package) + "/"))
+        elif in_vcpkg:
+            port, version, triplet = dlls[lower]
             dll_rows.append((name, port, version, copy_text(port, port, triplet)))
         else:
             unknown.append(name)
     if unknown:
+        sources = f"a vcpkg port in {vcpkg_installed}" + (f" or a conda package in {conda.root}" if conda else "")
         sys.exit(f"make-wheels: no licence known for {', '.join(unknown)}: not a GeoDMS DLL, "
-                 f"not installed by a vcpkg port in {vcpkg_installed} and not the Visual C++ runtime")
+                 f"not installed by {sources} and not the Visual C++ runtime")
+    problems.stop_if_any("copying the licence texts of the conda packages")
 
     # Ports without a DLL: header-only libraries such as Boost and pybind11, and static ones such
     # as thrift. Which of them the files of this wheel contain is not known here, so all are
@@ -232,14 +324,19 @@ def add_licences(libs_dir, licences_dir, vcpkg_installed):
         static_rows.append((key, version, copy_text(port, key, triplet)))
 
     with open(os.path.join(licences_dir, THIRD_PARTY, "README.txt"), "w", encoding="utf-8", newline="\n") as out:
-        out.write("The DLLs in geodms.libs, with the vcpkg port each was built from and the file in this\n"
-                  "licenses folder that holds its licence text. delvewheel added a hash to each name.\n\n")
-        write_table(out, ("DLL in geodms.libs", "built from", "version", "licence"), dll_rows)
+        if conda is None:
+            out.write(f"The DLLs in {libs_name}, with the vcpkg port each was built from and the file in this\n"
+                      "licenses folder that holds its licence text. delvewheel added a hash to each name.\n\n")
+        else:
+            out.write(f"The DLLs in {libs_name}, with the vcpkg port or the package of the GLOBIO conda environment\n"
+                      "each comes from, and the file or folder in this licenses folder that holds its licence\n"
+                      "text. delvewheel added a hash to each name.\n\n")
+        write_table(out, (f"DLL in {libs_name}", "comes from" if conda else "built from", "version", "licence"), dll_rows)
         out.write("\nThe vcpkg ports without a DLL of their own (header-only or static libraries), whose code\n"
                   "is compiled into the DLLs above or into the binding where these use it. Not every one of\n"
                   "them need be in this wheel. The Boost libraries share one licence text.\n\n")
         write_table(out, ("port", "version", "licence"), static_rows)
-    return [f"{THIRD_PARTY}/README.txt"] + sorted(copied.values())
+    return [f"{THIRD_PARTY}/README.txt"] + sorted(copied.values()) + sorted(conda_texts)
 
 
 def wheel_file(tag):
@@ -264,17 +361,18 @@ def copy_resources(bin_dir, libs_dir):
                 shutil.copy2(os.path.join(src, f), os.path.join(libs_dir, name, f))
 
 
-def build_one(bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, python_requirement):
+def build_one(flavour, bin_dir, out_dir, work_dir, vcpkg_installed, conda, version, minor, python_requirement):
     cp = "cp" + minor.replace(".", "")
     tag = f"{cp}-{cp}-win_amd64"
     pyd = f"geodms.{cp}-win_amd64.pyd"
     if not os.path.isfile(os.path.join(bin_dir, pyd)):
         raise FileNotFoundError(f"{pyd} is not in {bin_dir}")
+    dist = dist_file_name(flavour["name"])  # geodms or geodms_globio; the package is geodms in both
 
     # 1. the wheel as it would be without its DLLs: the package and its metadata
-    stage = os.path.join(work_dir, cp, "stage", f"geodms-{version}")
+    stage = os.path.join(work_dir, cp, "stage", f"{dist}-{version}")
     pkg = os.path.join(stage, "geodms")
-    info = os.path.join(stage, f"geodms-{version}.dist-info")
+    info = os.path.join(stage, f"{dist}-{version}.dist-info")
     os.makedirs(pkg)
     os.makedirs(os.path.join(info, "licenses"))
     shutil.copy2(os.path.join(bin_dir, pyd), os.path.join(pkg, pyd))
@@ -282,17 +380,17 @@ def build_one(bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, pytho
     with open(os.path.join(pkg, "__init__.py"), "w", encoding="utf-8", newline="\n") as f:
         f.write(INIT_PY_WITH_PRELOAD if preload_needed else INIT_PY)
     with open(os.path.join(info, "METADATA"), "w", encoding="utf-8", newline="\n") as f:
-        f.write(metadata(version, python_requirement))
+        f.write(metadata(flavour, version, python_requirement, conda))
     with open(os.path.join(info, "WHEEL"), "w", encoding="utf-8", newline="\n") as f:
         f.write(wheel_file(tag))
     shutil.copy2(os.path.join(REPO, "license.txt"), os.path.join(info, "licenses", "license.txt"))
     bare_dir = os.path.join(work_dir, cp, "bare")
     os.makedirs(bare_dir)  # wheel pack does not create its output folder
     run([sys.executable, "-m", "wheel", "pack", stage, "-d", bare_dir])
-    bare = os.path.join(bare_dir, f"geodms-{version}-{tag}.whl")
+    bare = os.path.join(bare_dir, f"{dist}-{version}-{tag}.whl")
 
     # 2. delvewheel finds the DLLs the binding needs in the output folder, delay-loaded ones
-    #    included, copies them into geodms.libs with a hash in their name, and patches the
+    #    included, copies them into <dist>.libs with a hash in their name, and patches the
     #    import tables and __init__.py to match
     repaired_dir = os.path.join(work_dir, cp, "repaired")
     run([sys.executable, "-m", "delvewheel", "repair", "--add-path", bin_dir, "-w", repaired_dir, bare])
@@ -301,16 +399,19 @@ def build_one(bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, pytho
     # 3. the resources go next to the renamed Rtc.dll, where GetExeDir looks for them
     unpack_dir = os.path.join(work_dir, cp, "unpacked")
     run([sys.executable, "-m", "wheel", "unpack", repaired, "-d", unpack_dir])
-    root = os.path.join(unpack_dir, f"geodms-{version}")
-    libs_dir = os.path.join(root, "geodms.libs")
+    root = os.path.join(unpack_dir, f"{dist}-{version}")
+    libs_dir = os.path.join(root, f"{dist}.libs")
+    if not os.path.isdir(libs_dir):
+        sys.exit(f"make-wheels: delvewheel wrote no {dist}.libs folder in {repaired}")
     copy_resources(bin_dir, libs_dir)
 
     #    and the licence texts of the bundled libraries go into the metadata (wheel pack below
     #    writes a new RECORD)
-    info_dir = os.path.join(root, f"geodms-{version}.dist-info")
-    licence_files = ["license.txt"] + add_licences(libs_dir, os.path.join(info_dir, "licenses"), vcpkg_installed)
+    info_dir = os.path.join(root, f"{dist}-{version}.dist-info")
+    licence_files = ["license.txt"] + add_licences(libs_dir, os.path.join(info_dir, "licenses"), vcpkg_installed,
+                                                   bin_dir, conda)
     with open(os.path.join(info_dir, "METADATA"), "w", encoding="utf-8", newline="\n") as f:
-        f.write(metadata(version, python_requirement, licence_files))
+        f.write(metadata(flavour, version, python_requirement, conda, licence_files))
 
     # 4. for an engine without the delay-load hook, the list of delay-loaded DLLs that __init__.py preloads
     if preload_needed:
@@ -325,14 +426,33 @@ def build_one(bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, pytho
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--bin", default=os.path.join(REPO, "bin", "Release", "x64"), help="msbuild output folder")
+    parser.add_argument("--flavour", choices=sorted(FLAVOURS), default="m",
+                        help="m: the distribution geodms; g: geodms-globio, of the GLOBIO build")
+    parser.add_argument("--bin", help="msbuild output folder (default: bin/Release/x64, or bin_GLOBIO/Release/x64 for g)")
     parser.add_argument("--out", default=os.path.join(REPO, "distr"), help="folder for the finished wheels")
-    parser.add_argument("--python", default=";".join(read_python_versions()), help="';'-separated CPython minors")
+    parser.add_argument("--python", help="';'-separated CPython minors (default: those of the flavour's list in python/)")
     parser.add_argument("--version", default=read_version(), help="package version (default: RtcVersionNumbers.h)")
     parser.add_argument("--work", default="", help="work folder (default: a temporary folder, removed afterwards)")
-    parser.add_argument("--vcpkg", default=os.path.join(REPO, "vcpkg_installed"),
-                        help="vcpkg_installed folder with the licence texts of the bundled libraries")
+    parser.add_argument("--vcpkg", help="vcpkg_installed folder with the licence texts of the bundled libraries "
+                                        "(default: vcpkg_installed, or vcpkg_installed_GLOBIO for g)")
+    parser.add_argument("--conda", help="g: the GLOBIO conda environment the build took its spatial libraries "
+                                        "from (default: GLOBIO_ENV_ROOT)")
     args = parser.parse_args()
+    flavour = FLAVOURS[args.flavour]
+    bin_dir = os.path.abspath(args.bin or os.path.join(REPO, flavour["bin"]))
+    vcpkg_installed = os.path.abspath(args.vcpkg or os.path.join(REPO, flavour["vcpkg"]))
+    minors = (args.python or ";".join(read_python_versions(flavour))).split(";")
+    conda = None
+    if flavour["conda"]:
+        # The GLOBIO build looks up GDAL in its own folder with the delay-load hook of 20.29.0, and
+        # the preload that older wheels of geodms needed instead was never written for its DLLs.
+        if version_key(args.version) < version_key(FIRST_VERSION_WITH_DELAY_LOAD_HOOK):
+            sys.exit(f"make-wheels: the GLOBIO flavour needs a build of {FIRST_VERSION_WITH_DELAY_LOAD_HOOK} or later")
+        conda_root = args.conda or os.environ.get("GLOBIO_ENV_ROOT")
+        if not conda_root or not os.path.isdir(os.path.join(conda_root, "conda-meta")):
+            sys.exit("make-wheels: the GLOBIO flavour needs the conda environment of its build, "
+                     "through --conda or GLOBIO_ENV_ROOT")
+        conda = CondaEnv(os.path.abspath(conda_root))
 
     work_dir = args.work or tempfile.mkdtemp(prefix="geodms-wheels-")
     if args.work:
@@ -345,10 +465,9 @@ def main():
         os.makedirs(work_dir, exist_ok=True)
         open(os.path.join(work_dir, WORK_MARKER), "w").close()
     try:
-        minors = args.python.split(";")
         for minor in minors:
-            print("wrote", build_one(os.path.abspath(args.bin), os.path.abspath(args.out), work_dir,
-                                     os.path.abspath(args.vcpkg), args.version, minor, requires_python(minors)))
+            print("wrote", build_one(flavour, bin_dir, os.path.abspath(args.out), work_dir, vcpkg_installed, conda,
+                                     args.version, minor, requires_python(flavour, minors)))
     finally:
         if not args.work:
             shutil.rmtree(work_dir, ignore_errors=True)

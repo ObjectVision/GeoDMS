@@ -1,16 +1,19 @@
 # Uploads the geodms wheels of a full GeoDMS release to PyPI (#1355).
 #
-# batch\BuildSignAndCreateSetup.bat builds and tests the wheels together with the .m setup, and the
-# gh release create command of the geodms-release skill attaches them to the GitHub release with the
-# setups. When a release is published that is not a pre-release, or a pre-release is turned into a
-# release, this workflow downloads the wheel assets of that release and uploads them to the PyPI
-# project geodms through trusted publishing: PyPI trusts this workflow file of ObjectVision/GeoDMS in
-# the environment pypi, so no token is stored anywhere.
+# batch\BuildSignAndCreateSetup.bat builds and tests the wheels together with the .m setup, and
+# batch\BuildSignAndCreateSetupGlobio.bat the wheel of the GLOBIO flavour (geodms_globio-*.whl)
+# together with the .g setup; the gh release create command of the geodms-release skill attaches
+# them to the GitHub release with the setups. When a release is published that is not a pre-release,
+# or a pre-release is turned into a release, this workflow downloads the wheel assets of that
+# release and uploads them through trusted publishing: the geodms wheels to the PyPI project geodms,
+# and the GLOBIO wheel, when the release has one, to the project geodms-globio. PyPI trusts this
+# workflow file of ObjectVision/GeoDMS in the environment pypi, so no token is stored anywhere.
 #
-# Two settings outside this repository make that work. On PyPI, the project geodms has a trusted
-# publisher with owner ObjectVision, repository GeoDMS, workflow pypi-upload.yml and environment
-# pypi. On GitHub, the repository has an environment called pypi (Settings, Environments), which
-# can require that someone approves each run.
+# Two settings outside this repository make that work. On PyPI, the projects geodms and
+# geodms-globio each have a trusted publisher with owner ObjectVision, repository GeoDMS, workflow
+# pypi-upload.yml and environment pypi (for a project that does not exist yet, a pending publisher,
+# which the first upload turns into a project). On GitHub, the repository has an environment called
+# pypi (Settings, Environments), which can require that someone approves each run.
 #
 # A file on PyPI can never be replaced, not even after deleting it. A wheel that turns out wrong is
 # yanked, or repaired by a wheel with a build number in its file name.
@@ -43,6 +46,7 @@ jobs:
       id-token: write # for trusted publishing
     steps:
       - name: Download the wheels of the release
+        id: download
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -53,12 +57,18 @@ jobs:
             echo "::error::$TAG is a pre-release or a draft; only full releases go to PyPI"
             exit 1
           fi
-          mkdir dist
+          mkdir dist dist-globio
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'geodms-*.whl' --dir dist
           ls -l dist
           if ! ls dist/geodms-*.whl > /dev/null 2>&1; then
             echo "::error::$TAG has no geodms-*.whl assets"
             exit 1
+          fi
+          # The GLOBIO wheel is optional: a release without a .g setup has none.
+          n_globio=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name | select(startswith("geodms_globio-") and endswith(".whl"))] | length')
+          if [ "$n_globio" -gt 0 ]; then
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'geodms_globio-*.whl' --dir dist-globio
+            ls -l dist-globio
           fi
           version="${TAG#v}"
           for f in dist/*.whl; do
@@ -67,9 +77,25 @@ jobs:
               *) echo "::error::$f is not a wheel of version $version"; exit 1 ;;
             esac
           done
+          globio=false
+          for f in dist-globio/*.whl; do
+            [ -e "$f" ] || continue
+            case "$(basename "$f")" in
+              "geodms_globio-$version-"*) globio=true ;;
+              *) echo "::error::$f is not a GLOBIO wheel of version $version"; exit 1 ;;
+            esac
+          done
+          echo "globio=$globio" >> "$GITHUB_OUTPUT"
 
       - name: Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
           skip-existing: true # a retry after a partial upload
+
+      - name: Upload the GLOBIO wheel to PyPI
+        if: steps.download.outputs.globio == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist-globio
+          skip-existing: true
