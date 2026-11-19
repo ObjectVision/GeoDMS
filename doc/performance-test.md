@@ -1362,7 +1362,11 @@ the section above (2026-10-21 04:33 to 06:22, no other load), and 214 and 213 s 
 more. Between the two lie the Windows update with its restart and, during this A/B, a Remote Desktop session (its
 host 867 s and `dllhost` 359 s of CPU). The session alone can account for it: the 20.25.0.c round took 3:48 for t101
 in the hour that it shared with such a session, before the update, against 190 s the morning after without one.
-Which of the two it is has not been separated; the session was still connected at the end of the A/B.
+Which of the two it is has not been separated; the session was still connected at the end of the A/B. The A/B of
+2026-10-31 (pre-release v20.28.0, below), after the update and without a session, rules out a lasting loss: t405.1,
+level across builds in every A/B, took 209 to 212 s there, inside the 203 to 215 s of the A/Bs before the update. So
+the 9 to 12 % belonged to that one sitting, most likely to its session; it does not separate the session from the
+ordinary drift between sittings (added 2026-11-19).
 
 ### t405.2 and t405.3 on `.l`, rerun with 48 GB for WSL
 
@@ -1395,8 +1399,9 @@ Duration and peak rss / vms of the harness's sampler:
 
 Both ran to the end, their indicator steps too, and the `result.json` of t405.2 and of t405.3 is byte for byte the
 one of 20.26.0.m. The report gives the `.l` column 21 `ok`, t641.x, t2000 and the GUI tests not run, header
-1:37:20. The rerun is 7 to 10 % slower than 20.19.3.l, which ran in the Cicada account's distro before the Windows
-update of 2026-10-21, after which this machine runs the same binary 9 to 12 % slower (above): no build comparison.
+1:37:20. The rerun is 7 to 10 % slower than 20.19.3.l, which ran in the Cicada account's distro, another WSL VM: no build
+comparison. (Until 2026-11-19 this said that the machine runs the same binary 9 to 12 % slower since the Windows update
+of 2026-10-21; that loss belonged to one sitting, most likely to its Remote Desktop session, see above.)
 
 ### t2000 on `.c`: 93 to 96 GB of commit is the level of the run, not of the flavour
 
