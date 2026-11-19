@@ -96,9 +96,11 @@ FLAVOURS = {
 }
 OS_CLASSIFIER = {"win32": "Microsoft :: Windows", "linux": "POSIX :: Linux"}
 
-# The largest wheel PyPI accepts without a limit raised for the project: its default upload limit
-# per file, 100 MiB. A larger wheel stops the script, because the upload of the release would fail
-# on it. Raise this value once PyPI has granted the project a higher limit.
+# The largest wheel this script lets through: 100 MiB, the upload limit per file that PyPI sets for
+# a project outside an organisation. A larger wheel stops the script, because the upload of the
+# release could fail on it. The projects of an organisation, as geodms is, get twice that by default
+# (Project.upload_limit_size in warehouse), and PyPI can grant a project more. Raise this value
+# once pypi.org shows a higher limit for every project that the wheels of a flavour go to.
 PYPI_FILE_LIMIT_BYTES = 100 * 1024 * 1024
 
 # The processor of the Linux build (preset linux-x64-release), as the module names and tags spell it.

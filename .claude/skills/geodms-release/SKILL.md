@@ -16,7 +16,7 @@ anything is built.
 | `.m` Windows, msbuild | `batch\BuildSignAndCreateSetup.bat` | `GeoDms<ver>.m-Setup-x64.exe`, and the PyPI wheels `geodms-<ver>-cp3XY-cp3XY-win_amd64.whl`, one per CPython minor of `python\PythonVersions.txt` |
 | `.c` Windows, CMake | `batch\BuildSignAndCreateSetupCmake.bat` | `GeoDms<ver>.c-Setup-x64.exe` |
 | `.g` Windows, GLOBIO stack | `batch\BuildSignAndCreateSetupGlobio.bat` | `GeoDms<ver>.g-Setup-x64.exe`, and the PyPI wheel of the distribution geodms-globio, `geodms_globio-<ver>-cp39-cp39-win_amd64.whl` (the CPython minor of `python\PythonVersionsGlobio.txt`) |
-| `.l` Linux, WSL Ubuntu 24.04 | `batch\BuildSignAndCreateSetupLinux.bat` | `GeoDms<ver>.l-linux-x64.deb`, `.tar.gz`, `.tar.gz.sha256`, `.tar.gz.sha256.p7s` |
+| `.l` Linux, WSL Ubuntu 24.04 | `batch\BuildSignAndCreateSetupLinux.bat` | `GeoDms<ver>.l-linux-x64.deb`, `.tar.gz`, `.tar.gz.sha256`, `.tar.gz.sha256.p7s`, and the PyPI wheels `geodms-<ver>-cp3XY-cp3XY-manylinux_2_39_x86_64.whl`, one per CPython minor of `python\PythonVersions.txt` |
 
 `Build.bat` at the root runs the four in sequence. Each script builds, packages (NSIS or
 `nsi\CreateLinuxSetup.sh`), signs with the SafeNet token, installs to
@@ -240,14 +240,23 @@ gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release
   distr\GeoDms<ver>.g-Setup-x64.exe distr\GeoDms<ver>.l-linux-x64.deb distr\GeoDms<ver>.l-linux-x64.tar.gz ^
   distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256 distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256.p7s ^
   distr\geodms-<ver>-cp312-cp312-win_amd64.whl distr\geodms-<ver>-cp313-cp313-win_amd64.whl ^
-  distr\geodms-<ver>-cp314-cp314-win_amd64.whl distr\geodms_globio-<ver>-cp39-cp39-win_amd64.whl
+  distr\geodms-<ver>-cp314-cp314-win_amd64.whl distr\geodms_globio-<ver>-cp39-cp39-win_amd64.whl ^
+  distr\geodms-<ver>-cp312-cp312-manylinux_2_39_x86_64.whl distr\geodms-<ver>-cp313-cp313-manylinux_2_39_x86_64.whl ^
+  distr\geodms-<ver>-cp314-cp314-manylinux_2_39_x86_64.whl
 ```
 
    A draft creates no tag; it is safe to make and to inspect. Missing an asset here means a
    new draft, not an upload later. The wheels are those of `python\PythonVersions.txt`;
-   `batch\BuildSignAndCreateSetup.bat` made and tested them with the `.m` setup
-   (`tools\make-and-test-wheels.ps1`, #1355), and `batch\BuildSignAndCreateSetupGlobio.bat`
-   the GLOBIO wheel with the `.g` setup (`-Flavour g`).
+   `batch\BuildSignAndCreateSetup.bat` made and tested the Windows ones with the `.m` setup
+   (`tools\make-and-test-wheels.ps1`, #1355), `batch\BuildSignAndCreateSetupGlobio.bat`
+   the GLOBIO wheel with the `.g` setup (`-Flavour g`), and
+   `batch\BuildSignAndCreateSetupLinux.bat` the Linux ones with the `.l` setup
+   (`tools/make-and-test-wheels.sh`). A Linux wheel of 20.29.0 measured 90.6 MiB.
+   `tools\make-wheels.py` stops on a wheel over 100 MiB, the limit per file that PyPI sets
+   for a project outside an organisation. The project geodms belongs to the PyPI
+   organisation Object Vision, whose projects get twice that by default (`upload_limit_size`
+   in warehouse's `packaging/models.py`), so a larger wheel can be allowed by raising the
+   limit in the script, after checking the limit that pypi.org shows for the project.
 2. `--target <full sha>` whenever the built commit is not the head of `main` on GitHub:
    without it the tag lands on `main` HEAD, the wrong commit. The commit must already be on
    origin (`git branch -r --contains <sha>`); if it is not, the user pushes it first. You
