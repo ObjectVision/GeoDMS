@@ -135,8 +135,9 @@ def run(args, env=None):
 PRELOAD_LIST = "delay-preload.txt"
 WORK_MARKER = ".made-by-make-wheels"
 
-# From this release on, Clc, Geo and Stg have a delay-load hook (rtc/dll/src/utl/DelayLoadFromOwnFolder.h)
-# that loads GDAL from their own folder, geodms.libs in a wheel, and the binding's GDAL check leaves a
+# From this release on, the DLLs that delay-load GDAL (Clc, Geo and Stg in 20.29.0, Stg alone since #1381)
+# have a delay-load hook (rtc/dll/src/utl/DelayLoadFromOwnFolder.h) that loads GDAL from their own
+# folder, geodms.libs in a wheel, and the binding's GDAL check leaves a
 # gdal.dll that another package loaded alone in a wheel. The wheels of an older release, made from its
 # installed setup, need the preload in INIT_PY_WITH_PRELOAD instead, and their PyPI page says what
 # that check refuses (REFUSED_CASE).

@@ -7,9 +7,9 @@
 #ifndef __RTC_UTL_DELAYLOADFROMOWNFOLDER_H
 #define __RTC_UTL_DELAYLOADFROMOWNFOLDER_H
 
-// The delay-load hook of a DLL that delay-loads another DLL: Clc, Geo and Stg delay-load GDAL
-// (DelayLoadDLLs in their .vcxproj). Include this header in exactly one source file of each such
-// DLL; it defines that DLL's __pfnDliNotifyHook2.
+// The delay-load hook of a DLL that delay-loads another DLL: Stg delay-loads GDAL (DelayLoadDLLs
+// in its .vcxproj), and Clc and Geo reach GDAL only through Stg (#1381). Include this header in
+// exactly one source file of each such DLL; it defines that DLL's __pfnDliNotifyHook2.
 //
 // The hook loads a delay-loaded DLL from the folder of the DLL that imports it, when the file is
 // there, instead of through the default search order of the delay-load helper (the folder of the

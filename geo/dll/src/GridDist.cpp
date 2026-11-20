@@ -13,10 +13,9 @@
 
 #include <numbers> // std::numbers
 
-#include "gdal/gdal_base.h" 
+#include "gdal/gdal_base.h" // ReadGeographicSpatialRef: DmGeo calls no GDAL function itself (#1381)
 
 #include <proj.h>
-#include <ogr_spatialref.h>
 
 #include "Dijkstra.h"
 
@@ -26,7 +25,6 @@
 #include "vt/RangeIndex.h"
 #include "ParallelTiles.h"
 #include "geom/PointOrder.h"
-#include "utl/scoped_exit.h"
 
 #include "Projection.h"
 
@@ -324,25 +322,19 @@ public:
 
 			GDAL_ErrorFrame errorFrame;
 
-			OGRSpatialReference sr;
-			auto errCode = sr.SetFromUserInput(SharedStr(srToken).c_str());
+			auto sr = ReadGeographicSpatialRef(SharedStr(srToken).c_str()); // also gives its PROJ.4 form
 			errorFrame.ThrowUpWhateverCameUp();
-			if (errCode != OGRERR_NONE)
-				throwErrorF(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted; ErrorCode={}", errCode);
+			if (sr.readResult != OGRERR_NONE)
+				throwErrorF(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted; ErrorCode={}", sr.readResult);
 
-			if (not(sr.IsGeographic()))
+			if (not(sr.isGeographic))
 				throwErrorD(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument must be geographic");
-
-			// Export to PROJ String
-			char* projString = nullptr;
-			sr.exportToProj4(&projString);
-			scoped_exit se([&projString] { CPLFree(projString); }); // Free the PROJ string memory when leaving the scope
 
 			// Step 3: Create a PJ object
 			auto ctx  = std::unique_ptr<PJ_CONTEXT, ProjContextDeleter>(proj_context_create()); // Create a PJ_CONTEXT object
 			errorFrame.m_ctx = ctx.get();
 
-			auto proj = std::unique_ptr<PJ, ProjDeleter>               (proj_create(ctx.get(), projString)); // Create a PJ object from the PROJ string
+			auto proj = std::unique_ptr<PJ, ProjDeleter>               (proj_create(ctx.get(), sr.proj4.c_str())); // Create a PJ object from the PROJ string
 			errorFrame.ThrowUpWhateverCameUp();
 
 			if (!proj)

@@ -253,7 +253,10 @@ gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release
    (`tools\make-and-test-wheels.ps1`, #1355), `batch\BuildSignAndCreateSetupGlobio.bat`
    the GLOBIO wheel with the `.g` setup (`-Flavour g`), and
    `batch\BuildSignAndCreateSetupLinux.bat` the Linux ones with the `.l` setup
-   (`tools/make-and-test-wheels.sh`). A Linux wheel of 20.29.0 measured 90.6 MiB.
+   (`tools/make-and-test-wheels.sh`). Its last step tests a Linux wheel next to the osgeo of
+   Ubuntu's `python3-gdal` (#1381); without that package in WSL the step is skipped and the
+   log has a line `*** NOT TESTED next to another GDAL`, so install it on the build machine.
+   A Linux wheel of 20.29.0 measured 90.6 MiB, one of 20.30.0 77.2 MiB.
    `tools\make-wheels.py` stops on a wheel over 100 MiB, the limit per file that PyPI sets
    for a project outside an organisation. The project geodms belongs to the PyPI
    organisation Object Vision, whose projects get twice that by default (`upload_limit_size`

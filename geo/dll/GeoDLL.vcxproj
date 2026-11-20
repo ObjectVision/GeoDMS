@@ -55,13 +55,6 @@
     <Link>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
-    <Link>
-      <DelayLoadDLLs Condition="'$(GeoDmsGlobio)' != 'true' and '$(Configuration)|$(Platform)'=='Debug|x64'">gdald.dll</DelayLoadDLLs>
-      <DelayLoadDLLs Condition="'$(GeoDmsGlobio)' != 'true' and '$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll</DelayLoadDLLs>
-      <DelayLoadDLLs Condition="'$(GeoDmsGlobio)' == 'true' and '$(Platform)'=='x64'">gdal301.dll</DelayLoadDLLs>
-    </Link>
-  </ItemDefinitionGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
       <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>

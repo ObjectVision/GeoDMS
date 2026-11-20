@@ -66,26 +66,21 @@
 
 void OGRCheck(OGRSpatialReference* ref, OGRErr result, CharPtr format, const AbstrUnit* au);
 const AbstrUnit* CompositeBase(const AbstrUnit* proj);
-bool ProjectionIsColFirst(OGRSpatialReference& srs);
 
 extern leveled_critical_section cs_SpatialRefBlockCreation;
 
 // *****************************************************************************
-//			SpatialRefBlock (defined in OperConv.cpp)
+//			SpatialRefBlock
 // *****************************************************************************
 
+// The GDAL part, the two spatial references and the transformation between them, is the base
+// SpatialRefTransformation in DmStg (gdal_base.h): DmClc calls no GDAL function itself (#1381).
 // NB there is deliberately no pj_ctx member here. One used to be created and destroyed with the
 // block but never passed to anything -- CreateTransformer uses GDAL's own thread-local PROJ
 // context. It was pure cost, and a thread-affine object that a shared MappingState could end up
 // destroying on a different thread than the one that created it.
-struct SpatialRefBlock : SharedBase, gdalComponent
+struct SpatialRefBlock : SharedBase, SpatialRefTransformation
 {
-	OGRSpatialReference          m_Src, m_Dst;
-	OGRCoordinateTransformation* m_Transformer = nullptr;
-
-	SpatialRefBlock();
-	~SpatialRefBlock();
-	void CreateTransformer();
 	void Release() const { delete this; }
 
 	// #298: may the src -> dst map be coordinate separable, i.e. is the transformed x a function
@@ -311,8 +306,8 @@ struct Type2DConversion : unary_func<TR, TA>
 						srcUnit->GetFullName(), resUnit->GetFullName());
 				}
 
-				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit);
-				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit);
+				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->SetSrcFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit);
+				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->SetDstFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit);
 				m_OgrComponentHolder->CreateTransformer();
 				m_Source_is_expected_to_be_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Src);
 				m_Projection_is_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Dst);
@@ -361,7 +356,7 @@ struct Type2DConversion : unary_func<TR, TA>
 			resX[i] = rescaledA.first;
 			resY[i] = rescaledA.second;
 		}
-		if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr, successFlags))
+		if (!m_OgrComponentHolder->Transform(s, resX, resY, successFlags))
 		{
 			if (s > 1)
 			{
@@ -381,7 +376,7 @@ struct Type2DConversion : unary_func<TR, TA>
 				rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
 				resX[i] = rescaledA.first;
 				resY[i] = rescaledA.second;
-				if (!m_OgrComponentHolder->m_Transformer->Transform(1, resX + i, resY + i, nullptr, successFlags + i))
+				if (!m_OgrComponentHolder->Transform(1, resX + i, resY + i, successFlags + i))
 				{
 					Assign(*ri, Undefined());
 					continue;

@@ -23,8 +23,6 @@
 #include "AbstrUnit.h"
 #include "SessionData.h"
 
-#include "utl/DelayLoadFromOwnFolder.h" // Clc's delay-load hook for GDAL, defined once per DLL
-
 
 CLC_CALL void DMS_CONV DMS_Clc_Load()
 {

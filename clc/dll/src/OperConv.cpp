@@ -124,34 +124,7 @@ const AbstrUnit* CompositeBase(const AbstrUnit* proj)
 	return res;
 }
 
-bool ProjectionIsColFirst(OGRSpatialReference& srs)
-{
-	OGRAxisOrientation PROJCS_peOrientation;
-	OGRAxisOrientation GEOGCS_peOrientation;
-	srs.GetAxis("PROJCS", 0, &PROJCS_peOrientation);
-	srs.GetAxis("GEOGCS", 0, &GEOGCS_peOrientation);
-	bool projection_is_col_first = PROJCS_peOrientation == OGRAxisOrientation::OAO_East || GEOGCS_peOrientation == OGRAxisOrientation::OAO_East || PROJCS_peOrientation == OGRAxisOrientation::OAO_West || GEOGCS_peOrientation == OGRAxisOrientation::OAO_West;
-	return projection_is_col_first;
-}
-
 leveled_critical_section cs_SpatialRefBlockCreation(item_level_type(0), ord_level_type::SpecificOperator, "SpatialRefBlock");
-
-SpatialRefBlock::SpatialRefBlock()
-{}
-
-SpatialRefBlock::~SpatialRefBlock()
-{
-	if (m_Transformer)
-		OGRCoordinateTransformation::DestroyCT(m_Transformer);
-}
-
-void SpatialRefBlock::CreateTransformer()
-{
-	assert(!m_Transformer);
-	OGRCoordinateTransformationOptions options;
-	CPLSetConfigOption("OGR_CT_OP_SELECTION", "BEST_ACCURACY");
-	m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst, options);
-}
 
 // *****************************************************************************
 //			AsDataStr OPERATOR

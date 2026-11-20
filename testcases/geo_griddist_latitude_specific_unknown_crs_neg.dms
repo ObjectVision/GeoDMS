@@ -1,0 +1,20 @@
+// griddist_latitude_specific on a grid whose spatial reference GDAL cannot read must fail with the
+// error of PROJ (#1381). See geo_griddist_latitude_specific for the positive case. The PROJ 9 of
+// the regular builds names the code after "crs not found", the PROJ 8 of the GLOBIO build does not.
+// EXPECT-FAILURE: proj_create_from_database: crs not found
+container geo_griddist_latitude_specific_unknown_crs_neg
+{
+	unit<dpoint> bad_base : SpatialReference = "EPSG:999999";
+	unit<spoint> G := range(gridset(bad_base, point_yx(0.1, 0.1, bad_base), point_yx(50.0, 4.0, bad_base), spoint), point_yx(0s, 0s), point_yx(4s, 4s));
+	attribute<float64> imp (G) := const(1.0, G);
+	unit<uint32> Dest: nrofrows = 1
+	{
+		attribute<G> loc: ['{0, 0}'];
+	}
+	attribute<float64> att (G) := griddist_latitude_specific(imp, Dest/loc);
+
+	container checks
+	{
+		parameter<bool> c := sum(att) >= 0.0, IntegrityCheck = "c == true";
+	}
+}

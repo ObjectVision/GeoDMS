@@ -1,0 +1,33 @@
+// griddist with a latitude factor on a grid in EPSG:4326 (#1381). The factor per row comes from the
+// spatial reference of the grid, which DmGeo reads through ReadGeographicSpatialRef of DmStg
+// (stg/dll/src/gdal/gdal_base.h), and from PROJ's scale factors. At about 50 degrees north a
+// horizontal step costs about cos(50 degrees) = 0.644 and a vertical step 1.0. The sum pins the
+// values as GDAL 3.12 and PROJ 9 give them, and the GDAL 3.1 and PROJ 8 of the GLOBIO build agree
+// within its tolerance; the variants must give the same as the plain form.
+// The negatives geo_griddist_latitude_specific_projected_neg and _unknown_crs_neg pin the errors.
+container geo_griddist_latitude_specific
+{
+	unit<dpoint> wgs_base : SpatialReference = "EPSG:4326";
+	unit<spoint> GW := range(gridset(wgs_base, point_yx(0.1, 0.1, wgs_base), point_yx(50.0, 4.0, wgs_base), spoint), point_yx(0s, 0s), point_yx(4s, 4s));
+	attribute<float64> imp (GW) := const(1.0, GW);
+	unit<uint32> Dest: nrofrows = 1
+	{
+		attribute<GW> loc: ['{0, 0}'];
+	}
+	attribute<uint16> zconstW (GW) := const(0w, GW, uint16);
+
+	attribute<float64> att     (GW) := griddist_latitude_specific(imp, Dest/loc);
+	attribute<float64> untiled (GW) := griddist_untiled_latitude_specific(imp, Dest/loc);
+	attribute<float64> maximp  (GW) := griddist_maximp_latitude_specific(imp, Dest/loc, 100.0);
+	attribute<float64> zonal   (GW) := griddist_zonal_latitude_specific(imp, Dest/loc, zconstW, 10.0);
+
+	container checks
+	{
+		parameter<bool> c_values := att[point_yx(0s, 0s)] = 0.0 && abs(att[point_yx(0s, 1s)] - 0.644) < 0.01 && att[point_yx(1s, 0s)] = 1.0
+		,	IntegrityCheck = "c_values == true";
+		parameter<bool> c_sum := abs(sum(att) - 33.07827888) < 1e-6
+		,	IntegrityCheck = "c_sum == true";
+		parameter<bool> c_variants := all(untiled == att) && all(maximp == att) && all(zonal == att)
+		,	IntegrityCheck = "c_variants == true";
+	}
+}

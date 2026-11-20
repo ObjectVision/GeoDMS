@@ -25,7 +25,9 @@ find_package(PROJ CONFIG)
 
 target_link_libraries(DmClc PUBLIC DmRtc DmStx DmStg)
 if(GDAL_FOUND)
-    target_link_libraries(DmClc PRIVATE GDAL::GDAL)
+    # GDAL's headers only: DmClc calls GDAL through the functions of DmStg in gdal/gdal_base.h,
+    # because DmStg holds the engine's only GDAL (#1381).
+    target_include_directories(DmClc SYSTEM PRIVATE $<TARGET_PROPERTY:GDAL::GDAL,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 if(PROJ_FOUND)
     target_link_libraries(DmClc PRIVATE PROJ::proj)

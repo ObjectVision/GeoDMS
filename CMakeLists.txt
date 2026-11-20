@@ -120,6 +120,17 @@ else()
                                      # switch (often assert-guarded); not forgotten cases
     )
     add_link_options(-pthread)
+    # No library, module or program of GeoDMS exports anything of the static libraries linked
+    # into it: GDAL, PROJ, GEOS, OpenSSL, HDF5, libtiff, libjpeg and the others that the vcpkg
+    # triplet x64-linux compiles in. Each binds its calls to them to its own copy, so a library of
+    # the same name that the process already has in its global scope, such as the GDAL of osgeo
+    # or QGIS, or the system libjpeg of Qt's image plugins, neither receives the engine's calls nor
+    # has its own calls diverted into the engine (#1381). The engine has one GDAL, in DmStg; DmClc
+    # and DmGeo reach it through the functions of DmStg in stg/dll/src/gdal/gdal_base.h.
+    # Not covered: inline functions from the headers of those libraries that the engine's own
+    # code compiles keep the default visibility and stay exported, such as a few of GEOS in DmGeo
+    # and OGRSimpleCurve::getNumPoints in DmStg.
+    add_link_options(-Wl,--exclude-libs,ALL)
     # GCC/Clang Debug builds: define _DEBUG to match MSVC convention,
     # which triggers MG_DEBUG in RtcBase.h for debug-only diagnostics.
     add_compile_definitions($<$<CONFIG:Debug>:_DEBUG>)

@@ -174,9 +174,10 @@ namespace py_geodms
 #endif
 		}
 #else
-		// The Linux build links GDAL statically into the engine libraries (vcpkg triplet x64-linux),
-		// so there is no shared GDAL that another package could have loaded in its place, and
-		// nothing to check (#1355).
+		// The Linux build links GDAL statically into DmStg (vcpkg triplet x64-linux) and hides the
+		// symbols of every static library it links (-Wl,--exclude-libs,ALL), so DmStg calls
+		// its own GDAL, also when another package, such as osgeo, put its GDAL in the global symbol
+		// scope of the process before geodms was imported (#1381). There is nothing to check.
 		void CheckBundledGdalIsActive() {}
 #endif
 	}

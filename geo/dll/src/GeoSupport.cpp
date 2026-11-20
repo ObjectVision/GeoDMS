@@ -18,8 +18,6 @@
 #include "StgBase.h"
 #include "TicInterface.h"
 
-#include "utl/DelayLoadFromOwnFolder.h" // Geo's delay-load hook for GDAL, defined once per DLL
-
 GEO_CALL void DMS_CONV DMS_Geo_Load()
 {
 }

@@ -16,6 +16,11 @@
 #    3.13 and 3.14 come from the deadsnakes PPA), made on the Linux file system, and
 #    python/tst/UnitTests.py --installed must pass there with GEODMS_PYDIR and LD_LIBRARY_PATH unset,
 #    so that only the wheel can supply the engine.
+# 5. The wheel for the Python of the system (/usr/bin/python3) is installed once more, in a venv
+#    made with --system-site-packages so that it sees the system's osgeo (on Ubuntu python3-gdal,
+#    with Ubuntu's GDAL), and python/tst/LinuxGdalCompatibility.py --installed must pass there in
+#    its four import orders, the one that loads osgeo with RTLD_GLOBAL included (#1381). Without an
+#    osgeo the step is skipped, with a line that says so.
 #
 # Stops with exit code 1 at the first failure.
 set -euo pipefail
@@ -37,6 +42,8 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TOOLS_FILE=$REPO/python/wheel-tools.txt
 MAKE_WHEELS=$REPO/tools/make-wheels.py
 TEST_SCRIPT=$REPO/python/tst/UnitTests.py
+GDAL_TEST=$REPO/python/tst/LinuxGdalCompatibility.py
+SYSTEM_PYTHON=/usr/bin/python3
 TOOL_VENV=$HOME/.local/share/ObjectVision/GeoDMS/wheel-tools
 TEST_ROOT=$(mktemp -d -t geodms-wheel-test-XXXXXX)
 STARTED=$SECONDS
@@ -80,5 +87,24 @@ for i in "${!MINORS[@]}"; do
     "$venv/bin/python" -m pip install --quiet --no-deps --no-index "${WHEELS[$i]}"
     (cd "$TEST_ROOT" && "$venv/bin/python" -I -u "$TEST_SCRIPT" --installed)
 done
+
+# 5. next to the GDAL of osgeo (#1381)
+system_minor=$("$SYSTEM_PYTHON" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || true)
+osgeo_tested=0
+if [ -n "$system_minor" ] && "$SYSTEM_PYTHON" -c 'import osgeo' 2>/dev/null; then
+    for i in "${!MINORS[@]}"; do
+        [ "${MINORS[$i]}" = "$system_minor" ] || continue
+        venv=$TEST_ROOT/venv_osgeo
+        "$SYSTEM_PYTHON" -m venv --system-site-packages "$venv"
+        "$venv/bin/python" -m pip install --quiet --no-deps --no-index "${WHEELS[$i]}"
+        for order in osgeo-global-first geodms-first-osgeo-global osgeo-first geodms-first; do
+            (cd "$TEST_ROOT" && "$venv/bin/python" -I -u "$GDAL_TEST" "$order" --installed)
+        done
+        osgeo_tested=1
+    done
+fi
+if [ $osgeo_tested -eq 0 ]; then
+    echo "*** NOT TESTED next to another GDAL (#1381): $SYSTEM_PYTHON has no osgeo, or is not one of the Python versions of the wheels; on Ubuntu: sudo apt install python3-gdal ***"
+fi
 
 echo "=== wheels of $VERSION built and tested in $((SECONDS - STARTED)) s: ${WHEELS[*]} ==="

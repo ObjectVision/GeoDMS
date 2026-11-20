@@ -75,7 +75,7 @@ bool TransformPointRun(Type2DConversion<TR, TA>& functor, SrcGen&& gen, SizeT n,
 			resX[i] = rescaledA.first;
 			resY[i] = rescaledA.second;
 		}
-		if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr, successFlags))
+		if (!functor.m_OgrComponentHolder->Transform(s, resX, resY, successFlags))
 		{
 			fast_fill(successFlags, successFlags + s, 0);
 			everyBlockTransformed = false;
