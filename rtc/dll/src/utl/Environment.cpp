@@ -487,7 +487,8 @@ SharedStr GetCurrentDir()
 void SetCurrentDir(CharPtr dir)
 {
 	auto dirW = Utf8_2_wchar(dir);
-	SetCurrentDirectoryW(dirW.get());
+	if (!SetCurrentDirectoryW(dirW.get()))
+		throwLastSystemError("the folder '{}' cannot be made the current folder", dir);
 }
 
 void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOID res)

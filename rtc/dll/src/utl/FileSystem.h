@@ -82,7 +82,10 @@ bool   HasDosDelimiters(CharPtr source);
 bool   HasDosDelimiters(CharPtrRange source);
 bool   IsRelative(CharPtr source);
 
-extern "C" RTC_CALL void DMS_CONV SetCurrentDir(CharPtr dir);
+// Throws when dir cannot be made the current folder, naming the folder and the reason the system
+// gives. That is why it has C++ linkage: under /EHsc a function declared extern "C" is assumed not
+// to throw, and its caller then has no unwind coverage for the call (#1340).
+RTC_CALL void SetCurrentDir(CharPtr dir);
 
 Int32     GetConfigKeyValue (WeakStr configFileName, CharPtr sectionName, CharPtr keyName, Int32   defaultValue);
 SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue);

@@ -1671,6 +1671,9 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
         m_dms_model->setRoot(nullptr);
         setCurrentTreeItem(nullptr);
         auto x = catchException(false);
+        // The dialog below shows the error but does not log it. Reported as well, it reaches the
+        // event log and the session log, which is all that a run with /T and /L leaves behind.
+        reportF(MsgCategory::other, SeverityTypeID::ST_Error, "The configuration {} could not be loaded: {}", configFilePath, x->GetAsText().c_str());
         bool reloadSucceeded = reportErrorAndAskToReload(x);
         if (!reloadSucceeded)
             return false;
