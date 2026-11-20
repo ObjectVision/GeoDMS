@@ -210,21 +210,23 @@ regenerating its reference from the regressing build.
 Write `doc\release-notes\release-notes-<ver>.md` and commit it. They used to be written beside
 the setups in `distr\`, which is line 1 of `.gitignore`, so "commit it" was impossible and no
 notes file was ever in version control; the fourteen that existed moved to `doc\` in one go. The
-baseline is the last published
-GitHub release, not the last built version: `gh release list` shows it, and interim builds
-in `distr\` are often never published (20.13 to 20.15 were built and skipped; 20.16.0's notes
-covered everything since 20.12.0). Read the previous notes and the commits since that tag
-(`git log v<prev>..HEAD --format='%h %s'`), and describe net-new work only, checked against
-the previous notes when branches have diverged.
+baseline is the latest full release, the one `gh release list` marks Latest, not the last
+built version: interim builds in `distr\` are often never published (20.13 to 20.15 were built
+and skipped; 20.16.0's notes covered everything since 20.12.0). The notes of a pre-release
+also cover everything since that full release, the pre-releases in between included, and mark
+what is new since the previous pre-release with *(new in <major>.<minor>)*: 20.28.0 to 20.30.0
+each covered everything since 20.26.0, and 20.28.0 and 20.30.0 marked what was new. Start
+from the previous notes, check each item against the commits since the previous release tag
+(`git log v<prev>..HEAD --format='%h %s'`), and add the new work.
 
 Format, as the existing files: an opening paragraph starting with **Pre-release.** or the
-release status, naming the baseline and the headlines; a flavour table with one row per
-flavour and its asset names (a flavour not shipped says "no (full release only)"); then `##`
-sections by theme (Allocation, Polygons, Storages and export, IntegrityChecks, Charts and
-views, Networks, Configuration language and diagnostics, Robustness, Packaging and build),
-each bullet a bold lead-in, the issue number, what was wrong and what changed, in the voice
-of the previous notes. Things a modeller must act on (an area that changes on upgrade, a
-check that now fires) are said outright.
+release status, naming the baseline and the headlines; a table with one row per flavour and
+per set of Python wheels, with their asset names (a flavour not shipped says "no (full release
+only)"); then `##` sections by theme, as in the previous notes, each bullet one short item
+without a bold lead-in: what was wrong and what changed, with the issue number and the wiki
+page. The notes end with a section "Changes that can affect an existing configuration", where
+the things a modeller must act on (a result that changes on upgrade, a check that now fires, a
+new operator name) are said outright.
 
 ## Publishing on GitHub
 
