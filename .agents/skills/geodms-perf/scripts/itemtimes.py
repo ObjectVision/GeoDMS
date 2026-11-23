@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # Compare the "} Updating::[[item]] (x secs)" lines of two GeoDMS logs and list the items that differ most.
 # usage: python itemtimes.py <log A> <log B> [<n>]   (an item requested on the command line is logged; its subitems are not)
 import sys, re

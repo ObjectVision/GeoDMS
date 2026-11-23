@@ -1,3 +1,6 @@
+# Copyright (C) 2024-2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # GeoDMS python-bindings unit test: load a configuration, navigate the item tree,
 # change an expression and (re)calculate a dependent result, and read values back.
 #

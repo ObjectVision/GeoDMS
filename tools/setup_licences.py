@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """The GPL of GeoDMS and the licence texts of the libraries that a GeoDMS setup bundles (#1371).
 
 A setup installs license.txt, the GPL of GeoDMS, in its installation folder, and beside it a folder

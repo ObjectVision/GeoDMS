@@ -1,3 +1,7 @@
+// Copyright (C) 2023-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "RtcBase.h"
 #include "act/TriggerOperator.h"
 #include "DmsViewArea.h"

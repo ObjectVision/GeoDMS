@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """Bulk-rewrite v17 GeoDMS .dms cfg files to v20 syntax.
 
 Applies the operator and identifier renames that the v17 → v20 release

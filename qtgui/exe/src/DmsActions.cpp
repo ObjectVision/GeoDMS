@@ -1,3 +1,7 @@
+// Copyright (C) 2024-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "DmsActions.h"
 #include "DmsMainWindow.h"
 #include "TreeItem.h"

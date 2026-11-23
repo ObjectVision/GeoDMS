@@ -136,7 +136,11 @@ The file [CITATION.cff](CITATION.cff) holds the citation metadata of GeoDMS; on 
 
 ## Terms of use
 
-GeoDMS is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. The licence text is in [license.txt](license.txt) and on [gnu.org](https://www.gnu.org/licenses/gpl-3.0.en.html); [license.md](license.md) also gives the licence of the wiki and the GeoDMS Academy.
+GeoDMS is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. The licence text is in [license.txt](license.txt) and on [gnu.org](https://www.gnu.org/licenses/gpl-3.0.en.html). [doc/licensing.md](doc/licensing.md) says which files carry another licence, where the licence texts of the bundled libraries are, and that the wiki and the GeoDMS Academy are licensed under CC BY-SA 4.0.
+
+## Contributing
+
+Bug reports, questions and pull requests are welcome, in English or Dutch. [CONTRIBUTING.md](CONTRIBUTING.md) says how to report a problem, how to propose a change and what a contribution must meet, including contributions made with AI tools. Everyone who takes part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Contact
 

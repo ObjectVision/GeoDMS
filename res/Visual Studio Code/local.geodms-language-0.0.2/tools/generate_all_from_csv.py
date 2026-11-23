@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 import json
 import re
 from pathlib import Path

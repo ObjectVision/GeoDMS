@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # Demonstrates building a complete GeoDMS configuration in memory (no .dms model
 # script) and querying results via Primary Data Access, using the geodms module.
 #

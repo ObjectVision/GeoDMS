@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """Build the geodms wheels for PyPI from a build output folder (#1355).
 
 One wheel per CPython minor in python/PythonVersions.txt. Each holds the ABI-tagged binding

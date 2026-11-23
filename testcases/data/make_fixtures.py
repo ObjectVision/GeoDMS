@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # Fixture generator for the storage-reader regression cases (doc/code-fixes.md Phase 0/1: STG-13, STG-14,
 # STG-N02, STG-N04, STG-N01; RTC-01/03/04 XML entities). Pure struct-based writers: every file is a few
 # hundred bytes and carries exactly the tags the case needs, which no library-based writer guarantees.

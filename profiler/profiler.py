@@ -1,3 +1,6 @@
+# Copyright (C) 2025-2026 Object Vision B.V.
+# License: GNU GPL 3
+
 import os
 import re
 import psutil

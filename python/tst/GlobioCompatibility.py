@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """Exercise both GDAL import orders for the GeoDMS G flavour.
 
     python GlobioCompatibility.py <osgeo-first|geodms-first> <output_dir>

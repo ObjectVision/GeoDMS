@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """Exercise the Linux module next to another GDAL in the same process (#1381, #1383).
 
     python LinuxGdalCompatibility.py <order> <output_dir>

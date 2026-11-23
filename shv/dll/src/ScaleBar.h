@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #if !defined(__SHV_SCALEBAR_H)
 #define __SHV_SCALEBAR_H
 

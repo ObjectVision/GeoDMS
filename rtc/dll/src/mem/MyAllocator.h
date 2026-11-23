@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #if !defined(__RTC_MEM_MYALLOCATOR_H)
 #define __RTC_MEM_MYALLOCATOR_H
 

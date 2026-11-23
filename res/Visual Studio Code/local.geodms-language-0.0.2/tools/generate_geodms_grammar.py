@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 import re, json, xml.etree.ElementTree as ET
 from pathlib import Path
 

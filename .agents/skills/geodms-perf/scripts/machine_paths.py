@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # Where this machine keeps the GeoDMS-Test harness and full.py's result folders, for the scripts beside it.
 #
 # TST_DIR       the GeoDMS-Test working copy: %TstDir% (the name full.py and batch\RunGUITests.bat give it),

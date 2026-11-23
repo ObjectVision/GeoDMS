@@ -1,3 +1,7 @@
+// Copyright (C) 2023-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 // dms
 #ifdef _DEBUG
 #define MYDEBUG_NEW new( _NORMAL_BLOCK, __FILE__, __LINE__)
