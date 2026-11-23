@@ -25,7 +25,7 @@
 //======================== bit_valye
 
 template <bit_size_t N>
-struct bit_value
+struct DMS_TYPE_VISIBLE bit_value
 {
 	using base_type = typename api_type<bit_value>::type ;
 

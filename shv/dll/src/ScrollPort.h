@@ -29,7 +29,7 @@ public:
 
 //	new functions
 	void ScrollLogical  (CrdPoint delta);
-	void ScrollLogicalTo(CrdPoint delta);
+	SHV_CALL void ScrollLogicalTo(CrdPoint delta);
 
 	void OnHScroll(UInt16 scollCmd);
 	void OnVScroll(UInt16 scollCmd);
@@ -39,8 +39,8 @@ public:
 	void MakeLogicalRectVisible(CrdRect rect, TPoint border);
 	void Export();
 	 
-	      MovableObject* GetContents();
-	const MovableObject* GetContents() const;
+	SHV_CALL       MovableObject* GetContents();
+	SHV_CALL const MovableObject* GetContents() const;
 
 	void CalcNettSize();
 

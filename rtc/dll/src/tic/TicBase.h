@@ -24,7 +24,7 @@
 #include "ptr/SharedTreePtr.h" // make_shared_tree/make_weak_tree construction helpers for the TreeItem-family std::shared_ptr typedefs
 
 #if !defined(_MSC_VER)
-#	define TIC_CALL
+#	define TIC_CALL DMS_GCC_EXPORT // see RtcBase.h
 #elif defined(DMTIC_EXPORTS)
 #	define TIC_CALL __declspec(dllexport)
 #else

@@ -80,7 +80,7 @@ struct PerformanceEstimationData
 // Section:     Operator
 // *****************************************************************************
 
-class Operator
+class DMS_TYPE_VISIBLE Operator
 {
 protected:
 	TIC_CALL Operator(AbstrOperGroup* gr, ClassCPtr resultCls);

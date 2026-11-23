@@ -22,7 +22,7 @@ class ValueClass;
 // class  : DataItemClass
 //----------------------------------------------------------------------
 
-class DataItemClass : public Class
+class DMS_TYPE_VISIBLE DataItemClass : public Class
 {
 	typedef Class base_type;
 public:

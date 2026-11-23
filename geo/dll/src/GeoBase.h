@@ -12,7 +12,7 @@
 #include "ClcBase.h"
 
 #if !defined(_MSC_VER)
-#	define GEO_CALL
+#	define GEO_CALL DMS_GCC_EXPORT // see RtcBase.h
 #elif defined(GEO_EXPORTS)
 #	define GEO_CALL __declspec(dllexport)
 #elif defined(GEO_STATIC)

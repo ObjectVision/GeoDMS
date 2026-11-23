@@ -102,7 +102,7 @@ struct managed_alloc_data : alloc_data<V>
 
 
 template <typename V>
-struct my_vector : managed_alloc_data<V>
+struct DMS_TYPE_VISIBLE my_vector : managed_alloc_data<V>
 {
 	using size_type = SizeT;
 	using const_iterator = const V*;

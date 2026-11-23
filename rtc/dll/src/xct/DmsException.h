@@ -19,7 +19,7 @@ enum ExceptionContextState {
 	ECS_SE,
 };
 
-struct DmsException : std::exception, private ErrMsgPtr
+struct DMS_TYPE_VISIBLE DmsException : std::exception, private ErrMsgPtr
 {
 	[[noreturn]] static void throwMsg(ErrMsgPtr msg);
 	[[noreturn]] static RTC_CALL void throwMsgD(WeakStr);

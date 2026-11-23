@@ -24,7 +24,7 @@
 //----------------------------------------------------------------------
 
 template <typename V>
-struct tile : sequence_traits<V>::tile_container_type // , TileBase // TODO G8: replace by OwningArrayPtr
+struct DMS_TYPE_VISIBLE tile : sequence_traits<V>::tile_container_type // , TileBase // TODO G8: replace by OwningArrayPtr
 {
 //	using TileBase::TileBase;
 };

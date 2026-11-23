@@ -149,7 +149,7 @@ struct LispRef : LispPtrWrap<SharedPtr<const LispObj> >
 
 /****************** class LispObj                     *******************/
 
-struct LispObj : public SharedObj
+struct DMS_TYPE_VISIBLE LispObj : public SharedObj
 {
 private: 
 	using base_type = SharedObj;

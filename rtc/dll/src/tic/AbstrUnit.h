@@ -75,7 +75,7 @@ enum UnifyMode {
 
 constexpr auto operator | (UnifyMode lhs, UnifyMode rhs) { return UnifyMode(int(lhs) | int(rhs)); }
 
-class AbstrUnit : public TreeItem
+class DMS_TYPE_VISIBLE AbstrUnit : public TreeItem
 {
 	typedef TreeItem base_type;
 

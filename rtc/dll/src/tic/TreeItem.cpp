@@ -1803,7 +1803,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	bool isNew = (!dest) || (id && !dest->GetSubTreeItemByID(id));
 	if (isNew && copyContext.DontCreateNew())
 		return {};
-	auto result = dest->CreateItem(id, cls);
+	auto result = TreeItem_CreateItem(dest, id, cls); // dest is null for a new root
 	if (isNew)
 	{
 		if (copyContext.MustMakePassor())

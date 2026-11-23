@@ -76,7 +76,7 @@ auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  Sh
 			, path
 		);
 	}
-	return AsUnit(context->CreateItemFromPath(path, this));
+	return AsUnit(TreeItem_CreateItemFromPath(context, path, this));
 }
 
 auto UnitClass::CreateResultUnit(TreeItem* context) const -> SharedMutableUnit

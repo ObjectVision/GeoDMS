@@ -129,7 +129,7 @@ struct DcRef
 // Section:     TreeItemDualRef Interface
 // *****************************************************************************
 
-struct TreeItemDualRef : SharedActor
+struct DMS_TYPE_VISIBLE TreeItemDualRef : SharedActor
 {
 	TIC_CALL TreeItemDualRef();
 	TIC_CALL ~TreeItemDualRef();

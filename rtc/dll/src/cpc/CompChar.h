@@ -229,6 +229,32 @@
 // Macro's with platform dependent constants
 //----------------------------------------------------------------------
 
+//----------------------------------------------------------------------
+// Export macros of the engine libraries with gcc; RtcBase.h explains them (#1383).
+//----------------------------------------------------------------------
+
+#if !defined(_MSC_VER)
+#	define DMS_GCC_EXPORT __attribute__((visibility("default")))
+#endif
+
+// DMS_TYPE_VISIBLE gives a class or class template default visibility with gcc, for two kinds of type:
+// - a polymorphic class whose typeinfo or vtable another library needs, because a class there derives
+//   from it, catches it, casts to it with dynamic_cast, or constructs it with an inline constructor.
+//   gcc emits the typeinfo and the vtable of a class only beside the definition of its first
+//   non-inline virtual function, so with hidden visibility the other libraries would not find them;
+// - a type that is a template argument of an instantiation whose members another library uses, such
+//   as SharedStr and Point<T> in DataArrayBase<SharedStr> and DataArrayBase<Point<T>>. gcc gives an
+//   instantiation at most the visibility of its template arguments, also to the members that carry
+//   an export macro.
+// On a type the attribute also exports every non-inline member of it. With MSVC no type is hidden: it
+// emits the RTTI in each DLL that needs it and a vtable in each DLL that constructs the object, and
+// exports a member of an instantiation whatever its template arguments. There the macro is empty.
+#if defined(_MSC_VER)
+#	define DMS_TYPE_VISIBLE
+#else
+#	define DMS_TYPE_VISIBLE DMS_GCC_EXPORT
+#endif
+
 #define DELIMITER_CHAR '/'
 
 #endif // __CPC_COMPCHAR_H

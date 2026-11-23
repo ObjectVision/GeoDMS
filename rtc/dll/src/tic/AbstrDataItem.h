@@ -36,7 +36,7 @@ template <class ItemType, class PropType> class PropDef;
 
 class AbstrDataObject; // forward decl
 
-class AbstrDataItem : public TreeItem
+class DMS_TYPE_VISIBLE AbstrDataItem : public TreeItem
 {
 	typedef TreeItem base_type;
 

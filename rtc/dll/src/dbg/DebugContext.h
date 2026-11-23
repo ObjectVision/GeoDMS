@@ -47,7 +47,7 @@ struct FormattedOutStream;
 //
 // The ceiling is declared once, in MsgGeneratorPolicy::GetDescription below and in
 // AbstrMsgGenerator::Describe, so it covers every override through the virtual dispatch.
-struct AbstrMsgGenerator :noncopyable
+struct DMS_TYPE_VISIBLE AbstrMsgGenerator :noncopyable
 {
 	RTC_CALL AbstrMsgGenerator() noexcept;
 	RTC_CALL virtual ~AbstrMsgGenerator()  noexcept;
@@ -69,7 +69,7 @@ struct AbstrMsgGenerator :noncopyable
 /********** AbstrContextHandle **********/
 
 template<typename Base>
-struct StackHandle : Base
+struct DMS_TYPE_VISIBLE StackHandle : Base
 {
 	RTC_CALL StackHandle() noexcept;
 	RTC_CALL ~StackHandle()  noexcept;
@@ -87,7 +87,7 @@ using AbstrContextHandle = StackHandle<AbstrMsgGenerator>;
 
 /********** FixedContextHandle **********/
 
-struct FixedContextHandle : AbstrContextHandle
+struct DMS_TYPE_VISIBLE FixedContextHandle : AbstrContextHandle
 {
 	FixedContextHandle(CharPtr msg) : m_Msg(msg) 
 	{}
@@ -114,7 +114,7 @@ private:
 /********** ContextHandle **********/
 
 template <typename Base>
-struct MsgGeneratorPolicy : Base 
+struct DMS_TYPE_VISIBLE MsgGeneratorPolicy : Base
 {
 	CharPtr GetDescription() override
 	{
@@ -181,7 +181,7 @@ struct ObjectContextHandle : ObjectContextHandleBase
 	}
 };
 
-struct ObjectIdContextHandle : ObjectContextHandle
+struct DMS_TYPE_VISIBLE ObjectIdContextHandle : ObjectContextHandle
 {
 	ObjectIdContextHandle(const Object* context, TokenID id, CharPtr role)
 		: ObjectContextHandle(context, role), m_ID(id) 

@@ -10,7 +10,7 @@
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"
 
-struct DataBlockTask  : AbstrCalculator // TODO G8: RENAME TO DataBlockExprKey
+struct DMS_TYPE_VISIBLE DataBlockTask  : AbstrCalculator // TODO G8: RENAME TO DataBlockExprKey
 {
 	typedef AbstrCalculator base_type;
 	SYNTAX_CALL DataBlockTask(AbstrDataItem* adiCurr, CharPtr begin, CharPtr end);

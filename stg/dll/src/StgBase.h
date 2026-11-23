@@ -15,7 +15,7 @@
 #include "geom/Transform.h"
 
 #if !defined(_MSC_VER)
-#	define STGDLL_CALL
+#	define STGDLL_CALL DMS_GCC_EXPORT // see RtcBase.h
 #elif defined(DMSTGDLL_EXPORTS)
 #	define STGDLL_CALL __declspec(dllexport)
 #else

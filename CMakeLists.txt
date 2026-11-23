@@ -127,10 +127,21 @@ else()
     # or QGIS, or the system libjpeg of Qt's image plugins, neither receives the engine's calls nor
     # has its own calls diverted into the engine (#1381). The engine has one GDAL, in DmStg; DmClc
     # and DmGeo reach it through the functions of DmStg in stg/dll/src/gdal/gdal_base.h.
-    # Not covered: inline functions from the headers of those libraries that the engine's own
-    # code compiles keep the default visibility and stay exported, such as a few of GEOS in DmGeo
-    # and OGRSimpleCurve::getNumPoints in DmStg.
+    # The inline functions from the headers of those libraries that the engine's own code
+    # compiles, such as a few of GEOS in DmGeo, are hidden by the visibility settings below.
     add_link_options(-Wl,--exclude-libs,ALL)
+    # The engine's own code is compiled with hidden visibility, so that a Linux library, like a
+    # Windows DLL, exports only what carries the export macro of its library (RTC_CALL, TIC_CALL,
+    # STGDLL_CALL and the others, which mean default visibility with gcc) or DMS_TYPE_VISIBLE;
+    # rtc/dll/src/RtcBase.h explains both (#1383). The Python module sets the same properties itself.
+    set(CMAKE_C_VISIBILITY_PRESET hidden)
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+    # A shared library resolves every symbol at its own link, so that a symbol that one engine
+    # library uses and another does not export fails the link of the first, instead of the load
+    # of the program or module that uses it. Not for the Python module, which is a MODULE library
+    # and takes the symbols of CPython from the interpreter that loads it.
+    string(APPEND CMAKE_SHARED_LINKER_FLAGS " -Wl,-z,defs")
     # GCC/Clang Debug builds: define _DEBUG to match MSVC convention,
     # which triggers MG_DEBUG in RtcBase.h for debug-only diagnostics.
     add_compile_definitions($<$<CONFIG:Debug>:_DEBUG>)

@@ -62,7 +62,7 @@
 
 - Each release has wheels of the `geodms` module for Python 3.12, 3.13 and 3.14, with the engine inside, so it needs no setup: `pip install` the wheel file for your Python version (#1355, [Python bindings](https://github.com/ObjectVision/GeoDMS/wiki/Python-bindings)). The wheels of a pre-release are only on its release page; those of a full release are also on PyPI, where 20.26.0 has the first ones, for Windows. *(new in 20.30)* There are now also wheels for 64-bit Linux with glibc 2.39 or newer, such as Ubuntu 24.04.
 - A Windows wheel can be imported when a `gdal.dll` from another folder, such as that of a GeoDMS setup, is already loaded; in 20.26.0 `import geodms` then stopped with an error (#1355).
-- *(new in 20.30)* On Linux `osgeo` and `geodms` can be imported in one process in either order, also when the GDAL of `osgeo` is in the global symbol scope, as when it is loaded with `RTLD_GLOBAL`: the engine hides the symbols of the GDAL, PROJ, GEOS and other libraries linked into it, so that it calls its own copies. A program that links GDAL itself, such as QGIS, puts its GDAL in that scope too; QGIS was not tried (#1381).
+- *(new in 20.30)* On Linux `osgeo` and `geodms` can be imported in one process in either order, also when the GDAL of `osgeo` is in the global symbol scope, as when it is loaded with `RTLD_GLOBAL`: the engine hides the symbols of the GDAL, PROJ, GEOS and other libraries linked into it, so that it calls its own copies. A program that links GDAL itself and runs Python inside, as QGIS does, puts its GDAL in that scope too; a small test program that does so passes the same test, but QGIS itself was not tried (#1381).
 - *(new in 20.30)* The GLOBIO flavour has a wheel of its own, `geodms-globio`, for Python 3.9 in the conda environment of the GLOBIO 4 model. It is imported as `geodms` too and carries its own copies of GDAL, PROJ and GEOS, so a script can import `osgeo` and `geodms` in either order. Do not install `geodms` and `geodms-globio` in one environment (#1355).
 - *(new in 20.30)* The Linux setup also installs the module, for Python 3.12, 3.13 and 3.14. Adding its installation folder, `/opt/ObjectVision/GeoDms20.30.0.l`, to `sys.path` is enough to import it (#1355).
 - The Python module of a GeoDMS setup can now be imported when its folder is only on `sys.path`; before, the folder also had to be on PATH (#1355).
@@ -74,6 +74,7 @@
 - `examples/grid_to_polygon.dms` runs on Linux, and an interrupted download of the CBS geopackage is removed, so the next run downloads it again (#1359, #1360).
 - `examples/convex_hull.dms` uses `fold_c` (#1347).
 - The setups install `license.txt` (GPL version 3) and the licence texts of all bundled libraries (#1371).
+- *(new in 20.30)* On Linux the engine libraries export only the functions and types that are marked for export, as on Windows, instead of all their functions. They are smaller (`libDmClc.so` 166 MB instead of 237 MB), and GeoDmsRun starts about two and a half to three times sooner: in WSL, a run of a configuration with one item takes 0.05 s instead of 0.12 to 0.15 s (#1383).
 
 ## Changes that can affect an existing configuration
 

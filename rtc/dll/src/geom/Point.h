@@ -26,7 +26,7 @@
 //----------------------------------------------------------------------
 
 template <class T>
-struct Point: Couple<T>
+struct DMS_TYPE_VISIBLE Point: Couple<T>
 {
 	typedef T        field_type;
 	using Couple<T>::first;

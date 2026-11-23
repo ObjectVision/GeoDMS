@@ -36,7 +36,7 @@ typename std::enable_if_t<!is_integral_v<field_of_t<T>> >
 {}
 
 template <class T>
-struct Range : Couple<T>
+struct DMS_TYPE_VISIBLE Range : Couple<T>
 {
 	using typename Couple<T>::value_cref;
 	using Couple<T>::first;

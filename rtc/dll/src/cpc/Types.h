@@ -49,7 +49,7 @@ typedef unsigned char  UInt8;
 // useful as a domain of non-indexed data-items 
 // can be the CountType of a ValueCountPair when the Counts are not needed, such as for UniqueValue 
 
-struct Void 
+struct DMS_TYPE_VISIBLE Void
 {
 	void operator ++() {}
 	void operator +=(const Void&) {}

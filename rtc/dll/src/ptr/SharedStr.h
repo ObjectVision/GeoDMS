@@ -82,11 +82,11 @@ inline int stricmp(CharPtr lhs, CharPtr rhs)
 
 #endif
 
-struct GenericEqual {
+struct DMS_TYPE_VISIBLE GenericEqual {
 	bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
 };
 
-struct GenericHasher {
+struct DMS_TYPE_VISIBLE GenericHasher {
 	std::size_t operator()(CharPtrRange str) const noexcept;
 };
 
@@ -300,7 +300,7 @@ struct WeakStr: SharedCharArrayPtrWrap< WeakPtr<SharedCharArray> >
 
 //----------------------------------------------------------------------
 
-struct SharedStr : SharedCharArrayPtrWrap<SharedPtr<SharedCharArray> >
+struct DMS_TYPE_VISIBLE SharedStr : SharedCharArrayPtrWrap<SharedPtr<SharedCharArray> >
 {
 private:
 	using base_type = SharedCharArrayPtrWrap<SharedPtr<SharedCharArray> >;

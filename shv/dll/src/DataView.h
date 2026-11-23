@@ -238,7 +238,7 @@ public:
 	MsgResult DispatchMsg(const MsgStruct& msg);
 #endif
 	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
-	void OnResize(GPoint deviceSize, CrdPoint scaleFactors);
+	SHV_CALL void OnResize(GPoint deviceSize, CrdPoint scaleFactors);
 
 //	Attributes
 	std::shared_ptr<MovableObject> GetContents()             { assert(m_Contents); return m_Contents; }
@@ -354,10 +354,10 @@ private:
 	void OnEraseBkgnd(HDC dc);
 #endif
 	void OnPaint();
-	void SetUpdateTimer(); friend struct IdleTimer;
+	SHV_CALL void SetUpdateTimer(); friend struct IdleTimer;
 public:
 	void RequestUpdate() { SetUpdateTimer(); } // portable: called by Qt ViewHost on invalidation
-	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point); // portable: called by Qt ViewHost for mouse events
+	SHV_CALL bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point); // portable: called by Qt ViewHost for mouse events
 
 	// On Win32, OnPaint() seeds m_DoneGraphics via AddDrawRegion so UpdateView() has work to do.
 	// On Linux, OnPaint() is never called, so the ViewHost must seed m_DoneGraphics explicitly
@@ -382,8 +382,8 @@ public:
 	void OnCaptureChanged(HWND hWnd);
 #endif
 	void OnActivate(bool becomeActive);
-	void ProcessGuiOpers();
-	void OnCopyData(UINT cmd, const UInt32* first, const UInt32* last);
+	SHV_CALL void ProcessGuiOpers();
+	SHV_CALL void OnCopyData(UINT cmd, const UInt32* first, const UInt32* last);
 
 	// ContextHandling
 	void GenerateDescription() override;

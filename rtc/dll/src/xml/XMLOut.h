@@ -121,7 +121,7 @@ private:
 // OutStream_XML
 //----------------------------------------------------------------------
 
-struct OutStream_XmlBase : OutStreamBase
+struct DMS_TYPE_VISIBLE OutStream_XmlBase : OutStreamBase
 {
 protected:
 	OutStream_XmlBase(OutStreamBuff* out, CharPtr header, CharPtr mainTag, CharPtr mainTagName, bool needsIndent, const AbstrPropDef* primaryPropDef, FormattingFlags flgs = FormattingFlags::None);

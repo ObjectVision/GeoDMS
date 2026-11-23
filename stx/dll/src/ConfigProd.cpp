@@ -368,7 +368,7 @@ void ConfigProd::CreateContainer(TokenID nameID)
 		throwDmsErrD("Illegal domain-unit at container definition");
 
 	auto contextItem = GetContextOrRootItem(nameID);
-	m_pCurrent = contextItem->CreateItem(nameID); // co-owned with parent (contextItem); cursor keeps a std::shared_ptr
+	m_pCurrent = TreeItem_CreateItem(contextItem, nameID); // co-owned with parent (contextItem), which is null for a root; cursor keeps a std::shared_ptr
 }
 
 void ConfigProd::CreateTemplate(TokenID nameID)

@@ -21,7 +21,7 @@
 #    define SYM_CALL __declspec(dllimport)
 #  endif
 #else
-#  define SYM_CALL
+#  define SYM_CALL DMS_GCC_EXPORT // see RtcBase.h
 #endif
 
 #include "RtcBase.h"

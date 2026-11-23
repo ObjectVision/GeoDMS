@@ -101,7 +101,7 @@ struct AcConstructor
 // AbstrCalculator
 //----------------------------------------------------------------------
 
-class AbstrCalculator: public SharedObj // TODO G8: RENAME TO AbstrExprKey
+class DMS_TYPE_VISIBLE AbstrCalculator: public SharedObj // TODO G8: RENAME TO AbstrExprKey
 {
 public:
 

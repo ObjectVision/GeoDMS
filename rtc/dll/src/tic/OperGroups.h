@@ -54,7 +54,7 @@ TIC_CALL const AbstrDataItem* AsDataItem(const ArgRef& ar);
 // operators can be overloaded on argument type and 
 // *****************************************************************************
 
-struct AbstrOperGroup
+struct DMS_TYPE_VISIBLE AbstrOperGroup
 {
 	TIC_CALL AbstrOperGroup(CharPtr   operName, oper_policy op);
 	TIC_CALL AbstrOperGroup(SharedStr operName, oper_policy op);
@@ -157,7 +157,7 @@ protected:
 	calc_time_t     m_CalcFactor = 1.0;
 };
 
-struct CommonOperGroup: AbstrOperGroup
+struct DMS_TYPE_VISIBLE CommonOperGroup: AbstrOperGroup
 {
 	TIC_CALL CommonOperGroup(CharPtr operName  , oper_policy op = oper_policy::none);
  	TIC_CALL CommonOperGroup(TokenID operNameID, oper_policy op = oper_policy::none);
@@ -186,7 +186,7 @@ extern TIC_CALL CommonOperGroup cog_substr;
 // SpecialOperGroup
 // *****************************************************************************
 
-struct SpecialOperGroup: AbstrOperGroup
+struct DMS_TYPE_VISIBLE SpecialOperGroup: AbstrOperGroup
 {
 	TIC_CALL SpecialOperGroup(TokenID operName, arg_index maxNrArgs, oper_arg_policy* argPolicyArray, oper_policy op = oper_policy());
 	TIC_CALL SpecialOperGroup(CharPtr operName, arg_index maxNrArgs, oper_arg_policy* argPolicyArray, oper_policy op = oper_policy())
