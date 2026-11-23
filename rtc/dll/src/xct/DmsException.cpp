@@ -12,6 +12,9 @@
 #include "DbgInterface.h" // DBG_WriteFatalLine, DBG_FlushLogs
 
 #include <cstdlib> // std::_Exit, for the assertion path of #1265
+#if defined(__GNUC__)
+#include <cxxabi.h> // abi::__cxa_demangle, for CppTypeName
+#endif
 
 #include "xct/DmsException.h"
 #include "sym/Token.h" // IsTokenRegistryHeldExclusivelyByThisThread
@@ -349,6 +352,17 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 {
 	auto typeStr = SharedStr(type);
 	throwErrorD(typeStr.c_str(), msg);
+}
+
+RTC_CALL std::string CppTypeName(const std::type_info& ti)
+{
+#if defined(__GNUC__)
+	int status = 0;
+	std::unique_ptr<char, decltype(&std::free)> demangled(abi::__cxa_demangle(ti.name(), nullptr, nullptr, &status), &std::free);
+	if (status == 0 && demangled)
+		return demangled.get();
+#endif
+	return ti.name();
 }
 
 
@@ -930,10 +944,8 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 #endif //defined(WIN32)
 
 //----------------------------------------------------------------------
-// dms_assertion_failed
+// CppTranslatorContext
 //----------------------------------------------------------------------
-
-#if defined(_MSC_VER)
 
 CppTranslatorContext::CppTranslatorContext(TCppExceptionTranslator trFunc)
 		: m_PrevCppTranslator(SetCppTranslator(trFunc))
@@ -947,8 +959,6 @@ CppTranslatorContext::~CppTranslatorContext()
 	}
 	SetCppTranslator(m_PrevCppTranslator);
 }
-
-#endif //defined(_MSC_VER)
 
 //----------------------------------------------------------------------
 // dms_assertion_failed

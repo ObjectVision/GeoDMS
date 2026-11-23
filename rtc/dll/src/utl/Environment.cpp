@@ -401,7 +401,7 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 				break;
 			UInt32 nrWaitSecs = (1 << retryCounter);
 			reportF(SeverityTypeID::ST_MajorTrace,
-				"WindowsSystem Error {}:\nErrorCode {}: {}\nWaiting {} seconds before retry #{}", 
+				"System Error {}:\nErrorCode {}: {}\nWaiting {} seconds before retry #{}", 
 				mySSPrintF(format, fileName).c_str(),
 				lastErr, 
 				platform::GetSystemErrorText(lastErr).c_str(),

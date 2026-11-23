@@ -17,6 +17,13 @@ battery + a few `fn_probe_*` probes + `tmpl_regress.dms`, with the `fe_names.txt
 artifacts land in the gitignored `testcases/_out*/`. One-off investigation configs (controls,
 repros) still belong in gitignored `scratch/`, not `testcases/`.
 
+**On Linux the same battery runs through `testcases/run_testcases.sh`** (#1384), the bash twin
+of `run_testcases.ps1`, by the same rules; `TestLinuxReleaseUnit.sh` and `TestLinuxDebugUnit.sh`
+run it before the `tst` unit suite, and so does the Linux setup through them. A case that cannot
+run on Linux carries a line `// WINDOWS-ONLY: <reason>` and is skipped there, as `stor_odbc_dbf`
+is, which needs an ODBC driver of Microsoft Access. Until then no Linux script ran the battery,
+and twelve negatives that failed on Linux with another message than on Windows went unnoticed.
+
 **A negative case states the message it is written to fail with** (#1369), in one or more
 lines `// EXPECT-FAILURE: <fragment>` of its `.dms`. Each fragment is literal text, not a
 pattern, that must occur in a message of the case's output: a line that starts with `Failure:`,

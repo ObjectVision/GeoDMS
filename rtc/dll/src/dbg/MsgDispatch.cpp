@@ -944,7 +944,7 @@ namespace {
 			WriteFatalLine(mySSPrintF("FATAL: uncaught DmsException: {}", x.what()).c_str());
 		}
 		catch (const std::exception& x) {
-			WriteFatalLine(mySSPrintF("FATAL: uncaught {}: {}", typeid(x).name(), x.what()).c_str());
+			WriteFatalLine(mySSPrintF("FATAL: uncaught {}: {}", CppTypeName(typeid(x)), x.what()).c_str());
 		}
 		catch (...) {
 			WriteFatalLine("FATAL: uncaught exception of non-standard type");

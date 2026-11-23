@@ -7,7 +7,8 @@
 #endif
 
 /*
- *  Win32/OS error reporting: GetSystemErrorText and the
+ *  Operating-system error reporting, with the error category System on
+ *  every platform (#1384): GetSystemErrorText and the
  *  throwSystemError/throwLastSystemError helpers that decorate a failing
  *  system call with its OS error text (plus the MAX_PATH hint), and the
  *  retry loop ManageSystemError. Split out of utl/Environment.h
@@ -34,7 +35,7 @@ bool isCharPtrAndExceeds_MAX_PATH(const T& xFileName) { return false;  }
 template<typename ...Args>
 [[noreturn]] void throwSystemError(DWORD lastErr, CharPtr format, Args&&... args)
 {
-	throwErrorF("WindowsSystem", "{}:\nErrorCode {}: {}{}"
+	throwErrorF("System", "{}:\nErrorCode {}: {}{}"
 	,	mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str()
 	,	lastErr
 	,	::platform::GetSystemErrorText(lastErr).c_str()

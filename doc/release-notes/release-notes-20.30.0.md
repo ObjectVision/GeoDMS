@@ -75,6 +75,7 @@
 - `examples/convex_hull.dms` uses `fold_c` (#1347).
 - The setups install `license.txt` (GPL version 3) and the licence texts of all bundled libraries (#1371).
 - *(new in 20.30)* On Linux the engine libraries export only the functions and types that are marked for export, as on Windows, instead of all their functions. They are smaller (`libDmClc.so` 166 MB instead of 237 MB), and GeoDmsRun starts about two and a half to three times sooner: in WSL, a run of a configuration with one item takes 0.05 s instead of 0.12 to 0.15 s (#1383).
+- *(new in 20.30)* On Linux, an error that the engine catches inside a call from another of its calls now reaches the log that `/L` names, as on Windows; it used to go to standard error only. A failed conversion names the type as `unsigned char` where Linux gave gcc's internal name `h`. A failed system call is reported under the category `System` on both platforms, where it said `WindowsSystem`, as in `System Error: CreateFileHandleForRwView(<file>)`; a file that cannot be opened is reported as `System Error: FileHandle::OpenForRead(<file>)`, where Windows said `WindowsSystem Error: FileMapHandle(<file>).OpenForRead` (#1384).
 
 ## Changes that can affect an existing configuration
 

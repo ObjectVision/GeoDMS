@@ -22,6 +22,8 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include <typeinfo>
+
 #include "RtcBase.h"
 #include "utl/MgFormat.h"
 #include "dbg/SeverityType.h"
@@ -144,6 +146,10 @@ template<typename ...Args>
 {
 	throwDmsErrD(mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
 }
+
+// The name of a C++ type for a message, such as "unsigned char". MSVC's type_info::name gives it so;
+// gcc's gives the mangled name, such as "h", which CppTypeName demangles (#1384).
+RTC_CALL std::string CppTypeName(const std::type_info& ti);
 
 // The internal-error family: a violated invariant of the GeoDms code itself, as opposed to
 // anything a configuration can provoke. Each of these names a source file and line and tells the

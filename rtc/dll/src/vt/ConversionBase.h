@@ -38,7 +38,7 @@ struct throw_func
 	template <typename U, typename T>
 	[[noreturn]] U apply(const T& v) const
 	{
-		throwErrorF("Convert", "Failed to convert {} to {}", v, typeid(U).name());
+		throwErrorF("Convert", "Failed to convert {} to {}", v, CppTypeName(typeid(U)));
 	}
 };
 

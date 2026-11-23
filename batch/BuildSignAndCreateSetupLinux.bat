@@ -172,9 +172,9 @@ if errorlevel 1 goto :installed_licences_failed
 
 REM Post-install unit tests (mirrors the unit.bat call in BuildSignAndCreateSetup.bat
 REM (.m) and BuildSignAndCreateSetupCmake.bat (.c)). TestLinuxReleaseUnit.sh runs
-REM tst/batch/unit_linux.sh against build/linux-x64-release and exits non-zero on
-REM any FAILED test. On failure we REMOVE the installed package and the built setup
-REM files: a warning echo is too easy to miss in the long build log, and a build
+REM the testcases battery (testcases/run_testcases.sh) and then tst/batch/unit_linux.sh
+REM against build/linux-x64-release, and exits non-zero when a case or a test fails.
+REM On failure we REMOVE the installed package and the built setup files: a warning echo is too easy to miss in the long build log, and a build
 REM with failing unit tests must not remain installed or shippable.
 echo --- running Linux unit tests ---
 wsl bash -c "cd %geodms_wsldir% && bash TestLinuxReleaseUnit.sh"

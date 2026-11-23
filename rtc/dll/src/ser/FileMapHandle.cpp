@@ -238,7 +238,7 @@ void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, 
 	//		|	FILE_FLAG_RANDOM_ACCESS
 			,	NULL                                    // handle to template file
 		);
-	}	while ((fileHandle == INVALID_HANDLE_VALUE) && ManageSystemError(retryCounter, "FileMapHandle({}).OpenForRead", fileName.c_str(), throwOnError, doRetry));
+	}	while ((fileHandle == INVALID_HANDLE_VALUE) && ManageSystemError(retryCounter, "FileHandle::OpenForRead({})", fileName.c_str(), throwOnError, doRetry));
 
 	if (fileHandle == INVALID_HANDLE_VALUE)
 	{
