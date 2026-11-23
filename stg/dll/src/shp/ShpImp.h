@@ -48,8 +48,12 @@ inline bool IsPointOrNone    (ShapeTypes st) { return IsPoint(st) || IsNone(st);
 inline bool IsKnown          (ShapeTypes st) { return IsPoint(st) || IsComposite(st); }
 inline bool IsKnownOrNone    (ShapeTypes st) { return IsKnown(st) || IsNone(st); }
 
-// ESRI type struct for fileheader
-#pragma pack(push, 4)
+// The structs below hold what the ESRI records hold, aligned as the compiler aligns them; their Read and
+// Write convert field by field, so their layout and size differ from those in the file, which the two
+// constants give. They are not packed as the file is: that would put the doubles of a box and the
+// pointers of ShpParts and ShpPoints on addresses that their types do not allow (#1385).
+constexpr std::size_t ShpHeaderBytes = 100;        // the file header of a .shp and of its .shx
+constexpr std::size_t ShpPolygonHeaderBytes = 44;  // shape type, box, number of parts and of points
 
 using ShpPoint = Point<Float64>;
 	std::size_t Read (      ShpPoint& self, FILE * fp);
@@ -209,8 +213,6 @@ private:
 typedef ShpPoints::reference::const_iterator ConstPointIter;
 typedef ShpPoints::reference::iterator       PointIter;
 typedef IterRange<ConstPointIter>            ConstPointIterRange;
-
-#pragma pack(pop)
 
 // *****************************************************************************
 //

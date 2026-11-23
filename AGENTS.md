@@ -254,7 +254,10 @@ into `bin\Release\x64`.
   `cmake --preset windows-x64-release` (or `windows-x64-debug`), then `cmake --build`. Or run
   `batch\BuildSignAndCreateSetupCmake.bat`.
 - **Linux (CMake):** use presets `linux-x64-release` / `linux-x64-debug`, or run
-  `batch\BuildSignAndCreateSetupLinux.bat`.
+  `batch\BuildSignAndCreateSetupLinux.bat`. The preset `linux-x64-ubsan` builds the release
+  configuration with gcc's undefined-behaviour checks into a folder of its own (#1385), for
+  `batch/TestLinuxUbsan.sh`, which runs the Linux tests on it and lists what the checks report;
+  it is never shipped.
 - **The per-flavor setup scripts now live in `batch\`.** The repo root holds a single
   `Build.bat` that calls the m/c/g/l `batch\BuildSignAndCreateSetup*.bat` scripts sequentially; the
   unit-test launchers (`Test*Unit.bat`, `RunGUITests.bat`, `run_unit.bat`) also moved to

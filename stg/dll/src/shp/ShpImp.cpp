@@ -189,9 +189,9 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name)
 	// The header fields come from the file. These checks used to be asserts, i.e. nothing in
 	// Release, and a corrupt or truncated file then reached the record loop with a wrapped
 	// length or a record count near 4e9 (doc/code-fixes.md STG-01..STG-05).
-	constexpr Int32 headerWords = Int32(sizeof(ShpHeader) / 2); // lengths are counted in 16-bit words
-	if (postFileHeaderPos != sizeof(ShpHeader))
-		throwErrorF("Shp", "ShapeFile '{}' is shorter than its {}-byte header", name.c_str(), sizeof(ShpHeader));
+	constexpr Int32 headerWords = Int32(ShpHeaderBytes / 2); // lengths are counted in 16-bit words
+	if (postFileHeaderPos != ShpHeaderBytes)
+		throwErrorF("Shp", "ShapeFile '{}' is shorter than its {}-byte header", name.c_str(), ShpHeaderBytes);
 	if (head.m_FileLength < headerWords)
 		throwErrorF("Shp", "ShapeFile '{}' declares a length of {} words, less than its header", name.c_str(), head.m_FileLength);
 	m_FileLength = UInt32(head.m_FileLength) * 2u;
@@ -202,14 +202,14 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name)
 	// Read SHX header to derive nrRecs
 	if (m_FHX)
 	{
-		if (head.Read(m_FHX) != sizeof(ShpHeader))
+		if (head.Read(m_FHX) != ShpHeaderBytes)
 			throwErrorF("Shp", "the index file of ShapeFile '{}' is shorter than its header", name.c_str());
 		if (head.m_FileLength < headerWords || (head.m_FileLength - headerWords) % 4 != 0)
 			throwErrorF("Shp", "the index file of ShapeFile '{}' declares an invalid length of {} words", name.c_str(), head.m_FileLength);
 		m_NrRecs = (head.m_FileLength - headerWords) / 4;
 		// every record takes at least a record header and a shape type in the .shp
-		if (SizeT(m_NrRecs) * (sizeof(ShpRecordHeader) + sizeof(Int32)) > SizeT(m_FileLength) - sizeof(ShpHeader))
-			throwErrorF("Shp", "the index file of ShapeFile '{}' declares {} records, more than the {} bytes of the .shp can hold", name.c_str(), m_NrRecs, m_FileLength - sizeof(ShpHeader));
+		if (SizeT(m_NrRecs) * (sizeof(ShpRecordHeader) + sizeof(Int32)) > SizeT(m_FileLength) - ShpHeaderBytes)
+			throwErrorF("Shp", "the index file of ShapeFile '{}' declares {} records, more than the {} bytes of the .shp can hold", name.c_str(), m_NrRecs, m_FileLength - ShpHeaderBytes);
 	}
 	else
 		m_NrRecs = -1; // no .shx: Read() takes the count from the records themselves
@@ -458,7 +458,7 @@ SizeT ShpImp::CalcNrWordsInFile()
 
 	if (IsPoint(m_ShapeType))
 		return
-			(	sizeof(ShpHeader) 
+			(	ShpHeaderBytes
 			+	m_Points.size()
 				*	(	sizeof(ShpPoint)
 					+	sizeof(ShpRecordHeader)
@@ -466,7 +466,7 @@ SizeT ShpImp::CalcNrWordsInFile()
 					)
 			) / 2;
 
-	SizeT result = sizeof(ShpHeader) / 2;	 // fileheader
+	SizeT result = ShpHeaderBytes / 2;	 // fileheader
 	auto
 		i = m_Polygons.begin(),
 		e = m_Polygons.end();
@@ -553,23 +553,21 @@ std::size_t ShpHeader::Read(FILE * fp)
 {
 	DBG_START("ShpHeader", "Read", false);
 	
-	std::size_t pos = fread(this, 1, sizeof(ShpHeader), fp);
-
 	// Big endian
-	ConvertBigEndian(m_FileCode);
-	ConvertBigEndian(m_Unused1 );
-	ConvertBigEndian(m_Unused2 );
-	ConvertBigEndian(m_Unused3 );
-	ConvertBigEndian(m_Unused4 );
-	ConvertBigEndian(m_Unused5 );
-	ConvertBigEndian(m_FileLength);
+	std::size_t pos = ReadBigEndian(fp, m_FileCode);
+	pos += ReadBigEndian(fp, m_Unused1 );
+	pos += ReadBigEndian(fp, m_Unused2 );
+	pos += ReadBigEndian(fp, m_Unused3 );
+	pos += ReadBigEndian(fp, m_Unused4 );
+	pos += ReadBigEndian(fp, m_Unused5 );
+	pos += ReadBigEndian(fp, m_FileLength);
 
 	// Litte endian
-	ConvertLittleEndian(m_Version);
-	ConvertLittleEndian(m_ShapeType);
-	ConvertLittleEndian(m_Box);
-	ConvertLittleEndian(m_ZRange);
-	ConvertLittleEndian(m_MRange);
+	pos += ReadLittleEndian(fp, m_Version);
+	pos += ReadLittleEndian(fp, m_ShapeType);
+	pos += ReadLittleEndian(fp, m_Box);
+	pos += ReadLittleEndian(fp, m_ZRange);
+	pos += ReadLittleEndian(fp, m_MRange);
 
 	DBG_TRACE(("FileCode   = {}", m_FileCode));
 	DBG_TRACE(("Unused1    = {}", m_Unused1));
@@ -717,13 +715,7 @@ std::size_t ShpPolygonHeader::Write(FILE * fp) const
     DBG_START("ShpPolygonHeader", "Write", false);
 
 	bool hasParts = HasParts();
-	// Little endian
-#if defined(CC_BYTEORDER_INTEL)
-	 // byteorder OK
-	if (hasParts)
-		return fwrite(this, 1, sizeof(ShpPolygonHeader), fp);
-#endif
-	// conversion from BIG to little endian required
+	// Little endian, field by field: the struct has padding before its box
 	std::size_t pos =
 		   WriteLittleEndian(fp, m_ShapeType);
 	pos += WriteLittleEndian(fp, m_Box);
@@ -934,9 +926,9 @@ Int32 ShpPolygon::CalcNrWordsInRecord() const
 {
 	SizeT sz = sizeof(ShpPoint) * (*m_Points).size();
 	if (m_Header.HasParts())
-		sz +=( sizeof(ShpPolygonHeader) + sizeof(Int32) * (*m_Parts ).size());
+		sz +=( ShpPolygonHeaderBytes + sizeof(Int32) * (*m_Parts ).size());
 	else
-		sz +=( sizeof(ShpPolygonHeader) - sizeof(Int32));
+		sz +=( ShpPolygonHeaderBytes - sizeof(Int32));
 	MG_USERCHECK2(sz / 2 <= SizeT(MAX_VALUE(Int32))
 		, "shp: a shape of more than 4 GB (about 268 million points) does not fit in a shapefile record");
 	return Int32(sz / 2);

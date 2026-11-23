@@ -188,9 +188,10 @@ struct SA_ConstReference : private SequenceArray_Base<T>
 	bool           empty() const { assert(!is_null()); return m_CSeqPtr->empty(); }
 	bool       IsDefined() const { assert(!is_null()); return ::IsDefined(*m_CSeqPtr); }
 
-	// Element ro access
-	const_iterator begin() const { assert(!is_null()); assert(m_CSeqPtr->first <= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->first;  }
-	const_iterator end  () const { assert(!is_null()); assert(m_CSeqPtr->second<= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->second; }
+	// Element ro access. The indices of an undefined sequence are undefined and may not offset a pointer
+	// (#1385); it is empty, and begins and ends at the start of the values.
+	const_iterator begin() const { assert(!is_null()); assert(m_CSeqPtr->first <= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + (IsDefined() ? m_CSeqPtr->first  : 0); }
+	const_iterator end  () const { assert(!is_null()); assert(m_CSeqPtr->second<= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + (IsDefined() ? m_CSeqPtr->second : 0); }
 
 	auto AsRange() const ->IterRange<const_iterator> { return { begin(), end() }; }
 

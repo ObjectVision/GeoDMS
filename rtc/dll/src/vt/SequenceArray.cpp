@@ -820,6 +820,8 @@ template <typename T>
 void sequence_array<T>::abandon(data_size_type first, data_size_type last)
 {
 	data_size_type n = last - first;
+	if (!n) // an empty sequence, whose indices may be undefined: no offset into the pool
+		return;
 	assert( n <= m_ActualDataSize);
 	m_ActualDataSize -= n;
 	

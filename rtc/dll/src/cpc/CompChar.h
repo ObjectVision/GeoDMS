@@ -239,9 +239,13 @@
 
 // DMS_TYPE_VISIBLE gives a class or class template default visibility with gcc, for two kinds of type:
 // - a polymorphic class whose typeinfo or vtable another library needs, because a class there derives
-//   from it, catches it, casts to it with dynamic_cast, or constructs it with an inline constructor.
-//   gcc emits the typeinfo and the vtable of a class only beside the definition of its first
-//   non-inline virtual function, so with hidden visibility the other libraries would not find them;
+//   from it, catches it, casts to it with dynamic_cast, or constructs or destroys it with an inline
+//   constructor or destructor. gcc emits the typeinfo and the vtable of a class only beside the
+//   definition of its first non-inline virtual function, so with hidden visibility the other libraries
+//   would not find them. An optimised build can hide that need: where an inline constructor or
+//   destructor of a derived class stores the vtable pointer of a base that the next store overwrites,
+//   gcc drops the first store, so the release build links where a build without optimisation, or the
+//   build of the preset linux-x64-ubsan, whose checks keep such stores, does not (#1385);
 // - a type that is a template argument of an instantiation whose members another library uses, such
 //   as SharedStr and Point<T> in DataArrayBase<SharedStr> and DataArrayBase<Point<T>>. gcc gives an
 //   instantiation at most the visibility of its template arguments, also to the members that carry

@@ -142,7 +142,12 @@ If the build cannot be run exactly this way, stop and ask.
   `CMakeCache.txt` is absent; a `CMakeLists.txt` edit forces the reconfigure.
 - Linux: from WSL, `cd /mnt/c/dev/GeoDMS_2026`, presets `linux-x64-release` / `-debug`, same
   tree, no separate checkout. A file that WSL claims is missing over 9p may exist; verify
-  from the Windows side before concluding anything.
+  from the Windows side before concluding anything. The preset `linux-x64-ubsan` is the
+  release build with gcc's undefined-behaviour checks (`-fsanitize=undefined -g` on the
+  engine's own code, without the `vptr` check, which does not link with hidden visibility;
+  #1385), in `build/linux-x64-ubsan` with a `vcpkg_installed` of its own that the binary
+  cache fills; it is never shipped. `batch/TestLinuxUbsan.sh` runs the Linux tests on it
+  (below).
 - GLOBIO compatibility (`.g`): `batch\BuildGlobio.bat Release` (or `Debug`), never an msbuild
   line of your own. It builds the same `all22.sln` with `-p:GeoDmsGlobio=true`, which
   `Directory.Build.props` turns into toolset v143 with MSVC 14.36.32532, the vc14 runtime
@@ -195,6 +200,23 @@ Rules per tier:
   runs it; a case with a line `// WINDOWS-ONLY: <reason>` is skipped there, and its memory
   limit is on resident memory, which it reads while the case runs, because Linux has no commit
   limit per process. Run from `/mnt/c` it does not see a wrong-case include (#1359).
+- On the build of the preset `linux-x64-ubsan`, `bash batch/TestLinuxUbsan.sh [report folder]`
+  runs the Linux tests (#1385): `TestLinuxReleaseUnit.sh linux-x64-ubsan` (the battery and
+  the unit suite), `batch/TestShippedContent.sh`, `python/tst/UnitTests.py` and
+  `python/tst/LinuxGdalCompatibility.py` in its five orders. A report of gcc's checks does not
+  fail a test, so read `<report folder>/summary.txt` (default `~/geodms_ubsan`, never
+  `/tmp`, which WSL empties when it stops): each reported place in the code once, with the
+  tests and cases that reached it and its stack. Exit 0 is no failure and no report, 2 is
+  reports only, 1 is a failed test. Run it in a visible console, as tier 2. Measured on this
+  machine on 2026-11-23, from `/mnt/c`: configuring a new `build/linux-x64-ubsan` took
+  18 min, most of it the vcpkg ports from the binary cache; compiling and linking everything,
+  as after a change in a header under `rtc`, 31 to 33 min, against 13 for the release build,
+  and a change in the CMake options adds a configure, 5.5 min for the release build; the output folder is
+  4.6 GB, against 0.4 GB; and the tests took 60 to 62 min, of which 47 to 53 for the battery,
+  which took 6.5 min on the release build in a round where the two ran one after the other.
+  That build has 182 `-Wmaybe-uninitialized` warnings where the release build has none; they
+  are compiler warnings, presumably for the code that the checks add, and no reports of
+  undefined behaviour.
 - Tier 2 must run in a visible console, never piped headless: the suite ends by launching
   Notepad++ on the result file and pausing, which hangs without a console. Register an
   interactive scheduled task (`schtasks /Create ... /IT` then `/Run`) and read the results

@@ -3,11 +3,15 @@
 # batch\TestReleaseUnit.bat does on Windows: first testcases/run_testcases.sh, then the unit suite of
 # the tst repository, which also runs when the battery fails. Exit code 1 when either fails.
 # Must be run from WSL2 or a native Linux environment.
+#
+# Usage: bash TestLinuxReleaseUnit.sh [preset]
+#   preset: the CMake preset whose output folder build/<preset>/bin is tested, linux-x64-release
+#   when not given; batch/TestLinuxUbsan.sh passes linux-x64-ubsan.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TST_BATCH="$(dirname "$SCRIPT_DIR")/tst/batch"
-CONFIG=linux-x64-release
+CONFIG="${1:-linux-x64-release}"
 
 if [[ ! -d "$TST_BATCH" ]]; then
     echo "ERROR: tst/batch not found at $TST_BATCH"

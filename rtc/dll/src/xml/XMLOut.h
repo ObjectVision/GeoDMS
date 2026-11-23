@@ -44,7 +44,7 @@ enum class ClosePolicy {
 
 const UInt32 MAX_TEXTOUT_SIZE = 400;
 
-struct OutStreamBase {
+struct DMS_TYPE_VISIBLE OutStreamBase {
 
 	enum SyntaxType { ST_XML, ST_DMS, ST_HTM, ST_MD, ST_Count, ST_Unknown = -1 };
 
@@ -169,7 +169,7 @@ struct OutStream_HTM :OutStream_XmlBase
 };
 
 
-struct OutStream_DMS :OutStreamBase
+struct DMS_TYPE_VISIBLE OutStream_DMS :OutStreamBase
 {
 	RTC_CALL OutStream_DMS(OutStreamBuff* out, const AbstrPropDef* primaryPropDef);
 

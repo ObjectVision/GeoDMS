@@ -13,7 +13,27 @@
 #if !defined(__GEOM_ISINSIDE_H)
 #define __GEOM_ISINSIDE_H
 
+#include <type_traits>
+
 //**************************************************************************
+
+// A vertex relative to the point tested: the point subtracted from it. For a signed integer coordinate the subtraction is
+// done in the unsigned type and converted back, which wraps as the processor wraps a signed difference, so the result is
+// that of the plain subtraction in the generated code, without its undefined behaviour: a null coordinate of an ipoint is
+// the lowest int32, and its difference with a coordinate of the point does not fit (#1385). IsInside and PolygonEdgeIndex
+// (geo/dll/src/geom) both use it, so that they test the same differences.
+template <typename PointType>
+PointType RelativeTo(PointType vertex, PointType point)
+{
+	using T = typename PointType::field_type;
+	if constexpr (std::is_integral_v<T> && std::is_signed_v<T>)
+	{
+		using U = std::make_unsigned_t<T>;
+		return PointType(T(U(vertex.first) - U(point.first)), T(U(vertex.second) - U(point.second)));
+	}
+	else
+		return vertex - point;
+}
 
 // Does the edge from prevPoint to thisPoint, both relative to the point tested, cross the horizontal half-line from that point
 // to the right? Only an edge with one end strictly above the point's row and the other not can, so only an edge whose y-range
@@ -48,11 +68,11 @@ bool IsInside(ConstPointIter polyBegin, ConstPointIter polyEnd, PointType point)
 
 	bool c = false;   // count #segments right of point
 
-	PointType prevPoint = polyEnd[-1] - point; // use point as base for numerical stability
+	PointType prevPoint = RelativeTo(PointType(polyEnd[-1]), point); // use point as base for numerical stability
 
 	while (polyBegin != polyEnd)
 	{
-		PointType thisPoint = *polyBegin - point; // use base again
+		PointType thisPoint = RelativeTo(PointType(*polyBegin), point); // use base again
 		++polyBegin;
 		if (IsCrossingRightOfOrigin(prevPoint, thisPoint))
 			c = !c;

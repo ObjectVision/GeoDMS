@@ -24,6 +24,8 @@
 #     stor_shp_ringclose_2_read.dms do, and run in the same order in both.
 #   - The output folder is _out_linux by default, so that it does not mix with a Windows run of the
 #     same tree.
+#   - When UBSAN_OPTIONS names a log_path, as batch/TestLinuxUbsan.sh sets it for a build with gcc's
+#     undefined-behaviour checks (#1385), each case writes its reports to <log_path>.<case>.<pid>.
 #
 # From a folder on a Windows drive, such as /mnt/c in WSL, a case finds a file that it names in the
 # wrong case, as on Windows, and a Linux file system would not (#1359); batch/TestShippedDms.sh
@@ -199,6 +201,8 @@ add_result() { R_CONFIG+=("$1"); R_VERDICT+=("$2"); R_EXIT+=("$3"); R_ITEM+=("$4
 
 declare -A NEG_SEEN
 PEAK_KB=0; PEAK_CASE=""; LONGEST_US=0; LONGEST_CASE=""
+UBSAN_OPTIONS_OF_CALLER="${UBSAN_OPTIONS:-}"
+UBSAN_LOG_PATH=$(sed -n 's/^\(.*:\)\{0,1\}log_path=\([^:]*\).*$/\2/p' <<< "$UBSAN_OPTIONS_OF_CALLER")
 FRAGS="$OUT_DIR/.expect_fragments"
 
 mapfile -t NAMES < <(cd "$HERE" && for f in *.dms; do [[ -f "$f" ]] && printf '%s\n' "$f"; done | LC_ALL=C sort)
@@ -219,6 +223,9 @@ for name in "${NAMES[@]}"; do
 
     mapfile -t expects < <(tag_lines EXPECT-FAILURE "$cfg")
     out="$OUT_DIR/$stem.out"
+    # On a build with gcc's undefined-behaviour checks, batch/TestLinuxUbsan.sh names a log_path in
+    # UBSAN_OPTIONS; each case adds its name to it, so that its reports say which case made them.
+    if [[ -n "$UBSAN_LOG_PATH" ]]; then export UBSAN_OPTIONS="$UBSAN_OPTIONS_OF_CALLER:log_path=$UBSAN_LOG_PATH.$stem"; fi
     run_guarded "$out" "$EXE" "/L$OUT_DIR/$stem.log" "$cfg" "${item_args[@]}"
     code=$RG_CODE
     if (( RG_PEAK_KB > PEAK_KB )); then PEAK_KB=$RG_PEAK_KB; PEAK_CASE=$stem; fi
