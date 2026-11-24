@@ -46,6 +46,14 @@ or any later version.
 The Boost Software License, the MIT License and the Apache License 2.0 are compatible with the GPL
 version 3. The SIL Open Font License allows a font to be bundled with software under any licence.
 
+## Generated images
+
+`qtgui/exe/res/images/WorldHeatMap.jpg`, the splash screen that the GUI compiles in, and the six
+images in `splash/` were generated with OpenAI image models from prompts by Object Vision B.V.,
+which curated them. OpenAI's terms of use assign to the user whatever rights OpenAI has in such
+output. Object Vision B.V. distributes the images with GeoDMS under the same licence as the
+software.
+
 ## Libraries in the setups
 
 The setups bundle third-party libraries, such as GDAL, PROJ, GEOS, Boost and Qt, each under its
