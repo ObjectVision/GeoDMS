@@ -194,7 +194,9 @@ Rules per tier:
   `WRONG-FAILURE` (#1369). A new negative needs such a
   line, or it fails as `NO-EXPECT`; `testcases\expect_failure_missing.txt` lists any that have
   none, with the reason (AGENTS.md has the rules). On an older build a `WRONG-FAILURE` is often
-  only a message that changed since; read the `.out` before calling it a regression.
+  only a message that changed since; read the `.out` before calling it a regression. A case
+  whose `.out` has `Caught at Main:` fails as `CAUGHT-AT-MAIN`: GeoDmsRun wrote an error to
+  stderr that the `/L` log of the case lacks (#1384).
   On Linux, `bash testcases/run_testcases.sh [GeoDmsRun]` applies the same rules (#1384), with
   its logs in `testcases/_out_linux/`, or `testcases/_out_<preset>/` when `TestLinux*Unit.sh`
   runs it; a case with a line `// WINDOWS-ONLY: <reason>` is skipped there, and its memory

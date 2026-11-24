@@ -9,6 +9,9 @@
 #   '// EXPECT-FAILURE: <fragment>' must occur in a message of their output, or they fail as
 #   WRONG-FAILURE. expect_failure_missing.txt lists the negatives that have no such line.
 #   Exit code 3 (a Debug assertion) is always a failure.
+#   A case whose output has a line with 'Caught at Main:', where GeoDmsRun's exception translator
+#   writes an error to stderr and not to the /L log, fails as CAUGHT-AT-MAIN when it would otherwise
+#   pass: until #1384 that was how the Linux engine reported an error caught inside a nested call.
 #   The item of a case comes from fnrun_itemmap.txt, /checks when it names none.
 #
 # What differs from run_testcases.ps1:
@@ -259,6 +262,17 @@ for name in "${NAMES[@]}"; do
             verdict="ok(neg)"
         fi
     fi
+    case "$verdict" in
+        ok|"ok(neg)"|"ok(neg,unchecked)")
+            caught=$(grep -a -m 1 -F 'Caught at Main:' "$out")
+            if [[ -n "$caught" ]]; then
+                msg="${caught#*Caught at Main:}"; msg="${msg%$'\r'}"
+                msg="${msg#"${msg%%[![:space:]]*}"}"; msg="${msg%"${msg##*[![:space:]]}"}"
+                (( ${#msg} > 200 )) && msg="${msg:0:200}..."
+                verdict=CAUGHT-AT-MAIN
+                detail="stderr has 'Caught at Main: $msg'"
+            fi ;;
+    esac
     add_result "$stem" "$verdict" "$code" "$item" "$detail"
 done
 rm -f "$FRAGS"
@@ -314,6 +328,7 @@ if (( ${#BAD[@]} )); then
     [[ "$seen" == *" NO-EXPECT "* ]]         && echo "A NO-EXPECT is a negative case without an EXPECT-FAILURE line: add one with a fragment of the message it is written to fail with."
     [[ "$seen" == *" LISTED-HAS-EXPECT "* ]] && echo "A LISTED-HAS-EXPECT has an EXPECT-FAILURE line and is still listed in $UNCHECKED_NAME: remove its line there."
     [[ "$seen" == *" LISTED-UNKNOWN "* ]]    && echo "A LISTED-UNKNOWN is a name in $UNCHECKED_NAME that is no negative case (any more): remove its line there."
+    [[ "$seen" == *" CAUGHT-AT-MAIN "* ]]    && echo "A CAUGHT-AT-MAIN reported an error through GeoDmsRun's exception translator, which writes it to stderr behind 'Caught at Main:' and not to the /L log: find the API call that let it through (#1384)."
     exit 1
 fi
 echo "ALL TESTCASES PASSED"

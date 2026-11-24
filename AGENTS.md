@@ -48,6 +48,13 @@ reason, and they are judged on the exit code only. A negative without a line tha
 fails as `NO-EXPECT`, so a new negative comes with its message, and a listed one that has a line
 fails as `LISTED-HAS-EXPECT`, so a name leaves the list once its case has a line.
 
+A case whose output has a line with `Caught at Main:` fails as `CAUGHT-AT-MAIN`, a positive as well
+as a negative, unless it failed already for another reason. Those words come from GeoDmsRun's
+exception translator (`reportMsg` in `run/exe/src/MainRun.cpp`), which writes the error to stderr
+only, so the `/L` log of the case lacks it. Until #1384 the Linux engine reported an error caught
+inside a nested call of the DMS API that way, which left fifteen negatives with their error on
+stderr only; since then no case writes such a line, on either platform.
+
 **Every GeoDmsRun that these runners start is held to two limits** (`testcases/case_guard.ps1`,
 dot-sourced by `run_testcases.ps1`, `run_xml_roundtrip.ps1` and `run_roundtrip.ps1`): a Windows
 job object caps the process at 8 GB of commit, and it is killed after 300 s of wall clock.
