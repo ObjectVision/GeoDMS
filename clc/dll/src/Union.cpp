@@ -438,11 +438,9 @@ static void UnionData_CheckPartDomains(const AbstrOperGroup* og, const TreeItemD
 		itemName = GetReportingItemName();
 	auto prefix = itemName.empty() ? SharedStr() : itemName + " ";
 
-	// MsgDispatch truncates every message at 256 characters, and two source names of a deeply nested
-	// configuration already take about half of that, on top of the item prefix. So state the finding
-	// and nothing more: which argument, the domain it has, and the part it was matched against. The
-	// argument itself is identified by its number rather than by a third source name, and the wiki
-	// page carries the explanation and the advice.
+	// State the finding and nothing more: which argument, the domain it has, and the part it was
+	// matched against. The argument itself is identified by its number rather than by a third source
+	// name, and the wiki page carries the explanation and the advice.
 	if (isUnionUnit)
 		reportF(SeverityTypeID::ST_Warning
 		,	"{0}{1}: argument {2} has domain {3}, but part {4} of the result domain is {5}.{6}"

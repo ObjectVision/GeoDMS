@@ -233,7 +233,8 @@ bool AbstrGridStorageManager::DoCheckFactorSimilarity(StorageMetaInfoPtr smi) co
 	// georeference from its file because of SyncMode None is such a side. Without one on either side the read goes
 	// cell for cell, by row and column, as meant, and so it does when the georeference of one side is a projection
 	// onto the other side itself, as a TiledUnit of the grid domain has. The message context names the item that is
-	// read, and MsgDispatch cuts a message after 256 characters, so the text is short and names the two sides first.
+	// read, and MsgDispatch cuts each line of a message after 1000 characters (MAX_MSG_LINE_LENGTH); the text is
+	// short and names the two sides first, so that they come before any cut.
 	if (!grid_projection != !curr_projection
 		&& !IsSameCoordinateUnit(GetCurrWorldCrdUnitFromGeoUnit(gbr->m_VPIP->m_GridDomain.get_ptr()), GetCurrWorldCrdUnitFromGeoUnit(gbr->m_VPIP->m_CurrDomain.get_ptr())))
 	{

@@ -31,8 +31,8 @@ namespace {
 		return Float64(actual) / Float64(estimate);
 	}
 
-	// Compact byte size. MsgDispatch truncates a message at 256 characters, so these lines have to
-	// stay terse or they lose their tail -- which is where the schedule-vs-run comparison sits.
+	// Compact byte size, which keeps these lines short. The schedule-vs-run comparison sits at their
+	// end, and MsgDispatch cuts each line of a message after 1000 characters (MAX_MSG_LINE_LENGTH).
 	SharedStr Bytes(SizeT n)
 	{
 		// Two decimals above 1 MB. Integer division flattened everything in [1 GB, 2 GB) to "1G",

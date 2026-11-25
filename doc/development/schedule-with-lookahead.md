@@ -1126,8 +1126,9 @@ the 2 MB decommit threshold of §8.1.14 applies to no free-stack store, since th
   front, since `PrepareReadDataOrSuspend` has already resolved count and values range. The
   read line reports actual-vs-estimated bytes and MB/s per manager, which is the input a
   read cost model gets calibrated on.
-- **Report format compacted.** `MsgDispatch` truncates a message at 256 characters, which
-  was silently cutting off the schedule-vs-run comparison — the most informative part.
+- **Report format compacted.** `MsgDispatch` then cut each line of a message after 256
+  characters (after 1000 since #1393), which was silently cutting off the schedule-vs-run
+  comparison — the most informative part.
   Lines are now terse (`n=… (1.00x derived) B=123M deferred 496x256K res=123M | sched
   n=1000000 eager assumed`) and fit.
 

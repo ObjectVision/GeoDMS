@@ -191,9 +191,10 @@ assertion: `Get-Clipboard -Raw` and `-Format Image`.
   named `oper_negate_...`, not `oper_neg_...`. A negative must exit nonzero with the message
   of its `// EXPECT-FAILURE: <fragment>` lines: take the fragment from the first line of the
   message in the case's `.out` where it can, and from a line that continues the message only for
-  what only that line says; leave out absolute paths. A message is cut after 256 characters,
-  so a fragment that follows a path in its message must end well before that, or it fails in
-  an output folder with a longer path. Without such a line the case fails as `NO-EXPECT`.
+  what only that line says; leave out absolute paths. Each line of a message is cut after 1000
+  characters (`MAX_MSG_LINE_LENGTH` in `rtc/dll/src/dbg/MsgDispatch.cpp`), so a fragment that
+  follows a path on its line must end well before that, or it fails in an output folder with a
+  longer path. Without such a line the case fails as `NO-EXPECT`.
   Anything that downloads or reads real data goes to `batch\TestShippedContent.bat` instead.
 - A regression case proves something only when it fails on the code before the fix. Run it
   on the unfixed binaries first (a battery on a build without the fix does this for every

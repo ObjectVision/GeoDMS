@@ -104,8 +104,9 @@ FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool transl
 	}
 
 	// emit a detailed error message, including the filename and the reason for failure. The filename has
-	// a line of its own, as in the messages of ReadBlock, WriteBlock and CloseAfterWrite: the log cuts
-	// each line after 256 characters, and the line that names the item also holds the start of this text.
+	// a line of its own, as in the messages of ReadBlock, WriteBlock and CloseAfterWrite: the line that
+	// names the item also holds the start of this text, and the log cuts each line after 1000 characters
+	// (MAX_MSG_LINE_LENGTH in MsgDispatch.cpp).
 	int openErr = errno;
 	CharPtr hint = "";
 #if defined(_MSC_VER)
@@ -193,7 +194,7 @@ FileResult FilePtrHandle::ReadBlock(void* data, SizeT size)
 		return {};
 	auto cause = TakeIoErrorCause();
 
-	// the filename has a line of its own: the log cuts each line after 256 characters (see OpenFH)
+	// the filename has a line of its own (see OpenFH)
 	if (feof(m_FP) && !ferror(m_FP))
 		return std::unexpected(mySSPrintF("reading {} bytes from this file stopped after {} bytes, where the file ends:\n'{}'"
 			, size, nrRead, m_FileName.c_str()));

@@ -134,14 +134,21 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 	DMS_CALL_END
 }
 
+// The most characters of one line of a message that reach the receivers (log file, console, event log
+// of the GUI, Python); a longer line is cut there and ends with "...". FlushMsg has split the message
+// into lines before, so the limit holds per line. It keeps a runaway message, such as one that lists
+// the values or coordinates it failed on, out of the event log, while a line that names an item and
+// a file of up to 260 characters, the Windows MAX_PATH, still fits whole.
+constexpr SizeT MAX_MSG_LINE_LENGTH = 1000;
+
 void MsgDispatch(MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
 	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMetaThread() || tl_IsMsgDeliveryThread);
 	if (!g_MsgCallbacks)
 		return;
-	if (msgData->m_Txt.ssize() > 256)
-		msgData->m_Txt = SharedStr(CharPtrRange(msgData->m_Txt.begin(), msgData->m_Txt.begin() + 256)) + "...";
+	if (msgData->m_Txt.ssize() > MAX_MSG_LINE_LENGTH)
+		msgData->m_Txt = SharedStr(CharPtrRange(msgData->m_Txt.begin(), msgData->m_Txt.begin() + MAX_MSG_LINE_LENGTH)) + "...";
 
 	TMsgCallbackSinkContainer::iterator
 		b = g_MsgCallbacks->begin(),
