@@ -129,9 +129,10 @@ FONT_FILE = re.compile(r".*\.(ttf|otf|ttc|woff2?|pfa|pfb|fon)$", re.IGNORECASE)
 # The fonts that need no licence text of their own because their name table names Object Vision as
 # the copyright holder, by lower-case file name: DMS Font, res/fonts/dms.ttf, the symbol font of point
 # layers (shv/dll/src/FontRole.h). A font with symbols from another font belongs in INSIDE_GEODMS.
-# Where the symbols of dms.ttf come from is not recorded. Apart from simple shapes, none of them matches
-# a drawing in the symbol fonts of Windows or in the open source fonts compared for #1389. A symbol that
-# turns out to come from an open source font makes dms.ttf an item of INSIDE_GEODMS, with that licence.
+# Object Vision drew the symbols of dms.ttf, the windmills at the codes 43, 82 and 83 included, which
+# were added in 2022. Apart from simple shapes such as a triangle, none of them matches a drawing in the
+# symbol fonts of Windows or in the open source fonts compared for #1389, Remix Icon among them. A
+# symbol taken from another font makes dms.ttf an item of INSIDE_GEODMS, with that font's licence.
 GEODMS_FONTS = {"dms.ttf"}
 # The Qt resource file that GeoDmsGuiQt compiles in; every font in it must be an item of INSIDE_GEODMS.
 GUI_QRC = "qtgui/exe/GeoDmsGuiQt.qrc"
