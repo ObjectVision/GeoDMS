@@ -37,8 +37,11 @@
 //   Local, boost-free reimplementations of the boost::random distributions
 //   formerly used here (boost/random/uniform_real, uniform_int,
 //   uniform_smallint). The algorithms are reproduced from Boost.Random
-//   (Copyright Jens Maurer 2000-2001, Steven Watanabe 2011; Boost Software
-//   License 1.0) so that rnd_uniform / rnd_permutation keep producing
+//   (Copyright Jens Maurer 2000-2001, Steven Watanabe 2011; distributed
+//   under the Boost Software License, Version 1.0: see the accompanying file
+//   rtc/dll/src/ipolygon/LICENSE_1_0.txt or a copy at
+//   https://www.boost.org/LICENSE_1_0.txt)
+//   so that rnd_uniform / rnd_permutation keep producing
 //   bit-for-bit identical, cross-platform-reproducible sequences on top of
 //   std::mt19937. std::uniform_*_distribution is deliberately NOT used: its
 //   output is unspecified and differs across standard-library implementations

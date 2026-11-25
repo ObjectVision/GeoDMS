@@ -43,11 +43,11 @@ the script: no library goes out without its licence text. Besides those, the tab
 ports without a shared library of their own, whose code is compiled into the binaries that use them.
 
 Some files of GeoDMS itself contain material from other projects (#1389): GeoDmsGuiQt compiles two
-fonts in through its Qt resource file, one of which is also installed as a font file. INSIDE_GEODMS
-lists them with their licence texts, which
+fonts in through its Qt resource file, one of which is also installed as a font file, and Geo.dll
+holds a polygon rasterizer adapted from GDAL. INSIDE_GEODMS lists them with their licence texts, which
 stage copies into licenses/geodms and lists in a second table of README.txt, per installed file that
-contains them. stage stops on a font in the Qt resource file, or among the installed files, that has
-no licence text here, as it stops on a binary.
+contains them. stage stops on a file in the Qt resource file, or a font among the installed files,
+that is neither GeoDMS's own nor has a licence text here, as it stops on a binary.
 
 check walks an installation folder and compares the binaries in it with the table, in both directions,
 and checks that license.txt and every licence file that the table names are there, and that every
@@ -122,6 +122,10 @@ INSIDE_GEODMS = [
     Inside("qtgui/exe/res/fonts/remixicon.ttf", "the icon font Remix Icon 3.5, remixicon.ttf",
            "Apache License 2.0", "qtgui/exe/res/fonts/remixicon-License.txt", "geodms/remixicon-License.txt",
            {"geodmsguiqt.exe", "geodmsguiqt"}),
+    Inside("geo/dll/src/Poly2GridOper.cpp",
+           "the polygon rasterizer of poly2grid and poly2allgrids, adapted from alg/llrasterize.cpp of GDAL",
+           "MIT License", "geo/dll/src/Poly2GridOper-GDAL-MIT.txt", "geodms/Poly2GridOper-GDAL-MIT.txt",
+           {"geo.dll", "dmgeo.dll", "libdmgeo.so"}),
 ]
 
 # The fonts that a setup can install or GeoDmsGuiQt can compile in; each needs a licence text.
@@ -134,8 +138,30 @@ FONT_FILE = re.compile(r".*\.(ttf|otf|ttc|woff2?|pfa|pfb|fon)$", re.IGNORECASE)
 # symbol fonts of Windows or in the open source fonts compared for #1389, Remix Icon among them. A
 # symbol taken from another font makes dms.ttf an item of INSIDE_GEODMS, with that font's licence.
 GEODMS_FONTS = {"dms.ttf"}
-# The Qt resource file that GeoDmsGuiQt compiles in; every font in it must be an item of INSIDE_GEODMS.
+# The Qt resource file that GeoDmsGuiQt compiles in. Every file in it must be either an item of
+# INSIDE_GEODMS or one of GEODMS_GUI_FILES.
 GUI_QRC = "qtgui/exe/GeoDmsGuiQt.qrc"
+# The files of GUI_QRC that are GeoDMS's own and need no licence text of their own, by their path in
+# GUI_QRC: the icons of the toolbars, the detail pages, the event log and the tree view, and the
+# program icon, which Object Vision made; the branch lines of the tree view, which
+# tools/make_tree_line_images.py draws; and WorldHeatMap.jpg, the splash screen, which doc/licensing.md
+# describes. A file from another project belongs in INSIDE_GEODMS, with its licence text.
+GEODMS_GUI_FILES = {"res/images/" + f for f in """
+    DP_back.bmp DP_configuration.bmp DP_explore.bmp DP_forward.bmp DP_history.bmp DP_MetaData.bmp
+    DP_properties.bmp DP_properties_general.bmp DP_properties_properties.bmp DP_SourceData.png
+    DP_ValueInfo.bmp
+    EL_clear.bmp EL_scroll_down.bmp EL_selection.bmp EL_selection_text.bmp EL_selection_type.bmp
+    TB_copy.bmp TB_group_by.bmp TB_pan_button.bmp TB_save.bmp TB_select_all.bmp TB_select_circle.bmp
+    TB_select_district.bmp TB_select_none.bmp TB_select_object.bmp TB_select_poly.bmp TB_select_rect.bmp
+    TB_show_all_features.bmp TB_show_selected_features.bmp TB_table_select_row.bmp
+    TB_table_show_first_selected.bmp TB_toggle_layout_1.bmp TB_toggle_layout_2.bmp TB_toggle_layout_3.bmp
+    TB_toggle_needle.bmp TB_toggle_palette.bmp TB_toggle_scalebar.bmp TB_vcopy.bmp TB_zoom_active_layer.bmp
+    TB_zoom_all_layers.bmp TB_zoom_selected.bmp TB_zoomin_button.bmp TB_zoomout_button.bmp
+    TV_storage_unstored.png arrow_down.png down_arrow.png down_arrow_hover.png right_arrow.png
+    right_arrow_hover.png GeoDmsGuiQt.png
+    TV_branch_end.png TV_branch_more.png TV_vline.png
+    WorldHeatMap.jpg
+""".split()}
 
 GPL_FILE = "license.txt"     # the GPL of GeoDMS, in the repository root and the installation folder
 LICENCES_DIR = "licenses"    # the folder beside it with the texts of the bundled libraries
@@ -265,12 +291,11 @@ def wrap(text):
     return textwrap.fill(text, TEXT_WIDTH) + "\n"
 
 
-def qrc_fonts():
-    """The fonts that GeoDmsGuiQt compiles in through GUI_QRC, as paths relative to the repository."""
+def qrc_files():
+    """The files that GeoDmsGuiQt compiles in through GUI_QRC, as their path in GUI_QRC."""
     with open(os.path.join(REPO, *GUI_QRC.split("/")), encoding="utf-8") as f:
         files = re.findall(r"<file\b[^>]*>\s*([^<]*?)\s*</file>", f.read())
-    return [posixpath.normpath(posixpath.join(posixpath.dirname(GUI_QRC), p.replace("\\", "/")))
-            for p in files if FONT_FILE.fullmatch(p)]
+    return [posixpath.normpath(p.replace("\\", "/")) for p in files]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -810,10 +835,15 @@ def stage(args):
     problems.stop_if_any("preparing the licenses folder")
 
     inside_sources = {i.source for i in INSIDE_GEODMS}
-    for font in qrc_fonts():
-        if font not in inside_sources:
-            problems.append(f"{font} is compiled into GeoDmsGuiQt through {GUI_QRC}, but no licence text is known "
-                            "for it: add it to INSIDE_GEODMS in tools/setup_licences.py, with its licence text")
+    qrc_dir = posixpath.dirname(GUI_QRC)
+    for path in qrc_files():
+        if path not in GEODMS_GUI_FILES and posixpath.join(qrc_dir, path) not in inside_sources:
+            problems.append(f"{posixpath.join(qrc_dir, path)} is compiled into GeoDmsGuiQt through {GUI_QRC}, but no "
+                            "licence text is known for it: add it to GEODMS_GUI_FILES in tools/setup_licences.py if it "
+                            "is GeoDMS's own, or else to INSIDE_GEODMS, with its licence text")
+    for path in sorted(GEODMS_GUI_FILES - set(qrc_files())):
+        problems.append(f"GEODMS_GUI_FILES in tools/setup_licences.py names {path}, which {GUI_QRC} does not "
+                        "compile in: remove it from the list")
 
     rows, inside_rows, licences, qt_data = [], [], {}, {}
     counts, contained = {}, set()

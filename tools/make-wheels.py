@@ -11,7 +11,8 @@ loaded), and the resource files the engine looks for next to Rtc.dll (GetExeDir)
 delvewheel puts the DLLs in <distribution>.libs (geodms.libs), so GetExeDir points there, and the
 resources go there as well. Each wheel also carries the licence text of every vcpkg port that one
 of its DLLs comes from, in its .dist-info/licenses/third-party folder, with a table of the bundled
-DLLs.
+DLLs, and there too the licence texts of the material from other projects that a GeoDMS DLL
+contains, such as the code from GDAL in Geo.dll (INSIDE_GEODMS of tools/setup_licences.py).
 
 With --flavour g it makes the wheel of the GLOBIO flavour instead: the distribution geodms-globio,
 whose package is also called geodms, from bin_GLOBIO/Release/x64, for the CPython minor of
@@ -269,11 +270,46 @@ def metadata(flavour, version, python_requirement, conda, licence_files=("licens
 # stops the script, so that no library goes out without its licence text. Importing it writes no
 # tools/__pycache__ into the working copy.
 sys.dont_write_bytecode = True
-from setup_licences import (GEODMS_DLLS, GEODMS_OTHER, MSVC_RUNTIME, SHARED_LIBRARY,  # noqa: E402
-                            CondaEnv, DebianSystem, Problems, VcpkgTree, sha256, vcpkg_ports, write_table)
+from setup_licences import (GEODMS_DLLS, GEODMS_OTHER, INSIDE_GEODMS, MSVC_RUNTIME,  # noqa: E402
+                            SHARED_LIBRARY, CondaEnv, DebianSystem, Problems, VcpkgTree, sha256, vcpkg_ports,
+                            write_table)
 
 DELVEWHEEL_SUFFIX = re.compile(r"-[0-9a-f]{32}(?=\.dll$)", re.IGNORECASE)  # the hash delvewheel adds
 THIRD_PARTY = "third-party"  # the folder in .dist-info/licenses with the texts of the vcpkg ports
+
+
+def add_inside(licences_dir, names):
+    """Copy into licences_dir/third-party the licence texts of the material from other projects
+    that the GeoDMS libraries of a wheel contain, the items of INSIDE_GEODMS in tools/setup_licences.py
+    (#1389), such as the code from GDAL in Geo.dll. names are the file names of those libraries, as
+    the table lists them. Return the rows of a table of them, and the copied files as paths relative
+    to licences_dir, for License-File."""
+    rows, files = [], set()
+    for name in names:
+        for item in INSIDE_GEODMS:
+            if name.lower() not in item.installed:
+                continue
+            rel = f"{THIRD_PARTY}/{item.name}"
+            if rel not in files:
+                src = os.path.join(REPO, *item.text.split("/"))
+                if not os.path.isfile(src):
+                    sys.exit(f"make-wheels: the licence text {item.text} of {item.source} does not exist")
+                dst = os.path.join(licences_dir, *rel.split("/"))
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copyfile(src, dst)
+                files.add(rel)
+            rows.append((name, item.what, item.licence, rel))
+    return rows, sorted(files)
+
+
+def write_inside(out, libs_name, rows):
+    """The table of add_inside in README.txt, if the wheel has such material."""
+    if not rows:
+        return
+    out.write(f"\nSome GeoDMS libraries in {libs_name} contain material from other projects, under the licence\n"
+              "of that project. Those libraries, each with what it contains, that licence and the file in\n"
+              "this licenses folder with its text:\n\n")
+    write_table(out, (f"library in {libs_name}", "contains", "licence", "licence text"), rows)
 
 
 def add_licences(libs_dir, licences_dir, vcpkg_installed, bin_dir, conda=None):
@@ -363,6 +399,7 @@ def add_licences(libs_dir, licences_dir, vcpkg_installed, bin_dir, conda=None):
         if key == "boost" and key in copied:
             continue
         static_rows.append((key, version, copy_text(port, key, triplet)))
+    inside_rows, inside_texts = add_inside(licences_dir, [r[0] for r in dll_rows if r[1] == "GeoDMS"])
 
     with open(os.path.join(licences_dir, THIRD_PARTY, "README.txt"), "w", encoding="utf-8", newline="\n") as out:
         if conda is None:
@@ -373,11 +410,12 @@ def add_licences(libs_dir, licences_dir, vcpkg_installed, bin_dir, conda=None):
                       "each comes from, and the file or folder in this licenses folder that holds its licence\n"
                       "text. delvewheel added a hash to each name.\n\n")
         write_table(out, (f"DLL in {libs_name}", "comes from" if conda else "built from", "version", "licence"), dll_rows)
+        write_inside(out, libs_name, inside_rows)
         out.write("\nThe vcpkg ports without a DLL of their own (header-only or static libraries), whose code\n"
                   "is compiled into the DLLs above or into the binding where these use it. Not every one of\n"
                   "them need be in this wheel. The Boost libraries share one licence text.\n\n")
         write_table(out, ("port", "version", "licence"), static_rows)
-    return [f"{THIRD_PARTY}/README.txt"] + sorted(copied.values()) + sorted(conda_texts)
+    return [f"{THIRD_PARTY}/README.txt"] + sorted(copied.values()) + inside_texts + sorted(conda_texts)
 
 
 def wheel_file(tag):
@@ -550,17 +588,20 @@ def add_licences_linux(libs_dir, licences_dir, vcpkg_installed):
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
     problems.stop_if_any("collecting the licence texts of the Linux wheel")
+    inside_rows, inside_texts = add_inside(licences_dir, [r[0] for r in lib_rows if r[1] == "GeoDMS"])
 
     with open(os.path.join(third, "README.txt"), "w", encoding="utf-8", newline="\n") as out:
         out.write(f"The shared libraries in {libs_name}, with where each comes from and the file in this\n"
                   "licenses folder that holds its licence text. auditwheel added a hash to the names of\n"
                   "the system libraries it bundled.\n\n")
         write_table(out, (f"library in {libs_name}", "comes from", "version", "licence"), lib_rows)
+        write_inside(out, libs_name, inside_rows)
         out.write("\nThe vcpkg ports, whose code the static triplet x64-linux compiles into the GeoDMS\n"
                   "libraries above and into the binding where these use it. Not every one of them need\n"
                   "be in this wheel. The Boost libraries share one licence text.\n\n")
         write_table(out, ("port", "version", "licence"), port_rows)
-    return [f"{THIRD_PARTY}/README.txt"] + sorted(f"{THIRD_PARTY}/{licence}".replace(os.sep, "/") for licence in texts)
+    return ([f"{THIRD_PARTY}/README.txt"] + sorted(f"{THIRD_PARTY}/{licence}".replace(os.sep, "/") for licence in texts)
+            + inside_texts)
 
 
 def build_one_linux(flavour, bin_dir, out_dir, work_dir, vcpkg_installed, version, minor, python_requirement):

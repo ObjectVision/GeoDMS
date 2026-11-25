@@ -57,8 +57,10 @@ the licence texts of the libraries it bundles and `README.txt`, a table of every
 installs: where that binary comes from, its version and which text is its licence (#1371).
 Its subfolder `geodms` holds the texts of the material from other projects inside GeoDMS's own
 files, listed in `INSIDE_GEODMS` of `tools\setup_licences.py`: the Noto fonts and Remix Icon in
-`GeoDmsGuiQt` and `misc\fonts\dmstext.ttf`; a second table in `README.txt` says which installed
-file contains which (#1389).
+`GeoDmsGuiQt` and `misc\fonts\dmstext.ttf`, and the code from GDAL in `Geo.dll`; a second table
+in `README.txt` says which installed file contains which (#1389). Every other file that
+`qtgui\exe\GeoDmsGuiQt.qrc` compiles in must be in `GEODMS_GUI_FILES`, the files of the GUI that
+are GeoDMS's own.
 `tools\setup_licences.py stage` writes that folder into the output folder right before
 makensis. For `.l`, `nsi\CreateLinuxSetup.sh` runs it on the tree it has staged, before
 patchelf, and the `.deb` also gets `/usr/share/doc/geodms/copyright`. After the install,
@@ -69,7 +71,8 @@ the install and the setup, as a failed suite does. The `.l` script skips the che
 with the install when WSL has no passwordless sudo, and says so. The uninstall sections
 remove `license.txt` and `licenses` with the rest, so when `UninstallGeoDms.bat` reports a
 folder still there that holds them, those lines have gone from the uninstall section.
-`tools\make-wheels.py` maps the DLLs of a wheel to their source with the same code.
+`tools\make-wheels.py` maps the DLLs of a wheel to their source with the same code, and copies
+the text of each item of `INSIDE_GEODMS` that a GeoDMS DLL of the wheel contains.
 
 ## Who runs what
 
@@ -180,11 +183,16 @@ pass:
   `libsqlite`, whose conda packages carry no text. Take the licence of that version from the
   upstream source, keep it as `vcpkg-globio\licenses\<package>-<version>.txt`, commit it and
   run the setup again.
-- `the font <file> is installed, but no licence text is known for it`, or `<font> is compiled
-  into GeoDmsGuiQt through qtgui/exe/GeoDmsGuiQt.qrc, but no licence text is known for it`: a
-  new font. Put its licence text, with the copyright lines of the font, beside it in the
-  repository and add an item for it to `INSIDE_GEODMS`; a font that Object Vision made itself
-  goes into `GEODMS_FONTS` instead.
+- `the font <file> is installed, but no licence text is known for it`: a new font. Put its
+  licence text, with the copyright lines of the font, beside it in the repository and add an
+  item for it to `INSIDE_GEODMS`; a font that Object Vision made itself goes into
+  `GEODMS_FONTS` instead.
+- `<file> is compiled into GeoDmsGuiQt through qtgui/exe/GeoDmsGuiQt.qrc, but no licence text
+  is known for it`: a new file in the resource file, an image or a font. If Object Vision made
+  it, add its path in the resource file to `GEODMS_GUI_FILES`; if it comes from another project,
+  put its licence text beside it and add an item to `INSIDE_GEODMS`. Ask who made it rather
+  than guess. `GEODMS_GUI_FILES ... names <file>, which ... does not compile in`: the file left
+  the resource file; remove it from the list.
 - `INSIDE_GEODMS in tools/setup_licences.py names <file>, but this setup installs none of the
   files that contain it`: a binary was renamed, or GeoDMS no longer contains that file. Correct
   the names of the item, or remove it.
