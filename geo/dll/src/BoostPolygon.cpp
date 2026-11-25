@@ -26,6 +26,7 @@
 #include "mci/ValueWrap.h"
 #include "ptr/Resource.h"
 #include "ptr/ResourceArray.h"
+#include "set/BitmaskEnum.h"
 #include "utl/Environment.h"
 #include "utl/Registry.h"
 #include "utl/StrFormat.h"
@@ -1031,15 +1032,7 @@ enum class PolygonFlags {
 	F_Mask2 = 0x0F00,
 };
 
-static constexpr PolygonFlags operator | (PolygonFlags a, PolygonFlags b)
-{
-	return static_cast<PolygonFlags>(static_cast<int>(a) | static_cast<int>(b));
-}
-
-static bool operator & (PolygonFlags a, PolygonFlags b)
-{
-	return static_cast<int>(a) & static_cast<int>(b);
-}
+template <> inline constexpr bool is_bitmask_enum<PolygonFlags> = true;
 
 template <typename C>
 boost::polygon::rectangle_data<C> get_enclosing_rectangle(const boost::polygon::rectangle_data<C>& a, const boost::polygon::rectangle_data<C>& b) {
@@ -1197,22 +1190,22 @@ struct AbstrPolygonOperator : public VariadicOperator
 */
 	static arg_index CalcNrArgs(PolygonFlags f)
 	{
-		dms_assert((f & PolygonFlags::F_DoUnion) || !(f & PolygonFlags::F_HasPartition));
+		dms_assert(flags(f & PolygonFlags::F_DoUnion) || !flags(f & PolygonFlags::F_HasPartition));
 
-		dms_assert((f & PolygonFlags::F_Mask1)  || !(f & PolygonFlags::F_Mask2));
+		dms_assert(flags(f & PolygonFlags::F_Mask1)  || !flags(f & PolygonFlags::F_Mask2));
 
 		arg_index nrArgs = 1;
 
-		if (f & PolygonFlags::F_HasPartition ) ++nrArgs;
+		if (flags(f & PolygonFlags::F_HasPartition)) ++nrArgs;
 
-		if (f & PolygonFlags::F_Mask1) ++nrArgs;
-		if (f & PolygonFlags::F_Mask2) ++nrArgs;
+		if (flags(f & PolygonFlags::F_Mask1)) ++nrArgs;
+		if (flags(f & PolygonFlags::F_Mask2)) ++nrArgs;
 
 		return nrArgs;
 	}
 	static const Class* ResultCls(const DataItemClass* polyAttrClass, PolygonFlags f)
 	{
-		if (f & PolygonFlags::F_DoSplit)
+		if (flags(f & PolygonFlags::F_DoSplit))
 			return Unit<UInt32>::GetStaticClass();
 		return polyAttrClass;
 	}
@@ -1225,10 +1218,10 @@ protected:
 	{
 		ClassCPtr* argClsIter = m_ArgClasses.get();
 		*argClsIter++ = polyAttrClass;
-		if (f & PolygonFlags::F_HasPartition ) *argClsIter++ = AbstrDataItem::GetStaticClass(); // partition attribute
+		if (flags(f & PolygonFlags::F_HasPartition)) *argClsIter++ = AbstrDataItem::GetStaticClass(); // partition attribute
 
-		if (f & PolygonFlags::F_Mask1) *argClsIter++ = numericAttrClass;
-		if (f & PolygonFlags::F_Mask2) *argClsIter++ = numericAttrClass;
+		if (flags(f & PolygonFlags::F_Mask1)) *argClsIter++ = numericAttrClass;
+		if (flags(f & PolygonFlags::F_Mask2)) *argClsIter++ = numericAttrClass;
 
 		dms_assert(m_ArgClassesEnd == argClsIter);
 	}
@@ -1247,9 +1240,9 @@ protected:
 		arg_index argCount = 0;
 		const AbstrDataItem* argPoly = AsDataItem(args[argCount++]);
 		CheckGeometryArgComposition(GetGroup(), argPoly, ValueComposition::Polygon);
-		const AbstrDataItem* argPart = (m_Flags & PolygonFlags::F_HasPartition) ? AsDataItem(args[argCount++]) : nullptr;
-		const AbstrDataItem* argNum1 = (m_Flags & PolygonFlags::F_Mask1       ) ? AsDataItem(args[argCount++]) : nullptr;
-		const AbstrDataItem* argNum2 = (m_Flags & PolygonFlags::F_Mask2       ) ? AsDataItem(args[argCount++]) : nullptr;
+		const AbstrDataItem* argPart = flags(m_Flags & PolygonFlags::F_HasPartition) ? AsDataItem(args[argCount++]) : nullptr;
+		const AbstrDataItem* argNum1 = flags(m_Flags & PolygonFlags::F_Mask1       ) ? AsDataItem(args[argCount++]) : nullptr;
+		const AbstrDataItem* argNum2 = flags(m_Flags & PolygonFlags::F_Mask2       ) ? AsDataItem(args[argCount++]) : nullptr;
 
 		assert(args.size() == argCount);
 
@@ -1258,7 +1251,7 @@ protected:
 		const AbstrUnit* domain1Unit = argPoly->GetAbstrDomainUnit();
 		const AbstrUnit* values1Unit = argPoly->GetAbstrValuesUnit();
 
-		const AbstrUnit* resDomain = (argPart) ? argPart->GetAbstrValuesUnit() : (m_Flags & PolygonFlags::F_DoUnion) ? Unit<Void>::GetStaticClass()->CreateDefault() : domain1Unit;
+		const AbstrUnit* resDomain = (argPart) ? argPart->GetAbstrValuesUnit() : flags(m_Flags & PolygonFlags::F_DoUnion) ? Unit<Void>::GetStaticClass()->CreateDefault() : domain1Unit;
 
 		if (argPart)
 			domain1Unit->UnifyDomain(argPart->GetAbstrDomainUnit(), "Domain of polygon attribute", "Domain of partitioning attribute", UM_Throw);
@@ -1271,7 +1264,7 @@ protected:
 		AbstrDataItem* resNrOrgEntity = nullptr;
 		AbstrUnit*     resUnit;
 
-		if (m_Flags & PolygonFlags::F_DoSplit)
+		if (flags(m_Flags & PolygonFlags::F_DoSplit))
 		{
 			auto resUnit_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); resUnit = resUnit_owner.get();
 			resUnit->SetTSF(TSF_Categorical);
@@ -1321,7 +1314,7 @@ protected:
 					Calculate(r, domainCount, domain1Unit->GetTileFirstIndex(t), argPoly, argPart, t, contexts, processTimer, itemRefPtr);
 				};
 				tile_id te = domain1Unit->GetNrTiles();
-				bool perElement = !(m_Flags & PolygonFlags::F_DoUnion) && !argPart;
+				bool perElement = !flags(m_Flags & PolygonFlags::F_DoUnion) && !argPart;
 				if (perElement && CalculatesElementsInParallel())
 				{
 					// A split without a union is delayed only because the count of its result must be known
@@ -1373,7 +1366,7 @@ protected:
 	}
 	bool DoDelayStore() const 
 	{
-		return m_Flags & (PolygonFlags::F_DoSplit | PolygonFlags::F_DoUnion);
+		return flags(m_Flags & (PolygonFlags::F_DoSplit | PolygonFlags::F_DoUnion));
 	}
 	void ProcessNumOper( ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags f, Timer& processTimer, CharPtr itemRef = "") const
 	{
@@ -1410,7 +1403,7 @@ protected:
 		if (r)
 		{
 			constexpr int mask_ratio = int(PolygonFlags::F_Mask2) / int(PolygonFlags::F_Mask1);
-			ProcessNumOper(r, argNum1, t, tn, PolygonFlags( int(m_Flags) & int(PolygonFlags::F_Mask1)), processTimer, itemRef);
+			ProcessNumOper(r, argNum1, t, tn, m_Flags & PolygonFlags::F_Mask1, processTimer, itemRef);
 			ProcessNumOper(r, argNum2, t, tn, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / mask_ratio), processTimer, itemRef);
 		}
 #if defined(MG_DEBUG_POLYGON)
@@ -1667,7 +1660,7 @@ public:
 			);
 			r.reset();
 		}
-		if (m_Flags & PolygonFlags::F_DoSplit)
+		if (flags(m_Flags & PolygonFlags::F_DoSplit))
 		{
 			dms_assert(resUnit);
 			SizeT splitCount = 0;
@@ -1701,7 +1694,7 @@ public:
 
 		for (SizeT i = 0; i!=domainCount; ++i)
 		{
-			if (m_Flags & PolygonFlags::F_DoSplit)
+			if (flags(m_Flags & PolygonFlags::F_DoSplit))
 			{
 				resIter = bp_split_assign(resIter, geometryPtr[i]);
 			}
@@ -1800,7 +1793,7 @@ public:
 			geometryTowerPtr = geometryTowerResourcePtr->begin();
 		}
 
-		if (m_Flags & PolygonFlags::F_DoSplit)
+		if (flags(m_Flags & PolygonFlags::F_DoSplit))
 		{
 			assert(resUnit);
 			SizeT splitCount = 0;
@@ -1843,7 +1836,7 @@ public:
 
 		for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerPtr)
 		{
-			if (m_Flags & PolygonFlags::F_DoSplit)
+			if (flags(m_Flags & PolygonFlags::F_DoSplit))
 			{
 				resIter = bg_split_assign(resIter, geometryTowerPtr->get_result());
 			}
@@ -1909,7 +1902,7 @@ public:
 			geometryTowerPtr = geometryTowerResourcePtr->begin();
 		}
 
-		if (m_Flags & PolygonFlags::F_DoSplit)
+		if (flags(m_Flags & PolygonFlags::F_DoSplit))
 		{
 			assert(resUnit);
 			// The parts of each slot, counted once for both the count and the relation, without building
@@ -1945,7 +1938,7 @@ public:
 
 		for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerPtr)
 		{
-			if (m_Flags & PolygonFlags::F_DoSplit)
+			if (flags(m_Flags & PolygonFlags::F_DoSplit))
 			{
 				resIter = cgal_split_assign_polygon_set(resIter, geometryTowerPtr->get_result());
 			}
@@ -2013,7 +2006,7 @@ public:
 			geometryTowerPtr = geometryTowerResourcePtr->begin();
 		}
 
-		if (m_Flags & PolygonFlags::F_DoSplit)
+		if (flags(m_Flags & PolygonFlags::F_DoSplit))
 		{
 			assert(resUnit);
 			SizeT splitCount = 0;
@@ -2056,7 +2049,7 @@ public:
 
 		for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerPtr)
 		{
-			if (m_Flags & PolygonFlags::F_DoSplit)
+			if (flags(m_Flags & PolygonFlags::F_DoSplit))
 			{
 				resIter = geos_split_assign_geometry(resIter, geometryTowerPtr->get_result().get());
 			}
@@ -2118,7 +2111,7 @@ public:
 	// dms_polygon, dms_split_polygon and dms_split_convex_polygon, keep the tower: one element per
 	// slot, cleaned once and stored. They compute the elements of a tile in parallel blocks (#1306);
 	// dms_polygon also runs its tiles in parallel, with a store per tile, which the bag path does not need.
-	bool UsesBags() const { return m_Flags & PolygonFlags::F_DoUnion; }
+	bool UsesBags() const { return flags(m_Flags & PolygonFlags::F_DoUnion); }
 	bool CalculatesElementsInParallel() const override { return !UsesBags(); }
 
 	// The frame of one dissolve: from the values unit's declared range when it has one, which is
@@ -2322,8 +2315,8 @@ public:
 					auto towerPtr = towerResourcePtr->begin() + slot;
 
 					PolySet geometry;
-					if (m_Flags & PolygonFlags::F_Convex)
-						dms_split_convex_into(DmsEngineContext<P>::Of(ctx.get()), geometry, polyArray[i], cell, m_Flags & PolygonFlags::F_ConvexMin);
+					if (flags(m_Flags & PolygonFlags::F_Convex))
+						dms_split_convex_into(DmsEngineContext<P>::Of(ctx.get()), geometry, polyArray[i], cell, flags(m_Flags & PolygonFlags::F_ConvexMin));
 					else
 						dms_overlay::dms_clean_single_into(EngineOf(ctx.get()), geometry, polyArray[i], cell);
 					towerPtr->add(std::move(geometry));
@@ -2383,12 +2376,12 @@ public:
 		}
 
 		// a convex split keeps its parts as closed rings back to back (dms_split_convex_into)
-		bool apart = m_Flags & PolygonFlags::F_Convex;
+		bool apart = flags(m_Flags & PolygonFlags::F_Convex);
 		auto nrParts = [apart](const SequenceType& value)
 		{
 			return apart ? dms_overlay::dms_rings_apart_count(value) : dms_overlay::dms_split_count<P>(value);
 		};
-		if (m_Flags & PolygonFlags::F_DoSplit)
+		if (flags(m_Flags & PolygonFlags::F_DoSplit))
 		{
 			assert(resUnit);
 			SizeT splitCount = 0;
@@ -2428,7 +2421,7 @@ public:
 		{
 			if (apart)
 				resIter = dms_overlay::dms_rings_apart_assign<P>(resIter, results[i]);
-			else if (m_Flags & PolygonFlags::F_DoSplit)
+			else if (flags(m_Flags & PolygonFlags::F_DoSplit))
 				resIter = dms_overlay::dms_split_assign<P>(resIter, results[i]);
 			else
 			{

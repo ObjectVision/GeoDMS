@@ -161,8 +161,8 @@ public:
 	// walker PROPAGATES it as an honest definition-time error.
 	TIC_CALL virtual bool DescribeMetaSignature(struct MetaMemberLayout& layout, CharPtr optSpecValue) const;
 
-	inline bool HasRegisteredResultClass() const { return !(GetOperPolicy() & oper_policy::dynamic_result_class); }
-	inline bool CalcRequiresMetaInfo()     const { return GetOperPolicy() & oper_policy::calc_requires_metainfo; }
+	inline bool HasRegisteredResultClass() const { return !flags(GetOperPolicy() & oper_policy::dynamic_result_class); }
+	inline bool CalcRequiresMetaInfo()     const { return flags(GetOperPolicy() & oper_policy::calc_requires_metainfo); }
 	inline bool CanRunParallel()           const { return !(GetGroup()->HasExternalEffects() ||  CalcRequiresMetaInfo()); }
 	inline bool CanExplainValue()          const { return GetGroup()->CanExplainValue(); }
 

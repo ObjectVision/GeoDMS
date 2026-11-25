@@ -343,7 +343,7 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	scaleFactors.second *= subPixelFactor;
 
 	GdiDrawContext memDrawContext(memDC);
-	GraphDrawer drawer(&memDrawContext, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), scaleFactors);
+	GraphDrawer drawer(&memDrawContext, rgn, dv, GD_DrawBackground|GD_UpdateData|GD_DrawData, scaleFactors);
 
 	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos);
 	bool suspended = drawer.Visit(this); //DrawBackgroud && DrawData
@@ -646,7 +646,7 @@ void MovableObject::CheckState() const
 
 bool MovableObject::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EventID::SETCURSOR)
+	if (flags(med.GetEventInfo().m_EventID & EventID::SETCURSOR))
 		return UpdateCursor();
 
 	return base_type::MouseEvent(med);

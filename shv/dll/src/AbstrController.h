@@ -14,6 +14,7 @@
 //----------------------------------------------------------------------
 
 #include "ShvUtils.h"
+#include "set/BitmaskEnum.h"
 
 class DataView;
 class AbstrCaret;
@@ -77,14 +78,13 @@ enum class EventID : EventIdType  {
 	TEXTSENT      = 0x00200000,
 };
 
-inline EventID operator | (EventID a, EventID b) { return EventID(EventIdType(a) | EventIdType(b)); }
-inline bool    operator & (EventID a, EventID b) { return EventIdType(a) & EventIdType(b); }
-inline void operator |= (EventID& a, EventID b) { a = a | b; }
-inline EventID operator - (EventID a, EventID b) { return EventID(EventIdType(a) & ~EventIdType(b)); }
+template <> inline constexpr bool is_bitmask_enum<EventID> = true;
 
-inline EventID MouseEventFlags(EventID a) { return EventID(EventIdType(a) & EventIdType(EventID::MOUSEEVENTS)); }
+inline EventID operator - (EventID a, EventID b) { return a & ~b; }
 
-inline bool IsCreateNewEvent(EventID eid) { return not(eid & (EventID::SHIFTKEY| EventID::CTRLKEY)); }
+inline EventID MouseEventFlags(EventID a) { return a & EventID::MOUSEEVENTS; }
+
+inline bool IsCreateNewEvent(EventID eid) { return !flags(eid & (EventID::SHIFTKEY| EventID::CTRLKEY)); }
 inline auto CompoundWriteType(EventID eid) { return DmsRwChangeType(IsCreateNewEvent(eid)); }
 
 struct EventInfo

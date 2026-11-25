@@ -204,7 +204,7 @@ SharedTreeItem TreeItem::ResolveItemPath(CharPtrRange subItemNames) const
 auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>  // directly referred persistent object.
 {
 	assert(IsMetaThread());
-	assert(Test(svf, SupplierVisitFlag::ImplSuppliers));
+	assert(flags(svf & SupplierVisitFlag::ImplSuppliers));
 
 	if (subItemNames.empty())
 		return {};

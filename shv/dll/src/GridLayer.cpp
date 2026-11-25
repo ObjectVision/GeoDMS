@@ -132,7 +132,7 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 			writeLock.Commit();
 	}
 	else
-		changed = SetFocusEntityIndex( UNDEFINED_VALUE(SizeT), eventID & EventID::LBUTTONDBLCLK );
+		changed = SetFocusEntityIndex( UNDEFINED_VALUE(SizeT), flags(eventID & EventID::LBUTTONDBLCLK) );
 	if (changed)
 		lock1.ProcessChange();
 }
@@ -254,7 +254,7 @@ void SelectRegionWithShape(GridLayer* self, CrdRect worldRect, EventID eventID, 
 		}
 	}
 
-	bool isAdd = !(eventID & EventID::CTRLKEY);
+	bool isAdd = !flags(eventID & EventID::CTRLKEY);
 	if (self->HasEntityIndex())
 		self->SelectRegion(worldRect
 			, RowProcessor < SetCompactValueOper<Bool> >(std::forward<Args>(rowProcessorArgs)...

@@ -9,6 +9,7 @@
 
 #include "ptr/OwningPtr.h"
 #include "ptr/WeakPtr.h"
+#include "set/BitmaskEnum.h"
 
 #include "DataController.h"
 struct TreeItem;
@@ -25,6 +26,7 @@ enum class supplier_level
 	calc_source = calc + uses_source_flag,
 	meta_source = meta + uses_source_flag,
 };
+template <> inline constexpr bool is_bitmask_enum<supplier_level> = true;
 
 TIC_CALL supplier_level TreeItem_GetSupplierLevel(const TreeItem* ti);
 TIC_CALL void TreeItem_SetAnalysisTarget(const TreeItem* ti, bool mustClean);

@@ -513,7 +513,7 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 
 bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR) && med.m_FoundObject.get() == this)
+	if (flags(med.GetEventInfo().m_EventID & EventID::SETCURSOR) && med.m_FoundObject.get() == this)
 	{
 		// announce the RG_LEFT resize gesture below; reset to the arrow elsewhere
 		// so no resize cursor of a contained table sticks here (issue #1150)
@@ -521,7 +521,7 @@ bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 		SetCursor(LoadCursor(NULL, nearLeftEdge ? IDC_SIZEWE : IDC_ARROW));
 		return true;
 	}
-	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && med.m_FoundObject.get() == this)
+	if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && med.m_FoundObject.get() == this)
 	{
 		switch (GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(true), true))
 		{
@@ -530,7 +530,7 @@ bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 			return true;
 		}
 	}
-	else if (med.GetEventInfo().m_EventID & EventID::MOUSEWHEEL)
+	else if (flags(med.GetEventInfo().m_EventID & EventID::MOUSEWHEEL))
 	{
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(med.r_EventInfo.m_wParam);

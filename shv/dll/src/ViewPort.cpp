@@ -733,13 +733,13 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	auto medOwner = med.GetOwner().lock(); if (!medOwner) return true;
 	const EventInfo& eventInfo = med.GetEventInfo();
 	EventID          eventID = eventInfo.GetID();
-	if (eventID & EventID::MOUSEWHEEL )
+	if (flags(eventID & EventID::MOUSEWHEEL))
 	{
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(eventInfo.m_wParam);
 		wheelDelta /= WHEEL_DELTA;
 		if (wheelDelta)
 		{
-			if (eventID & EventID::SHIFTKEY)
+			if (flags(eventID & EventID::SHIFTKEY))
 			{
 				// Shift+Wheel: raise/lower viewpoint (eye height). STUB until the world->view
 				// transform supports perspective (Transformation_complexity_plan.md §7).
@@ -765,7 +765,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 			return true;
 		}
 	}
-	if (eventID & (EventID::LBUTTONDOWN | EventID::LBUTTONUP | EventID::LBUTTONDBLCLK) )
+	if (flags(eventID & (EventID::LBUTTONDOWN | EventID::LBUTTONUP | EventID::LBUTTONDBLCLK)))
 	{
 		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos());
 		auto w2dTr = CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos());
@@ -775,7 +775,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 			InfoController::SelectFocusElem(GetLayerSet(), w2dTr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
 
 		// Alt+drag = marquee zoom, regardless of the active tool (navigation override).
-		if ((eventID & EventID::LBUTTONDOWN) && (eventID & EventID::ALTKEY))
+		if (flags(eventID & EventID::LBUTTONDOWN) && flags(eventID & EventID::ALTKEY))
 		{
 			medOwner->InsertController(
 				new ZoomInController(medOwner.get(), this, w2dTr, eventInfo.m_Point)
@@ -783,7 +783,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 			return true;
 		}
 
-		if (eventID & EventID::LBUTTONDOWN) switch (medOwner->m_ControllerID)
+		if (flags(eventID & EventID::LBUTTONDOWN)) switch (medOwner->m_ControllerID)
 		{
 			case TB_ZoomIn2:
 			{
@@ -830,8 +830,8 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 
 			case TB_Neutral:
 			{
-				bool ctrl  = med.GetEventInfo().m_EventID & EventID::CTRLKEY;
-				bool shift = med.GetEventInfo().m_EventID & EventID::SHIFTKEY;
+				bool ctrl  = flags(med.GetEventInfo().m_EventID & EventID::CTRLKEY);
+				bool shift = flags(med.GetEventInfo().m_EventID & EventID::SHIFTKEY);
 				if (ctrl && shift)
 				{
 					// Ctrl+Shift+click: copy coordinate to clipboard (fresh copy). Fall through
@@ -867,7 +867,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	// Start the right-button marquee controller on RBUTTONDOWN; it decides on RBUTTONUP whether the
 	// movement was a drag (commit zoom, consume the event) or a click (leave the event unhandled so
 	// the later FillMenu shows the context menu).
-	if (eventID & EventID::RBUTTONDOWN)
+	if (flags(eventID & EventID::RBUTTONDOWN))
 	{
 		AddClientLogicalOffset viewportOffset(&med, GetCurrClientRelPos());
 		auto w2dTr = CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos());

@@ -640,7 +640,7 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 			break;
 
 		alreadyHadSome = true;
-		if (not(eventID & EventID::REQUEST_SEL))
+		if (!flags(eventID & EventID::REQUEST_SEL))
 			break;
 
 		if (IsCreateNewEvent(eventID))
@@ -914,8 +914,8 @@ void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EventID::REQUEST_SEL  );
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -948,8 +948,8 @@ void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Eve
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EventID::REQUEST_SEL  );
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -992,8 +992,8 @@ void GraphicPointLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* las
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EventID::REQUEST_SEL  );
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -1715,8 +1715,8 @@ void GraphicMultiPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EventID::REQUEST_SEL  );
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -1749,8 +1749,8 @@ void GraphicMultiPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EventID::REQUEST_SEL  );
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -1793,8 +1793,8 @@ void GraphicMultiPointLayer::SelectPolygon(const CrdPoint* first, const CrdPoint
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EventID::REQUEST_SEL  );
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -2214,8 +2214,8 @@ void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EventID::REQUEST_SEL);
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -2247,8 +2247,8 @@ void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Event
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EventID::REQUEST_SEL);
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -2708,8 +2708,8 @@ void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EventID::REQUEST_SEL);
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -2741,8 +2741,8 @@ void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, E
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EventID::REQUEST_SEL);
-	dms_assert(!(eventID & EventID::REQUEST_INFO));
+	dms_assert(flags(eventID & EventID::REQUEST_SEL));
+	dms_assert(!flags(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 

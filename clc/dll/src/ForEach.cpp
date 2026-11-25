@@ -23,13 +23,15 @@
 #include "TreeItemProps.h"
 #include "DataArrayValue.h"
 
-enum param_t { 
+#include "set/BitmaskEnum.h"
+
+enum param_t {
 	pt_excluded    = 0, 
 	pt_contextonly = 1, 
 	pt_contextname = 2
 };
 
-enum field_spec {
+enum field_spec : int {
 	FS_EXPR               = 1,
 	FS_CHECK              = 2,
 	FS_HASDOMAINVALUESPEC = 4,
@@ -53,11 +55,11 @@ enum field_spec {
 //	FS_VC_SPEC            = 0x20000,
 };
 
-inline field_spec operator |(field_spec a, field_spec b) { return field_spec(int(a)|int(b)); }
+template <> inline constexpr bool is_bitmask_enum<field_spec> = true;
 
 param_t TemplMode(field_spec fs)
 {
-	if (fs & FS_HASDOMAINVALUESPEC)
+	if (flags(fs & FS_HASDOMAINVALUESPEC))
 		return pt_excluded;
 	dms_assert((fs & (FS_TEMPLATE|FS_TEMPL_AS_SUBITEM)) != (FS_TEMPLATE|FS_TEMPL_AS_SUBITEM)); 
 
@@ -71,18 +73,18 @@ param_t TemplMode(field_spec fs)
 
 param_t DomainMode(field_spec fs)
 {
-	if ((fs & FS_HASDOMAINVALUESPEC) == 0)
+	if (!flags(fs & FS_HASDOMAINVALUESPEC))
 		return pt_excluded;
-	if (fs & FS_DOMAIN_AS_SUBITEM)
+	if (flags(fs & FS_DOMAIN_AS_SUBITEM))
 		return pt_contextname;
 	return pt_contextonly;
 }
 
 param_t ValuesMode(field_spec fs)
 {
-	if ((fs & FS_HASDOMAINVALUESPEC) == 0)
+	if (!flags(fs & FS_HASDOMAINVALUESPEC))
 		return pt_excluded;
-	if (fs & FS_VALUES_AS_SUBITEM)
+	if (flags(fs & FS_VALUES_AS_SUBITEM))
 		return pt_contextname;
 	return pt_contextonly;
 }
@@ -149,8 +151,8 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 	param_t withUnit   = UnitMode  (fs);
 
 	const AbstrDataItem* nameArrayItemA =                   AsCertainDataItem(args[argCount++]);
-	const AbstrDataItem* optExprsA      = (fs & FS_EXPR ) ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optChecksA     = (fs & FS_CHECK) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optExprsA      = flags(fs & FS_EXPR ) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optChecksA     = flags(fs & FS_CHECK) ? AsCertainDataItem(args[argCount++]) : nullptr;
 	const TreeItem*      optTempl       = withTempl  != pt_excluded     ? args[argCount++] : nullptr;
 	const AbstrDataItem* optTemplNamesA = withTempl  == pt_contextname  ? AsCertainDataItem(args[argCount++]) : nullptr;
 	const TreeItem*      optDuContext   = withDomain != pt_excluded     ? args[argCount++] : nullptr;
@@ -159,14 +161,14 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 	const AbstrDataItem* optVuNamesA    = withValues == pt_contextname  ? AsCertainDataItem(args[argCount++]) : nullptr;
 	const TreeItem*      optUnitContext = withUnit   != pt_excluded     ? args[argCount++] : nullptr;
 	const AbstrDataItem* optUnitNamesA  = withUnit   == pt_contextname  ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optLabelsA     = (fs & FS_LABEL      ) ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optDescrsA     = (fs & FS_DESCR      ) ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optStorageNameA= (fs & FS_STORAGENAME) ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optStorageTypeA= (fs & FS_STORAGETYPE) ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optStorageRoA  = (fs & FS_STORAGE_RO)  ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optSqlStringsA = (fs & FS_SQLSTRING  ) ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optCdfA =        (fs & FS_CDF        ) ? AsCertainDataItem(args[argCount++]) : nullptr;
-	const AbstrDataItem* optUrlA =        (fs & FS_URL        ) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optLabelsA     = flags(fs & FS_LABEL      ) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optDescrsA     = flags(fs & FS_DESCR      ) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optStorageNameA= flags(fs & FS_STORAGENAME) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optStorageTypeA= flags(fs & FS_STORAGETYPE) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optStorageRoA  = flags(fs & FS_STORAGE_RO)  ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optSqlStringsA = flags(fs & FS_SQLSTRING  ) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optCdfA =        flags(fs & FS_CDF        ) ? AsCertainDataItem(args[argCount++]) : nullptr;
+	const AbstrDataItem* optUrlA =        flags(fs & FS_URL        ) ? AsCertainDataItem(args[argCount++]) : nullptr;
 
 	DataReadLock lock1(nameArrayItemA);
 	DataReadLock lock2(optExprsA);
@@ -262,8 +264,8 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 	if (!resultHolder)
 		resultHolder = TreeItem::CreateCacheRoot();
 	auto valueComposition = ValueComposition::Single;
-	if (fs & FS_VC_SEQUENCE)  valueComposition = ValueComposition::Sequence;		
-	if (fs & FS_VC_POLYGON) valueComposition = ValueComposition::Polygon;
+	if (flags(fs & FS_VC_SEQUENCE))  valueComposition = ValueComposition::Sequence;
+	if (flags(fs & FS_VC_POLYGON)) valueComposition = ValueComposition::Polygon;
 
 	for (datarow_id i=0; i!= maxNrIter; ++i)
 	{
@@ -343,20 +345,20 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 static arg_index CalcNrArgs(field_spec fs)
 {
 	arg_index nrParams = 1;
-	if (fs & FS_EXPR)        nrParams++;
-	if (fs & FS_CHECK)       nrParams++;
+	if (flags(fs & FS_EXPR))        nrParams++;
+	if (flags(fs & FS_CHECK))       nrParams++;
 	nrParams += UInt32(TemplMode(fs));
 	nrParams += UInt32(DomainMode(fs));
 	nrParams += UInt32(ValuesMode(fs));
 	nrParams += UInt32(UnitMode(fs));
-	if (fs & FS_LABEL)       nrParams++;
-	if (fs & FS_DESCR)       nrParams++;
-	if (fs & FS_STORAGENAME) nrParams++;
-	if (fs & FS_STORAGETYPE) nrParams++;
-	if (fs & FS_STORAGE_RO)  nrParams++;
-	if (fs & FS_SQLSTRING) nrParams++;
-	if (fs & FS_CDF) nrParams++;
-	if (fs & FS_URL) nrParams++;
+	if (flags(fs & FS_LABEL))       nrParams++;
+	if (flags(fs & FS_DESCR))       nrParams++;
+	if (flags(fs & FS_STORAGENAME)) nrParams++;
+	if (flags(fs & FS_STORAGETYPE)) nrParams++;
+	if (flags(fs & FS_STORAGE_RO))  nrParams++;
+	if (flags(fs & FS_SQLSTRING)) nrParams++;
+	if (flags(fs & FS_CDF)) nrParams++;
+	if (flags(fs & FS_URL)) nrParams++;
 	return nrParams;
 }
 
@@ -370,8 +372,8 @@ static void FillForEachLayout(MetaMemberLayout& layout, field_spec fs, arg_index
 {
 	arg_index pos = offset;
 	layout.namesPos = pos++;
-	if (fs & FS_EXPR)  pos++;
-	if (fs & FS_CHECK) pos++;
+	if (flags(fs & FS_EXPR))  pos++;
+	if (flags(fs & FS_CHECK)) pos++;
 	param_t tm = TemplMode(fs), dm = DomainMode(fs), vm = ValuesMode(fs), um = UnitMode(fs);
 	if (tm != pt_excluded) { layout.templPos  = pos++; if (tm == pt_contextname) layout.templNamesPos  = pos++; }
 	if (dm != pt_excluded) { layout.domainPos = pos++; if (dm == pt_contextname) layout.domainNamesPos = pos++; }
@@ -383,8 +385,8 @@ static void FillForEachLayout(MetaMemberLayout& layout, field_spec fs, arg_index
 		: um != pt_excluded ? MetaMemberLayout::MemberKind::Unit
 		:                     MetaMemberLayout::MemberKind::Untyped;
 	layout.vcomp = ValueComposition::Single;
-	if (fs & FS_VC_SEQUENCE) layout.vcomp = ValueComposition::Sequence;
-	if (fs & FS_VC_POLYGON)  layout.vcomp = ValueComposition::Polygon;
+	if (flags(fs & FS_VC_SEQUENCE)) layout.vcomp = ValueComposition::Sequence;
+	if (flags(fs & FS_VC_POLYGON))  layout.vcomp = ValueComposition::Polygon;
 	layout.nrArgs = CalcNrArgs(fs) + offset;
 }
 
@@ -499,26 +501,26 @@ public:
 		:	VariadicOperator(gr, TreeItem::GetStaticClass(), CalcNrArgs(fs))
 		,	m_FS(fs)
 	{
-		assert(!(m_FS & (FS_CDF | FS_URL | FS_STORAGE_RO)));
+		assert(!flags(m_FS & (FS_CDF | FS_URL | FS_STORAGE_RO)));
 
 		ClassCPtr* argClsIter = m_ArgClasses.get();
 
 		                         *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_EXPR)        *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_CHECK)       *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_EXPR))        *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_CHECK))       *argClsIter++ = SharedStrArray::GetStaticClass();
 
 		AddClassInfo(TemplMode (fs), argClsIter, TreeItem ::GetStaticClass());
 		AddClassInfo(DomainMode(fs), argClsIter, AbstrUnit::GetStaticClass());
 		AddClassInfo(ValuesMode(fs), argClsIter, AbstrUnit::GetStaticClass());
 		AddClassInfo(UnitMode  (fs), argClsIter, AbstrUnit::GetStaticClass());
 
-		if (fs & FS_LABEL)       *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_DESCR)       *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_STORAGENAME) *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_STORAGETYPE) *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_SQLSTRING)   *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_CDF      )   *argClsIter++ = SharedStrArray::GetStaticClass();
-		if (fs & FS_URL      )   *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_LABEL))       *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_DESCR))       *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_STORAGENAME)) *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_STORAGETYPE)) *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_SQLSTRING))   *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_CDF      ))   *argClsIter++ = SharedStrArray::GetStaticClass();
+		if (flags(fs & FS_URL      ))   *argClsIter++ = SharedStrArray::GetStaticClass();
 		dms_assert(m_ArgClassesEnd == argClsIter);
 	}
 
@@ -566,29 +568,29 @@ oper_arg_policy CalcArgPolicy(arg_index argNr, field_spec fs)
 	// the domain/values block fall through to calc_always below, which is what they need.
 	dms_assert(argNr < CalcNrArgs(fs));
 	if (argNr--)                        // ! NAME
-		if (!(fs & FS_EXPR) || argNr--)  // ! EXPR
-			if (!(fs & FS_CHECK) || argNr--)  // ! CHECK
+		if (!flags(fs & FS_EXPR) || argNr--)  // ! EXPR
+			if (!flags(fs & FS_CHECK) || argNr--)  // ! CHECK
 			{
-				if (fs & FS_HASDOMAINVALUESPEC)
+				if (flags(fs & FS_HASDOMAINVALUESPEC))
 				{
 					if (!argNr--)
 						return
-						(fs & FS_DOMAIN_AS_SUBITEM)
+						flags(fs & FS_DOMAIN_AS_SUBITEM)
 						? oper_arg_policy::calc_never // Domain Unit Container
 						: oper_arg_policy::calc_never;               // Domain Unit
-					if (!(fs & FS_DOMAIN_AS_SUBITEM) || argNr--) // ! DOMAIN NAME
+					if (!flags(fs & FS_DOMAIN_AS_SUBITEM) || argNr--) // ! DOMAIN NAME
 						if (!argNr--)
 							return
-							(fs & FS_VALUES_AS_SUBITEM)
+							flags(fs & FS_VALUES_AS_SUBITEM)
 							? oper_arg_policy::calc_never // Values Unit Container
-							: oper_arg_policy::calc_never;               // Values Unit 
+							: oper_arg_policy::calc_never;               // Values Unit
 				}
 				else if (!argNr)
 				{
-					if (fs & FS_TEMPL_AS_SUBITEM) return oper_arg_policy::calc_never;
-					if (fs & FS_UNIT_AS_SUBITEM) return oper_arg_policy::calc_never;
-					if (fs & FS_TEMPLATE) return oper_arg_policy::is_templ;
-					if (fs & FS_UNIT) return oper_arg_policy::calc_never;
+					if (flags(fs & FS_TEMPL_AS_SUBITEM)) return oper_arg_policy::calc_never;
+					if (flags(fs & FS_UNIT_AS_SUBITEM)) return oper_arg_policy::calc_never;
+					if (flags(fs & FS_TEMPLATE)) return oper_arg_policy::is_templ;
+					if (flags(fs & FS_UNIT)) return oper_arg_policy::calc_never;
 				}
 			}
 	return oper_arg_policy::calc_always;
@@ -631,7 +633,7 @@ struct ForEachOperGroup : AbstrOperGroup
 							?	oper_policy::has_template_arg
 							:	oper_policy()
 						)
-					|	(	(fs & (FS_HASDOMAINVALUESPEC|FS_TEMPLATE|FS_TEMPL_AS_SUBITEM|FS_UNIT_AS_SUBITEM) )
+					|	(	flags(fs & (FS_HASDOMAINVALUESPEC|FS_TEMPLATE|FS_TEMPL_AS_SUBITEM|FS_UNIT_AS_SUBITEM))
 							?	oper_policy::has_tree_args
 							:	oper_policy()
 						)
@@ -670,25 +672,25 @@ namespace
 			const int BUFSIZE = 10 + 9 + 2*4;
 			static char buffer[ BUFSIZE ] = "for_each_n";
 			char* bufPtr = buffer + 10; // point directly after "for_each_n";
-			if (fs & FS_EXPR)   *bufPtr++ = 'e';
-			if (fs & FS_CHECK)  *bufPtr++ = 'i';
+			if (flags(fs & FS_EXPR))   *bufPtr++ = 'e';
+			if (flags(fs & FS_CHECK))  *bufPtr++ = 'i';
 
 			NameComponent(bufPtr, TemplMode (fs), 't');
 			NameComponent(bufPtr, DomainMode(fs), 'd');
 			NameComponent(bufPtr, ValuesMode(fs), 'v');
 
-			if (fs & FS_VC_SEQUENCE) { *bufPtr++ = 'v'; *bufPtr++ = 'c'; *bufPtr++ = 's'; }
-			if (fs & FS_VC_POLYGON ) { *bufPtr++ = 'v'; *bufPtr++ = 'c'; *bufPtr++ = 'p'; }
+			if (flags(fs & FS_VC_SEQUENCE)) { *bufPtr++ = 'v'; *bufPtr++ = 'c'; *bufPtr++ = 's'; }
+			if (flags(fs & FS_VC_POLYGON )) { *bufPtr++ = 'v'; *bufPtr++ = 'c'; *bufPtr++ = 'p'; }
 
 			NameComponent(bufPtr, UnitMode(fs), 'x');
 
-			if (fs & FS_LABEL      ) *bufPtr++ = 'l';
-			if (fs & FS_DESCR      ) *bufPtr++ = 'd';
-			if (fs & FS_STORAGENAME) *bufPtr++ = 'a';
-			if (fs & FS_STORAGETYPE) *bufPtr++ = 't';
-			if (fs & FS_SQLSTRING  ) *bufPtr++ = 's';
-			if (fs & FS_CDF        ) *bufPtr++ = 'c';
-			if (fs & FS_URL        ) *bufPtr++ = 'u';
+			if (flags(fs & FS_LABEL      )) *bufPtr++ = 'l';
+			if (flags(fs & FS_DESCR      )) *bufPtr++ = 'd';
+			if (flags(fs & FS_STORAGENAME)) *bufPtr++ = 'a';
+			if (flags(fs & FS_STORAGETYPE)) *bufPtr++ = 't';
+			if (flags(fs & FS_SQLSTRING  )) *bufPtr++ = 's';
+			if (flags(fs & FS_CDF        )) *bufPtr++ = 'c';
+			if (flags(fs & FS_URL        )) *bufPtr++ = 'u';
 
 			dms_assert(bufPtr <= buffer + BUFSIZE);
 			return GetTokenID_st(buffer, bufPtr);

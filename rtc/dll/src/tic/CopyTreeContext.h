@@ -14,6 +14,7 @@
 //----------------------------------------------------------------------
 
 #include "mci/PropdefEnums.h"
+#include "set/BitmaskEnum.h"
 #include "utl/IncrementalLock.h"
 #include "ptr/SharedPtr.h"
 
@@ -37,8 +38,7 @@ enum class DataCopyMode
 	InFenceOperator = 0x400,
 };
 
-inline DataCopyMode operator |(DataCopyMode a, DataCopyMode b) { return DataCopyMode(int(a) | int(b)); }
-inline bool         operator &(DataCopyMode a, DataCopyMode b) { return int(a) & int(b); }
+template <> inline constexpr bool is_bitmask_enum<DataCopyMode> = true;
 
 //----------------------------------------------------------------------
 // struct CopyTreeContext
@@ -48,17 +48,17 @@ struct CopyTreeContext
 {
 	TIC_CALL CopyTreeContext(TreeItem* dest, const TreeItem* src, CharPtr name, DataCopyMode dcm, LispPtr argList = LispPtr());
 	
-	bool MustCopyExpr      () const { return (m_Dcm & DataCopyMode::CopyExpr      ); }
-	bool MustCopyRoot      () const { return (m_Dcm & DataCopyMode::NoRoot        ) == false; }
-	bool MustMakeEndogenous() const { return (m_Dcm & DataCopyMode::MakeEndogenous); }
-	bool MergeProps        () const { return (m_Dcm & DataCopyMode::MergeProps    ); }
-	bool DontCreateNew     () const { return (m_Dcm & DataCopyMode::DontCreateNew ); }
-	bool MustMakePassor    () const { return (m_Dcm & DataCopyMode::MakePassor    ); }
-	bool SetInheritFlag    () const { return (m_Dcm & DataCopyMode::SetInheritFlag); }
-	bool DontCopySubItems  () const { return (m_Dcm & DataCopyMode::DontCopySubItems); }
-	bool MustUpdateMetaInfo() const { return (m_Dcm & DataCopyMode::DontUpdateMetaInfo) == false; }
-	bool InFenceOperator   () const { return (m_Dcm & DataCopyMode::InFenceOperator); }
-	bool CopyReferredItems () const { return (m_Dcm & DataCopyMode::CopyReferredItems); }
+	bool MustCopyExpr      () const { return  flags(m_Dcm & DataCopyMode::CopyExpr      ); }
+	bool MustCopyRoot      () const { return !flags(m_Dcm & DataCopyMode::NoRoot        ); }
+	bool MustMakeEndogenous() const { return  flags(m_Dcm & DataCopyMode::MakeEndogenous); }
+	bool MergeProps        () const { return  flags(m_Dcm & DataCopyMode::MergeProps    ); }
+	bool DontCreateNew     () const { return  flags(m_Dcm & DataCopyMode::DontCreateNew ); }
+	bool MustMakePassor    () const { return  flags(m_Dcm & DataCopyMode::MakePassor    ); }
+	bool SetInheritFlag    () const { return  flags(m_Dcm & DataCopyMode::SetInheritFlag); }
+	bool DontCopySubItems  () const { return  flags(m_Dcm & DataCopyMode::DontCopySubItems); }
+	bool MustUpdateMetaInfo() const { return !flags(m_Dcm & DataCopyMode::DontUpdateMetaInfo); }
+	bool InFenceOperator   () const { return  flags(m_Dcm & DataCopyMode::InFenceOperator); }
+	bool CopyReferredItems () const { return  flags(m_Dcm & DataCopyMode::CopyReferredItems); }
 	DataCopyMode GetDCM()          const { return m_Dcm; }
 
 	cpy_mode  MinCpyMode        (bool isRoot) const 

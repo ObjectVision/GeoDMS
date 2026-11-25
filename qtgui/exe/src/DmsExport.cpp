@@ -609,7 +609,7 @@ void ExportTab::setNativeDriverCheckbox()
     bool require_native = m_is_raster && driver_has_native_version
         && rasterItemRequiresNativeDriver(m_export_window->exportItem());
     bool force_native = driver_has_native_version
-        && ((driver.m_driver_characteristics & driver_characteristics::only_native_driver) || require_native);
+        && (flags(driver.m_driver_characteristics & driver_characteristics::only_native_driver) || require_native);
 
     bool checked = driver_has_native_version;
     if (!force_native)
@@ -647,12 +647,12 @@ void ExportTab::repopulateDriverSelection()
     auto available_drivers = getAvailableDrivers();
     for (auto& driver : available_drivers)
     {
-        if (m_is_raster && (driver.m_driver_characteristics & driver_characteristics::is_raster)) // raster driver
+        if (m_is_raster && flags(driver.m_driver_characteristics & driver_characteristics::is_raster)) // raster driver
         {
             m_available_drivers.push_back(driver);
             m_driver_selection->addItem(driver.Caption());
         }
-        if (!m_is_raster && !(driver.m_driver_characteristics & driver_characteristics::is_raster)) // vector driver
+        if (!m_is_raster && !flags(driver.m_driver_characteristics & driver_characteristics::is_raster)) // vector driver
         {
             m_available_drivers.push_back(driver);
             m_driver_selection->addItem(driver.Caption());
@@ -682,7 +682,7 @@ auto ExportTab::createFinalFileNameText() -> QString
     QString final_filename_text = "";
     auto new_filename = m_foldername_entry->text() + "/" + m_filename_entry->text();
     // a database container in a format that holds one table per file: the TableFileName of each table (#1330)
-    if (!m_table_names.empty() && (driver.m_driver_characteristics & driver_characteristics::tableset_is_folder))
+    if (!m_table_names.empty() && flags(driver.m_driver_characteristics & driver_characteristics::tableset_is_folder))
     {
         for (const auto& table_name : m_table_names)
             for (auto ext : driver.exts)
@@ -831,9 +831,9 @@ void ExportTab::showEvent(QShowEvent* event)
         {
             auto* item = model->item(i);
             const auto& otherDriver = m_available_drivers.at(i);
-            if (!is_mappable && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_no_geometry))
+            if (!is_mappable && flags(otherDriver.m_driver_characteristics & driver_characteristics::disable_with_no_geometry))
                 item->setEnabled(false);
-            else if (is_mappable && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_geometry))
+            else if (is_mappable && flags(otherDriver.m_driver_characteristics & driver_characteristics::disable_with_geometry))
                 item->setEnabled(false);
             else
                 item->setEnabled(true);
@@ -898,12 +898,12 @@ bool DmsExportWindow::exportImpl()
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
     auto filename = SharedStr((active_tab->m_foldername_entry->text() + "/" + active_tab->m_filename_entry->text() + driver.exts.at(0)).toStdString().c_str());
-    bool is_raster = driver.m_driver_characteristics & driver_characteristics::is_raster;
+    bool is_raster = flags(driver.m_driver_characteristics & driver_characteristics::is_raster);
 
     // a database container in a format that holds one table per file goes to a folder named
     // after the export, with a file per table (TableFileName, #1330)
     bool table_per_file = !is_raster
-        && (driver.m_driver_characteristics & driver_characteristics::tableset_is_folder)
+        && flags(driver.m_driver_characteristics & driver_characteristics::tableset_is_folder)
         && !CurrentItemCanBeExportedAsTable(current_export_item);
 
     // Where an export went is otherwise only visible in the dialog that is about to close.
@@ -940,7 +940,7 @@ bool DmsExportWindow::exportImpl()
         exportConfig = DoExportRasterOrMatrixData(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");
     else
         exportConfig = DoExportTableOrDatabase(current_export_item, use_native_driver
-            , driver.m_driver_characteristics & driver_characteristics::tableset_is_folder
+            , flags(driver.m_driver_characteristics & driver_characteristics::tableset_is_folder)
             , filename, storageTypeName, driverName, "");
 
     if (!exportConfig)

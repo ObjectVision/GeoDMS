@@ -1124,7 +1124,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 	{
 		auto firstArgValueCPtr = firstArgValue.cbegin();
 		assert(m_OperatorGroup);
-		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo)
+		if (!flags(svf & SupplierVisitFlag::ReadyDcsToo)
 			&& !MustCalcArg(argNr, true, firstArgValueCPtr)
 			&& !m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr))
 			continue;
@@ -1142,7 +1142,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 			return AVS_SuspendedOrFailed;
 
 		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr) ||
-			(Test(svf, SupplierVisitFlag::ScanSupplTree) && m_OperatorGroup->IsSubItemRoot(argNr, firstArgValueCPtr)))
+			(flags(svf & SupplierVisitFlag::ScanSupplTree) && m_OperatorGroup->IsSubItemRoot(argNr, firstArgValueCPtr)))
 		{
 			// an arg declared subst_with_subitems (DiscrAlloc's claims, Overlay) asks for the tree as
 			// such and gets it whole, phase result or not; only the SubItem route splits shape from values

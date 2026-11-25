@@ -1167,7 +1167,7 @@ SizeT AbstrStorageManager::EstimateReadBytes(const TreeItem* /*storageHolder*/, 
 
 ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
 {
-	if (Test(svf, SupplierVisitFlag::ExportInfo) && self->IsStorable() && (self->HasConfiguredCalcRule() || self->HasConfigData())) // #587: an item read from a storage is not exported to it
+	if (flags(svf & SupplierVisitFlag::ExportInfo) && self->IsStorable() && (self->HasConfiguredCalcRule() || self->HasConfigData())) // #587: an item read from a storage is not exported to it
 	{
 		const TreeItem* metaInfo = GetExportMetaInfo(self);
 		if (metaInfo)

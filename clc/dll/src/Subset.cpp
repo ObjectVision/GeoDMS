@@ -13,6 +13,7 @@
 
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
+#include "set/BitmaskEnum.h"
 #include "utl/StrFormat.h"
 
 #include "act/ActorVisitor.h"
@@ -263,9 +264,10 @@ struct SubsetOperator: public UnaryOperator
 //      while the collection came up empty; ref makes enumeration agree with it.
 // sub: also descend into sub-containers, mirroring their structure in the result.
 enum class attr_scope { own = 0, ref = 1, sub = 2, ref_sub = 3 };
+template <> inline constexpr bool is_bitmask_enum<attr_scope> = true;
 
-inline bool FollowsRef(attr_scope s) { return UInt32(s) & UInt32(attr_scope::ref); }
-inline bool Recurses  (attr_scope s) { return UInt32(s) & UInt32(attr_scope::sub); }
+inline bool FollowsRef(attr_scope s) { return flags(s & attr_scope::ref); }
+inline bool Recurses  (attr_scope s) { return flags(s & attr_scope::sub); }
 
 struct collect_target
 {
@@ -552,8 +554,8 @@ select_config ParseSelectSpec(const AbstrOperGroup* og, CharPtr specPtr)
 
 	cfg.resDomainClass = vtRows[vtIndex].cls;
 	cfg.selectOper     = wantOrgRel ? vtRows[vtIndex].withOrgRel : vtRows[vtIndex].plain;
-	cfg.scope = attr_scope(UInt32(followRef ? attr_scope::ref : attr_scope::own)
-	                     | UInt32(recurse   ? attr_scope::sub : attr_scope::own));
+	cfg.scope = (followRef ? attr_scope::ref : attr_scope::own)
+	          | (recurse   ? attr_scope::sub : attr_scope::own);
 	return cfg;
 }
 
@@ -957,8 +959,8 @@ collect_config ParseCollectSpec(const AbstrOperGroup* og, CharPtr specPtr)
 	if (!modeSeen)
 		og->throwOperError("the specification must say by_org_rel or by_cond, so the last argument is read as the one that was meant");
 
-	cfg.scope = attr_scope(UInt32(followRef ? attr_scope::ref : attr_scope::own)
-	                     | UInt32(recurse   ? attr_scope::sub : attr_scope::own));
+	cfg.scope = (followRef ? attr_scope::ref : attr_scope::own)
+	          | (recurse   ? attr_scope::sub : attr_scope::own);
 	return cfg;
 }
 

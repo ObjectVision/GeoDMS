@@ -30,6 +30,7 @@
 #include "geom/Range.h"
 #include "geom/Point.h"
 #include "ser/FormattedStream.h"
+#include "set/BitmaskEnum.h"
 
 #include <array>
 #include <algorithm>
@@ -144,22 +145,10 @@ enum class OrientationType : UInt8
 	NegateY    = 2,
 	NegateXY   = NegateX + NegateY
 };
+template <> inline constexpr bool is_bitmask_enum<OrientationType> = true;
 
-#pragma warning (push)
-#pragma warning (disable: 26827)
-
-// Provide a bitwise OR operator for OrientationType:
-constexpr inline OrientationType operator|(OrientationType lhs, OrientationType rhs) noexcept
-{
-	using T = std::underlying_type_t<OrientationType>;
-	static_assert(std::is_integral<T>::value, "Underlying type must be an integral type");
-	return static_cast<OrientationType>(static_cast<T>(lhs) | static_cast<T>(rhs));
-}
-
-#pragma warning (pop)
-
-inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & 1; }
-inline bool IsBottomTop(OrientationType orientation) { return int(orientation) & 2; }
+inline bool IsRightLeft(OrientationType orientation) { return flags(orientation & OrientationType::NegateX); }
+inline bool IsBottomTop(OrientationType orientation) { return flags(orientation & OrientationType::NegateY); }
 inline bool MustNegateX(OrientationType orientation) { return IsRightLeft(orientation); }
 inline bool MustNegateY(OrientationType orientation) { return IsBottomTop(orientation); }
 

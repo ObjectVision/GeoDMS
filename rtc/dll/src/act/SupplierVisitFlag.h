@@ -8,6 +8,7 @@
 #define __RTC_ACT_SUPPLIERVISITFLAG_H
 
 #include "act/ActorEnums.h"
+#include "set/BitmaskEnum.h"
 
 enum class SupplierVisitFlag
 {
@@ -84,6 +85,7 @@ enum class SupplierVisitFlag
 
 	StartSupplInterest = (DetermineState | ExportInfo) & ~Signature // Signature Already explicitly done by StartInterest function
 };
+template <> inline constexpr bool is_bitmask_enum<SupplierVisitFlag> = true;
 
 // Each single-bit enumerator must have a bit of its own, or a test of one of them also answers for
 // another. Their sum equals their bitwise or exactly when no two of them share a bit. A new single

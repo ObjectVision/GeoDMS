@@ -1517,7 +1517,7 @@ ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 
 bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN | EventID::SETCURSOR)) && med.m_FoundObject.get() ==  this)
+	if (flags(med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN | EventID::SETCURSOR)) && med.m_FoundObject.get() ==  this)
 	{
 		// find the child whose far edge (along the stacking axis) borders the position
 		DataItemColumn* gapEntry = nullptr;
@@ -1545,7 +1545,7 @@ bool TableControl::MouseEvent(MouseEventDispatcher& med)
 				}
 			}
 		}
-		if (med.GetEventInfo().m_EventID & EventID::SETCURSOR)
+		if (flags(med.GetEventInfo().m_EventID & EventID::SETCURSOR))
 		{
 			// a click in the gap resizes gapEntry; show the matching cursor there and
 			// reset to the arrow elsewhere so no resize cursor sticks (issue #1150)

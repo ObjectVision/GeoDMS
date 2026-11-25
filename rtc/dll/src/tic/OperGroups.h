@@ -66,22 +66,22 @@ struct DMS_TYPE_VISIBLE AbstrOperGroup
 	TIC_CALL static og_index GetNrOperatorGroups();
 	TIC_CALL static AbstrOperGroup* GetOperatorGroup(og_index i);
 
-	bool MustCacheResult      () const { return !(m_Policy & oper_policy::dont_cache_result); }
-	bool IsTransient          () const { return m_Policy & oper_policy::is_transient; }
-	bool CanResultToConfigItem() const { return m_Policy & oper_policy::existing; } 
-	bool IsTemplateCall       () const { return m_Policy & oper_policy::is_template_call; }
-	bool HasExternalEffects   () const { return m_Policy & oper_policy::has_external_effects; }
-	bool HasTemplArg          () const { return m_Policy & oper_policy::has_template_arg; }
-	bool HasSupplTreeArg      () const { return m_Policy & oper_policy::has_tree_args; }
-	bool AllowExtraArgs       () const { return m_Policy & oper_policy::allow_extra_args; }
-	bool CanExplainValue      () const { return m_Policy & oper_policy::can_explain_value; }
-	bool HasDynamicArgPolicies() const { return m_Policy & oper_policy::dynamic_argument_policies; }
-	bool IsDeprecated        () const { return m_Policy & oper_policy::deprecated; }
-	bool IsObsolete           () const { return m_Policy & oper_policy::obsolete; }
-	bool HasAnnotation        () const { return m_Policy & oper_policy::has_annotation; }
-	bool IsBetterNotInMetaScripting() const { return m_Policy & oper_policy::better_not_in_meta_scripting; }
-	bool AllowsAsFunctionResult() const { return m_Policy & oper_policy::allow_as_function_result; }
-	bool HasMembersOnDemand   () const { return m_Policy & oper_policy::members_on_demand; }
+	bool MustCacheResult      () const { return !flags(m_Policy & oper_policy::dont_cache_result); }
+	bool IsTransient          () const { return flags(m_Policy & oper_policy::is_transient); }
+	bool CanResultToConfigItem() const { return flags(m_Policy & oper_policy::existing); }
+	bool IsTemplateCall       () const { return flags(m_Policy & oper_policy::is_template_call); }
+	bool HasExternalEffects   () const { return flags(m_Policy & oper_policy::has_external_effects); }
+	bool HasTemplArg          () const { return flags(m_Policy & oper_policy::has_template_arg); }
+	bool HasSupplTreeArg      () const { return flags(m_Policy & oper_policy::has_tree_args); }
+	bool AllowExtraArgs       () const { return flags(m_Policy & oper_policy::allow_extra_args); }
+	bool CanExplainValue      () const { return flags(m_Policy & oper_policy::can_explain_value); }
+	bool HasDynamicArgPolicies() const { return flags(m_Policy & oper_policy::dynamic_argument_policies); }
+	bool IsDeprecated        () const { return flags(m_Policy & oper_policy::deprecated); }
+	bool IsObsolete           () const { return flags(m_Policy & oper_policy::obsolete); }
+	bool HasAnnotation        () const { return flags(m_Policy & oper_policy::has_annotation); }
+	bool IsBetterNotInMetaScripting() const { return flags(m_Policy & oper_policy::better_not_in_meta_scripting); }
+	bool AllowsAsFunctionResult() const { return flags(m_Policy & oper_policy::allow_as_function_result); }
+	bool HasMembersOnDemand   () const { return flags(m_Policy & oper_policy::members_on_demand); }
 
 	auto GetCalcFactor        () const { return m_CalcFactor; }
 

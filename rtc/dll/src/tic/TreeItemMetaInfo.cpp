@@ -385,12 +385,12 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 		return metaInfo;
 	}
 
-	if (mpf & metainfo_policy_flags::recursive_check)
+	if (flags(mpf & metainfo_policy_flags::recursive_check))
 		throwItemError("Invalid Recursion in integrityCheck Evaluation");
 
 	dms_assert(!IsCacheItem());
 
-	if (mpf & metainfo_policy_flags::subst_never)
+	if (flags(mpf & metainfo_policy_flags::subst_never))
 		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, true) }; // should this result in a SymcDC to itself ? No, present this tree only in GetKeyExpr
 
 	// a stored item that has not got its read calculator yet (its UpdateTree is still to come) answers

@@ -15,6 +15,7 @@
 #include "geom/Range.h"
 #include "mci/ValueComposition.h"
 #include "ptr/OwningPtrSizedArray.h"
+#include "set/BitmaskEnum.h"
 
 #include <vector>
 
@@ -49,7 +50,7 @@ TIC_CALL void CopyData(const AbstrDataObject* oldData, AbstrDataObject* newData,
 // class  : AbstrUnit
 //----------------------------------------------------------------------
 
-enum UnifyMode {
+enum UnifyMode : int {
 	UM_AllowDefaultLeft  =  1,
 	UM_AllowDefaultRight =  2,
 	UM_AllowDefault      =  UM_AllowDefaultLeft|UM_AllowDefaultRight,
@@ -73,7 +74,7 @@ enum UnifyMode {
 	UM_AllowRightExpansion = 64,
 };
 
-constexpr auto operator | (UnifyMode lhs, UnifyMode rhs) { return UnifyMode(int(lhs) | int(rhs)); }
+template <> inline constexpr bool is_bitmask_enum<UnifyMode> = true;
 
 class DMS_TYPE_VISIBLE AbstrUnit : public TreeItem
 {

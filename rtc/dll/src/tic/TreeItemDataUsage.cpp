@@ -134,12 +134,12 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	dms_assert(m_State.GetProgress() >= ProgressState::MetaInfo || IsPassor() || WasFailed(FailType::Data));
 	if (UpdateMarker::PrepareDataInvalidatorLock::IsLocked())
-		drlFlags = DrlType(UInt32(drlFlags) & ~UInt32(DrlType::UpdateMask));
+		drlFlags &= ~DrlType::UpdateMask;
 
 	dms_assert(!IsTemplate()); // formation of FuncDC's should prevent args to be calculated that fail to meet this precondition
-	dms_assert(IsMetaThread() || !(UInt32(drlFlags) & UInt32(DrlType::UpdateMask)));
+	dms_assert(IsMetaThread() || !flags(drlFlags & DrlType::UpdateMask));
 
-	if ((UInt32(drlFlags) & UInt32(DrlType::Certain)) && !SuspendTrigger::BlockerBase::IsBlocked())
+	if (flags(drlFlags & DrlType::Certain) && !SuspendTrigger::BlockerBase::IsBlocked())
 	{
 		SuspendTrigger::FencedBlocker lockSuspend("@TreeItem::PrepareDataUsage");
 		auto result = PrepareDataUsageImpl(drlFlags);
@@ -230,16 +230,16 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 {
 	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	UpdateMetaInfo();
-	bool throwOnFail = UInt32(drlFlags) &  UInt32(DrlType::ThrowOnFail);
+	bool throwOnFail = flags(drlFlags & DrlType::ThrowOnFail);
 
-	DrlType drlType = DrlType(UInt32(drlFlags) & UInt32(DrlType::UpdateMask));
+	DrlType drlType = drlFlags & DrlType::UpdateMask;
 	dms_assert(drlType <= DrlType::Certain);
 
 	dms_assert(!IsTemplate()); // formation of FuncDC's should prevent args to be calculated that fail to meet this precondition
 
 	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides SuspendTrigger::GetLastResult
 
-	assert(!(UInt32(drlType) &  UInt32(DrlType::Certain)) || SuspendTrigger::BlockerBase::IsBlocked()); // Callers responsibility
+	assert(!flags(drlType & DrlType::Certain) || SuspendTrigger::BlockerBase::IsBlocked()); // Callers responsibility
 
 	// Checks State against suppliers if any changes occured after m_LastCheckedTS and Invalidates if any changes occured in any supplier
 

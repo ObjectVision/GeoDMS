@@ -190,16 +190,16 @@ struct ControllerStopper
 
 bool AbstrController::Event(EventInfo& eventInfo)
 {
-	bool result = eventInfo.m_EventID & m_StopEvents;
+	bool result = flags(eventInfo.m_EventID & m_StopEvents);
 
 	// STOP EVENTS
 	ControllerStopper finalizer(result ? this : nullptr );
 
-	if (eventInfo.m_EventID & m_MoveEvents)
+	if (flags(eventInfo.m_EventID & m_MoveEvents))
 	{
 		result = Move(eventInfo);
 	}
-	if (eventInfo.m_EventID & m_ExecEvents)
+	if (flags(eventInfo.m_EventID & m_ExecEvents))
 	{
 		result = Exec(eventInfo);
 	}
@@ -599,8 +599,8 @@ void InfoController::SelectFocusElem(LayerSet* ls, const CrdPoint& worldPoint, E
 
 	static bool s_LastLBUTTONDBLCLK = false;
 	bool
-		lButtonUp = (eventID & EventID::LBUTTONUP) && !s_LastLBUTTONDBLCLK,
-		lButtonDblClk = (eventID & EventID::LBUTTONDBLCLK);
+		lButtonUp = flags(eventID & EventID::LBUTTONUP) && !s_LastLBUTTONDBLCLK,
+		lButtonDblClk = flags(eventID & EventID::LBUTTONDBLCLK);
 
 	if (lButtonUp || lButtonDblClk)
 	{
@@ -880,7 +880,7 @@ bool DrawPolygonController::Move(EventInfo& eventInfo)
 
 	eventInfo.m_EventID |= EventID::TEXTSENT;
 
-	if (eventInfo.m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONUP|EventID::LBUTTONDBLCLK))
+	if (flags(eventInfo.m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONUP|EventID::LBUTTONDBLCLK)))
 		AddPoint(eventInfo.m_Point);
 	return true;
 }

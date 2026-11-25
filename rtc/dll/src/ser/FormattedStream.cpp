@@ -35,7 +35,7 @@ FormattedOutStream::FormattedOutStream(OutStreamBuff* out, FormattingFlags ff)
 {
 	if (HasThousandSeparator(m_FormattingFlags))
 		if (!ShowThousandSeparator())
-			m_FormattingFlags = FormattingFlags(UInt32(m_FormattingFlags) & ~UInt32(FormattingFlags::ThousandSeparator));
+			m_FormattingFlags &= ~FormattingFlags::ThousandSeparator;
 	MG_PRECONDITION(out);
 }
 
@@ -127,9 +127,9 @@ bool FormattedInpStream::IsFieldSeparator(char ch)
 	if (ch == ';')
 		return true;
 	if (ch == '\t')
-		return !(m_Flags & reader_flags::stringsWithTabs);
+		return !flags(m_Flags & reader_flags::stringsWithTabs);
 	if (ch == ',')
-		return !(m_Flags & reader_flags::commaAsDecimalSeparator);
+		return !flags(m_Flags & reader_flags::commaAsDecimalSeparator);
 
 	return (ch == '\r' || ch == '\n');
 }
@@ -190,7 +190,7 @@ redo:
 		tokenType = TokenType::Punctuation;
 		m_NextToken.push_back('/'); // single char token
 	}
-	else if (isdigit(nextChar) || (nextChar == '-' && !(m_Flags & reader_flags::noNegatives) ))
+	else if (isdigit(nextChar) || (nextChar == '-' && !flags(m_Flags & reader_flags::noNegatives) ))
 	{
 		tokenType = TokenType::Number;
 		if (nextChar == '-')
@@ -203,8 +203,8 @@ redo:
 			m_NextToken.push_back(nextChar);
 			nextChar = ReadChar();
 		}
-		if ((nextChar == '.' && !(m_Flags & reader_flags::commaAsDecimalSeparator))
-			|| (nextChar == ',' && (m_Flags & reader_flags::commaAsDecimalSeparator)))
+		if ((nextChar == '.' && !flags(m_Flags & reader_flags::commaAsDecimalSeparator))
+			|| (nextChar == ',' && flags(m_Flags & reader_flags::commaAsDecimalSeparator)))
 		{
 			m_NextToken.push_back(nextChar);
 			nextChar = ReadChar();
@@ -214,7 +214,7 @@ redo:
 				nextChar = ReadChar();
 			}
 		}
-		if ((nextChar == 'E' || nextChar == 'e') && !(m_Flags & reader_flags::noScientific))
+		if ((nextChar == 'E' || nextChar == 'e') && !flags(m_Flags & reader_flags::noScientific))
 		{
 			m_NextToken.push_back(nextChar);
 			nextChar = ReadChar();
@@ -350,7 +350,7 @@ CharPtrRange FormattedInpStream::NextWord()
 		else
 			
 			while (nextChar 
-				&& (nextChar != ' ' || (m_Flags & reader_flags::stringsWithSpaces))
+				&& (nextChar != ' ' || flags(m_Flags & reader_flags::stringsWithSpaces))
 				&& !IsFieldSeparator(nextChar))
 			{
 				m_NextToken.push_back(nextChar);
