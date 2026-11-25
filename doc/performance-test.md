@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, 20.22.x
 
-*Status (2026-10-16): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-11-01): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -10,8 +10,20 @@ of 20.20.0, the `/SH` commit e11c1ac of GeoDMS-Test), that file is meant. On OVS
 (0176bebdb) gives 27 of 27 `ok` in `.c` and `.m` and 19 of 21 in `.l`, with the results of 20.24.0; the latest
 round, 20.25.0 at cd3e83ec7, gave 23 of 27: the loose quadtree of #1292 makes `point_in_polygon` take another
 of overlapping polygons in t060, t301, t641.2 and t2000, whose references GeoDMS-Test 6387c67 moved (27 of 27
-since), and makes t060 and t301 4 to 7 % faster. t300's two levels on this machine are the first read of its XML, not the build (see
-the known causes at the end). Section 8.1.x of
+since), and makes t060 and t301 4 to 7 % faster; the final engine code of 20.25.0, c56fe51a2, gives 27 of 27 with
+the same results and times, and so does the release v20.25.0 (fec6efe90) in `.m` and `.c` (27 of 27) and `.l` (19 of
+21); the release v20.26.0 (f3c45bc70) gives the same verdicts and results, and an A/B shows no performance change
+against 20.25.0; the pre-release v20.27.0 (02f9fc329) gives 27 of 27 in `.m` with the results of 20.26.0, and in an
+A/B its one-pass sparse `impedance_matrix` (#1327) makes t910 14 % faster and leaves the other network experiments and
+every peak commit level; the local build of 20.28.0 (db151676e) gives 27 of 27 with the same results, and in an
+A/B the counting in blocks of #1327 (55b161945) makes t720 24 % faster and t405.2 5 % and raises the peak commit of
+t720 by about 0.6 GB, in the free stacks, while the rise of t301 that pairs of runs suggested was chance (split by kind
+of memory, 2026-11-01); the pre-release v20.28.0
+(01feccd21) gives 21 of 21 in `.l` and 27 of 27 in `.c` and `.m` with the same results, and is as fast as
+db151676e in an A/B. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
+of the account that ran them, which had no `.wslconfig` and so half the RAM, not the engine: with 48 GB for that VM
+(2026-10-22) 20.26.0.l passes both, 21 of 21. t300's two levels on this machine are the first read of its XML, not
+the build (see the known causes at the end). Section 8.1.x of
 `doc/development/schedule-with-lookahead.md` is now in `doc/archive/schedule-with-lookahead-log.md`.*
 
 ## Results (OVSRV10), 20.22.0
@@ -1095,10 +1107,1241 @@ Each run gave the results of its build's round, byte for byte. t405.1's 266 s in
   2.5 s) and `point_in_ranked_polygon` (6.1 to 1.5 s), dominate no experiment of the round, so the round does not
   show them.
 
+## Results (OVSRV05), 20.25.0 at `c56fe51a2`: the final engine code
+
+Run from 2026-10-16 20:56 to 2026-10-17 00:11 on OVSRV05, threshold 60 (set by `scratch\launch_perf_20250b.cmd`
+and put back to 95 after it), full.py exit 0, nothing on stderr; report header 3:11:52, 27 of 27 `ok`. Tree
+`C:\dev\GeoDMS` on `main` at `c56fe51a2`: the round above (`cd3e83ec7`) with this file's `1f4455e02` and
+`c953d8949` and the engine commits #1313 `b17d330f1` (a unit made by combine keeps its factors in interest while it
+is in interest), #1314 `7b4e2b9dc` (`mid` and `centroid_or_mid` of a polygon with a null vertex), #1315 `8487e5f39`,
+#1316 `374149dce`, #1317 `22f424664` and #1318 `13b875271` and `48f7e71ad` (MMD read holders, files of `const()`
+and `id()` attributes, the dictionary across write sessions, units outside a store). GeoDMS-Test at `6387c67`, with
+the 20.25.0 references of the section above. Built with the VS18 msbuild, 20:44:26 to 20:54:58, exit 0, no error
+and no C warning, every engine DLL rebuilt (`Rtc.dll` 20:45:00 to `GeoDmsGuiQt.exe` 20:54:54);
+`testcases\run_testcases.bat` 529 cases, 0 bad. Kept as `C:\LocalData\GeoDMS_engine\head_c56fe51a2`. The column of
+the round above went to `_Archive\20_25_0_m_cd3e83ec7_20261016` with its report, its intermediates to
+`C:\LocalData\runs\_aside_20_25_0_m_cd3e83ec7_20261016`; full.py ran 32 experiments with no reuse. t300's XML was
+read once beforehand (`warm_inputs.py`), as the A/B before the round above had done: 500 files, 5.6 GiB in 57 s,
+the first-read rate of the known cause below, a third time.
+
+Running on the machine, from 39 five-minute samples: the Claude desktop app 128 s of CPU, its web view 73 s,
+nothing else above 30 s.
+
+### The same results
+
+Every `.json`, `.txt` and `.tif` result of the round is byte for byte the one of the round above, t010, t641.1,
+t641.2 and t2000 included; the t060 gpkg has the tables of the `_v20250` reference, column for column, and differs in
+metadata bytes only. #1313 to #1318 change no result that the round checks.
+
+### Wall time and Highest CommitCharge
+
+| test | `c56fe51a2` (16-10) | `cd3e83ec7` (16-10) | release 20.24.2.m (15-10) | against `cd3e83ec7` |
+|---|---|---|---|---|
+| t020 | 0:04:00, 2.5 GB | 0:04:07, 2.5 GB | 0:03:46, 1.9 GB | 0.97 |
+| t060 | 0:01:41, 7.4 GB | 0:01:57, 6.9 GB | 0:01:50, 6.8 GB | 0.86 |
+| t101 | 0:03:11, 1.6 GB | 0:03:29, 1.6 GB | 0:03:14, 1.6 GB | 0.91 |
+| t200 | 0:00:37, 2.7 GB | 0:00:38, 2.9 GB | 0:00:36, 2.9 GB | 0.97 |
+| t300 | 0:00:58, 10.4 GB | 0:00:59, 10.1 GB | 0:01:03, 9.6 GB | 0.98 |
+| t301 | 0:02:44, 17.8 GB | 0:02:36, 18.2 GB | 0:02:32, 13.6 GB | 1.05 |
+| t405.1 | 0:04:26, 8.2 GB | 0:04:34, 9.6 GB | 0:04:22, 10.0 GB | 0.97 |
+| t405.2 | 0:18:18, 36.2 GB | 0:18:05, 29.1 GB | 0:17:37, 29.1 GB | 1.01 |
+| t405.3 | 0:18:17, 29.2 GB | 0:18:32, 29.4 GB | 0:17:48, 29.0 GB | 0.99 |
+| t410 | 0:03:55, 1.3 GB | 0:04:05, 1.2 GB | 0:04:04, 1.2 GB | 0.96 |
+| t611 | 0:00:31, 4.1 GB | 0:00:32, 3.9 GB | 0:00:31, 3.9 GB | 0.97 |
+| t641.1 | 0:51:22, 139.4 GB | 0:51:23, 137.6 GB | 0:49:31, 142.4 GB | 1.00 |
+| t641.2 | 0:46:06, 171.4 GB | 0:45:20, 171.7 GB | 0:45:46, 165.8 GB | 1.02 |
+| t710 | 0:01:03, 6.2 GB | 0:01:06, 5.7 GB | 0:01:05, 5.7 GB | 0.95 |
+| t720 | 0:09:17, 20.7 GB | 0:09:39, 20.4 GB | 0:09:41, 20.4 GB | 0.96 |
+| t810 | 0:05:19, 25.9 GB | 0:05:35, 26.2 GB | 0:05:33, 26.3 GB | 0.95 |
+| t910 | 0:00:49, 2.8 GB | 0:00:52, 2.8 GB | 0:00:50, 3.2 GB | 0.94 |
+| t2000 | 0:18:06, 76.3 GB | 0:17:38, 61.9 GB | 0:18:08, 67.3 GB | 1.03 |
+
+The t060 and t301 times of `cd3e83ec7` are those of its round, not of the rerun of the section above. Summed over the
+rows: 191.5 min against 191.9. t1640 and t1642 4 and 12 s. `PeakLiveLarge` 136 936 MB for t641.1 and 168 907 MB for
+t641.2, as in every round of 20.24.2 and 20.25.0. t2000 has 77 224 MB live against 63 098 in the round above.
+
+### t2000's live peak: an interleaved A/B
+
+#1313 keeps the factors of a combine in interest while the combine is, which could keep more data alive, and t2000
+uses `combine_data`. `scratch\perf_ovsrv05\ab_20250c_t2000.cmd` ran t2000 on `head_cd3e83ec7` (X) and
+`head_c56fe51a2` (Y), X, Y, X, Y, 2026-10-17 00:14 to 01:25, threshold 60, its source files read once beforehand:
+
+| run | seconds | Highest CommitCharge | `PeakLiveLarge` |
+|---|---|---|---|
+| X1 | 1082 | 73 727 MB | 74 678 MB |
+| Y1 | 1051 | 74 010 MB | 72 601 MB |
+| X2 | 1064 | 62 759 MB | 70 972 MB |
+| Y2 | 1068 | 78 336 MB | 74 271 MB |
+
+Every run gave the result of the round. The two builds are level in time and in live memory: the build without
+#1313 reaches the high level as well. t2000's live peak has two levels across the rounds of this machine, 61.7 to
+65.2 GB (20.23.0, 20.24.0, the three rounds of 20.24.2, `cd3e83ec7`) and 76.7 to 77.3 GB (20.22.1 at `1315b0357` and
+`15651313f`, 20.23.1.m, this round), with 69.6 GB for 20.22.0 and 71 to 75 GB in the runs above; a round's figure for
+t2000 says which level that run reached, not which build ran.
+
+### Reading
+
+- Correct: 27 of 27, with the results of `cd3e83ec7`, so the 20.25.0 references of GeoDMS-Test `6387c67` hold for the
+  final code.
+- No performance change: every experiment level or faster than the round above, within its drift, and t2000 level
+  with `cd3e83ec7` in an A/B, in time and in live memory. Not measured: the tst unit suite.
+
+## Results (OVSRV05), the release v20.25.0 (tag `fec6efe90`) in `.l`, `.c` and `.m`
+
+The GitHub pre-release `v20.25.0` (published 2026-10-20 13:42 UTC) is tagged at `fec6efe90`, whose engine code is
+that of `c56fe51a2` above; the five commits after it are the release notes, plan documents and a testcase. The
+`.m`, `.c` and `.l` assets were downloaded with `gh` into `C:\LocalData\GeoDMS_releases\v20.25.0`; their SHA256
+match the release's digests and both Windows setups carry a valid signature of Object Vision B.V. `.m` and `.c` were
+installed silently into `C:\Program Files\ObjectVision` (exit 0), and `testcases\run_testcases.bat` with each
+installed `GeoDmsRun.exe` gives 529 cases, 0 bad; `.l` replaced 20.24.2.l in mtahi's WSL Ubuntu 26.04
+(`dpkg -i`, its dependencies and `libodbc2` already present) and passed a smoke test. The 84 executables of the
+`.m` setup have the `.text` sizes of `head_c56fe51a2`. The column of the local `c56fe51a2` round went to
+`_Archive\20_25_0_m_local_c56fe51a2_20261016` with its report, its intermediates to
+`C:\LocalData\runs\_aside_20_25_0_m_local_c56fe51a2_20261016`; no `20_25_0_c` or `20_25_0_l` existed.
+
+`scratch\launch_perf_20250_release.cmd` first read t300's XML (500 files, 5.6 GiB in 59 s, the first-read rate of the
+known cause below), then ran the three rounds one after another, threshold 60, put back to 95 after them: `.l`
+2026-10-20 21:08 to 22:10, `.c` 22:10 to 2026-10-21 01:21, `.m` 01:21 to 04:29. Each full.py exit 0, nothing on
+stderr, no reuse. Running on the machine: from 22:14 to 23:09, during `.c`'s t101 to t405.3, the Chrome Remote Desktop
+host at 140 to 160 s of CPU per five minutes (a connected session) and the Claude desktop app at about 110 s,
+Explorer and OneDrive at 22:49; otherwise the Claude app alone.
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.l` | 0:54:38 | 19 of 21 `ok`: t405.2 and t405.3 stop with exit 15 after 6 minutes, as in 20.24.2.l and 20.23.1.l |
+| `.c` | 3:08:46 | 27 of 27 `ok` |
+| `.m` | 3:05:09 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result of `.m` is byte for byte the one of the local `c56fe51a2` round.
+`.c` gives the results of `.m`, apart from the order of t010's `operator_groups.txt`. `.l` gives the results of
+20.24.2.l except t301, which now has the 20.25.0 value of `.m`, and its t060 gpkg passes against the `_v20250`
+reference: the loose quadtree visits the overlapping panden in the same order on Linux. Its known differences from
+`.m` (t020's printed digits, t710, t010's order) are unchanged.
+
+| test | `.m` release | `.m` local `c56fe51a2` | `.c` release | `.c` 20.24.2 | `.l` release | `.l` 20.24.2 |
+|---|---|---|---|---|---|---|
+| t020 | 0:03:52, 2.3 GB | 0:04:00, 2.5 GB | 0:03:53, 1.8 GB | 0:03:44, 2.0 GB | 0:03:57, 6.3 GB | 0:03:30, 6.4 GB |
+| t060 | 0:01:44, 6.9 GB | 0:01:41, 7.4 GB | 0:01:48, 6.9 GB | 0:01:51, 6.8 GB | 0:02:59, 10.5 GB | 0:02:56, 10.6 GB |
+| t101 | 0:03:12, 1.6 GB | 0:03:11, 1.6 GB | 0:03:48, 1.6 GB | 0:03:10, 1.6 GB | 0:03:42, 1.7 GB | 0:03:38, 1.7 GB |
+| t200 | 0:00:37, 2.7 GB | 0:00:37, 2.7 GB | 0:00:39, 2.8 GB | 0:00:30, 3.2 GB | 0:00:58, 2.2 GB | 0:01:00, 1.7 GB |
+| t300 | 0:01:04, 8.6 GB | 0:00:58, 10.4 GB | 0:01:03, 8.6 GB | 0:00:55, 10.5 GB | 0:01:17, 8.4 GB | 0:02:12, 7.1 GB |
+| t301 | 0:02:40, 19.5 GB | 0:02:44, 17.8 GB | 0:03:04, 21.1 GB | 0:02:35, 16.5 GB | 0:01:36, 20.4 GB | 0:01:37, 20.6 GB |
+| t405.1 | 0:04:26, 8.9 GB | 0:04:26, 8.2 GB | 0:03:33, 9.6 GB | 0:03:23, 10.0 GB | 0:04:35, 10.5 GB | 0:04:42, 10.4 GB |
+| t405.2 | 0:17:38, 29.2 GB | 0:18:18, 36.2 GB | 0:19:20, 46.6 GB | 0:17:32, 29.0 GB | stopped | stopped |
+| t405.3 | 0:17:28, 29.1 GB | 0:18:17, 29.2 GB | 0:19:10, 46.6 GB | 0:17:33, 29.0 GB | stopped | stopped |
+| t410 | 0:03:50, 1.2 GB | 0:03:55, 1.3 GB | 0:03:51, 0.9 GB | 0:03:47, 0.9 GB | 0:04:14, 2.2 GB | 0:04:15, 2.2 GB |
+| t611 | 0:00:30, 3.7 GB | 0:00:31, 4.1 GB | 0:00:31, 4.0 GB | 0:00:30, 4.0 GB | 0:00:33, 4.3 GB | 0:00:32, 4.5 GB |
+| t641.1 | 0:49:13, 137.0 GB | 0:51:22, 139.4 GB | 0:50:38, 137.1 GB | 0:49:41, 141.9 GB | not run | not run |
+| t641.2 | 0:44:13, 166.0 GB | 0:46:06, 171.4 GB | 0:43:00, 175.2 GB | 0:42:57, 166.2 GB | not run | not run |
+| t710 | 0:01:02, 7.4 GB | 0:01:03, 6.2 GB | 0:01:01, 6.1 GB | 0:01:04, 7.1 GB | 0:01:10, 8.5 GB | 0:01:06, 7.9 GB |
+| t720 | 0:09:22, 23.3 GB | 0:09:17, 20.7 GB | 0:09:20, 20.8 GB | 0:09:20, 19.4 GB | 0:09:35, 23.1 GB | 0:09:25, 20.3 GB |
+| t810 | 0:05:29, 26.2 GB | 0:05:19, 25.9 GB | 0:05:23, 26.0 GB | 0:05:03, 25.9 GB | 0:06:28, 27.2 GB | 0:06:48, 27.4 GB |
+| t910 | 0:00:49, 4.1 GB | 0:00:49, 2.8 GB | 0:00:48, 3.9 GB | 0:00:48, 3.1 GB | 0:00:58, 3.3 GB | 0:00:58, 3.5 GB |
+| t2000 | 0:16:50, 64.5 GB | 0:18:06, 76.3 GB | 0:16:44, 62.8 GB | 0:16:53, 60.8 GB | not run | not run |
+
+Summed over the rows that ran: `.m` 184.8 min against 191.5 for the local round and 188.8 for 20.24.2.m, `.c` 188.4
+against 182.1 for 20.24.2.c, `.l` 54.4 against 54.8 for 20.24.2.l. `.l`'s t300 is 1:17 with its XML read beforehand,
+against 2:12 for 20.24.2.l, the first round of its sitting, and 1:16 for 20.23.1.l, the third of its.
+
+### Interleaved A/B of the rows that moved
+
+`.c` was 9 to 30 % slower than 20.24.2.c on t101, t200, t301, t405.2 and t405.3, in the hour that it shared the
+machine with the Remote Desktop session, and `.l` 13 % on t020. `scratch\perf_ovsrv05\ab_20250r.cmd` reran them
+on 2026-10-21 from 04:30 to 06:40, X, Y, X, Y, threshold 60, the inputs read once beforehand (36.3 GiB):
+X = the release 20.24.2 (`.c` kept as `C:\LocalData\GeoDMS_engine\release_0176bebdb_c`, `.l` unpacked from its
+`.deb` beside 20.25.0.l in `/opt/ObjectVision`), Y = the release 20.25.0 (`release_fec6efe90_c`, the installed
+20.25.0.l). t405.1 runs before t405.2 in each pass, which reads the intermediates it prepares. Seconds:
+
+| flavour, test | X1 | Y1 | X2 | Y2 | Y / X |
+|---|---|---|---|---|---|
+| `.c` t101 | 195 | 191 | 190 | 190 | 0.99 |
+| `.c` t200 | 31 | 31 | 31 | 30 | 0.98 |
+| `.c` t301 | 148 | 148 | 146 | 152 | 1.02 |
+| `.c` t405.1 | 204 | 207 | 203 | 208 | 1.02 |
+| `.c` t405.2 | 1036 | 1082 | 1053 | 1079 | 1.03 |
+| `.l` t020 | 211 | 204 | 206 | 203 | 0.98 |
+| `.l` t710 | 68 | 67 | 66 | 67 | 1.00 |
+
+Each run gave the results of its build's round. t405.2 is the one row where both 20.25.0 runs are slower than both
+20.24.2 runs, by 26 to 46 s; two pairs do not settle 3 %, and the `.m` rounds show nothing of it (17:38 for the
+release against 17:37 for 20.24.2.m).
+
+### Reading
+
+- Correct: `.m` and `.c` 27 of 27 and `.l` 19 of 21, with the results of the local `c56fe51a2` round and the
+  20.25.0 references; on `.l` the order-dependent t301 and t060 give the values of `.m`.
+- No performance regression: `.m` takes 184.8 min over the rows, the lowest of the 20.24.2 and 20.25.0 rounds. The rows of `.c` and
+  `.l` that moved in their rounds are level with 20.24.2 in the A/B, except perhaps t405.2 on `.c` (+3 %, not
+  settled). The setups compute what the local build computes, in the same time.
+
+## Results (OVSRV05), the release v20.26.0 (tag `f3c45bc70`) in `.l`, `.c` and `.m`
+
+The GitHub pre-release `v20.26.0` (published 2026-10-21 15:29 UTC) is tagged at `f3c45bc70`. Its engine differs
+from 20.25.0 (`fec6efe90`) in `geo/dll/src/Dijkstra.{h,cpp}` (#1325, `3ddefdb69`: `impedance_matrix` with a LinkSet
+per od row and pareto, through a pool of accepted labels), `rtc/dll/src/tic/Unit.cpp` (#1324, `88e796c31`:
+`SetIrregularTileRange` reports the range it installed), the charts' X axis (`602c72590`) and the version number.
+GeoDMS-Test at `5fb7780` (Jip Claassens' report changes `30962b2` and `5fb7780` on top of `6387c67`), pulled again
+before the rounds. The `.m`, `.c` and `.l` assets were downloaded with `gh` into `C:\LocalData\GeoDMS_releases\v20.26.0`;
+their SHA256 match the release's digests and both Windows setups carry a valid signature of Object Vision B.V.; `.m`
+and `.c` were installed silently (exit 0), `.l` replaced 20.25.0.l in WSL and passed a smoke test.
+
+`testcases\run_testcases.bat` with each installed `GeoDmsRun.exe` first gave 528 of 529: `stor_mmd_rule_orgrel_2_read`
+failed its check `file_dom_rel_out == true`, which since `fec6efe90` expects `dom/rel_out` of the lookups store to be
+kept as a rule, without a data file. The file it found was written on 2026-10-16 01:10, by a battery run of the
+testcase before `fec6efe90`: the battery keeps `<OutDir>\LocalData` between runs, and the write half of the pair
+does not remove a file that it no longer writes. With a fresh `-OutDir` both builds give 529 cases, 0 bad.
+
+`scratch\launch_perf_20260_release.cmd` read t300's XML first (5.6 GiB in 58 s), then ran `.l` 2026-10-21 17:41 to
+18:46, `.c` 18:46 to 22:06 and `.m` 22:06 to 2026-10-22 01:21, threshold 60, put back to 95. Each full.py exit 0,
+nothing on stderr, no reuse. Running on the machine: a Remote Desktop session through `.c` and `.m` (the host
+1 399 and 1 144 s of CPU, about a tenth of a core), the Claude desktop app at about a third of a core through `.l`.
+The machine had restarted on 2026-10-21 at 11:46 for the October 2026 cumulative update of Windows 10 22H2
+(KB5127308, KB5126657, KB5127689) and the .NET and Visual Studio updates of that morning.
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.l` | 0:57:35 | 19 of 21 `ok`: t405.2 and t405.3 stop with exit 15, as in every `.l` round of this account since 20.23.1; 21 of 21 in the rerun with 48 GB for WSL below |
+| `.c` | 3:17:45 | 27 of 27 `ok` |
+| `.m` | 3:12:32 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result of each flavour is byte for byte the one of 20.25.0 in that
+flavour, t101, t102, t405.x, t410 and t910, the network experiments that go through Dijkstra, included.
+
+| test | `.m` 20.26.0 | `.m` 20.25.0 | `.c` 20.26.0 | `.c` 20.25.0 | `.l` 20.26.0 | `.l` 20.25.0 |
+|---|---|---|---|---|---|---|
+| t020 | 0:04:07 | 0:03:52 | 0:04:20 | 0:03:53 | 0:03:45 | 0:03:57 |
+| t060 | 0:01:45 | 0:01:44 | 0:01:50 | 0:01:48 | 0:02:56 | 0:02:59 |
+| t101 | 0:03:35 | 0:03:12 | 0:03:39 | 0:03:48 | 0:03:48 | 0:03:42 |
+| t200 | 0:00:38 | 0:00:37 | 0:00:38 | 0:00:39 | 0:01:00 | 0:00:58 |
+| t300 | 0:01:03 | 0:01:04 | 0:01:06 | 0:01:03 | 0:01:18 | 0:01:17 |
+| t301 | 0:02:44 | 0:02:40 | 0:02:39 | 0:03:04 | 0:01:35 | 0:01:36 |
+| t405.1 | 0:04:38 | 0:04:26 | 0:04:26 | 0:03:33 | 0:04:55 | 0:04:35 |
+| t405.2 | 0:18:18 | 0:17:38 | 0:18:31 | 0:19:20 | stopped | stopped |
+| t405.3 | 0:18:12 | 0:17:28 | 0:18:23 | 0:19:10 | stopped | stopped |
+| t410 | 0:03:58 | 0:03:50 | 0:03:54 | 0:03:51 | 0:04:35 | 0:04:14 |
+| t611 | 0:00:31 | 0:00:30 | 0:00:31 | 0:00:31 | 0:00:36 | 0:00:33 |
+| t641.1 | 0:51:38 | 0:49:13 | 0:52:31 | 0:50:38 | not run | not run |
+| t641.2 | 0:45:05 | 0:44:13 | 0:47:32 | 0:43:00 | not run | not run |
+| t710 | 0:01:04 | 0:01:02 | 0:01:05 | 0:01:01 | 0:01:14 | 0:01:10 |
+| t720 | 0:09:47 | 0:09:22 | 0:09:42 | 0:09:20 | 0:10:06 | 0:09:35 |
+| t810 | 0:05:08 | 0:05:29 | 0:05:41 | 0:05:23 | 0:07:03 | 0:06:28 |
+| t910 | 0:00:51 | 0:00:49 | 0:00:51 | 0:00:48 | 0:01:03 | 0:00:58 |
+| t2000 | 0:18:16 | 0:16:50 | 0:19:15 | 0:16:44 | not run | not run |
+
+Summed over the rows that ran: `.m` 192.1 min against 184.8, `.c` 197.3 against 188.4, `.l` 57.4 against 54.4, each
+4 to 5 % above 20.25.0, with t101 on `.m` (+12 %), the experiment that the Dijkstra change touches most, and t405.1
+on `.c` (+25 %, back at `.m`'s level) the largest rows. Peak memory as before; t2000's live peak 64 822 MB on `.m`
+and 78 831 MB on `.c`, its two known levels.
+
+### Interleaved A/B: the release 20.25.0 against the release 20.26.0
+
+`scratch\perf_ovsrv05\ab_20260r.cmd`, 2026-10-22 01:23 to 04:21, X, Y, X, Y per flavour, threshold 60, the inputs read
+once beforehand (50.1 GiB): X = 20.25.0 (`release_fec6efe90_m`, `release_fec6efe90_c`, 20.25.0.l unpacked from its
+`.deb` beside 20.26.0.l), Y = 20.26.0 (`release_f3c45bc70_m`, `release_f3c45bc70_c`, the installed 20.26.0.l). Seconds:
+
+| flavour, test | X1 | Y1 | X2 | Y2 | Y / X |
+|---|---|---|---|---|---|
+| `.m` t101 | 215 | 213 | 216 | 214 | 0.99 |
+| `.m` t102 | 4 | 4 | 4 | 4 | 1.00 |
+| `.m` t405.1 | 220 | 218 | 220 | 225 | 1.01 |
+| `.m` t410 | 238 | 245 | 242 | 237 | 1.00 |
+| `.m` t020 | 244 | 245 | 236 | 243 | 1.02 |
+| `.c` t101 | 214 | 217 | 213 | 217 | 1.02 |
+| `.c` t020 | 227 | 230 | 234 | 234 | 1.01 |
+| `.c` t405.1 | 220 | 218 | 227 | 224 | 0.99 |
+| `.l` t405.1 | 283 | 275 | 278 | 277 | 0.98 |
+| `.l` t410 | 259 | 261 | 260 | 257 | 1.00 |
+| `.l` t810 | 387 | 401 | 399 | 396 | 1.01 |
+| `.l` t910 | 68 | 64 | 65 | 65 | 0.97 |
+| `.l` t611 | 34 | 34 | 35 | 35 | 1.00 |
+
+All 36 result files of the A/B are byte for byte those of their build's round. The two releases are level on every
+row, t101 included. The sitting itself is slower than the ones before it: the
+same binary, `release_fec6efe90_c`, took 195, 191, 190 and 190 s for t101 and 204 and 203 s for t405.1 in the A/B of
+the section above (2026-10-21 04:33 to 06:22, no other load), and 214 and 213 s and 220 and 227 s here, 9 to 12 %
+more. Between the two lie the Windows update with its restart and, during this A/B, a Remote Desktop session (its
+host 867 s and `dllhost` 359 s of CPU). The session alone can account for it: the 20.25.0.c round took 3:48 for t101
+in the hour that it shared with such a session, before the update, against 190 s the morning after without one.
+Which of the two it is has not been separated; the session was still connected at the end of the A/B. The A/B of
+2026-10-31 (pre-release v20.28.0, below), after the update and without a session, rules out a lasting loss: t405.1,
+level across builds in every A/B, took 209 to 212 s there, inside the 203 to 215 s of the A/Bs before the update. So
+the 9 to 12 % belonged to that one sitting, most likely to its session; it does not separate the session from the
+ordinary drift between sittings (added 2026-11-19).
+
+### t405.2 and t405.3 on `.l`, rerun with 48 GB for WSL
+
+On 2026-10-22 the account mtahi, which runs the rounds here, got a `C:\Users\mtahi\.wslconfig`, written from a
+scheduled task (`scratch\set_wslconfig_mtahi.cmd`), since a write into the profile from the agent's shell does not
+reach the real one:
+
+```
+[wsl2]
+memory=48GB
+swap=128GB
+swapFile=D:\\WSL\\swap_mtahi.vhdx
+```
+
+The swap file is the account's own: two VMs cannot share one, and the other account's VM uses `D:\WSL\swap.vhdx`.
+After `wsl --shutdown` the VM reports 47 GB of memory and 128 GB of swap (`free -g`), against about 33.6 and 8 GB
+before; see "t405.2 and t405.3 on `.l` on OVSRV05: the WSL VM of the account" under the known causes. GeoDMS-Test's
+`batch\run_detached.ps1 -Version 20.26.0.l -Tests t405` then ran from `scratch\launch_t405_20260_l.cmd`, 2026-10-22
+16:30 to 17:31, full.py exit 0, nothing on stderr, no other round on the machine. `-tests` reruns t405.1 too, which
+prepares the data of the other two. The round's t405 files of 2026-10-21 are kept in
+`_Archive\20_26_0_l_t405_wsl33GB_timeout_20261021`; the `20_26_0_l` column now holds the rerun.
+
+Duration and peak rss / vms of the harness's sampler:
+
+| test | rerun, 48 GB | round of 2026-10-21, 33.6 GB | 20.19.3.l, Cicada |
+|---|---|---|---|
+| t405.1 | 0:05:26, 12.1 / 15.6 GB | 0:04:55, 12.1 / 15.5 GB | 0:10:17, 12.0 / 15.6 GB |
+| t405.2 | 0:26:11, 49.1 / 56.0 GB | stopped at 0:06:40, 32.8 / 41.6 GB | 0:24:28, 49.1 / 56.4 GB |
+| t405.3 | 0:26:29, 49.1 / 55.8 GB | stopped at 0:06:47, 32.8 / 48.9 GB | 0:24:00, 49.1 / 56.6 GB |
+
+Both ran to the end, their indicator steps too, and the `result.json` of t405.2 and of t405.3 is byte for byte the
+one of 20.26.0.m. The report gives the `.l` column 21 `ok`, t641.x, t2000 and the GUI tests not run, header
+1:37:20. The rerun is 7 to 10 % slower than 20.19.3.l, which ran in the Cicada account's distro, another WSL VM: no build
+comparison. (Until 2026-11-19 this said that the machine runs the same binary 9 to 12 % slower since the Windows update
+of 2026-10-21; that loss belonged to one sitting, most likely to its Remote Desktop session, see above.)
+
+### t2000 on `.c`: 93 to 96 GB of commit is the level of the run, not of the flavour
+
+The report gives t2000 on `.c` a `cmt` (the sampler's highest `vms`, on Windows the commit charge, in 10^9 bytes) of
+96.0 GB in the round and 93.2 GB in a rerun of 2026-10-22 10:32 (GeoDMS-Test `run_detached.ps1 -Version 20.26.0.c
+-Tests t2000`, outside the round's wrapper and so at threshold 95; the column's t2000 cell now holds it), against
+82.7 GB on `.m` and 80.8 to 83.6 GB on both flavours of 20.24.2 and 20.25.0. Both `.c` runs are at the high level of
+t2000's live peak (see "t2000's live peak: an interleaved A/B" under 20.25.0 at `c56fe51a2`): `PeakLiveLarge` 78 831
+and 77 054 MB at 80 893 and 80 899 MB `Reserved in Blocks`, against 64 822 MB at 71 683 MB on `.m`. The two `.c` runs
+agree although one ran at threshold 60 and the other at 95, and 20.26.0 changes no build file against 20.25.0.
+
+`scratch\t2000_c\ab_t2000_c_vs_m.cmd` ran t2000 on the kept copies of the two release builds, `release_f3c45bc70_c`
+(C) and `release_f3c45bc70_m` (M), interleaved, 2026-10-22 17:32 to 20:00, threshold 60, the inputs read once
+beforehand, WSL shut down, beside the Claude desktop app and a Remote Desktop session (its host 50 to 90 s of CPU per
+5 minutes). `scratch\t2000_c\run_exp_peak.py` is `run_exp.py` with two additions: it reads the process's own
+`PeakPagefileUsage`, the exact peak of its commit charge, which the sampler and GeoDMS's status line see only when a
+sample falls on it, and writes the commit charge per second; and it can add a switch, here `/SP` in CP and MP, which
+logs a line per operation. Seconds, peak commit in 10^9 bytes, GeoDMS's own figures in MB, and the seconds in which
+the commit charge stood above 80 GB:
+
+| run | `/SP` | seconds | `PeakPagefileUsage` | Highest CommitCharge | `PeakLiveLarge` | Reserved in Blocks | s above 80 GB |
+|---|---|---|---|---|---|---|---|
+| C1 | | 1158 | 83.7 GB | 67 347 | 65 703 | 70 657 | 2 |
+| M1 | | 1229 | 86.9 GB | 78 859 | 73 278 | 80 899 | 29 |
+| C2 | | 1143 | 83.2 GB | 65 111 | 64 594 | 70 657 | 2 |
+| M2 | | 1083 | 83.6 GB | 64 903 | 65 644 | 70 657 | 3 |
+| CP | yes | 1075 | 94.5 GB | 72 099 | 78 071 | 80 899 | 44 |
+| MP | yes | 1053 | 84.2 GB | 70 428 | 67 611 | 74 749 | 3 |
+| C3 | | 1082 | 94.6 GB | 77 632 | 79 536 | 82 945 | 52 |
+| M3 | | 1056 | 80.8 GB | 64 683 | 63 883 | 70 657 | 2 |
+
+Every run gave the result of the round. Each build reaches both levels: `.c` was low in C1 and C2 and high in CP and
+C3, `.m` high in M1 and low in M2, MP and M3. On the low level the commit charge passes 80 GB for 2 or 3 seconds and
+peaks at 81 to 84 GB; on the high level it stays above 80 GB for 29 to 52 seconds and peaks at 87 to 95 GB. The
+duration does not follow the level.
+
+Where the peak is: in CP and MP it falls in R2_2022's
+`BebouwingsComponenten/Woning/ActieveWoning/GeschikteOptieBerekening`, at the moment nine `sum`s with a result of
+129 282 492 float64 values run together. They are materialized at once (`!regime=eager predicted=deferred`, 986 MB
+each, 8.7 GiB together, about the distance between the two levels of `Reserved in Blocks`). In CP they ran from 404 to
+422 s, 15 to 18 s each, and the commit charge stood above 80 GB from 404 to 448 s, with its peak of 94.5 GB at 413 s;
+in MP they started at 430 s, eight of them took 7 to 9 s and the ninth 18 s, and the commit charge passed 80 GB for
+3 s, at 434 s. The block's other 986 MB steps fell at other moments: its `merge` (arguments 5.9 GB) at 364 s in CP and
+at 417 s in MP, and the `max_elem` that follows the sums (arguments 2.9 GB) at 423 to 435 s in CP and at 440 to 447 s
+in MP; before the sums CP ran 22 `max_elem`s of 164 MB between 365 and 388 s, MP 7 between 389 and 409 s and a 986 MB
+`lookup` of 21 s (384 to 405 s). A likely reading is
+that in a high run the nine results come on top of more of the block's other 986 MB arrays than in a low run, but the
+lines do not show which data is alive: most of them come from deferred operations, which report the construction of
+their tile functors, and none of the 112 655 lines of CP carries `gross=` or `peak=`. The order is the order in which
+the workers reach these steps, and runs already differ earlier: M1's commit charge lagged C1's and C2's by about 15 s
+around 100 s.
+
+### Reading
+
+- Correct: `.m` and `.c` 27 of 27 and `.l` 19 of 21, each with the results of 20.25.0; #1325 and #1324 change no
+  checked result, and the network experiments compute the same matrices. With 48 GB for WSL `.l` gives 21 of 21:
+  its t405.2 and t405.3 were the account's VM, not a regression.
+- No performance regression: every row that moved in the rounds is level with 20.25.0 in an A/B on the same
+  machine in the same sitting. The 4 to 5 % of the rounds is the sitting: the same 20.25.0 binary is 9 to 12 %
+  slower in it than the day before, under a Remote Desktop session and after the Windows update of 2026-10-21.
+  Rounds from that day on compare with each other, and with earlier ones only through an A/B.
+- No `.c` regression in t2000: its 96.0 and 93.2 GB of commit on `.c` against 82.7 GB on `.m` are the two levels of
+  that experiment, which the same `.c` binary and the same `.m` binary each reach in an interleaved A/B (81 to 84 GB
+  low, 87 to 95 GB high, results equal). The level follows the moment at which nine materialized 986 MB `sum`s of
+  R2_2022's `GeschikteOptieBerekening` run, relative to the block's other large steps; a t2000 cell of the report
+  says which level its run reached, and its memory verdict compares two draws.
+
+## Results (OVSRV05), the pre-release v20.27.0 (tag `02f9fc329`) in `.m`: #1327
+
+The GitHub pre-release `v20.27.0` (published 2026-10-28 09:04 UTC) is tagged at `02f9fc329` and has one asset, the
+`.m` setup. Its engine differs from 20.26.0 (`f3c45bc70`) in #1327 (`02f9fc329`: a sparse `impedance_matrix` runs its
+search once instead of a counting pass and a filling pass, and hands its rows over in the order of the origin zones
+through `ordered_turn` in `rtc/dll/src/tic/TileChannel.h` into a chain of heap tiles, which the od attributes take
+over with `DataArrayBase::AdoptTile`; `geo/dll/src/Dijkstra.cpp`, `rtc/dll/src/tic/{DataArray.{h,cpp},
+TileArrayImpl.h,TileChannel.h}`, `stx/dll/src/DijkstraFlags.h`), in chart lines in the colour of their series
+(`d158619a3`, ObjectVision/NetworkModel_PBL#129, `shv/dll/src/ChartLayer.{h,cpp}`) and in the version number
+(`685085065`). The setup was downloaded with `gh` into `C:\LocalData\GeoDMS_releases\v20.27.0`; its SHA256 matches the
+release's digest, it carries a valid signature of Object Vision B.V., and it was installed silently (exit 0) and kept
+as `C:\LocalData\GeoDMS_engine\release_02f9fc329_m`. GeoDMS-Test at `5fb7780`, as for 20.26.0.
+
+`scratch\launch_perf_20270_m.cmd` read t300's XML first (5.6 GiB in 59 s), then ran `.m` 2026-10-28 10:27 to 13:44,
+threshold 60, put back to 95; full.py exit 0, nothing on stderr, no reuse. Running on the machine: a Chrome Remote
+Desktop session (`remoting_host` 2 146 s of CPU over the round, about a fifth of a core) and the Claude desktop app.
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.m` | 3:14:24 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result is byte for byte the one of 20.26.0.m. In the logs of 20.27.0 no
+`impedance_matrix Counting` line is left; in 20.26.0.m t405.2 and t405.3 had 37 each, t910 6, t810 2, t102 1, t010
+16, and t101 and t410 none.
+
+Wall time and Highest CommitCharge, `.m`:
+
+| test | 20.27.0 | 20.26.0 | 20.27.0 / 20.26.0 |
+|---|---|---|---|
+| t020 | 0:04:08, 1.8 GB | 0:04:07, 2.0 GB | 1.00 |
+| t060 | 0:01:54, 6.9 GB | 0:01:45, 7.4 GB | 1.09 |
+| t101 | 0:03:30, 1.6 GB | 0:03:35, 1.6 GB | 0.98 |
+| t200 | 0:00:38, 3.4 GB | 0:00:38, 3.4 GB | 1.00 |
+| t300 | 0:00:58, 10.3 GB | 0:01:03, 9.6 GB | 0.92 |
+| t301 | 0:03:01, 12.9 GB | 0:02:44, 19.5 GB | 1.10 |
+| t405.1 | 0:04:33, 8.9 GB | 0:04:38, 9.6 GB | 0.98 |
+| t405.2 | 0:18:07, 28.0 GB | 0:18:18, 29.4 GB | 0.99 |
+| t405.3 | 0:17:57, 29.0 GB | 0:18:12, 29.0 GB | 0.99 |
+| t410 | 0:04:03, 1.2 GB | 0:03:58, 1.2 GB | 1.02 |
+| t611 | 0:00:31, 4.1 GB | 0:00:31, 3.8 GB | 1.00 |
+| t641.1 | 0:53:04, 138.4 GB | 0:51:38, 137.9 GB | 1.03 |
+| t641.2 | 0:45:05, 171.8 GB | 0:45:05, 174.0 GB | 1.00 |
+| t710 | 0:01:03, 7.4 GB | 0:01:04, 7.4 GB | 0.98 |
+| t720 | 0:09:56, 19.8 GB | 0:09:47, 22.6 GB | 1.02 |
+| t810 | 0:05:12, 25.8 GB | 0:05:08, 26.2 GB | 1.01 |
+| t910 | 0:00:45, 4.4 GB | 0:00:51, 4.1 GB | 0.88 |
+| t2000 | 0:18:44, 68.5 GB | 0:18:16, 63.4 GB | 1.03 |
+
+Summed over these rows and t1630: 194.0 min against 192.1 (+1 %). t060 and t301, which do not call `impedance_matrix`,
+are 9 and 10 % slower, t910 12 % faster.
+
+### Interleaved A/B: the release 20.26.0 against the release 20.27.0
+
+`scratch\perf_ovsrv05\ab_20270.cmd`, 2026-10-28 13:46 to 16:47, X, Y, X, Y, threshold 60, the inputs of the six
+experiments read once beforehand (35.1 GiB, the list made from their logs by `scratch\perf_ovsrv05\log_inputs.py`):
+X = 20.26.0 (`release_f3c45bc70_m`), Y = 20.27.0 (`release_02f9fc329_m`), through `scratch\t2000_c\run_exp_peak.py`,
+which also reads each process's own `PeakPagefileUsage`. t405.1 prepares the data of t405.2 and t405.3 and makes no
+sparse `impedance_matrix`; it is the control. The Remote Desktop session was still connected (`remoting_host` 838 s of
+CPU). Seconds, and `PeakPagefileUsage` in 10^9 bytes:
+
+| test | X1 | Y1 | X2 | Y2 | Y / X | peak commit X1, Y1, X2, Y2 |
+|---|---|---|---|---|---|---|
+| t910 | 49 | 42 | 47 | 41 | 0.86 | 6.38, 6.65, 7.36, 6.79 |
+| t810 | 283 | 286 | 281 | 277 | 1.00 | 29.18, 29.12, 29.12, 29.08 |
+| t102 | 5 | 5 | 5 | 5 | 1.00 | 2.47, 2.56, 2.55, 2.56 |
+| t405.1 | 217 | 216 | 214 | 212 | 0.99 | 11.50, 11.50, 11.50, 11.50 |
+| t405.2 | 1060 | 1090 | 1068 | 1062 | 1.01 | 52.20, 52.21, 52.21, 52.20 |
+| t405.3 | 1080 | 1080 | 1074 | 1061 | 0.99 | 52.16, 52.22, 52.15, 52.21 |
+
+All 24 result files of the A/B are byte for byte those of their build's round. t910 is 6.5 s faster, and the part of
+its log between its first and its last `impedance_matrix` line, where its four sparse matrices are made, takes 19 and
+17 s on X against 14 and 13 s on Y. t910's two `Allocation_Matrix` calls over 1 210 sources (616 296 and 303 997
+od-pairs) were the largest counting passes of the round, and their filling pass ended 12 and 15 s after their counting
+pass in 20.26.0.m. The other rows are level within 1.5 %. In t405.2 and t405.3 the 37 counting passes per run went
+over networks that yield 1 to 860 od-pairs per call; the seconds that lie between such a counting and its filling line
+in 20.26.0.m (44 and 50 s summed, 7 s at most) are those of other work running at the same time, not of the search.
+t810's two calls with a counting pass make 49.5 and 49.6 million od-pairs, and their filling pass ended 2 s after their
+counting pass.
+
+Peak commit does not move: `PeakPagefileUsage` is level on every row, and GeoDMS's own Highest CommitCharge of
+t405.2 (30 092 MB on X1, 29 786 on Y1) is the same. The 52.2 GB of t405.2 and t405.3 against GeoDMS's 30 GB is short:
+the per-second commit of `run_exp_peak.py` stays above 35 GB for 34 and 41 seconds of the 1 060 and 1 090 s of X1 and
+Y1, spread from 148 s to the end, on both builds.
+
+### Reading
+
+- Correct: 27 of 27 with the results of 20.26.0; the sparse matrices of one pass are those of two.
+- #1327 makes t910 14 % faster (6.5 s of 48), the experiment whose sparse matrices are the largest relative to its
+  run. Elsewhere the saving is below the noise of an A/B: t405.2 and t405.3 make many sparse matrices of a few
+  od-pairs, t810 two large ones whose counting pass cost about 2 s each, t102 one of 7.8 million od-pairs in 5 s.
+- Peak memory level: the shadow blocks that #1327 removes do not fall on the peak of any of these experiments.
+- The round's 1 % over 20.26.0.m and its 9 and 10 % on t060 and t301 are the sitting, as in the rounds since
+  2026-10-21: those rows do not reach `impedance_matrix`.
+
+## Results (OVSRV05), 20.28.0 at `db151676e`: #1327 in join_near_values and in counting
+
+A local msbuild Release x64 of `db151676e` (2026-10-29), kept as `C:\LocalData\GeoDMS_engine\head_db151676e`. Its engine
+differs from the pre-release 20.27.0 (`02f9fc329`) in three commits and the version number:
+
+- `2aca01715` (#1327): `join_near_values`, `connect_matrix` and `dist_matrix` write their rows in one pass, through
+  `ordered_row_sink` in `rtc/dll/src/tic/TileChannel.h` and `clc/dll/include/IndexAssigner.h`.
+- `55b161945` (#1327): the (value, count) pairs of `modus`, the classifications and `weeded_counts`, and the values that
+  `unique` sorts, are kept in `block_vector` (`rtc/dll/src/mem/BlockVector.h`), in blocks of a tile's worth of elements
+  and at most 1 MB, and a merge frees each block once it has read it. `unique` adopts whole blocks as tiles of its result.
+- `795f75b37`: `Min`, `Max` and `MakeRange` are constexpr.
+
+GeoDMS-Test at `5fb7780`, as for 20.26.0 and 20.27.0.
+
+`scratch\launch_perf_20280.cmd` read t300's XML first (5.6 GiB in 46 s), then ran `.m` 2026-10-29 12:14 to 15:23,
+threshold 60, put back to 95; full.py exit 0, nothing on stderr, no reuse. The Chrome Remote Desktop session was
+connected (`remoting_host` 1 408 s of CPU over the round).
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.m` | 3:06:48 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result is byte for byte the one of 20.27.0.m.
+
+Wall time and Highest CommitCharge, `.m`:
+
+| test | 20.28.0 | 20.27.0 | 20.28.0 / 20.27.0 |
+|---|---|---|---|
+| t020 | 0:04:10, 2.0 GB | 0:04:08, 1.8 GB | 1.01 |
+| t060 | 0:01:54, 7.1 GB | 0:01:54, 6.9 GB | 1.00 |
+| t101 | 0:03:32, 1.6 GB | 0:03:30, 1.6 GB | 1.01 |
+| t200 | 0:00:38, 2.7 GB | 0:00:38, 3.4 GB | 1.00 |
+| t300 | 0:00:57, 10.4 GB | 0:00:58, 10.3 GB | 0.98 |
+| t301 | 0:02:35, 17.3 GB | 0:03:01, 12.9 GB | 0.86 |
+| t405.1 | 0:04:29, 10.2 GB | 0:04:33, 8.9 GB | 0.99 |
+| t405.2 | 0:17:22, 29.4 GB | 0:18:07, 28.0 GB | 0.96 |
+| t405.3 | 0:17:34, 27.8 GB | 0:17:57, 29.0 GB | 0.98 |
+| t410 | 0:04:14, 1.2 GB | 0:04:03, 1.2 GB | 1.05 |
+| t611 | 0:00:35, 4.0 GB | 0:00:31, 4.1 GB | 1.13 |
+| t641.1 | 0:50:57, 137.6 GB | 0:53:04, 138.4 GB | 0.96 |
+| t641.2 | 0:43:35, 173.6 GB | 0:45:05, 171.8 GB | 0.97 |
+| t710 | 0:01:05, 6.9 GB | 0:01:03, 7.4 GB | 1.03 |
+| t720 | 0:07:25, 20.0 GB | 0:09:56, 19.8 GB | 0.75 |
+| t810 | 0:05:16, 25.7 GB | 0:05:12, 25.8 GB | 1.01 |
+| t910 | 0:00:44, 4.5 GB | 0:00:45, 4.4 GB | 0.98 |
+| t2000 | 0:18:33, 77.3 GB | 0:18:44, 68.5 GB | 0.99 |
+
+Summed over these rows and t1630: 186.4 min against 194.0 (-4 %). t720's 445 s is new: every kept round of this machine,
+from 17.4.6 (2025-06) to 20.27.0, ran it in 552 to 612 s, except 20.22.0, where it stopped on #1285. t2000's 77.3 GB is
+the higher of its two known levels (see "t2000's live peak" above).
+
+### Interleaved A/B: the release 20.27.0 against 20.28.0
+
+`scratch\perf_ovsrv05\ab_20280.cmd`, 2026-10-29 15:27 to 18:07, X, Y, X, Y, threshold 60, the inputs of the eight
+experiments read once beforehand (33.3 GiB, list `ab_20280_inputs.txt` from their logs by `log_inputs.py`):
+X = 20.27.0 (`release_02f9fc329_m`), Y = 20.28.0 (`head_db151676e`), through `scratch\t2000_c\run_exp_peak.py`. Chosen:
+the rows that moved in the round (t720, t611, t410, t301) and those that call `unique`, `modus` or `join_near_values`
+often (t710 2UP, t060 with the `join_near_values` of `Regression/cfg/stam/MakeSnapshot.dms:332`, t405.1 and t405.2 of
+NetworkModel_PBL). `remoting_host` took 1 506 s of CPU. Seconds, and `PeakPagefileUsage` in 10^9 bytes:
+
+| test | X1 | Y1 | X2 | Y2 | Y / X | peak commit X1, Y1, X2, Y2 |
+|---|---|---|---|---|---|---|
+| t720 | 589 | 438 | 575 | 444 | 0.76 | 23.99, 26.68, 25.76, 26.49 |
+| t611 | 31 | 32 | 31 | 31 | 1.02 | 4.81, 4.78, 4.84, 5.02 |
+| t710 | 64 | 65 | 65 | 64 | 1.00 | 8.05, 8.04, 8.04, 8.03 |
+| t060 | 100 | 100 | 100 | 100 | 1.00 | 9.59, 9.59, 9.59, 9.59 |
+| t301 | 158 | 155 | 159 | 155 | 0.98 | 19.51, 23.11, 20.38, 22.46 |
+| t410 | 245 | 241 | 253 | 240 | 0.97 | 1.41, 1.49, 1.41, 1.50 |
+| t405.1 | 218 | 217 | 220 | 217 | 0.99 | 11.50, 11.75, 11.50, 11.75 |
+| t405.2 | 1072 | 1032 | 1099 | 1029 | 0.95 | 52.17, 52.38, 52.19, 52.43 |
+
+All 20 `.json`, `.txt` and `.tif` result files of the A/B are byte for byte those of the round; the 16 `.result.xml`
+files differ from it in their version and time fields only. Summed, Y takes 4 560 s against 4 979 on X (-8 %), of which
+t720 282 s and t405.2 110 s.
+
+t720 (2BURP) is 141 s faster per run, and the time falls in the stretch where its log is silent before the result is
+written (518 s in the round of 20.27.0, 380 s in that of 20.28.0). The likely place is the smoothing loop of
+`Preprocessing/DegreeOfUrbanisation.dms`: up to 20 iterations of `modus(PrevState/Urban_Cluster[Cdomain_x_pot1k_3x3/
+third_rel], Cdomain_x_pot1k_3x3/first_rel)` over the 3x3 neighbourhood of every land cell. Its values (cluster numbers)
+have a range far larger than the values per partition, so it counts in sets (`ModusPartBySet`,
+`GetPartitionedWallCounts` in `clc/dll/include/ValuesTable.h`), whose partial counts are merged in the code that
+`55b161945` changed. That one operator carries the gain is not measured.
+
+Peak commit rises on t301 and t720:
+
+- t301 by 2.8 GB (19.5 and 20.4 on X, 23.1 and 22.5 on Y). The per-second commit lies above 18 GB for 13 and 18 s on X
+  and for 34 and 32 s on Y, from 40 to 90 s into the run, while the 84 rectangles of the BAG snapshot run
+  `polygon_connectivity` and the `unique(neighbours/coded_pair)` of `Regression/cfg/stam/MakeSnapshot/afleidingen.dms:121`
+  on its upoint pairs, many at a time. GeoDMS's own Highest CommitCharge, which samples, says the opposite (16.7 and 17.1
+  GB on X, 14.5 and 15.5 on Y).
+- t720 by 1.7 GB, at the start (the sample at 9 s: 21.2 and 22.8 GB on X, 26.2 and 25.7 on Y), while the source grids are
+  read; afterwards its commit is level (median 12.8 to 13.3 GB).
+- t405.1 and t405.2 by 0.25 GB, t410 by 0.08; t060, t710 and t611 level.
+
+A possible cause, not measured: the blocks of `block_vector` are at most 1 MB and so come from the free stacks of the
+allocation stock, which keep a freed block committed (see "FixedAlloc's free stacks" below), where the containers of
+20.27.0 above 1 MB went to the CRT heap and back when freed. With many `unique` calls at once, the free stacks could keep
+more committed than the containers did.
+
+### Reading
+
+- Correct: 27 of 27 with the results of 20.27.0, and the A/B results are those of the round.
+- 20.28.0 makes t720 24 % faster (141 of 582 s), most likely through the counting in blocks of `55b161945`, and
+  t405.2 5 % and t410 3 %; which operators carry those two is not measured. The other rows are level within 2 %. The
+  one-pass `join_near_values` of `2aca01715` leaves t060 at 100 s.
+- t611's 13 % in the round is the sitting: 31 s on both builds in the A/B.
+- Peak commit: t301 2.8 GB and t720 1.7 GB higher in the process counter, both in a phase where many counting or `unique`
+  calls run side by side; the memory halving of a single large `modus` or `unique` in the commit message does not show
+  in these experiments.
+  Split by kind of memory (the section after that of the pre-release 20.28.0), the rise of t301 is chance and
+  that of t720 about 0.6 GB, in the free stacks.
+
+## Results (OVSRV05), the pre-release v20.28.0 (tag `01feccd21`) in `.l`, `.c` and `.m`: #1327 in `unique` on strings and in `pareto_optimal`
+
+The GitHub pre-release `v20.28.0` (published 2026-10-31 14:32 UTC) is tagged at `01feccd21`. Its engine differs from the
+local build of `db151676e` measured above in three commits:
+
+- `9fb4d4d8f` (#1327): `unique` of strings and other sequences sorts references to the elements per part of a tile and
+  merges them in `block_vector`s, as `unique` on values does since `55b161945`, instead of one index over all elements.
+- `01feccd21` (#1327): `pareto_optimal` and `pareto_optimal_eps` read their criteria from their tiles, with pairs of two
+  `UInt32` where they fit. No configuration of GeoDMS-Test calls either, so full.py does not measure this one.
+- `1a5f06822`: `omni::swap` removed in favour of `std::swap`.
+
+The setups were built on OVSRV10 by the release scripts; `db151676e` was a local msbuild on OVSRV05. GeoDMS-Test at
+`5fb7780`, unchanged upstream. The `.m`, `.c` and `.l` assets were downloaded with `gh` into
+`C:\LocalData\GeoDMS_releases\v20.28.0`; their SHA256 match the release's digests and both Windows setups carry a valid
+signature of Object Vision B.V.; `.m` and `.c` were installed silently (exit 0) and kept as
+`C:\LocalData\GeoDMS_engine\release_01feccd21_{m,c}`; `.l` replaced 20.26.0.l in WSL, which was unpacked again beside it
+from its `.deb`. Each passed a smoke test on `testcases\fn_test_pareto_optimal.dms`. The column of `db151676e` moved to
+`_Archive\20_28_0_m_local_db151676e_20261029` (with its report and `runs` folder) before the `.m` round.
+
+`scratch\launch_perf_20280_release.cmd` read t300's XML first (5.6 GiB in 46 s), then ran `.l` 2026-10-31 15:38 to 17:08,
+`.c` 17:08 to 20:11 and `.m` 20:11 to 23:14, threshold 60, put back to 95. Each full.py exit 0, nothing on stderr, no
+reuse. No Remote Desktop session was connected this time (it was through both earlier `.m` rounds of 20.27.0 and
+20.28.0); the Claude desktop app took about a fifth of a core through `.l` and `.c` (1 796 and 2 292 s of CPU) and next to
+nothing through `.m` (130 s).
+
+| flavour | report header | verdict |
+|---|---|---|
+| `.l` | 1:22:44 | 21 of 21 `ok` |
+| `.c` | 3:00:59 | 27 of 27 `ok` |
+| `.m` | 3:00:21 | 27 of 27 `ok` |
+
+Results: every `.json`, `.txt` and `.tif` result of `.m` is byte for byte the one of 20.27.0.m and of `db151676e`, and
+those of `.c` and `.l` the ones of 20.26.0 in that flavour (20.27.0 had a `.m` asset only).
+
+Wall time per experiment, `.m`, from the report:
+
+| test | release 20.28.0 | `db151676e` | 20.27.0 | release / `db151676e` | release / 20.27.0 |
+|---|---|---|---|---|---|
+| t020 | 0:03:49 | 0:04:10 | 0:04:08 | 0.92 | 0.92 |
+| t060 | 0:01:50 | 0:01:54 | 0:01:54 | 0.96 | 0.96 |
+| t101 | 0:03:19 | 0:03:32 | 0:03:30 | 0.94 | 0.95 |
+| t200 | 0:00:35 | 0:00:38 | 0:00:38 | 0.92 | 0.92 |
+| t300 | 0:01:39 | 0:00:57 | 0:00:58 | 1.74 | 1.71 |
+| t301 | 0:02:37 | 0:02:35 | 0:03:01 | 1.01 | 0.87 |
+| t405.1 | 0:04:29 | 0:04:29 | 0:04:33 | 1.00 | 0.99 |
+| t405.2 | 0:16:49 | 0:17:22 | 0:18:07 | 0.97 | 0.93 |
+| t405.3 | 0:16:32 | 0:17:34 | 0:17:57 | 0.94 | 0.92 |
+| t410 | 0:03:51 | 0:04:14 | 0:04:03 | 0.91 | 0.95 |
+| t611 | 0:00:30 | 0:00:35 | 0:00:31 | 0.86 | 0.97 |
+| t641.1 | 0:49:18 | 0:50:57 | 0:53:04 | 0.97 | 0.93 |
+| t641.2 | 0:43:10 | 0:43:35 | 0:45:05 | 0.99 | 0.96 |
+| t710 | 0:01:02 | 0:01:05 | 0:01:03 | 0.95 | 0.98 |
+| t720 | 0:07:02 | 0:07:25 | 0:09:56 | 0.95 | 0.71 |
+| t810 | 0:04:53 | 0:05:16 | 0:05:12 | 0.93 | 0.94 |
+| t910 | 0:00:42 | 0:00:44 | 0:00:45 | 0.95 | 0.93 |
+| t2000 | 0:17:13 | 0:18:33 | 0:18:44 | 0.93 | 0.92 |
+
+Over all experiment logs (`durations.py`): 180.7 min against 187.2 for `db151676e` and 194.7 for 20.27.0. Against
+`db151676e` nearly every row is 3 to 9 % faster, also those that none of the three commits touches (t020, t101, t200,
+t810): the sitting, which the A/B below confirms. t300's 1:39 is its first read of the XML (18 s per file set against
+11 s in the `.c` round of that afternoon), see "t300 and the first read of its XML on OVSRV05" below.
+
+`.c` and `.l` against 20.26.0 (`durations.py`, minutes; no A/B of these, so they include 20.27.0, 20.28.0 and the
+sitting):
+
+| test | `.c` 20.28.0 | `.c` 20.26.0 | `.l` 20.28.0 | `.l` 20.26.0 |
+|---|---|---|---|---|
+| t301 | 3.4 | 2.6 | 1.6 | 1.6 |
+| t405.1 | 4.4 | 4.4 | 4.3 | 5.4 |
+| t405.2 | 17.0 | 18.5 | 23.0 | 26.1 |
+| t405.3 | 17.4 | 18.4 | 22.3 | 26.4 |
+| t641.1 | 49.3 | 52.5 | not run | not run |
+| t641.2 | 42.5 | 47.5 | not run | not run |
+| t720 | 7.1 | 9.7 | 6.6 | 10.1 |
+| t810 | 5.4 | 5.7 | 6.2 | 7.0 |
+| t910 | 0.7 | 0.8 | 0.8 | 1.1 |
+| t2000 | 16.6 | 18.8 | not run | not run |
+| total | 181.4 | 197.6 | 82.8 | 97.4 |
+
+t720's gain of `55b161945` shows in every flavour (`.l` 6.6 against 10.1 min). t301 on `.c` is the one row above its
+predecessor: its five `.c` rounds since 20.23.1 gave 2.5, 2.6, 3.1, 2.6 and 3.4 min, and the extra time lies in the waits
+between the insert and extract phases of `polygon_connectivity` in a few rectangles (54 and 43 s, against a longest of
+46 s in the round of 20.26.0.c); see the `.c` A/B below.
+
+### Interleaved A/B: 20.27.0, `db151676e` and the release 20.28.0, `.m`
+
+In the same wrapper, 2026-10-31 23:15 to 2026-11-01 03:02, X Y Z Z Y X, threshold 60, the inputs read once beforehand
+(list `ab_20280_inputs.txt`), the experiments of the A/B of 2026-10-29 through `scratch\t2000_c\run_exp_peak.py`:
+X = 20.27.0 (`release_02f9fc329_m`), Y = `db151676e` (`head_db151676e`), Z = the release 20.28.0 (`release_01feccd21_m`).
+Nothing else ran (the Claude desktop app 168 s of CPU). Seconds:
+
+| test | X1 | Y1 | Z1 | Z2 | Y2 | X2 | Y / X | Z / Y |
+|---|---|---|---|---|---|---|---|---|
+| t720 | 565 | 423 | 423 | 425 | 425 | 551 | 0.76 | 1.00 |
+| t611 | 30 | 30 | 31 | 30 | 30 | 30 | 1.00 | 1.02 |
+| t710 | 61 | 61 | 61 | 61 | 61 | 61 | 1.00 | 1.00 |
+| t060 | 97 | 96 | 96 | 94 | 95 | 94 | 1.00 | 0.99 |
+| t301 | 151 | 146 | 158 | 151 | 152 | 149 | 0.99 | 1.04 |
+| t410 | 227 | 229 | 234 | 229 | 226 | 228 | 1.00 | 1.02 |
+| t405.1 | 212 | 209 | 209 | 209 | 210 | 212 | 0.99 | 1.00 |
+| t405.2 | 1041 | 1004 | 998 | 998 | 1004 | 1048 | 0.96 | 0.99 |
+
+Summed: X 4 757 s, Y 4 401, Z 4 407. All 30 `.json`, `.txt` and `.tif` result files of the six runs are byte for byte
+those of the `.m` round. `PeakPagefileUsage`, in 10^9 bytes:
+
+| test | X1, X2 | Y1, Y2 | Z1, Z2 |
+|---|---|---|---|
+| t720 | 24.09, 25.06 | 24.21, 26.59 | 24.73, 24.42 |
+| t611 | 4.77, 4.95 | 4.94, 4.89 | 4.98, 4.85 |
+| t710 | 8.03, 8.06 | 8.05, 8.05 | 8.02, 8.03 |
+| t060 | 9.59, 9.58 | 9.58, 9.58 | 9.59, 9.58 |
+| t301 | 22.01, 20.69 | 20.34, 21.68 | 21.90, 21.79 |
+| t410 | 1.41, 1.41 | 1.47, 1.47 | 1.42, 1.51 |
+| t405.1 | 11.50, 11.50 | 11.75, 11.75 | 11.75, 11.75 |
+| t405.2 | 52.19, 52.19 | 52.45, 52.47 | 52.44, 52.44 |
+
+- The release and `db151676e` are level: Z / Y lies between 0.99 and 1.04 on every experiment, and where it moves (t301
+  151 to 158 against 146 to 152, t410) the two Z runs and the two Y runs overlap or come within 2 %. `unique` on strings
+  and the build machine change none of these experiments measurably.
+- 20.27.0 to `db151676e` repeats the A/B of 2026-10-29: t720 0.76 (558 to 424 s), t405.2 0.96. t410's 0.97 of then is
+  1.00 now.
+- Peak commit: the A/B of 2026-10-29 gave `db151676e` +2.8 GB on t301 and +1.7 GB on t720. In this sitting the
+  difference is smaller and mixed: t301 X 22.01 and 20.69, Y 20.34 and 21.68 (the per-second commit above 18 GB for 31
+  and 23 s on X, 37 and 24 s on Y, 25 and 25 s on Z), t720 X 24.09 and 25.06, Y 24.21 and 26.59. The release lies with
+  `db151676e`. What repeats exactly in every run of both sittings is +0.25 GB on t405.1 and t405.2 and +0.06 GB on
+  t410, in Y and Z alike; for t301 and t720 see the `.c` A/B below.
+
+### Interleaved A/B: t301 on `.c`
+
+`scratch\perf_ovsrv05\ab_20280c_t301.cmd`, 2026-11-01 03:03 to 03:25, X Y Y X X Y Y X, threshold 60, right after the
+`.m` A/B (inputs warm): X = the release 20.26.0.c (`release_f3c45bc70_c`; 20.27.0 had no `.c`, and its change does not
+reach t301), Y = the release 20.28.0.c (`release_01feccd21_c`). All eight result sets are byte for byte those of the
+`.c` round.
+
+| run | X1 | Y1 | Y2 | X2 | X3 | Y3 | Y4 | X4 |
+|---|---|---|---|---|---|---|---|---|
+| seconds | 157 | 160 | 153 | 159 | 148 | 160 | 172 | 175 |
+| `PeakPagefileUsage` | 20.10 | 22.52 | 22.08 | 22.02 | 22.98 | 24.40 | 25.93 | 24.81 |
+
+Time is level (X 639 s in four runs, Y 645, 1.01), and every run took 148 to 175 s: the 3.4 min of the `.c` round is
+the sitting. The peak commit rises through the sitting for both builds (X 20.1 to 24.8 GB, Y 22.5 to 25.9), and Y is
+above its neighbouring X in all four pairs (+2.42, +0.06, +1.42, +1.12 GB). Taking the neighbouring runs of the three
+A/Bs together, a build with `55b161945` is above one without in 11 of 12 pairs on t301 and t720 (−1.67 to +3.60 GB),
+by 1.25 GB on average on t301 and 1.27 GB on t720, against a spread of 2 to 5 GB between runs of one build. So a rise of
+about 1 GB on these two experiments looked likely; split by kind of memory (next section) it is chance on t301 and about
+0.6 GB on t720.
+
+### Reading
+
+- Correct: 21 of 21 in `.l`, 27 of 27 in `.c` and `.m`, each with the results of the previous version in that flavour.
+- The release 20.28.0 is as fast as the local build of `db151676e` on every experiment of the A/B; the 3 to 9 % that the
+  `.m` round shows on most rows is the sitting. The commits since, `unique` on strings per tile (`9fb4d4d8f`) and
+  `pareto_optimal` from its tiles (`01feccd21`), have no measurable effect on full.py: no experiment calls
+  `pareto_optimal`, and the A/B shows no difference that `unique` on strings could account for (which experiments call
+  it on strings, and for how long, is not established).
+- Against 20.27.0, 20.28.0 stays 24 % faster on t720 and 4 % on t405.2 (A/B), and the `.l` and `.c` rounds show the t720
+  gain too.
+- t301 on `.c` is level with 20.26.0.c in an A/B (1.01); its 3.4 min in the round is the sitting.
+- Peak commit: the neighbouring pairs (11 of 12 higher with `55b161945`, -1.7 to +3.6 GB) suggested about 1 GB on t301
+  and t720; the next section splits it by kind of memory and finds no rise on t301 and about 0.6 GB on t720. t405.1 and
+  t405.2 are 0.25 GB higher in every run.
+
+## Results (OVSRV05), the peak commit of t301 and t720 split by kind of memory: 20.27.0, `db151676e` and the release 20.28.0
+
+The rise of about 1 GB that the two sections above read from neighbouring pairs of `PeakPagefileUsage` was measured
+again on 2026-11-01, with `scratch\perf_ovsrv05\vmsample.py` beside every run. It waits for the next GeoDmsRun, walks
+its address space with `VirtualQueryEx` at a fixed interval and adds up the committed private pages per allocation
+base, by kind: NT heap segments (signature 0xFFEEFFEE at +0x10; the CRT's `malloc` and `operator new`), free-stack
+chunks of the allocation stock (reservations of a power of 2 of at least 1 MB), big blocks (any other reservation of at
+least 1 MB that is at least 90 % committed: the blocks the NT heap takes with a `VirtualAlloc` of their own, such as a
+stock request above 1 MB) and thread stacks. A walk takes 0.2 to 0.7 s and up to 3 s at a peak, so the highest sample
+lies somewhat below the process counter. Figures in 10^9 bytes, as `PeakPagefileUsage`.
+
+### t301
+
+`scratch\perf_ovsrv05\t301mem_ab.cmd` and `t301mem_abz.cmd`, 2026-11-01 12:44 to 13:30, X Y Y X X Y Y X and then
+X Z Z X X Z Z X, threshold 60, inputs warm, a sample every second: X = the release 20.27.0.m, Y = the local build of
+`db151676e`, Z = the release 20.28.0.m. All sixteen result sets are byte for byte those of the round, and every run took
+148 to 177 s.
+
+| build | `PeakPagefileUsage` per run | mean |
+|---|---|---|
+| X | 22.80, 21.82, 23.29, 22.04, 24.85, 21.31, 20.59, 21.10 | 22.22 |
+| Y | 23.38, 21.80, 22.42, 21.90 | 22.38 |
+| Z | 22.53, 23.33, 21.82, 22.66 | 22.58 |
+
+- The peak falls at 60 to 72 s (once at 46 s), when up to 24 of the 84 rectangles of the BAG snapshot run
+  `polygon_connectivity` at once. It is then 10.2 to 13.1 GB NT heap and 8.6 to 10.2 GB big blocks, while the free-stack
+  chunks stay at 1.3 to 1.6 GB in every run of every build. Over the sixteen runs the peak correlates 0.96 with the
+  largest heap of the run. `polygon_connectivity` holds its whole sweep in `std::allocator` containers (the comment at
+  `geo/dll/src/BoostPolygon.cpp:2462`), and `geos_buffer_multi_polygon` of the rectangles that are not that far yet
+  allocates through GEOS, so neither reaches the stock. The spread within one build comes from which large rectangles
+  happen to be in `polygon_connectivity` together.
+- The only code of `55b161945` that t301 reaches is `unique(neighbour_pair/coded_pair)` of
+  `Regression/cfg/stam/MakeSnapshot/afleidingen.dms:163`, which runs once all 84 rectangles are done, in the last 3 s of
+  the run; the per-rectangle `unique` of line 121 that the section of `db151676e` names is not demanded. Allocator,
+  scheduler, `polygon_connectivity` and GEOS are the same in 20.27.0 and `db151676e`.
+- In the windows of the peak (60 to 80 s) the means of the builds lie within 0.63 GB of each other, with alternating
+  sign. Before 30 s, which includes the `unique` on strings of 20.28.0, heap, chunks and big blocks are equal.
+
+### t720
+
+`scratch\perf_ovsrv05\t720mem_ab.cmd`, 2026-11-01 14:42 to 15:15, X Z Z X three times, threshold 60, inputs warm, a
+sample every 0.25 s. The sampler ended every run after 150 s: in the six full runs of 2026-10-31 the peak lies in the first
+25 s, while the world grids are read, and the commit stays below 17 GB afterwards. These runs therefore have no
+results; the full runs of both builds gave the same results.
+
+| build | `PeakPagefileUsage` per run | mean |
+|---|---|---|
+| X | 24.63, 23.29, 23.32, 23.98, 23.91, 23.84 | 23.83 |
+| Z | 24.30, 24.41, 24.80, 24.15, 24.64, 24.48 | 24.46 |
+
+Z is above its neighbouring X in 5 of 6 pairs.
+
+- Around 12 s the commit is about 21 GB of big blocks, the tiles of the grid reads, and 2 to 3 GB of heap. This first
+  hump is level: the highest sample between 8 and 16 s is 22.77 to 23.59 GB on X and 22.48 to 24.08 GB on Z.
+- Between 16 and 20 s the free-stack chunks grow from 0.2 to 4.7 GB while the big blocks are still at 17 to 19 GB. On Z
+  that happens earlier: 3.51 against 1.91 GB on average from 16 to 18 s, 4.73 against 3.07 GB from 18 to 20 s. The highest
+  sample between 16 and 25 s is 22.14 to 23.94 GB on Z against 19.50 to 22.98 GB on X, and in three of the six runs of Z
+  it is the highest of the run (19 s); on X that is always at 12 or 13 s.
+- After 30 s the chunks are higher in every run, 5.23 to 5.28 GB on X against 5.61 to 5.66 GB on Z; heap and big blocks
+  are level.
+- The allocator's own statistics at the end of the full runs of the A/B of 2026-10-31 agree: Highest Reserved in Blocks
+  is 5619 MB in both runs of 20.27.0, 5875 and 5843 MB on `db151676e` and 5843 and 5875 MB on the release. The difference
+  came with `db151676e`, not with `9fb4d4d8f` or `01feccd21`.
+
+2BURP calls none of `join_near_values`, `connect_matrix` and `dist_matrix`, so of the two #1327 commits in `db151676e`
+only `55b161945` reaches it. That fits the possible cause named in its section: the blocks of `block_vector` come from
+the free stacks, which keep them committed when freed. Which operator it is, is not established; 2BURP has `modus` in
+`Preprocessing/DegreeOfUrbanisation.dms:209` and `unique` on points in `SourceData/Physical/coast.dms:48`, and whether
+either runs in those seconds is not checked.
+
+### Reading
+
+- t301: no rise. Its peak is the `malloc` memory of up to 24 concurrent `polygon_connectivity` operators, with GEOS
+  beside them, and the 11 of 12 neighbouring pairs above were chance in a spread of 2 to 5 GB.
+- t720: about 0.6 GB higher since `db151676e`, in the free-stack chunks, most likely through `55b161945`.
+- On experiments whose peak spreads by gigabytes, a difference in `PeakPagefileUsage` is a finding only once it is split
+  by kind and the commit's code is shown to run before the peak.
+
+## Results (OVSRV05), 20.29.0 at `e5944a676`: the edge index of `point_in_polygon` (#1320)
+
+A local msbuild (Release x64, `all22.sln`) of `cf4a48e43`, whose engine code is that of `e5944a676` (the merge adds only
+this document). Against the release 20.28.0 (`01feccd21`) it adds #1320 (`point_in_polygon`, `point_in_ranked_polygon`
+and `point_in_all_polygons` give a polygon of at least 32 vertices an edge index per slab of its height), #1332 (libtiff
+with ZSTD, for which vcpkg rebuilt the third-party libraries), #1328 (GeoParquet without GDAL's scan of the geometries),
+#1329 (`Join` activates a parked supplier on the meta thread too) and #1333 (GDAL option items in a write storage).
+GeoDMS-Test at `5fb7780`.
+
+`scratch\launch_perf_20290.cmd` read t300's XML first, then ran the round 2026-11-05 15:54 to 19:01, threshold 60, put
+back to 95; full.py exit 0, nothing on stderr, no reuse, no Remote Desktop session. Report header 3:04:25 against
+3:00:21 for the release 20.28.0; 27 of 27 `ok`. Rows of the report that move by more than 3 % and 3 s:
+
+| test | release 20.28.0 | `e5944a676` |
+|---|---|---|
+| t060 | 0:01:50 | 0:01:32 |
+| t300 | 0:01:39 | 0:01:07 |
+| t301 | 0:02:37 | 0:02:29 |
+| t405.2 | 0:16:49 | 0:17:36 |
+| t405.3 | 0:16:32 | 0:17:27 |
+| t641.1 | 0:49:18 | 0:52:24 |
+| t810 | 0:04:53 | 0:05:11 |
+| t2000 | 0:17:13 | 0:16:25 |
+
+Over all experiment logs (`durations.py`): 184.8 min against 180.7. t300's 1:39 in 20.28.0 was its first read of the
+XML. In `durations.py` the `Highest CommitCharge` of t720 is 18 GB against 24 and that of t405.2 47 GB against 30;
+neither repeats in the A/B below (t720 24 to 25 GB in all four runs), and t405.2's is the known bimodal peak.
+
+### Interleaved A/B: the release 20.28.0 against `e5944a676`, `.m`
+
+2026-11-05 evening, X Y Y X, threshold 60, the inputs read once beforehand (`ab_20290_inputs.txt`), through
+`scratch\t2000_c\run_exp_peak.py`: X = the release 20.28.0 (`release_01feccd21_m`), Y = `e5944a676`
+(`head_e5944a676`); t2000 in an X Y Y X of its own right after. Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| t060 | 95 | 78 | 76 | 95 |
+| t410 | 236 | 231 | 226 | 234 |
+| t405.1 | 210 | 211 | 209 | 210 |
+| t405.2 | 1009 | 1012 | 1006 | 1012 |
+| t720 | 432 | 430 | 428 | 429 |
+| t710 | 63 | 64 | 62 | 62 |
+| t611 | 31 | 33 | 32 | 32 |
+| t910 | 40 | 41 | 39 | 40 |
+| t2000 | 1038 | 999 | 1035 | 1038 |
+
+The `.json` results of t410, t611, t710, t720, t910 and t2000 are byte for byte equal in all four runs. A second X Y Y X
+of t060 with the CPU use sampled every 0.5 s (`cpusample.py`) gave 96 and 98 s against 77 and 77: from 4 to 18 s after
+the start X keeps all 24 logical processors busy (317 core-seconds in that stretch against 80 for Y, 670 against 265 over
+the run). A hybrid H, the engine DLLs of the release 20.28.0 with the third-party DLLs of `e5944a676`, took 96 and 95 s
+(H Y H, Y 77 s), so the rebuilt libraries of #1332 contribute nothing.
+
+### Where t060's gain lies: `geo_selectie`
+
+Stacks of all threads at 6, 10 and 14 s (`stack_sample.ps1`, a noninvasive cdb attach) show X with 23 to 24 workers in
+`Geo.dll` under `tile_task_group` (the release has no pdbs, so not which function), and Y with no worker busy at 6 s and
+8 to 10 in GEOS under `geos_buffer_multi_polygon` at 10 and 14 s. In that stretch t060 selects the panden and
+verblijfsobjecten of the whole country with `point_in_polygon` against `/geo_selectie/geometry`, `utrecht.shp`, one polygon
+of 20 142 vertices: five points per pand (the corners of its box and its centroid, `BAG20_MakeSnaphot.dms:300`) and one per
+vbo (`MakeSnapshot_gpkg.dms:391`). Both items alone, X Y Y X, `@statistics`, seconds of their `Updating` line, inputs
+included:
+
+| item | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| `pand/src/geo_selectie/result` (19 793 103 records) | 17.20 | 2.61 | 2.60 | 17.32 |
+| `vbo/src/geo_selectie` (19 443 548 records) | 3.40 | 0.32 | 0.32 | 3.50 |
+
+The statistics are equal in all four runs (1 412 389 and 1 568 802 in the selection). Together 17.4 s: all of t060's gain.
+
+### Pand_rel in t2000: 0.64 s slower
+
+`/Invoer/RuimtelijkeData/EigendomStaat/EigendomStaat_data/Pand_rel` (`EigendomStaat.dms:45`, 2 951 056 points in the
+12.2 M pand polygons) alone, X Y Y X: X 11.89 and 11.89 s, Y 12.53 and 12.54 s, equal statistics. Not split; the likely
+cost is the edge index. Its threshold of 4 points per polygon applies to the average over the candidates
+(`geo/dll/src/geom/PolygonEdgeIndex.h:253`), and here every pand of at least 32 vertices is a candidate, since the box of
+the points touches all of them; with 2.95 M points they get an index when there are fewer than about 738 000, while
+nearly all of them receive no point. The candidates are also collected on one thread.
+
+### Reading
+
+- Correct: 27 of 27, and every result of the A/B equal between the builds.
+- t060 is 17 to 19 s faster through #1320, in `geo_selectie` (6.6 times faster for the panden, 11 times for the vbo's).
+- t410 is 1 to 4 % faster in both pairs, not split by item; its configuration calls `point_in_polygon`.
+- t2000 moves 3 to 39 s, too unevenly to read as an effect; Pand_rel in it is 0.64 s slower.
+- t405.1, t405.2, t611, t710, t720 and t910 are level, so t405.2's +47 s in the round is the sitting. t405.3, t641.1
+  (+3:06) and t810 (+18 s) had no A/B.
+
+## Results (OVSRV05), 20.29.0 at `98974d5fa`: run boxes for long arcs in `connect`, `connect_info` and `dist_info` (#1334)
+
+A local msbuild (Release x64, `all22.sln`) of `027e6f50a`, whose engine code is that of `98974d5fa`. Against the previous
+round (`e5944a676`, above) it adds only #1334: an arc or polygon of at least 32 vertices gets the bounding boxes of runs of
+its segments, built when there are at least as many points as long arcs, and `connect`, `connect_info` and `dist_info`
+(with their `_eq` and `_ne` forms) pass over a run that lies farther than the nearest distance found so far. GeoDMS-Test at
+`5fb7780`. The round ran 2026-11-06 06:32 to 09:35, threshold 60, put back to 95, no reuse. Report header 3:00:05
+against 3:04:25 for `e5944a676`; 27 of 27 `ok`. Rows that move by more than 3 % and 3 s, wall time of the logs
+(`walltimes.py`):
+
+| test | `e5944a676` | `98974d5fa` |
+|---|---|---|
+| t060 | 0:01:32 | 0:01:16 |
+| t300 | 0:01:07 | 0:00:56 |
+| t405.1 | 0:04:30 | 0:03:30 |
+| t405.2 | 0:17:35 | 0:16:49 |
+| t641.1 | 0:52:20 | 0:50:27 |
+| t810 | 0:05:11 | 0:04:47 |
+
+Over all experiment logs 180.4 min against 184.8. Aligned per message (`loggap.py` in the session scratchpad: digits
+masked, difflib), none of these lies in a `connect` except possibly t810: t405.1's 60 s are the cold read of the OSM
+shapefiles before its `connect` on 2026-11-05, t060's lie in writing the geopackage, t300's in reading its XML, and
+t405.2's and t641.1's are spread over the run. t2000, where #1334 does act, is 0:16:23 and 0:16:22.
+
+### Interleaved A/B: `e5944a676` against `98974d5fa`, `.m`
+
+2026-11-06 09:40 to 13:28, X Y Y X, threshold 60, the inputs read once beforehand (`ab_1334_inputs.txt`, 66 GiB, more
+than the RAM), through `scratch\t2000_c\run_exp_peak.py` (`scratch\perf_ovsrv05\ab_1334.cmd`): X = `head_e5944a676`,
+Y = `head_98974d5fa`; t2000 in an X Y Y X of its own right after. Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| t060 | 77 | 82 | 80 | 81 |
+| t410 | 240 | 229 | 230 | 225 |
+| t405.1 | 273 | 216 | 215 | 212 |
+| t405.2 | 1000 | 1009 | 1016 | 1007 |
+| t720 | 441 | 428 | 424 | 427 |
+| t710 | 64 | 62 | 62 | 62 |
+| t611 | 31 | 32 | 32 | 32 |
+| t910 | 44 | 43 | 44 | 42 |
+| t810 | 309 | 260 | 258 | 297 |
+| t2000 | 998 | 986 | 973 | 1010 |
+
+The metrics of the `.json` results of t410, t611, t710, t720, t910 and t2000 are equal in all four runs. X1 of t405.1
+and t720 is slower than the three runs after it while X2 is level with Y: the first run after the warm-up.
+
+### Per item: where #1334 acts
+
+The candidates of the issue are not computed by the round: 2BURP reads its distances from `Location2*_km.tif`, and t710
+does not demand 2UP's `connect_info`. The `connect_info` of hestia is computed by t2000.
+Per item, X Y Y X with `@statistics`, a cheap supplier first so the operator's inputs are ready, seconds of the
+`Updating` line (`ab_1334_items.cmd`, `ab_1334_more.cmd`, `ab_1334_inland.cmd`); the statistics are equal in every run:
+
+| item | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| hestia `m100/connect/ArcID` (139 084 points to the CBS 2020 buurten) | 7.25 | 0.49 | 0.54 | 7.00 |
+| hestia `m25/connect/ArcID` (2 257 282 points) | 39.41 | 2.37 | 2.31 | 39.74 |
+| 2BURP `Lakes/Location2Lake_distInfo` (12 808 470 points, fss read included) | 2.76 | 2.58 | 2.67 | 2.81 |
+| 2BURP `Rivers/Location2River_distInfo` (same points) | 4.60 | 4.64 | 4.53 | 4.41 |
+| 2BURP `AllWater/Location2LargeInland_distInfo` (372 162 waters over 0.5 km2) | 1263.98 | 17.25 | 17.15 | 1296.67 |
+| 2BURP `AllWater/Location2AllInland_distInfo` (all of `InlandWater.shp`, 2.9 GB) | 1223.12 | 27.64 | 27.43 | 1254.88 |
+
+- hestia (`model/Geography.dms:41` and `:58`, `connect_info` of grid cells near a buurt to the buurt polygons) is 14 to
+  17 times faster. In t2000 that gives 12 to 37 s of wall time against 44 s for the two items alone; presumably because
+  the `connect_info` runs there beside other work, not checked.
+- 2BURP's inland water (`SourceData/Physical.dms:163` and `:167`, the first candidate of the issue) is 45 to 76 times
+  faster. On X 12.46 M of the points are done after 2 minutes and the last 348 921 take 18 more; on Y the item is about
+  10 s of converting the polygons to `SphericalMercator` and 5 to 6 s of `dist_info`. The lakes (`glwd_3`) and rivers do
+  not move; why not was not investigated.
+- 2UP's `connect_info` (`stam/Input/CreateIsUrbanCD.dms:56`, `stam/GDP/CreateIsCountry.dms:32`) connects 5 and 4 points
+  in the regression's extent, too few for run boxes, and the configuration does not compute it on the current engine:
+  `split_polygon` (`Input/administrative/Country.dms:90`, `GDP.dms:59`) is an unknown operator, and with
+  `bp_split_polygon` and `polygon_rel` in a copy (`scratch\p1334`) `Geometry_mdegrees_clean` then fails in
+  `boost::polygon::insert`.
+- t405.1's `road_segments_with_extra_nodes := connect(road_segments/geometry, ExtraVerbindingen/nodes/geometry)` connects
+  616 nodes to roads cut by `arc2segm` into arcs of two points, which get no run boxes: 78 s in both rounds from its first
+  progress line to writing the network, 592 points done after 11 s and the last 14 taking 47 s. That is the cut-up case
+  of the issue and its option 2.
+
+### t810: the build of `e5944a676`, not #1334
+
+t810's `connect` (`Accessibility.dms:201`) is done within 29 s in all four runs. The difference lies in the two
+`proximity` items with a 201 x 201 kernel (`JrcFactorDataTempl.dms:785` and `:786`). Alone, with the release 20.28.0.m
+(`release_01feccd21_m`) as Z, X1 Y1 Z1 Z2 Y2 X2, seconds, statistics equal in all six runs:
+
+| item | X1 | Y1 | Z1 | Z2 | Y2 | X2 |
+|---|---|---|---|---|---|---|
+| `TA_attr` | 9.88 | 9.88 | 28.30 | 28.37 | 9.94 | 9.95 |
+| `TA_attr_km10` | 42.47 | 30.83 | 29.96 | 31.75 | 30.17 | 44.88 |
+| `TA_rest_km10` | 43.48 | 29.93 | 30.26 | 30.63 | 30.30 | 43.58 |
+
+The `proximity` of `e5944a676` is 11 to 15 s slower per item than that of both 20.28.0 and `98974d5fa`, while
+`OperPot.cpp`, `Potential.cpp` and `Potential.h` are unchanged from `01feccd21` to `98974d5fa`; the two kept builds
+differ only in `Geo.dll`, `Shv.dll`, the exes and the Python modules. So it is that build's binary: the place of
+`proximity`'s inner loop in `Geo.dll` (see the known cause below, 2026-11-10). `TA_attr` is 18 s faster since #1320 (its
+selection is `point_in_polygon`, `DataPreparation/ShapeData.dms:57`). Together these presumably explain t810's +18 s in
+the round of `e5944a676` against 20.28.0 as well as its -24 s now.
+
+### Reading
+
+- Correct: 27 of 27, and every result of the A/Bs equal between the builds.
+- #1334 makes hestia's `connect_info` to the buurten 14 to 17 times faster, worth 12 to 37 s in t2000.
+  2BURP's inland-water `dist_info`, which the round does not compute, goes from 21 min to 17 and 27 s.
+- The lakes and rivers of 2BURP do not move; 2UP's candidates are too small in the regression and not computed.
+- t405.1, t405.2, t060, t410, t611, t710, t720 and t910 are level; t810's gain is the slow `proximity` of the
+  `e5944a676` build. t405.3 and t641.1 had no A/B; t641.1 has a `connect` and a `connect_eq` in
+  `main/BaseData/Afleiding_Winkelcentra.dms:45` and `:172`, not measured.
+
+## Results (OVSRV05), 20.29.0 at `6019e78bd`: `connect`, `connect_info` and `dist_info` take the candidate arcs nearest first (#1334, #1337)
+
+A local msbuild (Release x64, `all22.sln`) of `79909e365`, whose engine code is that of `6019e78bd`; the other two
+commits since `98974d5fa` touch only the export dialog and a skill. Against the previous round (`98974d5fa`, above) it adds
+only the nearest-first search of #1334: `SpatialIndex::VisitNearestFirst`, a best-first search over a heap of nodes and
+leaves, from which `IndexedArcProjectionHandle` takes the arcs of a point until the next one lies farther than the nearest
+so far. GeoDMS-Test at `5fb7780`. The round ran 2026-11-09 21:56 to 2026-11-10 00:52, threshold 60, put back to 95, no
+reuse. Report header 2:53:32 against 3:00:05 for `98974d5fa`; 27 of 27 `ok`, so the ties that may now give another
+SegmID, CutPoint, InArc or InSegm moved no regression result. Rows that move by more than 3 % and 3 s, wall time of the
+logs (`walltimes.py`):
+
+| test | `98974d5fa` | `6019e78bd` |
+|---|---|---|
+| t060 | 0:01:16 | 0:01:33 |
+| t405.2 | 0:16:49 | 0:14:03 |
+| t405.3 | 0:17:01 | 0:13:59 |
+| t410 | 0:03:52 | 0:02:23 |
+| t810 | 0:04:47 | 0:05:13 |
+
+Over all experiment logs 173.8 min against 180.4. t405.1 is 3:30 and 3:33: its `connect` went from 83 to 25 s (first
+progress line to writing the network), and the cold read of the OSM shapefiles, last read on 2026-11-06, took the gain.
+t060 is level in the A/B below. t641.1 and t641.2 are 50:27 and 50:36, 44:29 and 44:09.
+
+### Interleaved A/B: `98974d5fa` against `6019e78bd`, `.m`
+
+2026-11-10 00:55 to 04:41, X Y Y X, threshold 60, the inputs read once beforehand (`ab_1334_inputs.txt`), through
+`scratch\t2000_c\run_exp_peak.py` (`scratch\perf_ovsrv05\ab_1334nf.cmd`): X = `head_98974d5fa`, Y = `head_6019e78bd`;
+t2000 in an X Y Y X of its own right after. Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| t611 | 31 | 33 | 32 | 33 |
+| t710 | 64 | 62 | 62 | 62 |
+| t910 | 43 | 42 | 44 | 42 |
+| t060 | 78 | 80 | 79 | 79 |
+| t410 | 238 | 142 | 142 | 228 |
+| t720 | 432 | 427 | 426 | 426 |
+| t810 | 285 | 290 | 298 | 262 |
+| t405.1 | 253 | 153 | 153 | 215 |
+| t405.2 | 1018 | 816 | 822 | 1015 |
+| t2000 | 1024 | 981 | 1001 | 982 |
+
+The metrics of the `.json` results of t410, t611, t710, t720, t910 and t2000 are equal in all four runs, and so are the
+two tifs that t810 writes, byte for byte.
+
+- t410, 38 to 40 % faster, is the `connect_ne` of the 337 497 points in
+  `NetworkSetup/Base_Analysis/NetwerkSpec/CreateInitialWorkingNetwork/LinkSet`: four progress lines over 70 s in the round
+  of `98974d5fa`, none in this one.
+- t405.1: `road_segments_with_extra_nodes`, 616 nodes to roads cut by `arc2segm` into arcs of two points, the case the
+  run boxes could not help: 79 and 80 s on X, 20 and 21 s on Y from the first progress line to writing the network. X1 is
+  also 33 s slower before the `connect`, the first run after the warm-up.
+- t405.2, 20 % faster: the `connect` to `RoadNets_Org2Stop_W` of each region had a second progress line after 10 s on X
+  and ends within the first on Y, about 14 s per region over twelve regions. t405.3 has the same structure and gained 3:02
+  in the round; it had no A/B.
+- t2000 is level, one pair 43 s faster and the other 19 s slower.
+- t810 is slower on Y in both pairs: `proximity`, see below.
+
+t641.1 needs no A/B: the `connect` and `connect_eq` that #1337 named (`main/BaseData/Afleiding_Winkelcentra.dms:45` and
+`:172`) both lie in a block comment (lines 13 to 211 of that file), and the RSopen configuration has no other `connect`,
+`connect_info` or `dist_info`, includes counted.
+
+### Per item
+
+The items of the #1334 section, X Y Y X after a check run Y0, a cheap supplier first, seconds of the `Updating` line
+(`ab_1334nf.cmd`, `ab_1334nf_cc.cmd`); the statistics are equal in every run. The 2BURP items now ran in one process, so
+the first of them holds the reading of the inputs they share.
+
+| item | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| hestia `m100/connect/ArcID` | 0.50 | 0.20 | 0.20 | 0.51 |
+| hestia `m25/connect/ArcID` | 2.30 | 1.63 | 1.70 | 2.46 |
+| 2BURP `Lakes/Location2Lake_distInfo` | 2.70 | 2.01 | 2.00 | 2.62 |
+| 2BURP `Rivers/Location2River_distInfo` | 4.10 | 2.52 | 2.53 | 4.11 |
+| 2BURP `AllWater/Location2LargeInland_distInfo` | 13.7 | 11.1 | 11.2 | 13.4 |
+| 2BURP `AllWater/Location2AllInland_distInfo` | 26.8 | 23.6 | 23.6 | 26.6 |
+| t810 `DistToTown/ConnectedCurrentRoads/arc_rel` (`Accessibility.dms:201`) | 22.9 | 21.0 | 17.9 | 22.1 |
+
+On top of the run boxes, the nearest-first search gains a factor of 1.3 to 2.5 on hestia, the lakes and the rivers. The
+inland-water items hold about 10 s of converting the polygons to `SphericalMercator`, so their `dist_info` gains 2 to 3 s.
+
+### `connect_info_eq` on rings of 5 vertices (#1337, point 2)
+
+The probe of #1334 with rings of 5 vertices, a key in `Pt` (`i % 7`) and `Big` (`id % 7`), and beside `dist_info` and
+`connect_info` the forms `dist_info_eq(geom, Big/key, Pt/pt, Pt/key)` and `connect_info_eq(geom, Big/key, Pt/pt, Pt/key)`,
+which refuse six of the seven rings (`scratch\p1337\probe_connect5*.dms`, `ab_1337_eq*.cmd`). With 1 million points every
+item takes 0.34 s or less on OVSRV05, `connect_info` and `connect_info_eq` 0.31 to 0.34 s on both builds. With 10 million
+points, a check run Y0 and three pairs X Y Y X, twice (without and with `dist_info_eq`), seconds, lowest and highest per
+build; the statistics are equal in every run:
+
+| item | X | Y |
+|---|---|---|
+| `dist_info` | 0.69 to 0.72 | 0.46 to 0.47 |
+| `dist_info_eq` | 0.54 to 0.56 | 0.71 to 0.72 |
+| `connect_info` | 3.36 to 3.41 | 3.37 to 3.41 |
+| `connect_info_eq` | 3.34 to 3.40 | 3.39 to 3.46 |
+
+`dist_info_eq` is 30 % slower on Y in all three pairs, where `dist_info` is 34 % faster: with a filter that refuses the
+nearest arcs, each refused arc costs Y a step on the heap of `VisitNearestFirst`, the guess of #1337, not profiled.
+`connect_info_eq` is slower on Y in all six pairs, by 0.03 to 0.10 s, about 2 %; most of the 3.4 s of `connect_info` lies
+outside the search, since it does not move where `dist_info` gains 0.24 s.
+
+### t810: `proximity`, not #1334
+
+The two `proximity` items with a 201 x 201 kernel (`JrcFactorDataTempl.dms:785` and `:786`) take 42.8 to 45.6 s on Y and
+29.4 to 29.8 s on X (`ab_1334nf_ta.cmd`). It is the same effect as in the build of `e5944a676`, and its cause is the place
+of `proximity`'s inner loop in `Geo.dll`; see the known cause below.
+
+### Reading
+
+- Correct: 27 of 27, and every result of the A/Bs and the probe equal between the builds.
+- The nearest-first search makes t410 38 to 40 % faster, t405.2 20 %, t405.3 18 % in the round, and t405.1's `connect` to
+  the cut-up roads four times faster; the items of hestia and 2BURP gain another factor of 1.3 to 2.5. t2000 is level.
+- `dist_info_eq` with a filter that refuses most nearby arcs is 30 % slower on short arcs than with `98974d5fa`; no
+  regression experiment shows it.
+- t810's +26 s in the round is `proximity`'s loop in this link of `Geo.dll`, not #1334.
+
+## Results (OVSRV05), the pre-release v20.29.0 (tag `a0a454738`), `.l`, `.c` and `.m`
+
+Installed from GitHub on 2026-11-18 (sha256 of the three assets equal to the release's digests, the two setups signed
+by Object Vision B.V.): `.m` and `.c` in `C:\Program Files\ObjectVision`, kept as `release_a0a454738_{m,c}`; `.l` by
+`dpkg -i` in mtahi's WSL Ubuntu 26.04 (48 GB), 20.28.0.l restored beside it. Against the local build of `6019e78bd`
+(above) the tag adds 57 commits, among them #1355 (GDAL loaded from the engine's own folder), #1342 and #1343 (rewrite
+rules that changed their result removed), #1348, #1352, #1350, #1361 and #1362. GeoDMS-Test at `4a9ea15`, one commit past
+the rounds above, which gives the `exec_ec` of t405's TomTom list no working folder, since #1361 makes a folder that
+does not exist an error. The rounds ran in the order `.l`, `.c`, `.m` from one scheduled task
+(`scratch\launch_perf_20290_release.cmd`), 2026-11-18 21:10 to 2026-11-19 04:15, threshold 60, put back to 95, no
+reuse, no Remote Desktop session:
+
+| flavour | report header | 20.28.0 | experiment logs | 20.28.0 | verdict |
+|---|---|---|---|---|---|
+| `.l` | 1:12:49 | 1:22:44 | 72.8 min | 82.8 min | 21 of 21 `ok` |
+| `.c` | 2:50:11 | 3:00:59 | 170.4 min | 181.4 min | 27 of 27 `ok` |
+| `.m` | 2:50:29 | 3:00:21 | 170.7 min | 180.7 min | 27 of 27 `ok` |
+
+Every result equals its reference, so neither the ties of #1334 nor the removed rewrite rules moved a regression
+result. Rows that move by more than 3 % and 3 s against 20.28.0 of the same flavour, wall time of the logs:
+
+| test | `.l` 20.28.0 | `.l` 20.29.0 | `.c` 20.28.0 | `.c` 20.29.0 | `.m` 20.28.0 | `.m` 20.29.0 |
+|---|---|---|---|---|---|---|
+| t020 | 0:03:31 | 0:03:23 | | | | |
+| t060 | 0:02:45 | 0:02:25 | 0:01:44 | 0:01:22 | 0:01:51 | 0:01:23 |
+| t101 | 0:03:31 | 0:03:22 | | | | |
+| t200 | 0:00:55 | 0:01:00 | | | | |
+| t300 | | | 0:01:06 | 0:01:02 | 0:01:39 | 0:01:03 |
+| t301 | | | 0:03:24 | 0:02:35 | | |
+| t405.1 | 0:04:16 | 0:03:32 | 0:04:26 | 0:03:35 | 0:04:29 | 0:03:36 |
+| t405.2 | 0:22:58 | 0:19:01 | 0:17:02 | 0:13:45 | 0:16:49 | 0:13:39 |
+| t405.3 | 0:22:17 | 0:18:59 | 0:17:25 | 0:13:40 | 0:16:31 | 0:13:46 |
+| t410 | 0:04:08 | 0:02:48 | 0:03:54 | 0:02:25 | 0:03:51 | 0:02:25 |
+| t720 | | | | | 0:07:02 | 0:07:19 |
+| t2000 | not run | | | | 0:17:10 | 0:16:05 |
+
+The rows of t300 and t301 are the rounds. t300 on `.m` is level in the A/B below; its 1:39 in the round of 20.28.0.m was
+the first read of its XML (see "t300 and the first read of its XML on OVSRV05"). t301 on `.c` took 148 to 175 s in the
+A/B of 2026-11-01 for two builds alike, where the round of 20.28.0.c gave 3:24 (above). t810 is level on all three
+flavours (`.m` 4:53 and 4:48): the release's `proximity` loop starts at offset 16 (see the known cause below).
+
+### Interleaved A/B: 20.28.0 against 20.29.0
+
+2026-11-19 04:19 to 06:45, threshold 60, inputs read once beforehand (`scratch\perf_ovsrv05\ab_20290r.cmd`). `.m`: X =
+`release_01feccd21_m`, Y = `release_a0a454738_m`, X Y Y X, t2000 in an X Y Y X of its own. `.l`: t200 in six pairs, X =
+20.28.0.l, Y = 20.29.0.l (`run_exp_l.py`). Seconds:
+
+| test | X1 | Y1 | Y2 | X2 |
+|---|---|---|---|---|
+| `.m` t060 | 98 | 79 | 79 | 96 |
+| `.m` t200 | 38 | 31 | 32 | 31 |
+| `.m` t300 | 60 | 59 | 60 | 61 |
+| `.m` t910 | 43 | 40 | 40 | 40 |
+| `.m` t410 | 245 | 150 | 155 | 239 |
+| `.m` t405.1 | 217 | 157 | 156 | 213 |
+| `.m` t720 | 436 | 436 | 437 | 436 |
+| `.m` t2000 | 1014 | 953 | 969 | 1015 |
+
+`.l` t200: X 68, 53, 55, 52, 55, 56; Y 54, 55, 55, 54, 54, 54. The metrics of every `.json` result are equal in all
+runs. t405.2 and t405.3 were not in this A/B; their gain rests on the three rounds and on the A/B of `98974d5fa`
+against `6019e78bd` above (t405.2 1018 and 1015 s against 816 and 822 s).
+
+`PeakPagefileUsage` per run is level on every `.m` row except t2000: t720 spreads from 24.2 to 26.0 GB on both
+releases, the other rows lie within 0.25 GB, and t060 is 0.1 GB lower on 20.29.0. For t2000: X 83.15 and 82.48 GB, Y 83.96 and 84.02 GB, 0.8 and 1.5 GB higher. That lies within the spread of one
+build in the earlier t2000 A/Bs (`98974d5fa` 84.58 and 79.41 GB, `6019e78bd` 80.96 and 82.44 GB), so it is not a
+finding.
+
+### Reading
+
+- Correct: 21 of 21 on `.l`, 27 of 27 on `.c` and `.m`, and every result of the A/Bs equal between the releases.
+- Faster, on all three flavours: t405.2 and t405.3 by 2:45 to 3:57 in the rounds (15 to 22 %), t410 by 80 to 89 s in the
+  rounds (32 to 38 %) and 84 to 95 s in the A/B, and t405.1 by 44 to 61 s, the nearest-first search of #1334; t060 by 17
+  to 28 s, #1320. t2000 on `.m` is 46 and 61 s faster in the two pairs of the A/B (4.5 and 6 %), mostly the run boxes and
+  nearest-first search of #1334 in hestia's `connect_info`; not split per item on the releases.
+- Nothing is slower. t720 on `.m` (+17 s in the round) and t200 on `.l` (+5 s) are level in the A/B; the first X run
+  after the warm-up is the slow one there.
+- Not measured again on the releases: `dist_info_eq` with a filter that refuses most nearby arcs, 30 % slower on short
+  arcs since `6019e78bd` (probe above), which no regression experiment shows; since `6019e78bd` the search code changed
+  only in `ArcRunIndex.h` (`a0a454738`), the run boxes of arcs with 32 or more vertices, which the probe's rings of 5 do
+  not have. And `Pand_rel` in t2000, 0.64 s slower since #1320, inside a t2000 that is faster on the whole.
+- Memory: the peak commit of the A/B is level, t2000's 1 GB more on 20.29.0 included, which is within its spread.
+
 # Known causes of differences between versions
 
 Changes found in the code history that explain why a figure differs between versions, recorded here so
 that a round is not bisected for a cause that is already known.
+
+## `proximity`: where the link of `Geo.dll` puts its inner loop
+
+Established on 2026-11-10 on OVSRV05 with eight kept builds; the mechanism is not measured.
+
+`proximity` goes to `CalculateClassic` (`geo/dll/src/Potential.cpp:669`), not to FFTW. Its inner loop,
+`MakeMax(*outputPtr, *dataPtr++ * *weightPtr++)` (`:725`), is 35 bytes of machine code in the Float32 form, with a
+compare and a branch that depend on the data and a store to `*outputPtr` on every raise. `OperPot.obj` and
+`Potential.obj` were last compiled on 2026-11-05 15:43, so the local builds of `e5944a676`, `98974d5fa` and `6019e78bd`
+link the same object code, and only the place of the loop in `Geo.dll` differs between them. The loop found by its bytes
+(`scratch\perf_ovsrv05\findloop.py`) and the two 201 x 201 items of t810, `TA_attr_km10` and `TA_rest_km10`, run twice
+per build in an interleaved order, seconds:
+
+| build | loop address mod 64 | `TA_attr_km10` | `TA_rest_km10` |
+|---|---|---|---|
+| 20.24.2 `0176bebdb` | 32 | 43.9, 42.5 | 42.9, 42.4 |
+| 20.25.0 `fec6efe90` | 48 | 43.0, 41.7 | 42.0, 41.9 |
+| 20.26.0 `f3c45bc70` | 16 | 29.7, 30.2 | 29.9, 29.6 |
+| 20.27.0 `02f9fc329` | 0 | 29.5, 29.5 | 30.2, 30.4 |
+| 20.28.0 `01feccd21` | 16 | 30.0, 31.8 | 30.3, 30.6 |
+| `e5944a676` | 32 | 42.5, 44.9 | 43.5, 43.6 |
+| `98974d5fa` | 0 | 29.4, 29.8 | 29.4, 29.7 |
+| `6019e78bd` | 32 | 42.8, 45.6 | 43.0, 45.6 |
+
+The four releases were predicted from their offsets before they were run (`scratch\perf_ovsrv05\ab_prox_layout.cmd`);
+the rows of 20.28.0 and `e5944a676` come from the A/B of 2026-11-06, the rest from 2026-11-10. A loop that starts at 32
+or 48 crosses a 64-byte boundary and an item takes 41.7 to 45.6 s; one that starts at 0 or 16 fits within it and an item
+takes 29.4 to 31.8 s. The statistics are equal in every run. So a t810 difference of 25 to 50 s between two builds can be
+nothing but this, whatever else changed, and any edit that moves code in `Geo.dll` can flip it. A loop that keeps the
+maximum in a local and stores it once per kernel row would presumably not depend on its place; not tried.
 
 ## FixedAlloc's free stacks: which sizes they keep, and since when
 
@@ -1223,3 +2466,34 @@ was, not which build ran. To compare builds, read the inputs once before the rou
 same place. The `copy /b D:\SourceData\t300_XML\*.xml NUL` before the A/B above took 0.9 s, so the files were
 still known then and it proves nothing as a warm-up. Other experiments that read text files
 (t405.1 reads 82 CSV and 68 shapefile reads) may carry the same first-read cost; that has not been measured.
+
+## t405.2 and t405.3 on `.l` on OVSRV05: the WSL VM of the account
+
+Established on 2026-10-22 from the `.l` columns of this machine and a rerun of 20.26.0.l; not a change in the code.
+
+WSL settings and distros belong to a Windows account: each account that runs a `.l` round has its own VM, sized by
+its own `%USERPROFILE%\.wslconfig`. Without that file the VM gets half the host's RAM, here about 33.6 GB inside
+the VM, and a swap of a quarter of that, about 8 GB on C:. On Linux t405.2 and t405.3 reach about 49 GB of rss,
+and in such a VM they are stopped when they reach its ceiling: exit 15 after about six minutes, shown as a
+`timeout` pill. Duration and peak rss / vms of the harness's sampler, both tests together, from the `.l` columns
+kept in the results tree:
+
+| rounds | account (load lines of the logs) | duration | rss | vms |
+|---|---|---|---|---|
+| 20.3.0, 20.7.0, 20.8.0 (2026-06-22 to 07-12) | Cicada | 0:24:16 to 0:25:54 | 49.1 to 49.4 GB | 65.3 to 67.0 GB |
+| 20.12.0 to 20.19.3 (2026-08-09 to 09-05) | Cicada | 0:23:42 to 0:24:46 | 48.9 to 49.2 GB | 56.4 to 56.8 GB |
+| 20.20.0 (2026-09-11) | Jip Claassens | 0:30:55 and 0:37:25 | 49.5 GB | 116.0 and 121.5 GB |
+| 20.23.1, 20.24.2, 20.25.0, 20.26.0 (2026-10-08 to 10-21) | mtahi, no `.wslconfig` | stopped at 0:05:53 to 0:06:47 | 32.4 to 32.9 GB | 41.5 to 48.9 GB |
+| 20.26.0 rerun (2026-10-22) | mtahi, 48 GB and 128 GB swap | 0:26:11 and 0:26:29 | 49.1 GB | 55.8 and 56.0 GB |
+
+The other two accounts' VMs held those 49 GB without stopping them, so they had more than the default; their
+`.wslconfig` files cannot be read from this account. On Windows the report gives t405.2 and t405.3 51 to 53 GB of
+peak commit in every version from 16.0.5 to 20.26.0, `.m` and `.c` alike, at 27 to 48 GB physical, except 20.20.0
+(92 to 98 GB, high in `.l` too): the engine asks no more of these tests than it did.
+
+**Reading a `.l` column:** a `timeout` on t405.2 or t405.3 after about six minutes says which VM ran it, not which
+build. Before a `.l` round, check `wsl -d Ubuntu -- free -g` in the account that runs it (47 GB and 128 GB of swap
+for mtahi since 2026-10-22). After a Windows restart run `wsl --shutdown` and boot the VM once, so that its swap on
+D: is active again (the note in GeoDMS-Test's `batch\run_detached.ps1`). Two VMs of 48 GB together exceed the
+host's 64 GB: never run `.l` rounds under two accounts at once, and shut down a VM that is not in use. t641.x and
+t2000 stay skipped on `.l` regardless: full.py decides that on the host's RAM (`_HEAVY_L_MIN_HOST_GB`), not the VM's.
