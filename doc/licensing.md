@@ -64,9 +64,9 @@ version 3. The SIL Open Font License allows a font to be bundled with software u
 ## Images of the GUI
 
 GeoDmsGuiQt compiles in the files that `qtgui/exe/GeoDmsGuiQt.qrc` lists. Apart from the two fonts
-above, they are GeoDMS's own: the icons of the toolbars, the detail pages, the event log and the tree
-view, and the program icon, which Object Vision B.V. made; the branch lines of the tree view, which
-`tools/make_tree_line_images.py` draws; and the splash screen below. `GEODMS_GUI_FILES` in
+above, they are part of GeoDMS and come under its licence, as its source code does: the icons of
+the toolbars, the detail pages, the event log and the tree view, and the program icon; the branch
+lines of the tree view, which `tools/make_tree_line_images.py` draws; and the splash screen below. `GEODMS_GUI_FILES` in
 `tools/setup_licences.py` lists them, and a setup stops on a file in the resource file that is
 neither in that list nor an item of `INSIDE_GEODMS` with its licence text.
 

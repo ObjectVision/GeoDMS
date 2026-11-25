@@ -141,10 +141,10 @@ GEODMS_FONTS = {"dms.ttf"}
 # The Qt resource file that GeoDmsGuiQt compiles in. Every file in it must be either an item of
 # INSIDE_GEODMS or one of GEODMS_GUI_FILES.
 GUI_QRC = "qtgui/exe/GeoDmsGuiQt.qrc"
-# The files of GUI_QRC that are GeoDMS's own and need no licence text of their own, by their path in
-# GUI_QRC: the icons of the toolbars, the detail pages, the event log and the tree view, and the
-# program icon, which Object Vision made; the branch lines of the tree view, which
-# tools/make_tree_line_images.py draws; and WorldHeatMap.jpg, the splash screen, which doc/licensing.md
+# The files of GUI_QRC that are part of GeoDMS and come under its licence, as its source code does,
+# so they need no licence text of their own, by their path in GUI_QRC: the icons of the toolbars,
+# the detail pages, the event log and the tree view, and the program icon; the branch lines of the
+# tree view, which tools/make_tree_line_images.py draws; and WorldHeatMap.jpg, the splash screen, which doc/licensing.md
 # describes. A file from another project belongs in INSIDE_GEODMS, with its licence text.
 GEODMS_GUI_FILES = {"res/images/" + f for f in """
     DP_back.bmp DP_configuration.bmp DP_explore.bmp DP_forward.bmp DP_history.bmp DP_MetaData.bmp

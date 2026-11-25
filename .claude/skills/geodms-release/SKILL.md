@@ -60,7 +60,7 @@ files, listed in `INSIDE_GEODMS` of `tools\setup_licences.py`: the Noto fonts an
 `GeoDmsGuiQt` and `misc\fonts\dmstext.ttf`, and the code from GDAL in `Geo.dll`; a second table
 in `README.txt` says which installed file contains which (#1389). Every other file that
 `qtgui\exe\GeoDmsGuiQt.qrc` compiles in must be in `GEODMS_GUI_FILES`, the files of the GUI that
-are GeoDMS's own.
+are part of GeoDMS and come under its licence.
 `tools\setup_licences.py stage` writes that folder into the output folder right before
 makensis. For `.l`, `nsi\CreateLinuxSetup.sh` runs it on the tree it has staged, before
 patchelf, and the `.deb` also gets `/usr/share/doc/geodms/copyright`. After the install,
@@ -188,10 +188,10 @@ pass:
   item for it to `INSIDE_GEODMS`; a font that Object Vision made itself goes into
   `GEODMS_FONTS` instead.
 - `<file> is compiled into GeoDmsGuiQt through qtgui/exe/GeoDmsGuiQt.qrc, but no licence text
-  is known for it`: a new file in the resource file, an image or a font. If Object Vision made
-  it, add its path in the resource file to `GEODMS_GUI_FILES`; if it comes from another project,
-  put its licence text beside it and add an item to `INSIDE_GEODMS`. Ask who made it rather
-  than guess. `GEODMS_GUI_FILES ... names <file>, which ... does not compile in`: the file left
+  is known for it`: a new file in the resource file, an image or a font. If it is part of
+  GeoDMS and comes under its licence, add its path in the resource file to `GEODMS_GUI_FILES`; if
+  it comes from another project with a licence of its own, put that licence text beside it and add
+  an item to `INSIDE_GEODMS`. Ask where it comes from rather than guess. `GEODMS_GUI_FILES ... names <file>, which ... does not compile in`: the file left
   the resource file; remove it from the list.
 - `INSIDE_GEODMS in tools/setup_licences.py names <file>, but this setup installs none of the
   files that contain it`: a binary was renamed, or GeoDMS no longer contains that file. Correct
