@@ -129,7 +129,7 @@ FileResult WriteGeoRefFile(const AbstrDataItem* grid_adi, WeakStr geoRefFileName
 		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Offset().X());
 		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Offset().Y());
 
-		return {};
+		return bmpwHnd.CloseAfterWrite(); // reports a failed fprintf as well as a failed final flush
 
 	DMS_CALL_END
 
@@ -150,7 +150,9 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 			r.Throw("ReadGeoRefFile");
 		SizeT size = file.GetFileSize();
 		buffer.resize(size + 1, 0);
-		MG_CHECK(size == 0 || fread(begin_ptr(buffer), size, 1, file) == 1);
+		r = file.ReadBlock(begin_ptr(buffer), size);
+		if (!r)
+			r.Throw("ReadGeoRefFile");
 	}
 	assert(buffer.size());
 

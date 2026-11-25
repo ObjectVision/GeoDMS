@@ -41,8 +41,10 @@ struct DbfImplRead : DbfImpl
 {
 	DbfImplRead(WeakStr filename, const TreeItem* storageHolder)
 	{
-		if (! OpenForRead(filename) )
-			throwErrorF("DBF", "Cannot open {} for read ({}: {})", filename.c_str(), errno, strerror(errno) );
+		// the error names the reason, from the open or from reading the header; errno, read here
+		// afterwards, can belong to another call
+		if (auto r = OpenForRead(filename); !r)
+			throwErrorF("DBF", "Cannot open {} for read: {}", filename.c_str(), r.error().c_str());
 	}
 };
 

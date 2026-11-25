@@ -484,12 +484,18 @@ FileResult DbfImpl::ReadHeader()
 	// 1. read general header info
 	FILE* fp = GetFP();
 	m_HeaderSize = m_RecordCount = m_RecordSize	=	0;
+	// a header that cannot be read in full is the file's failure, which ReadBlock names with its reason
 	fseek(fp, 0, 0);
-	MG_CHECK(fread(&m_DbfVersion, sizeof(m_DbfVersion), 1, fp) == 1);
+	auto r = ReadBlock(&m_DbfVersion, sizeof(m_DbfVersion));
 	fseek(fp, 4, 0);
-	MG_CHECK(fread(&m_RecordCount, sizeof(m_RecordCount), 1, fp) == 1);
-	MG_CHECK(fread(&m_HeaderSize, sizeof(m_HeaderSize), 1, fp) == 1);
-	MG_CHECK(fread(&m_RecordSize, sizeof(m_RecordSize), 1, fp) == 1);
+	if (r)
+		r = ReadBlock(&m_RecordCount, sizeof(m_RecordCount));
+	if (r)
+		r = ReadBlock(&m_HeaderSize, sizeof(m_HeaderSize));
+	if (r)
+		r = ReadBlock(&m_RecordSize, sizeof(m_RecordSize));
+	if (!r)
+		return r;
 	DBG_TRACE(("m_HeaderSize  : {}", m_HeaderSize));
 	DBG_TRACE(("m_RecordSize  : {}", m_RecordSize));
 	DBG_TRACE(("m_RecordCount : {}", m_RecordCount));
@@ -518,23 +524,31 @@ FileResult DbfImpl::ReadHeader()
 		// read name
 		char	name[DBF_COLNAME_SIZE + 1];
 		name[0]						=	0;
-		MG_CHECK(fread(name, DBF_COLNAME_SIZE + 1, 1, fp) == 1);
+		r = ReadBlock(name, DBF_COLNAME_SIZE + 1);
+		if (!r)
+			return r;
 		name[DBF_COLNAME_SIZE]	=	0;
 		m_ColumnDescriptions[i].m_Name = name;
 
 		// read type
 		UInt8		dbftype;
-		MG_CHECK(fread(&dbftype, sizeof(dbftype), 1, fp) == 1);
+		r = ReadBlock(&dbftype, sizeof(dbftype));
+		if (!r)
+			return r;
 		m_ColumnDescriptions[i].m_DbfType = DbfTypeCharToDbfType(dbftype);
 
 		// read length
 		m_ColumnDescriptions[i].m_Offset = offset;
 		fseek(fp, ftell(fp) + 4, 0);
-		MG_CHECK(fread(&m_ColumnDescriptions[i].m_Length, sizeof(m_ColumnDescriptions[i].m_Length), 1, fp) == 1);
+		r = ReadBlock(&m_ColumnDescriptions[i].m_Length, sizeof(m_ColumnDescriptions[i].m_Length));
+		if (!r)
+			return r;
 		offset	+=	m_ColumnDescriptions[i].m_Length;
 
 		// read decimal count
-		MG_CHECK(fread(&m_ColumnDescriptions[i].m_DecimalCount, sizeof(m_ColumnDescriptions[i].m_DecimalCount), 1, fp) == 1);
+		r = ReadBlock(&m_ColumnDescriptions[i].m_DecimalCount, sizeof(m_ColumnDescriptions[i].m_DecimalCount));
+		if (!r)
+			return r;
 	}
 	MG_USERCHECK2(m_RecordSize == RecordLength(), "dbf: the record size in the header differs from the sum of the column widths; the file is corrupt");
 

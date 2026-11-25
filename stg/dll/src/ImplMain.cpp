@@ -13,7 +13,12 @@
 #include "ptr/SharedStr.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
+#include "utl/PlatformError.h"
 #include "utl/StrFormat.h"
+
+#include <cctype>
+#include <cerrno>
+#include <cstdlib> // _doserrno
 
 #if defined(_MSC_VER)
 #include <share.h>
@@ -94,6 +99,7 @@ FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool transl
 		// ignored since the call was commented out, so every file ran through the 4 KB CRT default
 		if (nrPagesInBuffer)
 			setvbuf(m_FP, nullptr, _IOFBF, SizeT(nrPagesInBuffer) * 4096);
+		m_FileName = fileName;
 		return {}; // success
 	}
 
@@ -119,6 +125,112 @@ void FilePtrHandle::CloseFH()
 		return;
 	fclose(m_FP);
 	m_FP = 0;
+}
+
+// The reason the C runtime gives for the I/O call that just failed: errno, and on Windows also the system
+// error code that the CRT translated into errno (_doserrno). The translation loses information: a network
+// share that drops and a write that the volume refuses can both become EINVAL or EACCES. Both are cleared
+// before the call, so that a value left by an earlier call is not reported as the reason.
+namespace {
+	struct IoErrorCause
+	{
+		int           crtErr = 0;
+		unsigned long osErr  = 0;
+	};
+
+	void ClearIoErrorCause()
+	{
+		errno = 0;
+#if defined(_MSC_VER)
+		_doserrno = 0;
+#endif
+	}
+
+	IoErrorCause TakeIoErrorCause()
+	{
+		IoErrorCause result;
+		result.crtErr = errno;
+#if defined(_MSC_VER)
+		result.osErr = _doserrno;
+#endif
+		return result;
+	}
+
+	SharedStr IoErrorCauseText(const IoErrorCause& cause)
+	{
+		SharedStr result = cause.crtErr
+			? mySSPrintF("error {}: {}", cause.crtErr, strerror(cause.crtErr))
+			: SharedStr();
+#if defined(_MSC_VER)
+		if (cause.osErr)
+		{
+			auto osText = platform::GetSystemErrorText(cause.osErr);
+			CharPtr osBegin = osText.begin(), osEnd = osText.csend();
+			while (osEnd != osBegin && std::isspace(static_cast<unsigned char>(osEnd[-1])))
+				--osEnd; // FormatMessage ends its text with a line break
+			auto osPart = mySSPrintF("Windows error {}: {}", cause.osErr, SharedStr(CharPtrRange(osBegin, osEnd)).c_str());
+			result = result.empty() ? osPart : mySSPrintF("{}\n{}", result.c_str(), osPart.c_str());
+		}
+#endif
+		if (result.empty())
+			result = SharedStr("the C runtime gave no reason");
+		return result;
+	}
+}
+
+FileResult FilePtrHandle::ReadBlock(void* data, SizeT size)
+{
+	assert(IsOpen());
+	if (!size)
+		return {}; // fread answers 0 for 0 bytes, and data may be null then
+
+	ClearIoErrorCause();
+	SizeT nrRead = fread(data, 1, size, m_FP);
+	if (nrRead == size)
+		return {};
+	auto cause = TakeIoErrorCause();
+
+	if (feof(m_FP) && !ferror(m_FP))
+		return std::unexpected(mySSPrintF("reading {} bytes from '{}' stopped after {} bytes, where the file ends"
+			, size, m_FileName.c_str(), nrRead));
+	return std::unexpected(mySSPrintF("reading {} bytes from '{}' stopped after {} bytes\n{}"
+		, size, m_FileName.c_str(), nrRead, IoErrorCauseText(cause).c_str()));
+}
+
+FileResult FilePtrHandle::WriteBlock(const void* data, SizeT size)
+{
+	assert(IsOpen());
+	if (!size)
+		return {}; // fwrite answers 0 for 0 bytes, and data may be null then
+
+	ClearIoErrorCause();
+	SizeT nrWritten = fwrite(data, 1, size, m_FP);
+	if (nrWritten == size)
+		return {};
+	auto cause = TakeIoErrorCause();
+
+	return std::unexpected(mySSPrintF("writing {} bytes to '{}' stopped after {} bytes\n{}"
+		, size, m_FileName.c_str(), nrWritten, IoErrorCauseText(cause).c_str()));
+}
+
+FileResult FilePtrHandle::CloseAfterWrite()
+{
+	if (!m_FP)
+		return {};
+
+	bool earlierWriteFailed = ferror(m_FP) != 0;
+	ClearIoErrorCause();
+	int closeResult = fclose(m_FP);
+	auto cause = TakeIoErrorCause();
+	m_FP = nullptr;
+
+	if (closeResult != 0)
+		return std::unexpected(mySSPrintF("closing '{}' failed, so the last part of what was written to it may be missing\n{}"
+			, m_FileName.c_str(), IoErrorCauseText(cause).c_str()));
+	if (earlierWriteFailed)
+		return std::unexpected(mySSPrintF("a write to '{}' failed before the file was closed, so the file is incomplete"
+			, m_FileName.c_str()));
+	return {};
 }
 
 SizeT FilePtrHandle::GetFileSize() const

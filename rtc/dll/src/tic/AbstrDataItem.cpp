@@ -311,8 +311,9 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	try {
 		std::shared_ptr<const TreeItem> storageHolder = make_shared_tree(smi->StorageHolder(), existing_obj{});
 		sm->ExportMetaInfo(storageHolder.get(), this);
-		if (!sm->WriteDataItem(std::move(smi)))
-			throwItemError("Failure during Writing");
+		// the error that WriteDataItem gives names the file and the reason, so it is passed on
+		if (auto writeResult = sm->WriteDataItem(std::move(smi)); !writeResult)
+			throwItemErrorF("Failure during Writing: {}", writeResult.error().c_str());
 		reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Writing to {}", sm->GetNameStr().c_str());
 	}
 	catch (const DmsException& x)

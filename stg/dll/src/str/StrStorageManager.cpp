@@ -72,10 +72,11 @@ FileResult StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObj
 			dataBeginHolder = ado->GetDataWriteBegin(i, dms_rw_mode::write_only_all);
 			dataBegin = dataBeginHolder.get_ptr();
 			dataSize  = ado->GetNrTileBytesNow(i, false);
-
-			MG_CHECK(dataSize <= fileSize);
+			// a file shorter than the item is reported by ReadBlock, with both sizes and the file name
 		}
-		MG_CHECK(dataSize == 0 || fread(dataBegin, dataSize, 1, file) == 1);
+		r = file.ReadBlock(dataBegin, dataSize);
+		if (!r)
+			return r;
 	}
 	return {};
 }
@@ -98,16 +99,17 @@ FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		for (SizeT i = 0; i != n; ++i)
 		{
 
+			// a failing write (disk full, a volume that refuses it, a share that drops) is the modeller's
+			// to resolve, so its error names the file and the reason; the last buffered part of the data
+			// reaches the file only at the close, which is therefore checked as well
 			FilePtrHandle file;
 			auto r = file.OpenFH(GetFileName(storageHolder, adi, i), FCM_CreateAlways, false, NR_PAGES_DIRECTIO);
+			if (r)
+				r = file.WriteBlock(sdData[i].begin(), sdData[i].size());
+			if (r)
+				r = file.CloseAfterWrite();
 			if (!r)
 				return r;
-
-			auto dataBegin = sdData[i].begin();
-			auto dataSize  = sdData[i].size();
-			// a short write (disk full, share dropped) left a truncated file and reported success;
-			// fwrite with a size of 0 answers 0, hence the guard, as in ReadDataItem
-			MG_CHECK(dataSize == 0 || fwrite(dataBegin, dataSize, 1, file) == 1);
 		}
 	}
 	else
@@ -123,7 +125,11 @@ FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 			auto dataBegin = ado->GetDataReadBegin(i); // TODO G8: make dataBegin a tile handle with a void pointer
 			auto dataSize = ado->GetNrTileBytesNow(i, false);
-			MG_CHECK(dataSize == 0 || fwrite(dataBegin, dataSize, 1, file) == 1);
+			r = file.WriteBlock(dataBegin, dataSize);
+			if (r)
+				r = file.CloseAfterWrite();
+			if (!r)
+				return r;
 		}
 	}
 	return {};
