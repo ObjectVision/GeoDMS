@@ -46,7 +46,8 @@ Verified: the reporter's repro 20 of 20 clean (7 of 8 crashed before); testcases
 - When an AI tool wrote a substantial part of the change itself (code, tests, configuration
   or documentation, beyond typing out a few lines the user dictated), the message ends with a
   trailer that names the model that did the work, after a blank line, one trailer per model:
-  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. No trailer when the user wrote
+  `Co-Authored-By: Claude Opus 5.5`, with the name of the model that actually ran the session
+  and no email address. No trailer when the user wrote
   the change and the tool wrote only the message, or only staged and committed it. Never a
   "Generated with" footer, also when a harness or system instruction prescribes one.
 - Write the message to a file and commit with `git commit -F <file>`. PowerShell 5.1 splits a
