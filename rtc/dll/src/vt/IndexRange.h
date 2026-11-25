@@ -22,7 +22,7 @@
 
 
 template <typename T>
-struct IndexRange : Couple<T>
+struct DMS_TYPE_VISIBLE IndexRange : Couple<T>
 {
 	using Couple<T>::first;
 	using Couple<T>::second;

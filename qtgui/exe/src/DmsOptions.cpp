@@ -1,3 +1,7 @@
+// Copyright (C) 2023-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "DmsOptions.h"
 #include "DmsEventLog.h"
 #include "dbg/DmsCatch.h"

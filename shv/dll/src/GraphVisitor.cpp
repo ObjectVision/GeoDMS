@@ -562,7 +562,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 
 	auto absFullRect = go->GetCurrFullAbsDeviceRect(*this);
 	assert(!SuspendTrigger::DidSuspend());
-	assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
+	assert(suspendible || go->IsUpdated() || flags(m_GdMode & GD_OnPaint));
 
 	bool hasDefinedExtent = go->HasDefinedExtent();
 
@@ -878,24 +878,24 @@ MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)
 {
-	assert((eventInfo.m_EventID & EventID::OBJECTFOUND) == 0);
+	assert(!flags(eventInfo.m_EventID & EventID::OBJECTFOUND));
 }
 
 bool MouseEventDispatcher::IsActivating() const
 {
-	return r_EventInfo.m_EventID & EventID::ACTIVATE;
+	return flags(r_EventInfo.m_EventID & EventID::ACTIVATE);
 }
 
 GraphVisitState MouseEventDispatcher::DoObject(GraphicObject* go)
 {
-	if ((r_EventInfo.m_EventID & EventID::OBJECTFOUND) == 0)
+	if (!flags(r_EventInfo.m_EventID & EventID::OBJECTFOUND))
 	{
 		m_WorldCrd    = m_Transformation.Reverse(g2dms_order<CrdType>(r_EventInfo.m_Point));
 		m_FoundObject = go->shared_from_this();
 		r_EventInfo.m_EventID |= EventID::OBJECTFOUND;
 
 
-		if (r_EventInfo.m_EventID & EventID::LBUTTONDOWN && !IsActivating() && ! go->IgnoreActivation())
+		if (flags(r_EventInfo.m_EventID & EventID::LBUTTONDOWN) && !IsActivating() && ! go->IgnoreActivation())
 		{
 			auto owner = m_Owner.lock();
 			if (owner && owner->m_ActivationInfo.ActiveChild().get() != go)
@@ -903,9 +903,9 @@ GraphVisitState MouseEventDispatcher::DoObject(GraphicObject* go)
 		}
 
 	}
-	dms_assert(r_EventInfo.m_EventID & EventID::OBJECTFOUND);
+	dms_assert(flags(r_EventInfo.m_EventID & EventID::OBJECTFOUND));
 
-	if (r_EventInfo.m_EventID & EventID::RBUTTONUP)
+	if (flags(r_EventInfo.m_EventID & EventID::RBUTTONUP))
 		go->FillMenu(*this);
 
 	return go->MouseEvent(*this) ? GVS_Handled : GVS_UnHandled;
@@ -934,14 +934,14 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 
 	GraphVisitState result = base_type::DoViewPort(vp);
 
-	if (r_EventInfo.m_EventID & EventID::SETCURSOR)
-		return result; 
-	if (!(r_EventInfo.m_EventID & EventID::OBJECTFOUND))
+	if (flags(r_EventInfo.m_EventID & EventID::SETCURSOR))
+		return result;
+	if (!flags(r_EventInfo.m_EventID & EventID::OBJECTFOUND))
 		return result;
 
 	assert(IsMainThread());
 
-	if (!(r_EventInfo.m_EventID & EventID::TEXTSENT))
+	if (!flags(r_EventInfo.m_EventID & EventID::TEXTSENT))
 	{
 		auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrLogicalZoomLevel(), {});
 		char buffer[201];
@@ -952,7 +952,7 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 				buffer[200] = char(0); // truncate
 			dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
 		}
-		if (r_EventInfo.m_EventID & EventID::COPYCOORD)
+		if (flags(r_EventInfo.m_EventID & EventID::COPYCOORD))
 		{
 			if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
 			{

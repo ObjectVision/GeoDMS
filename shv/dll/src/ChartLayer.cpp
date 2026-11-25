@@ -546,7 +546,7 @@ void ChartLayer::WriteSelection(const std::vector<char>& picked, EventID eventID
 		CompoundWriteType(eventID)
 	);
 
-	bool isAdd = !(eventID & EventID::CTRLKEY);
+	bool isAdd = !flags(eventID & EventID::CTRLKEY);
 	auto selData = mutable_array_cast<SelectionID>(writeLock.get())->GetDataWrite(no_tile, dms_rw_mode::read_write);
 
 	SizeT n = Min<SizeT>(selData.size(), picked.size());
@@ -581,7 +581,7 @@ void ChartLayer::SelectElems(Hit&& hit, EventID eventID)
 
 void ChartLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 {
-	if (!m_Ready || !(eventID & EventID::REQUEST_SEL))
+	if (!m_Ready || !flags(eventID & EventID::REQUEST_SEL))
 		return;
 
 	// select the single element nearest the click

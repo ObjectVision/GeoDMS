@@ -375,10 +375,10 @@ auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf,
 		return SharedTreeItem{};
 
 	SharedStr itemRefStr(supplRefID.AsStrRangeLock());
-	if (Test(svf, SupplierVisitFlag::ImplSuppliers))
+	if (flags(svf & SupplierVisitFlag::ImplSuppliers))
 		return SearchContext()->FindAndVisitItem(itemRefStr, svf, visitor);
 	auto searchResult = SearchContext()->ResolveItemPath(itemRefStr);
-	if (Test(svf, SupplierVisitFlag::NamedSuppliers))
+	if (flags(svf & SupplierVisitFlag::NamedSuppliers))
 		if (visitor.Visit(searchResult.get()) == AVS_SuspendedOrFailed)
 			return {};
 	return searchResult;
@@ -703,7 +703,7 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 	assert(IsMetaThread());
 	GetMetaInfo();
 
-	assert(Test(svf, SupplierVisitFlag::NamedSuppliers) || Test(svf, SupplierVisitFlag::ImplSuppliers) || Test(svf, SupplierVisitFlag::Checker));
+	assert(flags(svf & (SupplierVisitFlag::NamedSuppliers | SupplierVisitFlag::ImplSuppliers | SupplierVisitFlag::Checker)));
 	if (dynamic_cast<const DC_Ptr*>(this))
 		return AVS_Ready;
 
@@ -714,7 +714,7 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 		return optionalSourceItem ? AVS_Ready : AVS_SuspendedOrFailed;
 	}
 
-	if (!Test(svf, SupplierVisitFlag::ImplSuppliers))
+	if (!flags(svf & SupplierVisitFlag::ImplSuppliers))
 	{
 		for (const auto& suppl : m_NamedSuppliers)
 		{
@@ -934,8 +934,8 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 LispRef& SubstitutionBuffer::BufferedLispRef(metainfo_policy_flags mpf, LispPtr key)
 {
 	int index =
-		(mpf & metainfo_policy_flags::suppl_tree) ? 2 :
-		(mpf & metainfo_policy_flags::subst_never) ? 1 : 0;
+		flags(mpf & metainfo_policy_flags::suppl_tree) ? 2 :
+		flags(mpf & metainfo_policy_flags::subst_never) ? 1 : 0;
 	return m_SubstituteBuffer[index][key];
 }
 
@@ -1002,7 +1002,7 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	}
 	else
 		supplier->UpdateMetaInfo();
-	if (supplier->InTemplate() && !(mpf & metainfo_policy_flags::subst_never))
+	if (supplier->InTemplate() && !flags(mpf & metainfo_policy_flags::subst_never))
 	{
 		auto msg = mySSPrintF("Calulation rule would create a dependency on {} which is (part of) a template", supplier->GetFullName());
 		holder->ThrowFail(msg, FailType::MetaInfo);
@@ -1011,8 +1011,8 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	if (holder.get() != supplier)
 		registerSupplier(substBuff, supplier);
 
-	if (mpf & metainfo_policy_flags::subst_never || (!supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier)))
-		return CreateLispTree(supplier, mpf & metainfo_policy_flags::suppl_tree);
+	if (flags(mpf & metainfo_policy_flags::subst_never) || (!supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier)))
+		return CreateLispTree(supplier, flags(mpf & metainfo_policy_flags::suppl_tree));
 
 	LispRef result;
 	if (m_CalcRole == CalcRole::Checker && holder.get() == supplier)
@@ -1172,7 +1172,7 @@ auto DeriveSubItem(const AbstrCalculator* ac, SubstitutionBuffer& substBuff, Lis
 	assert(!subItem->IsCacheItem());
 	subItem->UpdateMetaInfo();
 
-	if (substBuff.optionalVisitor && Test(substBuff.svf, SupplierVisitFlag::NamedSuppliers))
+	if (substBuff.optionalVisitor && flags(substBuff.svf & SupplierVisitFlag::NamedSuppliers))
 		if (substBuff.optionalVisitor->Visit(subItem.get()) == AVS_SuspendedOrFailed)
 			substBuff.avs = AVS_SuspendedOrFailed;
 
@@ -1384,7 +1384,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					CallArg r = ResolveCallerArg(localExpr, foldResolveData, foldFindItem, &substBuff, foldHolder);
 					if (substBuff.avs == AVS_SuspendedOrFailed)
 						return {};
-					if (mpf & metainfo_policy_flags::is_root_expr)
+					if (flags(mpf & metainfo_policy_flags::is_root_expr))
 						substBuff.m_StructuredFunctionResult = std::move(r.structuredResult);
 					bufferValue = r.key;
 				}
@@ -1507,7 +1507,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 						throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not bound to an item"
 							, head.GetSymbStr().c_str());
 					bufferValue = ReduceMerged(merged, nullptr, &substBuff, holder
-						, (mpf & metainfo_policy_flags::is_root_expr) ? &substBuff.m_StructuredFunctionResult : nullptr);
+						, flags(mpf & metainfo_policy_flags::is_root_expr) ? &substBuff.m_StructuredFunctionResult : nullptr);
 					goto exit;
 				}
 

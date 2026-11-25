@@ -58,7 +58,7 @@ TIC_CALL SharedMutableDataItem CreateAbstrDataItem(
 	// returning a raw pointer would free the item immediately (the old OwningPtr.release() left it in
 	// refcount-0 limbo; std::shared_ptr deletes deterministically). Callers that assign into a
 	// TreeItemDualRef adopt ownership via its owning operator=; parented callers may use .get().
-	SharedMutableTreeItem item = parent->CreateItem(nameID, AbstrDataItem::GetStaticClass());
+	SharedMutableTreeItem item = TreeItem_CreateItem(parent, nameID, AbstrDataItem::GetStaticClass());
 	auto* result = debug_cast<AbstrDataItem*>(item.get());
 	dms_assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);
@@ -72,7 +72,7 @@ SharedMutableDataItem CreateAbstrDataItemFromPath(
 	TokenID          tValuesUnit,
 	ValueComposition vc)
 {
-	SharedMutableTreeItem item = parent->CreateItemFromPath(path, AbstrDataItem::GetStaticClass());
+	SharedMutableTreeItem item = TreeItem_CreateItemFromPath(parent, path, AbstrDataItem::GetStaticClass());
 	auto* result = debug_cast<AbstrDataItem*>(item.get());
 	assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);

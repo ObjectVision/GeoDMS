@@ -94,7 +94,7 @@ using SharedActorInterestPtr = InterestPtr<SharedPtr<const SharedActor> >;
 //  struct Actor interface
 //  -----------------------------------------------------------------------
 
-struct Actor: PersistentObject
+struct DMS_TYPE_VISIBLE Actor: PersistentObject
 {
 	// Constructor/Destructor
 	// Note: Many methods are logically const but mutate internal state via 'mutable'.

@@ -5,8 +5,9 @@
 // read, in 20.21.0 as well. The values type now comes from the data object that receives the values.
 // The driver reads a blank numeric field and a blank character field as NULL.
 // tab reads every column of the table, tabS a query of the string column alone (the reported case).
-// Needs the 64-bit "Microsoft Access dBASE Driver" (Access Database Engine), so Windows only; the battery
-// runs on Windows only. Expected: exit 0 on /checks.
+// Needs the 64-bit "Microsoft Access dBASE Driver" (Access Database Engine), so Windows only: the line
+// below makes run_testcases.sh skip it on Linux. Expected: exit 0 on /checks.
+// WINDOWS-ONLY: needs the Microsoft Access dBASE ODBC driver
 container stor_odbc_dbf
 {
 	unit<uint32> tab

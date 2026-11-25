@@ -266,11 +266,11 @@ CharPtrPair Relabel(CharPtr role) // parse 'e1', 'e4', 'v1', 'v4'
 
 void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg, bool isDomain) const
 {
-	if ((!resultMsg) && !(um & UM_Throw))
+	if ((!resultMsg) && !flags(um & UM_Throw))
 		return;
 
-	assert(leftRole  != nullptr && *leftRole  != char(0) || resultMsg == nullptr && !(um & UM_Throw));
-	assert(rightRole != nullptr && *rightRole != char(0) || resultMsg == nullptr && !(um & UM_Throw));
+	assert(leftRole  != nullptr && *leftRole  != char(0) || resultMsg == nullptr && !flags(um & UM_Throw));
+	assert(rightRole != nullptr && *rightRole != char(0) || resultMsg == nullptr && !flags(um & UM_Throw));
 
 	dms_assert(cu);
 	dms_assert(reason);
@@ -285,7 +285,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 		,	reason 
 		);
 
-	if (um & UM_Throw)
+	if (flags(um & UM_Throw))
 		throwItemError(msg);
 
 	assert(resultMsg);
@@ -304,16 +304,16 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 {
 	assert(cu);
 
-	assert(!((um & UM_Throw) && resultMsg));
-	assert(leftRole  && *leftRole  || !(um & UM_Throw) && !resultMsg);
-	assert(rightRole && *rightRole || !(um & UM_Throw) && !resultMsg);
+	assert(!(flags(um & UM_Throw) && resultMsg));
+	assert(leftRole  && *leftRole  || !flags(um & UM_Throw) && !resultMsg);
+	assert(rightRole && *rightRole || !flags(um & UM_Throw) && !resultMsg);
 
 	if (cu == this)
 		return true;
 
 	if (!cu->IsKindOf(GetDynamicClass()))
 	{
-		if ((um & UM_AllowVoidRight) && const_unit_dynacast<Void>(  cu))
+		if (flags(um & UM_AllowVoidRight) && const_unit_dynacast<Void>(  cu))
 			return true;
 		UnifyError(cu, " (different ValueTypes)", leftRole, rightRole, um, resultMsg, true);
 		return false;
@@ -322,10 +322,10 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 	if (const_unit_dynacast<Void>(this)) return true;
 	if (GetValueType()->HasFixedValues()) return true;
 
-	if ((um & UM_AllowDefaultLeft ) &&     IsDefaultUnit()) return true;
-	if ((um & UM_AllowDefaultRight) && cu->IsDefaultUnit()) return true;
+	if (flags(um & UM_AllowDefaultLeft ) &&     IsDefaultUnit()) return true;
+	if (flags(um & UM_AllowDefaultRight) && cu->IsDefaultUnit()) return true;
 
-	if (um & UM_AllowRightExpansion)
+	if (flags(um & UM_AllowRightExpansion))
 	{
 		// the identity walk below (GetCurrUltimateItem, GetCheckedKeyExpr) has
 		// meta-info readiness as precondition, but this mode's callers (the typed
@@ -354,8 +354,8 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 				// intern the right key too, so the comparison is total and symmetric.
 				// Default: lookup only (the #361 fix; worker-thread re-checks must
 				// not create DCs) -- a missing DC then reads as a mismatch.
-				assert(!(um & UM_AllowRightExpansion) || IsMetaThread());
-				auto thatDC = (um & UM_AllowRightExpansion)
+				assert(!flags(um & UM_AllowRightExpansion) || IsMetaThread());
+				auto thatDC = flags(um & UM_AllowRightExpansion)
 					? GetOrCreateDataController(cu->GetCheckedKeyExpr())
 					: GetExistingDataController(cu->GetCheckedKeyExpr());
 				if (!thatDC)
@@ -364,7 +364,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 			}
 			if (thisRepresentation == thatRepresentation)
 				return true;
-			if ((um & UM_AllowAllEqualCount) && (GetCount() == cu->GetCount()))
+			if (flags(um & UM_AllowAllEqualCount) && (GetCount() == cu->GetCount()))
 				return true;
 		}
 	error:
@@ -379,22 +379,22 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 	// TODO G8: dms_assert(Was(ProgressState::MetaInfo)); dms_assert(cu->Was(ProgressState::MetaInfo));
 	assert(cu);
 
-	assert(!((um & UM_Throw) && resultMsg));
-	assert(leftRole  && *leftRole  || !(um & UM_Throw) && !resultMsg);
-	assert(rightRole && *rightRole || !(um & UM_Throw) && !resultMsg);
+	assert(!(flags(um & UM_Throw) && resultMsg));
+	assert(leftRole  && *leftRole  || !flags(um & UM_Throw) && !resultMsg);
+	assert(rightRole && *rightRole || !flags(um & UM_Throw) && !resultMsg);
 
 	if (cu == this)
 		return true;
 
-	if (!(um & UM_AllowTypeDiff) && !cu->IsKindOf(GetDynamicClass()))
+	if (!flags(um & UM_AllowTypeDiff) && !cu->IsKindOf(GetDynamicClass()))
 	{
 		UnifyError(cu, " (different ValueTypes)", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 
 	// Metric unification
-	if ((um & UM_AllowDefaultLeft ) &&     IsDefaultUnit()) return true;
-	if ((um & UM_AllowDefaultRight) && cu->IsDefaultUnit()) return true;
+	if (flags(um & UM_AllowDefaultLeft ) &&     IsDefaultUnit()) return true;
+	if (flags(um & UM_AllowDefaultRight) && cu->IsDefaultUnit()) return true;
 
 	auto lhsMetric = GetCurrMetric(), rhsMetric = cu->GetCurrMetric();
 	if (!AreEqual(lhsMetric, rhsMetric))

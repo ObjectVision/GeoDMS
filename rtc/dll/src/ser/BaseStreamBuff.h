@@ -32,7 +32,7 @@ public:
 	virtual void    SetCurrPos(streamsize_t pos); 
 };
 
-class OutStreamBuff
+class DMS_TYPE_VISIBLE OutStreamBuff
 {
 public:
 	RTC_CALL OutStreamBuff();

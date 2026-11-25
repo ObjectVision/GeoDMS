@@ -367,6 +367,79 @@ void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj
 		reportF(SeverityTypeID::ST_MinorTrace, "PROJ reinterpreted user input wkt projection definition: {}", wkt_prj_str);
 }
 
+// *****************************************************************************
+//	GDAL for the other engine libraries (see gdal_base.h)
+// *****************************************************************************
+
+SpatialRefTransformation::SpatialRefTransformation()
+{}
+
+SpatialRefTransformation::~SpatialRefTransformation()
+{
+	if (m_Transformer)
+		OGRCoordinateTransformation::DestroyCT(m_Transformer);
+}
+
+OGRErr SpatialRefTransformation::SetSrcFromUserInput(CharPtr userInput)
+{
+	return m_Src.SetFromUserInput(userInput);
+}
+
+OGRErr SpatialRefTransformation::SetDstFromUserInput(CharPtr userInput)
+{
+	return m_Dst.SetFromUserInput(userInput);
+}
+
+void SpatialRefTransformation::CreateTransformer()
+{
+	assert(!m_Transformer);
+	OGRCoordinateTransformationOptions options;
+	CPLSetConfigOption("OGR_CT_OP_SELECTION", "BEST_ACCURACY");
+	m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst, options);
+}
+
+bool SpatialRefTransformation::Transform(SizeT n, Float64* x, Float64* y, int* successFlags)
+{
+	assert(m_Transformer);
+	return m_Transformer->Transform(n, x, y, nullptr, successFlags);
+}
+
+bool SpatialRefTransformation::SrcAndDstHaveSameGeogCS() const
+{
+	return m_Src.IsSameGeogCS(&m_Dst);
+}
+
+bool ProjectionIsColFirst(const OGRSpatialReference& srs)
+{
+	OGRAxisOrientation PROJCS_peOrientation;
+	OGRAxisOrientation GEOGCS_peOrientation;
+	srs.GetAxis("PROJCS", 0, &PROJCS_peOrientation);
+	srs.GetAxis("GEOGCS", 0, &GEOGCS_peOrientation);
+	bool projection_is_col_first = PROJCS_peOrientation == OGRAxisOrientation::OAO_East || GEOGCS_peOrientation == OGRAxisOrientation::OAO_East || PROJCS_peOrientation == OGRAxisOrientation::OAO_West || GEOGCS_peOrientation == OGRAxisOrientation::OAO_West;
+	return projection_is_col_first;
+}
+
+SharedStr SpatialRefAsProj4(const OGRSpatialReference& srs)
+{
+	CplString buffer; // frees m_Text with CPLFree
+	if (srs.exportToProj4(&buffer.m_Text) != OGRERR_NONE || !buffer.m_Text)
+		return {};
+	return SharedStr(buffer.m_Text);
+}
+
+GeographicSpatialRef ReadGeographicSpatialRef(CharPtr userInput)
+{
+	GeographicSpatialRef result;
+	OGRSpatialReference sr;
+	result.readResult = sr.SetFromUserInput(userInput);
+	if (result.readResult != OGRERR_NONE)
+		return result;
+	result.isGeographic = sr.IsGeographic();
+	if (result.isGeographic)
+		result.proj4 = SpatialRefAsProj4(sr);
+	return result;
+}
+
 void GDALDatasetHandle::UpdateBaseProjection(const TreeItem* treeitem, const AbstrUnit* uBase) const
 {
 	assert(uBase);
@@ -688,7 +761,7 @@ gdalComponent::gdalComponent()
 		// detach; keep it registered here as an idempotent fallback for other Stg hosts.
 		std::atexit(gdalFinalCleanup);
 #else
-		// On unix GDAL is linked INTO DmGeo.so and its own __attribute__((destructor)) already
+		// On unix GDAL is linked INTO DmStg.so and its own __attribute__((destructor)) already
 		// runs GDALDestroy in _dl_fini, AFTER all C++ static destructors -- the only safe moment.
 		// An additional std::atexit here is registered at first GDAL use, i.e. BEFORE the
 		// destructors of GDAL's lazily-created singletons (VSI file manager, CPL mutex/TLS,
@@ -703,10 +776,10 @@ gdalComponent::gdalComponent()
 
 #ifndef _WIN32
 			// Ensure libgeotiff is initialised before any GTIF* functions are called.
-			// DmGeo.so exports XTIFFInitialize (from its own libgeotiff.a copy); calling
-			// it here, from DmStg.so code, guarantees GDAL's GTiff driver has registered
-			// the GeoTIFF tag extender with libtiff even if GDALRegister_GTiff has not
-			// been called yet in this process context.
+			// DmStg.so holds the engine's only GDAL, libtiff and libgeotiff, all hidden
+			// (#1381); calling XTIFFInitialize here guarantees that the GeoTIFF tag
+			// extender is registered with that libtiff even if GDALRegister_GTiff has
+			// not been called yet in this process context.
 			XTIFFInitialize();
 #endif
 

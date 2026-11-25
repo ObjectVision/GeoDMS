@@ -125,7 +125,7 @@ enum class StorageAction { read, write, updatetree, writetree };
 //
 // *****************************************************************************
 
-struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
+struct DMS_TYPE_VISIBLE StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 {
 	StorageMetaInfo(NonmappableStorageManager* storageManager)
 		: m_StorageManager(storageManager, existing_obj{})
@@ -243,7 +243,7 @@ inline UInt32 GridBlockSubdivide(UInt32 imageSize, UInt32 nativeBlockSize, UInt3
 	return 256; // default tile size for non-divisible blocks, or small images that don't span multiple blocks
 }
 
-class AbstrStorageManager : public SharedObj
+class DMS_TYPE_VISIBLE AbstrStorageManager : public SharedObj
 {
 	using base_type = SharedObj;
 
@@ -402,7 +402,7 @@ private:
 // *****************************************************************************
 
 
-class NonmappableStorageManager : public AbstrStorageManager
+class DMS_TYPE_VISIBLE NonmappableStorageManager : public AbstrStorageManager
 {
 	using base_type = AbstrStorageManager;
 	// construction only from StorageMangers friends	
@@ -451,7 +451,7 @@ private:
 // *****************************************************************************
 
 
-struct StorageCloseHandle
+struct DMS_TYPE_VISIBLE StorageCloseHandle
 {
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa);
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi);

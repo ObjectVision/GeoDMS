@@ -133,22 +133,25 @@ R& MakeAs(ResourceHandle& rh)
 	return rh->GetAs<R>();
 }
 
+// An empty handle has no resource: null. The member GetOptional may not be called on it, as a member
+// function called on a null pointer is undefined behaviour, and gcc, which assumes that this is not null,
+// may then convert it to R* without its null test, giving the offset of R in Resource<R> (#1385).
 template <typename R>
 R* GetOptional(ResourceBase* rh)
 {
-	return rh->GetOptional<R>();
+	return rh ? rh->GetOptional<R>() : nullptr;
 }
 
 template <typename R>
 R* GetOptional(ResourceHandle& rh)
 {
-	return rh->GetOptional<R>();
+	return rh ? rh->GetOptional<R>() : nullptr;
 }
 
 template <typename R>
 const R* GetOptional(const ResourceHandle& rh)
 {
-	return rh->GetOptional<R>();
+	return rh ? rh->GetOptional<R>() : nullptr;
 }
 
 #endif // __RTC_PTR_RESOURCE_H

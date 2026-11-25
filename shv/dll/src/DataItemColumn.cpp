@@ -1660,7 +1660,7 @@ void DataItemColumn::SetTransparentColor(AspectNr a)
 bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 {
 	auto tc = GetTableControl().lock(); if (!tc) return false;
-	if (med.GetEventInfo().m_EventID & EventID::MOUSEWHEEL )
+	if (flags(med.GetEventInfo().m_EventID & EventID::MOUSEWHEEL))
 	{
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(med.r_EventInfo.m_wParam);
@@ -1669,7 +1669,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		return true;
 	}
 	bool isColOriented = tc->IsColOriented();
-	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+	if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN))
 	{
 		// hit-test along the stacking axis: the border between columns (col-oriented)
 		// resp. bands (row-oriented, dragged vertically - issue #1150)
@@ -1698,7 +1698,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		}
 	}
 
-	if (med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN))
+	if (flags(med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN)))
 	{
 		// borders between cells along the cell-repeat axis resize the shared cell extent:
 		// row height (col-oriented, horizontal separators) resp. record width
@@ -1707,7 +1707,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		SizeT cellIndex;
 		if (FindSharedCellBorder(mouseC, isColOriented, cellIndex))
 		{
-			if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+			if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN))
 				StartSharedCellResize(med, isColOriented, cellIndex);
 			else
 				SetCursor(LoadCursor(NULL, isColOriented ? IDC_SIZENS : IDC_SIZEWE));
@@ -1715,7 +1715,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		}
 	}
 
-	if ((med.GetEventInfo().m_EventID & EventID::MOUSEMOVE))
+	if (flags(med.GetEventInfo().m_EventID & EventID::MOUSEMOVE))
 	{
 		CrdPoint relClientPos = Convert<CrdPoint>(med.GetLogicalSize(med.GetEventInfo().m_Point)) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
 		auto logicalHeight = m_ElemSize.Y() + RowSepHeight();
@@ -1737,7 +1737,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		goto skip;
 	}
 
-	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
+	if (flags(med.GetEventInfo().m_EventID & EventID::SETCURSOR))
 	{
 		// same stacking-axis hit-test as the LBUTTONDOWN resize above (issue #1150:
 		// testing m_Point.x against the band's y-range showed a stuck resize cursor
@@ -1766,7 +1766,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		return true;
 	}
 
-	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK) ) && !IgnoreActivation())
+	if (flags(med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK)) && !IgnoreActivation())
 	{
 		assert(tc->GetColumn(m_ColumnNr) == this);
 
@@ -1797,7 +1797,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 			sci.ProcessChange(true);
 		}
 
-		if(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK )
+		if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK))
 		{
 			// issue #634: IsEditableTheme, not Theme::IsEditable, so that a configured or
 			// calculated palette opens the editor and is copied on commit

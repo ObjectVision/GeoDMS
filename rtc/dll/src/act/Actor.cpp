@@ -1361,7 +1361,7 @@ leveled_critical_section sc_MoveSupplInterestSection(item_level_type(0), ord_lev
 SupplInterestListPtr Actor::GetSupplInterest() const
 {
     SupplInterestListPtr supplInterestListPtr;
-    VisitSupplProcImpl(this, SupplierVisitFlag(SupplierVisitFlag::StartSupplInterest),
+    VisitSupplProcImpl(this, SupplierVisitFlag::StartSupplInterest,
         [&supplInterestListPtr] (const Actor* supplier)
         {
             // The visitor sees a raw const Actor*. push_front retains each non-passor supplier: std-managed

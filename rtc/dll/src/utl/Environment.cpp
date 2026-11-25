@@ -401,7 +401,7 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 				break;
 			UInt32 nrWaitSecs = (1 << retryCounter);
 			reportF(SeverityTypeID::ST_MajorTrace,
-				"WindowsSystem Error {}:\nErrorCode {}: {}\nWaiting {} seconds before retry #{}", 
+				"System Error {}:\nErrorCode {}: {}\nWaiting {} seconds before retry #{}", 
 				mySSPrintF(format, fileName).c_str(),
 				lastErr, 
 				platform::GetSystemErrorText(lastErr).c_str(),
@@ -487,7 +487,8 @@ SharedStr GetCurrentDir()
 void SetCurrentDir(CharPtr dir)
 {
 	auto dirW = Utf8_2_wchar(dir);
-	SetCurrentDirectoryW(dirW.get());
+	if (!SetCurrentDirectoryW(dirW.get()))
+		throwLastSystemError("the folder '{}' cannot be made the current folder", dir);
 }
 
 void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOID res)
@@ -2093,7 +2094,7 @@ SharedStr GetCurrentDir()
 void SetCurrentDir(CharPtr dir)
 {
 	if (chdir(dir) != 0)
-		throwErrorD("Environment", "chdir failed");
+		throwErrorF("Environment", "the folder '{}' cannot be made the current folder: {}", dir, strerror(errno));
 }
 
 RTC_CALL void DMS_CONV DMS_Appl_SetFont()

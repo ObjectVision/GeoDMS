@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -31,10 +35,10 @@ void SaveDetailPage(CharPtr fileName); // defined in main_qt.cpp
 
 
 // A script error goes to the session log, which is what a headless run leaves behind; the GUI has
-// no console, so on stderr alone the message vanished in the runs that matter.
+// no console, so on stderr alone the message vanished in the runs that matter. CountScriptError
+// copies it to stderr as well.
 void reportErr(CharPtr errMsg)
 {
-	std::cerr << std::endl << errMsg;
 	reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "TestScript: {}", errMsg);
 }
 
@@ -51,7 +55,9 @@ static bool IsSpace(char ch)
 // and from the pop-up menu path code in Shv's DataView.cpp, which a SEND reaches through the active
 // view. The GUI's message callback (geoDMSMessage) hands every message to CountScriptError, so both
 // are counted, and RunTestScript turns the count into the exit code of the run: 1 when a script
-// error was reported, 0 otherwise. A test runner then notices without reading the log.
+// error was reported, 0 otherwise. A test runner then notices without reading the log, and each
+// error is also written to stderr, so that the output of a runner that passes no /L still says
+// which step of the script failed.
 static std::atomic<UInt32> s_NrScriptErrors = 0;
 
 void CountScriptError(const MsgData* msgData)
@@ -61,7 +67,10 @@ void CountScriptError(const MsgData* msgData)
 		return;
 	static const char prefix[] = "TestScript:";
 	if (std::strncmp(msgData->m_Txt.c_str(), prefix, sizeof(prefix) - 1) == 0)
+	{
 		++s_NrScriptErrors;
+		std::cerr << msgData->m_Txt.c_str() << std::endl;
+	}
 }
 
 static int ScriptExitCode()
@@ -435,8 +444,13 @@ int PassMsg(int argc, char* argv[])
 			}
 			if (buf.empty()) buf.emplace_back(0);
 
+			// A SEND 3 or 4 goes to the current sub-window: the active one while GeoDMS is the active
+			// application, and otherwise the one that was active last. activeSubWindow() is null as
+			// long as another application has the desktop focus (QMdiArea deactivates its sub-window
+			// on ApplicationDeactivate), which made the outcome of a script depend on whether its user
+			// clicked in another window while it ran.
 			auto getActiveDV = [&]() -> std::shared_ptr<DataView> {
-				auto aw = mw->m_mdi_area->activeSubWindow();
+				auto aw = mw->m_mdi_area->currentSubWindow();
 				if (!aw) return nullptr;
 				auto va = dynamic_cast<QDmsViewArea*>(aw);
 				if (!va) return nullptr;

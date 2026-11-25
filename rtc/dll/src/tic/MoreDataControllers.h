@@ -73,7 +73,7 @@ private:
 // struct FuncDC : DataController
 // *****************************************************************************
 
-struct FuncDC : DataController
+struct DMS_TYPE_VISIBLE FuncDC : DataController
 {
 	using base_type = DataController;
 

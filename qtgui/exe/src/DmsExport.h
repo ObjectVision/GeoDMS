@@ -1,6 +1,11 @@
+// Copyright (C) 2023-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include <QPointer>
 #include <QDialog>
 #include "ptr/SharedPtr.h"
+#include "set/BitmaskEnum.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -27,8 +32,7 @@ enum class driver_characteristics : UInt32
     disable_with_geometry    = 16,
     only_native_driver       = 32
 };
-inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
-inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }
+template <> inline constexpr bool is_bitmask_enum<driver_characteristics> = true;
 
 struct gdal_driver_id
 {

@@ -17,6 +17,13 @@ battery + a few `fn_probe_*` probes + `tmpl_regress.dms`, with the `fe_names.txt
 artifacts land in the gitignored `testcases/_out*/`. One-off investigation configs (controls,
 repros) still belong in gitignored `scratch/`, not `testcases/`.
 
+**On Linux the same battery runs through `testcases/run_testcases.sh`** (#1384), the bash twin
+of `run_testcases.ps1`, by the same rules; `TestLinuxReleaseUnit.sh` and `TestLinuxDebugUnit.sh`
+run it before the `tst` unit suite, and so does the Linux setup through them. A case that cannot
+run on Linux carries a line `// WINDOWS-ONLY: <reason>` and is skipped there, as `stor_odbc_dbf`
+is, which needs an ODBC driver of Microsoft Access. Until then no Linux script ran the battery,
+and twelve negatives that failed on Linux with another message than on Windows went unnoticed.
+
 **A negative case states the message it is written to fail with** (#1369), in one or more
 lines `// EXPECT-FAILURE: <fragment>` of its `.dms`. Each fragment is literal text, not a
 pattern, that must occur in a message of the case's output: a line that starts with `Failure:`,
@@ -40,6 +47,13 @@ an `.xml`, failed in the output folder of the `.m` build for that reason).
 reason, and they are judged on the exit code only. A negative without a line that is not listed
 fails as `NO-EXPECT`, so a new negative comes with its message, and a listed one that has a line
 fails as `LISTED-HAS-EXPECT`, so a name leaves the list once its case has a line.
+
+A case whose output has a line with `Caught at Main:` fails as `CAUGHT-AT-MAIN`, a positive as well
+as a negative, unless it failed already for another reason. Those words come from GeoDmsRun's
+exception translator (`reportMsg` in `run/exe/src/MainRun.cpp`), which writes the error to stderr
+only, so the `/L` log of the case lacks it. Until #1384 the Linux engine reported an error caught
+inside a nested call of the DMS API that way, which left fifteen negatives with their error on
+stderr only; since then no case writes such a line, on either platform.
 
 **Every GeoDmsRun that these runners start is held to two limits** (`testcases/case_guard.ps1`,
 dot-sourced by `run_testcases.ps1`, `run_xml_roundtrip.ps1` and `run_roundtrip.ps1`): a Windows
@@ -82,6 +96,13 @@ detour through the XML notation. The same four launchers run `run_roundtrip.bat`
 XML one (#1368), over the positive configurations, two GeoDmsRun runs each; its output goes to
 `testcases/_out_rt/`. Until then nothing ran it, and 44 reloads failed unnoticed: a reload looked
 for the fixtures that a case reads through `%currDir%` beside the dump.
+
+**A positive case can state how its dump must read** (#1377), in one or more lines
+`// EXPECT-DUMP: <fragment>` of its `.dms`. `run_roundtrip.bat` requires each fragment, as literal
+text and compared case-sensitively, in the dump of that case, and fails the case as `WRONG-DUMP`
+when one is missing. A reload only shows that the dump means the same as its source; it does not
+see a dump that is spelled otherwise, such as `using = "geometries"` written as
+`Using = "../geometries"`. Comments do not survive a dump, so a fragment cannot match its own line.
 
 **That battery must stay offline and cheap.** Anything that reaches the network or
 processes real source data belongs in **`batch\TestShippedContent.bat`** instead, the
@@ -240,7 +261,10 @@ into `bin\Release\x64`.
   `cmake --preset windows-x64-release` (or `windows-x64-debug`), then `cmake --build`. Or run
   `batch\BuildSignAndCreateSetupCmake.bat`.
 - **Linux (CMake):** use presets `linux-x64-release` / `linux-x64-debug`, or run
-  `batch\BuildSignAndCreateSetupLinux.bat`.
+  `batch\BuildSignAndCreateSetupLinux.bat`. The preset `linux-x64-ubsan` builds the release
+  configuration with gcc's undefined-behaviour checks into a folder of its own (#1385), for
+  `batch/TestLinuxUbsan.sh`, which runs the Linux tests on it and lists what the checks report;
+  it is never shipped.
 - **The per-flavor setup scripts now live in `batch\`.** The repo root holds a single
   `Build.bat` that calls the m/c/g/l `batch\BuildSignAndCreateSetup*.bat` scripts sequentially; the
   unit-test launchers (`Test*Unit.bat`, `RunGUITests.bat`, `run_unit.bat`) also moved to

@@ -1,0 +1,54 @@
+// #1377: a configuration dump writes a using as the configuration spelled it, not as the path from the parent of
+// the item to the namespace. A dump that writes 'using = "geometries"' as '../geometries', or one level deeper as
+// '.../geometries', lacks the EXPECT-DUMP fragments below, which run_roundtrip.ps1 requires in the dump of this case.
+// The namespaces are chosen so that each fragment belongs to one using only. The checks hold on the source and on
+// the reloaded dump alike.
+// EXPECT-DUMP: Using = "geometries"
+// EXPECT-DUMP: Using = "lookups";
+// EXPECT-DUMP: Using = "lookups/inner"
+// EXPECT-DUMP: , using = geometries -> attribute<rdc> (T)
+// EXPECT-DUMP: Using = "geometries;lookups/inner"
+container dump_using_spelling
+{
+	container geometries
+	{
+		unit<fpoint> rdc;
+	}
+	container lookups
+	{
+		container inner
+		{
+			parameter<float32> one := 1f;
+		}
+	}
+	container lib
+	{
+		container c : using = "geometries" // a bare name
+		{
+			attribute<rdc> p (void) := point_xy(1f, 2f, rdc);
+		}
+		parameter<float32> x := 1f, using = "lookups"; // a data item
+		container e : using = "lookups/inner" // a path
+		{
+			parameter<float32> y := one;
+		}
+		function G4(unit<uint32> T; attribute<rdc> x (T)), using = geometries -> attribute<rdc> (T) := x; // a function
+		container deeper
+		{
+			container d : using = "geometries;lookups/inner" // two urls, two levels below the namespaces
+			{
+				attribute<rdc> q (void) := point_xy(3f * one, 4f, rdc);
+			}
+		}
+	}
+	container checks
+	{
+		unit<uint32> T : nrofrows = 1;
+		attribute<geometries/rdc> xs (T) := const(point_xy(7f, 8f, geometries/rdc), T);
+
+		parameter<bool> c_ok := PointCol(lib/c/p) == 1f, IntegrityCheck = "c_ok == true";
+		parameter<bool> e_ok := lib/e/y == 1f, IntegrityCheck = "e_ok == true";
+		parameter<bool> d_ok := PointCol(lib/deeper/d/q) == 3f, IntegrityCheck = "d_ok == true";
+		parameter<bool> g_ok := sum(PointCol(lib/G4(T, xs))) == 7f, IntegrityCheck = "g_ok == true";
+	}
+}

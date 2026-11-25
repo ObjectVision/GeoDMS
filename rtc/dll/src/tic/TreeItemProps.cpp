@@ -690,8 +690,9 @@ namespace { // local defs
 			return result;
 		}
 		// #1268: the RAW value, what a configuration dump writes: the namespaces this item has resolved,
-		// rendered as GetValue renders them, then the urls it has not resolved yet, as configured -- in
-		// that order, which is the order UpdateUsings would produce. GetValue resolves them first
+		// each by the url that resolved to it as configured (#1377; GetValue writes the path from the
+		// parent instead), then the urls it has not resolved yet, as configured -- in that order, which
+		// is the order UpdateUsings would produce. GetValue resolves them first
 		// (UsingCache::UpdateUsings, a path walk with UpdateMetaInfo on the way), which a raw property
 		// read may not do; on a freshly loaded configuration nothing has resolved them yet.
 		ApiType GetRawValue(const TreeItem* item) const override
@@ -702,12 +703,12 @@ namespace { // local defs
 			auto uc = item->GetUsingCache();
 			for (UInt32 i = 0, n = uc->GetNrCurrUsings(); i != n; ++i)
 			{
-				const TreeItem* ns = uc->GetCurrUsing(i); // null for an expired using entry
-				if (ns && !ns->DoesContain(item))
+				SharedStr nsName = uc->GetCurrUsingDumpName(i, item);
+				if (!nsName.empty())
 				{
 					if (result.ssize() > 0)
 						result += ';';
-					result += ns->GetScriptName(item);
+					result += nsName;
 				}
 			}
 			for (auto url : uc->UsingUrls())

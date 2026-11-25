@@ -41,7 +41,7 @@ using Constructor = Object* (*)();
 
 class MetaClass;
 
-class Class : public Object
+class DMS_TYPE_VISIBLE Class : public Object
 {
 	using base_type = Object;
 

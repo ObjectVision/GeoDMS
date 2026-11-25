@@ -100,18 +100,24 @@ struct bit_sequence;
 #	define DMS_CONV __cdecl
 #else
 #	define DMS_CONV
-#	undef DMRTC_EXPORTS
-#	define DMRTC_STATIC
 #endif
 
-#if defined(DMRTC_EXPORTS)
+// Each engine library has an export macro: RTC_CALL, SYM_CALL and TIC_CALL in DmRtc, SYNTAX_CALL,
+// STGDLL_CALL, CLC_CALL, GEO_CALL and SHV_CALL. A function, member or variable that another library
+// or program uses carries the macro of the library that defines it. With MSVC the macro is
+// dllexport in that library and dllimport in the others. With gcc the engine is compiled with
+// -fvisibility=hidden and -fvisibility-inlines-hidden (top CMakeLists.txt), so that a Linux library,
+// like a Windows DLL, exports only what carries such a macro; there every one of them is
+// DMS_GCC_EXPORT, in the defining library and in the using ones alike (#1383). DMS_GCC_EXPORT
+// and DMS_TYPE_VISIBLE are defined in cpc/CompChar.h, which cpc/Types.h includes before it uses them.
+#if !defined(_MSC_VER)
+#	define RTC_CALL DMS_GCC_EXPORT
+#elif defined(DMRTC_EXPORTS)
 #	define RTC_CALL __declspec(dllexport)
+#elif defined(DMRTC_STATIC)
+#	define RTC_CALL
 #else
-#	if defined(DMRTC_STATIC)
-#		define RTC_CALL
-#	else
-#		define RTC_CALL __declspec(dllimport)
-#	endif
+#	define RTC_CALL __declspec(dllimport)
 #endif
 
 //----------------------------------------------------------------------

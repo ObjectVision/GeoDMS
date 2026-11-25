@@ -939,12 +939,12 @@ ActorVisitState AbstrDataItem::VisitSuppliers(SupplierVisitFlag svf, const Actor
 	if (!InTemplate())
 	{
 
-		if (Test(svf, SupplierVisitFlag::DomainValues)) // already done by StartInterest
+		if (flags(svf & SupplierVisitFlag::DomainValues)) // already done by StartInterest
 		{
 			if (visitor.Visit(GetAbstrDomainUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
 			if (visitor.Visit(GetAbstrValuesUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
 		}
-		if (Test(svf, SupplierVisitFlag::ImplSuppliers))
+		if (flags(svf & SupplierVisitFlag::ImplSuppliers))
 		{
 			if (m_tDomainUnit) if (!FindAndVisitUnit(this, m_tDomainUnit, svf, visitor)) return AVS_SuspendedOrFailed;
 			if (m_tValuesUnit) if (!FindAndVisitUnit(this, m_tValuesUnit, svf, visitor)) return AVS_SuspendedOrFailed;

@@ -661,8 +661,8 @@ void TraceConfigSource(const TreeItem* self, XML_Table& xmlTable)
 // resolved. What stays unresolved -- a function or template body item whose reference FindUnit cannot
 // bind, or a reference that fails -- is written from its source token; the failure is the item's, as
 // it was when the dump used to run into it halfway through that item. The 'using' references are
-// resolved the same way, for the same reason: UsingPropDef::GetRawValue writes what is resolved by
-// its script name and the rest as configured.
+// resolved the same way, for the same reason; UsingPropDef::GetRawValue writes them as configured,
+// what is resolved by the url that resolved it (#1377) and the rest by its url.
 //
 // In the DUMP's order, an item before its sub-items and siblings in declaration order, and not in
 // any other: resolving one reference runs UpdateMetaInfo on the containers its path crosses, which

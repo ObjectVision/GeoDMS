@@ -1,3 +1,7 @@
+// Copyright (C) 2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "StartEditor.h"
 
 #include "RtcInterface.h"

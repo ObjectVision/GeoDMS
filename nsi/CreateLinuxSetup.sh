@@ -124,6 +124,10 @@ install -m 755 "${SRC}/GeoDmsRun"     "${DST}/"
 # GeoDMS shared libraries
 install -m 755 "${SRC}"/libDm*.so     "${DST}/"
 
+# The Python binding, one module per CPython minor of python/PythonVersions.txt (#1355), as in the
+# Windows setups: a script that puts the installation folder on sys.path imports it.
+install -m 755 "${SRC}"/geodms.cpython-*-linux-gnu.so "${DST}/"
+
 # Bundle the Qt6 runtime + its less-ubiquitous dependencies so the install is
 # self-contained and runs on machines without a (matching) system Qt6 -- e.g. the
 # headless OVSRV05 test server (#1137). The Qt *plugins* (platforms/, imageformats/,

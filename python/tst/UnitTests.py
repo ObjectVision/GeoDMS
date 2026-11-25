@@ -1,3 +1,6 @@
+# Copyright (C) 2024-2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # GeoDMS python-bindings unit test: load a configuration, navigate the item tree,
 # change an expression and (re)calculate a dependent result, and read values back.
 #
@@ -10,6 +13,7 @@
 # has to find its own DLLs and resources.
 import os
 import sys
+import sysconfig
 
 print('Geodms python test module')
 print(f"{sys.version}")
@@ -43,10 +47,12 @@ try:
     print(f"geodms extension: {extension.__file__}")
     if installed:
         check(hasattr(geodms_module, '__path__'), "geodms is an installed package, not the extension in a build folder")
-    expected_abi_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    # The file name of an extension for this interpreter: geodms.cp313-win_amd64.pyd on Windows,
+    # geodms.cpython-313-x86_64-linux-gnu.so on Linux.
+    expected_name = "geodms" + sysconfig.get_config_var("EXT_SUFFIX")
     check(
-        expected_abi_tag in os.path.basename(extension.__file__),
-        f"loaded ABI-tagged {expected_abi_tag} extension",
+        os.path.basename(extension.__file__) == expected_name,
+        f"loaded the ABI-tagged extension {expected_name}",
     )
     from geodms import *
 
@@ -106,6 +112,17 @@ try:
     ints.update()
     values = ints.asDataItem().asDataItem().get_values_as_int_list()
     check(values == [0, 1, 256, -100, 9999], f"/reference/IntegerAtt values (got {values})")
+
+    # #1355: the RD point (155000, 463000) in WGS84, which needs PROJ and its proj.db among the
+    # resources that the engine finds beside it, also in an installed wheel. The tolerance, a tenth
+    # of a millidegree or about 10 m, leaves room for the PROJ 8 of the GLOBIO build and still tells
+    # a working conversion from a failed one; the larger value is the latitude in either axis order.
+    EXPECTED_LAT, EXPECTED_LON, TOLERANCE_DEG = 52.155172, 5.387204, 1e-4
+    row = const_root.find("/proj_check/q_row").asDataItem().get_value_as_float(0)
+    col = const_root.find("/proj_check/q_col").asDataItem().get_value_as_float(0)
+    lat, lon = max(row, col), min(row, col)
+    check(abs(lat - EXPECTED_LAT) < TOLERANCE_DEG and abs(lon - EXPECTED_LON) < TOLERANCE_DEG,
+          f"PROJ converts RD (155000, 463000) to WGS84 (got {lat:.6f}, {lon:.6f})")
 
     # #1370: an item keeps its configuration loaded, also when the script keeps no Config; close() and
     # the end of a with-block close it, and its items raise from then on; load_config refuses while the

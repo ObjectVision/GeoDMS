@@ -9,6 +9,7 @@
 
 #include "ser/FormattingFlags.h"
 #include "ser/BaseStreamBuff.h"
+#include "set/BitmaskEnum.h"
 #include "vt/CharPtrRange.h"
 #include "vt/iterrange.h"
 #include "vt/StringBounds.h"
@@ -55,7 +56,6 @@ struct FormattedInpStream
 		stringsWithTabs   =  8,
 		stringsWithSpaces = 16
 	};
-	friend bool operator & (reader_flags lhs, reader_flags rhs) { return UInt32(lhs) & UInt32(rhs); }
 
 	enum class TokenType { 
 		None, 
@@ -90,7 +90,7 @@ struct FormattedInpStream
 	bool AtEnd() const { return m_AtEnd; }
 
 //	reader_flags SetReaderFlags(reader_flags rf) { std::swap(rf, m_Flags);  return rf; }
-	bool IsCommaDecimalSeparator() const { return m_Flags & reader_flags::commaAsDecimalSeparator; }
+	bool IsCommaDecimalSeparator() const; // defined below the class, after reader_flags opts in to BitmaskEnum.h
 	RTC_CALL bool IsFieldSeparator(char ch);
 
   private:
@@ -107,6 +107,11 @@ struct FormattedInpStream
 	reader_flags   m_Flags;
 	MG_DEBUGCODE( streamsize_t md_LastPos = 0; )
 };
+
+// An enumeration nested in a class can only opt in after the class, so no member function that tests it is defined inside the class.
+template <> inline constexpr bool is_bitmask_enum<FormattedInpStream::reader_flags> = true;
+
+inline bool FormattedInpStream::IsCommaDecimalSeparator() const { return flags(m_Flags & reader_flags::commaAsDecimalSeparator); }
 
 
 template <typename T> RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value) requires is_numeric_v<T>;

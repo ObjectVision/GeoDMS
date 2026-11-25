@@ -57,7 +57,7 @@ struct abstr_future_tile : std::enable_shared_from_this<abstr_future_tile>
 	virtual auto GetTileCRef() -> TileCRef = 0;
 };
 
-class AbstrDataObject: public SharedObj
+class DMS_TYPE_VISIBLE AbstrDataObject: public SharedObj
 {
 	friend class AbstrDataItem; 
 	friend class AbstrStorageManager;

@@ -45,6 +45,11 @@ struct UsingCache
 	// walk with UpdateMetaInfo on the way), which a raw property read may not do.
 	UInt32 GetNrCurrUsings() const { return m_Usings.size(); }
 	const TreeItem* GetCurrUsing(UInt32 i) const;
+	// #1377: how a dump writes resolved using i of item: as the url that resolved to it, spelled as
+	// configured, or by its script name when no url produced it (the implicit parent, the definition
+	// namespace of an instance). Empty for an expired entry and for a namespace that contains item,
+	// which the dump leaves out. Reads members only, as GetCurrUsing does.
+	SharedStr GetCurrUsingDumpName(UInt32 i, const TreeItem* item) const;
 
 	auto FindItem(TokenID itemID) const -> SharedTreeItem;
 
@@ -74,7 +79,7 @@ private:
 	void AddParent();
 
 	SharedTreeItem FindNamespace(TokenID url, bool allowAbsolutePath) const;
-	bool AddUsingInternal(const TreeItem* ns) const;
+	bool AddUsingInternal(const TreeItem* ns, TokenID spelling = TokenID()) const;
 	bool IsDirty() const { return m_CacheState == CacheStateType::DIRTY; }
 	bool IsReady() const { return m_CacheState == CacheStateType::READY; }
 	static void Update(const TreeItem* item);
@@ -90,6 +95,7 @@ private:
 
 	mutable std::vector<TokenID>         m_UsingUrls;
 	mutable TreeItemCPtrArray            m_Usings; // non-owning: the tree owns these namespaces (parent-owns-child). An owning ref here forms a retain cycle up to the config root (teardown leak). The m_Incoming back-link keeps it consistent: a namespace detaches itself from its incomings on destruction.
+	mutable std::vector<TokenID>         m_UsingSpellings; // #1377: parallel to m_Usings, the url that resolved to each entry, or an empty TokenID for an entry that no url produced
 	mutable TreeItemCPtrArray            m_SortedItemCache;
 	mutable std::vector<UsingCache*>     m_Incoming;
 

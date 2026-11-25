@@ -23,7 +23,7 @@ using CByteRange = IterRange<CBytePtr>;
 
 /********** MemoInpStreamBuff Interface **********/
 
-class MemoInpStreamBuff : public InpStreamBuff
+class DMS_TYPE_VISIBLE MemoInpStreamBuff : public InpStreamBuff
 {
 public:
 	RTC_CALL MemoInpStreamBuff(CBytePtr begin, CBytePtr end = nullptr);
@@ -44,7 +44,7 @@ private:
 
 /********** MemoOutStreamBuff Interface **********/
 
-class MemoOutStreamBuff : public OutStreamBuff
+class DMS_TYPE_VISIBLE MemoOutStreamBuff : public OutStreamBuff
 {
 public:
 	MemoOutStreamBuff(ByteRange data)
@@ -60,13 +60,13 @@ public:
 	BytePtr m_Curr;
 };
 
-struct ThrowingMemoOutStreamBuff : MemoOutStreamBuff
+struct DMS_TYPE_VISIBLE ThrowingMemoOutStreamBuff : MemoOutStreamBuff
 {
 	using MemoOutStreamBuff::MemoOutStreamBuff;
 	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;
 };
 
-struct SilentMemoOutStreamBuff : MemoOutStreamBuff
+struct DMS_TYPE_VISIBLE SilentMemoOutStreamBuff : MemoOutStreamBuff
 {
 	using MemoOutStreamBuff::MemoOutStreamBuff;
 	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;
@@ -74,7 +74,7 @@ struct SilentMemoOutStreamBuff : MemoOutStreamBuff
 
 /********** NullOutStreamBuff Interface **********/
 
-class NullOutStreamBuff : public OutStreamBuff
+class DMS_TYPE_VISIBLE NullOutStreamBuff : public OutStreamBuff
 {
 public:
 	RTC_CALL NullOutStreamBuff();
@@ -133,7 +133,7 @@ private:
 
 #include <vector>
 
-class ExternalVectorOutStreamBuff : public OutStreamBuff
+class DMS_TYPE_VISIBLE ExternalVectorOutStreamBuff : public OutStreamBuff
 {
 public:
 	using VectorType = vos_buffer_type;
@@ -153,7 +153,7 @@ private:
 
 /********** VectorOutStreamBuff Interface **********/
 
-class VectorOutStreamBuff : public OutStreamBuff
+class DMS_TYPE_VISIBLE VectorOutStreamBuff : public OutStreamBuff
 {
 public:
 	using VectorType = vos_buffer_type;

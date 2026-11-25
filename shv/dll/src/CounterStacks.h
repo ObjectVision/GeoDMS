@@ -68,7 +68,7 @@ struct CounterStacks : private geodms::rtc::noncopyable
 	CounterStacks(const CounterStacks&) = delete;
 	CounterStacks& operator =(const CounterStacks&) = delete;
 
-	void Reset           (Region&& drawRegion);
+	SHV_CALL void Reset  (Region&& drawRegion);
 	void AddDrawRegion   (Region&& drawRegion);
 	void LimitDrawRegions(const GPoint& maxSize);
 

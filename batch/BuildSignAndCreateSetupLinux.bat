@@ -21,6 +21,9 @@ REM   - cmake, ninja, gcc-13, vcpkg available inside WSL
 REM   - Linux build tree build/linux-x64-release/ is auto-configured on first run
 REM     (cmake --preset linux-x64-release) if its CMakeCache.txt is absent
 REM   - dpkg-deb available in WSL (for .deb creation)
+REM   - python3.XY-dev and python3.XY-venv in WSL for every CPython minor of
+REM     python\PythonVersions.txt, for the Python binding and its wheels (#1355); on
+REM     Ubuntu 24.04 3.13 and 3.14 come from the deadsnakes PPA
 REM
 REM Run from the repo root:  <repo-root>>BuildSignAndCreateSetupLinux.bat
 
@@ -137,6 +140,15 @@ echo --- testing the shipped .dms content: offline, then grid_to_polygon over th
 wsl bash -c "cd %geodms_wsldir% && bash batch/TestShippedContent.sh build/linux-x64-release/bin"
 if errorlevel 1 goto :shipped_failed
 
+REM The Linux wheels for PyPI (#1355), one per CPython minor of python\PythonVersions.txt:
+REM tools/make-and-test-wheels.sh makes them from build/linux-x64-release/bin into distr\,
+REM checks their metadata with twine and tests each in a fresh venv on the Linux file system,
+REM as BuildSignAndCreateSetup.bat does for the Windows wheels. Making its tool venv the first
+REM time needs the network. A failed unit suite below removes them with the setup files.
+echo --- building and testing the Linux wheels for PyPI ---
+wsl bash -c "cd %geodms_wsldir% && bash tools/make-and-test-wheels.sh build/linux-x64-release/bin distr %GeoDmsVersion%"
+if errorlevel 1 goto :wheels_failed
+
 echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) ---
 wsl bash -c "cd %geodms_wsldir% && export GeoDmsVersion=%GeoDmsVersion% && bash nsi/CreateLinuxSetup.sh"
 if errorlevel 1 goto :nsis_failed
@@ -160,9 +172,9 @@ if errorlevel 1 goto :installed_licences_failed
 
 REM Post-install unit tests (mirrors the unit.bat call in BuildSignAndCreateSetup.bat
 REM (.m) and BuildSignAndCreateSetupCmake.bat (.c)). TestLinuxReleaseUnit.sh runs
-REM tst/batch/unit_linux.sh against build/linux-x64-release and exits non-zero on
-REM any FAILED test. On failure we REMOVE the installed package and the built setup
-REM files: a warning echo is too easy to miss in the long build log, and a build
+REM the testcases battery (testcases/run_testcases.sh) and then tst/batch/unit_linux.sh
+REM against build/linux-x64-release, and exits non-zero when a case or a test fails.
+REM On failure we REMOVE the installed package and the built setup files: a warning echo is too easy to miss in the long build log, and a build
 REM with failing unit tests must not remain installed or shippable.
 echo --- running Linux unit tests ---
 wsl bash -c "cd %geodms_wsldir% && bash TestLinuxReleaseUnit.sh"
@@ -190,6 +202,12 @@ echo *** Shipped .dms content FAILED before packaging - see the results above, s
 endlocal
 exit /B 1
 
+:wheels_failed
+echo *** Linux wheels FAILED before packaging - see the output of tools/make-and-test-wheels.sh above ***
+del /q "distr\geodms-%GeoDmsVersion%-*-manylinux_*.whl" 2>nul
+endlocal
+exit /B 1
+
 :nsis_failed
 echo *** CreateLinuxSetup.sh failed ***
 endlocal
@@ -209,6 +227,7 @@ del /q "%DEB%" 2>nul
 del /q "%TARBALL%" 2>nul
 del /q "%TARBALL%.sha256" 2>nul
 del /q "%TARBALL%.sha256.p7s" 2>nul
-echo Removed install /opt/ObjectVision/GeoDms%GeoDmsVersion%.%GeoDmsFlavor% and distr setup files for %GeoDmsVersion%.%GeoDmsFlavor%.
+del /q "distr\geodms-%GeoDmsVersion%-*-manylinux_*.whl" 2>nul
+echo Removed install /opt/ObjectVision/GeoDms%GeoDmsVersion%.%GeoDmsFlavor% and distr setup files and Linux wheels for %GeoDmsVersion%.%GeoDmsFlavor%.
 endlocal
 exit /B 1

@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """Find [[label|Page-Name]] wiki-links whose pipe is unescaped inside a table cell.
 
 A markdown table splits a row on every unescaped '|'. A piped wiki-link such as

@@ -1803,7 +1803,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	bool isNew = (!dest) || (id && !dest->GetSubTreeItemByID(id));
 	if (isNew && copyContext.DontCreateNew())
 		return {};
-	auto result = dest->CreateItem(id, cls);
+	auto result = TreeItem_CreateItem(dest, id, cls); // dest is null for a new root
 	if (isNew)
 	{
 		if (copyContext.MustMakePassor())
@@ -2151,7 +2151,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	dms_assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= ProgressState::MetaInfo || GetTreeParent()->WasFailed(FailType::MetaInfo)); // precondition
 
 	// =============== Parent
-	if (Test(svf, SupplierVisitFlag::Parent) && GetTreeParent())
+	if (flags(svf & SupplierVisitFlag::Parent) && GetTreeParent())
 	{
 		if (visitor(GetTreeParent().get()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
@@ -2162,7 +2162,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 	// =============== TemplateOrg
 
-	if (Test(svf,  SupplierVisitFlag::TemplateOrg))
+	if (flags(svf & SupplierVisitFlag::TemplateOrg))
 	{
 		if (auto orgItem = mc_OrgItem.lock())
 			if (visitor(orgItem.get()) == AVS_SuspendedOrFailed)
@@ -2171,19 +2171,19 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 	// =============== implicit suppliers from indirected properties
 
-	if (Test(svf, SupplierVisitFlag::ImplSuppliers))
+	if (flags(svf & SupplierVisitFlag::ImplSuppliers))
 		if (VisitImplSupplFromIndirectProps(svf, visitor, this) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 
 	// =============== CDF and DIALOGDATA reference
 
-	if (Test(svf, SupplierVisitFlag::CDF))
+	if (flags(svf & SupplierVisitFlag::CDF))
 	{
 		auto cdfItem = GetCdfAttr(this);
 		if (cdfItem && visitor(cdfItem) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
-	if (Test(svf, SupplierVisitFlag::DIALOGDATA))
+	if (flags(svf & SupplierVisitFlag::DIALOGDATA))
 	{
 		auto dialogData = dialogDataPropDefPtr->GetValue(this);
 		if (!dialogData.empty())
@@ -2197,7 +2197,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 	// =============== look for explicit suppliers
 
-	if (Test(svf, SupplierVisitFlag::ExplicitSuppliers) && HasSupplCache())
+	if (flags(svf & SupplierVisitFlag::ExplicitSuppliers) && HasSupplCache())
 	{
 		auto n = GetSupplCache()->GetNrConfigured(this); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
 		for  (decltype(n) i = 0; i < n; ++i)
@@ -2220,10 +2220,10 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	// Ask ParseResult for suppliers
 
 	// =============== m_Calculator related
-	if (Test(svf, SupplierVisitFlag::DetermineCalc))
+	if (flags(svf & SupplierVisitFlag::DetermineCalc))
 		MakeCalculator(); // sets mc_Calculator, mc_DC, and mc_RefItem;
 
-	if (GetCalculatorMember() && Test(svf, SupplierVisitFlag::NamedSuppliers))
+	if (GetCalculatorMember() && flags(svf & SupplierVisitFlag::NamedSuppliers))
 	{
 		if (GetCalculatorMember()->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
@@ -2237,15 +2237,15 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	// not resolve yet. Deferring the build to the meta-info phase puts it after
 	// Actor::UpdateMetaInfo's UpdateSupplMetaInfo(), where they do. A DC that already exists is
 	// still visited below, so a later DetermineState pass sees it as before.
-	if (Test(svf, SupplierVisitFlag::DetermineCalc) && !m_State.IsDeterminingState())
+	if (flags(svf & SupplierVisitFlag::DetermineCalc) && !m_State.IsDeterminingState())
 		UpdateDC();
 
 	if (mc_DC)
 	{
-		if (Test(svf, SupplierVisitFlag::DataController))
+		if (flags(svf & SupplierVisitFlag::DataController))
 			if (visitor.Visit(mc_DC.get()) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
-		if (Test(svf, SupplierVisitFlag::SourceData))
+		if (flags(svf & SupplierVisitFlag::SourceData))
 		{
 			const TreeItem* sourceItem = GetSourceItem();
 			assert(!sourceItem || sourceItem != this);
@@ -2255,7 +2255,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	}
 	if (auto refItem = mc_RefItem.lock())
 	{
-		if (Test(svf, SupplierVisitFlag::SourceData))
+		if (flags(svf & SupplierVisitFlag::SourceData))
 			if (visitor(refItem.get()) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 	}
@@ -2285,7 +2285,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	// it could never be relied upon; the same holds for the condition elements of an indirect
 	// expression. Restricting units defined OUTSIDE the subtree -- what the .mmd dictionary guards
 	// of #1154 do -- needs no reference into it and so never closes a cycle.
-	if (Test(svf, SupplierVisitFlag::Checker))
+	if (flags(svf & SupplierVisitFlag::Checker))
 	{
 		const TreeItem* guardian = this;
 		SharedTreeItem guardianHolder; // keeps the ancestor alive while its checker is visited

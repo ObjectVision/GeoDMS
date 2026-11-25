@@ -48,7 +48,7 @@ LayerHeaderControl::LayerHeaderControl(MovableObject* owner)
 
 bool LayerHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+	if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN))
 		if (auto owner = GetOwner().lock())
 			if (auto lc = dynamic_cast<LayerControl*>(owner.get()))
 				if (auto layer = lc->GetLayer())
@@ -69,7 +69,7 @@ LayerInfoControl::LayerInfoControl(MovableObject* owner)
 
 bool LayerInfoControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
+	if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK))
 	{
 		if (auto owner = GetOwner().lock())
 			if (auto lc = dynamic_cast<LayerControl*>(owner.get()))
@@ -344,13 +344,13 @@ private:
 
 bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
+	if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK))
 	{
 		ToggleVisibilityAndMakeActiveIfNeeded();
 
 		return true; // cancel further processing of this mouse event.
 	}
-	else if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+	else if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN))
 	{
 		auto medOwner = med.GetOwner().lock();
 		if (!medOwner)

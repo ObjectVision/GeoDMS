@@ -33,7 +33,7 @@ struct UnitClassRegComponentLock
 // class  : UnitClass
 //----------------------------------------------------------------------
 
-class UnitClass : public Class, private UnitClassRegComponentLock
+class DMS_TYPE_VISIBLE UnitClass : public Class, private UnitClassRegComponentLock
 {
 	typedef Class base_type;
 public:

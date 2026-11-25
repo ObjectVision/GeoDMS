@@ -13,19 +13,14 @@ target_include_directories(DmClc
 
 target_compile_definitions(DmClc PRIVATE DMCLC_EXPORTS)
 
-if(NOT WIN32)
-    # GNU ld 2.42 has a bug where PT_DYNAMIC points to a stale copy of the dynamic section
-    # when .dynstr exceeds ~51 MB (DmClc has ~54 MB of symbol names in release builds).
-    # The gold linker does not have this bug and produces a correct PT_DYNAMIC.
-    target_link_options(DmClc PRIVATE -fuse-ld=gold)
-endif()
-
 find_package(GDAL)
 find_package(PROJ CONFIG)
 
 target_link_libraries(DmClc PUBLIC DmRtc DmStx DmStg)
 if(GDAL_FOUND)
-    target_link_libraries(DmClc PRIVATE GDAL::GDAL)
+    # GDAL's headers only: DmClc calls GDAL through the functions of DmStg in gdal/gdal_base.h,
+    # because DmStg holds the engine's only GDAL (#1381).
+    target_include_directories(DmClc SYSTEM PRIVATE $<TARGET_PROPERTY:GDAL::GDAL,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 if(PROJ_FOUND)
     target_link_libraries(DmClc PRIVATE PROJ::proj)

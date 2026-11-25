@@ -142,7 +142,12 @@ If the build cannot be run exactly this way, stop and ask.
   `CMakeCache.txt` is absent; a `CMakeLists.txt` edit forces the reconfigure.
 - Linux: from WSL, `cd /mnt/c/dev/GeoDMS_2026`, presets `linux-x64-release` / `-debug`, same
   tree, no separate checkout. A file that WSL claims is missing over 9p may exist; verify
-  from the Windows side before concluding anything.
+  from the Windows side before concluding anything. The preset `linux-x64-ubsan` is the
+  release build with gcc's undefined-behaviour checks (`-fsanitize=undefined -g` on the
+  engine's own code, without the `vptr` check, which does not link with hidden visibility;
+  #1385), in `build/linux-x64-ubsan` with a `vcpkg_installed` of its own that the binary
+  cache fills; it is never shipped. `batch/TestLinuxUbsan.sh` runs the Linux tests on it
+  (below).
 - GLOBIO compatibility (`.g`): `batch\BuildGlobio.bat Release` (or `Debug`), never an msbuild
   line of your own. It builds the same `all22.sln` with `-p:GeoDmsGlobio=true`, which
   `Directory.Build.props` turns into toolset v143 with MSVC 14.36.32532, the vc14 runtime
@@ -164,8 +169,8 @@ If the build cannot be run exactly this way, stop and ask.
 |---|---|---|---|
 | S | `batch\run_source_checks.bat` | ~40 s, no build | the syntactic checks over the source: lock ceilings (`DMS_ENTERS`), token-registry lifetimes across sinks, ptr discipline, and one argument per placeholder in every format call with a literal format |
 | 0 | a headless `GeoDmsRun` probe with `@statistics` or an IntegrityCheck (geodms-debug) | seconds | the one thing you changed, on the data |
-| 1 | `testcases\run_testcases.bat` | minutes, offline | the typed-function battery, ~570 configs, positives exit 0, `_neg` exit nonzero with the message of their `// EXPECT-FAILURE:` lines, exit 3 and a guard limit always fail |
-| 2 | `batch\TestReleaseUnit.bat` / `TestDebugUnit.bat` (`.m`), `TestCMakeReleaseUnit.bat` / `TestCMakeDebugUnit.bat` (`.c`), `TestGlobioReleaseUnit.bat` / `TestGlobioDebugUnit.bat` (`.g`) | 5 to 15 min | the `tst` unit suite, plus tier 1 and the XML and DMS round trips over its configurations (`.m`, `.g`), plus (Release) the shipped-content test |
+| 1 | `testcases\run_testcases.bat`; on Linux its twin `testcases/run_testcases.sh` | minutes, offline | the typed-function battery, ~600 configs, positives exit 0, `_neg` exit nonzero with the message of their `// EXPECT-FAILURE:` lines, exit 3 and a guard limit always fail |
+| 2 | `batch\TestReleaseUnit.bat` / `TestDebugUnit.bat` (`.m`), `TestCMakeReleaseUnit.bat` / `TestCMakeDebugUnit.bat` (`.c`), `TestGlobioReleaseUnit.bat` / `TestGlobioDebugUnit.bat` (`.g`), `TestLinuxReleaseUnit.sh` / `TestLinuxDebugUnit.sh` (`.l`) | 5 to 15 min | the `tst` unit suite, plus tier 1 and (`.m`, `.g`) the XML and DMS round trips over its configurations (the DMS one also requires the `// EXPECT-DUMP:` fragments of a case in its dump), plus (Release) the shipped-content test |
 | 3 | `python full.py -version <installed>` in `C:\dev\tst\batch` | hours | the project regressions; the only thing that trips threading, stack-pressure and meta-thread bugs |
 
 Rules per tier:
@@ -189,7 +194,31 @@ Rules per tier:
   `WRONG-FAILURE` (#1369). A new negative needs such a
   line, or it fails as `NO-EXPECT`; `testcases\expect_failure_missing.txt` lists any that have
   none, with the reason (AGENTS.md has the rules). On an older build a `WRONG-FAILURE` is often
-  only a message that changed since; read the `.out` before calling it a regression.
+  only a message that changed since; read the `.out` before calling it a regression. A case
+  whose `.out` has `Caught at Main:` fails as `CAUGHT-AT-MAIN`: GeoDmsRun wrote an error to
+  stderr that the `/L` log of the case lacks (#1384).
+  On Linux, `bash testcases/run_testcases.sh [GeoDmsRun]` applies the same rules (#1384), with
+  its logs in `testcases/_out_linux/`, or `testcases/_out_<preset>/` when `TestLinux*Unit.sh`
+  runs it; a case with a line `// WINDOWS-ONLY: <reason>` is skipped there, and its memory
+  limit is on resident memory, which it reads while the case runs, because Linux has no commit
+  limit per process. Run from `/mnt/c` it does not see a wrong-case include (#1359).
+- On the build of the preset `linux-x64-ubsan`, `bash batch/TestLinuxUbsan.sh [report folder]`
+  runs the Linux tests (#1385): `TestLinuxReleaseUnit.sh linux-x64-ubsan` (the battery and
+  the unit suite), `batch/TestShippedContent.sh`, `python/tst/UnitTests.py` and
+  `python/tst/LinuxGdalCompatibility.py` in its five orders. A report of gcc's checks does not
+  fail a test, so read `<report folder>/summary.txt` (default `~/geodms_ubsan`, never
+  `/tmp`, which WSL empties when it stops): each reported place in the code once, with the
+  tests and cases that reached it and its stack. Exit 0 is no failure and no report, 2 is
+  reports only, 1 is a failed test. Run it in a visible console, as tier 2. Measured on this
+  machine on 2026-11-23, from `/mnt/c`: configuring a new `build/linux-x64-ubsan` took
+  18 min, most of it the vcpkg ports from the binary cache; compiling and linking everything,
+  as after a change in a header under `rtc`, 31 to 33 min, against 13 for the release build,
+  and a change in the CMake options adds a configure, 5.5 min for the release build; the output folder is
+  4.6 GB, against 0.4 GB; and the tests took 60 to 62 min, of which 47 to 53 for the battery,
+  which took 6.5 min on the release build in a round where the two ran one after the other.
+  That build has 182 `-Wmaybe-uninitialized` warnings where the release build has none; they
+  are compiler warnings, presumably for the code that the checks add, and no reports of
+  undefined behaviour.
 - Tier 2 must run in a visible console, never piped headless: the suite ends by launching
   Notepad++ on the result file and pausing, which hangs without a console. Register an
   interactive scheduled task (`schtasks /Create ... /IT` then `/Run`) and read the results

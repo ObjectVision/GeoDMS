@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # Wall time (first to last log timestamp) and peak commit charge per experiment, for several full.py result
 # folders side by side.
 #

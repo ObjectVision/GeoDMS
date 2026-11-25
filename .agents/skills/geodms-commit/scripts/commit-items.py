@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """Commit a round of work one item per commit, each on a temporary index; the shared index and the
 working copy are not touched. See the section "Many items, one commit each" of ../SKILL.md.
 

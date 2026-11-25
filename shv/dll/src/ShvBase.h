@@ -24,11 +24,8 @@
 #include <map>
 
 #if !defined(_MSC_VER)
-#	undef  DM_SHV_EXPORTS
-#	define DM_SHV_STATIC
-#endif
-
-#if defined(DM_SHV_EXPORTS)
+#	define SHV_CALL DMS_GCC_EXPORT // see RtcBase.h
+#elif defined(DM_SHV_EXPORTS)
 #	define SHV_CALL __declspec(dllexport)
 #elif defined(DM_SHV_STATIC)
 #	define SHV_CALL

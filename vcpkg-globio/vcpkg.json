@@ -15,9 +15,6 @@
     "cgal",
     "fftw3",
     "openssl",
-    {
-      "name": "pybind11",
-      "platform": "windows"
-    }
+    "pybind11"
   ]
 }

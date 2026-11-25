@@ -19,7 +19,7 @@ class AbstrDataObject;
 // struct  : AbstrBoundingBoxCache
 //----------------------------------------------------------------------
 
-struct AbstrBoundingBoxCache //: SharedObj
+struct DMS_TYPE_VISIBLE AbstrBoundingBoxCache //: SharedObj
 {
 protected:
 	GEO_CALL AbstrBoundingBoxCache(const AbstrDataObject* featureData);

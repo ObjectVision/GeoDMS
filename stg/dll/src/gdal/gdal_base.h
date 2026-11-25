@@ -24,6 +24,7 @@
 #include "geom/Transform.h"
 
 #include <gdal_priv.h>
+#include <ogr_spatialref.h> // SpatialRefTransformation holds two OGRSpatialReference
 #include <limits>
 #include <format>
 struct pj_ctx;
@@ -194,6 +195,59 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);
 STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
 bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringList driver_array);
+
+// *****************************************************************************
+//	GDAL for the other engine libraries
+//
+// The conversions between spatial references in DmClc and the latitude correction in DmGeo reach
+// GDAL only through the class and functions below. DmStg holds the only GDAL of the engine: on
+// Linux it is linked statically into DmStg alone, with its symbols hidden there, so that a GDAL
+// that another package already loaded into the process cannot take the engine's calls (#1381). A
+// call from DmClc or DmGeo straight into GDAL would leave that library with a symbol that nothing
+// provides.
+// *****************************************************************************
+
+// The source and destination spatial reference of a conversion, and GDAL's transformation between them.
+struct SpatialRefTransformation : gdalComponent
+{
+	STGDLL_CALL SpatialRefTransformation();
+	STGDLL_CALL ~SpatialRefTransformation();
+	SpatialRefTransformation(const SpatialRefTransformation&) = delete;
+	void operator =(const SpatialRefTransformation&) = delete;
+
+	// read a spatial reference as OGRSpatialReference::SetFromUserInput reads it
+	STGDLL_CALL OGRErr SetSrcFromUserInput(CharPtr userInput);
+	STGDLL_CALL OGRErr SetDstFromUserInput(CharPtr userInput);
+
+	STGDLL_CALL void CreateTransformer();
+
+	// transform n points in place, as OGRCoordinateTransformation::Transform does without z;
+	// false when the transformation failed as a whole
+	STGDLL_CALL bool Transform(SizeT n, Float64* x, Float64* y, int* successFlags);
+
+	// do m_Src and m_Dst have the same geographic coordinate system, so that a conversion between them changes no datum?
+	STGDLL_CALL bool SrcAndDstHaveSameGeogCS() const;
+
+	OGRSpatialReference          m_Src, m_Dst;
+	OGRCoordinateTransformation* m_Transformer = nullptr;
+};
+
+// does the first axis of srs, of its PROJCS or else of its GEOGCS, point east or west?
+STGDLL_CALL bool ProjectionIsColFirst(const OGRSpatialReference& srs);
+
+// the PROJ.4 form of srs, or an empty string when GDAL cannot express srs in that form
+STGDLL_CALL SharedStr SpatialRefAsProj4(const OGRSpatialReference& srs);
+
+// What DmGeo's latitude correction needs to know of the spatial reference that userInput describes,
+// read as OGRSpatialReference::SetFromUserInput reads it. GDAL's errors and warnings go to the
+// GDAL_ErrorFrame of the caller.
+struct GeographicSpatialRef
+{
+	OGRErr    readResult   = OGRERR_NONE; // of SetFromUserInput; the other members are only filled in when it succeeded
+	bool      isGeographic = false;
+	SharedStr proj4;                      // the PROJ.4 form, only of a geographic one; empty when GDAL cannot express it that way
+};
+STGDLL_CALL GeographicSpatialRef ReadGeographicSpatialRef(CharPtr userInput);
 
 struct GDALDatasetHandle
 {

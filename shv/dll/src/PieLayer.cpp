@@ -600,7 +600,7 @@ void PieLayer::WriteSelection(const std::vector<char>& picked, EventID eventID)
 		CompoundWriteType(eventID)
 	);
 
-	bool isAdd = !(eventID & EventID::CTRLKEY);
+	bool isAdd = !flags(eventID & EventID::CTRLKEY);
 	auto selData = mutable_array_cast<SelectionID>(writeLock.get())->GetDataWrite(no_tile, dms_rw_mode::read_write);
 
 	SizeT n = Min<SizeT>(selData.size(), picked.size());

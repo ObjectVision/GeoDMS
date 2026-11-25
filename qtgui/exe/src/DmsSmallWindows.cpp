@@ -1,4 +1,6 @@
-
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 // The small single-widget windows of the Qt GUI, merged (2026-08):
 // DmsAddressBar, DmsErrorWindow, DmsGuiParameters, DmsSplashScreen,
@@ -342,9 +344,6 @@ void DmsFileChangedWindow::onAnchorClicked(const QUrl& link) {
 }
 
 // ==== SearchTreeItemWindow ====
-// Copyright (C) 1998-2025 Object Vision b.v. 
-// License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
 
 #include "SearchTreeItemWindow.h"
 

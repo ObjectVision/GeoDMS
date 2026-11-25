@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #pragma once
 
 #if !defined(__TIC_TREEITEMDUALREF_H)
@@ -129,7 +133,7 @@ struct DcRef
 // Section:     TreeItemDualRef Interface
 // *****************************************************************************
 
-struct TreeItemDualRef : SharedActor
+struct DMS_TYPE_VISIBLE TreeItemDualRef : SharedActor
 {
 	TIC_CALL TreeItemDualRef();
 	TIC_CALL ~TreeItemDualRef();

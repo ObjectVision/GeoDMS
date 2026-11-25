@@ -82,7 +82,8 @@ void ThrowingMemoOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 	{
 		throwEndsException("MemoOutStreamBuff");
 	}
-	memcpy(m_Curr, data, size);
+	if (size) // an empty write may come with a null data pointer, and memcpy requires a valid one
+		memcpy(m_Curr, data, size);
 	m_Curr += size;
 }
 
@@ -125,7 +126,7 @@ void CheckEqualityOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 	{
 		assert(CurrPos() <= m_SourceData.size());
 		SizeT cmpSize = Min<streamsize_t>(size, m_SourceData.size() - CurrPos());
-		if (strncmp(m_SourceData.begin() + CurrPos(), data, cmpSize))
+		if (cmpSize && strncmp(m_SourceData.begin() + CurrPos(), data, cmpSize)) // an empty source may be a null pointer
 			m_Status = match_status::different;
 		m_CurrPos += size;
 		if (m_CurrPos > m_SourceData.size())

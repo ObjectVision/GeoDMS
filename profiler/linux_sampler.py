@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 """Linux-side performance sampler for GeoDMS regression tests.
 
 Companion to profiler.py: when the regression runs under WSL (or on a

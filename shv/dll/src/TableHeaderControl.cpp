@@ -208,12 +208,12 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	auto tc = m_Dic->GetTableControl().lock(); if (!tc) return false;
 	bool isColOriented = tc->IsColOriented();
 
-	if (!isColOriented && (med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN)))
+	if (!isColOriented && flags(med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN)))
 	{
 		// row-oriented: the header strip's right edge adjusts the name-column width (issue #1150)
 		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x, true) == RG_RIGHT)
 		{
-			if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+			if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN))
 			{
 				auto headerStrip = std::dynamic_pointer_cast<TableHeaderControl>(GetOwner().lock());
 				if (headerStrip)
@@ -232,7 +232,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 
 	// hit-test along the stacking axis: the border between column headers
 	// (col-oriented, x) resp. band headers (row-oriented, y - issue #1150)
-	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
+	if (flags(med.GetEventInfo().m_EventID & EventID::SETCURSOR))
 	{
 		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(isColOriented), isColOriented) != RG_MIDDLE )
 		{
@@ -246,7 +246,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 		return true;
 	}
 
-	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && m_Dic)
+	if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && m_Dic)
 	{
 		GPoint mousePoint = med.GetEventInfo().m_Point;
 
@@ -370,7 +370,7 @@ void TableHeaderControl::DoUpdateView()
 
 bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN | EventID::SETCURSOR)) && med.m_FoundObject.get() ==  this)
+	if (flags(med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN | EventID::SETCURSOR)) && med.m_FoundObject.get() ==  this)
 	{
 		auto sf = med.GetSubPixelFactors();
 		// find the child whose far edge (along the stacking axis) borders the position
@@ -399,7 +399,7 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 				}
 			}
 		}
-		if (med.GetEventInfo().m_EventID & EventID::SETCURSOR)
+		if (flags(med.GetEventInfo().m_EventID & EventID::SETCURSOR))
 		{
 			// a click in the gap resizes gapDic; show the matching cursor there and
 			// reset to the arrow elsewhere so no resize cursor sticks (issue #1150)

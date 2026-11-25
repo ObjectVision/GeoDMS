@@ -36,7 +36,7 @@ typename std::enable_if_t<!is_integral_v<field_of_t<T>> >
 {}
 
 template <class T>
-struct Range : Couple<T>
+struct DMS_TYPE_VISIBLE Range : Couple<T>
 {
 	using typename Couple<T>::value_cref;
 	using Couple<T>::first;
@@ -324,9 +324,15 @@ inline Float64 AsFloat64(Range<T> x )
 template <class T> inline
 T Center(Range<T> r) { return (r.first+r.second) / scalar_of_t<T>(2); }
 
+// In the unsigned type, so that the size of a range that spans more than half of a signed type, such as
+// -2147483647 to 2147483647 of int32, is no signed overflow.
 template <class T> inline
 typename unsigned_type<T>::type
-Size(Range<T> r) { return r.second - r.first; }
+Size(Range<T> r)
+{
+	using U = typename unsigned_type<T>::type;
+	return U(r.second) - U(r.first);
+}
 
 template <class T> inline
 Range<T> Inflate(Range<T> r, T p) { return Range<T>(r.first-p, r.second+p); }

@@ -25,8 +25,10 @@
 #include "dbg/Diagnostics.h"
 #include "ser/FileCreationMode.h"
 #include "ItemLocks.h"
+#include "set/BitmaskEnum.h"
 
 enum class DrlType : UInt8 { UpdateNever = 0, Suspendible = 1, Certain = 2, ThrowOnFail = 4, UpdateMask = 0x0003, CertainOrThrow = Certain + ThrowOnFail };
+template <> inline constexpr bool is_bitmask_enum<DrlType> = true;
 
 //----------------------------------------------------------------------
 // FileData primitives

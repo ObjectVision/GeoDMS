@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -302,7 +306,8 @@ void RegularAdapter<Base>::CalcTilingExtent()
 	if (this->m_Range.empty())
 		m_TilingExtent = value_type();
 	else
-		m_TilingExtent = CeilDivide(unsigned_type_t<value_type>(this->m_Range.second - this->m_Range.first), this->tile_extent());
+		// subtracted in the unsigned type, so that a range over more than half of a signed type is no signed overflow
+		m_TilingExtent = CeilDivide(unsigned_type_t<value_type>(this->m_Range.second) - unsigned_type_t<value_type>(this->m_Range.first), this->tile_extent());
 	// NB: this runs under sc_RangeDataPtrAccess (RangeData ctor) -> do NOT reportF here (lock-order deadlock with the log mutex)
 }
 

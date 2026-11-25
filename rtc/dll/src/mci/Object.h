@@ -109,7 +109,7 @@ using ErrMsgPtr = std::shared_ptr<ErrMsg>;
 
 /********** Object Interface: runtime polymorphism, adds a bit to the vtables **********/
 
-class Object
+class DMS_TYPE_VISIBLE Object
 {
 protected:
 #if defined(MG_DEBUG)

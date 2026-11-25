@@ -16,7 +16,7 @@
 #include "TicBase.h"
 
 #if !defined(_MSC_VER)
-#	define CLC_CALL
+#	define CLC_CALL DMS_GCC_EXPORT // see RtcBase.h
 #elif defined(DMCLC_EXPORTS)
 #	define CLC_CALL __declspec(dllexport)
 #else

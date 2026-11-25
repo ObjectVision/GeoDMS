@@ -260,9 +260,6 @@ struct supplier_level_entry
 };
 static std::map<const Actor*, supplier_level_entry> s_SupplierLevels;
 
-supplier_level operator & (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) & UInt32(rhs)); }
-supplier_level operator | (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) | UInt32(rhs)); }
-
 bool MarkSources(const Actor* a, supplier_level level)
 {
 	assert(a);
@@ -296,9 +293,9 @@ bool MarkSources(const Actor* a, supplier_level level)
 			a->VisitSuppliers(SupplierVisitFlag::All, MakeDerivedProcVisitor([&hasSource](const Actor* s) { hasSource |= MarkSources(s, supplier_level::meta); }));
 		}
 		if (hasSource)
-			currLevel = currLevel | supplier_level::uses_source_flag;
+			currLevel |= supplier_level::uses_source_flag;
 	}
-	else if ((currLevel & supplier_level::uses_source_flag) == supplier_level::uses_source_flag)
+	else if (flags(currLevel & supplier_level::uses_source_flag))
 		hasSource = true;
 	return hasSource;
 }

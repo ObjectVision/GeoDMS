@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Object Vision B.V.
+# License: GNU GPL 3
+
 # Runs experiments of an earlier full.py round on any engine folder, one after another, each with that
 # experiment's own environment but its log, local data and results in a folder of its own.
 #

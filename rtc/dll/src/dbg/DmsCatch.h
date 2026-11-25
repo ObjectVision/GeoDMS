@@ -26,14 +26,32 @@ RTC_CALL ErrMsgPtr catchException(bool rethrowCancelation);
 RTC_CALL ErrMsgPtr catchAndReportException();
 RTC_CALL void catchAndProcessException();
 
+// functions defined in DmsException.cpp
+
+TCppExceptionTranslator SetCppTranslator(TCppExceptionTranslator trFunc);
+
+// Sets the exception translator of this thread to trFunc for its lifetime, and restores the previous
+// one after. DMS_CALL_BEGIN declares one with nullptr, so that an exception that a DMS call nested in
+// another one catches finds no translator and is reported in the log by catchAndReportException; only
+// the outermost call passes its exception to the translator that its client set, such as GeoDmsRun's
+// reportMsg, which writes it to stderr. Every compiler needs it: without it, every error that any DMS
+// call caught went to that translator only, and on Linux it was missing from the log (#1384).
+struct CppTranslatorContext
+{
+	RTC_CALL CppTranslatorContext(TCppExceptionTranslator trFunc = nullptr);
+	RTC_CALL ~CppTranslatorContext();
+
+private:
+	TCppExceptionTranslator m_PrevCppTranslator;
+};
+
+#define DMS_EH_CONTEXT CppTranslatorContext tc;
 
 #	if defined(_MSC_VER)
 
 #include "excpt.h"
 
 		// functions defined in DmsException.cpp
-
-		TCppExceptionTranslator SetCppTranslator(TCppExceptionTranslator trFunc); 
 
 		[[noreturn]] RTC_CALL void call_trans_SE2DMSfunc();
 		[[noreturn]] RTC_CALL void  call_HaltOnSE();
@@ -43,16 +61,6 @@ RTC_CALL void catchAndProcessException();
 		// backstop, once, at startup: the crash path itself must look up, allocate and create nothing (#1241).
 		RTC_CALL void InitCrashDumpSupport();
 
-		struct CppTranslatorContext
-		{
-			RTC_CALL CppTranslatorContext(TCppExceptionTranslator trFunc = nullptr);
-			RTC_CALL ~CppTranslatorContext();
-
-		private:
-			TCppExceptionTranslator m_PrevCppTranslator;
-		};
-
-#		define DMS_EH_CONTEXT CppTranslatorContext tc;
 #		define DMS_SE_CALL_BEGIN     __try {
 #		define DMS_SE_CALL_END     } __except(signalHandling(GetExceptionCode(), GetExceptionInformation(), true)) { call_HaltOnSE(); }
 
@@ -61,7 +69,6 @@ RTC_CALL void catchAndProcessException();
 
 #	else
 
-#		define DMS_EH_CONTEXT
 #		define DMS_SE_CALL_BEGIN
 #		define DMS_SE_CALL_END
 

@@ -126,8 +126,6 @@ enum class FailType: UInt32 {
 
 enum class SupplierVisitFlag;
 
-inline bool Test(SupplierVisitFlag svf, SupplierVisitFlag tv) { return unsigned(svf) & unsigned(tv); }
-
 struct actor_flag_set : flag_set
 {
 public:

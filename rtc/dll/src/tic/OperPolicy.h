@@ -9,6 +9,8 @@
 #if !defined(__TIC_OPERPOLICY_H)
 #define __TIC_OPERPOLICY_H
 
+#include "set/BitmaskEnum.h"
+
 //----------------------------------------------------------------------
 // oper_policy
 //----------------------------------------------------------------------
@@ -45,9 +47,6 @@ enum class oper_policy
 	                                  // (PhaseContainer, storage_read_table): a reference to one member supplies the
 	                                  // result's shape, not every member's value; see DataController_SuppliesWholeResultTree (#1167, #587)
 };
-
-inline bool  operator & (oper_policy a, oper_policy b) { return int(a) & int(b); }
-inline oper_policy operator | (oper_policy a, oper_policy b) { return oper_policy(int(a) | int(b)); }
-inline void operator |= (oper_policy& a, oper_policy b) { *(int*)(&a) |= int(b); }
+template <> inline constexpr bool is_bitmask_enum<oper_policy> = true;
 
 #endif // __TIC_OPERPOLICY_H

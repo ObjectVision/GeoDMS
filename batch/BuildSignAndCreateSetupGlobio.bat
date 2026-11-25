@@ -105,6 +105,15 @@ REM real buurt map on the GLOBIO GDAL stack.
 call "%~dp0TestShippedDms.bat" "%OUTPUT_DIR%"
 if errorlevel 1 goto :shipped_failed
 
+REM The PyPI wheel of the GLOBIO flavour (#1355): the distribution geodms-globio, for the CPython
+REM of python\PythonVersionsGlobio.txt, made from %OUTPUT_DIR% into distr\ with copies of the conda
+REM DLLs under names of their own, checked with twine, and installed in a fresh venv on the Python
+REM of GLOBIO_ENV_ROOT, where python\tst\UnitTests.py --installed and GlobioCompatibility.py
+REM --installed must pass in both import orders. It goes into the GitHub release with the setups,
+REM and .github\workflows\pypi-upload.yml uploads it to PyPI when a full release is published.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\make-and-test-wheels.ps1" -Flavour g -OutputDir "%OUTPUT_DIR%" -Dist "%geodms_rootdir%\distr" -Version %GeoDmsVersion% -GlobioRoot "%GLOBIO_ENV_ROOT%"
+if errorlevel 1 goto :wheels_failed
+
 REM The GPL of GeoDMS and the licence texts of the libraries this setup bundles (#1371), as in
 REM BuildSignAndCreateSetup.bat. Here tools\setup_licences.py also maps the DLLs of the conda
 REM environment of GLOBIO_ENV_ROOT, by content, to their package; the texts of the packages without
@@ -160,6 +169,13 @@ echo *** G post-install tests failed - unit suite, testcases battery or shipped 
 :remove_install
 call "%~dp0UninstallGeoDms.bat" "%INSTALL_DIR%"
 if exist "%INSTALLER%" del /q "%INSTALLER%"
+del /q "%geodms_rootdir%\distr\geodms_globio-%GeoDmsVersion%-*.whl" 2>nul
+echo Removed the wheel distr\geodms_globio-%GeoDmsVersion%-*.whl
+endlocal
+exit /b 1
+
+:wheels_failed
+echo *** Wheel FAILED before packaging - NSIS, signing, install and unit tests skipped; see the output of tools\make-and-test-wheels.ps1 above ***
 endlocal
 exit /b 1
 

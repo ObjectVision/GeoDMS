@@ -79,6 +79,16 @@
                 "lhs": "${hostSystemName}",
                 "rhs": "Linux"
             }
+        },
+        {
+            "name": "linux-x64-ubsan",
+            "displayName": "Linux x64 Release (GCC) with undefined-behaviour checks",
+            "description": "linux-x64-release with gcc's -fsanitize=undefined (without vptr) and -g for the engine's own code (#1385), in a build folder of its own; the top CMakeLists.txt explains GEODMS_SANITIZE. The same build type, so that gcc inlines as in the release build. batch/TestLinuxUbsan.sh runs the Linux tests on it and lists the reports. Not shipped.",
+            "inherits": "linux-x64-release",
+            "binaryDir": "${sourceDir}/build/linux-x64-ubsan",
+            "cacheVariables": {
+                "GEODMS_SANITIZE": "undefined"
+            }
         }
     ],
     "buildPresets": [
@@ -99,6 +109,10 @@
         {
             "name": "linux-x64-release",
             "configurePreset": "linux-x64-release"
+        },
+        {
+            "name": "linux-x64-ubsan",
+            "configurePreset": "linux-x64-ubsan"
         }
     ]
 }

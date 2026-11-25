@@ -692,15 +692,12 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 			MG_CHECK(byteDataBegin >= pixelDataBegin);
 			MG_CHECK((byteDataEnd - byteDataBegin) % 2 == 0);
 
-			UInt16* bytePairBegin = reinterpret_cast<UInt16*>(byteDataBegin);
-			UInt16* bytePairEnd = reinterpret_cast<UInt16*>(byteDataEnd);
-
-			while (bytePairEnd != bytePairBegin)
+			// byte by byte: a row starts at an odd address when the tile width is odd, where a UInt16 cannot be stored
+			while (byteDataEnd != byteDataBegin)
 			{
-				--bytePairEnd, --pixelDataEnd;
-				*bytePairEnd
-					= ((*pixelDataEnd) & 0x0F)
-					| (((*pixelDataEnd) & 0xF0) << 4);
+				UInt8 pixelPair = *--pixelDataEnd;
+				*--byteDataEnd = pixelPair >> 4;
+				*--byteDataEnd = pixelPair & 0x0F;
 			}
 			dms_assert(pixelDataEnd == pixelDataBegin);
 		}

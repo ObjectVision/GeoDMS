@@ -34,6 +34,13 @@
 # a listed name that is no negative case as LISTED-UNKNOWN, so that the list only shrinks. An empty
 # fragment, or an EXPECT-FAILURE line in a positive case, fails as BAD-EXPECT.
 #
+# GeoDmsRun reports an error that left one of its own calls of the DMS API through its exception
+# translator, reportMsg in run/exe/src/MainRun.cpp, which writes it to stderr behind 'Caught at Main:'
+# and not to the /L log of the case. A case whose output has such a line fails as CAUGHT-AT-MAIN,
+# a positive as well as a negative, when it would otherwise pass. Until #1384 that was how the Linux
+# engine reported an error caught inside a nested call, so this keeps that fixed; no case of the
+# battery writes such a line on either platform.
+#
 # Per-config item overrides live in fnrun_itemmap.txt (one 'file.dms /item/path' per
 # line); the default item is /checks (each positive config carries a /checks container
 # whose IntegrityChecks fail the run if a computed value is wrong). Everything after the
@@ -111,6 +118,7 @@ if (Test-Path $uncheckedFile) {
 $expectPattern = '^\s*//\s*EXPECT-FAILURE:(.*)$'        # a line of a case's .dms, in this case
 $errorPattern  = '^(Failure:|Last ErrMsg:|\[E\])'       # a line of its output that starts a message
 $msgEndPattern = '^(\[|\s*Context:|Update \[\[)'         # a line that ends the lines continuing a message
+$caughtMarker  = 'Caught at Main:'                       # what GeoDmsRun's exception translator writes before an error
 $utf8 = New-Object System.Text.UTF8Encoding $false
 
 # A Debug build also writes each line of a message to the CRT output, and in the .out that copy comes
@@ -191,7 +199,18 @@ try {
             }
             else { $verdict = 'ok(neg)' }
         }
-        $results += [pscustomobject]@{ config = $stem; verdict = $verdict; exit = $code; item = $item; detail = $detail }
+        if ($verdict -in 'ok', 'ok(neg)', 'ok(neg,unchecked)') {
+            foreach ($l in [IO.File]::ReadAllLines($out, $utf8)) {
+                $at = $l.IndexOf($caughtMarker, [StringComparison]::Ordinal)
+                if ($at -lt 0) { continue }
+                $msg = $l.Substring($at + $caughtMarker.Length).Trim()
+                if ($msg.Length -gt 200) { $msg = $msg.Substring(0, 200) + '...' }
+                $verdict = 'CAUGHT-AT-MAIN'
+                $detail = "stderr has '$caughtMarker $msg'"
+                break
+            }
+        }
+        $results +=[pscustomobject]@{ config = $stem; verdict = $verdict; exit = $code; item = $item; detail = $detail }
     }
 }
 finally {
@@ -219,6 +238,7 @@ if ($bad.Count) {
     if ($seen -contains 'NO-EXPECT')         { "A NO-EXPECT is a negative case without an EXPECT-FAILURE line: add one with a fragment of the message it is written to fail with." }
     if ($seen -contains 'LISTED-HAS-EXPECT') { "A LISTED-HAS-EXPECT has an EXPECT-FAILURE line and is still listed in ${uncheckedName}: remove its line there." }
     if ($seen -contains 'LISTED-UNKNOWN')    { "A LISTED-UNKNOWN is a name in $uncheckedName that is no negative case (any more): remove its line there." }
+    if ($seen -contains 'CAUGHT-AT-MAIN')    { "A CAUGHT-AT-MAIN reported an error through GeoDmsRun's exception translator, which writes it to stderr behind '$caughtMarker' and not to the /L log: find the API call that let it through (#1384)." }
     exit 1
 }
 "ALL TESTCASES PASSED"

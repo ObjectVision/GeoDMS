@@ -1151,6 +1151,10 @@
     <ClInclude Include="src\utl\NonCopyable.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\tic\TreeItemFunctionSpec.h" />
+    <ClInclude Include="src\set\BitmaskEnum.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">

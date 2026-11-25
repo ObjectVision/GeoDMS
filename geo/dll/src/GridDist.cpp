@@ -13,20 +13,19 @@
 
 #include <numbers> // std::numbers
 
-#include "gdal/gdal_base.h" 
+#include "gdal/gdal_base.h" // ReadGeographicSpatialRef: DmGeo calls no GDAL function itself (#1381)
 
 #include <proj.h>
-#include <ogr_spatialref.h>
 
 #include "Dijkstra.h"
 
 #include "dbg/SeverityType.h"
 #include "CheckedDomain.h"
 #include "mem/MyContainers.h"
+#include "set/BitmaskEnum.h"
 #include "vt/RangeIndex.h"
 #include "ParallelTiles.h"
 #include "geom/PointOrder.h"
-#include "utl/scoped_exit.h"
 
 #include "Projection.h"
 
@@ -92,19 +91,17 @@ enum class GridDistFlags
 
 	HasAllParameters = HasLimitParameter | HasLatitudeFactor | HasInitialImpedance | UseShadowTile | HasZonalBoundaryImpedance
 };
-
-constexpr auto operator |(GridDistFlags a, GridDistFlags b) { return GridDistFlags(int(a) | int(b)); }
-constexpr bool operator &(GridDistFlags a, GridDistFlags b) { return int(a) & int(b); }
+template <> inline constexpr bool is_bitmask_enum<GridDistFlags> = true;
 
 
-constexpr arg_index NrArguments(GridDistFlags flags)
+constexpr arg_index NrArguments(GridDistFlags gdf)
 {
 	arg_index result = 2;
-	if (flags & GridDistFlags::HasZonalBoundaryImpedance)
+	if (flags(gdf & GridDistFlags::HasZonalBoundaryImpedance))
 		result += 2;
-	if (flags & GridDistFlags::HasLimitParameter)
+	if (flags(gdf & GridDistFlags::HasLimitParameter))
 		++result;
-	if (flags & GridDistFlags::HasInitialImpedance)
+	if (flags(gdf & GridDistFlags::HasInitialImpedance))
 		++result;
 	return result;
 }
@@ -177,9 +174,9 @@ public:
 
 	ClassCPtr m_ArgClasses[NrArguments(GridDistFlags::HasAllParameters)] = {};
 
-	GridDistOperator(AbstrOperGroup& og, GridDistFlags flags)
-		: Operator(&og, ResultType::GetStaticClass()) 
-		, m_Flags(flags)
+	GridDistOperator(AbstrOperGroup& og, GridDistFlags gdf)
+		: Operator(&og, ResultType::GetStaticClass())
+		, m_Flags(gdf)
 	{
 		arg_index currArg = 0;
 
@@ -189,16 +186,16 @@ public:
 		*argClasses++ = DataArray<ImpType>::GetStaticClass(); // Arg1Type
 		*argClasses++ = DataArray<GridType>::GetStaticClass(); // Arg2Type
 
-		if (m_Flags & GridDistFlags::HasZonalBoundaryImpedance)
+		if (flags(m_Flags & GridDistFlags::HasZonalBoundaryImpedance))
 		{
 			*argClasses++ = DataArray<ZoneID>::GetStaticClass();
 			*argClasses++ = DataArray<ImpType>::GetStaticClass();
 		}
 
-		if (m_Flags & GridDistFlags::HasLimitParameter)
+		if (flags(m_Flags & GridDistFlags::HasLimitParameter))
 			*argClasses++ = DataArray<ImpType>::GetStaticClass();
 
-		if (m_Flags & GridDistFlags::HasInitialImpedance)
+		if (flags(m_Flags & GridDistFlags::HasInitialImpedance))
 			*argClasses++ = DataArray<ImpType>::GetStaticClass();
 
 		assert(argClasses == m_ArgClassesBegin + NrArguments(m_Flags));
@@ -221,14 +218,14 @@ public:
 		assert(adiGridImp);
 		assert(adiStartPointGrid);
 
-		if (m_Flags & GridDistFlags::HasZonalBoundaryImpedance)
+		if (flags(m_Flags & GridDistFlags::HasZonalBoundaryImpedance))
 		{
 			adiZonalID	   = AsDataItem(args[argIndex++]);
 			adiBoundaryImp = AsDataItem(args[argIndex++]);
 		}
-		if (m_Flags & GridDistFlags::HasLimitParameter)
+		if (flags(m_Flags & GridDistFlags::HasLimitParameter))
 			adiLimitImp = AsDataItem(args[argIndex++]);
-		if (m_Flags & GridDistFlags::HasInitialImpedance)
+		if (flags(m_Flags & GridDistFlags::HasInitialImpedance))
 			adiStartPointImp = AsDataItem(args[argIndex++]);
 
 		assert(argIndex == NrArguments(m_Flags));
@@ -305,7 +302,7 @@ public:
 		}
 
 
-		if (m_Flags & GridDistFlags::HasLatitudeFactor)
+		if (flags(m_Flags & GridDistFlags::HasLatitudeFactor))
 		{
 			const AbstrUnit* baseUnit = gridSet;
 			auto gridSetProjection = gridSet->GetCurrProjection();
@@ -324,25 +321,19 @@ public:
 
 			GDAL_ErrorFrame errorFrame;
 
-			OGRSpatialReference sr;
-			auto errCode = sr.SetFromUserInput(SharedStr(srToken).c_str());
+			auto sr = ReadGeographicSpatialRef(SharedStr(srToken).c_str()); // also gives its PROJ.4 form
 			errorFrame.ThrowUpWhateverCameUp();
-			if (errCode != OGRERR_NONE)
-				throwErrorF(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted; ErrorCode={}", errCode);
+			if (sr.readResult != OGRERR_NONE)
+				throwErrorF(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted; ErrorCode={}", sr.readResult);
 
-			if (not(sr.IsGeographic()))
+			if (not(sr.isGeographic))
 				throwErrorD(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument must be geographic");
-
-			// Export to PROJ String
-			char* projString = nullptr;
-			sr.exportToProj4(&projString);
-			scoped_exit se([&projString] { CPLFree(projString); }); // Free the PROJ string memory when leaving the scope
 
 			// Step 3: Create a PJ object
 			auto ctx  = std::unique_ptr<PJ_CONTEXT, ProjContextDeleter>(proj_context_create()); // Create a PJ_CONTEXT object
 			errorFrame.m_ctx = ctx.get();
 
-			auto proj = std::unique_ptr<PJ, ProjDeleter>               (proj_create(ctx.get(), projString)); // Create a PJ object from the PROJ string
+			auto proj = std::unique_ptr<PJ, ProjDeleter>               (proj_create(ctx.get(), sr.proj4.c_str())); // Create a PJ object from the PROJ string
 			errorFrame.ThrowUpWhateverCameUp();
 
 			if (!proj)
@@ -383,8 +374,8 @@ public:
 			startCosts = diStartPointImp->GetLockedDataRead();
 			assert(srcNodes.size() == startCosts.size());
 		}
-		bool useShadowTile = m_Flags & GridDistFlags::UseShadowTile;
-		bool useLatFactor  = m_Flags & GridDistFlags::HasLatitudeFactor;
+		bool useShadowTile = flags(m_Flags & GridDistFlags::UseShadowTile);
+		bool useLatFactor  = flags(m_Flags & GridDistFlags::HasLatitudeFactor);
 
 		tile_id tn = useShadowTile ? 1 : adiGridImp->GetAbstrDomainUnit()->GetNrTiles();
 		intertile_map itMap(useShadowTile ? 0 : tn);

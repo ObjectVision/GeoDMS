@@ -120,6 +120,48 @@ else()
                                      # switch (often assert-guarded); not forgotten cases
     )
     add_link_options(-pthread)
+    # No library, module or program of GeoDMS exports anything of the static libraries linked
+    # into it: GDAL, PROJ, GEOS, OpenSSL, HDF5, libtiff, libjpeg and the others that the vcpkg
+    # triplet x64-linux compiles in. Each binds its calls to them to its own copy, so a library of
+    # the same name that the process already has in its global scope, such as the GDAL of osgeo
+    # or QGIS, or the system libjpeg of Qt's image plugins, neither receives the engine's calls nor
+    # has its own calls diverted into the engine (#1381). The engine has one GDAL, in DmStg; DmClc
+    # and DmGeo reach it through the functions of DmStg in stg/dll/src/gdal/gdal_base.h.
+    # The inline functions from the headers of those libraries that the engine's own code
+    # compiles, such as a few of GEOS in DmGeo, are hidden by the visibility settings below.
+    add_link_options(-Wl,--exclude-libs,ALL)
+    # The engine's own code is compiled with hidden visibility, so that a Linux library, like a
+    # Windows DLL, exports only what carries the export macro of its library (RTC_CALL, TIC_CALL,
+    # STGDLL_CALL and the others, which mean default visibility with gcc) or DMS_TYPE_VISIBLE;
+    # rtc/dll/src/RtcBase.h explains both (#1383). The Python module sets the same properties itself.
+    set(CMAKE_C_VISIBILITY_PRESET hidden)
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+    # A shared library resolves every symbol at its own link, so that a symbol that one engine
+    # library uses and another does not export fails the link of the first, instead of the load
+    # of the program or module that uses it. Not for the Python module, which is a MODULE library
+    # and takes the symbols of CPython from the interpreter that loads it.
+    string(APPEND CMAKE_SHARED_LINKER_FLAGS " -Wl,-z,defs")
+    # gcc's run-time checks for undefined behaviour (#1385), which the preset linux-x64-ubsan turns on
+    # with GEODMS_SANITIZE=undefined: a member function called on a null pointer, a reference bound
+    # to null, signed integer overflow, a shift out of range, a misaligned pointer and the other checks
+    # of -fsanitize=undefined, each reported with its source line while the program runs. The check is
+    # compiled in where the code is, so it does not depend on what gcc inlines. Only the engine's own
+    # code is instrumented: the vcpkg ports are compiled by their triplet and stay as they are. The
+    # flag is needed at link time too, for the runtime library libubsan, without which -z defs above
+    # fails on the __ubsan_handle_* functions. -g gives the stack of each report its source lines and
+    # does not change the code that gcc generates. batch/TestLinuxUbsan.sh runs the tests on this build.
+    # One check of -fsanitize=undefined stays off: vptr, which checks the dynamic type of an object
+    # at a member call or a downcast. It needs the typeinfo of each polymorphic class in every library
+    # that calls a member of it, and with hidden visibility a library exports only the typeinfo of the
+    # types marked DMS_TYPE_VISIBLE, so DmStx did not link (34 undefined typeinfo references to nine
+    # classes of DmRtc). The check of a member call on a null pointer is null, not vptr.
+    set(GEODMS_SANITIZE "" CACHE STRING
+        "gcc sanitizers for the engine's own code, the value of -fsanitize=; linux-x64-ubsan sets undefined, empty is none")
+    if(GEODMS_SANITIZE)
+        add_compile_options(-fsanitize=${GEODMS_SANITIZE} -fno-sanitize=vptr -g)
+        add_link_options(-fsanitize=${GEODMS_SANITIZE} -fno-sanitize=vptr)
+    endif()
     # GCC/Clang Debug builds: define _DEBUG to match MSVC convention,
     # which triggers MG_DEBUG in RtcBase.h for debug-only diagnostics.
     add_compile_definitions($<$<CONFIG:Debug>:_DEBUG>)

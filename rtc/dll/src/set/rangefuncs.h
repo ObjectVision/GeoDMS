@@ -215,7 +215,9 @@ auto fast_copy(const T* first, const T* last, T* target) -> T*
 	assert(!(first < target) || (last <= target)); // BEWARE OF OVERLAPPING RANGES
 
 	std::size_t n = last - first;
-	memcpy(target, first, n * sizeof(T));
+	// An empty range may be two null pointers, and memcpy requires valid pointers even for zero bytes.
+	if (n)
+		memcpy(target, first, n * sizeof(T));
 	return target + n;
 }
 

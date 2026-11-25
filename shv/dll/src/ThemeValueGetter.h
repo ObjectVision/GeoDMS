@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #ifndef __SHV_THEMEVALUEGETTER_H
 #define __SHV_THEMEVALUEGETTER_H
 

@@ -264,7 +264,7 @@ void EditableTextControl::SetActive(bool newState)
 
 bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ) && IsEditable(AN_LabelText))
+	if (flags(med.GetEventInfo().m_EventID & EventID::SETCURSOR) && IsEditable(AN_LabelText))
 	{
 		auto dv = GetDataView().lock();
 		if (dv && dv->GetViewHost())
@@ -275,7 +275,7 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 #endif
 		return true;
 	}
-	if(med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK) )
+	if (flags(med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK)))
 	{
 		CrdPoint relClientPos = Convert<CrdPoint>(med.GetLogicalSize(med.GetEventInfo().m_Point)) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
 		if (HasBorder())
@@ -287,7 +287,7 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 		dms_assert(relClientPos.Y() >= 0);
 		if (!IsStrictlyLower(relClientPos, Convert<CrdPoint>(GetCurrClientSize()))) goto skip;
 
-		if(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK )
+		if (flags(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK))
 			OnKeyDown(VK_F2);
 		return true;  // don't continue processing LBUTTONDBLCLK
 	}

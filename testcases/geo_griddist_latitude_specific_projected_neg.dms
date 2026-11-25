@@ -1,0 +1,19 @@
+// griddist_latitude_specific on a grid with a projected spatial reference must fail (#1381): the
+// latitude factor needs a geographic one. See geo_griddist_latitude_specific for the positive case.
+// EXPECT-FAILURE: The spatial reference of the domain of the first argument must be geographic
+container geo_griddist_latitude_specific_projected_neg
+{
+	unit<dpoint> rd_base : SpatialReference = "EPSG:28992";
+	unit<spoint> G := range(gridset(rd_base, point_yx(100.0, 100.0, rd_base), point_yx(450000.0, 150000.0, rd_base), spoint), point_yx(0s, 0s), point_yx(4s, 4s));
+	attribute<float64> imp (G) := const(1.0, G);
+	unit<uint32> Dest: nrofrows = 1
+	{
+		attribute<G> loc: ['{0, 0}'];
+	}
+	attribute<float64> att (G) := griddist_latitude_specific(imp, Dest/loc);
+
+	container checks
+	{
+		parameter<bool> c := sum(att) >= 0.0, IntegrityCheck = "c == true";
+	}
+}

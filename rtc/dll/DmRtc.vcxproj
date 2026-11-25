@@ -72,6 +72,7 @@
     <ClInclude Include="src\dbg\Timer.h" />
     <ClInclude Include="src\dbg\UnitTesting.h" />
     <ClInclude Include="src\FileResult.h" />
+    <ClInclude Include="src\set\BitmaskEnum.h" />
     <ClInclude Include="src\vt\AssocTower.h" />
     <ClInclude Include="src\vt\CharPtrRange.h" />
     <ClInclude Include="src\vt\CheckedCalc.h" />

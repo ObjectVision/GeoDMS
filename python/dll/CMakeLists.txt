@@ -1,14 +1,17 @@
-# geodms.cp3XY-win_amd64.pyd -- Python binding for GeoDMS (Windows-only, pybind11)
+# Python binding for GeoDMS (pybind11): geodms.cp3XY-win_amd64.pyd on Windows and
+# geodms.cpython-3XY-<arch>-linux-gnu.so on Linux (#1355), one per CPython minor.
 # CPython minors come from ../PythonVersions.txt, shared with DmsPython.vcxproj.
 
-if(NOT WIN32)
-    return()
-endif()
-
-# Build the same ABI matrix as DmsPython.vcxproj. Each interpreter is supplied
-# by PYTHON3XY_ROOT (for example PYTHON39_ROOT / PYTHON314_ROOT), or by matching
-# *_INCLUDE_DIR + *_LIBRARIES variables. Generic PYTHON3_* variables are not
+# Build the same ABI matrix as DmsPython.vcxproj. On Windows each interpreter is
+# supplied by PYTHON3XY_ROOT (for example PYTHON39_ROOT / PYTHON314_ROOT), or by
+# matching *_INCLUDE_DIR + *_LIBRARIES variables. Generic PYTHON3_* variables are not
 # accepted because they do not identify which matrix ABI they describe.
+#
+# On Linux an extension module does not link libpython: the interpreter that imports it
+# provides those symbols. Only the headers of each minor are needed, from
+# PYTHON3XY_INCLUDE_DIR, else <PYTHON3XY_ROOT>/include/python3.XY, else
+# /usr/include/python3.XY, where Ubuntu's python3.XY-dev packages put them (3.13 and 3.14
+# on Ubuntu 24.04 come from the deadsnakes PPA).
 #
 # We deliberately do NOT call find_package(Python3 ... COMPONENTS Development): under the
 # vcpkg toolchain the python3 cmake-wrapper (share/python3/vcpkg-cmake-wrapper.cmake) forces
@@ -30,7 +33,10 @@ foreach(_python_version IN LISTS GEODMS_PYTHON_VERSIONS)
 endforeach()
 find_package(pybind11 CONFIG REQUIRED)
 
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+if(NOT WIN32)
+    # the multiarch tuple of CPython's EXT_SUFFIX, such as x86_64-linux-gnu
+    set(_py3_platform_tag "${CMAKE_SYSTEM_PROCESSOR}-linux-gnu")
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(_py3_platform_tag "win_amd64")
 else()
     set(_py3_platform_tag "win32")
@@ -51,26 +57,44 @@ function(add_geodms_python_binding python_version)
         set(python_root "$ENV{${env_root_var}}")
     endif()
 
-    if(DEFINED ENV{${env_inc_var}})
-        set(python_include "$ENV{${env_inc_var}}")
-    elseif(python_root)
-        set(python_include "${python_root}/include")
-    endif()
+    if(NOT WIN32)
+        if(DEFINED ENV{${env_inc_var}})
+            set(python_include "$ENV{${env_inc_var}}")
+        elseif(python_root)
+            set(python_include "${python_root}/include/python${python_version}")
+        else()
+            set(python_include "/usr/include/python${python_version}")
+        endif()
+        if(NOT EXISTS "${python_include}/Python.h")
+            message(FATAL_ERROR
+                "CPython ${python_version} headers not found in ${python_include}. Install python${python_version}-dev "
+                "(on Ubuntu 24.04 from the deadsnakes PPA for 3.13 and later), or set ${env_inc_var} to the folder "
+                "with Python.h, or ${root_var} at configure time.")
+        endif()
+        set(python_import_lib "")
+        message(STATUS "GeoDMS Python binding cp${python_abi}: include ${python_include}")
+    else()
+        if(DEFINED ENV{${env_inc_var}})
+            set(python_include "$ENV{${env_inc_var}}")
+        elseif(python_root)
+            set(python_include "${python_root}/include")
+        endif()
 
-    if(DEFINED ENV{${env_lib_var}})
-        set(python_libraries "$ENV{${env_lib_var}}")
-    elseif(python_root)
-        set(python_libraries "${python_root}/libs")
-    endif()
+        if(DEFINED ENV{${env_lib_var}})
+            set(python_libraries "$ENV{${env_lib_var}}")
+        elseif(python_root)
+            set(python_libraries "${python_root}/libs")
+        endif()
 
-    set(python_import_lib "${python_libraries}/python${python_abi}.lib")
-    if(NOT EXISTS "${python_include}/Python.h" OR NOT EXISTS "${python_import_lib}")
-        message(FATAL_ERROR
-            "CPython ${python_version} development files not found. Set ${root_var} at configure time "
-            "or ${env_root_var} in the environment (expected include/Python.h and libs/python${python_abi}.lib); "
-            "alternatively set ${env_inc_var} and ${env_lib_var}.")
+        set(python_import_lib "${python_libraries}/python${python_abi}.lib")
+        if(NOT EXISTS "${python_include}/Python.h" OR NOT EXISTS "${python_import_lib}")
+            message(FATAL_ERROR
+                "CPython ${python_version} development files not found. Set ${root_var} at configure time "
+                "or ${env_root_var} in the environment (expected include/Python.h and libs/python${python_abi}.lib); "
+                "alternatively set ${env_inc_var} and ${env_lib_var}.")
+        endif()
+        message(STATUS "GeoDMS Python binding cp${python_abi}: include ${python_include}, lib ${python_import_lib}")
     endif()
-    message(STATUS "GeoDMS Python binding cp${python_abi}: include ${python_include}, lib ${python_import_lib}")
 
     # Create one independently compiled module per CPython ABI. All have the
     # same PyInit_geodms entry point; Python selects the matching tagged file.
@@ -84,12 +108,28 @@ function(add_geodms_python_binding python_version)
     set(VCPKG_APPLOCAL_DEPS OFF)
     add_library(${target_name} MODULE src/Bindings.cpp)
     set(VCPKG_APPLOCAL_DEPS "${_saved_vcpkg_applocal_deps}")
-    set_target_properties(${target_name} PROPERTIES
-        OUTPUT_NAME "geodms.cp${python_abi}-${_py3_platform_tag}"
-        SUFFIX ".pyd"
-        PREFIX ""
-        DEBUG_POSTFIX ""
-    )
+    if(NOT WIN32)
+        # CPython's EXT_SUFFIX: .cpython-313-x86_64-linux-gnu.so. Hidden visibility, as pybind11
+        # requires of a module, and an rpath of $ORIGIN, so that the module finds the libDm*.so
+        # beside it in the build output and in the installed setup.
+        set_target_properties(${target_name} PROPERTIES
+            OUTPUT_NAME "geodms.cpython-${python_abi}-${_py3_platform_tag}"
+            SUFFIX ".so"
+            PREFIX ""
+            DEBUG_POSTFIX ""
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+        )
+    else()
+        set_target_properties(${target_name} PROPERTIES
+            OUTPUT_NAME "geodms.cp${python_abi}-${_py3_platform_tag}"
+            SUFFIX ".pyd"
+            PREFIX ""
+            DEBUG_POSTFIX ""
+        )
+    endif()
     target_include_directories(${target_name} PRIVATE
         ${python_include}
         ${CMAKE_CURRENT_SOURCE_DIR}/src

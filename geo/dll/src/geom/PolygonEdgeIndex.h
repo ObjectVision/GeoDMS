@@ -218,7 +218,7 @@ struct PolygonEdgeIndex
 				for (; i != e; ++i)
 				{
 					UInt32 j = edges[i];
-					if (IsCrossingRightOfOrigin(v[j ? j - 1 : last] - point, v[j] - point))
+					if (IsCrossingRightOfOrigin(RelativeTo(PointType(v[j ? j - 1 : last]), point), RelativeTo(PointType(v[j]), point)))
 						c = !c;
 				}
 			};

@@ -12,7 +12,7 @@
 #include "TicBase.h"
 
 #if !defined(_MSC_VER)
-#	define SYNTAX_CALL
+#	define SYNTAX_CALL DMS_GCC_EXPORT // see RtcBase.h
 #elif defined(DMSTX_EXPORTS)
 #	define SYNTAX_CALL __declspec(dllexport)
 #else

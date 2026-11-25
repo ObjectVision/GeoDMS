@@ -1,6 +1,6 @@
 ---
 name: geodms-release
-description: Producing GeoDMS setups and publishing them as a GitHub release. The four flavours (.m msbuild, .c cmake, .g GLOBIO, .l linux) and their assets in distr\, the version bump, the release notes in doc\release-notes\, why the user runs the canonical batch\BuildSignAndCreateSetup*.bat scripts in their own console while the agent prepares, tails and verifies, the release tests, the release-notes convention, and the gh release procedure with the immutable-release trap that burns a tag forever. Use for any request about a setup, an installer, a release, release notes, or publishing on GitHub.
+description: Producing GeoDMS setups and publishing them as a GitHub release. The four flavours (.m msbuild, .c cmake, .g GLOBIO, .l linux) and their assets in distr\, the version bump, the release notes in doc\release-notes\, why the user runs the canonical batch\BuildSignAndCreateSetup*.bat scripts in their own console while the agent prepares, tails and verifies, the release tests, the licence texts every setup installs and what to do when their step stops, the release-notes convention, and the gh release procedure with the immutable-release trap that burns a tag forever. Use for any request about a setup, an installer, a release, release notes, or publishing on GitHub.
 ---
 
 # Building setups and publishing a release
@@ -15,8 +15,8 @@ anything is built.
 |---|---|---|
 | `.m` Windows, msbuild | `batch\BuildSignAndCreateSetup.bat` | `GeoDms<ver>.m-Setup-x64.exe`, and the PyPI wheels `geodms-<ver>-cp3XY-cp3XY-win_amd64.whl`, one per CPython minor of `python\PythonVersions.txt` |
 | `.c` Windows, CMake | `batch\BuildSignAndCreateSetupCmake.bat` | `GeoDms<ver>.c-Setup-x64.exe` |
-| `.g` Windows, GLOBIO stack | `batch\BuildSignAndCreateSetupGlobio.bat` | `GeoDms<ver>.g-Setup-x64.exe` |
-| `.l` Linux, WSL Ubuntu 24.04 | `batch\BuildSignAndCreateSetupLinux.bat` | `GeoDms<ver>.l-linux-x64.deb`, `.tar.gz`, `.tar.gz.sha256`, `.tar.gz.sha256.p7s` |
+| `.g` Windows, GLOBIO stack | `batch\BuildSignAndCreateSetupGlobio.bat` | `GeoDms<ver>.g-Setup-x64.exe`, and the PyPI wheel of the distribution geodms-globio, `geodms_globio-<ver>-cp39-cp39-win_amd64.whl` (the CPython minor of `python\PythonVersionsGlobio.txt`) |
+| `.l` Linux, WSL Ubuntu 24.04 | `batch\BuildSignAndCreateSetupLinux.bat` | `GeoDms<ver>.l-linux-x64.deb`, `.tar.gz`, `.tar.gz.sha256`, `.tar.gz.sha256.p7s`, and the PyPI wheels `geodms-<ver>-cp3XY-cp3XY-manylinux_2_39_x86_64.whl`, one per CPython minor of `python\PythonVersions.txt` |
 
 `Build.bat` at the root runs the four in sequence. Each script builds, packages (NSIS or
 `nsi\CreateLinuxSetup.sh`), signs with the SafeNet token, installs to
@@ -51,6 +51,28 @@ drift question of the `.m` or `.g` script leaves the previous build output in pl
 output folder is wiped after that question (BAT-A34). The Linux script removes an old
 `.p7s` before it signs and fails when signing writes none (BAT-A36), so a `.sha256.p7s` in
 `distr\` belongs to the `.sha256` of the same run.
+
+Every setup installs `license.txt`, the GPL of GeoDMS, and beside it a folder `licenses` with
+the licence texts of the libraries it bundles and `README.txt`, a table of every binary it
+installs: where that binary comes from, its version and which text is its licence (#1371).
+Its subfolder `geodms` holds the texts of the material from other projects inside GeoDMS's own
+files, listed in `INSIDE_GEODMS` of `tools\setup_licences.py`: the Noto fonts and Remix Icon in
+`GeoDmsGuiQt` and `misc\fonts\dmstext.ttf`, and the code from GDAL in `Geo.dll`; a second table
+in `README.txt` says which installed file contains which (#1389). Every other file that
+`qtgui\exe\GeoDmsGuiQt.qrc` compiles in must be in `GEODMS_GUI_FILES`, the files of the GUI that
+are GeoDMS's own.
+`tools\setup_licences.py stage` writes that folder into the output folder right before
+makensis. For `.l`, `nsi\CreateLinuxSetup.sh` runs it on the tree it has staged, before
+patchelf, and the `.deb` also gets `/usr/share/doc/geodms/copyright`. After the install,
+`setup_licences.py check` compares the installed binaries with the table in both directions
+and checks that `license.txt` and every text the table names are there, and that every installed
+file that contains an item of `INSIDE_GEODMS` has its row; a difference removes
+the install and the setup, as a failed suite does. The `.l` script skips the check together
+with the install when WSL has no passwordless sudo, and says so. The uninstall sections
+remove `license.txt` and `licenses` with the rest, so when `UninstallGeoDms.bat` reports a
+folder still there that holds them, those lines have gone from the uninstall section.
+`tools\make-wheels.py` maps the DLLs of a wheel to their source with the same code, and copies
+the text of each item of `INSIDE_GEODMS` that a GeoDMS DLL of the wheel contains.
 
 ## Who runs what
 
@@ -136,6 +158,50 @@ watcher per `cmd.exe` that, while that `cmd.exe` lives, raises every process bel
 BelowNormal to Normal once a second, so every vcpkg the setup reaches is covered. It prints a line
 for each. Do not change the priority of someone else's run unless the user asks.
 
+When the licence step stops, it prints each problem as `setup_licences: ERROR: ...`, and the
+Windows scripts stop before NSIS with `*** Licence texts FAILED before packaging`, the Linux
+one with `*** CreateLinuxSetup.sh failed`. What the messages mean, and what makes the next run
+pass:
+
+- `no licence known for <file>`: the setup installs a binary that is not GeoDMS, not the
+  Visual C++ runtime and not a copy of a file of the Qt installation, a vcpkg port, the conda
+  environment (`.g`) or a Debian package of the build machine (`.l`). That is a new
+  dependency; let it come from one of those sources, so that its licence text comes along.
+- `<file> differs from every file of that name in the sources of this flavour`: the output
+  folder holds a copy from another build of that library than the one its source holds now.
+  A stale output folder is one cause (on 2026-11-16 `build\windows-x64-release\bin` held five
+  DLLs of an older vcpkg build); the Windows setup scripts empty their output folder before
+  they build, so a run of the whole script deploys it again. A Qt upgrade is the other: then
+  every Qt file differs, or, when the old Qt installation is gone, the step reports `no Qt
+  SBOM in ...`. `QT_ROOT` in `tools\setup_licences.py` names the Qt installation and moves
+  with `QtInstall` in `qtgui\exe\GeoDmsGuiQt.vcxproj` and `shv\dll\ShvDLL.vcxproj` and with
+  `CMAKE_PREFIX_PATH` in `batch\BuildSignAndCreateSetupCmake.bat`. That installation needs
+  its `sbom` folder and the Sources component of the Qt installer (`C:\Qt\<ver>\Src`), which
+  holds the `LICENSES` folder of each module.
+- `the conda package <name> <version> has no licence text of its own, and the text kept ...
+  is for another version`: `vcpkg-globio\environment.yml` moved `libcurl`, `libpq` or
+  `libsqlite`, whose conda packages carry no text. Take the licence of that version from the
+  upstream source, keep it as `vcpkg-globio\licenses\<package>-<version>.txt`, commit it and
+  run the setup again.
+- `the font <file> is installed, but no licence text is known for it`: a new font. Put its
+  licence text, with the copyright lines of the font, beside it in the repository and add an
+  item for it to `INSIDE_GEODMS`; a font that Object Vision made itself goes into
+  `GEODMS_FONTS` instead.
+- `<file> is compiled into GeoDmsGuiQt through qtgui/exe/GeoDmsGuiQt.qrc, but no licence text
+  is known for it`: a new file in the resource file, an image or a font. If Object Vision made
+  it, add its path in the resource file to `GEODMS_GUI_FILES`; if it comes from another project,
+  put its licence text beside it and add an item to `INSIDE_GEODMS`. Ask who made it rather
+  than guess. `GEODMS_GUI_FILES ... names <file>, which ... does not compile in`: the file left
+  the resource file; remove it from the list.
+- `INSIDE_GEODMS in tools/setup_licences.py names <file>, but this setup installs none of the
+  files that contain it`: a binary was renamed, or GeoDMS no longer contains that file. Correct
+  the names of the item, or remove it.
+- `<nsi file>:<line number>: cannot read '<line>': <reason>`, such as `the command <name>,
+  which this script does not know`: the NSIS script has a line that the NSIS parser of
+  `tools\setup_licences.py` does not understand. It stops on purpose, so that a new `File`
+  line cannot install a binary the table misses. Teach the parser the line; a command that
+  installs no file goes into `NSIS_HARMLESS`.
+
 ## After a flavour
 
 - `Test-Path 'C:\Program Files\ObjectVision\GeoDms<ver>.<f>\GeoDmsGuiQt.exe'`
@@ -146,6 +212,9 @@ for each. Do not change the priority of someone else's run unless the user asks.
 - `.g`: the launcher's summary at the end of the log reads `UNIT SUITE PASSED`,
   `TESTCASES BATTERY PASSED` and `SHIPPED CONTENT RELEASE TEST PASSED`
 - `.l`: all four files in `distr\`, and the `.deb` installed in WSL
+- the log line `setup_licences: <install dir>: <n> installed binaries, all in the table and
+  the table holds no other`, and `license.txt` and `licenses\README.txt` in the installation
+  folder (`.l`: under `/opt/ObjectVision/GeoDms<ver>.l`, with `/usr/share/doc/geodms/copyright`)
 
 ## Release tests
 
@@ -162,21 +231,23 @@ regenerating its reference from the regressing build.
 Write `doc\release-notes\release-notes-<ver>.md` and commit it. They used to be written beside
 the setups in `distr\`, which is line 1 of `.gitignore`, so "commit it" was impossible and no
 notes file was ever in version control; the fourteen that existed moved to `doc\` in one go. The
-baseline is the last published
-GitHub release, not the last built version: `gh release list` shows it, and interim builds
-in `distr\` are often never published (20.13 to 20.15 were built and skipped; 20.16.0's notes
-covered everything since 20.12.0). Read the previous notes and the commits since that tag
-(`git log v<prev>..HEAD --format='%h %s'`), and describe net-new work only, checked against
-the previous notes when branches have diverged.
+baseline is the latest full release, the one `gh release list` marks Latest, not the last
+built version: interim builds in `distr\` are often never published (20.13 to 20.15 were built
+and skipped; 20.16.0's notes covered everything since 20.12.0). The notes of a pre-release
+also cover everything since that full release, the pre-releases in between included, and mark
+what is new since the previous pre-release with *(new in <major>.<minor>)*: 20.28.0 to 20.30.0
+each covered everything since 20.26.0, and 20.28.0 and 20.30.0 marked what was new. Start
+from the previous notes, check each item against the commits since the previous release tag
+(`git log v<prev>..HEAD --format='%h %s'`), and add the new work.
 
 Format, as the existing files: an opening paragraph starting with **Pre-release.** or the
-release status, naming the baseline and the headlines; a flavour table with one row per
-flavour and its asset names (a flavour not shipped says "no (full release only)"); then `##`
-sections by theme (Allocation, Polygons, Storages and export, IntegrityChecks, Charts and
-views, Networks, Configuration language and diagnostics, Robustness, Packaging and build),
-each bullet a bold lead-in, the issue number, what was wrong and what changed, in the voice
-of the previous notes. Things a modeller must act on (an area that changes on upgrade, a
-check that now fires) are said outright.
+release status, naming the baseline and the headlines; a table with one row per flavour and
+per set of Python wheels, with their asset names (a flavour not shipped says "no (full release
+only)"); then `##` sections by theme, as in the previous notes, each bullet one short item
+without a bold lead-in: what was wrong and what changed, with the issue number and the wiki
+page. The notes end with a section "Changes that can affect an existing configuration", where
+the things a modeller must act on (a result that changes on upgrade, a check that now fires, a
+new operator name) are said outright.
 
 ## Publishing on GitHub
 
@@ -192,13 +263,26 @@ gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release
   distr\GeoDms<ver>.g-Setup-x64.exe distr\GeoDms<ver>.l-linux-x64.deb distr\GeoDms<ver>.l-linux-x64.tar.gz ^
   distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256 distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256.p7s ^
   distr\geodms-<ver>-cp312-cp312-win_amd64.whl distr\geodms-<ver>-cp313-cp313-win_amd64.whl ^
-  distr\geodms-<ver>-cp314-cp314-win_amd64.whl
+  distr\geodms-<ver>-cp314-cp314-win_amd64.whl distr\geodms_globio-<ver>-cp39-cp39-win_amd64.whl ^
+  distr\geodms-<ver>-cp312-cp312-manylinux_2_39_x86_64.whl distr\geodms-<ver>-cp313-cp313-manylinux_2_39_x86_64.whl ^
+  distr\geodms-<ver>-cp314-cp314-manylinux_2_39_x86_64.whl
 ```
 
    A draft creates no tag; it is safe to make and to inspect. Missing an asset here means a
    new draft, not an upload later. The wheels are those of `python\PythonVersions.txt`;
-   `batch\BuildSignAndCreateSetup.bat` made and tested them with the `.m` setup
-   (`tools\make-and-test-wheels.ps1`, #1355).
+   `batch\BuildSignAndCreateSetup.bat` made and tested the Windows ones with the `.m` setup
+   (`tools\make-and-test-wheels.ps1`, #1355), `batch\BuildSignAndCreateSetupGlobio.bat`
+   the GLOBIO wheel with the `.g` setup (`-Flavour g`), and
+   `batch\BuildSignAndCreateSetupLinux.bat` the Linux ones with the `.l` setup
+   (`tools/make-and-test-wheels.sh`). Its last step tests a Linux wheel next to the osgeo of
+   Ubuntu's `python3-gdal` (#1381); without that package in WSL the step is skipped and the
+   log has a line `*** NOT TESTED next to another GDAL`, so install it on the build machine.
+   A Linux wheel of 20.29.0 measured 90.6 MiB, one of 20.30.0 77.2 MiB.
+   `tools\make-wheels.py` stops on a wheel over 100 MiB, the limit per file that PyPI sets
+   for a project outside an organisation. The project geodms belongs to the PyPI
+   organisation Object Vision, whose projects get twice that by default (`upload_limit_size`
+   in warehouse's `packaging/models.py`), so a larger wheel can be allowed by raising the
+   limit in the script, after checking the limit that pypi.org shows for the project.
 2. `--target <full sha>` whenever the built commit is not the head of `main` on GitHub:
    without it the tag lands on `main` HEAD, the wrong commit. The commit must already be on
    origin (`git branch -r --contains <sha>`); if it is not, the user pushes it first. You
@@ -208,7 +292,8 @@ gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release
    do it only on the user's explicit go-ahead for this release, after they have looked at
    the draft. A pre-release is not marked Latest. A full release, published as one or turned
    from a pre-release into one, also starts `.github\workflows\pypi-upload.yml`, which
-   uploads the wheel assets of that release to the PyPI project `geodms`. A file on PyPI can
+   uploads the wheel assets of that release to PyPI: the `geodms-*` wheels to the project
+   `geodms`, and a `geodms_globio-*` wheel to the project `geodms-globio`. A file on PyPI can
    never be replaced, so say so when asking for the go-ahead of a full release; a pre-release
    stays off PyPI.
 4. Check `gh release view v<ver>` afterwards: title, target, assets, pre-release flag.

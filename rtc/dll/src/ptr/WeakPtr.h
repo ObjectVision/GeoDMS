@@ -22,7 +22,7 @@
  */
 
 template <class T>
-struct WeakPtr : ptr_base<T, copyable>
+struct DMS_TYPE_VISIBLE WeakPtr : ptr_base<T, copyable>
 {
 	using base_type = ptr_base<T, copyable>;
 	using typename base_type::pointer;

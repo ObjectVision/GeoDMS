@@ -10,6 +10,7 @@
 #define __RTC_SER_FORMATTINGFLAGS_H
 
 #include "RtcBase.h"
+#include "set/BitmaskEnum.h"
 
 //----------------------------------------------------------------------
 // FormattingFlags
@@ -18,33 +19,17 @@
 enum class FormattingFlags : UInt32 {
 	None = 0,
 	ThousandSeparator = 1 << 0,
-	NoLimitInLispExpr = 1 << 1, 
+	NoLimitInLispExpr = 1 << 1,
 
 	StreamFlags= ThousandSeparator,
 	LispFlags = NoLimitInLispExpr,
 };
-
-#if defined(_MSC_VER)
-#pragma warning (push)
-#pragma warning (disable: 26827)
-#endif
-
-// Provide a bitwise AND operator for FormattingFlags:
-constexpr inline FormattingFlags operator &(FormattingFlags lhs, FormattingFlags rhs) noexcept
-{
-	using T = std::underlying_type_t<FormattingFlags>;
-	static_assert(std::is_integral<T>::value, "Underlying type must be an integral type");
-	return static_cast<FormattingFlags>(static_cast<T>(lhs) & static_cast<T>(rhs));
-}
-
-#if defined(_MSC_VER)
-#pragma warning (pop)
-#endif
+template <> inline constexpr bool is_bitmask_enum<FormattingFlags> = true;
 
 inline FormattingFlags StreamFlags(FormattingFlags ff) { return ff & FormattingFlags::StreamFlags; }
 inline FormattingFlags LispFlags  (FormattingFlags ff) { return ff & FormattingFlags::LispFlags; }
-inline bool HasThousandSeparator(FormattingFlags ff) { return (ff & FormattingFlags::ThousandSeparator) != FormattingFlags::None; }
-inline bool HasNoLimitInLispExpr(FormattingFlags ff) { return (ff & FormattingFlags::NoLimitInLispExpr) != FormattingFlags::None; }
+inline bool HasThousandSeparator(FormattingFlags ff) { return flags(ff & FormattingFlags::ThousandSeparator); }
+inline bool HasNoLimitInLispExpr(FormattingFlags ff) { return flags(ff & FormattingFlags::NoLimitInLispExpr); }
 
 
 #endif // __RTC_SER_FORMATTINGFLAGS_H

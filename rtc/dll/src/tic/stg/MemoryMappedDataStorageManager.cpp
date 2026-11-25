@@ -552,7 +552,7 @@ bool Mmd_QualifiesAsRuleOnly(const TreeItem* storageHolder, const TreeItem* item
 	// visit of Actor::UpdateMetaInfo walks it, which goes into both and visits every item a name
 	// resolves to, and the parts of its path. A walk that does not finish has not seen everything,
 	// and disqualifies as well: materialising is always correct, merely larger.
-	auto substitutionWalk = SupplierVisitFlag(unsigned(SupplierVisitFlag::NamedSuppliers) | unsigned(SupplierVisitFlag::ImplSuppliers));
+	auto substitutionWalk = SupplierVisitFlag::NamedSuppliers | SupplierVisitFlag::ImplSuppliers;
 	if (calc->VisitSuppliers(substitutionWalk, visitor) != AVS_Ready || !allInside)
 		return false;
 

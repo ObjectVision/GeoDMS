@@ -1,5 +1,14 @@
 // Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
+//
+// The scanline conversion in this file is adapted from alg/llrasterize.cpp of GDAL, which carries
+// this notice:
+//   Copyright (c) 2000, Frank Warmerdam <warmerdam@pobox.com>
+//   Copyright (c) 2011, Even Rouault <even dot rouault at spatialys.com>
+//   SPDX-License-Identifier: MIT
+// Poly2GridOper-GDAL-MIT.txt beside this file holds that notice with the text of the MIT License,
+// which asks that both go with every copy, compiled or not; the setups and the Python wheels
+// install it (INSIDE_GEODMS in tools/setup_licences.py).
 /////////////////////////////////////////////
 
 #include "GeoPCH.h"

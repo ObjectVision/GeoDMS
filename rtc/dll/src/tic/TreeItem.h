@@ -148,7 +148,7 @@ Lifetime:
 - Parent is a SharedTreeItem to ensure safe upward traversal without immediate deletion of parents.
 */
 
-struct TreeItem : Actor, std::enable_shared_from_this<TreeItem>
+struct DMS_TYPE_VISIBLE TreeItem : Actor, std::enable_shared_from_this<TreeItem>
 {
 	using base_type = Actor;
 
@@ -685,9 +685,11 @@ private:
 // so the caller's owning shared_ptr is moved in rather than recovered via shared_from_this.
 void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
 
-// Free function that allows self==nullptr (avoids UB from calling member on nullptr).
-auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> SharedMutableTreeItem;
-auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* cls = nullptr) -> SharedMutableTreeItem;
+// Free functions that allow self==nullptr, which creates a root. Calling the member CreateItem or
+// CreateItemFromPath on a null pointer is undefined behaviour: gcc drops the null test of self once
+// these are inlined into the member, as with hidden visibility (#1383).
+TIC_CALL auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> SharedMutableTreeItem;
+TIC_CALL auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* cls = nullptr) -> SharedMutableTreeItem;
 TIC_CALL TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass);
 const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass);
 

@@ -534,22 +534,22 @@ bool ProjDefIsSeparable(std::string_view def)
 // CRS that way, which is itself a reason to refuse the fast path.
 bool SpatialRefIsSeparable(const OGRSpatialReference& srs)
 {
-	CplString buffer; // frees m_Text with CPLFree
-	if (srs.exportToProj4(&buffer.m_Text) != OGRERR_NONE || !buffer.m_Text)
+	SharedStr proj4 = SpatialRefAsProj4(srs);
+	if (proj4.empty())
 		return false;
-	return ProjDefIsSeparable(std::string_view(buffer.m_Text));
+	return ProjDefIsSeparable(std::string_view(proj4.c_str(), proj4.ssize()));
 }
 
-bool SpatialRefsAreAxisSeparable(const OGRSpatialReference& src, const OGRSpatialReference& dst)
+bool SpatialRefsAreAxisSeparable(const SpatialRefTransformation& srt)
 {
 	// No datum change. This is the load-bearing condition, not a nicety: a datum shift is a
 	// Helmert or grid-shift step that routes through geocentric XYZ, where every output ordinate
 	// reads every input ordinate. It also rules out GDAL selecting among candidate operations
 	// per point by area of use.
-	if (!src.IsSameGeogCS(&dst))
+	if (!srt.SrcAndDstHaveSameGeogCS())
 		return false;
 
-	return SpatialRefIsSeparable(src) && SpatialRefIsSeparable(dst);
+	return SpatialRefIsSeparable(srt.m_Src) && SpatialRefIsSeparable(srt.m_Dst);
 }
 
 } // anonymous namespace
@@ -569,7 +569,7 @@ bool SpatialRefBlock::IsAxisSeparableCrsPair() const
 		// event log: this is an optimization probe, and its only consequence is which of two
 		// equivalent code paths runs. Swallow whatever came up and answer "not separable".
 		GDAL_ErrorFrame frame;
-		result = SpatialRefsAreAxisSeparable(m_Src, m_Dst);
+		result = SpatialRefsAreAxisSeparable(*this);
 		if (frame.HasError())
 		{
 			frame.ReleaseError();

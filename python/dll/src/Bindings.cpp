@@ -23,7 +23,9 @@
 #include "utl/splitPath.h"
 #include "DataArray.h"
 
+#if defined(_WIN32)
 #include "libloaderapi.h"
+#endif
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -49,9 +51,15 @@
 #include <utility>
 #include <vector>
 
+// On compilers other than MSVC, cpc/CompChar.h defines override as an empty macro, which would erase
+// the local variable of that name in pybind11.h (get_type_override); the macro is hidden while the
+// pybind11 headers are read (#1355).
+#pragma push_macro("override")
+#undef override
 #include <pybind11/pybind11.h>
 #include <pybind11/cast.h>
 #include <pybind11/stl.h>
+#pragma pop_macro("override")
 
 static_assert(PY_MAJOR_VERSION == GEODMS_PYTHON_MAJOR && PY_MINOR_VERSION == GEODMS_PYTHON_MINOR,
 	"Python.h does not match python/PythonVersions.txt; point the ABI-specific Python root at the requested CPython minor");
@@ -64,6 +72,7 @@ namespace py_geodms
 {
 	namespace
 	{
+#if defined(_WIN32)
 		int binding_module_anchor;
 
 		std::filesystem::path GetLoadedModulePath(HMODULE module)
@@ -164,6 +173,13 @@ namespace py_geodms
 				"use matching builds or separate processes.");
 #endif
 		}
+#else
+		// The Linux build links GDAL statically into DmStg (vcpkg triplet x64-linux) and hides the
+		// symbols of every static library it links (-Wl,--exclude-libs,ALL), so DmStg calls
+		// its own GDAL, also when another package, such as osgeo, put its GDAL in the global symbol
+		// scope of the process before geodms was imported (#1381). There is nothing to check.
+		void CheckBundledGdalIsActive() {}
+#endif
 	}
 
 	//----------------------------------------------------------------------

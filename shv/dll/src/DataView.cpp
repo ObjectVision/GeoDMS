@@ -1186,14 +1186,14 @@ GraphVisitState DataView::UpdateView()
 					// GD_OnPaint marks this as a paint-driven draw so GraphDrawer::Visit's assert
 					// (line 510 of GraphVisitor.cpp) accepts a non-suspendible, possibly-not-updated graph.
 					if (m_BackgroundNeedsPainting) {
-						GraphDrawer(&drawContext, drawRegion, this, GdMode(GD_DrawBackground|GD_OnPaint), scaleFactors)
+						GraphDrawer(&drawContext, drawRegion, this, GD_DrawBackground|GD_OnPaint, scaleFactors)
 							.Visit(GetContents().get());
 						m_BackgroundNeedsPainting = false;
 					}
 					// Pass 2: data only (fills + borders) -- suspendible, accumulates via m_DoneGraphics
-					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData, scaleFactors);
 #else
-					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData, scaleFactors);
 #endif
 					GraphVisitState suspended = GVS_Continue;
 					try {
@@ -1245,7 +1245,7 @@ GraphVisitState DataView::UpdateView()
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon by the caller
 
-	GraphVisitState suspended = GraphDrawer(nullptr, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData), scaleFactors)
+	GraphVisitState suspended = GraphDrawer(nullptr, updateAllStack, this, GD_Suspendible | GD_UpdateData, scaleFactors)
 		.Visit(GetContents().get());
 
 	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
@@ -1672,12 +1672,12 @@ bool DataView::DispatchMouseEvent(EventID event, WPARAM nFlags, GPoint devicePoi
 
 	m_ControllerVector(eventInfo);
 
-	if (eventInfo.m_EventID & EventID::HANDLED)
+	if (flags(eventInfo.m_EventID & EventID::HANDLED))
 		return true;
 
 	if (!IsDefined(devicePoint))
 		return false;
-	if (eventInfo.m_EventID & EventID::RBUTTONUP)
+	if (flags(eventInfo.m_EventID & EventID::RBUTTONUP))
 		m_TextEditController.CloseCurr();
 
 	bool result = false;
@@ -1792,7 +1792,7 @@ void DataView::OnPaint()
 	}
 
 	try {
-		GraphDrawer( &paintDrawContext, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetScaleFactors())
+		GraphDrawer( &paintDrawContext, rgn, this, GD_StoreRect|GD_OnPaint|GD_DrawBackground, GetScaleFactors())
 		.Visit( GetContents().get() );
 	}
 	catch (...)

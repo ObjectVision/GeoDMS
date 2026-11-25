@@ -38,9 +38,7 @@ enum class metainfo_policy_flags {
 	get_as_lispref = subst_may_fail,
 	is_metafunc_call = is_root_expr,
 };
-
-inline bool operator &(metainfo_policy_flags lhs, metainfo_policy_flags rhs) { return int(lhs) & int(rhs);  }
-inline metainfo_policy_flags operator |(metainfo_policy_flags lhs, metainfo_policy_flags rhs) { return metainfo_policy_flags(int(lhs) | int(rhs)); }
+template <> inline constexpr bool is_bitmask_enum<metainfo_policy_flags> = true;
 
 metainfo_policy_flags arg2metainfo_polcy(oper_arg_policy oap);
 

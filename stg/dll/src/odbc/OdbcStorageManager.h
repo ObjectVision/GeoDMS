@@ -20,7 +20,7 @@
 //		DMS object to store and retrieve ODBC data
 // *****************************************************************************
 
-class ODBCStorageManager : public NonmappableStorageManager
+class DMS_TYPE_VISIBLE ODBCStorageManager : public NonmappableStorageManager
 {
 	typedef AbstrStorageManager base_type;
 	friend class ODBCStorageOutStreamBuff; 

@@ -9,6 +9,7 @@
 
 #include "ptr/WeakPtr.h"
 #include "ptr/SharedPtr.h"
+#include "set/BitmaskEnum.h"
 #include "utl/swapper.h"
 
 #include "DrawContext.h"
@@ -182,6 +183,7 @@ enum GdMode : int {
 ,	GD_Suspendible    = 0x10
 ,	GD_OnPaint        = 0x20
 };
+template <> inline constexpr bool is_bitmask_enum<GdMode> = true;
 
 class GraphDrawer : public GraphVisitor
 {
@@ -206,13 +208,13 @@ public:
 	const Region& GetAbsClipRegion() const { return m_AbsClipRegion; }
 	ViewPort*     GetViewPortPtr  () const { return m_ViewPortPtr; }
 
-	bool DoDrawBackground() const { return m_GdMode & GD_DrawBackground; }
-	bool IsInOnPaint     () const { return m_GdMode & GD_OnPaint; }
-	bool DoUpdateData    () const { return m_GdMode & GD_UpdateData; }
-	bool DoDrawData      () const { return m_GdMode & GD_DrawData; }
+	bool DoDrawBackground() const { return flags(m_GdMode & GD_DrawBackground); }
+	bool IsInOnPaint     () const { return flags(m_GdMode & GD_OnPaint); }
+	bool DoUpdateData    () const { return flags(m_GdMode & GD_UpdateData); }
+	bool DoDrawData      () const { return flags(m_GdMode & GD_DrawData); }
 	bool DoOnlyUpdate    () const { return DoUpdateData() && !DoDrawData(); }
-	bool DoStoreRect     () const { return m_GdMode & GD_StoreRect;   }
-	bool IsSuspendible   () const { return m_GdMode & GD_Suspendible; }
+	bool DoStoreRect     () const { return flags(m_GdMode & GD_StoreRect);   }
+	bool IsSuspendible   () const { return flags(m_GdMode & GD_Suspendible); }
 
 private:
 	GraphVisitState Visit2(GraphicObject* go);
