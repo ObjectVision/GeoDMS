@@ -42,15 +42,25 @@ a Debian package of the build machine. Any other binary, or a copy that differs 
 the script: no library goes out without its licence text. Besides those, the table lists the vcpkg
 ports without a shared library of their own, whose code is compiled into the binaries that use them.
 
+Some files of GeoDMS itself contain material from other projects (#1389): GeoDmsGuiQt compiles two
+fonts in through its Qt resource file, one of which is also installed as a font file. INSIDE_GEODMS
+lists them with their licence texts, which
+stage copies into licenses/geodms and lists in a second table of README.txt, per installed file that
+contains them. stage stops on a font in the Qt resource file, or among the installed files, that has
+no licence text here, as it stops on a binary.
+
 check walks an installation folder and compares the binaries in it with the table, in both directions,
-and checks that license.txt and every licence file that the table names are there.
+and checks that license.txt and every licence file that the table names are there, and that every
+installed file that contains an item of INSIDE_GEODMS has a row with that item's licence text.
 """
 import argparse
+import collections
 import fnmatch
 import glob
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shutil
 import struct
@@ -97,10 +107,40 @@ CONDA_KEPT_TEXTS = os.path.join(REPO, "vcpkg-globio", "licenses")
 LINUX_LIB_DIRS = ["/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"]
 LINUX_QT_PLUGIN_DIR = "/usr/lib/x86_64-linux-gnu/qt6/plugins"
 
+# Material from other projects inside files of GeoDMS itself (#1389). Per item: the file in the
+# repository; what it is and its licence, as README.txt and the Debian copyright file name them; the
+# file in the repository with its licence text; the name of that text in the licenses folder; and the
+# lower-case names of the installed files that contain the item, in every flavour. stage stops when a
+# setup installs none of those files, because then a name here is stale; check requires the text
+# wherever one of them is installed.
+Inside = collections.namedtuple("Inside", "source what licence text name installed")
+INSIDE_GEODMS = [
+    Inside("qtgui/exe/res/fonts/dmstext.ttf",
+           "the fonts Noto Sans Medium, Noto Sans Arabic Medium and Noto Sans Math, merged into dmstext.ttf",
+           "SIL Open Font License 1.1", "qtgui/exe/res/fonts/dmstext-OFL.txt", "geodms/dmstext-OFL.txt",
+           {"geodmsguiqt.exe", "geodmsguiqt", "dmstext.ttf"}),
+    Inside("qtgui/exe/res/fonts/remixicon.ttf", "the icon font Remix Icon 3.5, remixicon.ttf",
+           "Apache License 2.0", "qtgui/exe/res/fonts/remixicon-License.txt", "geodms/remixicon-License.txt",
+           {"geodmsguiqt.exe", "geodmsguiqt"}),
+]
+
+# The fonts that a setup can install or GeoDmsGuiQt can compile in; each needs a licence text.
+FONT_FILE = re.compile(r".*\.(ttf|otf|ttc|woff2?|pfa|pfb|fon)$", re.IGNORECASE)
+# The fonts that need no licence text of their own because their name table names Object Vision as
+# the copyright holder, by lower-case file name: DMS Font, res/fonts/dms.ttf, the symbol font of point
+# layers (shv/dll/src/FontRole.h). A font with symbols from another font belongs in INSIDE_GEODMS.
+# Where the symbols of dms.ttf come from is not recorded. Apart from simple shapes, none of them matches
+# a drawing in the symbol fonts of Windows or in the open source fonts compared for #1389. A symbol that
+# turns out to come from an open source font makes dms.ttf an item of INSIDE_GEODMS, with that licence.
+GEODMS_FONTS = {"dms.ttf"}
+# The Qt resource file that GeoDmsGuiQt compiles in; every font in it must be an item of INSIDE_GEODMS.
+GUI_QRC = "qtgui/exe/GeoDmsGuiQt.qrc"
+
 GPL_FILE = "license.txt"     # the GPL of GeoDMS, in the repository root and the installation folder
 LICENCES_DIR = "licenses"    # the folder beside it with the texts of the bundled libraries
 README = "README.txt"        # the table in that folder
 TITLE = "Licence texts of the libraries bundled with GeoDMS"  # its first line; marks a folder this script wrote
+INSIDE_HEADER = "file of GeoDMS"  # the first column of its table of INSIDE_GEODMS
 TEXT_WIDTH = 92              # line width of the prose in README.txt and the Debian copyright file
 
 # ---------------------------------------------------------------------------------------------
@@ -222,6 +262,14 @@ def walk_files(root, skip=None):
 
 def wrap(text):
     return textwrap.fill(text, TEXT_WIDTH) + "\n"
+
+
+def qrc_fonts():
+    """The fonts that GeoDmsGuiQt compiles in through GUI_QRC, as paths relative to the repository."""
+    with open(os.path.join(REPO, *GUI_QRC.split("/")), encoding="utf-8") as f:
+        files = re.findall(r"<file\b[^>]*>\s*([^<]*?)\s*</file>", f.read())
+    return [posixpath.normpath(posixpath.join(posixpath.dirname(GUI_QRC), p.replace("\\", "/")))
+            for p in files if FONT_FILE.fullmatch(p)]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -760,21 +808,33 @@ def stage(args):
     prepare_out(out, problems)
     problems.stop_if_any("preparing the licenses folder")
 
-    rows, licences, qt_data = [], {}, {}
-    counts = {}
+    inside_sources = {i.source for i in INSIDE_GEODMS}
+    for font in qrc_fonts():
+        if font not in inside_sources:
+            problems.append(f"{font} is compiled into GeoDmsGuiQt through {GUI_QRC}, but no licence text is known "
+                            "for it: add it to INSIDE_GEODMS in tools/setup_licences.py, with its licence text")
+
+    rows, inside_rows, licences, qt_data = [], [], {}, {}
+    counts, contained = {}, set()
     for rel, src in installed:
+        name = os.path.basename(rel)
+        inside = [i for i in INSIDE_GEODMS if name.lower() in i.installed]
+        inside_rows += [(rel, i.what, i.licence, os.path.normpath(i.name)) for i in inside]
+        contained |= {i.source for i in inside}
         if src is None:  # WriteUninstaller
             row = (rel, "NSIS uninstaller", "-", "nsis.txt")
             licences["nsis.txt"] = os.path.join(NSIS_ROOT, "COPYING")
         elif not is_binary(src):
-            if args.flavour != "l":
-                hit = qt.find(rel)
-                if hit:
-                    qt_data.setdefault(hit[0], []).append(rel)
-                    licences[os.path.join("qt", hit[0]) + os.sep] = os.path.join(qt.src, hit[0], "LICENSES")
+            hit = qt.find(rel) if args.flavour != "l" else None
+            if hit:
+                qt_data.setdefault(hit[0], []).append(rel)
+                licences[os.path.join("qt", hit[0]) + os.sep] = os.path.join(qt.src, hit[0], "LICENSES")
+            elif FONT_FILE.fullmatch(name) and not inside and name.lower() not in GEODMS_FONTS:
+                problems.append(f"the font {rel} is installed, but no licence text is known for it: it is not a font "
+                                "of GeoDMS (GEODMS_FONTS), not a file of Qt and not an item of INSIDE_GEODMS in "
+                                "tools/setup_licences.py")
             continue
         else:
-            name = os.path.basename(rel)
             if name.lower() in GEODMS_DLLS or GEODMS_OTHER.fullmatch(name):
                 row = (rel, "GeoDMS", version, gpl_rel)
             elif MSVC_RUNTIME.fullmatch(name):
@@ -802,29 +862,48 @@ def stage(args):
         kind = row[1].split(" ")[0] if not row[1].startswith("Visual") else "Visual C++ runtime"
         counts[kind] = counts.get(kind, 0) + 1
 
+    for item in INSIDE_GEODMS:
+        if item.source not in contained:
+            problems.append(f"INSIDE_GEODMS in tools/setup_licences.py names {item.source}, but this setup installs "
+                            f"none of the files that contain it ({', '.join(sorted(item.installed))}): correct those "
+                            "names, or remove the item if GeoDMS no longer contains it")
     static = vcpkg.static_ports()
     for key, port_version, licence, src in static:
         licences[licence] = src
     licences = {k: v for k, v in licences.items() if v is not None}
     for licence, src in sorted(licences.items()):
         copy_licence(out, licence, src, problems)
+    for item in INSIDE_GEODMS:
+        src = os.path.join(REPO, *item.text.split("/"))
+        if not os.path.isfile(src):
+            problems.append(f"the licence text {item.text} of {item.source} does not exist")
+            continue
+        with open(src, encoding="utf-8") as f:
+            text = f.read()
+        dst = os.path.join(out, os.path.normpath(item.name))
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with open(dst, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
     problems.stop_if_any("staging the licence texts", remove=out)
 
     rows.sort(key=lambda r: r[0].lower())
-    write_readme(out, args.flavour, version, rows, [(k, v, l) for k, v, l, _ in static], qt_data, vcpkg_root,
-                 qt.version if args.flavour != "l" else None)
+    inside_rows.sort(key=lambda r: (r[0].lower(), r[3]))
+    write_readme(out, args.flavour, version, rows, inside_rows, [(k, v, l) for k, v, l, _ in static], qt_data,
+                 vcpkg_root, qt.version if args.flavour != "l" else None)
     if args.deb_copyright:
-        write_deb_copyright(args.deb_copyright, args.install_prefix or "/opt/ObjectVision/GeoDms" + version + ".l")
+        write_deb_copyright(args.deb_copyright, args.install_prefix or "/opt/ObjectVision/GeoDms" + version + ".l",
+                            inside_rows)
     n_texts = sum(len(fs) for _, _, fs in os.walk(out)) - 1
     summary = ", ".join(f"{n} {k}" for k, n in sorted(counts.items()))
     print(f"setup_licences: {args.flavour}: {origin}, {len(installed)} installed files, "
-          f"{len(rows)} binaries ({summary}); {len(static)} vcpkg ports without a shared library; "
+          f"{len(rows)} binaries ({summary}); {len({r[0] for r in inside_rows})} files of GeoDMS that contain "
+          f"material from other projects; {len(static)} vcpkg ports without a shared library; "
           f"{n_texts} licence files in {out}")
     if args.flavour != "l" and flavour["nsi"] and nsi.empty_nonfatal:
         print("setup_licences: /nonfatal File lines that match nothing: " + ", ".join(nsi.empty_nonfatal))
 
 
-def write_readme(out, flavour, version, rows, static, qt_data, vcpkg_root, qt_version):
+def write_readme(out, flavour, version, rows, inside_rows, static, qt_data, vcpkg_root, qt_version):
     with open(os.path.join(out, README), "w", encoding="utf-8", newline="\n") as f:
         f.write(TITLE + "\n\n")
         f.write(wrap(f"GeoDMS {version}, setup flavour {flavour}. GeoDMS is free software: you can redistribute it "
@@ -851,6 +930,12 @@ def write_readme(out, flavour, version, rows, static, qt_data, vcpkg_root, qt_ve
                          + "".join(f" The module {m} also supplies {len(fs)} data files, such as {fs[0]}."
                                    for m, fs in sorted(qt_data.items()) if not any(r[1] == f'Qt {m}' for r in rows))))
         f.write("\n")
+        f.write(wrap("Some files of GeoDMS itself contain material from other projects, under the licence of that "
+                     "project. Those files, each with what it contains, that licence and the file, relative to this "
+                     "folder, with its text:"))
+        f.write("\n")
+        write_table(f, (INSIDE_HEADER, "contains", "licence", "licence text"), inside_rows)
+        f.write("\n")
         f.write(wrap(f"The vcpkg ports of {os.path.basename(vcpkg_root)} below have no shared library of their own: "
                      "they are header-only or static libraries, and their code is compiled into the binaries above "
                      "that use them. Some of them may not be used by this installation at all. The Boost libraries "
@@ -859,7 +944,7 @@ def write_readme(out, flavour, version, rows, static, qt_data, vcpkg_root, qt_ve
         write_table(f, ("vcpkg port", "version", "licence text"), static)
 
 
-def write_deb_copyright(path, prefix):
+def write_deb_copyright(path, prefix, inside_rows):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(wrap("GeoDMS is copyright Object Vision B.V. It is free software: you can redistribute it and/or "
@@ -873,6 +958,14 @@ def write_deb_copyright(path, prefix):
                      "the Debian packages of the build machine, and the vcpkg ports that are linked into the "
                      f"libDm*.so libraries. {prefix}/{LICENCES_DIR}/{README} lists every binary of the package, "
                      "where it comes from and which file in that folder holds its licence text."))
+        f.write("\n")
+        parts = []
+        for item in INSIDE_GEODMS:
+            files = [r[0] for r in inside_rows if r[3] == os.path.normpath(item.name)]
+            parts.append(f"{' and '.join(files)} contain{'s' if len(files) == 1 else ''} {item.what}, under the "
+                         f"{item.licence}, whose text is {prefix}/{LICENCES_DIR}/{item.name}.")
+        f.write(wrap(f"Some files of GeoDMS itself, in {prefix}, contain material from other projects. "
+                     + " ".join(parts)))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -889,7 +982,7 @@ def read_tables(readme):
     for line in lines:
         cells = re.split(r"\s{2,}", line.strip())
         if current is None:
-            if cells[:1] in (["installed file"], ["vcpkg port"]):
+            if cells[:1] in (["installed file"], [INSIDE_HEADER], ["vcpkg port"]):
                 current = tables.setdefault(cells[0], [])
         elif not line.strip():
             current = None
@@ -924,6 +1017,19 @@ def check(args):
         problems.append(f"{listed[key][0]} is in the table but not installed")
     texts = {cells[3] for cells in listed.values() if cells[3] != "-"}
     texts |= {cells[2] for cells in tables.get("vcpkg port", []) if len(cells) == 3}
+    inside = set()
+    for cells in tables.get(INSIDE_HEADER, []):
+        if len(cells) != 4:
+            problems.append(f"{readme}: a row without four columns: {cells}")
+            continue
+        if not os.path.isfile(os.path.join(inst, cells[0])):
+            problems.append(f"{cells[0]} is in the table of files of GeoDMS but not installed")
+        inside.add((norm(cells[0]), norm(cells[3])))
+        texts.add(cells[3])
+    for rel in walk_files(inst, skip=licences_folder):
+        for item in INSIDE_GEODMS:
+            if os.path.basename(rel).lower() in item.installed and (norm(rel), norm(os.path.normpath(item.name))) not in inside:
+                problems.append(f"{rel} contains {item.what}, but the table does not name its licence text {item.name}")
     texts.discard(os.path.join(os.pardir, GPL_FILE))  # checked below
     for lic in sorted(texts):
         p = os.path.join(base, lic)
@@ -935,7 +1041,8 @@ def check(args):
         problems.append(f"no {args.deb_copyright}")
     problems.stop_if_any(f"checking {inst}")
     print(f"setup_licences: {inst}: {len(present)} installed binaries, all in the table and the table holds no "
-          f"other; the {len(texts)} licence texts it names (a Qt folder counts once) are present, and "
+          f"other; every installed file that contains material from other projects has its {len(inside)} rows; "
+          f"the {len(texts)} licence texts the table names (a Qt folder counts once) are present, and "
           + (f"so are {GPL_FILE} and {args.deb_copyright}" if args.deb_copyright else f"so is {GPL_FILE}"))
 
 

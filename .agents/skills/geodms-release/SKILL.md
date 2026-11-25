@@ -55,11 +55,16 @@ output folder is wiped after that question (BAT-A34). The Linux script removes a
 Every setup installs `license.txt`, the GPL of GeoDMS, and beside it a folder `licenses` with
 the licence texts of the libraries it bundles and `README.txt`, a table of every binary it
 installs: where that binary comes from, its version and which text is its licence (#1371).
+Its subfolder `geodms` holds the texts of the material from other projects inside GeoDMS's own
+files, listed in `INSIDE_GEODMS` of `tools\setup_licences.py`: the Noto fonts and Remix Icon in
+`GeoDmsGuiQt` and `misc\fonts\dmstext.ttf`; a second table in `README.txt` says which installed
+file contains which (#1389).
 `tools\setup_licences.py stage` writes that folder into the output folder right before
 makensis. For `.l`, `nsi\CreateLinuxSetup.sh` runs it on the tree it has staged, before
 patchelf, and the `.deb` also gets `/usr/share/doc/geodms/copyright`. After the install,
 `setup_licences.py check` compares the installed binaries with the table in both directions
-and checks that `license.txt` and every text the table names are there; a difference removes
+and checks that `license.txt` and every text the table names are there, and that every installed
+file that contains an item of `INSIDE_GEODMS` has its row; a difference removes
 the install and the setup, as a failed suite does. The `.l` script skips the check together
 with the install when WSL has no passwordless sudo, and says so. The uninstall sections
 remove `license.txt` and `licenses` with the rest, so when `UninstallGeoDms.bat` reports a
@@ -175,6 +180,14 @@ pass:
   `libsqlite`, whose conda packages carry no text. Take the licence of that version from the
   upstream source, keep it as `vcpkg-globio\licenses\<package>-<version>.txt`, commit it and
   run the setup again.
+- `the font <file> is installed, but no licence text is known for it`, or `<font> is compiled
+  into GeoDmsGuiQt through qtgui/exe/GeoDmsGuiQt.qrc, but no licence text is known for it`: a
+  new font. Put its licence text, with the copyright lines of the font, beside it in the
+  repository and add an item for it to `INSIDE_GEODMS`; a font that Object Vision made itself
+  goes into `GEODMS_FONTS` instead.
+- `INSIDE_GEODMS in tools/setup_licences.py names <file>, but this setup installs none of the
+  files that contain it`: a binary was renamed, or GeoDMS no longer contains that file. Correct
+  the names of the item, or remove it.
 - `<nsi file>:<line number>: cannot read '<line>': <reason>`, such as `the command <name>,
   which this script does not know`: the NSIS script has a line that the NSIS parser of
   `tools\setup_licences.py` does not understand. It stops on purpose, so that a new `File`

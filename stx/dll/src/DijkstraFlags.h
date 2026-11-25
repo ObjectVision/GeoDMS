@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v.
+// Copyright (C) 1998-2026 Object Vision b.v.
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 // DijkstraFlags.h
@@ -32,7 +32,7 @@
 #define __STX_DIJKSTRAFLAGS_H
 
 #include "StxBase.h"
-#include "set/enum_flags.h"
+#include "set/BitmaskEnum.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_DIJKSTRA true
@@ -151,7 +151,7 @@ enum class DijkstraFlag : UInt64
 	// TmbTB = UseAltLinkImp | ProdLinkFlow | ProdOdLinkSet, // (Commented legacy bundle)
 };
 
-ENUM_FLAGS_EX(DijkstraFlag, UInt64)
+template <> inline constexpr bool is_bitmask_enum<DijkstraFlag> = true;
 
 // Parsing utility:
 // ParseDijkstraString:
