@@ -25,7 +25,7 @@ enum class SupplierVisitFlag
 	Checker = 0x0200,
 	ReadyDcsToo = 0x0400,
 	ScanSupplTree = 0x0800,
-	ExportInfo = 0x1000,
+	ExportInfo = 0x10000, // the bits 0x1000 to 0x8000 are TemplateOrg, CDF, DIALOGDATA and ImplSuppliers, which are defined further down
 
 	Calc = DataController | DcArgs,
 	//	Meta    = 0x0002, // Explicit Suppliers, FuncFC args that don't require delayed updating, such as TemplDC args, and ImplSupplFromIndirectProps
@@ -84,5 +84,24 @@ enum class SupplierVisitFlag
 
 	StartSupplInterest = (DetermineState | ExportInfo) & ~Signature // Signature Already explicitly done by StartInterest function
 };
+
+// Each single-bit enumerator must have a bit of its own, or a test of one of them also answers for
+// another. Their sum equals their bitwise or exactly when no two of them share a bit. A new single
+// bit is added to the list below.
+template <SupplierVisitFlag... Bits>
+inline constexpr bool SupplierVisitFlag_AreDistinctBits =
+	((unsigned(Bits) != 0 && (unsigned(Bits) & (unsigned(Bits) - 1)) == 0) && ...)
+	&& ((unsigned(Bits) + ...) == (unsigned(Bits) | ...));
+
+static_assert(SupplierVisitFlag_AreDistinctBits<
+		SupplierVisitFlag::Parent, SupplierVisitFlag::Domain, SupplierVisitFlag::Values
+	,	SupplierVisitFlag::ExplicitSuppliers, SupplierVisitFlag::DetermineCalc, SupplierVisitFlag::NamedSuppliers
+	,	SupplierVisitFlag::DataController, SupplierVisitFlag::DcArgs, SupplierVisitFlag::SourceData
+	,	SupplierVisitFlag::Checker, SupplierVisitFlag::ReadyDcsToo, SupplierVisitFlag::ScanSupplTree
+	,	SupplierVisitFlag::ExportInfo, SupplierVisitFlag::TemplateOrg, SupplierVisitFlag::CDF
+	,	SupplierVisitFlag::DIALOGDATA, SupplierVisitFlag::ImplSuppliers
+	>
+,	"two single-bit enumerators of SupplierVisitFlag share a bit, or one of them is not a single bit"
+);
 
 #endif // __RTC_ACT_SUPPLIERVISITFLAG_H
