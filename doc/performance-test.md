@@ -1,6 +1,6 @@
-# Performance tests of the regression rounds, 20.22.x
+# Performance tests of the regression rounds, from 20.22.0 on
 
-*Status (2026-11-01): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-11-25): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -20,7 +20,15 @@ A/B the counting in blocks of #1327 (55b161945) makes t720 24 % faster and t405.
 t720 by about 0.6 GB, in the free stacks, while the rise of t301 that pairs of runs suggested was chance (split by kind
 of memory, 2026-11-01); the pre-release v20.28.0
 (01feccd21) gives 21 of 21 in `.l` and 27 of 27 in `.c` and `.m` with the same results, and is as fast as
-db151676e in an A/B. t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
+db151676e in an A/B; the local builds of 20.29.0 give 27 of 27 with the same results, and the edge index of
+`point_in_polygon` (#1320, e5944a676) makes t060 17 to 19 s faster, the run boxes of #1334 (98974d5fa) make hestia's
+`connect_info` 14 to 17 times faster, and the nearest-first search of #1334 and #1337 (6019e78bd) makes t410 38 to 40 %
+faster; the pre-release v20.29.0 (a0a454738) gives 21 of 21 in `.l` and 27 of 27 in `.c` and `.m` with the same results,
+and is faster on t060, t405.1, t405.2, t405.3 and t410 in all three flavours and slower on nothing. Two small losses
+stay open: `dist_info_eq` with a filter that refuses most nearby arcs is 30 % slower on short arcs since 6019e78bd
+(#1337, a probe; no regression experiment shows it), and `Pand_rel` in t2000 is 0.64 s slower since #1320, in a t2000
+that is faster as a whole. The 9 to 12 % that the same binary lost in the A/B of 2026-10-22 belonged to that measuring session,
+not to the Windows update of 2026-10-21 (A/B of 2026-10-31). t405.2 and t405.3, stopped after six minutes in every `.l` round from 20.23.1 on, were the WSL VM
 of the account that ran them, which had no `.wslconfig` and so half the RAM, not the engine: with 48 GB for that VM
 (2026-10-22) 20.26.0.l passes both, 21 of 21. t300's two levels on this machine are the first read of its XML, not
 the build (see the known causes at the end). Section 8.1.x of
@@ -208,7 +216,7 @@ after the NetworkModel_PBL chain was stopped at 04:49) was not measured.
 - No experiment of 20.22.1 is slower than 20.22.0 on the same machine in the same state. The round's
   extra 24 minutes are the machine, mostly t641 and t405, plus t020 during the disk scan.
 - A round on OVSRV10 is a correctness check and a memory measurement; its wall times are comparable
-  between versions only through an A/B in one sitting. Wall-time comparisons between rounds belong on
+  between versions only through an A/B in one measuring session. Wall-time comparisons between rounds belong on
   OVSRV05, which is dedicated and idle, or need a reference column measured in the same round.
 - Before a round on OVSRV10 that is meant for times: no large GeoDMS processes in the hours before (or a
   reboot), the NetworkModel_PBL chain stopped, no scans or copies of `C:\LocalData` of one's own.
@@ -344,7 +352,7 @@ run.
 | `a847e23a3`, three runs | 295, 289, 290 | 153, 154, 150 | 271 951, 270 740, 281 184 |
 | `e5e7c8d0b`, interleaved | 302, 302, 300 | 166, 166, 164 | 257 031, 257 452, 259 346 |
 
-The four builds in one sitting, in the order 20.22.0, `a847e23a3`, `e5e7c8d0b`, 20.22.1 and back:
+The four builds in one measuring session, in the order 20.22.0, `a847e23a3`, `e5e7c8d0b`, 20.22.1 and back:
 
 | run, 09:05 to 09:44 | total | before | discovered |
 |---|---|---|---|
@@ -381,14 +389,14 @@ the follow-up, with the same pairs.
   GEO-A19 were reverted, and t720_2BURP again, which 20.22.0 failed (#1285).
 - The round's extra time is mostly the machine. In the A/B 20.22.1 is equal on t020 and t405 and faster
   on t2000 (1013 and 1021 s against 1156 and 1075), while the same 20.22.0 binary moved by more than the
-  round's differences between sittings: t020 4:02 in its round against 4:53 and 4:51 in the A/B, t2000 16:52
+  round's differences between measuring sessions: t020 4:02 in its round against 4:53 and 4:51 in the A/B, t2000 16:52
   against 19:16 and 17:55, t101 213 to 215 s at 01:00 and 183 to 193 s at 04:20. A round on OVSRV05 is
-  quieter than one on OVSRV10, but its wall times also move by about 10 % between sittings, so a
-  difference below that is only an engine change when an A/B in one sitting shows it.
+  quieter than one on OVSRV10, but its wall times also move by about 10 % between measuring sessions, so a
+  difference below that is only an engine change when an A/B in one measuring session shows it.
 - t101 is not slower: B was slower in the first two pairs (+5 and +3 %) and not in the next two (−3
   and −0.5 %).
 - t410 is slower in all four pairs, by 14 to 18 s (+5 to +7 %), and all of it lies in the `connect_ne`
-  before the first `impedance_matrix` line: 153 to 154 s against 137 to 138 s in the second sitting,
+  before the first `impedance_matrix` line: 153 to 154 s against 137 to 138 s in the second measuring session,
   +11 to +12 %, with the discovery 10 % behind 79 s in; the `impedance_matrix` part is equal. That loop
   in `Connect.cpp` is unchanged since 20.22.0; what it calls per point is the spatial index query
   (`GetSqrProximityUpperBound` and the node iterator) and `ArcProjectionHandle`. Of the changes to those,
@@ -403,7 +411,7 @@ the follow-up, with the same pairs.
   64 bytes again and the `connect_ne` takes as long as before GEO-A54 (the third table above).
 - t720 takes 10:12 against 9:12 for 20.21.1.m and 9:16 for 20.19.3.m. It has no A/B: 20.22.0 fails it,
   and a comparison needs a build of 20.21.1 (`92eaa7150`). t641.1 and t641.2 are 2 to 3 % slower in the
-  round, within the spread between sittings; an A/B pair of them takes three and a half hours and was
+  round, within the spread between measuring sessions; an A/B pair of them takes three and a half hours and was
   not run.
 - Memory is equal or lower than 20.22.0.m: t2000 5.4 GB less live, t810 2.4 GB less, t641.2 382 trims
   against 471.
@@ -487,7 +495,7 @@ they were the visiting order of a quadtree with 4 objects per node, which the re
 
 Summed over the 32 logs: 196.8 min, against 203.7 for `fd30ef780`, 183.6 for 20.22.0.m (of which t720,
 failing early, 0.4), 191.8 for 20.21.1.m, 167.9 for 20.20.0.m and 198.0 for 20.19.3.m. The timings of the
-threshold pairs, 4 against 16 on `spi_knob` in one sitting: t910 55 and 52 s, t301 170 and 171 s, t060 104 s
+threshold pairs, 4 against 16 on `spi_knob` in one measuring session: t910 55 and 52 s, t301 170 and 171 s, t060 104 s
 and 100 s, t101 194 and 196 s, t2000 1069 and 1073 s.
 
 Memory against `fd30ef780`, Highest CommitCharge / PeakLiveLarge in MB: t2000 80 796 / 77 250 against
@@ -518,9 +526,9 @@ t405.1 1.1 GB more and 1.8 GB less commit at the same PeakLiveLarge; every other
   is slower for the threshold: in the pairs on one binary t101, t301, t910, t060 and t2000 take the same
   time at 4 and at 16 (within 4 s), so the expected cost on an unfiltered nearest-arc search does not
   show in these tests.
-- The rest of the round is at the 20.22.0.m times, within the drift between sittings that the section
+- The rest of the round is at the 20.22.0.m times, within the drift between measuring sessions that the section
   above measured (t641.2 +6 %, t710 +9 s); t405.2 and t405.3 are back to 18:46 and 18:42, the round above
-  having been the slow sitting.
+  having been the slow measuring session.
 
 ## Results (OVSRV05), 20.22.1 at `15651313f`: ties by the lowest index (#1290)
 
@@ -640,7 +648,7 @@ report: 27 of 27 `ok`; the older columns keep their verdicts.
 
 ### Reading
 
-- No performance effect: 197.2 min against 196.8, every test within the drift between sittings. t2000's
+- No performance effect: 197.2 min against 196.8, every test within the drift between measuring sessions. t2000's
   +1:38 is inside the 16:52 to 19:36 that this machine has measured for it (`fd30ef780` 19:36 as well, the
   A/B above 17:55 to 19:16 for one binary); an interleaved A/B of `head_1315b0357` and `head_15651313f` would
   settle it. t410 keeps the #1289 gain, 3:59, and the per-arc handle and the wider search box of `connect`
@@ -714,13 +722,13 @@ t405.2 4 against 9. Report cells, peak physical / peak committed in GB: t641.1 5
 
 - Correct: 27 of 27 `ok` against the references of GeoDMS-Test `f6fe770`, so none of the 47 commits changes
   a result that the round checks, the tree-order rows t060, t301, t2000 and t641.2 included.
-- No performance effect: 193.7 min against 197.2, and every test within the drift between sittings that
+- No performance effect: 193.7 min against 197.2, and every test within the drift between measuring sessions that
   this machine has shown (about 10 %). The largest steps are t060 −11 s, whose 1:52 lies inside the 1:46 to
   2:22 of the rounds since 20.19.3, and t301 +15 s, whose 2:51 is 3 s above their 2:26 to 2:48; only an
-  interleaved A/B of `head_15651313f` and `head_d4f23aa43` would tell that from the sitting. t410 keeps the
+  interleaved A/B of `head_15651313f` and `head_d4f23aa43` would tell that from the measuring session. t410 keeps the
   #1289 gain, 3:53. Against 20.22.0.m the round is level once t720 is counted.
 - Memory equal or lower; t2000's live peak is back at the 64 GB of `fd30ef780` after 77 GB in the two
-  rounds between, a figure that moves between sittings of one build.
+  rounds between, a figure that moves between measuring sessions of one build.
 
 ## Results (OVSRV05), 20.24.1
 
@@ -786,7 +794,7 @@ parent of `c247d85cc`, would complete the proof; none was made.
 t810 and t910 are above all three earlier rounds, so they were rerun interleaved on `head_dd343fa16` and
 `head_4c06c9c97` the same afternoon (14:49 to 15:13), A, B, A, B, threshold 60:
 t810 315 and 311 s on 20.24.0 against 310 and 311 s on 20.24.1, t910 50 and 46 s against 47 and 47 s, with the
-same result files. Both moved with the sitting, not with the build. Memory of the tests that ran is within the
+same result files. Both moved with the measuring session, not with the build. Memory of the tests that ran is within the
 spread of the earlier rounds (t405.2's commit peak of 47.7 GB at a PeakLiveLarge of 31 377 MB is the figure that
 moves between 29.5 and 48.9 GB on one build, see above).
 
@@ -799,7 +807,7 @@ moves between 29.5 and 48.9 GB on one build, see above).
   warning, accepts a relation to a combine of leading factors, or the configurations change, is a decision
   outside this measurement; the commit names neither the tst unit suite nor full.py among what it ran.
 - No performance effect where the round could measure: every test that ran is within the drift between
-  sittings of the earlier rounds, and the two above it are level with 20.24.0 in an A/B. t641 and t2000, the
+  measuring sessions of the earlier rounds, and the two above it are level with 20.24.0 in an A/B. t641 and t2000, the
   largest models, are not measured by this round.
 
 ## Results (OVSRV05), 20.24.2
@@ -860,13 +868,13 @@ t410 is the one row above the drift of 20.24.0 and 20.24.1, so it was rerun inte
 Memory: Highest CommitCharge equal or lower than 20.23.0.m on every test except t910 (4.3 GB against 3.2) and
 t710 (6.7 against 5.7, 7.4 in 20.24.0.m). t910's figure moves between 3.7 and 4.4 GB on one build: in the A/B
 of the section above it was 4.0 and 3.7 GB on 20.24.0 and 3.8 and 4.4 GB on 20.24.1. t405.2's 46.6 GB in
-20.24.1.m is the commit peak that moves between sittings at the same PeakLiveLarge, see 20.22.1 above.
+20.24.1.m is the commit peak that moves between measuring sessions at the same PeakLiveLarge, see 20.22.1 above.
 
 ### Reading
 
 - Correct: 27 of 27, with the results of 20.24.0, so neither the combine record of #1293, nor the generated
   tiles of #1309, nor the lock fixes of #1311 change a result that the round checks.
-- No performance regression: every experiment is within the drift between sittings of the earlier rounds, the
+- No performance regression: every experiment is within the drift between measuring sessions of the earlier rounds, the
   one above it, t410, is level with 20.24.1 in an A/B, and t2000, t405.2 and t405.3 are 4 to 5 % below
   20.23.0.m, which a single round does not attribute to a build. The experiments that #1309 named, t641.1,
   t641.2, t2000, t405.2, t405.3, t710, t720, t1640 and t1642, are each level with 20.23.0.m or faster, within
@@ -916,7 +924,7 @@ Wall time and Highest CommitCharge as above; summed over the rows of the earlier
 t1640 and t1642 6 and 13 s in both. The commit peaks that rose, t641.2 by 7 GB, t2000 by 5.4, t720 by 3.2, come
 at the same PeakLiveLarge (168 907 MB for t641.2 in both, 136 936 for t641.1, 9296 for t405.1; t2000 63 876
 against 61 708 to 64 459 in the earlier rounds), and lie within what the process commit of those tests has
-shown between sittings of one build (t641.2 169.5 to 180.7 GB since 20.22.0).
+shown between measuring sessions of one build (t641.2 169.5 to 180.7 GB since 20.22.0).
 
 Reading: the setup computes what the local build computes, in the same time (every row within 9 %, the larger
 ones within 4 %, none slower than the drift), with the same live memory. No A/B was needed.
@@ -994,7 +1002,7 @@ on `head_cd3e83ec7` (20.25.0), each with 8 of 8 spot checks equal. It is the fir
   setup (188.8 min against 190.3 and 186.3 for the same code), `.c` is level with 20.23.1.c.
 - `.l` is slower than 20.23.1.l: summed over the twelve rows that both ran to the end, t300 left out, 40.5 against
   38.9 min (+4 %), with t101 +24 s (12 %), t810 +22 s, t405.1 +20 s and t200 +5 s. 20.23.1.l was the third round
-  of its sitting and 20.24.2.l the first, which accounts for t300 (+56 s) and perhaps for more of the text
+  of its measuring session and 20.24.2.l the first, which accounts for t300 (+56 s) and perhaps for more of the text
   inputs; no A/B of the two `.l` builds was run.
 
 ## Results (OVSRV05), 20.25.0: the loose quadtree of #1292
@@ -1102,7 +1110,7 @@ Each run gave the results of its build's round, byte for byte. t405.1's 266 s in
   t301 logs of the column are now those of the rerun (1:47 and 2:43); the tables above give the round's own.
 - #1292 makes the `point_in_polygon` experiments faster, t060 by 7 % and t301 by 4 %, and slows down nothing:
   `connect` (t101, t410), the grid and polygon experiments and t405.1 are level. The +5 to +9 % of t020, t060,
-  t101, t200 and t405.1 between the rounds is the drift between sittings; in the A/B each is level or faster.
+  t101, t200 and t405.1 between the rounds is the drift between measuring sessions; in the A/B each is level or faster.
 - The cases where `7c4000cdc` measured its large gains, `box_connectivity` of dense unit squares (30 to 40 s to
   2.5 s) and `point_in_ranked_polygon` (6.1 to 1.5 s), dominate no experiment of the round, so the round does not
   show them.
@@ -1241,7 +1249,7 @@ reference: the loose quadtree visits the overlapping panden in the same order on
 
 Summed over the rows that ran: `.m` 184.8 min against 191.5 for the local round and 188.8 for 20.24.2.m, `.c` 188.4
 against 182.1 for 20.24.2.c, `.l` 54.4 against 54.8 for 20.24.2.l. `.l`'s t300 is 1:17 with its XML read beforehand,
-against 2:12 for 20.24.2.l, the first round of its sitting, and 1:16 for 20.23.1.l, the third of its.
+against 2:12 for 20.24.2.l, the first round of its measuring session, and 1:16 for 20.23.1.l, the third of its.
 
 ### Interleaved A/B of the rows that moved
 
@@ -1356,17 +1364,17 @@ once beforehand (50.1 GiB): X = 20.25.0 (`release_fec6efe90_m`, `release_fec6efe
 | `.l` t611 | 34 | 34 | 35 | 35 | 1.00 |
 
 All 36 result files of the A/B are byte for byte those of their build's round. The two releases are level on every
-row, t101 included. The sitting itself is slower than the ones before it: the
+row, t101 included. The measuring session itself is slower than the ones before it: the
 same binary, `release_fec6efe90_c`, took 195, 191, 190 and 190 s for t101 and 204 and 203 s for t405.1 in the A/B of
 the section above (2026-10-21 04:33 to 06:22, no other load), and 214 and 213 s and 220 and 227 s here, 9 to 12 %
 more. Between the two lie the Windows update with its restart and, during this A/B, a Remote Desktop session (its
-host 867 s and `dllhost` 359 s of CPU). The session alone can account for it: the 20.25.0.c round took 3:48 for t101
+host 867 s and `dllhost` 359 s of CPU). The Remote Desktop session alone can account for it: the 20.25.0.c round took 3:48 for t101
 in the hour that it shared with such a session, before the update, against 190 s the morning after without one.
-Which of the two it is has not been separated; the session was still connected at the end of the A/B. The A/B of
-2026-10-31 (pre-release v20.28.0, below), after the update and without a session, rules out a lasting loss: t405.1,
+Which of the two it is has not been separated; the Remote Desktop session was still connected at the end of the A/B. The A/B of
+2026-10-31 (pre-release v20.28.0, below), after the update and without a Remote Desktop session, rules out a lasting loss: t405.1,
 level across builds in every A/B, took 209 to 212 s there, inside the 203 to 215 s of the A/Bs before the update. So
-the 9 to 12 % belonged to that one sitting, most likely to its session; it does not separate the session from the
-ordinary drift between sittings (added 2026-11-19).
+the 9 to 12 % belonged to that one measuring session, most likely to its Remote Desktop session; it does not separate that from the
+ordinary drift between measuring sessions (added 2026-11-19).
 
 ### t405.2 and t405.3 on `.l`, rerun with 48 GB for WSL
 
@@ -1401,7 +1409,7 @@ Both ran to the end, their indicator steps too, and the `result.json` of t405.2 
 one of 20.26.0.m. The report gives the `.l` column 21 `ok`, t641.x, t2000 and the GUI tests not run, header
 1:37:20. The rerun is 7 to 10 % slower than 20.19.3.l, which ran in the Cicada account's distro, another WSL VM: no build
 comparison. (Until 2026-11-19 this said that the machine runs the same binary 9 to 12 % slower since the Windows update
-of 2026-10-21; that loss belonged to one sitting, most likely to its Remote Desktop session, see above.)
+of 2026-10-21; that loss belonged to one measuring session, most likely to its Remote Desktop session, see above.)
 
 ### t2000 on `.c`: 93 to 96 GB of commit is the level of the run, not of the flavour
 
@@ -1460,9 +1468,11 @@ around 100 s.
   checked result, and the network experiments compute the same matrices. With 48 GB for WSL `.l` gives 21 of 21:
   its t405.2 and t405.3 were the account's VM, not a regression.
 - No performance regression: every row that moved in the rounds is level with 20.25.0 in an A/B on the same
-  machine in the same sitting. The 4 to 5 % of the rounds is the sitting: the same 20.25.0 binary is 9 to 12 %
+  machine in the same measuring session. The 4 to 5 % of the rounds is the measuring session: the same 20.25.0 binary is 9 to 12 %
   slower in it than the day before, under a Remote Desktop session and after the Windows update of 2026-10-21.
-  Rounds from that day on compare with each other, and with earlier ones only through an A/B.
+  The A/B of 2026-10-31, after the update and without a Remote Desktop session, puts t405.1 back in the range of before the update
+  (above), so that loss belonged to this measuring session and not to the update. (Until 2026-11-25 this said that rounds from
+  that day on compare with each other, and with earlier ones only through an A/B.)
 - No `.c` regression in t2000: its 96.0 and 93.2 GB of commit on `.c` against 82.7 GB on `.m` are the two levels of
   that experiment, which the same `.c` binary and the same `.m` binary each reach in an interleaved A/B (81 to 84 GB
   low, 87 to 95 GB high, results equal). The level follows the moment at which nine materialized 986 MB `sum`s of
@@ -1560,7 +1570,7 @@ Y1, spread from 148 s to the end, on both builds.
   run. Elsewhere the saving is below the noise of an A/B: t405.2 and t405.3 make many sparse matrices of a few
   od-pairs, t810 two large ones whose counting pass cost about 2 s each, t102 one of 7.8 million od-pairs in 5 s.
 - Peak memory level: the shadow blocks that #1327 removes do not fall on the peak of any of these experiments.
-- The round's 1 % over 20.26.0.m and its 9 and 10 % on t060 and t301 are the sitting, as in the rounds since
+- The round's 1 % over 20.26.0.m and its 9 and 10 % on t060 and t301 are the measuring session, as in the rounds since
   2026-10-21: those rows do not reach `impedance_matrix`.
 
 ## Results (OVSRV05), 20.28.0 at `db151676e`: #1327 in join_near_values and in counting
@@ -1668,7 +1678,7 @@ more committed than the containers did.
 - 20.28.0 makes t720 24 % faster (141 of 582 s), most likely through the counting in blocks of `55b161945`, and
   t405.2 5 % and t410 3 %; which operators carry those two is not measured. The other rows are level within 2 %. The
   one-pass `join_near_values` of `2aca01715` leaves t060 at 100 s.
-- t611's 13 % in the round is the sitting: 31 s on both builds in the A/B.
+- t611's 13 % in the round is the measuring session: 31 s on both builds in the A/B.
 - Peak commit: t301 2.8 GB and t720 1.7 GB higher in the process counter, both in a phase where many counting or `unique`
   calls run side by side; the memory halving of a single large `modus` or `unique` in the commit message does not show
   in these experiments.
@@ -1734,11 +1744,11 @@ Wall time per experiment, `.m`, from the report:
 
 Over all experiment logs (`durations.py`): 180.7 min against 187.2 for `db151676e` and 194.7 for 20.27.0. Against
 `db151676e` nearly every row is 3 to 9 % faster, also those that none of the three commits touches (t020, t101, t200,
-t810): the sitting, which the A/B below confirms. t300's 1:39 is its first read of the XML (18 s per file set against
+t810): the measuring session, which the A/B below confirms. t300's 1:39 is its first read of the XML (18 s per file set against
 11 s in the `.c` round of that afternoon), see "t300 and the first read of its XML on OVSRV05" below.
 
 `.c` and `.l` against 20.26.0 (`durations.py`, minutes; no A/B of these, so they include 20.27.0, 20.28.0 and the
-sitting):
+measuring session):
 
 | test | `.c` 20.28.0 | `.c` 20.26.0 | `.l` 20.28.0 | `.l` 20.26.0 |
 |---|---|---|---|---|
@@ -1796,10 +1806,10 @@ those of the `.m` round. `PeakPagefileUsage`, in 10^9 bytes:
   and the build machine change none of these experiments measurably.
 - 20.27.0 to `db151676e` repeats the A/B of 2026-10-29: t720 0.76 (558 to 424 s), t405.2 0.96. t410's 0.97 of then is
   1.00 now.
-- Peak commit: the A/B of 2026-10-29 gave `db151676e` +2.8 GB on t301 and +1.7 GB on t720. In this sitting the
+- Peak commit: the A/B of 2026-10-29 gave `db151676e` +2.8 GB on t301 and +1.7 GB on t720. In this measuring session the
   difference is smaller and mixed: t301 X 22.01 and 20.69, Y 20.34 and 21.68 (the per-second commit above 18 GB for 31
   and 23 s on X, 37 and 24 s on Y, 25 and 25 s on Z), t720 X 24.09 and 25.06, Y 24.21 and 26.59. The release lies with
-  `db151676e`. What repeats exactly in every run of both sittings is +0.25 GB on t405.1 and t405.2 and +0.06 GB on
+  `db151676e`. What repeats exactly in every run of both measuring sessions is +0.25 GB on t405.1 and t405.2 and +0.06 GB on
   t410, in Y and Z alike; for t301 and t720 see the `.c` A/B below.
 
 ### Interleaved A/B: t301 on `.c`
@@ -1815,7 +1825,7 @@ reach t301), Y = the release 20.28.0.c (`release_01feccd21_c`). All eight result
 | `PeakPagefileUsage` | 20.10 | 22.52 | 22.08 | 22.02 | 22.98 | 24.40 | 25.93 | 24.81 |
 
 Time is level (X 639 s in four runs, Y 645, 1.01), and every run took 148 to 175 s: the 3.4 min of the `.c` round is
-the sitting. The peak commit rises through the sitting for both builds (X 20.1 to 24.8 GB, Y 22.5 to 25.9), and Y is
+the measuring session. The peak commit rises through the measuring session for both builds (X 20.1 to 24.8 GB, Y 22.5 to 25.9), and Y is
 above its neighbouring X in all four pairs (+2.42, +0.06, +1.42, +1.12 GB). Taking the neighbouring runs of the three
 A/Bs together, a build with `55b161945` is above one without in 11 of 12 pairs on t301 and t720 (−1.67 to +3.60 GB),
 by 1.25 GB on average on t301 and 1.27 GB on t720, against a spread of 2 to 5 GB between runs of one build. So a rise of
@@ -1826,13 +1836,13 @@ about 1 GB on these two experiments looked likely; split by kind of memory (next
 
 - Correct: 21 of 21 in `.l`, 27 of 27 in `.c` and `.m`, each with the results of the previous version in that flavour.
 - The release 20.28.0 is as fast as the local build of `db151676e` on every experiment of the A/B; the 3 to 9 % that the
-  `.m` round shows on most rows is the sitting. The commits since, `unique` on strings per tile (`9fb4d4d8f`) and
+  `.m` round shows on most rows is the measuring session. The commits since, `unique` on strings per tile (`9fb4d4d8f`) and
   `pareto_optimal` from its tiles (`01feccd21`), have no measurable effect on full.py: no experiment calls
   `pareto_optimal`, and the A/B shows no difference that `unique` on strings could account for (which experiments call
   it on strings, and for how long, is not established).
 - Against 20.27.0, 20.28.0 stays 24 % faster on t720 and 4 % on t405.2 (A/B), and the `.l` and `.c` rounds show the t720
   gain too.
-- t301 on `.c` is level with 20.26.0.c in an A/B (1.01); its 3.4 min in the round is the sitting.
+- t301 on `.c` is level with 20.26.0.c in an A/B (1.01); its 3.4 min in the round is the measuring session.
 - Peak commit: the neighbouring pairs (11 of 12 higher with `55b161945`, -1.7 to +3.6 GB) suggested about 1 GB on t301
   and t720; the next section splits it by kind of memory and finds no rise on t301 and about 0.6 GB on t720. t405.1 and
   t405.2 are 0.25 GB higher in every run.
@@ -1999,7 +2009,7 @@ nearly all of them receive no point. The candidates are also collected on one th
 - t060 is 17 to 19 s faster through #1320, in `geo_selectie` (6.6 times faster for the panden, 11 times for the vbo's).
 - t410 is 1 to 4 % faster in both pairs, not split by item; its configuration calls `point_in_polygon`.
 - t2000 moves 3 to 39 s, too unevenly to read as an effect; Pand_rel in it is 0.64 s slower.
-- t405.1, t405.2, t611, t710, t720 and t910 are level, so t405.2's +47 s in the round is the sitting. t405.3, t641.1
+- t405.1, t405.2, t611, t710, t720 and t910 are level, so t405.2's +47 s in the round is the measuring session. t405.3, t641.1
   (+3:06) and t810 (+18 s) had no A/B.
 
 ## Results (OVSRV05), 20.29.0 at `98974d5fa`: run boxes for long arcs in `connect`, `connect_info` and `dist_info` (#1334)
@@ -2428,7 +2438,7 @@ and `parse_xml` of one set overlapping the read of the next. Its wall time has t
 
 | round | t300 | its place |
 |---|---|---|
-| 20.23.0.m (07-10), 20.24.0.m (10-10), 20.24.1.m (14-10), 20.24.2 local (14-10), `distr` setup (15-10) | 1:53 to 1:57 | the only round of the sitting |
+| 20.23.0.m (07-10), 20.24.0.m (10-10), 20.24.1.m (14-10), 20.24.2 local (14-10), `distr` setup (15-10) | 1:53 to 1:57 | the only round of the measuring session |
 | 20.23.1.m (08-10) | 1:58 | first of three |
 | 20.23.1.c, 20.23.1.l (08-10) | 1:04 (`.c`), 1:16 (`.l`) | second and third |
 | release 20.24.2.l (15-10) | 2:12 (`.l`) | first of three |
@@ -2456,11 +2466,11 @@ at disk speed the first time. What is slow is the first opening of a text file, 
 an on-access scan, which Windows Defender's real-time protection on this machine performs (`Get-MpComputerStatus`:
 `RealTimeProtectionEnabled`, `OnAccessProtectionEnabled`); its exclusions cannot be read without
 administrator rights. At about 100 MB/s, 5.7 GB costs about 57 s, which is the difference between the two levels.
-When the scanner forgets a file again is not established: the first round of a sitting has always been slow, and
+When the scanner forgets a file again is not established: the first round of a measuring session has always been slow, and
 a round that followed another within a few hours fast, but the read test found the files forgotten three hours
 after the 20.25.0 round had read them.
 
-**Reading a comparison of rounds:** a t300 of about 1:55 against about 1:00 says which round of its sitting it
+**Reading a comparison of rounds:** a t300 of about 1:55 against about 1:00 says which round of its measuring session it
 was, not which build ran. To compare builds, read the inputs once before the round or the A/B
 (`scratch\perf_ovsrv05\warm_inputs.py`, which reads every file it is given), or compare rounds that held the
 same place. The `copy /b D:\SourceData\t300_XML\*.xml NUL` before the A/B above took 0.9 s, so the files were
