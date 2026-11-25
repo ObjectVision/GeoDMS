@@ -103,17 +103,20 @@ FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool transl
 		return {}; // success
 	}
 
-	// emit a detailed error message, including the filename and the reason for failure
+	// emit a detailed error message, including the filename and the reason for failure. The filename has
+	// a line of its own, as in the messages of ReadBlock, WriteBlock and CloseAfterWrite: the log cuts
+	// each line after 256 characters, and the line that names the item also holds the start of this text.
+	int openErr = errno;
 	CharPtr hint = "";
 #if defined(_MSC_VER)
 	if (fileName.ssize() > _MAX_PATH)
 		hint = " Note that the filename is longer than _MAX_PATH, which is 260 characters";
-	auto errMsg = mySSPrintF("_fsopen('{}', '{}')\nreturned error {}: {}.{}"
+	auto errMsg = mySSPrintF("_fsopen with mode '{}' failed on this file:\n'{}'\nerror {}: {}.{}"
 #else
-	auto errMsg = mySSPrintF("fopen('{}', '{}')\nreturned error {}: {}.{}"
+	auto errMsg = mySSPrintF("fopen with mode '{}' failed on this file:\n'{}'\nerror {}: {}.{}"
 #endif
-		, fileName.c_str(), mode
-		, errno, strerror(errno)
+		, mode, fileName.c_str()
+		, openErr, strerror(openErr)
 		, hint
 	);
 	return std::unexpected(errMsg);
@@ -190,11 +193,12 @@ FileResult FilePtrHandle::ReadBlock(void* data, SizeT size)
 		return {};
 	auto cause = TakeIoErrorCause();
 
+	// the filename has a line of its own: the log cuts each line after 256 characters (see OpenFH)
 	if (feof(m_FP) && !ferror(m_FP))
-		return std::unexpected(mySSPrintF("reading {} bytes from '{}' stopped after {} bytes, where the file ends"
-			, size, m_FileName.c_str(), nrRead));
-	return std::unexpected(mySSPrintF("reading {} bytes from '{}' stopped after {} bytes\n{}"
-		, size, m_FileName.c_str(), nrRead, IoErrorCauseText(cause).c_str()));
+		return std::unexpected(mySSPrintF("reading {} bytes from this file stopped after {} bytes, where the file ends:\n'{}'"
+			, size, nrRead, m_FileName.c_str()));
+	return std::unexpected(mySSPrintF("reading {} bytes from this file stopped after {} bytes:\n'{}'\n{}"
+		, size, nrRead, m_FileName.c_str(), IoErrorCauseText(cause).c_str()));
 }
 
 FileResult FilePtrHandle::WriteBlock(const void* data, SizeT size)
@@ -209,8 +213,8 @@ FileResult FilePtrHandle::WriteBlock(const void* data, SizeT size)
 		return {};
 	auto cause = TakeIoErrorCause();
 
-	return std::unexpected(mySSPrintF("writing {} bytes to '{}' stopped after {} bytes\n{}"
-		, size, m_FileName.c_str(), nrWritten, IoErrorCauseText(cause).c_str()));
+	return std::unexpected(mySSPrintF("writing {} bytes to this file stopped after {} bytes:\n'{}'\n{}"
+		, size, nrWritten, m_FileName.c_str(), IoErrorCauseText(cause).c_str()));
 }
 
 FileResult FilePtrHandle::CloseAfterWrite()
@@ -225,10 +229,10 @@ FileResult FilePtrHandle::CloseAfterWrite()
 	m_FP = nullptr;
 
 	if (closeResult != 0)
-		return std::unexpected(mySSPrintF("closing '{}' failed, so the last part of what was written to it may be missing\n{}"
+		return std::unexpected(mySSPrintF("closing this file failed, so the last part of what was written to it may be missing:\n'{}'\n{}"
 			, m_FileName.c_str(), IoErrorCauseText(cause).c_str()));
 	if (earlierWriteFailed)
-		return std::unexpected(mySSPrintF("a write to '{}' failed before the file was closed, so the file is incomplete"
+		return std::unexpected(mySSPrintF("a write to this file failed before it was closed, so the file is incomplete:\n'{}'"
 			, m_FileName.c_str()));
 	return {};
 }

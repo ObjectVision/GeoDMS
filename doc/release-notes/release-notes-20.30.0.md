@@ -43,6 +43,7 @@
 - An item of an MMD store that changes from attribute to container under the same name, or back, no longer makes the next write fail or stall (#1349).
 - A function signature that names a unit by its path keeps that spelling in the XML notation and in `@dumpconfig` output (#1351, [XML configuration syntax](https://github.com/ObjectVision/GeoDMS/wiki/XML-configuration-syntax)).
 - *(new in 20.30)* `@dumpconfig` writes a `using` as it was configured: `using = "geometries"` stays `using = "geometries"`, where it used to come out as `"../geometries"`, or as `".../geometries"` one level deeper. `PropValue(x, 'Using')` still gives the resolved path (#1377).
+- *(new in 20.30)* When fewer bytes are read or written than asked, in a `str` or `strfiles` storage, a world file or the header of a dbf, the error names the file, how many bytes were asked for and how many went through, and the reason the system gives, where it used to be a GeoDMS internal error. A failure when a written file is closed is reported too, instead of leaving a shortened file without an error, and "Failure during Writing" now gives the reason (#1393).
 
 ## Polygons, charts and views
 
