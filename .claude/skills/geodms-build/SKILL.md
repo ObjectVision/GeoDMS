@@ -147,7 +147,13 @@ If the build cannot be run exactly this way, stop and ask.
   engine's own code, without the `vptr` check, which does not link with hidden visibility;
   #1385), in `build/linux-x64-ubsan` with a `vcpkg_installed` of its own that the binary
   cache fills; it is never shipped. `batch/TestLinuxUbsan.sh` runs the Linux tests on it
-  (below).
+  (below). No script builds the preset `linux-x64-debug`; `TestLinuxDebugUnit.sh` tests it with
+  the steps of `TestLinuxReleaseUnit.sh` (#1388). Measured on this machine on 2026-11-25, from
+  `/mnt/c`: configuring its folder again, last configured in August, took 8.4 min; compiling and
+  linking everything 24 min, of which 11.7 min for the link of `libDmClc.so` (2.8 GB) by GNU ld,
+  a link that ninja repeats after a change in `DmRtc`, so a change in one source file of `DmRtc`
+  and one of `DmShv` took 19 min; and `TestLinuxDebugUnit.sh` 10 to 11 min, of which 8 min for
+  the battery.
 - GLOBIO compatibility (`.g`): `batch\BuildGlobio.bat Release` (or `Debug`), never an msbuild
   line of your own. It builds the same `all22.sln` with `-p:GeoDmsGlobio=true`, which
   `Directory.Build.props` turns into toolset v143 with MSVC 14.36.32532, the vc14 runtime

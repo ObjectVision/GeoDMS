@@ -1006,7 +1006,13 @@ void DataView::OnTimer(UInt32 timerId)
 		if (IsProcessingMainThreadOpers() || IdleTimer::IsInIdleMode())
 			SetUpdateViewLaterTimer();
 		else
+		{
+			// as for the update timer below: on the Qt path no mouse or hover event resumes the trigger
+			// between two timer fires, and a step takes interest, which requires a trigger that did not suspend
+			if (m_ViewHost)
+				SuspendTrigger::Resume();
 			ProcessUpdateViewLaterActions();
+		}
 		return;
 	}
 

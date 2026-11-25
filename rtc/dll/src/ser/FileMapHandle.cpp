@@ -883,9 +883,9 @@ void CheckMemPage(const mempage_table* memPageAllocTable, FreeChunk newChunk)
 		{
 			auto nextFreeByLexi = currFreeByLexi;
 			++nextFreeByLexi;
-			assert(currFreeByLexi->second < nextFreeByLexi->first);
 			if (nextFreeByLexi == lastFreeByLexi)
 				break;
+			assert(currFreeByLexi->second < nextFreeByLexi->first);
 			currFreeByLexi = nextFreeByLexi;
 		}
 	}

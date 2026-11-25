@@ -6,7 +6,8 @@
 #
 # Usage: bash TestLinuxReleaseUnit.sh [preset]
 #   preset: the CMake preset whose output folder build/<preset>/bin is tested, linux-x64-release
-#   when not given; batch/TestLinuxUbsan.sh passes linux-x64-ubsan.
+#   when not given; batch/TestLinuxUbsan.sh passes linux-x64-ubsan and TestLinuxDebugUnit.sh
+#   linux-x64-debug.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
