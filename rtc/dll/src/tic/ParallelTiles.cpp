@@ -58,7 +58,6 @@
 // *****************************************************************************
 
 #include "ParallelTiles.h"
-#include <numeric>
 
 // Global registry of tile task groups for work stealing.
 static std::vector<tile_task_group*> s_TileTaskGroups;
@@ -70,16 +69,6 @@ static UInt32 s_NrRunningTileTaskThreads = 0;
 
 bool s_OcTaskGroupIsCanceling = false; // also read/written by OperationContext.cpp
 
-
-void CheckThis(tile_task_group* self)
-{
-#if defined(MG_DEBUG)
-	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
-
-	auto nrCompleted = std::accumulate(self->md_CompletedWork.begin(), self->md_CompletedWork.end(), UInt32(0), std::plus<>());
-	assert(nrCompleted == self->m_NrCompleted);
-#endif
-}
 
 // Internal: pop a valid commissioned slot from any registered tile_task_group.
 // Requires s_TileTaskGroupsMutex to be held.
@@ -228,16 +217,13 @@ tile_task_group::~tile_task_group()
 		auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
 		auto firstBulkSlot = m_Commissioned;
 		m_Commissioned += remainingTasks;
-		CheckThis(this);
 		assert(m_Commissioned == m_Last);
 		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
 #if defined(MG_DEBUG)
-		// Keep CheckThis's sum-vs-counter invariant valid across the bulk
-		// completion path. registerCompletions(N) below bumps m_NrCompleted
-		// by N for the uncommissioned slots without touching md_CompletedWork;
-		// mark those slots here so the per-slot bits stay in sync with the
-		// counter. The asserted-zero precondition catches a stray double-
-		// completion if a slot somehow got both individually and bulk-completed.
+		// registerCompletions(N) below completes the uncommissioned slots in
+		// bulk without touching md_CompletedWork; mark those slots here so that
+		// it records every completed slot. The asserted-zero precondition catches
+		// a slot that got both individually and bulk-completed.
 		for (IndexType i = firstBulkSlot; i < m_Last; ++i)
 		{
 			assert(md_CompletedWork[i] == 0);
@@ -287,7 +273,6 @@ auto tile_task_group::getNextCommissioned() -> IndexType
 		return UNDEFINED_VALUE(IndexType);
 
 	auto result = m_Commissioned++; // ownership of this slot of the task_group is now obtained and will continue until this thread causes m_NrCompleted to increment accordingly
-	CheckThis(this);
 	assert(result < m_Last);
 	if (m_Commissioned >= m_Last)
 		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones, including the slot that the caller must complete, can still finish.
@@ -308,7 +293,6 @@ void tile_task_group::registerCompletions(IndexType nr)
 
 	assert(nr);
 	m_NrCompleted += nr;
-	CheckThis(this);
 	assert(m_NrCompleted <= m_Last);
 	if (m_NrCompleted == m_Last)
 	{
@@ -329,7 +313,6 @@ bool tile_task_group::registerCompletion(IndexType i)
 #endif
 
 	auto nrCompleted = ++m_NrCompleted; // don't increment outside lock as it may cause another thread to Join and destruct
-	CheckThis(this);
 	if (nrCompleted != m_Last)
 		return false;
 	m_TileTasksDone.notify_all();
@@ -381,8 +364,8 @@ void tile_task_group::DoWork(IndexType i)
 #if defined(MG_DEBUG)
 			// This slot's work threw after another thread already set
 			// m_ExceptionPtr; we still need to count its completion. Mark
-			// md_CompletedWork[i] here so the registerCompletions(1) below
-			// keeps the sum-vs-counter invariant valid in CheckThis.
+			// md_CompletedWork[i] here, as registerCompletions(1) below
+			// does not.
 			assert(md_CompletedWork[i] == 0);
 			md_CompletedWork[i] = 1;
 #endif
@@ -394,16 +377,13 @@ void tile_task_group::DoWork(IndexType i)
 			auto firstBulkSlot = m_Commissioned;
 			auto remainingTasks = m_Last - m_Commissioned; // current slot still has to be registered as completed, after which this task_group may be destructed.
 			m_Commissioned += remainingTasks;
-			CheckThis(this);
 			assert(m_Commissioned == m_Last);
 			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
 #if defined(MG_DEBUG)
-			// Same bookkeeping fix as the destructor's bulk-completion
-			// branch: registerCompletions(1 + remainingTasks) below bumps
-			// m_NrCompleted by (1 + remainingTasks) - the failed slot i
-			// plus the uncommissioned tail - without touching
-			// md_CompletedWork. Mark all of those slots so the invariant
-			// in CheckThis holds.
+			// As in the destructor's bulk-completion branch:
+			// registerCompletions(1 + remainingTasks) below completes the
+			// failed slot i and the uncommissioned tail without touching
+			// md_CompletedWork, so mark all of those slots here.
 			assert(md_CompletedWork[i] == 0);
 			md_CompletedWork[i] = 1;
 			for (IndexType k = firstBulkSlot; k < m_Last; ++k)

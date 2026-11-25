@@ -65,7 +65,6 @@ private:
 	friend void StealTasks();
 	friend void DoThisOrThatAndDecommission();
 	template <typename R> friend struct tile_task_result;
-	friend void CheckThis(tile_task_group* self);
 
 #if defined(MG_DEBUG)
 	std::vector<UInt32> md_CompletedWork;

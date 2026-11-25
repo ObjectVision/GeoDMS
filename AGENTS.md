@@ -416,6 +416,23 @@ of 2026-09-27 found seven documents that said "no code changes yet", "uncommitte
 for work that had landed weeks earlier (PLN-A08); a reader picking work from them would have
 redone it.
 
+## A check may not make the code an order of complexity slower
+
+A consistency check does not stay in the code when it makes the operation it checks a full order
+of complexity worse, also when only a Debug build compiles it (`#if defined(MG_DEBUG)`, `assert`,
+`dms_assert`). The usual form is a pass over n elements inside a step that runs n times, which
+makes a linear loop quadratic. Such a check is allowed only for a while, when a new function is
+being tested, and it comes out once that function is tested. A check that stays costs no more
+than the work it checks: O(1) per step, or a single pass at the end, such as once per task group
+in its destructor.
+
+A battery of small cases hides that cost until a case with more data comes along. In
+`tile_task_group` a Debug-only `CheckThis` added up an array with one entry per task each time a
+task was handed out and each time one completed, under the global `s_TileTaskGroupsMutex`, which
+made every `parallel_for` quadratic in its number of tasks (#1394). The testcase
+`oper_point_in_polygon_edge_index`, with about 130 000 points in two tiles, then took about 230 s
+in the Debug battery, 77 % of its limit of 300 s, against about 1 s in the Release battery.
+
 ## Build & headless-run gotchas
 
 - **`'pwsh.exe' is not recognized` post-build line is noise.** A post-build event shells out to
