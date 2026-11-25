@@ -185,8 +185,8 @@ pass:
   run the setup again.
 - `the font <file> is installed, but no licence text is known for it`: a new font. Put its
   licence text, with the copyright lines of the font, beside it in the repository and add an
-  item for it to `INSIDE_GEODMS`; a font that Object Vision made itself goes into
-  `GEODMS_FONTS` instead.
+  item for it to `INSIDE_GEODMS`; a font that is part of GeoDMS and comes under its licence goes
+  into `GEODMS_FONTS` instead.
 - `<file> is compiled into GeoDmsGuiQt through qtgui/exe/GeoDmsGuiQt.qrc, but no licence text
   is known for it`: a new file in the resource file, an image or a font. If it is part of
   GeoDMS and comes under its licence, add its path in the resource file to `GEODMS_GUI_FILES`; if
