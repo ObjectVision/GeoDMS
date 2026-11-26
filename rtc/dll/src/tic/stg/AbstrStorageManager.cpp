@@ -110,6 +110,7 @@ AbstrStorageManager::AbstrStorageManager()
 	:	m_Commit(true)
 	,	m_IsOpen(false)
 	,	m_IsReadOnly(false)
+	,	m_IsUnwritable(false)
 	,	m_FileTime(0)
 	,	m_LastCheckTS(0)
 	,   m_CriticalSection(1)
@@ -672,7 +673,10 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 #endif
 	dms_assert(sm || !throwOnFailure);
 	if (sm && (readOnly || !sm->IsWritable()))
+	{
 		sm->m_IsReadOnly = true;
+		sm->m_IsUnwritable = !readOnly; // #1401: the storage forbids the write, not the configuration; DoUpdateTree says so
+	}
 
 	return sm;
 }
@@ -754,10 +758,28 @@ void AbstrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* 
 	if (curr != storageHolder)
 		return;
 
-	if (IsDataItem(curr))
-		if (!curr->IsStorable())
-			if (curr->HasConfiguredCalcRule()) // #587: the read the engine installs is not a rule
-				curr->Fail("Item has both a Calculation Rule and a read-only storage spec", FailType::MetaInfo);
+	if (!IsDataItem(curr) || curr->IsStorable())
+		return;
+	if (!curr->HasConfiguredCalcRule()) // #587: the read the engine installs is not a rule
+		return;
+
+	// #1401: a calculated item whose storage refuses the write. StorageReadOnly comes first: a
+	// configuration that asks for a read-only storage explains the refusal, whatever the file allows.
+	// Otherwise the cause can be the file: it existed and could not be written when this manager was
+	// made (m_IsUnwritable), or it has become so since. For a file, DoCheckWritability asks _waccess on
+	// Windows, which looks at the read-only attribute only, and access on Linux, which looks at the
+	// permissions and at a read-only file system.
+	if (!storageReadOnlyPropDefPtr->GetValue(curr) && (m_IsUnwritable || (!m_IsReadOnly && !IsWritable())))
+	{
+#if defined(_MSC_VER)
+		CharPtr cause = "It has the read-only attribute.";
+#else
+		CharPtr cause = "Its permissions do not let this process write it, or it lies on a read-only file system.";
+#endif
+		curr->Fail(mySSPrintF("The file that this item is written to exists and cannot be written:\n'{}'\n{}", GetNameStr(), cause), FailType::MetaInfo);
+	}
+	else
+		curr->Fail("Item has both a Calculation Rule and a read-only storage spec", FailType::MetaInfo);
 }
 
 // ===========================================================================

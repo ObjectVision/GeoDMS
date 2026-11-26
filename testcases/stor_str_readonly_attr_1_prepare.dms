@@ -1,0 +1,23 @@
+// #1401: the first of three cases around a str file that exists and cannot be written. This one
+// makes %LocalDataDir%/GeoDmsTestcases/stor_str_readonly_attr.str afresh and takes away the right
+// to write it: on Windows with attrib +R, which sets the read-only attribute, on Linux with
+// chmod a-w. stor_str_readonly_attr_2_write_neg.dms then asks to write a calculated item to it, and
+// stor_str_readonly_attr_3_cleanup.dms gives the right to write back, so that the output folder of
+// the battery can be removed like any other. The runner sorts the cases by name, which runs the
+// three in this order. A Linux run as root passes access(W_OK) whatever the permissions say, so
+// there the second case would write the file and fail as a negative.
+// Expected: exit 0 on /checks.
+container stor_str_readonly_attr_1_prepare
+{
+	container checks
+	{
+		parameter<string> ComSpec   := expand(., '%env:ComSpec%');
+		parameter<bool>   isWindows := strcount(ComSpec, 'cmd') > 0;
+		parameter<string> Program   := isWindows ? 'cmd' : 'sh';
+		parameter<string> CmdLine   := isWindows
+			? 'cmd /c (if not exist GeoDmsTestcases mkdir GeoDmsTestcases) & cd GeoDmsTestcases & (if exist stor_str_readonly_attr.str attrib -R stor_str_readonly_attr.str) & echo old> stor_str_readonly_attr.str & attrib +R stor_str_readonly_attr.str'
+			: 'mkdir -p GeoDmsTestcases && cd GeoDmsTestcases && rm -f stor_str_readonly_attr.str && echo old > stor_str_readonly_attr.str && chmod a-w stor_str_readonly_attr.str';
+		parameter<uint32> exitcode  := exec_ec(Program, CmdLine, expand(., '%LocalDataDir%'));
+		parameter<bool>   ran       := exitcode == 0, IntegrityCheck = "ran == true";
+	}
+}

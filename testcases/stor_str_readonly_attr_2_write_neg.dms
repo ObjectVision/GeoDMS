@@ -1,0 +1,19 @@
+// EXPECT-FAILURE: The file that this item is written to exists and cannot be written:
+// EXPECT-FAILURE: stor_str_readonly_attr.str
+// #1401: a calculated item whose StorageName names a file that exists and cannot be written, with
+// no StorageReadOnly property. stor_str_readonly_attr_1_prepare.dms made that file and took away
+// the right to write it. The write is refused while the meta info of the item is determined, and the
+// message says that the file cannot be written and names it on the next line. Before #1401 it said
+// "Item has both a Calculation Rule and a read-only storage spec", which fits an item under
+// StorageReadOnly = "True" but not this one.
+// Expected: exit nonzero on /checks.
+container stor_str_readonly_attr_2_write_neg
+{
+	parameter<string> result := 'new'
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_str_readonly_attr.str"
+	,	StorageType = "str";
+	container checks
+	{
+		parameter<bool> written := strlen(result) == 3, IntegrityCheck = "written == true";
+	}
+}

@@ -1,0 +1,17 @@
+// EXPECT-FAILURE: Item has both a Calculation Rule and a read-only storage spec
+// #1401: a calculated item under StorageReadOnly = "True" is refused while its meta info is
+// determined, with the message for a read-only storage spec. Since #1401 a calculated item whose
+// file exists and cannot be written gets a message of its own (stor_str_readonly_attr_2_write_neg),
+// and this case keeps the other side of that choice. The file does not exist and is never written.
+// Expected: exit nonzero on /checks.
+container stor_str_readonly_spec_neg
+{
+	parameter<string> result := 'new'
+	,	StorageName     = "%LocalDataDir%/GeoDmsTestcases/stor_str_readonly_spec.str"
+	,	StorageType     = "str"
+	,	StorageReadOnly = "True";
+	container checks
+	{
+		parameter<bool> written := strlen(result) == 3, IntegrityCheck = "written == true";
+	}
+}

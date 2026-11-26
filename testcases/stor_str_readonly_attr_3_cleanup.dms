@@ -1,0 +1,19 @@
+// #1401: the last of three cases around stor_str_readonly_attr.str (see
+// stor_str_readonly_attr_1_prepare.dms). It gives back the right to write the file that the first
+// case took away, so that the output folder of the battery can be removed like any other; a tool
+// that removes a folder, such as shutil.rmtree, can stop on a file with the read-only attribute.
+// Expected: exit 0 on /checks.
+container stor_str_readonly_attr_3_cleanup
+{
+	container checks
+	{
+		parameter<string> ComSpec   := expand(., '%env:ComSpec%');
+		parameter<bool>   isWindows := strcount(ComSpec, 'cmd') > 0;
+		parameter<string> Program   := isWindows ? 'cmd' : 'sh';
+		parameter<string> CmdLine   := isWindows
+			? 'cmd /c cd GeoDmsTestcases & attrib -R stor_str_readonly_attr.str'
+			: 'chmod u+w GeoDmsTestcases/stor_str_readonly_attr.str';
+		parameter<uint32> exitcode  := exec_ec(Program, CmdLine, expand(., '%LocalDataDir%'));
+		parameter<bool>   ran       := exitcode == 0, IntegrityCheck = "ran == true";
+	}
+}

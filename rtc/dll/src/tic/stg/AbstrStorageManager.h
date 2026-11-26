@@ -383,6 +383,7 @@ protected:
 	mutable TimeStamp    m_LastCheckTS;
 
 	bool   m_IsReadOnly : 1; // true  indicates that writing or creation is forbidden
+	bool   m_IsUnwritable : 1; // #1401: m_IsReadOnly because Construct found the storage could not be written, not because the configuration or the storage type asked for it
 	bool   m_IsOpenedForWrite : 1; // false indicates that so-far nothing was written. DoWriteTree is not desired
 	mutable bool   m_IsOpen : 1;
 	bool   m_Commit : 1;
