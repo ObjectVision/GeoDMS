@@ -134,12 +134,22 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 	DMS_CALL_END
 }
 
-// The most characters of one line of a message that reach the receivers (log file, console, event log
+// The most bytes of one line of a message that reach the receivers (log file, console, event log
 // of the GUI, Python); a longer line is cut there and ends with "...". FlushMsg has split the message
 // into lines before, so the limit holds per line. It keeps a runaway message, such as one that lists
 // the values or coordinates it failed on, out of the event log, while a line that names an item and
-// a file of up to 260 characters, the Windows MAX_PATH, still fits whole.
+// a file of up to 260 characters, the Windows MAX_PATH, still fits whole. A cut that would fall
+// inside a UTF-8 character falls before it, so that the line stays valid UTF-8.
 constexpr SizeT MAX_MSG_LINE_LENGTH = 1000;
+
+// The most bytes that the cut moves back: a UTF-8 character has at most three continuation bytes.
+// The bound also holds for a line that is not UTF-8, such as one with Latin-1 bytes in a path.
+constexpr SizeT MAX_UTF8_CONTINUATION_BYTES = 3;
+
+static bool IsUtf8ContinuationByte(char c)
+{
+	return (static_cast<unsigned char>(c) & 0xC0) == 0x80;
+}
 
 void MsgDispatch(MsgData* msgData, bool moreToCome)
 {
@@ -148,7 +158,12 @@ void MsgDispatch(MsgData* msgData, bool moreToCome)
 	if (!g_MsgCallbacks)
 		return;
 	if (msgData->m_Txt.ssize() > MAX_MSG_LINE_LENGTH)
-		msgData->m_Txt = SharedStr(CharPtrRange(msgData->m_Txt.begin(), msgData->m_Txt.begin() + MAX_MSG_LINE_LENGTH)) + "...";
+	{
+		CharPtr cut = msgData->m_Txt.begin() + MAX_MSG_LINE_LENGTH; // the first byte that is left out
+		for (SizeT n = 0; n != MAX_UTF8_CONTINUATION_BYTES && IsUtf8ContinuationByte(*cut); ++n)
+			--cut;
+		msgData->m_Txt = SharedStr(CharPtrRange(msgData->m_Txt.begin(), cut)) + "...";
+	}
 
 	TMsgCallbackSinkContainer::iterator
 		b = g_MsgCallbacks->begin(),
@@ -182,9 +197,10 @@ namespace { // DebugOutStreamBuff is local
 
 		assert(*e == 0); // guaranteed by caller to have a completed Line.
 
-		// forget the terminating nulls and drop trailing empty lines in order to point to just beyond a real message that is the last line.
-		while ((i != e && e[-1] == 0) || e[-1] == '\n')
-			--e; 
+		// forget the terminating nulls and drop trailing empty lines in order to point to just beyond a real message that is the last line;
+		// a message of nulls and line ends only leaves i == e, and e[-1] would then be the byte before the text.
+		while (i != e && (e[-1] == 0 || e[-1] == '\n'))
+			--e;
 		bool islastMsgSentAsMoreToCome = false;
 		while (i != e || minorSkipCount || majorSkipCount)
 		{

@@ -1,0 +1,22 @@
+// EXPECT-FAILURE: cut before this character, not inside it: ...
+// #1376: MsgDispatch cuts a line of a message after MAX_MSG_LINE_LENGTH (1000) bytes and appends
+// "...". The cut moves back to the first byte of a UTF-8 character that it would fall inside, so
+// that the log, the console and the event log get valid UTF-8. The IntegrityCheck below fails, and
+// the [E] line of GeoDmsRun repeats its expression. In that line's text the string literal starts
+// at byte 58 and the character U+1F600 (bytes F0 9F 98 80) at byte 997, so the cut at byte 1000
+// falls on its last byte. The engine then leaves the whole character out, and the line ends with
+// the text before it and "..."; an engine that cut after byte 1000 wrote F0 9F 98 before "...",
+// and fails this case as WRONG-FAILURE.
+// When the text before the literal grows by one or two bytes, the cut still falls inside the
+// character and the case still tests it. When it grows by exactly three bytes, the cut falls on
+// the first byte of the character, and the case passes on either engine without testing the cut.
+// Any other change of that text, or of MAX_MSG_LINE_LENGTH, fails the case as WRONG-FAILURE. In
+// either case, move the character so that it starts three bytes before the cut again: the filler
+// is 897 'x', and the literal must stay on one line.
+container run_log_line_cut_utf8_neg
+{
+	container checks
+	{
+		parameter<bool> c := true, IntegrityCheck = "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxcut before this character, not inside it: 😀 (U+1F600, four bytes in UTF-8), and the rest of this literal is left out of the log' == ''";
+	}
+}

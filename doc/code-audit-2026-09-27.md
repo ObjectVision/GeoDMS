@@ -25,7 +25,7 @@ section 5 that was still open was done by the documentation sweep of 2026-10-06;
 SHV-A14 and QT-A14 are open (SHV-A07 was done on 2026-10-07, continuations B11), GEO-A44 deferred because a row sweep must reproduce the
 per-vertex `CalcWidth` exactly, including rows with several vertices and null points, and GEO-A45 because
 making the bp translate-to-zero effective changes results for coordinates over 25 bits; of step 6
-(simplification) the dead code is deleted (4639608b1..92e3a541e; continuations B7), the structural items are open. BAT-A18 was resolved by #1360 on 2026-11-17: `TestShippedContent.bat` no longer looks up the SourceDataDir, but gives GeoDmsRun a temporary one. The ranking of what is left: `doc/continuations-2026-10-06.md`.*
+(simplification) the dead code is deleted (4639608b1..92e3a541e; continuations B7), the structural items are open. BAT-A18 was resolved by #1360 on 2026-11-17: `TestShippedContent.bat` no longer looks up the SourceDataDir, but gives GeoDmsRun a temporary one. INF-A12 was resolved by #1393 and #1376 on 2026-11-26 in another way than its fix proposed: every receiver still gets the cut line, but the cut is at 1000 bytes and falls before a UTF-8 character instead of inside it, and `FlushMsg` no longer reads the byte before a message. The ranking of what is left: `doc/continuations-2026-10-06.md`.*
 
 ## How to read this
 
