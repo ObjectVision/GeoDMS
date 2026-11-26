@@ -225,6 +225,34 @@ void AccumulateNumericData(f64_accumulator& accu, bin_count_type& binCounts, con
 	}
 }
 
+SizeT AccumulateNumericSequences(f64_accumulator& accu, const AbstrDataItem* di)
+{
+	SizeT nrValues = 0;
+	auto domain = di->GetAbstrDomainUnit();
+	visit<typelists::num_objects>(di->GetAbstrValuesUnit(),
+		[&] <typename V> (const Unit<V>*)
+		{
+			using SequenceType = sequence_traits<V>::container_type;
+			auto data = const_array_cast<SequenceType>(di);
+			for (tile_id t = 0, tn = domain->GetNrTiles(); t != tn; ++t)
+			{
+				ReadableTileLock tileLck(di->GetRefObj().get(), t);
+				auto tileData = data->GetTile(t);
+				for (auto seq : tileData)
+				{
+					if (!IsDefined(seq))
+						continue;
+					++nrValues;
+					for (auto x : seq)
+						if (IsDefined(x))
+							accu(Convert<Float64>(x));
+				}
+			}
+		}
+	);
+	return nrValues;
+}
+
 void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, const AbstrDataItem* di)
 {
 	auto vu = di->GetAbstrValuesUnit();
@@ -409,6 +437,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 		bin_count_type binCounts;
 
 		auto vt = di->GetAbstrValuesUnit()->GetValueType();
+		auto composition = di->GetValueComposition();
 		{
 			PostLinkedTable table(os);
 			table.AddClipboardRow("Item name", item->GetFullName().c_str()); // #1149: the visible header already shows the path
@@ -464,7 +493,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			}
 
 			DataReadLock lock(di);
-			SizeT nrPoints = 0;
+			SizeT nrElements = 0;
 			if (!vt->IsNumeric() && vt->GetValueClassID() != ValueClassID::VT_Bool)
 			{
 				if (vt->GetNrDims() == 2)
@@ -473,7 +502,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 					AccumulatePointData(accu, di);
 					WritePointAccuData(table, accu, di);
 					d = accu.nrValues;
-					nrPoints = accu.nrPoints;
+					nrElements = accu.nrPoints;
 				}
 				else
 					d = n - di->GetRefObj()->GetNrNulls();
@@ -481,9 +510,17 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			else
 			{
 				f64_accumulator accu;
-				AccumulateNumericData(accu, binCounts, di);
+				if (composition == ValueComposition::Single)
+				{
+					AccumulateNumericData(accu, binCounts, di);
+					d = accu.d;
+				}
+				else
+				{
+					d = AccumulateNumericSequences(accu, di);
+					nrElements = accu.d;
+				}
 				WriteNumericAccuData(table, accu, di);
-				d = accu.d;
 			}
 
 			if (irr_n == n)
@@ -495,19 +532,19 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
 				WritePoolSizes<SharedStr>(table, di, "# actual   bytes in strings", "# reserved bytes in strings");
 
-			if (di->GetValueComposition() != ValueComposition::Single)
+			if (composition != ValueComposition::Single)
 			{
 				visit<typelists::sequence_fields>(di->GetAbstrValuesUnit(),
-					[&table, di, nrPoints] <typename V> (const Unit<V>*)
+					[&table, di, nrElements] <typename V> (const Unit<V>*)
 				{
-					if (nrPoints)
-						table.AddRow("# counted  elements in values", AsString(nrPoints).c_str());
+					if (nrElements)
+						table.AddRow("# counted  elements in values", AsString(nrElements).c_str());
 					WritePoolSizes<typename sequence_traits<V>::container_type>(table, di, "# actual   elements in values", "# reserved elements in values");
 				}
 				);
 			}
 		}
-		if (d)
+		if (d && (composition == ValueComposition::Single || !vt->IsNumeric()))
 			WriteBinData(os, binCounts, di);
 		return isReady;
 	}
