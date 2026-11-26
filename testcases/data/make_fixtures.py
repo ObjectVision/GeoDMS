@@ -227,3 +227,10 @@ dbf(os.path.join('odbc', 'odbc_t1.dbf'),
      ('3', '-3',  '',       ''),
      ('4', '120', '-0.125', 'gamma delta'),
      ('5', '0',   '10.000', 'e')])
+
+# ---------------------------------------------------------------- str storage
+# #1393: a str file that holds a single uint32, 4 bytes, which stor_str_short_neg.dms reads as an attribute<uint32>
+# of 10 elements, 40 bytes. The read must fail with the name of the file and the number of bytes it holds.
+with open(os.path.join(OUT, 'str_u32_short.str'), 'wb') as f:
+    f.write(struct.pack('<I', 7))
+print('str_u32_short.str', 4, 'bytes')

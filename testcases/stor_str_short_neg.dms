@@ -1,0 +1,17 @@
+// EXPECT-FAILURE: reading 40 bytes from this file stopped after 4 bytes, where the file ends
+// EXPECT-FAILURE: str_u32_short.str
+// #1393: a str file shorter than its item (data/str_u32_short.str holds one uint32, the item has 10 elements).
+// The read names the file and both sizes; before 9e20eb165 it stopped on an MG_CHECK as a GeoDMS internal error.
+// Expected: exit nonzero on /checks.
+container stor_str_short_neg
+{
+	unit<uint32> dom : nrofrows = 10;
+	attribute<uint32> x (dom)
+	:	StorageName     = "%currDir%/data/str_u32_short.str"
+	,	StorageType     = "str"
+	,	StorageReadOnly = "True";
+	container checks
+	{
+		parameter<bool> read_ok := sum(x) >= 0, IntegrityCheck = "read_ok == true";
+	}
+}
