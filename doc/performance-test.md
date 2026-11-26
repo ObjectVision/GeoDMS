@@ -1,6 +1,6 @@
 # Performance tests of the regression rounds, from 20.22.0 on
 
-*Status (2026-11-25): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
+*Status (2026-11-27): a measurement log of the full.py regression rounds from 20.22.0 on, per machine,
 followed by the known causes of differences between versions. The rounds of 20.20.0 and 20.21.x, which
 measured the deferral of commits and IntegrityChecks of #1259 that was removed again (a7127224f,
 92eaa7150), moved on 2026-10-06 to
@@ -2325,7 +2325,8 @@ that a round is not bisected for a cause that is already known.
 
 ## `proximity`: where the link of `Geo.dll` puts its inner loop
 
-Established on 2026-11-10 on OVSRV05 with eight kept builds; the mechanism is not measured.
+Established on 2026-11-10 on OVSRV05 with eight kept builds; the mechanism is not measured. The commit of #1399, in
+20.30.0, took the branch and the store out of the loop; measured on 2026-11-27 on OVSRV10.
 
 `proximity` goes to `CalculateClassic` (`geo/dll/src/Potential.cpp:669`), not to FFTW. Its inner loop,
 `MakeMax(*outputPtr, *dataPtr++ * *weightPtr++)` (`:725`), is 35 bytes of machine code in the Float32 form, with a
@@ -2349,9 +2350,17 @@ per build in an interleaved order, seconds:
 The four releases were predicted from their offsets before they were run (`scratch\perf_ovsrv05\ab_prox_layout.cmd`);
 the rows of 20.28.0 and `e5944a676` come from the A/B of 2026-11-06, the rest from 2026-11-10. A loop that starts at 32
 or 48 crosses a 64-byte boundary and an item takes 41.7 to 45.6 s; one that starts at 0 or 16 fits within it and an item
-takes 29.4 to 31.8 s. The statistics are equal in every run. So a t810 difference of 25 to 50 s between two builds can be
-nothing but this, whatever else changed, and any edit that moves code in `Geo.dll` can flip it. A loop that keeps the
-maximum in a local and stores it once per kernel row would presumably not depend on its place; not tried.
+takes 29.4 to 31.8 s. The statistics are equal in every run. So a t810 difference of 25 to 50 s between two builds before
+the commit of #1399 can be nothing but this, whatever else changed, and any edit that moved code in `Geo.dll` could flip it.
+
+From the commit of #1399 on, `CalculateClassic` keeps the result of an output cell in a local and stores it once, after all kernel
+rows, and `proximity` takes `std::max`, which MSVC compiles to `maxss`. The Float32 loop is then 28 bytes and eight
+instructions, with no branch on the data and no store; in the build of 2026-11-27 it starts at 32 mod 64 and ends within
+the same block. With the probe of #1399 on OVSRV10, three interleaved runs per build while a model was also running on the
+machine, `/prox` took 3.1 s (median) against medians of 5.2 and 5.3 s on two kept builds with the old loop at 0 and 16, and
+7.3 and 8.1 s on two with it at 32 and 48. So t810 should be faster from that commit on than on any build before it; t810
+itself has not run on it yet. Whether the new loop still depends on its place is not measured; at 48 it would cross a
+boundary, as 48 + 28 > 64.
 
 ## FixedAlloc's free stacks: which sizes they keep, and since when
 

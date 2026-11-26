@@ -27,6 +27,7 @@
 #include "AttrUniStructNum.h"
 
 #include <fftw3.h>
+#include <algorithm> // std::max
 #include <cstdlib> // std::atexit (fftw_cleanup at process exit)
 #include <limits>
 #include <map>
@@ -706,9 +707,15 @@ bool CalculateClassic(AnalysisType at,
 			dms_assert(dataColRange  .first < dataColRange  .second);
 			dms_assert(weightColRange.first < weightColRange.second);
 
-			T* outputPtr = outputGrid.elemptr(shp2dms_order(outputCol, outputRow));	
-			*outputPtr = 0;
-			
+			// The result of this output cell stays in a local and is stored once, after all kernel rows. The output buffer
+			// is an allocation of its own (AlignedArray::reserve), apart from the data tile and the kernel, so no read in
+			// the loop sees what outputPtr points at; the compiler cannot prove that and would otherwise store through
+			// outputPtr inside the loop. std::max(m, v) returns (m < v) ? v : m and can compile to maxss instead of a
+			// branch (#1399). Proximity starts at 0 because StoreImpl in OperPot.cpp starts each result tile at 0, copies
+			// the part that the first data tile covers and takes the max with the others; a lower start would make the
+			// result depend on the tiling.
+			T resValue = 0;
+
 			for (UCoordType weightRow = weightRowRange.first, dataRowLocal = dataRowRange.first; weightRow != weightRowRange.second; ++weightRow, ++dataRowLocal)
 			{
 				const T* dataPtr   = dataGrid  .elemptr(shp2dms_order(dataColRange  .first, dataRowLocal));
@@ -719,14 +726,17 @@ bool CalculateClassic(AnalysisType at,
 				{
 					case AnalysisType::PotentialSlow:
 						while (weightPtr != weightEnd)
-							*outputPtr += *dataPtr++ * *weightPtr++;
+							resValue += *dataPtr++ * *weightPtr++;
 						break;
 					case AnalysisType::Proximity:
 						while (weightPtr != weightEnd)
-							MakeMax(*outputPtr, *dataPtr++ * *weightPtr++); 
+							resValue = std::max(resValue, *dataPtr++ * *weightPtr++);
 						break;
 				}
 			} // next weightRow, dataRowLocal
+
+			T* outputPtr = outputGrid.elemptr(shp2dms_order(outputCol, outputRow));
+			*outputPtr = resValue;
 		} // next outputCol, dataCol
 	} // next outputRow, dataRow
 

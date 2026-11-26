@@ -18,6 +18,7 @@
 - With many distinct values, `modus` and `unique` need about half the memory for their intermediate values; `weeded_counts` and the [classify functions](https://github.com/ObjectVision/GeoDMS/wiki/Classify-functions) use the same approach. `unique` of strings and arcs no longer copies its argument (#1327).
 - `pareto_optimal` and `pareto_optimal_eps` need at most 16 bytes per row while sorting, so large calls that ran out of memory now fit (#1327).
 - GeoParquet in the layout that geopandas writes opens without a scan of all its geometries (#1328).
+- *(new in 20.30)* `proximity` no longer branches on the data or stores into its result inside the loop over the kernel. Depending only on where its code landed in the build, it used to be about 40 % slower in some builds than in others; with a kernel of 201 x 201 cells it now takes about 0.6 of the time of the faster ones (#1399, [proximity](https://github.com/ObjectVision/GeoDMS/wiki/Proximity)).
 
 ## New operators: fold and fold_c
 
