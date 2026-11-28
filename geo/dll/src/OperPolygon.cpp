@@ -2039,6 +2039,17 @@ public:
 //	point_in_all_polygons
 // *****************************************************************************
 
+#include "ThreadScratch.h"
+
+namespace PointInAllPolygonsParams
+{
+	// The points of a tile are tested in blocks of at most this many, one parallel task per block, and a block appends the
+	// pairs it found to the result of the tile at once, under one lock (#1398). With a task per point and a lock per pair
+	// found, every point paid for a task hand-out and a completion under the mutex that all worker threads share. The same
+	// size as the blocks of parallel_for_if_separable (rtc/dll/src/tic/ParallelTiles.h), which connect_neighbour uses for its
+	// points. A tile with few points gets smaller blocks, so that every thread still gets a few (element_block_size).
+	constexpr SizeT MaxPointsPerBlock = 4096;
+}
 
 static CommonOperGroup s_grPiaP("point_in_all_polygons", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
@@ -2231,23 +2242,33 @@ public:
 
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
-		parallel_for(tile_offset(pointArray.size()),
-			[&pointArray, &polyArray, spIndexPtr, &edgeIndex, resTileData, &resLocalAdditionSection]
-			(tile_offset pointTileOffset)->void
+		// StoreRes sorts the pairs of a tile on point and polygon, so the order in which the blocks append them does not
+		// change the result.
+		const SizeT nrPoints = pointArray.size();
+		const SizeT blockSize = element_block_size(nrPoints, PointInAllPolygonsParams::MaxPointsPerBlock);
+		parallel_for<SizeT>((nrPoints + blockSize - 1) / blockSize,
+			[&pointArray, &polyArray, spIndexPtr, &edgeIndex, resTileData, &resLocalAdditionSection, nrPoints, blockSize]
+			(SizeT blockNr)->void
 			{
-				auto pointPtr = pointArray.begin() + pointTileOffset;
-				if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), *pointPtr))
-					return;
-
-				for (auto iter = spIndexPtr->begin(*pointPtr); iter; ++iter)
+				ResTileDataType blockRes;
+				for (SizeT i = blockNr * blockSize, ie = std::min(nrPoints, i + blockSize); i != ie; ++i)
 				{
-					SizeT c = (*iter)->get_ptr() - polyArray.begin();
-					if (edgeIndex.IsInside(c, *((*iter)->get_ptr()), *pointPtr))
+					auto pointPtr = pointArray.begin() + i;
+					if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), *pointPtr))
+						continue;
+
+					for (auto iter = spIndexPtr->begin(*pointPtr); iter; ++iter)
 					{
-						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-						resTileData->emplace_back(pointTileOffset, tile_offset(c));
+						SizeT c = (*iter)->get_ptr() - polyArray.begin();
+						if (edgeIndex.IsInside(c, *((*iter)->get_ptr()), *pointPtr))
+							blockRes.emplace_back(tile_offset(i), tile_offset(c));
 					}
 				}
+				if (blockRes.empty())
+					return;
+
+				leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+				resTileData->insert(resTileData->end(), blockRes.begin(), blockRes.end());
 			}
 		);
 	}

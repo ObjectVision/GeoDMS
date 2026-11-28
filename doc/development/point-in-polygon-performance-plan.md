@@ -1,7 +1,7 @@
 # Performance plan: the point-in-polygon operators and the other users of the spatial index
 
-*Status (2026-11-05): item 2 (#1320) is done, see "As built" under it; items 1 (#1319) and 5 (the text of a
-table, outside the spatial index, #1321) are still plans, items 3 and 4 wait for evidence from a model. Written after #1292
+*Status (2026-11-28): items 1 (#1319, done under #1398) and 2 (#1320) are done, see "As built" under each; item 5
+(the text of a table, outside the spatial index, #1321) is still a plan, items 3 and 4 wait for evidence from a model. Written after #1292
 (the loose quadtree, 7c4000cdc, 20.25.0) closed. The measurements below were taken on OVSRV10 with a kept copy of the Release build of
 c56fe51a2 (`C:\LocalData\GeoDMS_engine\20.25.0_c56fe51a2`), on an almost idle machine (2 to 7 % CPU
 load), from `scratch\perf_idx\probe_idx.dms`.*
@@ -54,6 +54,22 @@ The same per-match lock is in the overlay operators (`geo/dll/src/BoostPolygon.c
 `:826`, `:868`, `:903`), where it is taken once per pair that intersects. There the intersection of two
 polygons probably costs far more than the lock, so measure first (an overlay of 1 M squares with the
 same squares moved by half a square: four pairs per square) and change it only when the lock shows.
+
+As built (2026-11-28, #1398): `PointInAllPolygonsOperator::Calculate` gives `parallel_for` blocks of points
+instead of single points, sized by `element_block_size` with at most `PointInAllPolygonsParams::MaxPointsPerBlock`
+(4096) points. Where it differs from the plan above:
+
+- A block appends its vector to the tile's vector under the lock, once per block, instead of the blocks being
+  concatenated in their order without a lock; the sort in `StoreRes` makes the order irrelevant.
+- With a task per point, every point also paid for the hand-out and the completion of its task under the
+  mutex of `tile_task_group`, which all worker threads share (#1394 found the threads of a Debug run waiting
+  there). The blocks remove that cost as well as the lock per match.
+- No stack sample of the probe was taken before the change. Measured instead on OVSRV10, against a kept copy
+  of the Release build before it, two interleaved runs each, from the `[performance]` lines:
+  `point_in_all_polygons` of the probe took 687 and 756 ms, against 74.5 and 75.1 s before.
+  `point_in_polygon` of the same points, which the change does not touch, took 693 ms on the build before and
+  756 ms after, one run each. Every pair of the result was checked against the cell of its point, on both builds.
+- The lock of the overlay operators is unchanged and still not measured.
 
 ### 2. A polygon with many vertices: `IsInside` reads every vertex (#1320)
 

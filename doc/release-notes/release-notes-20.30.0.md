@@ -19,6 +19,7 @@
 - `pareto_optimal` and `pareto_optimal_eps` need at most 16 bytes per row while sorting, so large calls that ran out of memory now fit (#1327).
 - GeoParquet in the layout that geopandas writes opens without a scan of all its geometries (#1328).
 - *(new in 20.30)* `proximity` no longer branches on the data or stores into its result inside the loop over the kernel. Depending only on where its code landed in the build, it used to be about 40 % slower in some builds than in others; with a kernel of 201 x 201 cells it now takes about 0.6 of the time of the faster ones (#1399, [proximity](https://github.com/ObjectVision/GeoDMS/wiki/Proximity)).
+- *(new in 20.30)* `point_in_all_polygons` hands the points of a tile to its threads in blocks instead of one by one, so that the threads no longer wait for each other on every point. On OVSRV10, 10 million points over 1 million squares take 0.7 s instead of 75 s, as long as `point_in_polygon` takes for them (#1398, #1319).
 
 ## New operators: fold and fold_c
 
